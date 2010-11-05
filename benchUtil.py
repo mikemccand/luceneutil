@@ -6,7 +6,8 @@ import shutil
 import sys
 import cPickle
 import datetime
-
+from luceneutil import BASE_DIR
+from luceneutil import BENCH_BASE_DIR
 # TODO
 #   - add option for testing sorting, applying the SortValues.patch!!
 #   - verify step
@@ -262,7 +263,7 @@ class RunAlgs:
     job = IndexJob(prefix, numDocs, alg)
 
     try:
-      self.runOne(workingDir, job, logFileName=indexName+'.log')
+      self.runOne(workingDir, job, sourceBase, logFileName=indexName+'.log')
     except:
       if os.path.exists(fullIndexPath):
         shutil.rmtree(fullIndexPath)
@@ -270,34 +271,32 @@ class RunAlgs:
 
     return fullIndexPath
 
-  def getClassPath(self):
-    cp = '.:../../build/classes/java'
-    cp += ':../../build/classes/test'
-    if os.path.exists('../../../modules'):
-      cp += ':../../../modules/analysis/build/common/classes/java'
-      cp += ':../../../modules/analysis/build/icu/classes/java'
+  def getClassPath(self, base):
+    baseDict = {'base' : base}
+    cp = '.:%(base)s/lucene/build/classes/java'
+    cp += ':%(base)s/lucene/build/classes/test'
+    if os.path.exists('%(base)s/modules' % baseDict):
+      cp += ':%(base)s/modules/analysis/build/common/classes/java'
+      cp += ':%(base)s/modules/analysis/build/icu/classes/java'
     else:
-      cp += ':../../build/contrib/analyzers/common/classes/java'
-    return cp
+      cp += ':%(base)s/lucene/build/contrib/analyzers/common/classes/java'
+    return cp % baseDict
 
-  def compile(self, path):
+  def compile(self,competitor):
+    path = '%s/lucene/contrib/benchmark' % (competitor.sourceBase)
+    sourceBase = competitor.sourceBase
     print 'COMPILE: %s' % path
     os.chdir(path)
     run('ant compile > compile.log 2>&1', 'compile.log')
     if path.endswith('/'):
       path = path[:-1]
       
-    cp = self.getClassPath()
-    if not os.path.exists('SearchPerfTest.java'):
-      run('ln -s /home/mike/src/util/SearchPerfTest.java .')
-    if not os.path.exists('CachedFilterIndexReader.java'):
-      if path.find('3x') != -1:
-        run('ln -s /home/mike/src/util/NOPCachedFilterIndexReader.java CachedFilterIndexReader.java')
-      else:
-        run('ln -s /home/mike/src/util/CachedFilterIndexReader.java .')
-    run('javac -cp %s SearchPerfTest.java >> compile.log 2>&1' % cp,  'compile.log')
+    cp = self.getClassPath(sourceBase)
+    if not os.path.exists('perf'):
+      run('ln -s %s/perf .' % BENCH_BASE_DIR)
+    competitor.compile(cp)
     
-  def runOne(self, workingDir, job, verify=False, logFileName=None):
+  def runOne(self, workingDir, job, sourceBase, verify=False, logFileName=None):
 
     if logFileName is None:
       logFileName = '%s.%d' % (job.label, self.logCounter)
@@ -328,7 +327,7 @@ class RunAlgs:
       print '    log: %s/%s' % (workingDir, fullLogFileName)
 
       command = '%s -classpath %s:../../build/contrib/highlighter/classes/java:lib/icu4j-4_4_1_1.jar:lib/icu4j-charsets-4_4_1_1.jar:lib/commons-digester-1.7.jar:lib/commons-collections-3.1.jar:lib/commons-compress-1.0.jar:lib/commons-logging-1.0.4.jar:lib/commons-beanutils-1.7.0.jar:lib/xerces-2.9.0.jar:lib/xml-apis-2.9.0.jar:../../build/contrib/benchmark/classes/java org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
-                (self.javaCommand, self.getClassPath(), algFullFile, fullLogFileName)
+                (self.javaCommand, self.getClassPath(sourceBase), algFullFile, fullLogFileName)
 
       if DEBUG:
         print 'command=%s' % command
@@ -479,13 +478,13 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     
     return s
 
-  def runSimpleSearchBench(self, lucenePath, prefix, commit, indexPath, iters, threadCount, filter=None):
-    os.chdir(lucenePath)
-    cp = self.getClassPath()
-    logFile = '%s/res-%s.txt' % (lucenePath, prefix)
+  def runSimpleSearchBench(self, c, iters, threadCount, filter=None):
+    os.chdir(c.benchDir)
+    cp = self.getClassPath(c.sourceBase)
+    logFile = '%s/res-%s.txt' % (c.benchDir, c.name)
     print 'log %s' % logFile
-    command = '%s -cp %s SearchPerfTest %s %s %s %s' % \
-        (self.javaCommand, cp, indexPath, threadCount, iters, commit)
+    command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s' % \
+        (self.javaCommand, c.taskRunProperties(), cp, c.indexDir(self.baseDir), threadCount, iters, c.commitPoint)
     if filter is not None:
       command += ' %s %.2f' % filter
     run('%s > %s' % (command, logFile))

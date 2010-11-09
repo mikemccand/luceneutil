@@ -78,7 +78,15 @@ def getArg(argName, default, hasArg=True):
       del sys.argv[idx]
   return v
     
-logDirName = '/tmp/logs/%s' % os.path.split(os.getcwd())[-1]
+tup = os.path.split(os.getcwd())
+
+if tup[1] != 'lucene':
+  print '\nERROR: you need to be in lucene subdir when running this\n'
+  sys.exit(1)
+
+sub = os.path.split(tup[0])[1]
+  
+logDirName = '/tmp/logs/%s' % sub
 if IS_WINDOWS:
   logDirName = 'c:' + logDirName
 doLog = True
@@ -104,7 +112,7 @@ verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
 
 if len(sys.argv) == 1:
-  print 'ERROR: no test specified'
+  print '\nERROR: no test specified\n'
   sys.exit(1)
 
 tests = []
@@ -112,7 +120,7 @@ for test in sys.argv[1:]:
   if not test.startswith('org.'):
     tup = locateTest(test)
     if tup is None:
-      print 'ERROR: cannot find test %s' % test
+      print '\nERROR: cannot find test %s\n' % test
       sys.exit(1)
     testClass, testMethod = tup
     tests.append((testClass, testMethod))

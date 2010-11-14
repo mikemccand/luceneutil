@@ -11,8 +11,8 @@ if '-debug' in sys.argv:
   INDEX_NUM_DOCS = 100000
 else:
   INDEX_NUM_DOCS = 10000000
-INDEX_NUM_THREADS = 1
 
+INDEX_NUM_THREADS = 1
 
 def run(*competitors):  
   r = benchUtil.RunAlgs(INDEX_DIR_BASE, JAVA_COMMAND)
@@ -40,7 +40,7 @@ def run(*competitors):
   results = {}
   for c in competitors:
     print 'Search on %s...' % c.name
-    benchUtil.run("sudo %s/bench/dropCaches.sh" % BASE_DIR)
+    benchUtil.run("sudo %s/dropCaches.sh" % BENCH_BASE_DIR)
     t0 = time.time()
     results[c] = r.runSimpleSearchBench(c, iters, threads, filter=None)
     print '  %.2f sec' % (time.time() - t0)
@@ -101,12 +101,15 @@ PFOR_COMPETITOR = Competitor('LUCENE-2723_trunk', BASE_DIR, defaultCodec="Patche
 FOR_COMPETITOR = Competitor('LUCENE-2723_trunk', BASE_DIR, defaultCodec="FrameOfRef")
 GROUP_VAR_INT_COMPETITOR = Competitor('LUCENE-2735_trunk', BASE_DIR, defaultCodec="GVInt")
 
+CLEAN_COMPETITOR = Competitor('clean', '/lucene')
+SIMON_COMPETITOR = Competitor('simon', '/lucene')
+
 def main():
 
   if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 #  run(TRUNK_COMPETITOR.setTask('loadIdFC'), DOCVALUES_COMPETITOR)
-  run(TRUNK_COMPETITOR, FOR_COMPETITOR)
+  run(CLEAN_COMPETITOR, SIMON_COMPETITOR)
 
 if __name__ == '__main__':
   main()

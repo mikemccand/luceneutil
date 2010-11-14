@@ -9,7 +9,7 @@ import heapq
 import subprocess
 import time
 import sys
-import luceneutil
+import constants
 
 # TODO
 #   - how come quiet logging doesn't "take"???
@@ -22,24 +22,24 @@ import luceneutil
 #   - verify i can "ant clean" @ top then run this; eg I'm not compiling Solr tests correctly yet
 
 s = os.getcwd()
-if not s.startswith(luceneutil.BASE_DIR):
-  raise RuntimeError('checkout is not under luceneutil.BASE_DIR?')
+if not s.startswith(constants.BASE_DIR):
+  raise RuntimeError('checkout is not under constants.BASE_DIR?')
 
-s = s[len(luceneutil.BASE_DIR):]
+s = s[len(constants.BASE_DIR):]
 if s.startswith(os.sep):
   s = s[1:]
 
 checkout = s.split(os.sep)[0]
 del s
 
-ROOT = '%s/%s' % (luceneutil.BASE_DIR, checkout)
+ROOT = '%s/%s' % (constants.BASE_DIR, checkout)
 
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
 
 COST_PER_JOB = 30.0
 
-TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % luceneutil.BASE_DIR
+TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
 NUM_THREAD = 18
 
@@ -431,6 +431,5 @@ while True:
   if failed or not '-repeat' in sys.argv:
     break
 
-  shutil.rmtree('%s/%s/lucene/build/test' % (luceneutil.BASE_DIR, checkout))
-  shutil.rmtree('%s/%s/solr/build/test' % (luceneutil.BASE_DIR, checkout))
+  shutil.rmtree('%s/%s/lucene/build/test' % (constants.BASE_DIR, checkout))
   t0 = time.time()

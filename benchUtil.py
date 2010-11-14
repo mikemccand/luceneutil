@@ -6,7 +6,7 @@ import shutil
 import sys
 import cPickle
 import datetime
-import luceneutil
+import constants
 
 # TODO
 #   - add option for testing sorting, applying the SortValues.patch!!
@@ -54,7 +54,7 @@ SetProp(print.hits.field,)
 $ROUNDS$
 CloseReader 
 RepSumByPrefRound XSearch
-''' % luceneutil.ANALYZER
+''' % constants.ANALYZER
 
 SINGLE_SEG_INDEX_ALG = '''
 analyzer=%s
@@ -107,7 +107,7 @@ RepSumByPrefRound BuildIndex
 }
 
 RepSumByPrefRound OptimizeIndex
-''' % luceneutil.ANALYZER
+''' % constants.ANALYZER
 
 MULTI_COMMIT_INDEX_ALG = '''
 analyzer=org.apache.lucene.analysis.en.EnglishAnalyzer
@@ -293,7 +293,7 @@ class RunAlgs:
       
     cp = self.getClassPath(sourceBase)
     if not os.path.exists('perf'):
-      run('ln -s %s/perf .' % luceneutil.BENCH_BASE_DIR)
+      run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)
     competitor.compile(cp)
     
   def runOne(self, workingDir, job, sourceBase, verify=False, logFileName=None):

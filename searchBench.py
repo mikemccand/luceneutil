@@ -2,7 +2,7 @@ import time
 import sys
 import os
 import benchUtil
-from luceneutil import *
+from constants import *
 
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'

@@ -6,8 +6,8 @@ import shutil
 import sys
 import cPickle
 import datetime
-from luceneutil import BASE_DIR
-from luceneutil import BENCH_BASE_DIR
+import luceneutil
+
 # TODO
 #   - add option for testing sorting, applying the SortValues.patch!!
 #   - verify step
@@ -38,7 +38,7 @@ DEBUG = True
 LOG_SUB_DIR = 'logs'
 
 BASE_SEARCH_ALG = '''
-analyzer=org.apache.lucene.analysis.en.EnglishWDFAnalyzer
+analyzer=%s
 directory=FSDirectory
 work.dir = $INDEX$
 search.num.hits = $NUM_HITS$
@@ -54,10 +54,10 @@ SetProp(print.hits.field,)
 $ROUNDS$
 CloseReader 
 RepSumByPrefRound XSearch
-'''
+''' % luceneutil.ANALYZER
 
 SINGLE_SEG_INDEX_ALG = '''
-analyzer=org.apache.lucene.analysis.en.EnglishWDFAnalyzer
+analyzer=%s
 
 $OTHER$
 
@@ -107,7 +107,7 @@ RepSumByPrefRound BuildIndex
 }
 
 RepSumByPrefRound OptimizeIndex
-'''
+''' % luceneutil.ANALYZER
 
 MULTI_COMMIT_INDEX_ALG = '''
 analyzer=org.apache.lucene.analysis.en.EnglishAnalyzer
@@ -244,7 +244,7 @@ class RunAlgs:
     else:
       print 'OS:\n%s' % sys.platform
       
-  def makeIndex(self, defaultCodec, workingDir, prefix, source, numDocs, numThreads, lineDocSource=None, xmlDocSource=None):
+  def makeIndex(self, defaultCodec, workingDir, prefix, source, numDocs, numThreads, sourceBase, lineDocSource=None, xmlDocSource=None):
 
     if source not in ('wiki', 'random'):
       raise RuntimeError('source must be wiki or random')
@@ -293,7 +293,7 @@ class RunAlgs:
       
     cp = self.getClassPath(sourceBase)
     if not os.path.exists('perf'):
-      run('ln -s %s/perf .' % BENCH_BASE_DIR)
+      run('ln -s %s/perf .' % luceneutil.BENCH_BASE_DIR)
     competitor.compile(cp)
     
   def runOne(self, workingDir, job, sourceBase, verify=False, logFileName=None):

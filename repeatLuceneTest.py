@@ -8,7 +8,7 @@ import sys
 
 IS_WINDOWS = sys.platform.find('win') != -1 and sys.platform.find('darwin') == -1
 
-JAVA_ARGS = '-Xmx512m -Xms512m'
+JAVA_ARGS = '-server -Xmx512m -Xms512m'
 
 if 0:
   if 0:
@@ -110,6 +110,7 @@ codec = getArg('-codec', 'random')
 dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
+seed = getArg('-seed', None)
 
 if len(sys.argv) == 1:
   print '\nERROR: no test specified\n'
@@ -160,6 +161,8 @@ while True:
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
+    if seed is not None:
+      command += ' -Dtests.seed=%s' % seed
     if testMethod is not None:
       command += ' -Dtestmethod=%s' % testMethod
       
@@ -173,9 +176,12 @@ while True:
     if doLog:
       command += ' > %s/%d.log 2>&1' % (logDirName, upto)
       
-    print '  remove build/test'
     if os.path.exists('build/test'):
-      shutil.rmtree('build/test')
+      print '  remove build/test'
+      try:
+        shutil.rmtree('build/test')
+      except OSError:
+        pass
     print '  RUN: %s' % command
     res = os.system(command)
 

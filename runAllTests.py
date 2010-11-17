@@ -10,10 +10,11 @@ import subprocess
 import time
 import sys
 import constants
+import copy
 
 # TODO
 #   - how come quiet logging doesn't "take"???
-#   - hmm can i 'compile-contrib' while letting other threads run core-only jobs?
+#   - hmm an i 'compile-contrib' while letting other threads run core-only jobs?
 #   - must test modules/analyzers too!!
 #   - learn over time which tests are slowest and run those first
 #   - threads!
@@ -194,11 +195,15 @@ class WorkQueue:
   def pop(self):
     with self.lock:
       if len(self.q) == 0:
-        return None
-      else:
-        v = heapq.heappop(self.q)
-        # print 'WQ: %s %s' % (v.cost, ' '.join(v.tests))
-        return v
+        if '-repeat' in sys.argv:
+          pr('t')
+          aggTests(self, tests)
+        else:
+          return None
+
+      v = heapq.heappop(self.q)
+      # print 'WQ: %s %s' % (v.cost, ' '.join(v.tests))
+      return v
 
 class RunThread:
 
@@ -213,6 +218,7 @@ class RunThread:
       pass
     self.suiteCount = 0
     self.failed = False
+    self.myEnv = copy.copy(os.environ)
     self.t = threading.Thread(target=self.run)
     self.t.setDaemon(True)
     self.t.start()
@@ -233,12 +239,20 @@ class RunThread:
         #pr('%s: RUN' % self.id)
         pr('.')
         logFile = '%s/%s.log' % (ROOT, self.id)
-        cmd = 'java -Xmx512m -Xms512m %s -cp %s -Dlucene.version=%s -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
-              (TEST_ARGS, ':'.join(job.classpath), LUCENE_VERSION, self.tempDir, ROOT, ' '.join(job.tests))
+        cmd = 'java -Xmx512m -Xms512m %s -Dlucene.version=%s -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
+              (TEST_ARGS, LUCENE_VERSION, self.tempDir, ROOT, ' '.join(job.tests))
+
+        if 0:
+          print
+          print 'wd %s' % job.wd
+          print 'cp %s' % ':'.join(job.classpath)
+          print 'cmd %s' % cmd
 
         #open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n  RUN: %s\n' % (job.cost, ' '.join(job.tests), job.wd, cmd))
         open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n' % (job.cost, ' '.join(job.tests), job.wd))
 
+        self.myEnv['CLASSPATH'] = ':'.join(job.classpath)
+        
         if 0:
           if job.tests[0].find('.solr.') != -1:
             wd = '%s/solr/src/test/test-files' % ROOT
@@ -250,18 +264,15 @@ class RunThread:
 
         if not DO_GATHER_TIMES:
           cmd += ' >> %s 2>&1' % logFile
-          t0 = time.time()
-          # print 'cmd %s' % cmd
-          if os.system(cmd):
-            pr('\n%s: FAILED %s [see %s]\n' % (self.id, job.tests[0], logFile))
-            self.failed = True
-          testTime = time.time() - t0
-        else:
-          p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-          output = p.communicate()[0]
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
+        output = p.communicate()[0]
+        if DO_GATHER_TIMES:
           open(logFile, 'ab').write(output + '\n')
-          if p.returncode != 0:
-            pr('\n%s: FAILED %s [see %s]\n' % (self.id, job.tests[0], logFile))
+        if p.returncode != 0:
+          pr('\n%s: FAILED %s [see %s]\n' % (self.id, job.tests[0], logFile))
+          self.failed = True
+
+        if DO_GATHER_TIMES:
           m = reTime.search(output)
           if m is None:
             print 'FAILED to parse time %s' % output
@@ -269,7 +280,6 @@ class RunThread:
           else:
             testTime = float(m.group(1))
           
-        if DO_GATHER_TIMES:
           # take max
           if job.tests[0] not in testTimes or \
              testTimes[job.tests[0]] < testTime:
@@ -419,25 +429,11 @@ threads = []
 for i in range(NUM_THREAD):
   threads.append(RunThread(i, workQ))
 
-while True:
-  totSuites = 0
-  failed = False
-  first = True
-  for i in range(NUM_THREAD):
-    threads[i].join()
-    totSuites += threads[i].suiteCount
-    failed = failed or threads[i].failed
-
-    if repeat and not failed:
-      if first:
-        first = False
-        aggTests(workQ, tests)
-        pr('t')
-
-      threads[i] = RunThread(i, workQ)
-
-  if not repeat or failed:
-    break
+totSuites = 0
+failed = False
+for i in range(NUM_THREAD):
+  threads[i].join()
+  totSuites += threads[i].suiteCount
 
 if DO_GATHER_TIMES:
   open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(testTimes))

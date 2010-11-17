@@ -41,6 +41,15 @@ elif sys.platform.lower().find('linux') != -1:
 else:
   osName = 'unix'
 
+def checkoutToPath(checkout):
+  return '%s/%s' % (constants.BASE_DIR, checkout)
+
+def checkoutToBenchPath(checkout):
+  return '%s/lucene/contrib/benchmark' % checkoutToPath(checkout)
+
+def nameToIndexPath(name):
+  return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
+
 reQuery = re.compile('^q=(.*?) s=(.*?) h=(.*?)$')
 reHits = re.compile('^HITS q=(.*?) s=(.*?) tot=(.*?)$')
 reHit = re.compile('^(\d+) doc=(\d+) score=([0-9.]+)$')
@@ -163,7 +172,6 @@ CreateIndex
 { "BuildIndex"
   $INDEX_LINE$
   -CommitIndex(multi)
-  -CloseIndex
 }
 
 RepSumByPrefRound BuildIndex
@@ -190,8 +198,8 @@ CommitIndex(delsingle)
 CloseReader
 '''
 
-#BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
-BASE_INDEX_ALG = SINGLE_SEG_INDEX_ALG
+BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
+#BASE_INDEX_ALG = SINGLE_SEG_INDEX_ALG
 
 def run(cmd, log=None):
   print 'RUN: %s' % cmd
@@ -199,6 +207,20 @@ def run(cmd, log=None):
     if log is not None:
       print open(log).read()
     raise RuntimeError('failed: %s [wd %s]' % (cmd, os.getcwd()))
+
+class Index:
+
+  def __init__(self, checkout, dataSource, codec, numDocs, numThreads, lineDocSource=None, xmlDocSource=None):
+    self.checkout = checkout
+    self.dataSource = dataSource
+    self.codec = codec
+    self.numDocs = numDocs
+    self.numThreads = numThreads
+    self.lineDocSource = lineDocSource
+    self.xmlDocSource = xmlDocSource
+
+  def getName(self):
+    return '%s.%s.nd%gM' % (self.checkout, self.codec, self.numDocs/1000000.0)
 
 class SearchResult:
 
@@ -212,13 +234,10 @@ class SearchResult:
 
 class Job:
 
-  def __init__(self, cat, label, numIndexDocs, alg, queries=None, numRounds=None):
+  def __init__(self, cat, numIndexDocs, alg, queries=None, numRounds=None):
 
     # index or search
     self.cat = cat
-
-    # eg clean, flex, csf, etc
-    self.label = label
 
     self.queries = queries
 
@@ -228,17 +247,16 @@ class Job:
     self.alg = alg
 
 class SearchJob(Job):
-  def __init__(self, label, numIndexDocs, alg, queries, numRounds):
-    Job.__init__(self, 'search', label, numIndexDocs, alg, queries, numRounds)
+  def __init__(self, numIndexDocs, alg, queries, numRounds):
+    Job.__init__(self, 'search', numIndexDocs, alg, queries, numRounds)
 
 class IndexJob(Job):
-  def __init__(self, label, numIndexDocs, alg):
-    Job.__init__(self, 'index', label, numIndexDocs, alg)
+  def __init__(self, numIndexDocs, alg):
+    Job.__init__(self, 'index', numIndexDocs, alg)
 
 class RunAlgs:
 
-  def __init__(self, baseDir, javaCommand):
-    self.baseDir = baseDir
+  def __init__(self, javaCommand):
     self.logCounter = 0
     self.results = []
     self.compiled = set()
@@ -262,26 +280,24 @@ class RunAlgs:
     else:
       print 'OS:\n%s' % sys.platform
       
-  def makeIndex(self, defaultCodec, workingDir, prefix, source, numDocs, numThreads, sourceBase, lineDocSource=None, xmlDocSource=None):
+  def makeIndex(self, index):
 
-    if source not in ('wiki', 'random'):
-      raise RuntimeError('source must be wiki or random')
+    if index.dataSource not in ('wiki', 'random'):
+      raise RuntimeError('source must be wiki or random (got %s)' % index.dataSource)
 
-    indexName = '%s.work.%s.%s.nd%gM' % (defaultCodec, prefix, source, numDocs/1000000.0)
-    fullIndexPath = '%s/%s' % (self.baseDir, indexName)
-    
+    fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath):
       print 'Index %s already exists...' % fullIndexPath
       return fullIndexPath
 
     print 'Now create index %s...' % fullIndexPath
 
-    alg = self.getIndexAlg(defaultCodec, fullIndexPath, source, numDocs, numThreads, lineDocSource=lineDocSource, xmlDocSource=xmlDocSource)
+    alg = self.getIndexAlg(index.codec, fullIndexPath, index.dataSource, index.numDocs, index.numThreads, lineDocSource=index.lineDocSource, xmlDocSource=index.xmlDocSource)
 
-    job = IndexJob(prefix, numDocs, alg)
+    job = IndexJob(index.numDocs, alg)
 
     try:
-      self.runOne(workingDir, job, sourceBase, logFileName=indexName+'.log')
+      self.runOne(index.checkout, job, logFileName=index.getName()+'.log')
     except:
       if os.path.exists(fullIndexPath):
         shutil.rmtree(fullIndexPath)
@@ -289,8 +305,8 @@ class RunAlgs:
 
     return fullIndexPath
 
-  def getClassPath(self, base):
-    baseDict = {'base' : base}
+  def getClassPath(self, checkout):
+    baseDict = {'base' : checkoutToPath(checkout)}
     cp = '.:%(base)s/lucene/build/classes/java'
     cp += ':%(base)s/lucene/build/classes/test'
     if os.path.exists('%(base)s/modules' % baseDict):
@@ -301,31 +317,32 @@ class RunAlgs:
     return cp % baseDict
 
   def compile(self,competitor):
-    path = '%s/lucene/contrib/benchmark' % (competitor.sourceBase)
-    sourceBase = competitor.sourceBase
+    path = checkoutToBenchPath(competitor.checkout)
     print 'COMPILE: %s' % path
     os.chdir(path)
     run('ant compile > compile.log 2>&1', 'compile.log')
     if path.endswith('/'):
       path = path[:-1]
       
-    cp = self.getClassPath(sourceBase)
+    cp = self.getClassPath(competitor.checkout)
     if not os.path.exists('perf'):
       run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)
     competitor.compile(cp)
     
-  def runOne(self, workingDir, job, sourceBase, verify=False, logFileName=None):
+  def runOne(self, checkout, job, verify=False, logFileName=None):
 
     if logFileName is None:
-      logFileName = '%s.%d' % (job.label, self.logCounter)
-      algFile = '%s.%d.alg' % (job.label, self.logCounter)
+      logFileName = '%d' % self.logCounter
+      algFile = '%d.alg' % self.logCounter
       self.logCounter += 1
     else:
       algFile = logFileName + '.alg'
 
     savDir = os.getcwd()
-    os.chdir(workingDir)
-    print '    cd %s' % workingDir
+    sourcePath = checkoutToPath(checkout)
+    benchPath = checkoutToBenchPath(checkout)
+    os.chdir(benchPath)
+    print '    cd %s' % benchPath
 
     try:
 
@@ -342,10 +359,10 @@ class RunAlgs:
       open(algFullFile, 'wb').write(job.alg)
 
       fullLogFileName = '%s/%s' % (LOG_SUB_DIR, logFileName)
-      print '    log: %s/%s' % (workingDir, fullLogFileName)
+      print '    log: %s/%s' % (benchPath, fullLogFileName)
 
       command = '%s -classpath %s:../../build/contrib/highlighter/classes/java:lib/icu4j-4_4_1_1.jar:lib/icu4j-charsets-4_4_1_1.jar:lib/commons-digester-1.7.jar:lib/commons-collections-3.1.jar:lib/commons-compress-1.0.jar:lib/commons-logging-1.0.4.jar:lib/commons-beanutils-1.7.0.jar:lib/xerces-2.9.0.jar:lib/xml-apis-2.9.0.jar:../../build/contrib/benchmark/classes/java org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
-                (self.javaCommand, self.getClassPath(sourceBase), algFullFile, fullLogFileName)
+                (self.javaCommand, self.getClassPath(checkout), algFullFile, fullLogFileName)
 
       if DEBUG:
         print 'command=%s' % command
@@ -466,7 +483,7 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
       s = s.replace('$INDEX_LINE$', '{ "AddDocs" AddDoc > : %s' % \
                     (numDocs))
 
-    s = s.replace('$WORKDIR$', fullIndexPath)
+    s = s.replace('$WORKDIR$', os.path.split(fullIndexPath)[0])
     s = s.replace('$OTHER$', s2)
 
     return s
@@ -497,12 +514,13 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     return s
 
   def runSimpleSearchBench(self, c, iters, threadCount, filter=None):
-    os.chdir(c.benchDir)
-    cp = self.getClassPath(c.sourceBase)
-    logFile = '%s/res-%s.txt' % (c.benchDir, c.name)
+    benchDir = checkoutToBenchPath(c.checkout)
+    os.chdir(benchDir)
+    cp = self.getClassPath(c.checkout)
+    logFile = '%s/res-%s.txt' % (benchDir, c.name)
     print 'log %s' % logFile
     command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s' % \
-        (self.javaCommand, c.taskRunProperties(), cp, c.indexDir(self.baseDir), threadCount, iters, c.commitPoint)
+        (self.javaCommand, c.taskRunProperties(), cp, nameToIndexPath(c.index.getName()), threadCount, iters, c.commitPoint)
     if filter is not None:
       command += ' %s %.2f' % filter
     run('%s > %s' % (command, logFile))

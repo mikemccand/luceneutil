@@ -31,8 +31,10 @@ import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.*;
+import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.Version;
 
@@ -59,6 +61,7 @@ public class SearchPerfTest {
     "unit~2",
     "united OR states",
     "united AND states",
+    "nebraska AND states",
     "\"united states\"",
   };
 
@@ -242,6 +245,15 @@ public class SearchPerfTest {
       //addQuery(s, queries, new FuzzyQuery(new Term("body", "united"), 0.6f, 0, 50), null, f);
       //addQuery(s, queries, new FuzzyQuery(new Term("body", "united"), 0.7f, 0, 50), null, f);
     }
+
+    addQuery(s, queries, new SpanFirstQuery(new SpanTermQuery(new Term("body", "unit")), 5), null, f);
+    addQuery(s, queries,
+             new SpanNearQuery(
+                               new SpanQuery[] {new SpanTermQuery(new Term("body", "unit")),
+                                                new SpanTermQuery(new Term("body", "state"))},
+                               10,
+                               true),
+             null, f);
 
     final Random rand = new Random(17);
 

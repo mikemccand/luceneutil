@@ -205,8 +205,7 @@ class RunThread:
   def __init__(self, id, work):
     self.id = id
     self.tempDir = '%s/lucene/build/test/%d' % (ROOT, self.id)
-    if not os.path.exists(self.tempDir):
-      os.makedirs(self.tempDir)
+    self.cleanup()
     self.work = work
     try:
       os.remove('%s/%s.log' % (ROOT, self.id))
@@ -217,6 +216,11 @@ class RunThread:
     self.t = threading.Thread(target=self.run)
     self.t.setDaemon(True)
     self.t.start()
+
+  def cleanup(self):
+    if os.path.exists(self.tempDir):
+      shutil.rmtree(self.tempDir)
+    os.makedirs(self.tempDir)
 
   def run(self):
     while True:
@@ -404,32 +408,38 @@ if doSolr:
           tests.append((estimateCost(testClass), '%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib), testClass, CLASSPATH))
 
 tests.sort(reverse=True)
+repeat = '-repeat' in sys.argv
+
+pendingCost = 0
+workQ = WorkQueue()
+
+aggTests(workQ, tests)
+
+threads = []
+for i in range(NUM_THREAD):
+  threads.append(RunThread(i, workQ))
 
 while True:
-  pendingCost = 0
-  workQ = WorkQueue()
-
-  aggTests(workQ, tests)
-
-  threads = []
-  for i in range(NUM_THREAD):
-    threads.append(RunThread(i, workQ))
-
   totSuites = 0
   failed = False
+  first = True
   for i in range(NUM_THREAD):
     threads[i].join()
     totSuites += threads[i].suiteCount
     failed = failed or threads[i].failed
 
-  if DO_GATHER_TIMES:
-    open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(testTimes))
+    if repeat and not failed:
+      if first:
+        first = False
+        aggTests(workQ, tests)
+        pr('t')
+
+      threads[i] = RunThread(i, workQ)
+
+  if not repeat or failed:
     break
 
-  print '\n%.1f sec [%d test suites]' % (time.time()-t0, totSuites)
+if DO_GATHER_TIMES:
+  open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(testTimes))
 
-  if failed or not '-repeat' in sys.argv:
-    break
-
-  shutil.rmtree('%s/%s/lucene/build/test' % (constants.BASE_DIR, checkout))
-  t0 = time.time()
+print '\n%.1f sec [%d test suites]' % (time.time()-t0, totSuites)

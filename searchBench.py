@@ -30,10 +30,10 @@ if '-debug' in sys.argv:
 else:
   INDEX_NUM_DOCS = 10000000
 
-INDEX_NUM_THREADS = 1
+INDEX_NUM_THREADS = 6
 
 def run(*competitors):  
-  r = benchUtil.RunAlgs(INDEX_DIR_BASE, JAVA_COMMAND)
+  r = benchUtil.RunAlgs(JAVA_COMMAND)
   if '-noc' not in sys.argv:
     for c in competitors:
       r.compile(c)
@@ -41,9 +41,23 @@ def run(*competitors):
   index  = '-index' in sys.argv
 
   if index:
+    seen = set()
     for c in competitors:
-      if c.index:
-        r.makeIndex(c.defaultCodec, c.benchDir, c.name, c.dataSource, INDEX_NUM_DOCS, INDEX_NUM_THREADS, c.sourceBase, lineDocSource=WIKI_LINE_FILE)
+      if c.index not in seen:
+        seen.add(c.index)
+
+    if len(seen) == 1:
+      # if all jobs are going to share single index, use many threads
+      numThreads = INDEX_NUM_THREADS
+    else:
+      # else we must use 1 thread so indices are identical
+      numThreads = 1
+
+    seen = set()
+    for c in competitors:
+      if c.index not in seen:
+        seen.add(c.index)
+        r.makeIndex(c.index)
 
   logUpto = 0
   if not search:
@@ -57,7 +71,7 @@ def run(*competitors):
 
   results = {}
   for c in competitors:
-    print 'Search on %s...' % c.name
+    print 'Search on %s...' % c.checkout
     benchUtil.run("sudo %s/dropCaches.sh" % BENCH_BASE_DIR)
     t0 = time.time()
     results[c] = r.runSimpleSearchBench(c, iters, threads, filter=None)
@@ -71,28 +85,17 @@ def run(*competitors):
                  baseDesc=competitors[0].name)
 
 
-
-
 class Competitor(object):
   TASKS = { "search" : "perf.SearchTask",
           "loadIdFC" : "perf.LoadFieldCacheSearchTask",
           "loadIdDV" : "perf.values.DocValuesSearchTask"}
 
-  def __init__(self, name, baseDir, dataSource='wiki', defaultCodec='Standard', task='search', index=True):
+  def __init__(self, name, checkout, index, task='search'):
     self.name = name
-    self.dataSource = dataSource
-    self.defaultCodec = defaultCodec
-    self.sourceBase = '%s/%s' % (baseDir, name)
+    self.index = index
+    self.checkout = checkout
     self.searchTask = self.TASKS[task];
-    self.benchDir = '%s/lucene/contrib/benchmark' % (self.sourceBase)
-    self.commitPoint = 'single'
-    self.index=index
-
-  def indexName(self, baseDir):
-    return ('%s/%s.work.%s.%s.nd%gM' % (baseDir,self.defaultCodec, self.name, self.dataSource, INDEX_NUM_DOCS/1000000.0))
-  
-  def indexDir(self, baseDir):
-    return '%s/index' % self.indexName(baseDir)
+    self.commitPoint = 'delsingle'
 
   def compile(self, cp):
     benchUtil.run('javac -cp %s perf/SearchPerfTest.java >> compile.log 2>&1' % cp,  'compile.log')
@@ -105,29 +108,19 @@ class Competitor(object):
     return '-Dtask.type=%s' % self.searchTask
 
 class DocValueCompetitor(Competitor):
-  def __init__(self, name, baseDir, dataSource='wiki', defaultCodec='Standard', task='loadIdDV'):
-    Competitor.__init__(self, name, baseDir, dataSource, defaultCodec, task)
+  def __init__(self, sourceDir, index, task='loadIdDV'):
+    Competitor.__init__(self, sourceDir, index, task)
   
   def compile(self, cp):
     benchUtil.run('javac -cp %s perf/SearchPerfTest.java >> compile.log 2>&1' % cp,  'compile.log')
     benchUtil.run('javac -cp %s:./perf perf/values/DocValuesSearchTask.java >> compile.log 2>&1' % cp,  'compile.log')
   
     
-TRUNK_COMPETITOR = Competitor('trunk', BASE_DIR)
-DOCVALUES_COMPETITOR = DocValueCompetitor('docvalues', BASE_DIR)
-PFOR_COMPETITOR = Competitor('LUCENE-2723_trunk', BASE_DIR, defaultCodec="PatchedFrameOfRef")
-FOR_COMPETITOR = Competitor('LUCENE-2723_trunk', BASE_DIR, defaultCodec="FrameOfRef")
-GROUP_VAR_INT_COMPETITOR = Competitor('LUCENE-2735_trunk', BASE_DIR, defaultCodec="GVInt")
-
-CLEAN_COMPETITOR = Competitor('clean', '/lucene')
-SIMON_COMPETITOR = Competitor('simon', '/lucene')
-
 def main():
-
-  if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-#  run(TRUNK_COMPETITOR.setTask('loadIdFC'), DOCVALUES_COMPETITOR)
-  run(CLEAN_COMPETITOR, SIMON_COMPETITOR)
+  index = benchUtil.Index('clean', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
+  CLEAN_COMPETITOR = Competitor('base', 'clean', index)
+  SPEC_COMPETITOR = Competitor('spec', 'docsenumspec', index)
+  run(CLEAN_COMPETITOR, SPEC_COMPETITOR)
 
 if __name__ == '__main__':
   main()

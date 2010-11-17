@@ -26,7 +26,7 @@ import sys
 
 IS_WINDOWS = sys.platform.find('win') != -1 and sys.platform.find('darwin') == -1
 
-JAVA_ARGS = '-server -Xmx512m -Xms512m'
+JAVA_ARGS = '-Xmx512m -Xms512m'
 
 if 0:
   if 0:
@@ -98,9 +98,8 @@ def getArg(argName, default, hasArg=True):
     
 tup = os.path.split(os.getcwd())
 
-if tup[1] != 'lucene':
-  print '\nERROR: you need to be in lucene subdir when running this\n'
-  sys.exit(1)
+if tup[1] != 'lucene' and os.path.exists('lucene'):
+  os.chdir('lucene')
 
 sub = os.path.split(tup[0])[1]
   

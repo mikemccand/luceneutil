@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import types
 import array
 import copy
@@ -37,6 +38,7 @@ import struct
 #     not more)
 #     - test FST size for that...
 #   - hmm is pruning even working correctly!?
+#     - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
 #   - instead of nextFinalOutput.. maybe all final states (except -1) simply write their state output first?
 #   - swtich all fst ops to be stateless -- don't rely on this bytesreader
 #   - VERIFY I'm really minimal -- compare to morfolgik / openfst
@@ -245,15 +247,14 @@ class State:
   def __hash__(self):
     h = len(self.to)
     for label, toState, output, nextFinalOutput in self.to:
-      h ^= hash(label)
+      h = 31*h + hash(label)
       assert isinstance(toState, FrozenState)
-      h ^= hash(toState.address)
-      h ^= hash(output)
-      h ^= hash(nextFinalOutput)
+      h = 31*h + hash(toState.address)
+      h = 31*h + hash(output)
+      h = 31*h + hash(nextFinalOutput)
     if self.isFinal:
-      h += 1
-      
-    return h
+      h = 31*h + 1
+    return h & sys.maxint
 
   def appendTo(self, label, toState, output):
     assert isinstance(toState, State)
@@ -286,6 +287,95 @@ class State:
     for i, (label, toState, output, nextFinalOutput) in enumerate(self.to):
       self.to[i] = (label, toState, self.outputs.add(outputPrefix, output), nextFinalOutput)
     
+
+def hashFrozen(address):
+  # NOTE: must match State.__hash__!!!
+  to = list(State.builder.packedFST.getEdges(address))
+  h = len(to)
+  for label, toState, output, nextFinalOutput in to:
+    h = 31*h + hash(label)
+    h = 31*h + hash(toState)
+    h = 31*h + hash(output)
+    h = 31*h + hash(nextFinalOutput)
+  if State.builder.packedFST.isFinal(address):
+    h = 31*h+1
+  return h & sys.maxint
+
+def stateEquals(state, address):
+  if state.isFinal != State.builder.packedFST.isFinal(address):
+    return False
+  to1 = state.to
+  to2 = list(State.builder.packedFST.getEdges(address))
+  if len(to1) != len(to2):
+    return False
+  for i in xrange(len(to1)):
+    label1, toState1, output1, nextFinalOutput1 = to1[i]
+    assert isinstance(toState1, FrozenState)
+    label2, toState2, output2, nextFinalOutput2 = to2[i]
+    if label1 != label2:
+      return False
+    if output1 != output2:
+      return False
+    if toState1.address != toState2:
+      return False
+    if nextFinalOutput1 != nextFinalOutput2:
+      return False
+  return True
+
+class MinStateHash2:
+
+  def __init__(self):
+    self.table = array.array('i', [-1]*16)
+    self.count = 0
+
+  def add(self, state):
+    #print '    msh.add'
+    h = origH = hash(state)
+    h2 = ((h >> 8) + h) | 1
+    #print 'h %s %s' % (h, h2)
+    while True:
+      pos = h%len(self.table)
+      v = self.table[pos]
+      if v == -1:
+        # freeze & add
+        #print '      new'
+        self.count += 1
+        address = state.freeze()
+        assert hashFrozen(address) == origH
+        #print '      freeze=%s' % address
+        assert type(address) is types.IntType
+        self.table[pos] = address
+        if len(self.table) < 2*self.count:
+          self.rehash()
+        return address
+      elif stateEquals(state, v):
+        # already present
+        return v
+
+      # probe
+      h += h2
+      
+  def addNew(self, newTable, ent):
+    h = hashFrozen(ent)
+    h2 = ((h >> 8) + h) | 1
+    #print 'h %s h2 %s' % (h, h2)
+    while True:
+      pos = h%len(newTable)
+      #print '  pos %s' % pos
+      if newTable[pos] == -1:
+        newTable[pos] = ent
+        break
+      # probe
+      h += h2
+
+  def rehash(self):
+    print 'rehash %d (count %s)' % (len(self.table)*2, self.count)
+    newTable = array.array('i', [-1]*(len(self.table)*2))
+    for ent in self.table:
+      if ent != -1:
+        self.addNew(newTable, ent)
+    self.table = newTable
+
 class MinStateHash:
 
   def __init__(self):
@@ -294,17 +384,20 @@ class MinStateHash:
 
   def add(self, state):
     #print '    msh.add'
-    h = hash(state)
+    h = origH = hash(state)
+    #print '      h=%s' % h
     pos = h%len(self.table)
     v = self.table[pos]
     if type(v) is types.IntType:
-      if self.stateEquals(state, v):
+      #print '      check %d' % v
+      if stateEquals(state, v):
         # already here
         #print '      dup %s' % v
         return v
     elif type(v) is types.TupleType:
       for v0 in v:
-        if self.stateEquals(state, v0):
+        #print '      check %d' % v0
+        if stateEquals(state, v0):
           # already here
           #print '      dup %s' % v0
           return v0
@@ -313,6 +406,8 @@ class MinStateHash:
     #print '      new'
     self.count += 1
     address = state.freeze()
+    
+    assert origH == hashFrozen(address), '%s vs %s' % (origH, hashFrozen(address))
     #print '      freeze=%s' % address
     assert type(address) is types.IntType
     if v is None:
@@ -325,21 +420,9 @@ class MinStateHash:
       self.rehash()
     return address
 
-  def hashFrozen(self, address):
-    # NOTE: must match State.__hash__!!!
-    to = list(State.builder.packedFST.getEdges(address))
-    h = len(to)
-    for label, toState, output, nextFinalOutput in to:
-      h ^= hash(label)
-      h ^= hash(toState)
-      h ^= hash(output)
-      h ^= hash(nextFinalOutput)
-    if State.builder.packedFST.isFinal(address):
-      h += 1
-    return h
-
   def addNew(self, newTable, ent):
-    h = self.hashFrozen(ent)
+    h = hashFrozen(ent)
+    #print '  addNew hashFrozen(%d) = %s' % (ent, h)
     loc = h%len(newTable)
     v = newTable[loc]
     if v is None:
@@ -358,27 +441,6 @@ class MinStateHash:
         for num in ent:
           self.addNew(newTable, num)
     self.table = newTable
-
-  def stateEquals(self, state, address):
-    if state.isFinal != State.builder.packedFST.isFinal(address):
-      return False
-    to1 = state.to
-    to2 = list(State.builder.packedFST.getEdges(address))
-    if len(to1) != len(to2):
-      return False
-    for i in xrange(len(to1)):
-      label1, toState1, output1, nextFinalOutput1 = to1[i]
-      assert isinstance(toState1, FrozenState)
-      label2, toState2, output2, nextFinalOutput2 = to2[i]
-      if label1 != label2:
-        return False
-      if output1 != output2:
-        return False
-      if toState1.address != toState2:
-        return False
-      if nextFinalOutput1 != nextFinalOutput2:
-        return False
-    return True
 
 class FrozenState:
 
@@ -404,7 +466,7 @@ class Builder:
     self.outputs = outputs
     self.first = True
     self.lastBytesIn = ()
-    self.minMap = MinStateHash()
+    self.minMap = MinStateHash2()
     self.tempStates = []
     self.doMinSuffix = doMinSuffix
     self.suffixMinCount = suffixMinCount
@@ -423,7 +485,13 @@ class Builder:
   def freezeState(self, state):
     if self.doMinSuffix:
       # dedup
-      address = self.minMap.add(state)
+      if len(state.to) == 0:
+        if state.isFinal:
+          address = FINAL_END_STATE
+        else:
+          address = NON_FINAL_END_STATE
+      else:
+        address = self.minMap.add(state)
     else:
       # just freeze
       address = state.freeze()
@@ -503,7 +571,9 @@ class Builder:
         # Now must freeze any to-states that were were previously undecided on
         self.freezeAllToStates(self.tempStates[i])
         nextFinalOutput = self.tempStates[i].stateOutput
+        #print '      now freeze state %d' % i
         frozen = FrozenState(self.freezeState(self.tempStates[i]))
+        #print '        got %d' % frozen.address
         #print '    now freeze addr=%s' % frozen.address
         self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], frozen, nextFinalOutput)
       else:

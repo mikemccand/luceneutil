@@ -87,6 +87,7 @@ def toWord(bytes):
 
 def toAscii(s):
   return s.encode('ascii', 'replace')
+
 def getOutput(mode, idx):
   if mode.startswith('DFA'):
     output = None
@@ -125,6 +126,7 @@ def tinyTest():
   #words = ['aa', 'ab', 'ba', 'bb']
   words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
   #words = ['aa', 'ab', 'ac', 'aca', 'acb', 'acc', 'bx', 'by', 'm', 'mc', 'mca', 'mcb', 'mcc']
+  #words = ['aaa', 'aab', 'baa', 'bab', 'caa', 'cab']
   words.sort()
   if PRUNE_COUNT is not None:
     mode += 'PRUNE'
@@ -135,10 +137,10 @@ def tinyTest():
   packed = b.packedFST
   numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
   print '%d states [%d single], %d bytes, %d edges (%d w/ output)' % (numState, numSingle, len(packed.bytes), numEdge, numEdgeWithOutput)
-  print 'Saved to out.dot'
-  open('out.dot', 'wb').write(toDot(packed))
 
   rePacked = builder.repack(packed)
+  print 'Saved to out.dot'
+  open('out.dot', 'wb').write(toDot(rePacked))
   print 'after re-pack: %d bytes' % len(rePacked.bytes)
   packed = rePacked
   
@@ -256,8 +258,9 @@ def lexTest(fileName):
     raise
   
 def randomTest():
+
   NUM_ITER = 10
-  NUM_WORDS = 100
+  NUM_WORDS = 10000
 
   r = RANDOM
 
@@ -310,6 +313,9 @@ def randomTest():
         print '      packed: %d bytes' % len(packed.bytes)
         packed = builder.repack(packed)
         print '      repacked: %d bytes' % len(packed.bytes)
+
+        #open('out.dot', 'wb').write(toDot(packed))
+        #print 'Wrote to out.dot'
 
         numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
         print '      %d states, %d edges (%d w/ output), %d single' % (numState, numEdge, numEdgeWithOutput, numSingle)

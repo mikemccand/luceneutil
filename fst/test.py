@@ -122,8 +122,8 @@ def tinyTest():
   #words = ['mia', 'kyra', 'joel', 'kyle', 'jane', 'mike', 'audrey', 'vivian', 'fay', 'ike']
   #words = ['dalmation', 'dalmotion', 'motion', 'commotion', 'comation']
   #words = ['foo', 'foobar', 'fofee', 'foofee']
-  words = ['aa', 'ab', 'ba', 'bb']
-  #words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
+  #words = ['aa', 'ab', 'ba', 'bb']
+  words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
   #words = ['aa', 'ab', 'ac', 'aca', 'acb', 'acc', 'bx', 'by', 'm', 'mc', 'mca', 'mcb', 'mcc']
   words.sort()
   if PRUNE_COUNT is not None:

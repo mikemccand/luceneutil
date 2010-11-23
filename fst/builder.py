@@ -22,37 +22,44 @@ import struct
 # DFA PAPER: /x/archive/pseudodog.pdf
 
 # TODO
-#   - move to google code
+#   - make custom hash for repacking -- takes tons of RAM now
+#   - ARGH states/arcs disagree
+#     - i get 8133512 states [5686534 single], 15357501 edges (0 w/
+#       output), fst size 65374416, terms 9803311 
+#     - morfologik gets:
+#       Input sequences         9,803,311
+#       Nodes                   8,013,021
+#       Arcs                   15,194,589
+#       Tail nodes              4,355,421
+#       Unique suffixes         1,007,945
+#       FSA size:  61,402,968
+#   - get pruneCount=1 working (should yielf full divergent tree, but
+#     not more)
+#     - test FST size for that...
+#   - hmm is pruning even working correctly!?
 #   - instead of nextFinalOutput.. maybe all final states (except -1) simply write their state output first?
 #   - swtich all fst ops to be stateless -- don't rely on this bytesreader
-#   - VERIFY I'm really minimal -- compare to morfolgik
+#   - VERIFY I'm really minimal -- compare to morfolgik / openfst
 #     - check my stats vs dawid's email!
 #   - switch dedup hash to probing
+#     - and use int array
 #   - dedup hash might be faster if we pre-freeze the state and do substring cmp?  hmm but its a byte array...
 #   - need a re-pack at the end for NEXT node opto
-#   - packing opto: not only FLAG_NODE_NEXT we can also make it eg
-#     skip N arcs.  ie really we are laying out all the arcs,
-#     serialized, so an arc can say "my target is +N arcs away"; for N
-#     small the scan cost might be acceptable
-#     - also: maybe use vint encoding for relative addressing, only
-#       for acyclic fsts
 #   - make FSTNUM variant mapps to random growing int
-#   - uses of this stuff
-#     - silly in-ram terms in SimpleText
-#     - FieldCache terms/terms index
-#     - prefix trie as terms index and as fastmatch for AQ
-#     - full top (multi-reader) DFA/FST
-#       - fst could map to bitset of which segs have the term
-#     - make FST only for certain tokens eg proper names
 #   - get empty string working!  ugh
 #   - hmm store max prefix len in header
 #   - compression ideas
 #     - make array access for nodes w/ many edges?  faster lookup
 #     - or maybe just fully expand to depth N
 #     - patricia trie
-#     - do the "next" trick
 #   - explain why #edges disagrees w/ Morfologik
 #   - later
+#     - packing opto: not only FLAG_NODE_NEXT we can also make it eg
+#       skip N arcs.  ie really we are laying out all the arcs,
+#       serialized, so an arc can say "my target is +N arcs away"; for N
+#       small the scan cost might be acceptable
+#       - also: maybe use vint encoding for relative addressing, only
+#         for acyclic fsts
 #     - in FST mode if the output is unique per word, we can fix
 #       minimize to simply copy as it moves backwards past the full output
 #   - post java
@@ -61,6 +68,14 @@ import struct
 #       - needs to suddenly be RAM based not term count based?
 #     - how about recording minTermLengthFromHere?  fuzzy could use this
 #       to skip whole nodes?
+
+# POSSIBLE USES IN LUCENE
+#   - silly in-ram terms in SimpleText
+#   - FieldCache terms/terms index
+#   - prefix trie as terms index and as fastmatch for AQ
+#   - full top (multi-reader) DFA/FST
+#     - fst could map to bitset of which segs have the term
+#   - make FST only for certain tokens eg proper names
 
 class FSTOutput:
   def common(self, output1, output2):
@@ -381,8 +396,8 @@ class Builder:
 
   def __init__(self, doMinSuffix=True, suffixMinCount=None, suffixMinCount2=None, outputs=FSTNoOutput()):
     """
-    suffixMinCount is simple -- keep the state only if it 'leads' to >= N terms
-    suffixMinCount2 keeps state if it 'leads' to >= N terms or it is immediate descendent of a prior state that leads to N terms, ie, it keeps full fanout of any non-pruned state
+    suffixMinCount is simple -- keep the state only if it leads to >= N terms
+    suffixMinCount2 is off by 1 (leafier): keeps state if prior state leads to = N terms
     """
     State.builder = self
     State.outputs = outputs
@@ -439,6 +454,13 @@ class Builder:
             # my parent, about to be frozen, doesn't make the cut, so
             # I'm definitely pruned 
             doPrune = True
+          elif self.suffixMinCount2 == 1 and self.tempStates[i-1].termCount == 1:
+            # special case -- if pruneCount2 is 1, we keep only up
+            # until the 'distinguished edge', ie we keep only the
+            # 'divergent' part of the FST. if my parent, about to be
+            # frozen, has termCount 1 then we are already past the
+            # distinguished edge
+            doPrune = True
           else:
             # my parent, about to be frozen, does make the cut, so
             # I'm definitely not pruned 
@@ -455,6 +477,9 @@ class Builder:
 
         if self.tempStates[i].termCount < self.suffixMinCount2:
           doPruneNext = True
+        elif self.suffixMinCount2 == 1 and self.tempStates[i].termCount == 1:
+          # keep only 'divergent' part of the FST
+          doPruneNext = True          
         else:
           doPruneNext = False
       else:

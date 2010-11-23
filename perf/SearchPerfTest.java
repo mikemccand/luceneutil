@@ -132,7 +132,7 @@ public class SearchPerfTest {
     return new NIOFSDirectory(path);
   }
   
-  private static final boolean shuffleQueries = false;
+  private static final boolean shuffleQueries = true;
 
   public static void main(String[] args) throws Exception {
 

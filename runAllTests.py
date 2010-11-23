@@ -55,7 +55,7 @@ CLASSPATH = ['../lucene/lib/junit-4.7.jar', '../lucene/build/classes/test', '../
 try:
   CODEC = sys.argv[1+sys.argv.index('-codec')]
 except ValueError:
-  CODEC = 'random'
+  CODEC = 'randomPerField'
 
 try:
   DIR = sys.argv[1+sys.argv.index('-dir')]

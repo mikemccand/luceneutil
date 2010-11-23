@@ -63,10 +63,12 @@ def run(*competitors):
   if not search:
     return
   if '-debugs' in sys.argv:
-    iters = 10
+    iters = 2
+    itersPerJVM = 2
     threads = 1
   else:
-    iters = 40
+    iters = 3
+    itersPerJVM = 40
     threads = 4
 
   results = {}
@@ -74,7 +76,7 @@ def run(*competitors):
     print 'Search on %s...' % c.checkout
     benchUtil.run("sudo %s/dropCaches.sh" % BENCH_BASE_DIR)
     t0 = time.time()
-    results[c] = r.runSimpleSearchBench(c, iters, threads, filter=None)
+    results[c] = r.runSimpleSearchBench(c, iters, itersPerJVM, threads, filter=None)
     print '  %.2f sec' % (time.time() - t0)
 
   r.simpleReport(results[competitors[0]],
@@ -95,7 +97,7 @@ class Competitor(object):
     self.index = index
     self.checkout = checkout
     self.searchTask = self.TASKS[task];
-    self.commitPoint = 'delsingle'
+    self.commitPoint = 'delmulti'
 
   def compile(self, cp):
     benchUtil.run('javac -cp %s perf/SearchPerfTest.java >> compile.log 2>&1' % cp,  'compile.log')
@@ -119,8 +121,9 @@ class DocValueCompetitor(Competitor):
 def main():
   index = benchUtil.Index('clean', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
   CLEAN_COMPETITOR = Competitor('base', 'clean', index)
+  TERM_STATE_COMPETITOR = Competitor('termstate', 'termstate.2694', index)
   SPEC_COMPETITOR = Competitor('spec', 'docsenumspec', index)
-  run(CLEAN_COMPETITOR, SPEC_COMPETITOR)
+  run(CLEAN_COMPETITOR, TERM_STATE_COMPETITOR)
 
 if __name__ == '__main__':
   main()

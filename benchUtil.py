@@ -513,17 +513,20 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     
     return s
 
-  def runSimpleSearchBench(self, c, iters, threadCount, filter=None):
+  def runSimpleSearchBench(self, c, iters, itersPerJVM, threadCount, filter=None):
     benchDir = checkoutToBenchPath(c.checkout)
     os.chdir(benchDir)
     cp = self.getClassPath(c.checkout)
     logFile = '%s/res-%s.txt' % (benchDir, c.name)
     print 'log %s' % logFile
-    command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s' % \
-        (self.javaCommand, c.taskRunProperties(), cp, nameToIndexPath(c.index.getName()), threadCount, iters, c.commitPoint)
-    if filter is not None:
-      command += ' %s %.2f' % filter
-    run('%s > %s' % (command, logFile))
+    if os.path.exists(logFile):
+      os.remove(logFile)
+    for iter in xrange(iters):
+      command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s' % \
+          (self.javaCommand, c.taskRunProperties(), cp, nameToIndexPath(c.index.getName()), threadCount, itersPerJVM, c.commitPoint)
+      if filter is not None:
+        command += ' %s %.2f' % filter
+      run('%s >> %s' % (command, logFile))
     return logFile
 
   def simpleReport(self, baseLogFile, cmpLogFile, jira=False, html=False, baseDesc='Standard', cmpDesc=None):
@@ -713,11 +716,13 @@ def getSimpleResults(fname, totCS):
       if l.endswith(' **'):
         l = l[:-3]
       m = reResult.match(l)
-      t = long(m.group(1))
-      check = long(m.group(2))
-      count += 1
-      if count > 6 and (best is None or t < best):
-        best = t
+      if m is not None:
+        t = long(m.group(1))
+        check = long(m.group(2))
+        count += 1
+        if count > 3 and (best is None or t < best):
+          best = t
+
 
   if len(hits) == 0:
     raise RuntimeError("didn't see any hits")

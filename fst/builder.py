@@ -24,6 +24,7 @@ import struct
 
 # TODO
 #   - make custom hash for repacking -- takes tons of RAM now
+#   - clean up the final state vs edge confusion...
 #   - ARGH states/arcs disagree
 #     - i get 8133512 states [5686534 single], 15357501 edges (0 w/
 #       output), fst size 65374416, terms 9803311 
@@ -224,7 +225,7 @@ class State:
   isFinal = False
   
   def __init__(self):
-    # self.to is list of (label, toState, output, nextFinalOutput)
+    # self.to is list of (label, toState, output, nextFinalOutput, edgeIsFinal)
     self.to = []
     self.stateOutput = self.outputs.NO_OUTPUT
     self.termCount = 0
@@ -246,27 +247,28 @@ class State:
 
   def __hash__(self):
     h = len(self.to)
-    for label, toState, output, nextFinalOutput in self.to:
+    for label, toState, output, nextFinalOutput, edgeIsFinal in self.to:
       h = 31*h + hash(label)
       assert isinstance(toState, FrozenState)
       h = 31*h + hash(toState.address)
       h = 31*h + hash(output)
       h = 31*h + hash(nextFinalOutput)
-    if self.isFinal:
+      h = 31*h + hash(edgeIsFinal)
+    if False and self.isFinal:
       h = 31*h + 1
     return h & sys.maxint
 
   def appendTo(self, label, toState, output):
     assert isinstance(toState, State)
     assert len(self.to) == 0 or label > self.to[-1][0]
-    self.to.append((label, toState, output, None))
+    self.to.append((label, toState, output, None, False))
 
-  def replaceLast(self, label, toState, nextFinalOutput):
+  def replaceLast(self, label, toState, nextFinalOutput, edgeIsFinal):
     #assert isinstance(toState, FrozenState)
     assert label == self.to[-1][0]
-    label, oldToState, output, oldNextFinalOutput = self.to[-1]
+    label, oldToState, output, oldNextFinalOutput, oldEdgeIsFinal = self.to[-1]
     assert oldNextFinalOutput is None
-    self.to[-1] = (label, toState, output, nextFinalOutput)
+    self.to[-1] = (label, toState, output, nextFinalOutput, edgeIsFinal)
 
   def deleteLast(self, label, toState):
     assert isinstance(toState, State)
@@ -276,42 +278,43 @@ class State:
 
   def setLastOutput(self, labelToMatch, newOutput):
     assert len(self.to) > 0
-    label, toState, output, oldNextFinalOutput = self.to[-1]
+    label, toState, output, oldNextFinalOutput, oldEdgeIsFinal = self.to[-1]
     assert label == labelToMatch
-    self.to[-1] = (label, toState, newOutput, oldNextFinalOutput)
+    self.to[-1] = (label, toState, newOutput, oldNextFinalOutput, oldEdgeIsFinal)
 
   def prependOutput(self, outputPrefix):
     """
     Insert this output in front of all current outputs.
     """
-    for i, (label, toState, output, nextFinalOutput) in enumerate(self.to):
-      self.to[i] = (label, toState, self.outputs.add(outputPrefix, output), nextFinalOutput)
+    for i, (label, toState, output, nextFinalOutput, edgeIsFinal) in enumerate(self.to):
+      self.to[i] = (label, toState, self.outputs.add(outputPrefix, output), nextFinalOutput, edgeIsFinal)
     
 
 def hashFrozen(address):
   # NOTE: must match State.__hash__!!!
   to = list(State.builder.packedFST.getEdges(address))
   h = len(to)
-  for label, toState, output, nextFinalOutput in to:
+  for label, toState, output, nextFinalOutput, edgeIsFinal in to:
     h = 31*h + hash(label)
     h = 31*h + hash(toState)
     h = 31*h + hash(output)
     h = 31*h + hash(nextFinalOutput)
-  if State.builder.packedFST.isFinal(address):
+    h = 31*h + hash(edgeIsFinal)
+  if False and State.builder.packedFST.isFinal(address):
     h = 31*h+1
   return h & sys.maxint
 
 def stateEquals(state, address):
-  if state.isFinal != State.builder.packedFST.isFinal(address):
+  if False and state.isFinal != State.builder.packedFST.isFinal(address):
     return False
   to1 = state.to
   to2 = list(State.builder.packedFST.getEdges(address))
   if len(to1) != len(to2):
     return False
   for i in xrange(len(to1)):
-    label1, toState1, output1, nextFinalOutput1 = to1[i]
+    label1, toState1, output1, nextFinalOutput1, edgeIsFinal1 = to1[i]
     assert isinstance(toState1, FrozenState)
-    label2, toState2, output2, nextFinalOutput2 = to2[i]
+    label2, toState2, output2, nextFinalOutput2, edgeIsFinal2 = to2[i]
     if label1 != label2:
       return False
     if output1 != output2:
@@ -319,6 +322,8 @@ def stateEquals(state, address):
     if toState1.address != toState2:
       return False
     if nextFinalOutput1 != nextFinalOutput2:
+      return False
+    if edgeIsFinal1 != edgeIsFinal2:
       return False
   return True
 
@@ -571,26 +576,28 @@ class Builder:
         # Now must freeze any to-states that were were previously undecided on
         self.freezeAllToStates(self.tempStates[i])
         nextFinalOutput = self.tempStates[i].stateOutput
+        edgeIsFinal = self.tempStates[i].isFinal
         #print '      now freeze state %d' % i
         frozen = FrozenState(self.freezeState(self.tempStates[i]))
         #print '        got %d' % frozen.address
         #print '    now freeze addr=%s' % frozen.address
-        self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], frozen, nextFinalOutput)
+        self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], frozen, nextFinalOutput, edgeIsFinal)
       else:
         # must allocate new state since we are leaving last one in play, for now
         self.freezeAllToStates(self.tempStates[i])
+        edgeIsFinal = self.tempStates[i].isFinal
         nextFinalOutput = self.tempStates[i].stateOutput
-        self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], self.tempStates[i], nextFinalOutput)
+        self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], self.tempStates[i], nextFinalOutput, edgeIsFinal)
         self.tempStates[i] = State()
 
   def freezeAllToStates(self, state):
     #print '  freeze to states'
-    for i, (label, toState, output, nextFinalOutput) in enumerate(state.to):
+    for i, (label, toState, output, nextFinalOutput, edgeIsFinal) in enumerate(state.to):
       #print '    edge %s -> %s' % (chr(label), toState)
       if isinstance(toState, State):
         # TODO: we could recycle toState at this point
         toState = FrozenState(self.freezeState(toState))
-      state.to[i] = (label, toState, output, nextFinalOutput)
+      state.to[i] = (label, toState, output, nextFinalOutput, edgeIsFinal)
           
   def add(self, bytesIn, output):
     
@@ -750,7 +757,7 @@ class SerializedFST:
     #print 'SFST.addState newAddr=%s' % address
     
     lastEdge = len(state.to)-1
-    for i, (label, toState, output, nextFinalOutput) in enumerate(state.to):
+    for i, (label, toState, output, nextFinalOutput, edgeIsFinal) in enumerate(state.to):
 
       assert isinstance(toState, FrozenState), 'got %s' % toState
 
@@ -761,7 +768,7 @@ class SerializedFST:
         flags += BIT_LAST_ARC
         #print '    last'
 
-      if self.isFinal(toState.address):
+      if edgeIsFinal:
         flags += BIT_FINAL_ARC
         if nextFinalOutput != NO_OUTPUT:
           flags += BIT_FINAL_STATE_HAS_OUTPUT
@@ -785,10 +792,7 @@ class SerializedFST:
       if numNextEdges > 0:
         encodeAddress(self.out, abs(toState.address))
 
-    if state.isFinal:
-      return -address
-    else:
-      return address
+    return address
 
   def getStartState(self):
     return self.initState
@@ -822,26 +826,19 @@ class SerializedFST:
           toState = NON_FINAL_END_STATE
       elif flags & BIT_TARGET_NEXT:
         toState = self.bytesReader.pos
-        if flags & BIT_FINAL_ARC:
-          toState = -toState
       else:
         toState = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
-        if flags & BIT_FINAL_ARC:
-          toState = -toState
         self.bytesReader.pos += 4
 
       # hackish!!  need to make this stateless
       posSave = self.bytesReader.pos
       if includeLast:
-        yield label, toState, output, nextFinalOutput, flags & BIT_LAST_ARC
+        yield label, toState, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0, flags & BIT_LAST_ARC
       else:
-        yield label, toState, output, nextFinalOutput
+        yield label, toState, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0
       if flags & BIT_LAST_ARC:
         break
       self.bytesReader.pos = posSave
-
-  def isFinal(self, toState):
-    return toState < 0
 
   def numEdges(self, node):
     if node == FINAL_END_STATE or node == NON_FINAL_END_STATE:
@@ -870,7 +867,7 @@ class SerializedFST:
     """
 
     if node == FINAL_END_STATE:
-      return None, None, None
+      return None, None, None, None
 
     self.bytesReader.pos = self.firstEdge(node)
     while True:
@@ -891,14 +888,10 @@ class SerializedFST:
           target = FINAL_END_STATE
         elif flags & BIT_TARGET_NEXT:
           target = self.bytesReader.pos
-          if flags & BIT_FINAL_ARC:
-            target = -target
         else:
           target = decodeAddress(self.bytes, self.bytesReader.pos)
-          if flags & BIT_FINAL_ARC:
-            target = -target
           self.bytesReader.pos += 4
-        return target, output, nextFinalOutput
+        return target, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0
 
       if flags & BIT_LAST_ARC:
         break
@@ -906,7 +899,7 @@ class SerializedFST:
       if not flags & BIT_STOP_STATE:
         self.bytesReader.pos += 4
 
-    return None, None, None
+    return None, None, None, None
 
   def isLastEdge(self, edge):
     return self.bytes[edge] & BIT_LAST_ARC
@@ -929,14 +922,10 @@ class SerializedFST:
       toNode = FINAL_END_STATE
     elif flags & BIT_TARGET_NEXT:
       toNode = self.bytesReader.pos
-      if flags & BIT_FINAL_ARC:
-        toNode = -toNode
     else:
       toNode = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
-      if flags & BIT_FINAL_ARC:
-        toNode = -toNode
 
-    return label, output, toNode, nextFinalOutput
+    return label, output, toNode, nextFinalOutput, flags & BIT_FINAL_ARC != 0
   
   def getToState(self, edge):
     self.bytesReader.pos = edge
@@ -950,17 +939,9 @@ class SerializedFST:
       if flags & BIT_FINAL_STATE_HAS_OUTPUT:
         self.outputs.read(self.bytesReader)
       if flags & BIT_TARGET_NEXT:
-        addr = self.bytesReader.pos
-        if flags & BIT_FINAL_ARC:
-          return -addr
-        else:
-          return addr
+        return self.bytesReader.pos
       else:
-        addr = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
-        if flags & BIT_FINAL_ARC:
-          return -addr
-        else:
-          return addr
+        return decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
 
   def anyEdges(self, state):
     return state != FINAL_END_STATE
@@ -1105,7 +1086,7 @@ def repack(fst):
           map[s] = -newAddr
         #print '  new addr %s' % map[s]
 
-        for label, toStateNumber, output, nextFinalOutput, isLast in fst.getEdges(s, True):
+        for label, toStateNumber, output, nextFinalOutput, edgeIsFinal, isLast in fst.getEdges(s, True):
           #print '    arc %s -> %s' % (chr(label), toStateNumber)
           if iter == 0:
             isNew = toStateNumber not in map
@@ -1128,7 +1109,7 @@ def repack(fst):
               flags += BIT_TARGET_NEXT
               #print 'TAIL!'
 
-          if fst.isFinal(toStateNumber):
+          if edgeIsFinal:
             flags += BIT_FINAL_ARC
             if nextFinalOutput != NO_OUTPUT:
               flags += BIT_FINAL_STATE_HAS_OUTPUT

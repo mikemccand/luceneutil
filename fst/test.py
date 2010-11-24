@@ -259,7 +259,8 @@ def lexTest(fileName):
   
 def randomTest():
 
-  NUM_ITER = 10
+  # nocommit
+  NUM_ITER = 1
   NUM_WORDS = 10000
 
   r = RANDOM
@@ -271,7 +272,9 @@ def randomTest():
     print '  seed %s' % seed
     r2 = random.Random(seed)
 
-    for mode in ('DFA', 'DFAPRUNE', 'FSTNUM', 'FSTNUMPRUNE'):
+    # nocommit
+    #for mode in ('DFA', 'DFAPRUNE', 'FSTNUM', 'FSTNUMPRUNE'):
+    for mode in ('DFA',):
 
       b = None
 
@@ -288,6 +291,12 @@ def randomTest():
       words = list(words)
       words.sort()
 
+      # nocommit
+      f = open("words.txt", 'wb')
+      for w in words:
+        f.write('%s\n' % w)
+      f.close()
+
       try:
         if mode.startswith('FSTNUM'):
           outputs = builder.FSTMonotonicPositiveIntOutput()
@@ -302,8 +311,10 @@ def randomTest():
           pc = None
 
         b = builder.Builder(doMin, None, pc, outputs=outputs)
+        lastW = None
         for idx, w in enumerate(words):
           doAdd(b, w, idx, mode)
+          lastW = w
         b.finish()
 
         if b.initState is None:
@@ -314,8 +325,9 @@ def randomTest():
         packed = builder.repack(packed)
         print '      repacked: %d bytes' % len(packed.bytes)
 
-        #open('out.dot', 'wb').write(toDot(packed))
-        #print 'Wrote to out.dot'
+        # nocommit
+        open('out.dot', 'wb').write(toDot(packed))
+        print 'Wrote to out.dot'
 
         numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
         print '      %d states, %d edges (%d w/ output), %d single' % (numState, numEdge, numEdgeWithOutput, numSingle)
@@ -429,11 +441,11 @@ def getAcceptedWord(r, fst):
   state = fst.getStartState()
   # print 'acc word'
   while True:
-    label, toState, output, nextFinalOutput = r.choice(list(fst.getEdges(state)))
+    label, toState, output, nextFinalOutput, edgeIsFinal = r.choice(list(fst.getEdges(state)))
     input.append(label)
     totOutput = fst.outputs.add(totOutput, output)
     # print '  label %s; state=%s' % (chr(label), toState)
-    if fst.isFinal(toState):
+    if edgeIsFinal:
       if not fst.anyEdges(toState) or r.randint(0,1) == 0:
         totOutput = fst.outputs.add(totOutput, nextFinalOutput)
         break
@@ -445,13 +457,13 @@ def runPacked(fst, bytes):
   netOutput = fst.outputs.NO_OUTPUT
   for i in xrange(len(bytes)):
     label = bytes[i]
-    toState, output, nextFinalOutput = fst.findEdge(state, label)
+    toState, output, nextFinalOutput, edgeIsFinal = fst.findEdge(state, label)
     if toState is None:
       raise RuntimeError('no match')
     else:
       #print '    + %s' % fst.outputs.outputToString(output)
       netOutput = fst.outputs.add(netOutput, output)
-      if fst.isFinal(toState) and i == len(bytes)-1:
+      if edgeIsFinal and i == len(bytes)-1:
         #print '    + final output %s' % fst.outputs.outputToString(nextFinalOutput)
         return fst.outputs.add(netOutput, nextFinalOutput)
     state = toState
@@ -587,19 +599,15 @@ def toDot(fst, startState=None):
   while len(q) > 0:
     s = q.pop()
     #print '  pop s=%s' % s
-    for label, toStateNumber, output, nextFinalOutput in fst.getEdges(s):
+    for label, toStateNumber, output, nextFinalOutput, edgeIsFinal in fst.getEdges(s):
       #print '    label=%s, to=%s, output=%s, nextFinalOutput=%s' % \
       #      (chr(label), toStateNumber, fst.outputs.outputToString(output), fst.outputs.outputToString(nextFinalOutput))
       if toStateNumber not in seen:
-        if fst.isFinal(toStateNumber):
-          shape = 'doublecircle'
-        else:
-          shape = 'circle'
         if nextFinalOutput != fst.outputs.NO_OUTPUT:
           outs = '/%s' % fst.outputs.outputToString(nextFinalOutput)
         else:
           outs = ''
-        w('  %s [shape=%s,label="%s%s"];' % (toStateNumber, shape, toStateNumber, outs))
+        w('  %s [label="%s%s"];' % (toStateNumber, toStateNumber, outs))
         seen.add(toStateNumber)
         q.append(toStateNumber)
       label = chr(label)
@@ -607,7 +615,10 @@ def toDot(fst, startState=None):
         outs = '/%s' % fst.outputs.outputToString(output)
       else:
         outs = ''
-      w('  %s -> %s [label="%s%s"];' % (s, toStateNumber, label, outs))
+      opts = ['label="%s%s"' % (label, outs)]
+      if edgeIsFinal:
+        opts.append('arrowhead="tee"')
+      w('  %s -> %s [%s];' % (s, toStateNumber, ' '.join(opts)))
   w('}')
 
   return '\n'.join(l)
@@ -630,7 +641,7 @@ def getStats(fst):
     totEdges += numEdge
     if numEdge == 1:
       numSingleOutState += 1
-    for label, toStateNumber, output, nextFinalOutput in fst.getEdges(s):
+    for label, toStateNumber, output, nextFinalOutput, edgeIsFinal in fst.getEdges(s):
       #print '        %s -> %d' % (chr(label), toStateNumber)
       if output != fst.outputs.NO_OUTPUT:
         totEdgesWithOutput += 1
@@ -672,7 +683,7 @@ class FSTEnum:
     
     while True:
 
-      label, output, toState, toFinalOutput = self.fst.getEdge(newEdge)
+      label, output, toState, toFinalOutput, edgeIsFinal = self.fst.getEdge(newEdge)
 
       if self.DEBUG:
         print '    label=%s output=%s toState=%s toFinalOutput=%s' % \
@@ -688,7 +699,7 @@ class FSTEnum:
           print '    end state [%s]' % toState
         break
 
-      if self.fst.isFinal(toState):
+      if edgeIsFinal:
         self.appendFinalOutput(toFinalOutput)
         self.lastFinal = True
         break
@@ -823,20 +834,20 @@ class FSTEnum:
         self.input.pop()
         self.output.pop()
       else:
-        label, output, toNode, nextFinalOutput = self.fst.getEdge(edge)
+        label, output, toNode, nextFinalOutput, edgeIsFinal = self.fst.getEdge(edge)
         targetLabel = target[len(self.edges)]
         if self.DEBUG:
           print '      label %s vs target %s' % (chr(label), chr(targetLabel))
         if label == targetLabel:
           toState = self.fst.getToState(edge)
-          if len(self.input) == len(target)-1 and not self.fst.isFinal(toState):
+          if len(self.input) == len(target)-1 and not edgeIsFinal:
             self.push(edge)
             break
           # recurse
           self.edges.append(edge)
           self.input.append(label)
           self.appendOutput(output)
-          if self.fst.isFinal(toState):
+          if edgeIsFinal:
             if len(self.input) == len(target) or not self.fst.anyEdges(toState):
               if self.DEBUG:
                 print '    now stop'

@@ -23,11 +23,13 @@ import struct
 # DFA PAPER: /x/archive/pseudodog.pdf
 
 # /x/tmp/allterm3.txt
-#  - correct DFA (matches morfologik): 8,013,021 states [5600403 single], 15,194,589 edges (0 w/ output)
+#  - correct DFA (matches morfologik): 8,013,021 states [5,600,403 single], 15,194,589 edges (0 w/ output)
 #    - packed 81.82 MB
 #    - repacked 61.74 MB [24.5% smaller]
+#  - FSTNUM 8,133,463 states [5,686,533 single], 15,357,402 edges (8,387,056 w/ output)
 
 # TODO
+#   - swtich all fst ops to be stateless -- don't rely on this bytesreader
 #   - make custom hash for repacking -- takes tons of RAM now
 #   - HMM shouldn't -mode DFA and -mode FSTNUM (ord, ie perfect hash) have same number of states!?
 #   - clean up the final state vs edge confusion...
@@ -38,17 +40,12 @@ import struct
 #     - hmm is pruning even working correctly!?
 #       - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
 #   - instead of nextFinalOutput.. maybe all final states (except -1) simply write their state output first?
-#   - swtich all fst ops to be stateless -- don't rely on this bytesreader
-#   - VERIFY I'm really minimal -- compare to morfologik / openfst
-#     - check my stats vs dawid's email!
-#   - switch dedup hash to probing
-#     - and use int array
 #   - dedup hash might be faster if we pre-freeze the state and do substring cmp?  hmm but its a byte array...
 #   - make FSTNUM variant mapps to random growing int
 #   - get empty string working!  ugh
 #   - hmm store max prefix len in header
 #   - compression ideas
-#     - make array access for nodes w/ many edges?  faster lookup
+#     - make direct array lookup for nodes w/ many edges?  faster lookup
 #     - or maybe just fully expand to depth N
 #     - patricia trie
 #   - later

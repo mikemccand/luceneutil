@@ -130,10 +130,11 @@ def tinyTest():
   #words = ['dalmation', 'dalmotion', 'motion', 'commotion', 'comation']
   #words = ['foo', 'foobar', 'fofee', 'foofee']
   #words = ['aa', 'ab', 'ba', 'bb']
-  words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
+  #words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
   #words = ['aa', 'ab', 'ac', 'aca', 'acb', 'acc', 'bx', 'by', 'm', 'mc', 'mca', 'mcb', 'mcc']
   #words = ['aaa', 'aab', 'baa', 'bab', 'caa', 'cab']
   #words = [('a', 88), ('aa', 40)]
+  words = ['aa', 'aab', 'bbb']
   words.sort()
   print 'WORDS:'
   b = getBuilder(mode, PRUNE_COUNT)
@@ -211,9 +212,10 @@ def lexTest(fileName):
     print '%7.2fs: %s: %d terms, %d states' % (time.time()-tStart, l, count, b.getTotStateCount())
     oldSize =len(b.packedFST.bytes)
     print 'packed %.2f MB' % (oldSize/1024./1024.)
+    t0 = time.time()
     packed = builder.repack(b.packedFST)
     newSize = len(packed.bytes)
-    print 'repacked %.2f MB [%.1f%% smaller]' % (newSize/1024./1024., 100.*(oldSize-newSize)/oldSize)
+    print 'repacked %.2f MB [%.1f%% smaller] took %.1f sec' % (newSize/1024./1024., 100.*(oldSize-newSize)/oldSize, time.time()-t0)
     
     numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
     print '%d states [%d single], %d edges (%d w/ output)' % (numState, numSingle, numEdge, numEdgeWithOutput)
@@ -270,20 +272,32 @@ def lexTest(fileName):
   
 def randomTest():
 
-  NUM_ITER = 10
-  NUM_WORDS = 1000
+  DEBUG_TEST = True
+
+  if DEBUG_TEST:
+    NUM_ITER = 1
+    NUM_WORDS = 10
+  else:
+    NUM_ITER = 10
+    NUM_WORDS = 1000
 
   r = RANDOM
-
+  dotUpto = 0
   for iter in xrange(NUM_ITER):
     print
     print 'TEST: iter %s' % iter
     seed = r.randint(0, sys.maxint)
     print '  seed %s' % seed
-    r2 = random.Random(seed)
 
-    for mode in ('DFA', 'DFAPRUNE', 'FSTNUM', 'FSTNUMPRUNE'):
+    if DEBUG_TEST:
+      modes = ('DFA', 'FSTNUM',)
+    else:
+      modes = ('DFA', 'DFAPRUNE', 'FSTNUM', 'FSTNUMPRUNE')
 
+    for mode in modes:
+
+      r2 = random.Random(seed)
+      
       b = None
 
       if mode.endswith('PRUNE'):
@@ -292,7 +306,7 @@ def randomTest():
       else:
         print '  mode %s' % mode
 
-      doRandomOutput = mode.startswith('FSTNUM') and r.randint(0, 1) == 0
+      doRandomOutput = not DEBUG_TEST and mode.startswith('FSTNUM') and r.randint(0, 1) == 0
       if doRandomOutput:
         # instead of monotonically increasing numeric output, we
         # assign a random int as output; FST is "fine" with this, but
@@ -313,7 +327,7 @@ def randomTest():
           words.append(item)
       words.sort()
 
-      if 0:
+      if DEBUG_TEST:
         f = open("words.txt", 'wb')
         for idx, w in enumerate(words):
           word, output = getOutput(mode, w, idx)
@@ -336,8 +350,11 @@ def randomTest():
         packed = builder.repack(packed)
         print '      repacked: %d bytes' % len(packed.bytes)
 
-        #open('out.dot', 'wb').write(toDot(packed))
-        #print 'Wrote to out.dot'
+        if DEBUG_TEST:
+          dotFileName = 'out%d.dot' % dotUpto
+          dotUpto += 1
+          open(dotFileName, 'wb').write(toDot(packed))
+          print 'Wrote to %s' % dotFileName
 
         numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
         print '      %d states, %d edges (%d w/ output), %d single' % (numState, numEdge, numEdgeWithOutput, numSingle)

@@ -23,29 +23,20 @@ import struct
 # DFA PAPER: /x/archive/pseudodog.pdf
 
 # /x/tmp/allterm3.txt
-#  - correct DFA (matches morfologik): 8013021 states [5600403 single], 15194589 edges (0 w/ output)
+#  - correct DFA (matches morfologik): 8,013,021 states [5600403 single], 15,194,589 edges (0 w/ output)
 #    - packed 81.82 MB
 #    - repacked 61.74 MB [24.5% smaller]
 
 # TODO
 #   - make custom hash for repacking -- takes tons of RAM now
+#   - HMM shouldn't -mode DFA and -mode FSTNUM (ord, ie perfect hash) have same number of states!?
 #   - clean up the final state vs edge confusion...
 #     - can I nuke the notion of nextFinalOutput?  can't it 
-#   - ARGH states/arcs disagree
-#     - i get 8133512 states [5686534 single], 15357501 edges (0 w/
-#       output), fst size 65374416, terms 9803311 
-#     - morfologik gets:
-#       Input sequences         9,803,311
-#       Nodes                   8,013,021
-#       Arcs                   15,194,589
-#       Tail nodes              4,355,421
-#       Unique suffixes         1,007,945
-#       FSA size:  61,402,968
 #   - get pruneCount=1 working (should yielf full divergent tree, but
 #     not more)
 #     - test FST size for that...
-#   - hmm is pruning even working correctly!?
-#     - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
+#     - hmm is pruning even working correctly!?
+#       - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
 #   - instead of nextFinalOutput.. maybe all final states (except -1) simply write their state output first?
 #   - swtich all fst ops to be stateless -- don't rely on this bytesreader
 #   - VERIFY I'm really minimal -- compare to morfologik / openfst
@@ -53,7 +44,6 @@ import struct
 #   - switch dedup hash to probing
 #     - and use int array
 #   - dedup hash might be faster if we pre-freeze the state and do substring cmp?  hmm but its a byte array...
-#   - need a re-pack at the end for NEXT node opto
 #   - make FSTNUM variant mapps to random growing int
 #   - get empty string working!  ugh
 #   - hmm store max prefix len in header
@@ -215,8 +205,8 @@ class FSTNoOutput:
   def numBytes(self, output):
     return 0
 
-  def read(self, bytesIn, pos):
-    return None, pos
+  def read(self, bytesIn):
+    return None
 
   NO_OUTPUT = None
 
@@ -351,6 +341,7 @@ class MinStateHash2:
         #print '      new'
         self.count += 1
         address = state.freeze()
+        assert address > 0, 'got frozen %s' % address
         assert hashFrozen(address) == origH
         #print '      freeze=%s' % address
         assert type(address) is types.IntType
@@ -1121,8 +1112,9 @@ def repack(fst):
           else:
             assert nextFinalOutput == NO_OUTPUT
 
-          numNextEdges = fst.numEdges(toStateNumber)
-          if numNextEdges == 0:
+          isEnd = toStateNumber == FINAL_END_STATE or toStateNumber == NON_FINAL_END_STATE
+          
+          if isEnd:
             flags += BIT_STOP_STATE
           if output != NO_OUTPUT:
             flags += BIT_ARC_HAS_OUTPUT
@@ -1133,7 +1125,7 @@ def repack(fst):
             outputs.write(output, out)
           if nextFinalOutput != NO_OUTPUT:
             outputs.write(nextFinalOutput, out)
-          if numNextEdges > 0 and (flags & BIT_TARGET_NEXT == 0):
+          if not isEnd and (flags & BIT_TARGET_NEXT == 0):
             if iter == 0:
               addr = 0
             else:

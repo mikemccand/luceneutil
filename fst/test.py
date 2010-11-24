@@ -88,26 +88,32 @@ def toWord(bytes):
 def toAscii(s):
   return s.encode('ascii', 'replace')
 
-def getOutput(mode, idx):
-  if mode.startswith('DFA'):
-    output = None
-  elif mode.startswith('FSTNUM'):
-    output = idx
-  elif mode == 'FSTIDX':
-    output = (idx,)
+def getOutput(mode, word, idx):
+  if type(word) is types.TupleType:
+    output = word[1]
+    word = word[0]
   else:
-    raise RuntimeError('unknown mode %s' % mode)
-  return output
+    if mode.startswith('DFA'):
+      output = None
+    elif mode.startswith('FSTNUM'):
+      output = idx
+    elif mode == 'FSTIDX':
+      output = (idx,)
+    elif mode == 'FSTDEC':
+      output = tuple('%d' % idx)
+    else:
+      raise RuntimeError('unknown mode %s' % mode)
+  return word, output
 
 def doAdd(b, word, idx, mode):
-  output = getOutput(mode, idx)
+  word, output = getOutput(mode, word, idx)
   b.add(toBytes(word), output)
 
 def getOutputs(mode):
   if mode in ('FSTIDX', 'FSTDEC'):
     outputs = builder.FSTByteSequenceOutput()
   elif mode.startswith('FSTNUM'):
-    outputs = builder.FSTMonotonicPositiveIntOutput()
+    outputs = builder.FSTPositiveIntOutput()
   else:
     outputs = builder.FSTNoOutput()
   return outputs
@@ -127,10 +133,15 @@ def tinyTest():
   words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
   #words = ['aa', 'ab', 'ac', 'aca', 'acb', 'acc', 'bx', 'by', 'm', 'mc', 'mca', 'mcb', 'mcc']
   #words = ['aaa', 'aab', 'baa', 'bab', 'caa', 'cab']
+  #words = [('a', 88), ('aa', 40)]
   words.sort()
+  print 'WORDS:'
+  b = getBuilder(mode, PRUNE_COUNT)
+  for idx, w in enumerate(words):
+    word, output = getOutput(mode, w, idx)
+    print '  %s: %s' % (word, b.outputs.outputToString(output))
   if PRUNE_COUNT is not None:
     mode += 'PRUNE'
-  b = getBuilder(mode, PRUNE_COUNT)
   for idx, word in enumerate(words):
     doAdd(b, word, idx, mode)
   b.finish()
@@ -259,9 +270,8 @@ def lexTest(fileName):
   
 def randomTest():
 
-  # nocommit
-  NUM_ITER = 1
-  NUM_WORDS = 10000
+  NUM_ITER = 10
+  NUM_WORDS = 1000
 
   r = RANDOM
 
@@ -272,9 +282,7 @@ def randomTest():
     print '  seed %s' % seed
     r2 = random.Random(seed)
 
-    # nocommit
-    #for mode in ('DFA', 'DFAPRUNE', 'FSTNUM', 'FSTNUMPRUNE'):
-    for mode in ('DFA',):
+    for mode in ('DFA', 'DFAPRUNE', 'FSTNUM', 'FSTNUMPRUNE'):
 
       b = None
 
@@ -284,33 +292,36 @@ def randomTest():
       else:
         print '  mode %s' % mode
 
+      doRandomOutput = mode.startswith('FSTNUM') and r.randint(0, 1) == 0
+      if doRandomOutput:
+        # instead of monotonically increasing numeric output, we
+        # assign a random int as output; FST is "fine" with this, but
+        # it means less can be shared
+        print '      randout'
+
       # make sure no dups:
-      words = set()
+      wordSet = set()
+      words = []
       while len(words) < NUM_WORDS:
-        words.add(randomWord(r2, 10))
-      words = list(words)
+        w = randomWord(r2, 10)
+        if w not in wordSet:
+          wordSet.add(w)
+          if doRandomOutput:
+            item = (w, r2.randint(0, 1000))
+          else:
+            item = w
+          words.append(item)
       words.sort()
 
-      # nocommit
-      f = open("words.txt", 'wb')
-      for w in words:
-        f.write('%s\n' % w)
-      f.close()
+      if 0:
+        f = open("words.txt", 'wb')
+        for idx, w in enumerate(words):
+          word, output = getOutput(mode, w, idx)
+          f.write('%s: %s\n' % (w, output))
+        f.close()
 
       try:
-        if mode.startswith('FSTNUM'):
-          outputs = builder.FSTMonotonicPositiveIntOutput()
-        else:
-          outputs = builder.FSTNoOutput()
-
-        if mode.endswith('PRUNE'):
-          doMin = False
-          pc = pruneCount
-        else:
-          doMin = True
-          pc = None
-
-        b = builder.Builder(doMin, None, pc, outputs=outputs)
+        b =  getBuilder(mode, PRUNE_COUNT)
         lastW = None
         for idx, w in enumerate(words):
           doAdd(b, w, idx, mode)
@@ -325,9 +336,8 @@ def randomTest():
         packed = builder.repack(packed)
         print '      repacked: %d bytes' % len(packed.bytes)
 
-        # nocommit
-        open('out.dot', 'wb').write(toDot(packed))
-        print 'Wrote to out.dot'
+        #open('out.dot', 'wb').write(toDot(packed))
+        #print 'Wrote to out.dot'
 
         numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
         print '      %d states, %d edges (%d w/ output), %d single' % (numState, numEdge, numEdgeWithOutput, numSingle)
@@ -354,8 +364,10 @@ def verifyAllWords(packed, words, mode, r=RANDOM):
 
   assert packed is not None
 
+  wordsOnly = [getOutput(mode, w, idx)[0] for idx, w in enumerate(words)]
+
+  # TODO: fix to work w/ prune!!
   if not mode.endswith('PRUNE'):
-    # TODO: fix verifyEnum to work w/ prune
     packedEnum = FSTEnum(packed, DEBUG=DEBUG)
     for idx, word in enumerate(words):
       verify(packed, idx, word, mode)
@@ -380,12 +392,12 @@ def verifyAllWords(packed, words, mode, r=RANDOM):
             assert v is None
             assert output is None
           else:
+            word, expected = getOutput(mode, words[upto], upto)
             assert v is not None
-            assert toWord(v) == words[upto], 'upto %d: got word %s but expected word %s' % \
-                   (upto, toWord(v), words[upto])
-            expected = getOutput(mode, upto)
+            assert toWord(v) == word, 'upto %d: got word %s but expected word %s' % \
+                   (upto, toWord(v), word)
             assert output == expected, 'wrong output for word "%s": got %s but expected %s' % \
-                   (words[upto],
+                   (word,
                     packed.outputs.outputToString(output),
                     packed.outputs.outputToString(expected))
 
@@ -397,9 +409,9 @@ def verifyAllWords(packed, words, mode, r=RANDOM):
             upto = 0
           if upto >= len(words):
             upto = len(words)-1
-          v, output = packedEnum.advance(toBytes(words[upto]))
-          assert toWord(v) == words[upto]
-          expected = getOutput(mode, upto)
+          word, expected = getOutput(mode, words[upto], upto)
+          v, output = packedEnum.advance(toBytes(word))
+          assert toWord(v) == word
           assert output == expected
 
     # make up random words and make sure FSTEnum.advance goes to the
@@ -409,8 +421,10 @@ def verifyAllWords(packed, words, mode, r=RANDOM):
     for iter in xrange(100):
       packedEnum = FSTEnum(packed, DEBUG)
       word = randomWord(r, 10)
-      idx = bisect.bisect_left(words, word)
-      if idx > 0 and word.startswith(words[idx-1]) and (idx == len(words) or not words[idx].startswith(words[idx-1])):
+      idx = bisect.bisect_left(wordsOnly, word)
+      if idx > 0 and \
+             word.startswith(getOutput(mode, words[idx-1], idx-1)[0]) and \
+             (idx == len(words) or not getOutput(mode, words[idx], idx)[0].startswith(getOutput(mode, words[idx-1], idx-1)[0])):
         idx -= 1
       if DEBUG:
         print '    seek %s; idx %s vs %s' % (word, idx, len(words))
@@ -419,21 +433,22 @@ def verifyAllWords(packed, words, mode, r=RANDOM):
         assert v is None, 'got v=%s for word=%s idx=len(words)' % (toWord(v), word)
         assert output is None
       else:
-        assert toWord(v) == words[idx], 'got %s expected %s' % (toWord(v), words[idx])
-        expected = getOutput(mode, idx)
+        word, expected = getOutput(mode, words[idx], idx)
+        assert v is not None
+        assert toWord(v) == word, 'got %s expected %s' % (toWord(v), word)
         assert output == expected
 
     # TODO: make sure output is right here:
     # TODO: do this test for prefix too
     # neg test: pick random word accepted by the FST and make sure
     # it's in the words
-    wordSet = set(words)
+    wordSet = set(wordsOnly)
     for iter in xrange(100):
       bytes, wordOutput = getAcceptedWord(r, packed)
       word = toWord(bytes)
       assert word in wordSet, 'random word "%s" is not accepted' % word
       
-    verifyNot(packed, r, words)
+    verifyNot(packed, r, wordSet)
 
 def getAcceptedWord(r, fst):
   input = []
@@ -475,14 +490,14 @@ def runPrefixPacked(fst, bytes):
   netOutput = fst.outputs.NO_OUTPUT
   for i in xrange(len(bytes)):
     byte = bytes[i]
-    toState, output, nextFinalOutput = fst.findEdge(state, byte)
+    toState, output, nextFinalOutput, edgeIsFinal = fst.findEdge(state, byte)
     if toState is None:
       return state, netOutput, i
 
     netOutput = fst.outputs.add(netOutput, output)
     state = toState
 
-    if fst.isFinal(toState):
+    if edgeIsFinal:
       if i == len(bytes)-1:
         netOutput = fst.outputs.add(netOutput, nextFinalOutput)
         return state, netOutput, i+1
@@ -526,12 +541,13 @@ def verifyEnum(idx, word, e, mode):
       print '  enum=%s' % toWord(p)
     assert startsWith(b, p), 'enum=%s word=%s' % (toWord(p), word)
   elif mode == 'FSTNUM':
+    word, expected = getOutput(mode, word, idx)
     eword, out = e.next()
     if word is None:
       assert eword is None
       return
     assert toWord(eword) == word, 'got input %s but expected %s' % (toWord(eword), word)
-    assert out == getOutput(mode, idx), 'input %s: got output %s but expected %s' % (word, out, idx)
+    assert out == expected, 'input %s: got output %s but expected %s' % (word, out, idx)
   # TODO: FSTNUMPRUNE
   
 
@@ -553,21 +569,19 @@ def verify(packed, idx, word, mode):
     if endState != -1 and packed.numEdges(endState) > 0 and count < len(bytes):
       raise RuntimeError('word %s accepted prefix %d but state %s has %d edges' % (word, count, endState, packed.numEdges(endState)))
   else:
+    word, expected = getOutput(mode, word, idx)
+
     try:
       output = runPacked(packed, toBytes(word))
     except RuntimeError:
       raise RuntimeError('word %s wasn\'t accepted' % word)
 
     # print '    got output %s' % str(output)
-    expected = getOutput(mode, idx)
     if output != expected:
       raise RuntimeError('input %s returned output %s not %s' % (word, output, expected))
 
-def verifyNot(packed, r, words):
+def verifyNot(packed, r, wordSet):
   # confirm new random words are not accepted
-  wordSet = set()
-  for w in words:
-    wordSet.add(w)
   NUM_NON_WORD = 100
   for i in xrange(NUM_NON_WORD):
     word = randomWord(r, 10)
@@ -593,6 +607,8 @@ def toDot(fst, startState=None):
   seen = set()
   seen.add(startState)
 
+  NO_OUTPUT = fst.outputs.NO_OUTPUT
+
   w('  %s [shape=circle,label="%s"];' % (q[0], q[0]))
   w('  initial [shape=plaintext,label=""];')
   w('  initial -> %s' % q[0])
@@ -603,18 +619,16 @@ def toDot(fst, startState=None):
       #print '    label=%s, to=%s, output=%s, nextFinalOutput=%s' % \
       #      (chr(label), toStateNumber, fst.outputs.outputToString(output), fst.outputs.outputToString(nextFinalOutput))
       if toStateNumber not in seen:
-        if nextFinalOutput != fst.outputs.NO_OUTPUT:
-          outs = '/%s' % fst.outputs.outputToString(nextFinalOutput)
-        else:
-          outs = ''
-        w('  %s [label="%s%s"];' % (toStateNumber, toStateNumber, outs))
+        w('  %s [label="%s"];' % (toStateNumber, toStateNumber))
         seen.add(toStateNumber)
         q.append(toStateNumber)
       label = chr(label)
-      if output != fst.outputs.NO_OUTPUT:
+      if output != NO_OUTPUT:
         outs = '/%s' % fst.outputs.outputToString(output)
       else:
         outs = ''
+      if edgeIsFinal and nextFinalOutput != NO_OUTPUT:
+        outs += ' (%s)' % fst.outputs.outputToString(nextFinalOutput)
       opts = ['label="%s%s"' % (label, outs)]
       if edgeIsFinal:
         opts.append('arrowhead="tee"')

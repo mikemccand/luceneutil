@@ -22,9 +22,15 @@ import struct
 # FST PAPER: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.24.3698
 # DFA PAPER: /x/archive/pseudodog.pdf
 
+# /x/tmp/allterm3.txt
+#  - correct DFA (matches morfologik): 8013021 states [5600403 single], 15194589 edges (0 w/ output)
+#    - packed 81.82 MB
+#    - repacked 61.74 MB [24.5% smaller]
+
 # TODO
 #   - make custom hash for repacking -- takes tons of RAM now
 #   - clean up the final state vs edge confusion...
+#     - can I nuke the notion of nextFinalOutput?  can't it 
 #   - ARGH states/arcs disagree
 #     - i get 8133512 states [5686534 single], 15357501 edges (0 w/
 #       output), fst size 65374416, terms 9803311 
@@ -42,7 +48,7 @@ import struct
 #     - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
 #   - instead of nextFinalOutput.. maybe all final states (except -1) simply write their state output first?
 #   - swtich all fst ops to be stateless -- don't rely on this bytesreader
-#   - VERIFY I'm really minimal -- compare to morfolgik / openfst
+#   - VERIFY I'm really minimal -- compare to morfologik / openfst
 #     - check my stats vs dawid's email!
 #   - switch dedup hash to probing
 #     - and use int array
@@ -55,7 +61,6 @@ import struct
 #     - make array access for nodes w/ many edges?  faster lookup
 #     - or maybe just fully expand to depth N
 #     - patricia trie
-#   - explain why #edges disagrees w/ Morfologik
 #   - later
 #     - packing opto: not only FLAG_NODE_NEXT we can also make it eg
 #       skip N arcs.  ie really we are laying out all the arcs,
@@ -148,7 +153,7 @@ class FSTByteSequenceOutput:
   def validOutput(self, o):
     return type(o) is types.TupleType
 
-class FSTMonotonicPositiveIntOutput:
+class FSTPositiveIntOutput:
 
   def common(self, output1, output2):
     return min(output1, output2)
@@ -374,7 +379,7 @@ class MinStateHash2:
       h += h2
 
   def rehash(self):
-    print 'rehash %d (count %s)' % (len(self.table)*2, self.count)
+    # print 'rehash %d (count %s)' % (len(self.table)*2, self.count)
     newTable = array.array('i', [-1]*(len(self.table)*2))
     for ent in self.table:
       if ent != -1:

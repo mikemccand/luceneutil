@@ -29,6 +29,8 @@ import struct
 #  - FSTNUM 8,133,463 states [5,686,533 single], 15,357,402 edges (8,387,056 w/ output)
 
 # TODO
+#   - should we make byte[] writing "pages" -- minimize overalloc cost
+#   - try writing byte[] "in reverse" -- do we get just as many NEXT arcs!?
 #   - swtich all fst ops to be stateless -- don't rely on this bytesreader
 #   - make custom hash for repacking -- takes tons of RAM now
 #   - HMM shouldn't -mode DFA and -mode FSTNUM (ord, ie perfect hash) have same number of states!?
@@ -71,6 +73,17 @@ import struct
 #   - full top (multi-reader) DFA/FST
 #     - fst could map to bitset of which segs have the term
 #   - make FST only for certain tokens eg proper names
+
+
+BIT_FINAL_ARC = 1 << 0
+BIT_LAST_ARC = 1 << 1
+BIT_TARGET_NEXT = 1 << 2
+BIT_STOP_STATE = 1 << 3
+BIT_ARC_HAS_OUTPUT = 1 << 4
+BIT_FINAL_STATE_HAS_OUTPUT = 1 << 5
+
+FINAL_END_STATE = -1
+NON_FINAL_END_STATE = 0
 
 class FSTOutput:
   def common(self, output1, output2):
@@ -718,6 +731,7 @@ class SerializedFST:
     self.bytes = self.out.bytes
     self.bytesReader = BytesReader(self.bytes)
     self.initState = None
+    self.lastFrozenState = None
 
     # temporary pad -- ensure no node gets address 0, which is deadly
     # if it's a final node (-0 == 0), or addres 1, which is deadly if
@@ -745,8 +759,9 @@ class SerializedFST:
         return FINAL_END_STATE
       else:
         return NON_FINAL_END_STATE
-    
-    address = len(self.bytes)
+
+    startAddress = len(self.bytes)
+
     #print 'SFST.addState newAddr=%s' % address
     
     lastEdge = len(state.to)-1
@@ -760,6 +775,9 @@ class SerializedFST:
       if i == lastEdge:
         flags += BIT_LAST_ARC
         #print '    last'
+        # nocommit -- also enable opto for not-last-edge, but, MUST FIX READING
+        if self.lastFrozenState == toState.address:
+          flags += BIT_TARGET_NEXT
 
       if edgeIsFinal:
         flags += BIT_FINAL_ARC
@@ -768,9 +786,8 @@ class SerializedFST:
       else:
         assert nextFinalOutput == self.outputs.NO_OUTPUT, 'got output %s' % self.outputs.outputToString(nextFinalOutput)
 
-      numNextEdges = self.numEdges(toState.address)
-
-      if numNextEdges == 0:
+      targetHasEdges = self.hasEdges(toState.address)
+      if not targetHasEdges:
         flags += BIT_STOP_STATE
 
       if output != NO_OUTPUT:
@@ -782,10 +799,21 @@ class SerializedFST:
         State.outputs.write(output, self.out)
       if nextFinalOutput != NO_OUTPUT:
         State.outputs.write(nextFinalOutput, self.out)
-      if numNextEdges > 0:
+
+      if (not flags & BIT_TARGET_NEXT) and targetHasEdges:
         encodeAddress(self.out, abs(toState.address))
 
-    return address
+    # reverse bytes in place
+    endAddress = len(self.bytes)
+    stopAt = (endAddress - startAddress) / 2
+    upto = 0
+    while upto < stopAt:
+      # swap
+      self.bytes[startAddress+upto], self.bytes[endAddress-upto-1] = self.bytes[endAddress-upto-1], self.bytes[startAddress+upto]
+      upto += 1
+    self.lastFrozenState = endAddress - 1
+    
+    return endAddress - 1
 
   def getStartState(self):
     return self.initState
@@ -793,7 +821,7 @@ class SerializedFST:
   def anyEdges(self, node):
     return node != FINAL_END_STATE
 
-  def getEdges(self, node, includeLast=False):
+  def getEdges(self, node, includeFlags=False):
     if node == FINAL_END_STATE or node == NON_FINAL_END_STATE:
       return
     else:
@@ -821,38 +849,21 @@ class SerializedFST:
         toState = self.bytesReader.pos
       else:
         toState = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
-        self.bytesReader.pos += 4
+        self.bytesReader.skip(4)
 
       # hackish!!  need to make this stateless
       posSave = self.bytesReader.pos
-      if includeLast:
-        yield label, toState, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0, flags & BIT_LAST_ARC
+      if includeFlags:
+        yield label, toState, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0, flags
       else:
         yield label, toState, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0
       if flags & BIT_LAST_ARC:
         break
       self.bytesReader.pos = posSave
 
-  def numEdges(self, node):
-    if node == FINAL_END_STATE or node == NON_FINAL_END_STATE:
-      return 0
-    count = 0
-    self.bytesReader.pos = self.firstEdge(node)
-    while True:
-      count += 1
-      flags = self.bytesReader.read()
-      label = self.bytesReader.read()
-      if flags & BIT_LAST_ARC:
-        break
-      if flags & BIT_ARC_HAS_OUTPUT:
-        self.outputs.read(self.bytesReader)
-      if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-        self.outputs.read(self.bytesReader)
-        
-      if not flags & BIT_STOP_STATE and not flags & BIT_TARGET_NEXT:
-        self.bytesReader.pos += 4
-    return count
-
+  def hasEdges(self, node):
+    return node != FINAL_END_STATE and node != NON_FINAL_END_STATE
+    
   def findEdge(self, node, labelToMatch):
 
     """
@@ -883,14 +894,14 @@ class SerializedFST:
           target = self.bytesReader.pos
         else:
           target = decodeAddress(self.bytes, self.bytesReader.pos)
-          self.bytesReader.pos += 4
+          self.bytesReader.skip(4)
         return target, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0
 
       if flags & BIT_LAST_ARC:
         break
       
       if not flags & BIT_STOP_STATE:
-        self.bytesReader.pos += 4
+        self.bytesReader.skip(4)
 
     return None, None, None, None
 
@@ -963,7 +974,8 @@ class SerializedFST:
     if flags & BIT_STOP_STATE:
       return self.bytesReader.pos
     else:
-      return self.bytesReader.pos + 4
+      self.bytesReader.skip(4)
+      return self.bytesReader.pos
 
       
 class BytesWriter:
@@ -989,8 +1001,11 @@ class BytesReader:
     
   def read(self):
     b = self.bytes[self.pos]
-    self.pos += 1
+    self.pos -= 1
     return b
+
+  def skip(self, n):
+    self.pos -= n
 
 def encodeAddress(bytes, v):
   bytes.write(v&0xFF)
@@ -1000,144 +1015,6 @@ def encodeAddress(bytes, v):
 
 def decodeAddress(bytes, loc):
   return bytes[loc] + \
-         (bytes[1+loc]<<8) + \
-         (bytes[2+loc]<<16) + \
-         (bytes[3+loc]<<24)
-
-BIT_FINAL_ARC = 1 << 0
-BIT_LAST_ARC = 1 << 1
-BIT_TARGET_NEXT = 1 << 2
-BIT_STOP_STATE = 1 << 3
-BIT_ARC_HAS_OUTPUT = 1 << 4
-BIT_FINAL_STATE_HAS_OUTPUT = 1 << 5
-
-FINAL_END_STATE = -1
-NON_FINAL_END_STATE = 0
-
-class DummyBytesWriter:
-  def __init__(self):
-    self.addr = 0
-
-  def write(self, v):
-    self.addr += 1
-
-  def getPosition(self):
-    return self.addr
-
-def repack(fst):
-  """
-  Rewrites old fst to new fst, reducing space by optimizing for tail recursion.
-  """
-
-  #print '\nnow repack:'
-
-  startState = fst.getStartState()
-
-  map = {startState: None}
-  map[FINAL_END_STATE] = FINAL_END_STATE
-  map[NON_FINAL_END_STATE] = NON_FINAL_END_STATE
-
-  for iter in xrange(2):
-    #print '\nrepack iter %d' % iter
-
-    # two iterations -- first computes new address for all nodes, 2nd does the 'real' writing
-    count = 0
-    if iter == 0:
-      out = DummyBytesWriter()
-      # pad
-      out.write(0)
-      out.write(0)
-    else:
-      newFST = SerializedFST(fst.outputs)
-      out = newFST.out
-      map[startState] = -map[startState]
-
-    q = [startState]
-
-    NO_OUTPUT = fst.outputs.NO_OUTPUT
-    outputs = fst.outputs
-    
-    while len(q) > 0:
-      s = q.pop()
-      assert s in map
-      #print 'pop %s' % s
-      newAddr = out.getPosition()
-      #print '  newAddr %s' % newAddr
-      
-      if iter == 0:
-        doWrite = map[s] is None
-      else:
-        doWrite = map[s] == newAddr
-        #print '  map[s] = %s' % newAddr
-        
-      if doWrite:
-        # not yet written -- write now
-        count += 1
-
-        # new address for this node:
-        if iter == 0:
-          map[s] = -newAddr
-        #print '  new addr %s' % map[s]
-
-        for label, toStateNumber, output, nextFinalOutput, edgeIsFinal, isLast in fst.getEdges(s, True):
-          #print '    arc %s -> %s' % (chr(label), toStateNumber)
-          if iter == 0:
-            isNew = toStateNumber not in map
-          else:
-            isNew = map[toStateNumber] < 0
-
-          if isNew:
-            #print '      append to queue'
-            q.append(toStateNumber)
-            if iter == 0:
-              map[toStateNumber] = None
-            else:
-              map[toStateNumber] = -map[toStateNumber]
-
-          flags = 0
-          if isLast:
-            flags += BIT_LAST_ARC
-            if len(q) > 0 and q[-1] == toStateNumber:
-              # tail recursion!
-              flags += BIT_TARGET_NEXT
-              #print 'TAIL!'
-
-          if edgeIsFinal:
-            flags += BIT_FINAL_ARC
-            if nextFinalOutput != NO_OUTPUT:
-              flags += BIT_FINAL_STATE_HAS_OUTPUT
-          else:
-            assert nextFinalOutput == NO_OUTPUT
-
-          isEnd = toStateNumber == FINAL_END_STATE or toStateNumber == NON_FINAL_END_STATE
-          
-          if isEnd:
-            flags += BIT_STOP_STATE
-          if output != NO_OUTPUT:
-            flags += BIT_ARC_HAS_OUTPUT
-
-          out.write(flags)
-          out.write(label)
-          if output != NO_OUTPUT:
-            outputs.write(output, out)
-          if nextFinalOutput != NO_OUTPUT:
-            outputs.write(nextFinalOutput, out)
-          if not isEnd and (flags & BIT_TARGET_NEXT == 0):
-            if iter == 0:
-              addr = 0
-            else:
-              addr = map[toStateNumber]
-              assert addr is not None
-            encodeAddress(out, addr)
-      else:
-        #print '  already addr %s' % map[s]
-        pass
-
-    if iter == 1:
-      assert count == lastCount, '%d vs %d' % (count, lastCount)
-      
-    lastCount = count
-
-  newFST.initState = map[fst.initState]
-  
-  return newFST
+         (bytes[loc-1]<<8) + \
+         (bytes[loc-2]<<16) + \
+         (bytes[loc-3]<<24)

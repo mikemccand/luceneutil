@@ -130,11 +130,11 @@ def tinyTest():
   #words = ['dalmation', 'dalmotion', 'motion', 'commotion', 'comation']
   #words = ['foo', 'foobar', 'fofee', 'foofee']
   #words = ['aa', 'ab', 'ba', 'bb']
-  #words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
+  words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
   #words = ['aa', 'ab', 'ac', 'aca', 'acb', 'acc', 'bx', 'by', 'm', 'mc', 'mca', 'mcb', 'mcc']
   #words = ['aaa', 'aab', 'baa', 'bab', 'caa', 'cab']
   #words = [('a', 88), ('aa', 40)]
-  words = ['aa', 'aab', 'bbb']
+  #words = ['aa', 'aab', 'bbb']
   words.sort()
   print 'WORDS:'
   b = getBuilder(mode, PRUNE_COUNT)
@@ -147,14 +147,14 @@ def tinyTest():
     doAdd(b, word, idx, mode)
   b.finish()
   packed = b.packedFST
-  numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
-  print '%d states [%d single], %d bytes, %d edges (%d w/ output)' % (numState, numSingle, len(packed.bytes), numEdge, numEdgeWithOutput)
+  print 'Packed %d bytes' % len(packed.bytes)
+  numState, numEdge, numEdgeWithOutput, numSingle, numNextEdge = getStats(packed)
+  print '%d states [%d single], %d bytes, %d edges (%d w/ output, %d w/ NEXT)' % (numState, numSingle, len(packed.bytes), numEdge, numEdgeWithOutput, numNextEdge)
 
-  rePacked = builder.repack(packed)
+  #rePacked = builder.repack(packed)
   print 'Saved to out.dot'
-  open('out.dot', 'wb').write(toDot(rePacked))
-  print 'after re-pack: %d bytes' % len(rePacked.bytes)
-  packed = rePacked
+  open('out.dot', 'wb').write(toDot(packed))
+  #print 'after re-pack: %d bytes' % len(rePacked.bytes)
   
   verifyAllWords(packed, words, mode)
 
@@ -210,15 +210,14 @@ def lexTest(fileName):
     b.finish()
     print '%d words' % idx
     print '%7.2fs: %s: %d terms, %d states' % (time.time()-tStart, l, count, b.getTotStateCount())
-    oldSize =len(b.packedFST.bytes)
-    print 'packed %.2f MB' % (oldSize/1024./1024.)
+    size = len(b.packedFST.bytes)
+    print 'packed %.2f MB' % (size/1024./1024.)
     t0 = time.time()
-    packed = builder.repack(b.packedFST)
-    newSize = len(packed.bytes)
-    print 'repacked %.2f MB [%.1f%% smaller] took %.1f sec' % (newSize/1024./1024., 100.*(oldSize-newSize)/oldSize, time.time()-t0)
+    #packed = builder.repack(b.packedFST)
+    packed = b.packedFST
     
-    numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
-    print '%d states [%d single], %d edges (%d w/ output)' % (numState, numSingle, numEdge, numEdgeWithOutput)
+    numState, numEdge, numEdgeWithOutput, numSingle, numNextEdge = getStats(packed)
+    print '%d states [%d single], %d edges (%d w/ output, %d w/ NEXT)' % (numState, numSingle, numEdge, numEdgeWithOutput, numNextEdge)
     if numState <= 100:
       open('out.dot', 'wb').write(toDot(b.packedFST))
       print 'Saved to out.dot'
@@ -272,7 +271,7 @@ def lexTest(fileName):
   
 def randomTest():
 
-  DEBUG_TEST = True
+  DEBUG_TEST = False
 
   if DEBUG_TEST:
     NUM_ITER = 1
@@ -310,7 +309,7 @@ def randomTest():
       if doRandomOutput:
         # instead of monotonically increasing numeric output, we
         # assign a random int as output; FST is "fine" with this, but
-        # it means less can be shared
+        # it means less can be shared so the minimal FST will have more states
         print '      randout'
 
       # make sure no dups:
@@ -347,8 +346,8 @@ def randomTest():
 
         packed = b.packedFST
         print '      packed: %d bytes' % len(packed.bytes)
-        packed = builder.repack(packed)
-        print '      repacked: %d bytes' % len(packed.bytes)
+        #packed = builder.repack(packed)
+        #print '      repacked: %d bytes' % len(packed.bytes)
 
         if DEBUG_TEST:
           dotFileName = 'out%d.dot' % dotUpto
@@ -356,8 +355,8 @@ def randomTest():
           open(dotFileName, 'wb').write(toDot(packed))
           print 'Wrote to %s' % dotFileName
 
-        numState, numEdge, numEdgeWithOutput, numSingle = getStats(packed)
-        print '      %d states, %d edges (%d w/ output), %d single' % (numState, numEdge, numEdgeWithOutput, numSingle)
+        numState, numEdge, numEdgeWithOutput, numSingle, numNextEdge = getStats(packed)
+        print '      %d states, %d edges (%d w/ output, %d w/ NEXT), %d single' % (numState, numEdge, numEdgeWithOutput, numNextEdge, numSingle)
 
         verifyAllWords(packed, words, mode, r2)
 
@@ -583,8 +582,8 @@ def verify(packed, idx, word, mode):
   if mode.endswith('PRUNE'):
     bytes = toBytes(word)
     endState, netOutput, count = runPrefixPacked(packed, bytes)
-    if endState != -1 and packed.numEdges(endState) > 0 and count < len(bytes):
-      raise RuntimeError('word %s accepted prefix %d but state %s has %d edges' % (word, count, endState, packed.numEdges(endState)))
+    if endState != -1 and packed.hasEdges(endState) and count < len(bytes):
+      raise RuntimeError('word %s accepted prefix %d but state %s has edges' % (word, count, endState))
   else:
     word, expected = getOutput(mode, word, idx)
 
@@ -664,23 +663,25 @@ def getStats(fst):
   totEdges = 0
   totEdgesWithOutput = 0
   numSingleOutState = 0
+  numNextEdge = 0
   while len(q) > 0:
     s = q.pop()
     #print '    pop %s' % s
-    numEdge = fst.numEdges(s)
-    #print '      %d edges' % numEdge
-    totEdges += numEdge
-    if numEdge == 1:
+    edges = list(fst.getEdges(s, True))
+    totEdges += len(edges)
+    if len(edges) == 1:
       numSingleOutState += 1
-    for label, toStateNumber, output, nextFinalOutput, edgeIsFinal in fst.getEdges(s):
+    for label, toStateNumber, output, nextFinalOutput, edgeIsFinal, flags in edges:
       #print '        %s -> %d' % (chr(label), toStateNumber)
+      if flags & builder.BIT_TARGET_NEXT:
+        numNextEdge += 1
       if output != fst.outputs.NO_OUTPUT:
         totEdgesWithOutput += 1
       if toStateNumber not in seen:
         seen.add(toStateNumber)
         q.append(toStateNumber)
 
-  return len(seen), totEdges, totEdgesWithOutput, numSingleOutState
+  return len(seen), totEdges, totEdgesWithOutput, numSingleOutState, numNextEdge
 
 
 class FSTEnum:

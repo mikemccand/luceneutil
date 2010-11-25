@@ -32,11 +32,10 @@ import builder
 DEBUG = '-debug' in sys.argv
 
 if '-seed' in sys.argv:
-  seed = int(sys.argv[1+sys.argv.index('-seed')])
+  globalSeed = int(sys.argv[1+sys.argv.index('-seed')])
 else:
-  seed = random.randint(0, sys.maxint)
+  globalSeed = None
 #seed = 4269902312347254832
-print 'seed %s' % seed
 
 if '-fst' in sys.argv:
   fstFileName = sys.argv[1+sys.argv.index('-fst')]
@@ -49,7 +48,7 @@ if '-limit' in sys.argv:
 else:
   LIMIT = None
   
-RANDOM = random.Random(seed)
+RANDOM = random.Random()
 
 if '-prune' in sys.argv:
   PRUNE_COUNT = int(sys.argv[1+sys.argv.index('-prune')])
@@ -275,7 +274,7 @@ def randomTest():
 
   if DEBUG_TEST:
     NUM_ITER = 1
-    NUM_WORDS = 10
+    NUM_WORDS = 100
   else:
     NUM_ITER = 10
     NUM_WORDS = 1000
@@ -285,7 +284,10 @@ def randomTest():
   for iter in xrange(NUM_ITER):
     print
     print 'TEST: iter %s' % iter
-    seed = r.randint(0, sys.maxint)
+    if globalSeed is None:
+      seed = r.randint(0, sys.maxint)
+    else:
+      seed = globalSeed
     print '  seed %s' % seed
 
     if DEBUG_TEST:
@@ -631,7 +633,7 @@ def toDot(fst, startState=None):
   while len(q) > 0:
     s = q.pop()
     #print '  pop s=%s' % s
-    for label, toStateNumber, output, nextFinalOutput, edgeIsFinal in fst.getEdges(s):
+    for label, toStateNumber, output, nextFinalOutput, edgeIsFinal, flags in fst.getEdges(s, True):
       #print '    label=%s, to=%s, output=%s, nextFinalOutput=%s' % \
       #      (chr(label), toStateNumber, fst.outputs.outputToString(output), fst.outputs.outputToString(nextFinalOutput))
       if toStateNumber not in seen:
@@ -648,6 +650,8 @@ def toDot(fst, startState=None):
       opts = ['label="%s%s"' % (label, outs)]
       if edgeIsFinal:
         opts.append('arrowhead="tee"')
+      if flags & builder.BIT_TARGET_NEXT:
+        opts.append('color="blue"')
       w('  %s -> %s [%s];' % (s, toStateNumber, ' '.join(opts)))
   w('}')
 

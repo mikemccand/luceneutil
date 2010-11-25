@@ -691,6 +691,7 @@ def getStats(fst):
 class FSTEnum:
 
   # TODO
+  #   - silly to use .nextEdge and .getEdge -- we should hold onto 'end' address after the .getEdge call
   #   - really this should be decoupled from the "packed" FST impl,
   #     ie, this enum should be runnable on any FST using a common FST
   #     api
@@ -719,7 +720,7 @@ class FSTEnum:
     
     while True:
 
-      label, output, toState, toFinalOutput, edgeIsFinal = self.fst.getEdge(newEdge)
+      label, output, toState, toFinalOutput, edgeIsFinal, ign = self.fst.getEdge(newEdge)
 
       if self.DEBUG:
         print '    label=%s output=%s toState=%s toFinalOutput=%s' % \
@@ -870,7 +871,7 @@ class FSTEnum:
         self.input.pop()
         self.output.pop()
       else:
-        label, output, toNode, nextFinalOutput, edgeIsFinal = self.fst.getEdge(edge)
+        label, output, toNode, nextFinalOutput, edgeIsFinal, ign = self.fst.getEdge(edge)
         targetLabel = target[len(self.edges)]
         if self.DEBUG:
           print '      label %s vs target %s' % (chr(label), chr(targetLabel))

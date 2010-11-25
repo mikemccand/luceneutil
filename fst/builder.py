@@ -29,6 +29,7 @@ import struct
 #  - FSTNUM 8,133,463 states [5,686,533 single], 15,357,402 edges (8,387,056 w/ output)
 
 # TODO
+#   - remove firstEdge
 #   - fix dot to draw next acrs in blue!!
 #   - opto: stateEquals should not pull full list of frozen edges -- it should iterate them instead
 #   - should we make byte[] writing "pages" -- minimize overalloc cost
@@ -312,17 +313,23 @@ def hashFrozen(address):
   return h & sys.maxint
 
 def stateEquals(state, address):
-  if False and state.isFinal != State.builder.packedFST.isFinal(address):
-    return False
+  # print 'NEW eq'
+  # print
+  # print 'state equals state2=%s' % address
   to1 = state.to
-  to2 = list(State.builder.packedFST.getEdges(address))
-  if len(to1) != len(to2):
-    return False
+  edge2 = address
   for i in xrange(len(to1)):
+    if i > 0 and nextEdge2 is None:
+      #print '  state2 ended early'
+      return False
     label1, toState1, output1, nextFinalOutput1, edgeIsFinal1 = to1[i]
     assert isinstance(toState1, FrozenState)
-    label2, toState2, output2, nextFinalOutput2, edgeIsFinal2 = to2[i]
+    # print '  decode edge2=%s' % edge2
+    label2, output2, toState2, nextFinalOutput2, edgeIsFinal2, nextEdge2 = State.builder.packedFST.getEdge(edge2)
+    #print '  1: %s, %s' % (chr(label1), toState1.address)
+    #print '  2: %s, %s' % (chr(label2), toState2)
     if label1 != label2:
+      # print '  NO: label %s vs %s; %s' % (chr(label1), chr(label2), label2)
       return False
     if output1 != output2:
       return False
@@ -332,6 +339,11 @@ def stateEquals(state, address):
       return False
     if edgeIsFinal1 != edgeIsFinal2:
       return False
+    edge2 = nextEdge2
+  if nextEdge2 is not None:
+    #print '  state1 ended early'
+    return False
+  # print '  YES'
   return True
 
 class MinStateHash2:
@@ -673,7 +685,6 @@ class Builder:
     if bytesIn == self.lastBytesIn:
       # nocommit -- remove this:
       assert len(bytesIn) == 0
-      assert self.tempStates[len(bytesIn)].stateOutput == ()
       if output != self.outputs.NO_OUTPUT:
         self.tempStates[len(bytesIn)].stateOutput = output
         #print 'now state output = %s' % self.outputs.outputToString(self.tempStates[len(bytesIn)].stateOutput)
@@ -778,9 +789,8 @@ class SerializedFST:
         flags += BIT_LAST_ARC
 
       if self.lastFrozenState == toState.address:
-        # nocommit -- maybe don't do this if arc is "too far" from the end?
+        # TODO: maybe don't do this if arc is "too far" from the end?
         flags += BIT_TARGET_NEXT
-        #print '  next for arc %s to node %d' % (chr(label), toState.address)
 
       if edgeIsFinal:
         flags += BIT_FINAL_ARC
@@ -955,6 +965,7 @@ class SerializedFST:
     self.bytesReader.pos = edge
     flags = self.bytesReader.read()
     label = self.bytesReader.read()
+    #print '    edge label %s' % chr(label)
     if flags & BIT_ARC_HAS_OUTPUT:
       output = self.outputs.read(self.bytesReader)
     else:
@@ -966,15 +977,25 @@ class SerializedFST:
       nextFinalOutput = self.outputs.NO_OUTPUT
 
     if flags & BIT_STOP_STATE:
+      #print '    flag stop'
       toNode = FINAL_END_STATE
+      nextEdge = self.bytesReader.pos
     elif flags & BIT_TARGET_NEXT:
+      #print '    flag next'
+      nextEdge = self.bytesReader.pos
       if not flags & BIT_LAST_ARC:
         self.seekToNextNode(self.bytesReader)
       toNode = self.bytesReader.pos
     else:
+      #print '    flag no'
       toNode = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
+      self.bytesReader.skip(4)
+      nextEdge = self.bytesReader.pos
 
-    return label, output, toNode, nextFinalOutput, flags & BIT_FINAL_ARC != 0
+    if flags & BIT_LAST_ARC:
+      nextEdge = None
+
+    return label, output, toNode, nextFinalOutput, flags & BIT_FINAL_ARC != 0, nextEdge
   
   def getToState(self, edge):
     self.bytesReader.pos = edge
@@ -998,12 +1019,8 @@ class SerializedFST:
     return state != FINAL_END_STATE
 
   def firstEdge(self, state):
-    if state == FINAL_END_STATE:
-      return None
-    elif state < 0:
-      return -state
-    else:
-      return state
+    assert state != FINAL_END_STATE
+    return state
     
   def nextEdge(self, edge):
     assert edge >= 0

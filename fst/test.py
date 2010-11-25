@@ -199,7 +199,8 @@ def lexTest(fileName):
         doAdd(b, l, idx, mode)
         idx += 1
       if count % 25000 == 0:
-        print '%7.2fs: %d terms, %d states, %d mapped, %.2f MB packed [%s]' % (time.time()-tStart, count, b.getTotStateCount(), b.getMappedStateCount(), len(b.packedFST.bytes)/1024./1024., l)
+        print '%7.2fs: %d terms, %d states, %d mapped (%d eq tests), %.2f MB packed [%s]' % \
+              (time.time()-tStart, count, b.getTotStateCount(), b.getMappedStateCount(), builder.stEQ, len(b.packedFST.bytes)/1024./1024., l)
         if False and count == 10:
           open('out.dot', 'w').write(b.toDot())
           raise RuntimeError()
@@ -741,7 +742,7 @@ class FSTEnum:
         self.lastFinal = True
         break
 
-      newEdge = self.fst.firstEdge(toState)
+      newEdge = toState
 
   def appendFinalOutput(self, output):
     if len(self.output) == 0:
@@ -787,7 +788,7 @@ class FSTEnum:
       # "resume" pushing:
       lastEdge = self.edges[-1]
       toState = self.fst.getToState(lastEdge)
-      self.push(self.fst.firstEdge(toState))
+      self.push(toState)
     else:
       self.pop()
       if len(self.edges) == 0:
@@ -846,7 +847,7 @@ class FSTEnum:
           assert len(self.edges) > 0
           self.lastFinal = False
           toState = self.fst.getToState(self.edges[-1])
-          edge = self.fst.firstEdge(toState)
+          edge = toState
           assert edge is not None
         elif len(self.input) != 0:
           edge = self.edges.pop()
@@ -855,7 +856,7 @@ class FSTEnum:
         else:
           # we were just created
           assert len(self.input) == 0
-          edge = self.fst.firstEdge(self.fst.getStartState())
+          edge = self.fst.getStartState()
       elif recursed:
         recursed = False
       else:
@@ -899,12 +900,12 @@ class FSTEnum:
               if self.DEBUG:
                 print '      push then pop edge=%s' % str(edge)
             else:
-              edge = self.fst.firstEdge(toState)
+              edge = toState
               recursed = True
               if self.DEBUG:
                 print '      recurse new edge=%s' % str(edge)
           else:
-            edge = self.fst.firstEdge(toState)
+            edge = toState
             recursed = True
             if self.DEBUG:
               print '      recurse new edge=%s' % str(edge)

@@ -18,6 +18,7 @@ import types
 import array
 import copy
 import struct
+import threading
 
 # FST PAPER: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.24.3698
 # DFA PAPER: /x/archive/pseudodog.pdf
@@ -29,24 +30,14 @@ import struct
 #  - FSTNUM 8,133,463 states [5,686,533 single], 15,357,402 edges (8,387,056 w/ output)
 
 # TODO
-#   - remove firstEdge
-#   - fix dot to draw next acrs in blue!!
-#   - opto: stateEquals should not pull full list of frozen edges -- it should iterate them instead
 #   - should we make byte[] writing "pages" -- minimize overalloc cost
-#   - try writing byte[] "in reverse" -- do we get just as many NEXT arcs!?
-#   - swtich all fst ops to be stateless -- don't rely on this bytesreader
-#   - make custom hash for repacking -- takes tons of RAM now
-#   - HMM shouldn't -mode DFA and -mode FSTNUM (ord, ie perfect hash) have same number of states!?
 #   - clean up the final state vs edge confusion...
-#     - can I nuke the notion of nextFinalOutput?  can't it 
 #   - get pruneCount=1 working (should yielf full divergent tree, but
 #     not more)
 #     - test FST size for that...
 #     - hmm is pruning even working correctly!?
 #       - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
-#   - instead of nextFinalOutput.. maybe all final states (except -1) simply write their state output first?
 #   - dedup hash might be faster if we pre-freeze the state and do substring cmp?  hmm but its a byte array...
-#   - make FSTNUM variant mapps to random growing int
 #   - get empty string working!  ugh
 #   - hmm store max prefix len in header
 #   - compression ideas
@@ -104,8 +95,8 @@ class FSTOutput:
   def numBytes(self, output):
     return 0
 
-  def read(self, bytesIn):
-    pass
+  def read(self, bytes, pos):
+    return None, pos
 
   def getNoOutput(self):
     pass
@@ -141,12 +132,14 @@ class FSTByteSequenceOutput:
       assert v < 256
       bytesOut.write(v)
 
-  def read(self, bytesIn):
-    count = bytesIn.read()
+  def read(self, bytes, pos):
+    count = bytes[pos]
+    pos -= 1
     l = []
     for idx in xrange(count):
-      l.append(bytesIn.read())
-    return tuple(l)
+      l.append(bytes[pos])
+      pos -= 1
+    return tuple(l), pos
 
   NO_OUTPUT = ()
 
@@ -183,15 +176,17 @@ class FSTPositiveIntOutput:
       bytes += 1
     return bytes
   
-  def read(self, bytesIn):
-    b = bytesIn.read()
+  def read(self, bytes, pos):
+    b = bytes[pos]
+    pos -= 1
     value = b & 0x7F
     shift = 7
     while b & 0x80 != 0:
-      b = bytesIn.read()
+      b = bytes[pos]
+      pos -= 1
       value |= (b & 0x7F) << shift
       shift += 7
-    return value
+    return value, pos
 
   NO_OUTPUT = 0
 
@@ -218,8 +213,8 @@ class FSTNoOutput:
   def numBytes(self, output):
     return 0
 
-  def read(self, bytesIn):
-    return None
+  def read(self, bytes, pos):
+    return None, pos
 
   NO_OUTPUT = None
 
@@ -308,28 +303,22 @@ def hashFrozen(address):
     h = 31*h + hash(output)
     h = 31*h + hash(nextFinalOutput)
     h = 31*h + hash(edgeIsFinal)
-  if False and State.builder.packedFST.isFinal(address):
-    h = 31*h+1
   return h & sys.maxint
 
+stEQ = 0
+
 def stateEquals(state, address):
-  # print 'NEW eq'
-  # print
-  # print 'state equals state2=%s' % address
+  global stEQ
+  stEQ += 1
   to1 = state.to
   edge2 = address
   for i in xrange(len(to1)):
     if i > 0 and nextEdge2 is None:
-      #print '  state2 ended early'
       return False
     label1, toState1, output1, nextFinalOutput1, edgeIsFinal1 = to1[i]
     assert isinstance(toState1, FrozenState)
-    # print '  decode edge2=%s' % edge2
     label2, output2, toState2, nextFinalOutput2, edgeIsFinal2, nextEdge2 = State.builder.packedFST.getEdge(edge2)
-    #print '  1: %s, %s' % (chr(label1), toState1.address)
-    #print '  2: %s, %s' % (chr(label2), toState2)
     if label1 != label2:
-      # print '  NO: label %s vs %s; %s' % (chr(label1), chr(label2), label2)
       return False
     if output1 != output2:
       return False
@@ -341,9 +330,7 @@ def stateEquals(state, address):
       return False
     edge2 = nextEdge2
   if nextEdge2 is not None:
-    #print '  state1 ended early'
     return False
-  # print '  YES'
   return True
 
 class MinStateHash2:
@@ -733,16 +720,14 @@ def loadSerializedFST(fIn, outputs):
   fst.out = None
   fst.initState = readInt(fIn)
   fst.bytes = array.array('B', fIn.read())
-  fst.bytesReader = BytesReader(fst.bytes)
   return fst
-  
+
 class SerializedFST:
 
   def __init__(self, outputs):
     self.outputs = outputs
     self.out = BytesWriter()
     self.bytes = self.out.bytes
-    self.bytesReader = BytesReader(self.bytes)
     self.initState = None
     self.lastFrozenState = None
 
@@ -838,21 +823,25 @@ class SerializedFST:
   def getEdges(self, node, includeFlags=False):
     if node == FINAL_END_STATE or node == NON_FINAL_END_STATE:
       return ()
-    else:
-      self.bytesReader.pos = self.firstEdge(node)
+
+    bytes = self.bytes
+    pos = node
 
     edges = []
     lastIndex = []
     while True:
-      flags = self.bytesReader.read()
-      label = self.bytesReader.read()
+      flags = bytes[pos]
+      pos -= 1
+      label = bytes[pos]
+      pos -= 1
+
       if flags & BIT_ARC_HAS_OUTPUT:
-        output = self.outputs.read(self.bytesReader)
+        output, pos = self.outputs.read(bytes, pos)
       else:
         output = self.outputs.NO_OUTPUT
 
       if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-        nextFinalOutput = self.outputs.read(self.bytesReader)
+        nextFinalOutput, pos = self.outputs.read(bytes, pos)
       else:
         nextFinalOutput = self.outputs.NO_OUTPUT
 
@@ -866,10 +855,10 @@ class SerializedFST:
           toState = 0
           lastIndex.append(len(edges))
         else:
-          toState = self.bytesReader.pos
+          toState = pos
       else:
-        toState = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
-        self.bytesReader.skip(4)
+        toState = decodeAddress(bytes, pos)
+        pos -= 4
 
       if includeFlags:
         tup = label, toState, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0, flags
@@ -880,10 +869,10 @@ class SerializedFST:
         break
 
     if len(lastIndex) > 0:
-      for pos in lastIndex:
-        l = list(edges[pos])
-        l[1] = self.bytesReader.pos
-        edges[pos] = tuple(l)
+      for idx in lastIndex:
+        l = list(edges[idx])
+        l[1] = pos
+        edges[idx] = tuple(l)
 
     return edges
 
@@ -899,17 +888,20 @@ class SerializedFST:
     if node == FINAL_END_STATE:
       return None, None, None, None
 
-    self.bytesReader.pos = self.firstEdge(node)
+    pos = node
+    bytes = self.bytes
     while True:
-      flags = self.bytesReader.read()
-      label = self.bytesReader.read()
+      flags = bytes[pos]
+      pos -= 1
+      label = bytes[pos]
+      pos -= 1
       if flags & BIT_ARC_HAS_OUTPUT:
-        output = self.outputs.read(self.bytesReader)
+        output, pos = self.outputs.read(bytes, pos)
       else:
         output = self.outputs.NO_OUTPUT
 
       if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-        nextFinalOutput = self.outputs.read(self.bytesReader)
+        nextFinalOutput, pos = self.outputs.read(bytes, pos)
       else:
         nextFinalOutput = self.outputs.NO_OUTPUT
         
@@ -918,11 +910,11 @@ class SerializedFST:
           target = FINAL_END_STATE
         elif flags & BIT_TARGET_NEXT:
           if not flags & BIT_LAST_ARC:
-            self.seekToNextNode(self.bytesReader)
-          target = self.bytesReader.pos
+            pos = self.seekToNextNode(pos)
+          target = pos
         else:
-          target = decodeAddress(self.bytes, self.bytesReader.pos)
-          self.bytesReader.skip(4)
+          target = decodeAddress(bytes, pos)
+          pos -= 4
 
         return target, output, nextFinalOutput, flags & BIT_FINAL_ARC != 0
 
@@ -930,67 +922,74 @@ class SerializedFST:
         break
       
       if not flags & BIT_STOP_STATE and not flags & BIT_TARGET_NEXT:
-        self.bytesReader.skip(4)
+        pos -= 4
 
     return None, None, None, None
 
-  def seekToNextNode(self, bytesReader):
-    # print 'NEXT NODE SEEK now pos=%s' % bytesReader.pos
+  def seekToNextNode(self, pos):
+    bytes = self.bytes
     while True:
-      flags = self.bytesReader.read()
+      flags = bytes[pos]
+      pos -= 1
+      label = bytes[pos]
+      pos -= 1
       
-      label = self.bytesReader.read()
       if flags & BIT_ARC_HAS_OUTPUT:
-        output = self.outputs.read(self.bytesReader)
+        output, pos = self.outputs.read(bytes, pos)
       else:
         output = self.outputs.NO_OUTPUT
 
       if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-        nextFinalOutput = self.outputs.read(self.bytesReader)
+        nextFinalOutput, pos = self.outputs.read(bytes, pos)
       else:
         nextFinalOutput = self.outputs.NO_OUTPUT
         
       if not flags & BIT_STOP_STATE and not flags & BIT_TARGET_NEXT:
-        self.bytesReader.skip(4)
+        pos -= 4
 
       if flags & BIT_LAST_ARC:
         break
-    # print '  end pos=%s' % bytesReader.pos
-      
+    return pos
 
   def isLastEdge(self, edge):
     return self.bytes[edge] & BIT_LAST_ARC
 
   def getEdge(self, edge):
-    self.bytesReader.pos = edge
-    flags = self.bytesReader.read()
-    label = self.bytesReader.read()
+
+    pos = edge
+    bytes = self.bytes
+    
+    flags = bytes[pos]
+    pos -= 1
+    label = bytes[pos]
+    pos -= 1
+
     #print '    edge label %s' % chr(label)
     if flags & BIT_ARC_HAS_OUTPUT:
-      output = self.outputs.read(self.bytesReader)
+      output, pos = self.outputs.read(bytes, pos)
     else:
       output = self.outputs.NO_OUTPUT
 
     if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-      nextFinalOutput = self.outputs.read(self.bytesReader)
+      nextFinalOutput, pos = self.outputs.read(bytes, pos)
     else:
       nextFinalOutput = self.outputs.NO_OUTPUT
 
     if flags & BIT_STOP_STATE:
       #print '    flag stop'
       toNode = FINAL_END_STATE
-      nextEdge = self.bytesReader.pos
+      nextEdge = pos
     elif flags & BIT_TARGET_NEXT:
       #print '    flag next'
-      nextEdge = self.bytesReader.pos
+      nextEdge = pos
       if not flags & BIT_LAST_ARC:
-        self.seekToNextNode(self.bytesReader)
-      toNode = self.bytesReader.pos
+        pos = self.seekToNextNode(pos)
+      toNode = pos
     else:
       #print '    flag no'
-      toNode = decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
-      self.bytesReader.skip(4)
-      nextEdge = self.bytesReader.pos
+      toNode = decodeAddress(bytes, pos)
+      pos -= 4
+      nextEdge = pos
 
     if flags & BIT_LAST_ARC:
       nextEdge = None
@@ -998,48 +997,52 @@ class SerializedFST:
     return label, output, toNode, nextFinalOutput, flags & BIT_FINAL_ARC != 0, nextEdge
   
   def getToState(self, edge):
-    self.bytesReader.pos = edge
-    flags = self.bytesReader.read()
-    label = self.bytesReader.read()
+    pos = edge
+    bytes = self.bytes
+    
+    flags = bytes[pos]
+    pos -= 1
+    label = bytes[pos]
+    pos -= 1
+    
     if flags & BIT_STOP_STATE:
       return FINAL_END_STATE
     else:
       if flags & BIT_ARC_HAS_OUTPUT:
-        self.outputs.read(self.bytesReader)
+        pos = self.outputs.read(bytes, pos)[1]
       if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-        self.outputs.read(self.bytesReader)
+        pos = self.outputs.read(bytes, pos)[1]
       if flags & BIT_TARGET_NEXT:
         if not flags & BIT_LAST_ARC:
-          self.seekToNextNode(self.bytesReader)
-        return self.bytesReader.pos
+          pos = self.seekToNextNode(pos)
+        return pos
       else:
-        return decodeAddress(self.bytesReader.bytes, self.bytesReader.pos)
+        return decodeAddress(bytes, pos)
 
   def anyEdges(self, state):
     return state != FINAL_END_STATE
 
-  def firstEdge(self, state):
-    assert state != FINAL_END_STATE
-    return state
-    
   def nextEdge(self, edge):
     assert edge >= 0
-    self.bytesReader.pos = edge
-    flags = self.bytesReader.read()
+    bytes = self.bytes
+    pos = edge
+    flags = bytes[pos]
+    pos -= 1
     if flags & BIT_LAST_ARC != 0:
       return None
 
-    label = self.bytesReader.read()
+    label = bytes[pos]
+    pos -= 1
+    
     if flags & BIT_ARC_HAS_OUTPUT:
-      self.outputs.read(self.bytesReader)
+      pos = self.outputs.read(bytes, pos)[1]
     if flags & BIT_FINAL_STATE_HAS_OUTPUT:
-      self.outputs.read(self.bytesReader)
+      pos = self.outputs.read(bytes, pos)[1]
 
     if flags & BIT_STOP_STATE or flags & BIT_TARGET_NEXT:
-      return self.bytesReader.pos
+      return pos
     else:
-      self.bytesReader.skip(4)
-      return self.bytesReader.pos
+      return pos - 4
 
       
 class BytesWriter:
@@ -1056,21 +1059,6 @@ class BytesWriter:
   def getPosition(self):
     return len(self.bytes)
   
-class BytesReader:
-  def __init__(self, bytes):
-    self.bytes = bytes
-
-  def setPos(self, pos):
-    self.pos = pos
-    
-  def read(self):
-    b = self.bytes[self.pos]
-    self.pos -= 1
-    return b
-
-  def skip(self, n):
-    self.pos -= n
-
 def encodeAddress(bytes, v):
   bytes.write(v&0xFF)
   bytes.write((v>>8)&0xFF)

@@ -199,8 +199,8 @@ def lexTest(fileName):
         doAdd(b, l, idx, mode)
         idx += 1
       if count % 25000 == 0:
-        print '%7.2fs: %d terms, %d states, %d mapped (%d eq tests), %.2f MB packed [%s]' % \
-              (time.time()-tStart, count, b.getTotStateCount(), b.getMappedStateCount(), builder.stEQ, len(b.packedFST.bytes)/1024./1024., l)
+        print '%7.2fs: %d terms, %d states (%d mapped), %.2f MB packed [%s]' % \
+              (time.time()-tStart, count, b.getTotStateCount(), b.getMappedStateCount(), len(b.packedFST.bytes)/1024./1024., l)
         if False and count == 10:
           open('out.dot', 'w').write(b.toDot())
           raise RuntimeError()
@@ -209,7 +209,7 @@ def lexTest(fileName):
         break
     b.finish()
     print '%d words' % idx
-    print '%7.2fs: %s: %d terms, %d states' % (time.time()-tStart, l, count, b.getTotStateCount())
+    print '%7.2fs: %s: %d terms, %d states (%d mapped)' % (time.time()-tStart, l, count, b.getTotStateCount(), b.getMappedStateCount())
     size = len(b.packedFST.bytes)
     print 'packed %.2f MB' % (size/1024./1024.)
     t0 = time.time()

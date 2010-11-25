@@ -35,9 +35,6 @@ import threading
 #   - get pruneCount=1 working (should yielf full divergent tree, but
 #     not more)
 #     - test FST size for that...
-#     - hmm is pruning even working correctly!?
-#       - eg full lex build -prune 1 makes 165 MB packed -- why so much larger?
-#   - dedup hash might be faster if we pre-freeze the state and do substring cmp?  hmm but its a byte array...
 #   - get empty string working!  ugh
 #   - hmm store max prefix len in header
 #   - compression ideas
@@ -257,8 +254,6 @@ class State:
       h = 31*h + hash(output)
       h = 31*h + hash(nextFinalOutput)
       h = 31*h + hash(edgeIsFinal)
-    if False and self.isFinal:
-      h = 31*h + 1
     return h & sys.maxint
 
   def appendTo(self, label, toState, output):
@@ -340,22 +335,17 @@ class MinStateHash2:
     self.count = 0
 
   def add(self, state):
-    #print '    msh.add'
     h = origH = hash(state)
     h2 = ((h >> 8) + h) | 1
-    #print 'h %s %s' % (h, h2)
+
     while True:
       pos = h%len(self.table)
       v = self.table[pos]
       if v == -1:
         # freeze & add
-        #print '      new'
-        self.count += 1
         address = state.freeze()
-        assert address > 0, 'got frozen %s' % address
         assert hashFrozen(address) == origH, '%s vs %s' % (hashFrozen(address), origH)
-        #print '      freeze=%s' % address
-        assert type(address) is types.IntType
+        self.count += 1
         self.table[pos] = address
         if len(self.table) < 2*self.count:
           self.rehash()
@@ -370,10 +360,8 @@ class MinStateHash2:
   def addNew(self, newTable, ent):
     h = hashFrozen(ent)
     h2 = ((h >> 8) + h) | 1
-    #print 'h %s h2 %s' % (h, h2)
     while True:
       pos = h%len(newTable)
-      #print '  pos %s' % pos
       if newTable[pos] == -1:
         newTable[pos] = ent
         break
@@ -381,77 +369,10 @@ class MinStateHash2:
       h += h2
 
   def rehash(self):
-    # print 'rehash %d (count %s)' % (len(self.table)*2, self.count)
     newTable = array.array('i', [-1]*(len(self.table)*2))
     for ent in self.table:
       if ent != -1:
         self.addNew(newTable, ent)
-    self.table = newTable
-
-class MinStateHash:
-
-  def __init__(self):
-    self.table = [None]*16
-    self.count = 0
-
-  def add(self, state):
-    #print '    msh.add'
-    h = origH = hash(state)
-    #print '      h=%s' % h
-    pos = h%len(self.table)
-    v = self.table[pos]
-    if type(v) is types.IntType:
-      #print '      check %d' % v
-      if stateEquals(state, v):
-        # already here
-        #print '      dup %s' % v
-        return v
-    elif type(v) is types.TupleType:
-      for v0 in v:
-        #print '      check %d' % v0
-        if stateEquals(state, v0):
-          # already here
-          #print '      dup %s' % v0
-          return v0
-
-    # freeze & add
-    #print '      new'
-    self.count += 1
-    address = state.freeze()
-    
-    assert origH == hashFrozen(address), '%s vs %s' % (origH, hashFrozen(address))
-    #print '      freeze=%s' % address
-    assert type(address) is types.IntType
-    if v is None:
-      self.table[pos] = address
-    elif type(v) is types.IntType:
-      self.table[pos] = (v, address)
-    else:
-      self.table[pos] = v + (address,)
-    if len(self.table) < self.count/0.75:
-      self.rehash()
-    return address
-
-  def addNew(self, newTable, ent):
-    h = hashFrozen(ent)
-    #print '  addNew hashFrozen(%d) = %s' % (ent, h)
-    loc = h%len(newTable)
-    v = newTable[loc]
-    if v is None:
-      newTable[loc] = ent
-    elif type(v) is types.IntType:
-      newTable[loc] = (v, ent)
-    else:
-      newTable[loc] = v + (ent,)
-
-  def rehash(self):
-    newTable = [None]*(len(self.table)*2)
-    for ent in self.table:
-      if type(ent) is types.IntType:
-        self.addNew(newTable, ent)
-      elif type(ent) is types.TupleType:
-        for num in ent:
-          self.addNew(newTable, num)
     self.table = newTable
 
 class FrozenState:
@@ -490,7 +411,7 @@ class Builder:
 
   def getTotStateCount(self):
     return self.frozenStateCount
-
+  
   def getMappedStateCount(self):
     return self.minMap.count
 
@@ -670,7 +591,7 @@ class Builder:
       output = self.outputs.subtract(output, commonOutputPrefix)
 
     if bytesIn == self.lastBytesIn:
-      # nocommit -- remove this:
+      # TODO: remove this:
       assert len(bytesIn) == 0
       if output != self.outputs.NO_OUTPUT:
         self.tempStates[len(bytesIn)].stateOutput = output

@@ -129,10 +129,10 @@ def tinyTest():
   #words = ['dalmation', 'dalmotion', 'motion', 'commotion', 'comation']
   #words = ['foo', 'foobar', 'fofee', 'foofee']
   #words = ['aa', 'ab', 'ba', 'bb']
-  words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
+  #words = ['station', 'commotion', 'elation', 'elastic', 'plastic', 'stop']
   #words = ['aa', 'ab', 'ac', 'aca', 'acb', 'acc', 'bx', 'by', 'm', 'mc', 'mca', 'mcb', 'mcc']
   #words = ['aaa', 'aab', 'baa', 'bab', 'caa', 'cab']
-  #words = [('a', 88), ('aa', 40)]
+  words = [('a', 50), ('ab', 2), ('aa', 1)]
   #words = ['aa', 'aab', 'bbb']
   words.sort()
   print 'WORDS:'
@@ -337,7 +337,7 @@ def randomTest():
         f.close()
 
       try:
-        b =  getBuilder(mode, PRUNE_COUNT)
+        b = getBuilder(mode, PRUNE_COUNT)
         lastW = None
         for idx, w in enumerate(words):
           doAdd(b, w, idx, mode)

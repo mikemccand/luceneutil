@@ -30,11 +30,9 @@ import threading
 #  - FSTNUM 8,133,463 states [5,686,533 single], 15,357,402 edges (8,387,056 w/ output)
 
 # TODO
+#   - document the format, and why we write backwards
 #   - should we make byte[] writing "pages" -- minimize overalloc cost
 #   - clean up the final state vs edge confusion...
-#   - get pruneCount=1 working (should yielf full divergent tree, but
-#     not more)
-#     - test FST size for that...
 #   - get empty string working!  ugh
 #   - hmm store max prefix len in header
 #   - compression ideas
@@ -42,6 +40,7 @@ import threading
 #     - or maybe just fully expand to depth N
 #     - patricia trie
 #   - later
+#     - hmm: factor out this prune count 1/2 to a subclassable prune strategy!?
 #     - packing opto: not only FLAG_NODE_NEXT we can also make it eg
 #       skip N arcs.  ie really we are laying out all the arcs,
 #       serialized, so an arc can say "my target is +N arcs away"; for N
@@ -56,6 +55,10 @@ import threading
 #       - needs to suddenly be RAM based not term count based?
 #     - how about recording minTermLengthFromHere?  fuzzy could use this
 #       to skip whole nodes?
+
+# NOTES
+#   - fst is NOT minimal in the numeric case -- eg aa/0, aab/1, bbb/2
+#     will produce 6 states when a 5 state fst is also possible
 
 # POSSIBLE USES IN LUCENE
 #   - silly in-ram terms in SimpleText
@@ -89,9 +92,6 @@ class FSTOutput:
   def write(self, output, bytesOut):
     pass
 
-  def numBytes(self, output):
-    return 0
-
   def read(self, bytes, pos):
     return None, pos
 
@@ -119,9 +119,6 @@ class FSTByteSequenceOutput:
   def add(self, prefix, output):
     return prefix + output
 
-  def numBytes(self, output):
-    return len(output)
-  
   def write(self, output, bytesOut):
     assert len(output) < 256
     bytesOut.write(len(output))
@@ -165,14 +162,6 @@ class FSTPositiveIntOutput:
       output = output >> 7
     bytesOut.write(output)
 
-  def numBytes(self, output):
-    assert output > 0
-    bytes = 1
-    while output > 0x7F:
-      output = output >> 7
-      bytes += 1
-    return bytes
-  
   def read(self, bytes, pos):
     b = bytes[pos]
     pos -= 1
@@ -207,9 +196,6 @@ class FSTNoOutput:
   def write(self, output, bytesOut):
     return
 
-  def numBytes(self, output):
-    return 0
-
   def read(self, bytes, pos):
     return None, pos
 
@@ -231,7 +217,6 @@ class State:
     self.termCount = 0
 
   def freeze(self):
-    self.builder.frozenStateCount += 1
     return self.builder.packedFST.addState(self)
       
   def clear(self):
@@ -286,7 +271,6 @@ class State:
     """
     for i, (label, toState, output, nextFinalOutput, edgeIsFinal) in enumerate(self.to):
       self.to[i] = (label, toState, self.outputs.add(outputPrefix, output), nextFinalOutput, edgeIsFinal)
-    
 
 def hashFrozen(address):
   # NOTE: must match State.__hash__!!!
@@ -300,11 +284,7 @@ def hashFrozen(address):
     h = 31*h + hash(edgeIsFinal)
   return h & sys.maxint
 
-stEQ = 0
-
 def stateEquals(state, address):
-  global stEQ
-  stEQ += 1
   to1 = state.to
   edge2 = address
   for i in xrange(len(to1)):
@@ -407,10 +387,9 @@ class Builder:
 
     self.packedFST = SerializedFST(self.outputs)
     self.termCount = 0
-    self.frozenStateCount = 0
 
   def getTotStateCount(self):
-    return self.frozenStateCount
+    return self.packedFST.count
   
   def getMappedStateCount(self):
     return self.minMap.count
@@ -651,6 +630,7 @@ class SerializedFST:
     self.bytes = self.out.bytes
     self.initState = None
     self.lastFrozenState = None
+    self.count = 0
 
     # temporary pad -- ensure no node gets address 0, which is deadly
     # if it's a final node (-0 == 0), or addres 1, which is deadly if
@@ -673,12 +653,12 @@ class SerializedFST:
     NO_OUTPUT = State.outputs.NO_OUTPUT
 
     if len(state.to) == 0:
-      # TODO: can I really assert this?
       if state.isFinal:
         return FINAL_END_STATE
       else:
         return NON_FINAL_END_STATE
 
+    self.count += 1
     startAddress = len(self.bytes)
 
     #print 'SFST.addState newAddr=%s' % address

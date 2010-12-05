@@ -100,7 +100,7 @@ class Competitor(object):
     self.commitPoint = 'delmulti'
 
   def compile(self, cp):
-    benchUtil.run('javac -cp %s perf/SearchPerfTest.java >> compile.log 2>&1' % cp,  'compile.log')
+    benchUtil.run('javac -cp %s perf/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
   def setTask(self, task):
     self.searchTask = self.TASKS[task];
@@ -114,16 +114,16 @@ class DocValueCompetitor(Competitor):
     Competitor.__init__(self, sourceDir, index, task)
   
   def compile(self, cp):
-    benchUtil.run('javac -cp %s perf/SearchPerfTest.java >> compile.log 2>&1' % cp,  'compile.log')
-    benchUtil.run('javac -cp %s:./perf perf/values/DocValuesSearchTask.java >> compile.log 2>&1' % cp,  'compile.log')
+    command = 'javac -cp %s perf/*.java >> compile.log 2>&1' % cp
+    benchUtil.run(command,  'compile.log')
+    benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
   
     
 def main():
   index = benchUtil.Index('clean', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-  CLEAN_COMPETITOR = Competitor('base', 'clean', index)
-  TERM_STATE_COMPETITOR = Competitor('termstate', 'termstate.2694', index)
-  SPEC_COMPETITOR = Competitor('spec', 'docsenumspec', index)
-  run(CLEAN_COMPETITOR, TERM_STATE_COMPETITOR)
+  CLEAN_COMPETITOR = Competitor('clean', 'clean', index)
+  WINDOWS_COMPETITOR = Competitor('WindowsDirectory', 'lucene-clean2', index)
+  run(CLEAN_COMPETITOR, CLEAN_COMPETITOR)
 
 if __name__ == '__main__':
   main()

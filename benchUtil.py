@@ -59,7 +59,7 @@ reChecksum = re.compile(r'checksum=(\d+)$')
 DEBUG = True
 
 # let shell find it:
-#JAVA_COMMAND = 'java -Xms2g -Xmx2g -server'
+#JAVA_COMMAND = 'java -Xms1g -Xmx1g -server'
 #JAVA_COMMAND = 'java -Xms1024M -Xmx1024M -Xbatch -server -XX:+AggressiveOpts -XX:CompileThreshold=100 -XX:+UseFastAccessorMethods'
 
 LOG_SUB_DIR = 'logs'
@@ -137,7 +137,7 @@ RepSumByPrefRound OptimizeIndex
 ''' % constants.ANALYZER
 
 MULTI_COMMIT_INDEX_ALG = '''
-analyzer=org.apache.lucene.analysis.en.EnglishAnalyzer
+analyzer=%s
 
 $OTHER$
 
@@ -196,7 +196,7 @@ DeleteByPercent(5)
 RepSumByPrefRound DeleteByPercent
 CommitIndex(delsingle)
 CloseReader
-'''
+''' % constants.ANALYZER
 
 BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
 #BASE_INDEX_ALG = SINGLE_SEG_INDEX_ALG
@@ -307,14 +307,20 @@ class RunAlgs:
 
   def getClassPath(self, checkout):
     baseDict = {'base' : checkoutToPath(checkout)}
-    cp = '.:%(base)s/lucene/build/classes/java'
-    cp += ':%(base)s/lucene/build/classes/test'
+    cp = []
+    cp.append('%(base)s/lucene/build/classes/java')
+    cp.append('%(base)s/lucene/build/classes/test')
     if os.path.exists('%(base)s/modules' % baseDict):
-      cp += ':%(base)s/modules/analysis/build/common/classes/java'
-      cp += ':%(base)s/modules/analysis/build/icu/classes/java'
+      cp.append('%(base)s/modules/analysis/build/common/classes/java')
+      cp.append('%(base)s/modules/analysis/build/icu/classes/java')
     else:
-      cp += ':%(base)s/lucene/build/contrib/analyzers/common/classes/java'
-    return cp % baseDict
+      cp.append('%(base)s/lucene/build/contrib/analyzers/common/classes/java')
+    cp.append('%(base)s/lucene/contrib/benchmark')
+    return tuple(cp)
+
+  def classPathToString(self, cp, checkout):
+    baseDict = {'base' : checkoutToPath(checkout)}
+    return '"%s"' % (os.pathsep.join([x % baseDict for x in cp]))
 
   def compile(self,competitor):
     path = checkoutToBenchPath(competitor.checkout)
@@ -324,9 +330,13 @@ class RunAlgs:
     if path.endswith('/'):
       path = path[:-1]
       
-    cp = self.getClassPath(competitor.checkout)
+    cp = self.classPathToString(self.getClassPath(competitor.checkout), competitor.checkout)
     if not os.path.exists('perf'):
-      run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)
+      # TODO: change to just compile the code & run directly from util
+      if osName == 'windows':
+        run('cp -r %s/perf .' % constants.BENCH_BASE_DIR)
+      else:
+        run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)
     competitor.compile(cp)
     
   def runOne(self, checkout, job, verify=False, logFileName=None):
@@ -361,8 +371,21 @@ class RunAlgs:
       fullLogFileName = '%s/%s' % (LOG_SUB_DIR, logFileName)
       print '    log: %s/%s' % (benchPath, fullLogFileName)
 
-      command = '%s -classpath %s:../../build/contrib/highlighter/classes/java:lib/icu4j-4_4_1_1.jar:lib/icu4j-charsets-4_4_1_1.jar:lib/commons-digester-1.7.jar:lib/commons-collections-3.1.jar:lib/commons-compress-1.0.jar:lib/commons-logging-1.0.4.jar:lib/commons-beanutils-1.7.0.jar:lib/xerces-2.9.0.jar:lib/xml-apis-2.9.0.jar:../../build/contrib/benchmark/classes/java org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
-                (self.javaCommand, self.getClassPath(checkout), algFullFile, fullLogFileName)
+      cp = self.getClassPath(checkout)
+      cp += ('../../build/contrib/highlighter/classes/java',
+             'lib/icu4j-4_4_1_1.jar',
+             'lib/icu4j-charsets-4_4_1_1.jar',
+             'lib/commons-digester-1.7.jar',
+             'lib/commons-collections-3.1.jar',
+             'lib/commons-compress-1.0.jar',
+             'lib/commons-logging-1.0.4.jar',
+             'lib/commons-beanutils-1.7.0.jar',
+             'lib/xerces-2.9.0.jar',
+             'lib/xml-apis-2.9.0.jar',
+             '../../build/contrib/benchmark/classes/java')
+
+      command = '%s -classpath %s org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
+                (self.javaCommand, self.classPathToString(cp, checkout), algFullFile, fullLogFileName)
 
       if DEBUG:
         print 'command=%s' % command
@@ -516,7 +539,7 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
   def runSimpleSearchBench(self, c, iters, itersPerJVM, threadCount, filter=None):
     benchDir = checkoutToBenchPath(c.checkout)
     os.chdir(benchDir)
-    cp = self.getClassPath(c.checkout)
+    cp = self.classPathToString(self.getClassPath(c.checkout), c.checkout)
     logFile = '%s/res-%s.txt' % (benchDir, c.name)
     print 'log %s' % logFile
     if os.path.exists(logFile):

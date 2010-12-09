@@ -107,20 +107,16 @@ python -u europarl.py /x/lucene/data/europarl /x/lucene/data/europarl/tmp.lines.
 shuf /x/lucene/data/europarl/tmp.lines.txt > /x/lucene/data/europarl/full.lines.txt
 rm /x/lucene/data/europarl/tmp.lines.txt
 
-# ~5 MB gzip'd
-head -392 /x/lucene/data/europarl/full.lines.txt > /x/lucene/data/europarl/full.subset.lines.txt
-gzip --best /x/lucene/data/europarl/full.subset.lines.txt
-
-
 # Run again, this time each paragraph is a doc:
-
-# Europarl V5 makes 10,139,605 paragraphs (one paragraph per line), avg 587 bytes per:
+# Europarl V5 makes 5,607,746 paragraphs (one paragraph per line), avg 620 bytes per:
 python -u europarl.py /x/lucene/data/europarl /x/lucene/data/europarl/tmp.lines.txt -docPerParagraph
 shuf /x/lucene/data/europarl/tmp.lines.txt > /x/lucene/data/europarl/para.lines.txt
 rm /x/lucene/data/europarl/tmp.lines.txt
 
-# ~5 MB gzip'd
-head -21000 /x/lucene/data/europarl/para.lines.txt > /x/lucene/data/europarl/para.subset.lines.txt
-gzip --best /x/lucene/data/europarl/para.subset.lines.txt
-
+# ~5.5 MB gzip'd:
+head -200 /x/lucene/data/europarl/full.lines.txt > tmp.txt
+head -10000 /x/lucene/data/europarl/para.lines.txt >> tmp.txt
+shuf tmp.txt > europarl.subset.txt
+rm -f tmp.txt
+gzip --best europarl.subset.txt
 """

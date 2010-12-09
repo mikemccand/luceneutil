@@ -21,6 +21,7 @@ reTagOnly = re.compile('^<.*?>$')
 reNumberOnly = re.compile(r'^\d+\.?$')
 
 docCount = 0
+didEnglish = False
 
 def write(date, title, pending, fOut):
   global docCount
@@ -35,9 +36,11 @@ def write(date, title, pending, fOut):
 
 def processTar(fileName, fOut):
 
+  global didEnglish
+
   t = tarfile.open(fileName, 'r:gz')
   for ti in t:
-    if ti.isfile():
+    if ti.isfile() and (not didEnglish or ti.name.find('/en/') == -1):
 
       tup = ti.name.split('/')
       lang = tup[1]
@@ -81,7 +84,8 @@ def processTar(fileName, fOut):
       if title is not None and len(pending) > 0:
         write(date, title, pending, fOut)
 
-
+  didEnglish = True
+  
 # '/x/lucene/data/europarl/all.lines.txt'
 dirIn = sys.argv[1]
 fileOut = sys.argv[2]
@@ -98,7 +102,7 @@ print 'TOTAL: %s' % docCount
 #run something like this:
 """
 
-# Europarl V5 makes 140,190 docs, avg 37.0 KB per
+# Europarl V5 makes 76,917 docs, avg 38.6 KB per
 python -u europarl.py /x/lucene/data/europarl /x/lucene/data/europarl/tmp.lines.txt
 shuf /x/lucene/data/europarl/tmp.lines.txt > /x/lucene/data/europarl/full.lines.txt
 rm /x/lucene/data/europarl/tmp.lines.txt

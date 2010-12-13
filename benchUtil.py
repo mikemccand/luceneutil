@@ -107,6 +107,7 @@ compound=false
 ram.flush.mb = -1
 #max.buffered = 10
 #merge.factor = 2
+# merge.factor = 10000
 
 deletion.policy = org.apache.lucene.index.NoDeletionPolicy
 
@@ -159,6 +160,7 @@ directory=FSDirectory
 compound=false
 ram.flush.mb = 256
 max.buffered = 77777
+# merge.factor=100000
 
 deletion.policy = org.apache.lucene.index.NoDeletionPolicy
 
@@ -198,8 +200,51 @@ CommitIndex(delsingle)
 CloseReader
 ''' % constants.ANALYZER
 
-BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
+BASIC_INDEX_ALG = '''
+analyzer=%s
+
+$OTHER$
+
+doc.body.stored = false
+doc.term.vector = false
+doc.tokenized = false
+
+doc.index.props = true
+doc.stored = true
+doc.body.tokenized = true
+
+sort.rng = 1000000
+rand.seed=17
+
+log.step.AddDoc=10000
+#writer.info.stream = SystemOut
+
+directory=FSDirectory
+compound=false
+ram.flush.mb = 256
+max.buffered = 77777
+# merge.factor=100000
+
+deletion.policy = org.apache.lucene.index.NoDeletionPolicy
+
+work.dir=$WORKDIR$
+max.field.length= 2047483647
+content.source.forever = true
+
+ResetSystemErase
+CreateIndex
+
+{ "BuildIndex"
+  $INDEX_LINE$
+  -CommitIndex(multi)
+}
+CloseIndex
+RepSumByPrefRound BuildIndex
+''' % constants.ANALYZER
+
+#BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
 #BASE_INDEX_ALG = SINGLE_SEG_INDEX_ALG
+BASE_INDEX_ALG = BASIC_INDEX_ALG
 
 def run(cmd, log=None):
   print 'RUN: %s' % cmd

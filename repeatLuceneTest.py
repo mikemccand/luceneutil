@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -20,6 +19,7 @@ import shutil
 import datetime
 import os
 import sys
+import random
 
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
@@ -102,10 +102,13 @@ if tup[1] != 'lucene' and os.path.exists('lucene'):
   os.chdir('lucene')
 
 sub = os.path.split(tup[0])[1]
-  
-logDirName = '/tmp/logs/%s' % sub
-if IS_WINDOWS:
-  logDirName = 'c:' + logDirName
+
+if os.path.exists('/dev/shm'):
+  logDirName = '/dev/shm/logs/%s' % sub
+else:
+  logDirName = '/tmp/logs/%s' % sub
+  if IS_WINDOWS:
+    logDirName = 'c:' + logDirName
 doLog = True
 
 print 'Logging to dir %s' % logDirName
@@ -128,6 +131,7 @@ dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
 seed = getArg('-seed', None)
+keepLogs = getArg('-keeplogs', False, False)
 
 if len(sys.argv) == 1:
   print '\nERROR: no test specified\n'
@@ -156,7 +160,7 @@ if os.path.exists('build/classes/demo'):
 
 JAVA_ARGS += ' -cp "%s"' % os.pathsep.join(CP)
 
-
+TEST_TEMP_DIR = 'build/test/reruns'
 
 upto = 0
 while True:
@@ -172,7 +176,11 @@ while True:
     else:
       print '%s TEST: %s' % (datetime.datetime.now(), s)
       
-    command = 'java %s -DtempDir=build/test -ea' % JAVA_ARGS
+    command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
+    if random.randint(0, 1) == 1:
+      command += ' -server'
+    if random.randint(0, 1) == 1:
+      command += ' -Xbatch'
     command += ' -Dtests.verbose=%s' % verbose
     command += ' -Drandom.multiplier=%s' % mult
     command += ' -Dtests.iter=%s' % iters
@@ -193,10 +201,10 @@ while True:
     if doLog:
       command += ' > %s/%d.log 2>&1' % (logDirName, upto)
       
-    if os.path.exists('build/test'):
-      print '  remove build/test'
+    if os.path.exists(TEST_TEMP_DIR):
+      print '  remove %s' % TEST_TEMP_DIR
       try:
-        shutil.rmtree('build/test')
+        shutil.rmtree(TEST_TEMP_DIR)
       except OSError:
         pass
     print '  RUN: %s' % command
@@ -206,7 +214,8 @@ while True:
       print '  FAILED'
       raise RuntimeError('hit fail')
     elif doLog:
-      os.remove('%s/%d.log' % (logDirName, upto))
+      if not keepLogs:
+        os.remove('%s/%d.log' % (logDirName, upto))
       pass
       
     upto += 1

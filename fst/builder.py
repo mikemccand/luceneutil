@@ -216,9 +216,6 @@ class State:
     self.stateOutput = self.outputs.NO_OUTPUT
     self.termCount = 0
 
-  def freeze(self):
-    return self.builder.packedFST.addState(self)
-      
   def clear(self):
     self.to = []
     self.isFinal = False
@@ -311,7 +308,7 @@ def stateEquals(state, address):
 class MinStateHash2:
 
   def __init__(self):
-    self.table = array.array('i', [-1]*16)
+    self.table = array.array('i', [0]*16)
     self.count = 0
 
   def add(self, state):
@@ -321,9 +318,9 @@ class MinStateHash2:
     while True:
       pos = h%len(self.table)
       v = self.table[pos]
-      if v == -1:
+      if v == 0:
         # freeze & add
-        address = state.freeze()
+        address = State.builder.packedFST.addState(state)
         assert hashFrozen(address) == origH, '%s vs %s' % (hashFrozen(address), origH)
         self.count += 1
         self.table[pos] = address
@@ -342,16 +339,16 @@ class MinStateHash2:
     h2 = ((h >> 8) + h) | 1
     while True:
       pos = h%len(newTable)
-      if newTable[pos] == -1:
+      if newTable[pos] == 0:
         newTable[pos] = ent
         break
       # probe
       h += h2
 
   def rehash(self):
-    newTable = array.array('i', [-1]*(len(self.table)*2))
+    newTable = array.array('i', [0]*(len(self.table)*2))
     for ent in self.table:
-      if ent != -1:
+      if ent != 0:
         self.addNew(newTable, ent)
     self.table = newTable
 
@@ -386,7 +383,6 @@ class Builder:
     self.suffixMinCount2 = suffixMinCount2
 
     self.packedFST = SerializedFST(self.outputs)
-    self.termCount = 0
 
   def getTotStateCount(self):
     return self.packedFST.count
@@ -406,7 +402,7 @@ class Builder:
         address = self.minMap.add(state)
     else:
       # just freeze
-      address = state.freeze()
+      address = self.packedFST.addState(state)
     # reuse
     state.clear()
     return address
@@ -419,7 +415,7 @@ class Builder:
       
       if self.suffixMinCount is not None:
         # simple, local pruning
-        if state.termCount < self.suffixMinCount:
+        if self.tempStates[i].termCount < self.suffixMinCount:
           doPrune = True
         else:
           doPrune = False
@@ -494,7 +490,7 @@ class Builder:
         self.freezeAllToStates(self.tempStates[i])
         edgeIsFinal = self.tempStates[i].isFinal
         nextFinalOutput = self.tempStates[i].stateOutput
-        self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], self.tempStates[i], nextFinalOutput, edgeIsFinal)
+        #self.tempStates[i-1].replaceLast(self.lastBytesIn[i-1], self.tempStates[i], nextFinalOutput, edgeIsFinal)
         self.tempStates[i] = State()
 
   def freezeAllToStates(self, state):
@@ -509,10 +505,9 @@ class Builder:
   def add(self, bytesIn, output):
     
     assert type(bytesIn) is types.TupleType
-    assert self.outputs.validOutput(output)
+    assert self.outputs.validOutput(output), 'output=%s outputs=%s' % (str(output), self.outputs)
     assert self.first or bytesIn != self.lastBytesIn, '%s vs %s' % (bytesIn, self.lastBytesIn)
     self.first = False
-    self.termCount += 1
     
     #print '\nadd %s -> %s' % (toAscii(toWord(bytesIn)), self.outputs.outputToString(output))
     assert bytesIn > self.lastBytesIn, 'words are added out of order: %s prev vs %s now' % \
@@ -538,6 +533,7 @@ class Builder:
     for i in xrange(prefixLenPlus1, len(bytesIn)+1):
       assert self.tempStates[i] is not None
       self.tempStates[i-1].appendTo(bytesIn[i-1], self.tempStates[i], self.outputs.NO_OUTPUT)
+      # nocommit is this ob1?
       self.tempStates[i].termCount += 1
       # print '  tail %s, to label %s' % (i, bytesIn[i-1])
 
@@ -632,10 +628,8 @@ class SerializedFST:
     self.lastFrozenState = None
     self.count = 0
 
-    # temporary pad -- ensure no node gets address 0, which is deadly
-    # if it's a final node (-0 == 0), or addres 1, which is deadly if
-    # it's final because -1 is reserved
-    self.out.write(0)
+    # pad: ensure no node gets address 0 which is reserved to mean
+    # the stop state w/ no edges
     self.out.write(0)
 
   def write(self, fOut):
@@ -919,9 +913,6 @@ class SerializedFST:
         return pos
       else:
         return decodeAddress(bytes, pos)
-
-  def anyEdges(self, state):
-    return state != FINAL_END_STATE
 
   def nextEdge(self, edge):
     assert edge >= 0

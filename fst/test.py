@@ -303,7 +303,7 @@ def randomTest():
       b = None
 
       if mode.endswith('PRUNE'):
-        pruneCount = r2.randint(0, 20)
+        pruneCount = r2.randint(0, 50)
         print '  mode %s [%d]' % (mode, pruneCount)
       else:
         print '  mode %s' % mode
@@ -323,7 +323,7 @@ def randomTest():
         if w not in wordSet:
           wordSet.add(w)
           if doRandomOutput:
-            item = (w, r2.randint(0, 1000))
+            item = (w, r.randint(0, 1000))
           else:
             item = w
           words.append(item)

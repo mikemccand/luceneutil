@@ -26,11 +26,14 @@ if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 if '-debug' in sys.argv:
-  INDEX_NUM_DOCS = 100000
+  INDEX_NUM_DOCS = 2000000
 else:
+  # nocommit
   INDEX_NUM_DOCS = 10000000
 
-INDEX_NUM_THREADS = 6
+# TODO: make this automagic -- ie if I will cmp w/ different indices, must be single threaded:
+INDEX_NUM_THREADS = 4
+#INDEX_NUM_THREADS = 1
 
 def run(*competitors):  
   r = benchUtil.RunAlgs(JAVA_COMMAND)
@@ -62,12 +65,13 @@ def run(*competitors):
   logUpto = 0
   if not search:
     return
-  if '-debugs' in sys.argv:
-    iters = 2
-    itersPerJVM = 2
+  if '-debugs' in sys.argv or '-debug' in sys.argv:
+    iters = 1
+    itersPerJVM = 15
+    # nocommit
     threads = 1
   else:
-    iters = 3
+    iters = 2
     itersPerJVM = 40
     threads = 4
 
@@ -92,12 +96,13 @@ class Competitor(object):
           "loadIdFC" : "perf.LoadFieldCacheSearchTask",
           "loadIdDV" : "perf.values.DocValuesSearchTask"}
 
-  def __init__(self, name, checkout, index, task='search'):
+  def __init__(self, name, checkout, index, dirImpl, task='search'):
     self.name = name
     self.index = index
     self.checkout = checkout
     self.searchTask = self.TASKS[task];
-    self.commitPoint = 'delmulti'
+    self.commitPoint = 'multi'
+    self.dirImpl = dirImpl
 
   def compile(self, cp):
     benchUtil.run('javac -cp %s perf/*.java >> compile.log 2>&1' % cp,  'compile.log')
@@ -120,10 +125,20 @@ class DocValueCompetitor(Competitor):
   
     
 def main():
-  index = benchUtil.Index('clean', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-  CLEAN_COMPETITOR = Competitor('clean', 'clean', index)
-  WINDOWS_COMPETITOR = Competitor('WindowsDirectory', 'lucene-clean2', index)
-  run(CLEAN_COMPETITOR, CLEAN_COMPETITOR)
-
+  if 0:
+    index1 = benchUtil.Index('bulkbranch', 'wiki', 'PatchedFrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
+    index2 = benchUtil.Index('bulkbranch', 'wiki', 'PatchedFrameOfRef2', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
+    run(Competitor('pfor1', 'bulkbranch', index1, 'MMapDirectory'),
+        Competitor('pfor2', 'bulkbranch', index2, 'MMapDirectory'))
+  elif 0:
+    index = benchUtil.Index('bulkbranch', 'wiki', 'FrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
+    run(Competitor('base', 'bulkbranch.clean', index, 'MMapDirectory'),
+        Competitor('mmap', 'bulkbranch', index, 'MMapDirectory'))
+  else:
+    index = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
+    run(
+      Competitor('niofs', 'clean.svn', index, 'NIOFSDirectory'),
+      Competitor('mmap', 'clean.svn', index, 'MMapDirectory'),
+      )
 if __name__ == '__main__':
   main()

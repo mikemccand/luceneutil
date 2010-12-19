@@ -74,6 +74,7 @@ file.query.maker.file = queries.txt
 log.queries=true
 log.step=100000
 print.hits.field=$PRINT_HITS_FIELD$
+writer.info.stream = SystemOut
 
 OpenReader  
 {"XSearchWarm" $SEARCH$}
@@ -100,7 +101,7 @@ sort.rng = 1000000
 rand.seed=17
 
 log.step.AddDoc=10000
-#writer.info.stream = SystemOut
+writer.info.stream = SystemOut
 
 directory=FSDirectory
 compound=false
@@ -154,7 +155,7 @@ sort.rng = 1000000
 rand.seed=17
 
 log.step.AddDoc=10000
-#writer.info.stream = SystemOut
+writer.info.stream = SystemOut
 
 directory=FSDirectory
 compound=false
@@ -217,12 +218,12 @@ sort.rng = 1000000
 rand.seed=17
 
 log.step.AddDoc=10000
-#writer.info.stream = SystemOut
+writer.info.stream = SystemOut
 
 directory=FSDirectory
 compound=false
 ram.flush.mb = 256
-max.buffered = 77777
+#max.buffered = 77777
 # merge.factor=100000
 
 deletion.policy = org.apache.lucene.index.NoDeletionPolicy
@@ -242,9 +243,9 @@ CloseIndex
 RepSumByPrefRound BuildIndex
 ''' % constants.ANALYZER
 
-#BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
+BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
 #BASE_INDEX_ALG = SINGLE_SEG_INDEX_ALG
-BASE_INDEX_ALG = BASIC_INDEX_ALG
+#BASE_INDEX_ALG = BASIC_INDEX_ALG
 
 def run(cmd, log=None):
   print 'RUN: %s' % cmd
@@ -590,8 +591,8 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     if os.path.exists(logFile):
       os.remove(logFile)
     for iter in xrange(iters):
-      command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s' % \
-          (self.javaCommand, c.taskRunProperties(), cp, nameToIndexPath(c.index.getName()), threadCount, itersPerJVM, c.commitPoint)
+      command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s %s' % \
+          (self.javaCommand, c.taskRunProperties(), cp, c.dirImpl, nameToIndexPath(c.index.getName()), threadCount, itersPerJVM, c.commitPoint)
       if filter is not None:
         command += ' %s %.2f' % filter
       run('%s >> %s' % (command, logFile))

@@ -41,10 +41,10 @@ import org.apache.lucene.util.Version;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -cp build/classes/java:../modules/analysis/build/common/classes/java  SearchPerfTest.java; java -cp .:build/classes/java:../modules/analysis/build/common/classes/java SearchPerfTest /x/lucene/trunkwiki/index 2 10000 >& out.x
+//   javac -cp build/classes/java:../modules/analysis/build/common/classes/java  SearchPerfTest.java; java -cp .:build/classes/java:../modules/analysis/build/common/classes/java SearchPerfTest Default /x/lucene/trunkwiki/index 2 10000 >& out.x
 
 // 3x:
-//   javac -cp build/classes/java  SearchPerfTest.java; java -cp .:build/classes/java SearchPerfTest /x/lucene/3xwiki/index 2 10000 >& out.x
+//   javac -cp build/classes/java  SearchPerfTest.java; java -cp .:build/classes/java SearchPerfTest Default /x/lucene/3xwiki/index 2 10000 >& out.x
 
 public class SearchPerfTest {
   
@@ -63,6 +63,7 @@ public class SearchPerfTest {
     "united AND states",
     "nebraska AND states",
     "\"united states\"",
+    "\"united states\"~3",
   };
 
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
@@ -108,38 +109,33 @@ public class SearchPerfTest {
     if (q instanceof WildcardQuery || q instanceof PrefixQuery) {
       //((MultiTermQuery) q).setRewriteMethod(MultiTermQuery.CONSTANT_SCORE_BOOLEAN_QUERY_REWRITE);
       ((MultiTermQuery) q).setRewriteMethod(MultiTermQuery.SCORING_BOOLEAN_QUERY_REWRITE);
+      BooleanQuery.setMaxClauseCount(100000);
     }
     */
     queries.add(qs);
     printOne(s, qs);
   }
   
-  public static enum Dir {
-    NIOFS,
-    MMAP,
-    SIMPLEFS,
-  }
-  
-  private static Directory newDirectory(Dir dir, File path) throws IOException {
-    switch(dir) {
-    case MMAP:
-      return new MMapDirectory(path);
-    case NIOFS:
-      return new NIOFSDirectory(path);
-    case SIMPLEFS:
-      return new SimpleFSDirectory(path);
-    }
-    return new NIOFSDirectory(path);
-  }
-  
   private static final boolean shuffleQueries = true;
 
   public static void main(String[] args) throws Exception {
 
-    // args: indexPath numThread numIterPerThread
-	CodecProvider.getDefault().register(new MockSepCodec());
+    // args: dirImpl indexPath numThread numIterPerThread
+    CodecProvider.getDefault().register(new MockSepCodec());
     // eg java SearchPerfTest /path/to/index 4 100
-    Directory dir = newDirectory(Dir.NIOFS, new File(args[0]));
+    final Directory dir;
+    final String dirImpl = args[0];
+    final String dirPath = args[1];
+    if (dirImpl.equals("MMapDirectory")) {
+      dir = new MMapDirectory(new File(dirPath));
+    } else if (dirImpl.equals("NIOFSDirectory")) {
+      dir = new NIOFSDirectory(new File(dirPath));
+    } else if (dirImpl.equals("SimpleFSDirectory")) {
+      dir = new SimpleFSDirectory(new File(dirPath));
+    } else {
+      throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
+    }
+
     String taskType = System.getProperty("task.type", SearchTask.class.getName());
     System.out.println("Using " + dir.getClass().getName());
     System.out.println("Using TaskType: " + taskType);
@@ -149,12 +145,12 @@ public class SearchPerfTest {
     Filter f = null;
     boolean doOldFilter = false;
     boolean doNewFilter = false;
-    if (args.length == 6) {
-      final String commit = args[3];
+    if (args.length == 7) {
+      final String commit = args[4];
       System.out.println("open commit=" + commit);
       IndexReader reader = IndexReader.open(findCommitPoint(commit, dir), true);
-      Filter filt = new RandomFilter(Double.parseDouble(args[5])/100.0);
-      if (args[4].equals("FilterOld")) {
+      Filter filt = new RandomFilter(Double.parseDouble(args[6])/100.0);
+      if (args[5].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
         IndexReader[] subReaders = reader.getSequentialSubReaders();
         for(int subID=0;subID<subReaders.length;subID++) {
@@ -164,8 +160,8 @@ public class SearchPerfTest {
         throw new RuntimeException("4th arg should be FilterOld or FilterNew");
       }
       s = new IndexSearcher(reader);
-    } else if (args.length == 4) {
-      final String commit = args[3];
+    } else if (args.length == 5) {
+      final String commit = args[4];
       System.out.println("open commit=" + commit);
       s = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir), true));
     } else {
@@ -182,8 +178,8 @@ public class SearchPerfTest {
     //System.gc();
     //System.out.println("RAM: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
 
-    final int threadCount = Integer.parseInt(args[1]);
-    final int numIterPerThread = Integer.parseInt(args[2]);
+    final int threadCount = Integer.parseInt(args[2]);
+    final int numIterPerThread = Integer.parseInt(args[3]);
 
     final List<QueryAndSort> queries = new ArrayList<QueryAndSort>();
     QueryParser p = new QueryParser(Version.LUCENE_31, "body", new EnglishAnalyzer(Version.LUCENE_31));

@@ -21,7 +21,7 @@
 # BASE_DIR/aaa BASE_DIR/bbb etc.
 from localconstants import *
 
-ANALYZER='org.apache.lucene.analysis.en.EnglishWDFAnalyzer'
+ANALYZER='org.apache.lucene.analysis.en.EnglishAnalyzer'
 
 BENCH_BASE_DIR = '%s/util' % BASE_DIR
 WIKI_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR

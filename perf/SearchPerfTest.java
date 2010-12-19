@@ -37,6 +37,7 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.util.Constants;
 
 // commits: single, multi, delsingle, delmulti
 
@@ -137,8 +138,9 @@ public class SearchPerfTest {
     }
 
     String taskType = System.getProperty("task.type", SearchTask.class.getName());
-    System.out.println("Using " + dir.getClass().getName());
+    System.out.println("Using dir impl " + dir.getClass().getName());
     System.out.println("Using TaskType: " + taskType);
+    System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
 
     final long t0 = System.currentTimeMillis();
     final IndexSearcher s;

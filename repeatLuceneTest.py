@@ -20,47 +20,14 @@ import datetime
 import os
 import sys
 import random
+import common
 
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
 
-IS_WINDOWS = sys.platform.find('win') != -1 and sys.platform.find('darwin') == -1
+osName = common.osName
 
 JAVA_ARGS = '-Xmx512m -Xms512m'
-
-if 0:
-  if 0:
-    tests = ('org.apache.lucene.index.TestThreadedOptimize',
-             'org.apache.lucene.index.TestConcurrentMergeScheduler',
-             'org.apache.lucene.index.TestTransactions',
-             'org.apache.lucene.index.TestAddIndexesNoOptimize',
-             'org.apache.lucene.index.stresstests.TestIndexWriterConcurrent',
-             'org.apache.lucene.index.TestStressIndexing',
-             'org.apache.lucene.index.TestStressIndexing2',
-             'org.apache.lucene.index.TestIndexWriter',
-             'org.apache.lucene.index.TestAtomicUpdate',
-             'org.apache.lucene.index.TestIndexWriterDelete',
-             'org.apache.lucene.index.TestIndexWriterExceptions',
-             'org.apache.lucene.TestSnapshotDeletionPolicy',
-             'org.apache.lucene.index.TestCrash')
-
-    tests = ('org.apache.lucene.search.TestRegexpRandom2',
-             'org.apache.lucene.search.TestRegexpRandom',
-             'org.apache.lucene.search.TestPrefixRandom',
-             'org.apache.lucene.search.TestAutomatonQuery',
-             'org.apache.lucene.util.automaton.TestUTF32ToUTF8',
-             'org.apache.lucene.index.codecs.preflex.TestSurrogates')
-    doLog = False
-  else:
-    #tests = ('org.apache.lucene.index.TestAtomicUpdate',)
-    #tests = ('org.apache.lucene.index.TestBackwardsCompatibility',)
-    #tests = ('org.apache.lucene.search.TestPrefixRandom',)
-    #tests = ('org.apache.lucene.index.codecs.preflex.TestSurrogates',)
-    #logDirName = 'atomic'
-    #tests = ('org.apache.lucene.index.TestPayloads',)
-    tests = ('org.apache.lucene.index.TestIndexWriterExceptions',)
-    #tests = ('org.apache.lucene.index.TestConcurrentMergeScheduler',)
-    doLog = True
 
 allTests = {}
 def locateTest(test):
@@ -107,7 +74,7 @@ if os.path.exists('/dev/shm'):
   logDirName = '/dev/shm/logs/%s' % sub
 else:
   logDirName = '/tmp/logs/%s' % sub
-  if IS_WINDOWS:
+  if osName == 'windows':
     logDirName = 'c:' + logDirName
 doLog = True
 
@@ -119,9 +86,12 @@ if doLog:
   os.makedirs(logDirName)
 
 print 'Compile...'
-if os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1'):
-  print open('compile.log', 'rb').read()
-  sys.exit(1)
+try:
+  if os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1'):
+    print open('compile.log', 'rb').read()
+    sys.exit(1)
+finally:
+  os.remove('compile.log')
   
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
@@ -158,7 +128,7 @@ CP.append(JUNIT_JAR)
 if os.path.exists('build/classes/demo'):
   CP.append('build/classes/demo')
 
-JAVA_ARGS += ' -cp "%s"' % os.pathsep.join(CP)
+JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(CP)
 
 TEST_TEMP_DIR = 'build/test/reruns'
 

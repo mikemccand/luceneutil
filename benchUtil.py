@@ -25,6 +25,7 @@ import sys
 import cPickle
 import datetime
 import constants
+import common
 
 # TODO
 #   - add option for testing sorting, applying the SortValues.patch!!
@@ -32,14 +33,7 @@ import constants
 #   - run searches
 #   - get all docs query in here
 
-if sys.platform.lower().find('darwin') != -1:
-  osName = 'osx'
-elif sys.platform.lower().find('win') != -1:
-  osName = 'windows'
-elif sys.platform.lower().find('linux') != -1:
-  osName = 'linux'
-else:
-  osName = 'unix'
+osName = common.osName
 
 def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)

@@ -20,20 +20,23 @@ import time
 import sys
 import os
 import benchUtil
+import common
 from constants import *
 
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 if '-debug' in sys.argv:
-  INDEX_NUM_DOCS = 2000000
+  INDEX_NUM_DOCS = 100000
 else:
   # nocommit
   INDEX_NUM_DOCS = 10000000
 
 # TODO: make this automagic -- ie if I will cmp w/ different indices, must be single threaded:
-INDEX_NUM_THREADS = 4
-#INDEX_NUM_THREADS = 1
+#INDEX_NUM_THREADS = 4
+INDEX_NUM_THREADS = 1
+
+osName = common.osName
 
 def run(*competitors):  
   r = benchUtil.RunAlgs(JAVA_COMMAND)
@@ -78,7 +81,8 @@ def run(*competitors):
   results = {}
   for c in competitors:
     print 'Search on %s...' % c.checkout
-    benchUtil.run("sudo %s/dropCaches.sh" % BENCH_BASE_DIR)
+    if osName == 'linux':
+      benchUtil.run("sudo %s/dropCaches.sh" % BENCH_BASE_DIR)
     t0 = time.time()
     results[c] = r.runSimpleSearchBench(c, iters, itersPerJVM, threads, filter=None)
     print '  %.2f sec' % (time.time() - t0)
@@ -125,20 +129,8 @@ class DocValueCompetitor(Competitor):
   
     
 def main():
-  if 0:
-    index1 = benchUtil.Index('bulkbranch', 'wiki', 'PatchedFrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-    index2 = benchUtil.Index('bulkbranch', 'wiki', 'PatchedFrameOfRef2', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-    run(Competitor('pfor1', 'bulkbranch', index1, 'MMapDirectory'),
-        Competitor('pfor2', 'bulkbranch', index2, 'MMapDirectory'))
-  elif 0:
-    index = benchUtil.Index('bulkbranch', 'wiki', 'FrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-    run(Competitor('base', 'bulkbranch.clean', index, 'MMapDirectory'),
-        Competitor('mmap', 'bulkbranch', index, 'MMapDirectory'))
-  else:
-    index = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-    run(
-      Competitor('niofs', 'clean.svn', index, 'NIOFSDirectory'),
-      Competitor('mmap', 'clean.svn', index, 'MMapDirectory'),
-      )
+    index1 = benchUtil.Index('bulkpostingsorig', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
+    run(Competitor('Standard', 'bulkpostingsorig', index1, 'MMapDirectory'),
+        Competitor('BulkVInt', 'bulkpostings', index1, 'MMapDirectory'))
 if __name__ == '__main__':
   main()

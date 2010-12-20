@@ -13,7 +13,7 @@ else:
   osName = 'unix'
 
 def pathsep():
-  if osName == 'cygwin':
+  if osName == 'windows' or 'cygwin':
     return ';'
   else:
     return os.pathsep

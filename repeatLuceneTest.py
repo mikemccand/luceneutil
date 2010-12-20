@@ -21,6 +21,7 @@ import os
 import sys
 import random
 import common
+import constants
 
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
@@ -147,7 +148,7 @@ while True:
       print '%s TEST: %s' % (datetime.datetime.now(), s)
       
     command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
-    if random.randint(0, 1) == 1:
+    if constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
       command += ' -server'
     if random.randint(0, 1) == 1:
       command += ' -Xbatch'

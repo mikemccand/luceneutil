@@ -305,7 +305,7 @@ class RunAlgs:
     print 'JAVA:\n%s' % os.popen('java -version 2>&1').read()
     
     print
-    if osName != 'windows' or 'cygwin':
+    if osName not in ('windows', 'cygwin'):
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
@@ -315,7 +315,7 @@ class RunAlgs:
     print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % self.javaCommand).read()
 
     print
-    if osName != 'windows' or 'cygwin':
+    if osName not in ('windows', 'cygwin'):
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
@@ -373,7 +373,7 @@ class RunAlgs:
     cp = self.classPathToString(self.getClassPath(competitor.checkout), competitor.checkout)
     if not os.path.exists('perf'):
       # TODO: change to just compile the code & run directly from util
-      if osName == 'windows' or 'cygwin':
+      if osName in ('windows', 'cygwin'):
         run('cp -r %s/perf .' % constants.BENCH_BASE_DIR)
       else:
         run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)

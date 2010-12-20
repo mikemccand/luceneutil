@@ -21,7 +21,7 @@ import sys
 import os
 import benchUtil
 import common
-from constants import *
+import constants
 
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
@@ -32,14 +32,13 @@ else:
   # nocommit
   INDEX_NUM_DOCS = 10000000
 
-# TODO: make this automagic -- ie if I will cmp w/ different indices, must be single threaded:
-#INDEX_NUM_THREADS = 4
-INDEX_NUM_THREADS = 1
+INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
+WIKI_LINE_FILE = constants.WIKI_LINE_FILE
 
 osName = common.osName
 
 def run(*competitors):  
-  r = benchUtil.RunAlgs(JAVA_COMMAND)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
   if '-noc' not in sys.argv:
     for c in competitors:
       r.compile(c)
@@ -82,7 +81,7 @@ def run(*competitors):
   for c in competitors:
     print 'Search on %s...' % c.checkout
     if osName == 'linux':
-      benchUtil.run("sudo %s/dropCaches.sh" % BENCH_BASE_DIR)
+      benchUtil.run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
     t0 = time.time()
     results[c] = r.runSimpleSearchBench(c, iters, itersPerJVM, threads, filter=None)
     print '  %.2f sec' % (time.time() - t0)
@@ -100,12 +99,12 @@ class Competitor(object):
           "loadIdFC" : "perf.LoadFieldCacheSearchTask",
           "loadIdDV" : "perf.values.DocValuesSearchTask"}
 
-  def __init__(self, name, checkout, index, dirImpl, task='search'):
+  def __init__(self, name, checkout, index, dirImpl, commitPoint, task='search'):
     self.name = name
     self.index = index
     self.checkout = checkout
     self.searchTask = self.TASKS[task];
-    self.commitPoint = 'multi'
+    self.commitPoint = commitPoint
     self.dirImpl = dirImpl
 
   def compile(self, cp):
@@ -127,10 +126,13 @@ class DocValueCompetitor(Competitor):
     benchUtil.run(command,  'compile.log')
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
   
-    
 def main():
-    index1 = benchUtil.Index('bulkpostingsorig', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE)
-    run(Competitor('Standard', 'bulkpostingsorig', index1, 'MMapDirectory'),
-        Competitor('BulkVInt', 'bulkpostings', index1, 'MMapDirectory'))
+  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('clean.svn', 'wiki', 'Pulsing', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+  run(
+    Competitor('niofs', 'clean.svn', index1, 'MMapDirectory', 'multi'),
+    Competitor('mmap', 'clean.svn', index2, 'MMapDirectory', 'multi'),
+    )
+
 if __name__ == '__main__':
   main()

@@ -17,6 +17,9 @@ package perf;
  * limitations under the License.
  */
 
+// TODO
+//   - mixin some sorting, eg sort by date
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -85,23 +88,35 @@ public class SearchPerfTest {
 
   private static void printOne(IndexSearcher s, QueryAndSort qs) throws IOException {
     final TopDocs hits;
+    s.setDefaultFieldSortScoring(true, false);
     System.out.println("\nRUN: " + qs.q);
-    if (qs.s == null && qs.f == null) {
-      hits = s.search(qs.q, 10);
-    } else if (qs.s == null && qs.f != null) {
-      hits = s.search(qs.q, qs.f, 10);
+    if (qs.s == null) {
+      // disambiguate by our stable id:
+      Sort sort = new Sort(new SortField[] {
+          new SortField(null, SortField.SCORE),
+          new SortField("docid", SortField.INT)});
+      if (qs.f == null) {
+        hits = s.search(qs.q, null, 50, sort);
+      } else {
+        hits = s.search(qs.q, qs.f, 50, sort);
+      }
     } else {
-      hits = s.search(qs.q, qs.f, 10, qs.s);
+      // disambiguate by our stable id:
+      SortField[] sortFields = new SortField[qs.s.getSort().length+1];
+      System.arraycopy(qs.s.getSort(), 0, sortFields, 0, qs.s.getSort().length);
+      sortFields[sortFields.length-1] = new SortField("docid", SortField.INT);
+      hits = s.search(qs.q, qs.f, 50, new Sort(sortFields));
     }
 
     System.out.println("\nHITS q=" + qs.q + " s=" + qs.s + " tot=" + hits.totalHits);
     //System.out.println("  rewrite q=" + s.rewrite(qs.q));
     for(int i=0;i<hits.scoreDocs.length;i++) {
-      System.out.println("  " + i + " doc=" + hits.scoreDocs[i].doc + " score=" + hits.scoreDocs[i].score);
+      System.out.println("  " + i + " doc=" + s.doc(hits.scoreDocs[i].doc).get("docid") + " score=" + hits.scoreDocs[i].score);
     }
     if (qs.q instanceof MultiTermQuery) {
       System.out.println("  " + ((MultiTermQuery) qs.q).getTotalNumberOfTerms() + " expanded terms");
     }
+    s.setDefaultFieldSortScoring(false, false);
   }
 
   private static void addQuery(IndexSearcher s, List<QueryAndSort> queries, Query q, Sort sort, Filter f) throws IOException {
@@ -186,18 +201,15 @@ public class SearchPerfTest {
     final List<QueryAndSort> queries = new ArrayList<QueryAndSort>();
     QueryParser p = new QueryParser(Version.LUCENE_31, "body", new EnglishAnalyzer(Version.LUCENE_31));
 
+    final Sort dateTimeSort = new Sort(new SortField("docdatenum", SortField.LONG));
     for(int i=0;i<queryStrings.length;i++) {
       Query q = p.parse(queryStrings[i]);
 
       // sort by score:
       addQuery(s, queries, q, null, f);
 
-      /*
-      addQuery(s, queries, (Query) q.clone(),
-               new Sort(new
-                        SortField("doctitle",
-                                  SortField.STRING)), f);
-      */
+      // sort by date:
+      addQuery(s, queries, (Query) q.clone(), dateTimeSort, f);
 
       /*
       for(int j=0;j<7;j++) {
@@ -244,14 +256,22 @@ public class SearchPerfTest {
       //addQuery(s, queries, new FuzzyQuery(new Term("body", "united"), 0.7f, 0, 50), null, f);
     }
 
-    addQuery(s, queries, new SpanFirstQuery(new SpanTermQuery(new Term("body", "unit")), 5), null, f);
-    addQuery(s, queries,
-             new SpanNearQuery(
-                               new SpanQuery[] {new SpanTermQuery(new Term("body", "unit")),
-                                                new SpanTermQuery(new Term("body", "state"))},
-                               10,
-                               true),
-             null, f);
+    Query q = new SpanFirstQuery(new SpanTermQuery(new Term("body", "unit")), 5);
+    addQuery(s, queries, q, null, f);
+    addQuery(s, queries, q, dateTimeSort, f);
+
+    q = new SpanNearQuery(
+                          new SpanQuery[] {new SpanTermQuery(new Term("body", "unit")),
+                                           new SpanTermQuery(new Term("body", "state"))},
+                          10,
+                          true);
+    addQuery(s, queries, q, null, f);
+    addQuery(s, queries, q, dateTimeSort, f);
+
+    // Seconds in the day 0..86400
+    q = NumericRangeQuery.newIntRange("doctimesecnum", 10000, 60000, true, true);
+    addQuery(s, queries, q, null, f);
+    addQuery(s, queries, q, dateTimeSort, f);
 
     final Random rand = new Random(17);
 

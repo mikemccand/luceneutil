@@ -78,7 +78,7 @@ CloseReader
 RepSumByPrefRound XSearch
 ''' % constants.ANALYZER
 
-SINGLE_SEG_INDEX_ALG = '''
+SINGLE_MULTI_INDEX_ALG = '''
 analyzer=%s
 
 $OTHER$
@@ -100,61 +100,7 @@ writer.info.stream = SystemOut
 directory=FSDirectory
 compound=false
 ram.flush.mb = -1
-#max.buffered = 10
-#merge.factor = 2
-# merge.factor = 10000
-
-deletion.policy = org.apache.lucene.index.NoDeletionPolicy
-
-work.dir=$WORKDIR$
-max.field.length= 2047483647
-content.source.forever = true
-max.buffered = 7777
-
-ResetSystemErase
-CreateIndex
-
-{ "BuildIndex"
-  $INDEX_LINE$
-  -CommitIndex(multi)
-  -CloseIndex
-}
-
-RepSumByPrefRound BuildIndex
-
-{ "OptimizeIndex"
-  -OpenIndex
-  -Optimize
-  -CommitIndex(single)
-  -CloseIndex
-}
-
-RepSumByPrefRound OptimizeIndex
-''' % constants.ANALYZER
-
-MULTI_COMMIT_INDEX_ALG = '''
-analyzer=%s
-
-$OTHER$
-
-doc.body.stored = false
-doc.term.vector = false
-doc.tokenized = false
-
-doc.index.props = true
-doc.stored = true
-doc.body.tokenized = true
-
-sort.rng = 1000000
-rand.seed=17
-
-log.step.AddDoc=10000
-writer.info.stream = SystemOut
-
-directory=FSDirectory
-compound=false
-ram.flush.mb = 256
-max.buffered = 77777
+max.buffered = 10001
 # merge.factor=100000
 
 deletion.policy = org.apache.lucene.index.NoDeletionPolicy
@@ -169,18 +115,19 @@ CreateIndex
 { "BuildIndex"
   $INDEX_LINE$
   -CommitIndex(multi)
+  -CloseIndex
 }
 
 RepSumByPrefRound BuildIndex
 
 { "Optimize"
+  -OpenIndex
   Optimize
+  CommitIndex(single)
+  CloseIndex
 }
 
 RepSumByPrefRound Optimize
-
-CommitIndex(single)
-CloseIndex
 
 OpenReader(false,multi)
 DeleteByPercent(5)
@@ -195,7 +142,7 @@ CommitIndex(delsingle)
 CloseReader
 ''' % constants.ANALYZER
 
-BASIC_INDEX_ALG = '''
+ONLY_MULTI_INDEX_ALG = '''
 analyzer=%s
 
 $OTHER$
@@ -216,8 +163,8 @@ writer.info.stream = SystemOut
 
 directory=FSDirectory
 compound=false
-ram.flush.mb = 256
-#max.buffered = 77777
+ram.flush.mb = -1
+max.buffered = 10001
 # merge.factor=100000
 
 deletion.policy = org.apache.lucene.index.NoDeletionPolicy
@@ -234,12 +181,65 @@ CreateIndex
   -CommitIndex(multi)
 }
 CloseIndex
+
 RepSumByPrefRound BuildIndex
+
+OpenReader(false,multi)
+DeleteByPercent(5)
+RepSumByPrefRound DeleteByPercent
+CommitIndex(delmulti)
+CloseReader
 ''' % constants.ANALYZER
 
-BASE_INDEX_ALG = MULTI_COMMIT_INDEX_ALG
-#BASE_INDEX_ALG = SINGLE_SEG_INDEX_ALG
-#BASE_INDEX_ALG = BASIC_INDEX_ALG
+
+ONLY_MULTI_INDEX_ALG = '''
+analyzer=%s
+
+$OTHER$
+
+doc.body.stored = false
+doc.term.vector = false
+doc.tokenized = false
+
+doc.index.props = true
+doc.stored = true
+doc.body.tokenized = true
+
+sort.rng = 1000000
+rand.seed=17
+
+log.step.AddDoc=10000
+writer.info.stream = SystemOut
+
+directory=FSDirectory
+compound=false
+ram.flush.mb = -1
+max.buffered = 10001
+# merge.factor=100000
+
+deletion.policy = org.apache.lucene.index.NoDeletionPolicy
+
+work.dir=$WORKDIR$
+max.field.length= 2047483647
+content.source.forever = true
+
+ResetSystemErase
+CreateIndex
+
+{ "BuildIndex"
+  $INDEX_LINE$
+  -CommitIndex(multi)
+}
+CloseIndex
+
+RepSumByPrefRound BuildIndex
+
+OpenReader(false,multi)
+DeleteByPercent(5)
+RepSumByPrefRound DeleteByPercent
+CommitIndex(delmulti)
+CloseReader
+''' % constants.ANALYZER
 
 def run(cmd, log=None):
   print 'RUN: %s' % cmd
@@ -250,7 +250,7 @@ def run(cmd, log=None):
 
 class Index:
 
-  def __init__(self, checkout, dataSource, codec, numDocs, numThreads, lineDocSource=None, xmlDocSource=None):
+  def __init__(self, checkout, dataSource, codec, numDocs, numThreads, lineDocSource=None, xmlDocSource=None, doOptimize=False):
     self.checkout = checkout
     self.dataSource = dataSource
     self.codec = codec
@@ -258,6 +258,11 @@ class Index:
     self.numThreads = numThreads
     self.lineDocSource = lineDocSource
     self.xmlDocSource = xmlDocSource
+    self.doOptimize = doOptimize
+    if self.doOptimize:
+      self.alg = SINGLE_MULTI_INDEX_ALG
+    else:
+      self.alg = ONLY_MULTI_INDEX_ALG
 
   def getName(self):
     return '%s.%s.nd%gM' % (self.checkout, self.codec, self.numDocs/1000000.0)
@@ -305,7 +310,7 @@ class RunAlgs:
     print 'JAVA:\n%s' % os.popen('java -version 2>&1').read()
     
     print
-    if osName != 'windows' or 'cygwin':
+    if osName not in ('windows', 'cygwin'):
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
@@ -315,7 +320,7 @@ class RunAlgs:
     print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % self.javaCommand).read()
 
     print
-    if osName != 'windows' or 'cygwin':
+    if osName not in ('windows', 'cygwin'):
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
@@ -332,7 +337,7 @@ class RunAlgs:
 
     print 'Now create index %s...' % fullIndexPath
 
-    alg = self.getIndexAlg(index.codec, fullIndexPath, index.dataSource, index.numDocs, index.numThreads, lineDocSource=index.lineDocSource, xmlDocSource=index.xmlDocSource)
+    alg = self.getIndexAlg(index.alg, index.codec, fullIndexPath, index.dataSource, index.numDocs, index.numThreads, lineDocSource=index.lineDocSource, xmlDocSource=index.xmlDocSource)
 
     job = IndexJob(index.numDocs, alg)
 
@@ -373,7 +378,7 @@ class RunAlgs:
     cp = self.classPathToString(self.getClassPath(competitor.checkout), competitor.checkout)
     if not os.path.exists('perf'):
       # TODO: change to just compile the code & run directly from util
-      if osName == 'windows' or 'cygwin':
+      if osName in ('windows', 'cygwin'):
         run('cp -r %s/perf .' % constants.BENCH_BASE_DIR)
       else:
         run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)
@@ -511,9 +516,9 @@ class RunAlgs:
     finally:
       os.chdir(savDir)
                            
-  def getIndexAlg(self, defaultCodec, fullIndexPath, source, numDocs, numThreads, lineDocSource=None, xmlDocSource=None):
+  def getIndexAlg(self, alg, defaultCodec, fullIndexPath, source, numDocs, numThreads, lineDocSource=None, xmlDocSource=None):
 
-    s = BASE_INDEX_ALG
+    s = alg
 
     if source == 'wiki':
       if lineDocSource is not None:
@@ -603,112 +608,114 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     for (q, s), t in base.items():
       allQueries.add(q)
 
-    s = 'null'
-    #s = '<string: "doctitle">'
+    for s in ('null', '<long: "docdatenum">'):
 
-    lines = []
-    w = sys.stdout.write
-    w('\nNOTE: SORT BY %s\n\n' % s)
-    
-    if jira:
-      w('||Query||QPS %s||QPS %s||Pct diff||' % (baseDesc, cmpDesc))
-    elif html:
-      w('<table>')
-      w('<tr>')
-      w('<th>Query</th>')
-      w('<th>QPS %s</th>' % baseDesc)
-      w('<th>QPS %s</th>' % cmpDesc)
-      w('<th>%% change</th>')
-      w('</tr>')
-    else:
-      w('%20s' % 'Query')
-      w('%12s' % ('QPS %s' % baseDesc))
-      w('%12s' % ('QPS %s' % cmpDesc))
-      w('%10s' % 'Pct diff')
+      lines = []
+      w = sys.stdout.write
 
-    if jira:
-      w('||\n')
-    else:
-      w('\n')
+      if s == 'null':
+        sp = 'score'
+      else:
+        sp = 'date'
+        
+      w('\nNOTE: SORT BY %s\n\n' % sp)
 
-    l2 = list(allQueries)
-    l2.sort()
-
-    # TODO: assert checksums agree across versions
-
-    warnings = []
-    
-    lines = []
-    wOrig = w
-    
-    for q in l2:
-      l0 = []
-      w = l0.append
-      qs = q.replace('body:', '').replace('*:*', '<all>')
       if jira:
-        w('|%s' % qs)
+        w('||Query||QPS %s||QPS %s||Pct diff||' % (baseDesc, cmpDesc))
       elif html:
+        w('<table>')
         w('<tr>')
-        w('<td>%s</td>' % htmlEscape(qs))
+        w('<th>Query</th>')
+        w('<th>QPS %s</th>' % baseDesc)
+        w('<th>QPS %s</th>' % cmpDesc)
+        w('<th>%% change</th>')
+        w('</tr>')
       else:
-        w('%20s' % qs)
-
-      tCmp, hitCount, check = cmp[(q, s)]
-      tBase, hitCount2, check2 = base[(q, s)]
-
-      tCmp /= 1000000.0
-      tBase /= 1000000.0
-      
-      qpsCmp = 1000.0/tCmp
-      qpsBase = 1000.0/tBase
-      
-      if hitCount != hitCount2:
-        warnings.append('q=%s sort=%s: hit counts differ: %s vs %s' % (q, s, hitCount, hitCount2))
-        #raise RuntimeError('hit counts differ: %s vs %s' % (hitCount, hitCount2))
-      if check != check2:
-        warnings.append('q=%s sort=%s: check counts differ: %s vs %s' % (q, s, check, check2))
-        #raise RuntimeError('check counts differ: %s vs %s' % (check, check2))
-      if qpsCmp > qpsBase:
-        color = 'green'
-        sign = -1
-      else:
-        color = 'red'
-        sign = 1
-
-      ps = 100.0*(qpsCmp - qpsBase)/qpsBase
+        w('%20s' % 'Query')
+        w('%12s' % ('QPS %s' % baseDesc))
+        w('%12s' % ('QPS %s' % cmpDesc))
+        w('%10s' % 'Pct diff')
 
       if jira:
-        w('|%.2f|%.2f' % (qpsBase, qpsCmp))
-      elif html:
-        w('<td>%.2f</td><td>%.2f</td>' % (qpsBase, qpsCmp))
-      else:
-        w('%12.2f%12.2f'% (qpsBase, qpsCmp))
-
-      if jira:
-        w('|{color:%s}%.1f%%{color}' % (color, ps))
-      elif html:
-        w('<td><font color=%s>%.1f%%</font></td>' % (color, ps))
-      else:
-        w('%10s' % ('%.1f%%' % ps))
-
-      if jira:
-        w('|\n')
+        w('||\n')
       else:
         w('\n')
 
-      lines.append((ps, ''.join(l0)))
+      l2 = list(allQueries)
+      l2.sort()
 
-    lines.sort()
+      # TODO: assert checksums agree across versions
 
-    w = wOrig
-    for ign, s in lines:
-      w(s)
+      warnings = []
 
-    if html:
-      w('</table>')
+      lines = []
+      wOrig = w
 
-    for w in warnings:
-      print 'WARNING: %s' % w
+      for q in l2:
+        l0 = []
+        w = l0.append
+        qs = q.replace('body:', '').replace('*:*', '<all>')
+        if jira:
+          w('|%s' % qs)
+        elif html:
+          w('<tr>')
+          w('<td>%s</td>' % htmlEscape(qs))
+        else:
+          w('%20s' % qs)
+
+        tCmp, hitCount, check = cmp[(q, s)]
+        tBase, hitCount2, check2 = base[(q, s)]
+
+        tCmp /= 1000000.0
+        tBase /= 1000000.0
+
+        qpsCmp = 1000.0/tCmp
+        qpsBase = 1000.0/tBase
+
+        if hitCount != hitCount2:
+          warnings.append('q=%s sort=%s: hit counts differ: %s vs %s' % (q, s, hitCount, hitCount2))
+          #raise RuntimeError('hit counts differ: %s vs %s' % (hitCount, hitCount2))
+        if qpsCmp > qpsBase:
+          color = 'green'
+          sign = -1
+        else:
+          color = 'red'
+          sign = 1
+
+        ps = 100.0*(qpsCmp - qpsBase)/qpsBase
+
+        if jira:
+          w('|%.2f|%.2f' % (qpsBase, qpsCmp))
+        elif html:
+          w('<td>%.2f</td><td>%.2f</td>' % (qpsBase, qpsCmp))
+        else:
+          w('%12.2f%12.2f'% (qpsBase, qpsCmp))
+
+        if jira:
+          w('|{color:%s}%.1f%%{color}' % (color, ps))
+        elif html:
+          w('<td><font color=%s>%.1f%%</font></td>' % (color, ps))
+        else:
+          w('%10s' % ('%.1f%%' % ps))
+
+        if jira:
+          w('|\n')
+        else:
+          w('\n')
+
+        lines.append((ps, ''.join(l0)))
+
+      lines.sort()
+
+      w = wOrig
+      for ign, s in lines:
+        w(s)
+
+      if html:
+        w('</table>')
+
+      for w in warnings:
+        print 'WARNING: %s' % w
     
   def compare(self, baseline, newList, *params):
 
@@ -733,12 +740,16 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     cPickle.dump(self.results, f)
     f.close()
 
+# cleans up s=<long: "docdatenum">(org.apache.lucene.search.cache.LongValuesCreator@286fbcd7) to remove the (...)s
+reParens = re.compile(r'\(.*?\)')
+
 def getSimpleResults(fname, totCS):
   results = {}
 
   start = False
   best = None
   count = 0
+  lastCheck = None
   hits = {}
     
   for l in open(fname).readlines():
@@ -748,6 +759,7 @@ def getSimpleResults(fname, totCS):
     m = reHits.match(l)
     if m is not None:
       query, sort, hitCount = m.groups()
+      sort = reParens.sub('', sort)
       hitList = []
       hits[(query, sort)] = (hitCount, hitList)
 
@@ -766,13 +778,17 @@ def getSimpleResults(fname, totCS):
       if totCS is None:
         totCS = s
       elif totCS != s:
-        raise RuntimeError('internal checksum diff %s vs %s' % (totCS, s))
+        # checksum is sum of all docIDs hit in all searches; make sure
+        # all threads match
+        raise RuntimeError('internal total checksum diff %s vs %s' % (totCS, s))
       
     if l.startswith('q='):
       if best is not None:
         results[(query, sort)] = best, hitCount, check
+        lastCheck = None
         best = None
       query, sort, hitCount = reQuery.match(l).groups()
+      sort = reParens.sub('', sort)
     elif l.startswith('t='):
       count = 0
     else:
@@ -782,10 +798,13 @@ def getSimpleResults(fname, totCS):
       if m is not None:
         t = long(m.group(1))
         check = long(m.group(2))
+        if lastCheck is None:
+          lastCheck = check
+        elif lastCheck != check:
+          raise RuntimeError('internal checksum diff %s vs %s within query' % (check, lastCheck))
         count += 1
         if count > 3 and (best is None or t < best):
           best = t
-
 
   if len(hits) == 0:
     raise RuntimeError("didn't see any hits")

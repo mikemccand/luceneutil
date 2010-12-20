@@ -29,6 +29,7 @@ WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 JAVA_COMMAND = 'java -Xbatch -Xms1g -Xmx1g -client'
 JRE_SUPPORTS_SERVER_MODE = True
+INDEX_NUM_THREADS = 2
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

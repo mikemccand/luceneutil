@@ -23,6 +23,9 @@ import benchUtil
 import common
 import constants
 
+# TODO
+#  - add sort-by-title
+
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
@@ -128,10 +131,10 @@ class DocValueCompetitor(Competitor):
   
 def main():
   index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('clean.svn', 'wiki', 'Pulsing', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+  #index2 = benchUtil.Index('clean.svn', 'wiki', 'Pulsing', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
   run(
-    Competitor('niofs', 'clean.svn', index1, 'MMapDirectory', 'multi'),
-    Competitor('mmap', 'clean.svn', index2, 'MMapDirectory', 'multi'),
+    Competitor('mmap', 'clean.svn', index1, 'MMapDirectory', 'multi'),
+    Competitor('mmap', 'termstate.simon', index1, 'MMapDirectory', 'multi'),
     )
 
 if __name__ == '__main__':

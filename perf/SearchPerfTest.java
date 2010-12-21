@@ -121,6 +121,7 @@ public class SearchPerfTest {
 
   private static void addQuery(IndexSearcher s, List<QueryAndSort> queries, Query q, Sort sort, Filter f) throws IOException {
     QueryAndSort qs = new QueryAndSort(q, sort, f);
+
     /*
     if (q instanceof WildcardQuery || q instanceof PrefixQuery) {
       //((MultiTermQuery) q).setRewriteMethod(MultiTermQuery.CONSTANT_SCORE_BOOLEAN_QUERY_REWRITE);

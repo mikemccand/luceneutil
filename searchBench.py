@@ -33,7 +33,7 @@ if '-debug' in sys.argv:
   INDEX_NUM_DOCS = 100000
 else:
   # nocommit
-  INDEX_NUM_DOCS = 10000000
+  INDEX_NUM_DOCS = 1000000
 
 INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
 WIKI_LINE_FILE = constants.WIKI_LINE_FILE
@@ -130,11 +130,11 @@ class DocValueCompetitor(Competitor):
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
   
 def main():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  #index2 = benchUtil.Index('clean.svn', 'wiki', 'Pulsing', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+  index1 = benchUtil.Index('solrcene-clean', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('solrcene', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
   run(
-    Competitor('mmap', 'clean.svn', index1, 'MMapDirectory', 'multi'),
-    Competitor('mmap', 'termstate.simon', index1, 'MMapDirectory', 'multi'),
+    Competitor('trunk', 'solrcene-clean', index1, 'NIOFSDirectory', 'multi'),
+    Competitor('patch', 'solrcene', index2, 'NIOFSDirectory', 'multi'),
     )
 
 if __name__ == '__main__':

@@ -26,7 +26,6 @@ import org.apache.lucene.search.*;
 
 
 // javac -cp build/classes/java perf/PKLookupPerfTest.java; java -cp .:build/classes/java perf.PKLookupPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.nd10M/index multi 1000 17
-
 // NO deletions allowed
 // Requires you use an index w/ docid primary key field
 public class PKLookupPerfTest {
@@ -81,10 +80,10 @@ public class PKLookupPerfTest {
     for(int cycle=0;cycle<2;cycle++) {
       System.out.println("Cycle: " + (cycle==0 ? "warm" : "test"));
       System.out.println("  Lookup...");
-      final int[] lookup = new int[numLookups];
+      final String[] lookup = new String[numLookups];
       final int[] docIDs = new int[numLookups];
       for(int iter=0;iter<numLookups;iter++) {
-        lookup[iter] = rand.nextInt(maxDoc);
+        lookup[iter] = Integer.toString(rand.nextInt(maxDoc));
       }
       Arrays.fill(docIDs, -1);
 
@@ -93,7 +92,7 @@ public class PKLookupPerfTest {
       for(int iter=0;iter<numLookups;iter++) {
         final Term t = new Term("docid", "");
         final int iterFinal = iter;
-        s.search(new TermQuery(new Term("docid", Integer.toString(lookup[iter]))),
+        s.search(new TermQuery(t.createTerm(lookup[iter])),
                  new Collector() {
             int base;
 
@@ -127,8 +126,8 @@ public class PKLookupPerfTest {
 
       System.out.println("  Verify...");
       for(int iter=0;iter<numLookups;iter++) {
-        final int found = Integer.parseInt(r.document(docIDs[iter]).get("docid"));
-        if (found != lookup[iter]) {
+        final String found = r.document(docIDs[iter]).get("docid");
+        if (!found.equals(lookup[iter])) {
           throw new RuntimeException("lookup of docid=" + lookup[iter] + " hit wrong docid=" + found);
         }
       }

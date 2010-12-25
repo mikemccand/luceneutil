@@ -58,6 +58,9 @@ DEBUG = True
 
 LOG_SUB_DIR = 'logs'
 
+# for multi-segemnt index:
+SEGS_PER_LEVEL = 7
+
 BASE_SEARCH_ALG = '''
 analyzer=%s
 directory=FSDirectory
@@ -78,7 +81,7 @@ CloseReader
 RepSumByPrefRound XSearch
 ''' % constants.ANALYZER
 
-SINGLE_MULTI_INDEX_ALG = '''
+CORE_INDEX_ALG = '''
 analyzer=%s
 
 $OTHER$
@@ -100,10 +103,11 @@ writer.info.stream = SystemOut
 directory=FSDirectory
 compound=false
 ram.flush.mb = -1
-max.buffered = 10001
+max.buffered = %s
 # merge.factor=100000
 
 deletion.policy = org.apache.lucene.index.NoDeletionPolicy
+merge.policy = org.apache.lucene.index.LogDocMergePolicy
 
 work.dir=$WORKDIR$
 max.field.length= 2047483647
@@ -119,6 +123,10 @@ CreateIndex
 }
 
 RepSumByPrefRound BuildIndex
+
+'''
+
+SINGLE_MULTI_INDEX_ALG = CORE_INDEX_ALG + '''
 
 { "Optimize"
   -OpenIndex
@@ -140,45 +148,9 @@ DeleteByPercent(5)
 RepSumByPrefRound DeleteByPercent
 CommitIndex(delsingle)
 CloseReader
-''' % constants.ANALYZER
+'''
 
-ONLY_MULTI_INDEX_ALG = '''
-analyzer=%s
-
-$OTHER$
-
-doc.body.stored = false
-doc.term.vector = false
-doc.tokenized = false
-
-doc.index.props = true
-doc.stored = true
-doc.body.tokenized = true
-
-sort.rng = 1000000
-rand.seed=17
-
-log.step.AddDoc=10000
-writer.info.stream = SystemOut
-
-directory=FSDirectory
-compound=false
-ram.flush.mb = -1
-max.buffered = 10001
-# merge.factor=100000
-
-deletion.policy = org.apache.lucene.index.NoDeletionPolicy
-
-work.dir=$WORKDIR$
-max.field.length= 2047483647
-content.source.forever = true
-
-ResetSystemErase
-CreateIndex
-
-{ "BuildIndex"
-  $INDEX_LINE$
-  -CommitIndex(multi)
+ONLY_MULTI_INDEX_ALG = CORE_INDEX_ALG + '''
 }
 CloseIndex
 
@@ -189,57 +161,7 @@ DeleteByPercent(5)
 RepSumByPrefRound DeleteByPercent
 CommitIndex(delmulti)
 CloseReader
-''' % constants.ANALYZER
-
-
-ONLY_MULTI_INDEX_ALG = '''
-analyzer=%s
-
-$OTHER$
-
-doc.body.stored = false
-doc.term.vector = false
-doc.tokenized = false
-
-doc.index.props = true
-doc.stored = true
-doc.body.tokenized = true
-
-sort.rng = 1000000
-rand.seed=17
-
-log.step.AddDoc=10000
-writer.info.stream = SystemOut
-
-directory=FSDirectory
-compound=false
-ram.flush.mb = -1
-max.buffered = 10001
-# merge.factor=100000
-
-deletion.policy = org.apache.lucene.index.NoDeletionPolicy
-
-work.dir=$WORKDIR$
-max.field.length= 2047483647
-content.source.forever = true
-
-ResetSystemErase
-CreateIndex
-
-{ "BuildIndex"
-  $INDEX_LINE$
-  -CommitIndex(multi)
-}
-CloseIndex
-
-RepSumByPrefRound BuildIndex
-
-OpenReader(false,multi)
-DeleteByPercent(5)
-RepSumByPrefRound DeleteByPercent
-CommitIndex(delmulti)
-CloseReader
-''' % constants.ANALYZER
+'''
 
 def run(cmd, log=None):
   print 'RUN: %s' % cmd
@@ -259,13 +181,26 @@ class Index:
     self.lineDocSource = lineDocSource
     self.xmlDocSource = xmlDocSource
     self.doOptimize = doOptimize
+
     if self.doOptimize:
-      self.alg = SINGLE_MULTI_INDEX_ALG
+      alg = SINGLE_MULTI_INDEX_ALG
     else:
-      self.alg = ONLY_MULTI_INDEX_ALG
+      alg = ONLY_MULTI_INDEX_ALG
+
+    mergeFactor = 10
+    if SEGS_PER_LEVEL >= mergeFactor:
+      raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
+    
+    maxBufferedDocs = numDocs / (SEGS_PER_LEVEL*111)
+    
+    self.alg = alg % (constants.ANALYZER, maxBufferedDocs)
 
   def getName(self):
-    return '%s.%s.nd%gM' % (self.checkout, self.codec, self.numDocs/1000000.0)
+    if self.doOptimize:
+      s = 'opt.'
+    else:
+      s = ''
+    return '%s.%s.%snd%gM' % (self.checkout, self.codec, s, self.numDocs/1000000.0)
 
 class SearchResult:
 
@@ -801,7 +736,7 @@ def getSimpleResults(fname, totCS):
         if lastCheck is None:
           lastCheck = check
         elif lastCheck != check:
-          raise RuntimeError('internal checksum diff %s vs %s within query' % (check, lastCheck))
+          raise RuntimeError('internal checksum diff %s vs %s within query=%s sort=%s' % (check, lastCheck, query, sort))
         count += 1
         if count > 3 and (best is None or t < best):
           best = t

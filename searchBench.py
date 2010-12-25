@@ -29,13 +29,15 @@ import constants
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
+INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
 if '-debug' in sys.argv:
   INDEX_NUM_DOCS = 100000
 else:
-  # nocommit
   INDEX_NUM_DOCS = 10000000
 
-INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
+# Must be evenly divisible by number of threads:
+INDEX_NUM_DOCS -= INDEX_NUM_DOCS % INDEX_NUM_THREADS
+
 WIKI_LINE_FILE = constants.WIKI_LINE_FILE
 
 osName = common.osName

@@ -132,11 +132,11 @@ class DocValueCompetitor(Competitor):
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
 def mainMike():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('bulkbranch', 'wiki', 'Pulsing', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
+  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('fsttermsindex', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
   run(
-    Competitor('mmap', 'clean.svn', index1, 'MMapDirectory', 'multi'),
-    Competitor('bulk', 'bulkbranch', index2, 'MMapDirectory', 'multi'),
+    Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'multi'),
+    Competitor('vargap', 'fsttermsindex', index2, 'MMapDirectory', 'multi'),
     )
   
 def main():

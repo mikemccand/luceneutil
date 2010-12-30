@@ -151,7 +151,7 @@ CloseReader
 '''
 
 ONLY_MULTI_INDEX_ALG = CORE_INDEX_ALG + '''
-}
+
 CloseIndex
 
 RepSumByPrefRound BuildIndex
@@ -533,8 +533,8 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     return logFile
 
   def simpleReport(self, baseLogFile, cmpLogFile, jira=False, html=False, baseDesc='Standard', cmpDesc=None):
-    base, totCS, hitsBase = getSimpleResults(baseLogFile, None)
-    cmp, totCS, hitsCMP = getSimpleResults(cmpLogFile, totCS)
+    base, hitsBase = getSimpleResults(baseLogFile)
+    cmp, hitsCMP = getSimpleResults(cmpLogFile)
 
     compareHits(hitsBase, hitsCMP)
     
@@ -678,7 +678,7 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
 # cleans up s=<long: "docdatenum">(org.apache.lucene.search.cache.LongValuesCreator@286fbcd7) to remove the (...)s
 reParens = re.compile(r'\(.*?\)')
 
-def getSimpleResults(fname, totCS):
+def getSimpleResults(fname):
   results = {}
 
   start = False
@@ -686,6 +686,7 @@ def getSimpleResults(fname, totCS):
   count = 0
   lastCheck = None
   hits = {}
+  totCS = None
     
   for l in open(fname).readlines():
 
@@ -744,7 +745,7 @@ def getSimpleResults(fname, totCS):
   if len(hits) == 0:
     raise RuntimeError("didn't see any hits")
   results[(query, sort)] = best, hitCount, check
-  return results, totCS, hits
+  return results, hits
 
 def cleanScores(l):
   for i in range(len(l)):

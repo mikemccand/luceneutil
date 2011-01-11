@@ -30,9 +30,9 @@ class RandomFilter extends Filter {
   }
 
   @Override
-  public DocIdSet getDocIdSet(IndexReader r) {
+  public DocIdSet getDocIdSet(IndexReader.ReaderContext r) {
     final Random rand = new Random(42);
-    final int maxDoc = r.maxDoc();
+    final int maxDoc = r.reader.maxDoc();
     OpenBitSet bits = new OpenBitSet(maxDoc);
     for(int docID = 0;docID<maxDoc;docID++) {
       if (rand.nextDouble() <= pctKeep) {        

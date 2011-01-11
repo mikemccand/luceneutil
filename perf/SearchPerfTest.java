@@ -63,6 +63,7 @@ public class SearchPerfTest {
     "united~2",
     "unit~1",
     "unit~2",
+    "doctitle:/.*[Uu]nited.*/",
     "united OR states",
     "united AND states",
     "nebraska AND states",
@@ -89,7 +90,7 @@ public class SearchPerfTest {
   private static void printOne(IndexSearcher s, QueryAndSort qs) throws IOException {
     final TopDocs hits;
     s.setDefaultFieldSortScoring(true, false);
-    System.out.println("\nRUN: " + qs.q);
+    System.out.println("\nRUN: " + qs.q + " s=" + qs.s);
     if (qs.s == null) {
       // disambiguate by our stable id:
       Sort sort = new Sort(new SortField[] {
@@ -107,7 +108,6 @@ public class SearchPerfTest {
       sortFields[sortFields.length-1] = new SortField("docid", SortField.INT);
       hits = s.search(qs.q, qs.f, 50, new Sort(sortFields));
     }
-
     System.out.println("\nHITS q=" + qs.q + " s=" + qs.s + " tot=" + hits.totalHits);
     //System.out.println("  rewrite q=" + s.rewrite(qs.q));
     for(int i=0;i<hits.scoreDocs.length;i++) {
@@ -170,10 +170,12 @@ public class SearchPerfTest {
       Filter filt = new RandomFilter(Double.parseDouble(args[6])/100.0);
       if (args[5].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
+        /*
         IndexReader[] subReaders = reader.getSequentialSubReaders();
         for(int subID=0;subID<subReaders.length;subID++) {
           f.getDocIdSet(subReaders[subID]);
         }
+        */
       } else {
         throw new RuntimeException("4th arg should be FilterOld or FilterNew");
       }
@@ -201,6 +203,7 @@ public class SearchPerfTest {
 
     final List<QueryAndSort> queries = new ArrayList<QueryAndSort>();
     QueryParser p = new QueryParser(Version.LUCENE_31, "body", new EnglishAnalyzer(Version.LUCENE_31));
+    p.setLowercaseExpandedTerms(false);
 
     final Sort dateTimeSort = new Sort(new SortField("docdatenum", SortField.LONG));
     for(int i=0;i<queryStrings.length;i++) {
@@ -210,7 +213,7 @@ public class SearchPerfTest {
       addQuery(s, queries, q, null, f);
 
       // sort by date:
-      addQuery(s, queries, (Query) q.clone(), dateTimeSort, f);
+      //addQuery(s, queries, (Query) q.clone(), dateTimeSort, f);
 
       /*
       for(int j=0;j<7;j++) {
@@ -259,7 +262,7 @@ public class SearchPerfTest {
 
     Query q = new SpanFirstQuery(new SpanTermQuery(new Term("body", "unit")), 5);
     addQuery(s, queries, q, null, f);
-    addQuery(s, queries, q, dateTimeSort, f);
+    //addQuery(s, queries, q, dateTimeSort, f);
 
     q = new SpanNearQuery(
                           new SpanQuery[] {new SpanTermQuery(new Term("body", "unit")),
@@ -267,12 +270,12 @@ public class SearchPerfTest {
                           10,
                           true);
     addQuery(s, queries, q, null, f);
-    addQuery(s, queries, q, dateTimeSort, f);
+    //addQuery(s, queries, q, dateTimeSort, f);
 
     // Seconds in the day 0..86400
     q = NumericRangeQuery.newIntRange("doctimesecnum", 10000, 60000, true, true);
     addQuery(s, queries, q, null, f);
-    addQuery(s, queries, q, dateTimeSort, f);
+    //addQuery(s, queries, q, dateTimeSort, f);
 
     final Random rand = new Random(17);
 

@@ -39,7 +39,11 @@ def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
-  return '%s/lucene/contrib/benchmark' % checkoutToPath(checkout)
+  p = '%s/lucene/contrib/benchmark' % checkoutToPath(checkout)
+  if os.path.exists(p):
+    return p
+  else:
+    return '%s/modules/benchmark' % checkoutToPath(checkout)
 
 def nameToIndexPath(name):
   return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
@@ -290,12 +294,17 @@ class RunAlgs:
     cp = []
     cp.append('%(base)s/lucene/build/classes/java')
     cp.append('%(base)s/lucene/build/classes/test')
+    
     if os.path.exists('%(base)s/modules' % baseDict):
       cp.append('%(base)s/modules/analysis/build/common/classes/java')
       cp.append('%(base)s/modules/analysis/build/icu/classes/java')
     else:
       cp.append('%(base)s/lucene/build/contrib/analyzers/common/classes/java')
-    cp.append('%(base)s/lucene/contrib/benchmark')
+    p = '%(base)s/lucene/contrib/benchmark'
+    if os.path.exists(p):
+      cp.append(p)
+    else:
+      cp.append('%(base)s/modules/benchmark')
     return tuple(cp)
 
   def classPathToString(self, cp, checkout):
@@ -352,7 +361,7 @@ class RunAlgs:
       print '    log: %s/%s' % (benchPath, fullLogFileName)
 
       cp = self.getClassPath(checkout)
-      cp += ('../../build/contrib/highlighter/classes/java',
+      cp += ('%s/lucene/build/contrib/highlighter/classes/java' % checkoutToPath(checkout),
              'lib/icu4j-4_4_1_1.jar',
              'lib/icu4j-charsets-4_4_1_1.jar',
              'lib/commons-digester-1.7.jar',
@@ -361,8 +370,12 @@ class RunAlgs:
              'lib/commons-logging-1.0.4.jar',
              'lib/commons-beanutils-1.7.0.jar',
              'lib/xerces-2.9.0.jar',
-             'lib/xml-apis-2.9.0.jar',
-             '../../build/contrib/benchmark/classes/java')
+             'lib/xml-apis-2.9.0.jar')
+      p = '%s/lucene/build/contrib/benchmark/classes/java' % checkoutToPath(checkout)
+      if os.path.exists(p):
+        cp += (p,)
+      else:
+        cp += ('%s/modules/benchmark/build/classes/java' % checkoutToPath(checkout),)
 
       command = '%s -classpath %s org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
                 (self.javaCommand, self.classPathToString(cp, checkout), algFullFile, fullLogFileName)
@@ -543,7 +556,8 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     for (q, s), t in base.items():
       allQueries.add(q)
 
-    for s in ('null', '<long: "docdatenum">'):
+    # for s in ('null', '<long: "docdatenum">'):
+    for s in ('null',):
 
       lines = []
       w = sys.stdout.write

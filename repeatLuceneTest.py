@@ -28,7 +28,9 @@ import constants
 
 osName = common.osName
 
-JAVA_ARGS = '-Xmx512m -Xms512m'
+# nocommit
+#JAVA_ARGS = '-Xmx512m -Xms512m'
+JAVA_ARGS = '-Xmx2g -Xms2g'
 
 allTests = {}
 def locateTest(test):
@@ -102,6 +104,7 @@ dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
 seed = getArg('-seed', None)
+nightly = getArg('-nightly', None)
 keepLogs = getArg('-keeplogs', False, False)
 
 if len(sys.argv) == 1:
@@ -157,6 +160,8 @@ while True:
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
+    if nightly:
+      command += ' -Dtests.nightly=true'
     if seed is not None:
       command += ' -Dtests.seed=%s' % seed
     if testMethod is not None:

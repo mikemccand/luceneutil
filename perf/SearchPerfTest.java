@@ -34,6 +34,7 @@ import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.*;
@@ -41,6 +42,7 @@ import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.util.Constants;
+import org.apache.lucene.util.ReaderUtil;
 
 // commits: single, multi, delsingle, delmulti
 
@@ -171,9 +173,9 @@ public class SearchPerfTest {
       if (args[5].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
         /*
-        IndexReader[] subReaders = reader.getSequentialSubReaders();
-        for(int subID=0;subID<subReaders.length;subID++) {
-          f.getDocIdSet(subReaders[subID]);
+        AtomicReaderContext[] leaves = ReaderUtil.leaves(reader.getTopReaderContext());
+        for(int subID=0;subID<leaves.length;subID++) {
+          f.getDocIdSet(leaves[subID]);
         }
         */
       } else {

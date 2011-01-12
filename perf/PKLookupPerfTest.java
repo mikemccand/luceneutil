@@ -105,8 +105,8 @@ public class PKLookupPerfTest {
             }
 
             @Override
-              public void setNextReader(IndexReader r, int base) {
-              this.base = base;
+            public void setNextReader(AtomicReaderContext context) {
+              base = context.docBase;
             }
 
             @Override

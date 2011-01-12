@@ -21,6 +21,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.lucene.index.*;
+import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.store.*;
 import org.apache.lucene.search.*;
 

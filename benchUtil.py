@@ -39,11 +39,11 @@ def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
-  p = '%s/lucene/contrib/benchmark' % checkoutToPath(checkout)
+  p = '%s/modules/benchmark' % checkoutToPath(checkout)
   if os.path.exists(p):
     return p
   else:
-    return '%s/modules/benchmark' % checkoutToPath(checkout)
+    return '%s/lucene/contrib/benchmark' % checkoutToPath(checkout)
 
 def nameToIndexPath(name):
   return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
@@ -127,7 +127,6 @@ CreateIndex
 }
 
 RepSumByPrefRound BuildIndex
-
 '''
 
 SINGLE_MULTI_INDEX_ALG = CORE_INDEX_ALG + '''
@@ -196,7 +195,6 @@ class Index:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     
     maxBufferedDocs = numDocs / (SEGS_PER_LEVEL*111)
-    
     self.alg = alg % (constants.ANALYZER, maxBufferedDocs)
 
   def getName(self):
@@ -300,11 +298,11 @@ class RunAlgs:
       cp.append('%(base)s/modules/analysis/build/icu/classes/java')
     else:
       cp.append('%(base)s/lucene/build/contrib/analyzers/common/classes/java')
-    p = '%(base)s/lucene/contrib/benchmark'
+    p = '%s/modules/benchmark' % checkoutToPath(checkout)
     if os.path.exists(p):
       cp.append(p)
     else:
-      cp.append('%(base)s/modules/benchmark')
+      cp.append('%(base)s/lucene/contrib/benchmark')
     return tuple(cp)
 
   def classPathToString(self, cp, checkout):
@@ -371,11 +369,11 @@ class RunAlgs:
              'lib/commons-beanutils-1.7.0.jar',
              'lib/xerces-2.9.0.jar',
              'lib/xml-apis-2.9.0.jar')
-      p = '%s/lucene/build/contrib/benchmark/classes/java' % checkoutToPath(checkout)
+      p = '%s/modules/benchmark/build/classes/java' % checkoutToPath(checkout)
       if os.path.exists(p):
         cp += (p,)
       else:
-        cp += ('%s/modules/benchmark/build/classes/java' % checkoutToPath(checkout),)
+        cp += ('%s/lucene/build/contrib/benchmark/classes/java' % checkoutToPath(checkout),)
 
       command = '%s -classpath %s org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
                 (self.javaCommand, self.classPathToString(cp, checkout), algFullFile, fullLogFileName)

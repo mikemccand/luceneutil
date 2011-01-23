@@ -21,8 +21,6 @@
 # BASE_DIR/aaa BASE_DIR/bbb etc.
 from localconstants import *
 
-ANALYZER='org.apache.lucene.analysis.en.EnglishAnalyzer'
-
 BENCH_BASE_DIR = '%s/util' % BASE_DIR
 WIKI_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR
 WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
@@ -31,6 +29,9 @@ JAVA_COMMAND = 'java -Xbatch -Xms1g -Xmx1g -client'
 JRE_SUPPORTS_SERVER_MODE = True
 # > 1 threads still does not work (docID issues)
 INDEX_NUM_THREADS = 1
+
+if 'ANALYZER' in locals():
+  raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

@@ -29,22 +29,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.lucene.analysis.*;
-import org.apache.lucene.analysis.en.EnglishAnalyzer;
-import org.apache.lucene.analysis.standard.*;
+//import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.standard.*;;
 import org.apache.lucene.index.IndexCommit;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
+//import org.apache.lucene.index.codecs.CodecProvider;
+//import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.index.IndexReader;
+//import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.codecs.CodecProvider;
-import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
+import org.apache.lucene.analysis.*;
+import org.apache.lucene.util.Version;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.ReaderUtil;
-import org.apache.lucene.util.Version;
 
 // commits: single, multi, delsingle, delmulti
 
@@ -63,11 +63,10 @@ public class SearchPerfTest {
     "uni*",
     "u*d",
     "un*d",
-    "united~0.75",  // 1
-    "united~0.6",   // 2
-    "unit~0.7",     // 1
-    "unit~0.5",     // 2
-    "doctitle:/.*[Uu]nited.*/",
+    "united~0.75",
+    "united~0.6",
+    "unit~0.7",
+    "unit~0.5",
     "united OR states",
     "united AND states",
     "nebraska AND states",
@@ -142,7 +141,7 @@ public class SearchPerfTest {
   public static void main(String[] args) throws Exception {
 
     // args: dirImpl indexPath numThread numIterPerThread
-    CodecProvider.getDefault().register(new MockSepCodec());
+    //CodecProvider.getDefault().register(new MockSepCodec());
     // eg java SearchPerfTest /path/to/index 4 100
     final Directory dir;
     final String dirImpl = args[0];
@@ -207,16 +206,14 @@ public class SearchPerfTest {
     final int threadCount = Integer.parseInt(args[3]);
     final int numIterPerThread = Integer.parseInt(args[4]);
 
-    final List<QueryAndSort> queries = new ArrayList<QueryAndSort>(); 
+    final List<QueryAndSort> queries = new ArrayList<QueryAndSort>();
     final Analyzer a;
-    if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_31);
-    } else if (analyzer.equals("ClassicAnalyzer")) {
-      a = new ClassicAnalyzer(Version.LUCENE_30);
+    if (analyzer.equals("StandardAnalyzer")) {
+      a = new StandardAnalyzer(Version.LUCENE_30);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
-    } 
-    QueryParser p = new QueryParser(Version.LUCENE_31, "body", a);
+    }
+    QueryParser p = new QueryParser(Version.LUCENE_30, "body", a);
     p.setLowercaseExpandedTerms(false);
 
     final Sort dateTimeSort = new Sort(new SortField("docdatenum", SortField.LONG));

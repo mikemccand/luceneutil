@@ -35,22 +35,38 @@ import common
 
 osName = common.osName
 
+# NOTE: only detects back to 3.0
+def getLuceneVersion(checkout):
+  checkoutPath = checkoutToPath(checkout)
+  if os.path.isdir('%s/contrib/benchmark' % checkoutPath):
+    return '3.0'
+  elif os.path.isdir('%s/lucene/contrib/benchmark' % checkoutPath):
+    return '3.x'
+  elif os.path.isdir('%s/modules/benchmark' % checkoutPath):
+    return '4.0'
+  else:
+    raise RuntimeError('cannot determine Lucene version for checkout %s' % checkoutPath)
+
 def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
-  p = '%s/modules/benchmark' % checkoutToPath(checkout)
-  if os.path.exists(p):
-    return p
-  else:
-    return '%s/lucene/contrib/benchmark' % checkoutToPath(checkout)
-
+  p = checkoutToPath(checkout)
+  for subDir in ('contrib/benchmark', # pre-3.1
+                 'lucene/contrib/benchmark', # 3.1
+                 'modules/benchmark', # 4.0
+                 ):
+    fullPath = '%s/%s' % (p, subDir)
+    if os.path.exists(fullPath):
+      return fullPath
+  raise RuntimeError('could not locate benchmark under %s' % p)
+    
 def nameToIndexPath(name):
   return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
 
 reQuery = re.compile('^q=(.*?) s=(.*?) h=(.*?)$')
 reHits = re.compile('^HITS q=(.*?) s=(.*?) tot=(.*?)$')
-reHit = re.compile('^(\d+) doc=(\d+) score=([0-9.]+)$')
+reHit = re.compile('^(\d+) doc=(?:doc)?(\d+) score=([0-9.]+)$')
 reResult = re.compile(r'^(\d+) c=(.*?)$')
 reChecksum = re.compile(r'checksum=(\d+)$')
 
@@ -64,26 +80,6 @@ LOG_SUB_DIR = 'logs'
 
 # for multi-segemnt index:
 SEGS_PER_LEVEL = 7
-
-BASE_SEARCH_ALG = '''
-analyzer=%s
-directory=FSDirectory
-work.dir = $INDEX$
-search.num.hits = $NUM_HITS$
-query.maker=org.apache.lucene.benchmark.byTask.feeds.FileBasedQueryMaker
-file.query.maker.file = queries.txt
-log.queries=true
-log.step=100000
-print.hits.field=$PRINT_HITS_FIELD$
-writer.info.stream = SystemOut
-
-OpenReader  
-{"XSearchWarm" $SEARCH$}
-SetProp(print.hits.field,)
-$ROUNDS$
-CloseReader 
-RepSumByPrefRound XSearch
-''' % constants.ANALYZER
 
 CORE_INDEX_ALG = '''
 analyzer=%s
@@ -175,8 +171,9 @@ def run(cmd, log=None):
 
 class Index:
 
-  def __init__(self, checkout, dataSource, codec, numDocs, numThreads, lineDocSource=None, xmlDocSource=None, doOptimize=False):
+  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource=None, xmlDocSource=None, doOptimize=False):
     self.checkout = checkout
+    self.analyzer = analyzer
     self.dataSource = dataSource
     self.codec = codec
     self.numDocs = numDocs
@@ -195,7 +192,18 @@ class Index:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     
     maxBufferedDocs = numDocs / (SEGS_PER_LEVEL*111)
-    self.alg = alg % (constants.ANALYZER, maxBufferedDocs)
+    if analyzer == 'StandardAnalyzer':
+      fullAnalyzer = 'org.apache.lucene.analysis.standard.StandardAnalyzer'
+    elif analyzer == 'ClassicAnalyzer':
+      fullAnalyzer = 'org.apache.lucene.analysis.standard.ClassicAnalyzer'
+    elif analyzer == 'EnglishAnalyzer':
+      fullAnalyzer = 'org.apache.lucene.analysis.en.EnglishAnalyzer'
+
+    version = getLuceneVersion(self.checkout)
+    if version == '3.0':
+      alg = alg.replace('org.apache.lucene.index.NoDeletionPolicy',
+                        'org.apache.lucene.benchmark.utils.NoDeletionPolicy')
+    self.alg = alg % (fullAnalyzer, maxBufferedDocs)
 
   def getName(self):
     if self.doOptimize:
@@ -288,26 +296,28 @@ class RunAlgs:
     return fullIndexPath
 
   def getClassPath(self, checkout):
-    baseDict = {'base' : checkoutToPath(checkout)}
+    path = checkoutToPath(checkout)
     cp = []
-    cp.append('%(base)s/lucene/build/classes/java')
-    cp.append('%(base)s/lucene/build/classes/test')
-    
-    if os.path.exists('%(base)s/modules' % baseDict):
-      cp.append('%(base)s/modules/analysis/build/common/classes/java')
-      cp.append('%(base)s/modules/analysis/build/icu/classes/java')
+    version = getLuceneVersion(checkout)
+    if version == '3.0':
+      buildPath = '%s/build/classes' % path
     else:
-      cp.append('%(base)s/lucene/build/contrib/analyzers/common/classes/java')
-    p = '%s/modules/benchmark' % checkoutToPath(checkout)
-    if os.path.exists(p):
-      cp.append(p)
-    else:
-      cp.append('%(base)s/lucene/contrib/benchmark')
-    return tuple(cp)
+      buildPath = '%s/lucene/build/classes' % path
+    cp.append('%s/java' % buildPath)
+    cp.append('%s/test' % buildPath)
 
-  def classPathToString(self, cp, checkout):
-    baseDict = {'base' : checkoutToPath(checkout)}
-    return '"%s"' % (common.pathsep().join([x % baseDict for x in cp]))
+    if version == '4.0':
+      cp.append('%s/modules/analysis/build/common/classes/java' % path)
+      cp.append('%s/modules/analysis/build/icu/classes/java' % path)
+    elif version == '3.x':
+      cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
+    else:
+      cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
+
+    # need benchmark path so perf.SearchPerfTest is found:
+    cp.append(checkoutToBenchPath(checkout))
+
+    return tuple(cp)
 
   def compile(self,competitor):
     path = checkoutToBenchPath(competitor.checkout)
@@ -317,13 +327,21 @@ class RunAlgs:
     if path.endswith('/'):
       path = path[:-1]
       
-    cp = self.classPathToString(self.getClassPath(competitor.checkout), competitor.checkout)
+    cp = self.classPathToString(self.getClassPath(competitor.checkout))
     if not os.path.exists('perf'):
+      version = getLuceneVersion(competitor.checkout)
+      if version == '3.0':
+        subdir = '/30'
+      elif version == '3.1':
+        subdir = '/31'
+      else:
+        subdir = ''
+      srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
       # TODO: change to just compile the code & run directly from util
       if osName in ('windows', 'cygwin'):
-        run('cp -r %s/perf .' % constants.BENCH_BASE_DIR)
+        run('cp -r %s perf' % srcDir)
       else:
-        run('ln -s %s/perf .' % constants.BENCH_BASE_DIR)
+        run('ln -s %s perf' % srcDir)
     competitor.compile(cp)
     
   def runOne(self, checkout, job, verify=False, logFileName=None):
@@ -340,7 +358,10 @@ class RunAlgs:
     benchPath = checkoutToBenchPath(checkout)
     os.chdir(benchPath)
     print '    cd %s' % benchPath
-
+    checkoutPath = checkoutToPath(checkout)
+    benchPath = checkoutToBenchPath(checkout)
+    luceneVersion = getLuceneVersion(checkout)
+    
     try:
 
       if job.queries is not None:
@@ -358,25 +379,23 @@ class RunAlgs:
       fullLogFileName = '%s/%s' % (LOG_SUB_DIR, logFileName)
       print '    log: %s/%s' % (benchPath, fullLogFileName)
 
-      cp = self.getClassPath(checkout)
-      cp += ('%s/lucene/build/contrib/highlighter/classes/java' % checkoutToPath(checkout),
-             'lib/icu4j-4_4_1_1.jar',
-             'lib/icu4j-charsets-4_4_1_1.jar',
-             'lib/commons-digester-1.7.jar',
-             'lib/commons-collections-3.1.jar',
-             'lib/commons-compress-1.0.jar',
-             'lib/commons-logging-1.0.4.jar',
-             'lib/commons-beanutils-1.7.0.jar',
-             'lib/xerces-2.9.0.jar',
-             'lib/xml-apis-2.9.0.jar')
-      p = '%s/modules/benchmark/build/classes/java' % checkoutToPath(checkout)
-      if os.path.exists(p):
-        cp += (p,)
-      else:
-        cp += ('%s/lucene/build/contrib/benchmark/classes/java' % checkoutToPath(checkout),)
+      cp = list(self.getClassPath(checkout))
+      cp.append('%s/lucene/build/contrib/highlighter/classes/java' % checkoutPath)
+      for fileName in os.listdir('%s/lib' % benchPath):
+        if fileName.endswith('.jar'):
+          cp.append('lib/%s' % fileName)
 
+      if luceneVersion == '4.0':
+        p = '%s/build/classes/java' % benchPath
+      elif luceneVersion == '3.x':
+        p = '%s/lucene/contrib/benchmark/classes/java' % checkoutPath
+      else:
+        p = '%s/build/contrib/benchmark/classes/java' % checkoutPath
+      cp.append(p)
+      del p
+      
       command = '%s -classpath %s org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
-                (self.javaCommand, self.classPathToString(cp, checkout), algFullFile, fullLogFileName)
+                (self.javaCommand, self.classPathToString(cp), algFullFile, fullLogFileName)
 
       if DEBUG:
         print 'command=%s' % command
@@ -502,42 +521,20 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
 
     return s
 
-  def getSearchAlg(self, indexPath, searchTask, numHits, numRounds, verify=False):
-
-    s = BASE_SEARCH_ALG
-    
-    if not verify:
-      s = s.replace('$ROUNDS$',
-  '''                
-  { "Rounds"
-    { "Run"
-      { "TestSearchSpeed"
-        { "XSearchReal" $SEARCH$ > : 5.0s
-      }
-      NewRound
-    } : %d
-  } 
-  ''' % numRounds)
-    else:
-      s = s.replace('$ROUNDS$', '')
-
-    s = s.replace('$INDEX$', indexPath)
-    s = s.replace('$SEARCH$', searchTask)
-    s = s.replace('$NUM_HITS$', str(numHits))
-    
-    return s
+  def classPathToString(self, cp):
+    return common.pathsep().join(cp)
 
   def runSimpleSearchBench(self, c, iters, itersPerJVM, threadCount, filter=None):
     benchDir = checkoutToBenchPath(c.checkout)
     os.chdir(benchDir)
-    cp = self.classPathToString(self.getClassPath(c.checkout), c.checkout)
+    cp = self.classPathToString(self.getClassPath(c.checkout))
     logFile = '%s/res-%s.txt' % (benchDir, c.name)
     print 'log %s' % logFile
     if os.path.exists(logFile):
       os.remove(logFile)
     for iter in xrange(iters):
-      command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s %s' % \
-          (self.javaCommand, c.taskRunProperties(), cp, c.dirImpl, nameToIndexPath(c.index.getName()), threadCount, itersPerJVM, c.commitPoint)
+      command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s %s %s' % \
+          (self.javaCommand, c.taskRunProperties(), cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, threadCount, itersPerJVM, c.commitPoint)
       if filter is not None:
         command += ' %s %.2f' % filter
       run('%s >> %s' % (command, logFile))
@@ -687,6 +684,19 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     cPickle.dump(self.results, f)
     f.close()
 
+reFuzzy = re.compile(r'body:(.*?)\~(.*?)$')
+
+# converts unit~0.7 -> unit~1
+def fixupFuzzy(query):
+  m = reFuzzy.search(query)
+  if m is not None:
+    term, fuzzOrig = m.groups()
+    fuzz = float(fuzzOrig)
+    if fuzz < 1.0:
+      editDistance = int((1.0-fuzz)*len(term))
+      query = query.replace('~%s' % fuzzOrig, '~%s.0' % editDistance)
+  return query
+  
 # cleans up s=<long: "docdatenum">(org.apache.lucene.search.cache.LongValuesCreator@286fbcd7) to remove the (...)s
 reParens = re.compile(r'\(.*?\)')
 
@@ -707,6 +717,7 @@ def getSimpleResults(fname):
     m = reHits.match(l)
     if m is not None:
       query, sort, hitCount = m.groups()
+      query = fixupFuzzy(query)
       sort = reParens.sub('', sort)
       hitList = []
       hits[(query, sort)] = (hitCount, hitList)

@@ -32,7 +32,7 @@ import org.apache.lucene.util.*;
 // cd /a/lucene/trunk/checkout
 // ln -s /path/to/lucene/util/perf .
 // ant compile; javac -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java
-// java -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd10M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10
+// java -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd10M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10 update
 
 public class NRTPerfTest {
 
@@ -59,13 +59,15 @@ public class NRTPerfTest {
     private final double runTimeSec;
     private final Random random;
     public volatile int indexedCount;
+    private final boolean doUpdate;
 
-    public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random) {
+    public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random, boolean doUpdate) {
       this.w = w;
       this.docs = docs;
       this.docsPerSec = docsPerSec;
       this.runTimeSec = runTimeSec;
       this.random = random;
+      this.doUpdate = doUpdate;
     }
 
     @Override
@@ -77,10 +79,14 @@ public class NRTPerfTest {
         int count = 0;;
         while(true){ 
           count++;
-          final String id = Integer.toString(random.nextInt(maxDoc));
           final Document doc = docs.nextDoc();
-          doc.add(new Field("docid", id, Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS, Field.TermVector.NO));
-          w.updateDocument(new Term("docid", id), doc);
+          if (doUpdate) {
+            final String id = Integer.toString(random.nextInt(maxDoc));
+            doc.add(new Field("docid", id, Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS, Field.TermVector.NO));
+            w.updateDocument(new Term("docid", id), doc);
+          } else {
+            w.addDocument(doc);
+          }
           final long t = System.nanoTime();
           if (t >= stopNS) {
             break;
@@ -158,6 +164,7 @@ public class NRTPerfTest {
     final int numSearchThreads = Integer.parseInt(args[7]);
     final int numIndexThreads = Integer.parseInt(args[8]);
     final double reopenPerSec = Double.parseDouble(args[9]);
+    final boolean doUpdates = args[10].equals("update");
 
     System.out.println("DIR=" + dirImpl);
     System.out.println("Index=" + dirPath);
@@ -168,10 +175,11 @@ public class NRTPerfTest {
     System.out.println("NumSearchThreads=" + numSearchThreads);
     System.out.println("NumIndexThreads=" + numIndexThreads);
     System.out.println("Reopen/sec=" + reopenPerSec);
+    System.out.println("Mode=" + (doUpdates ? "updateDocument" : "addDocument"));
 
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(random, lineDocFile);
+    final LineFileDocs docs = new LineFileDocs(null, lineDocFile);
 
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
@@ -195,7 +203,7 @@ public class NRTPerfTest {
     // rate
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {
-      indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random);
+      indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, doUpdates);
       indexThreads[i].setPriority(Thread.currentThread().getPriority()+1);
       indexThreads[i].start();
     }

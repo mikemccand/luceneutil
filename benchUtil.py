@@ -78,8 +78,8 @@ DEBUG = True
 
 LOG_SUB_DIR = 'logs'
 
-# for multi-segemnt index:
-SEGS_PER_LEVEL = 7
+# for multi-segment index:
+SEGS_PER_LEVEL = 5
 
 CORE_INDEX_ALG = '''
 analyzer=%s
@@ -118,6 +118,7 @@ CreateIndex
 
 { "BuildIndex"
   $INDEX_LINE$
+  -WaitForMerges
   -CommitIndex(multi)
   -CloseIndex
 }

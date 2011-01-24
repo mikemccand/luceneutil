@@ -813,3 +813,10 @@ def compareHits(r1, r2):
         
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+def getSegmentCount(index):
+  segCount = 0
+  for fileName in os.listdir(nameToIndexPath(index.getName())):
+    if fileName.endswith('.tis') or fileName.endswith('.tib'):
+      segCount += 1
+  return segCount

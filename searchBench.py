@@ -53,6 +53,9 @@ def run(*competitors):
   search = '-search' in sys.argv
   index  = '-index' in sys.argv
 
+  indexSegCount = None
+  indexCommit = None
+  
   if index:
     seen = set()
     for c in competitors:
@@ -71,6 +74,13 @@ def run(*competitors):
       if c.index not in seen:
         seen.add(c.index)
         r.makeIndex(c.index)
+        segCount = benchUtil.getSegmentCount(c.index)
+        if indexSegCount is None:
+          indexSegCount = segCount
+          indexCommit = c.commitPoint
+        elif indexCommit == c.commitPoint and indexSegCount != segCount:
+          raise RuntimeError('segment counts differ across indices: %s vs %s' % (indexSegCount, segCount))
+          
 
   logUpto = 0
   if not search:

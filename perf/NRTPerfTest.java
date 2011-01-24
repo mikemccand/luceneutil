@@ -19,7 +19,7 @@ package perf;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.*;
@@ -32,7 +32,7 @@ import org.apache.lucene.util.*;
 // cd /a/lucene/trunk/checkout
 // ln -s /path/to/lucene/util/perf .
 // ant compile; javac -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java
-// java -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd10M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10 update
+// java -Xmx2g -Xms2g -server -Xbatch -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd24.9005M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10 update 1
 
 public class NRTPerfTest {
 
@@ -88,6 +88,10 @@ public class NRTPerfTest {
             w.addDocument(doc);
           }
           final long t = System.nanoTime();
+          if (docsIndexedByTime != null) {
+            int qt = (int) ((t-startNS)/statsEverySec/1000000000);
+            docsIndexedByTime[qt].incrementAndGet();
+          }
           if (t >= stopNS) {
             break;
           }
@@ -134,15 +138,24 @@ public class NRTPerfTest {
     @Override
     public void run() {
       try {
-        final long stopMS = System.currentTimeMillis() + (long) (runTimeSec*1000);
+        final long startMS = System.currentTimeMillis();
+        final long stopMS = startMS + (long) (runTimeSec*1000);
         int count = 0;
         final Query q = new TermQuery(new Term("body", "state"));
-        while(System.currentTimeMillis() < stopMS) {
+        while(true) {
+          final long t = System.currentTimeMillis();
+          if (t >= stopMS) {
+            break;
+          }
           IndexSearcher s = getSearcher();
           s.search(q, 10);
           releaseSearcher(s);
           count++;
           // Burn: no pause
+          if (searchesByTime != null) {
+            int qt = (int) ((t-startMS)/statsEverySec/1000);
+            searchesByTime[qt].incrementAndGet();
+          }
         }
         searchCount = count;
       } catch (Exception e) {
@@ -150,6 +163,10 @@ public class NRTPerfTest {
       }
     }
   }
+
+  static AtomicInteger[] docsIndexedByTime;
+  static AtomicInteger[] searchesByTime;
+  static int statsEverySec;
 
   public static void main(String[] args) throws Exception {
 
@@ -165,6 +182,7 @@ public class NRTPerfTest {
     final int numIndexThreads = Integer.parseInt(args[8]);
     final double reopenPerSec = Double.parseDouble(args[9]);
     final boolean doUpdates = args[10].equals("update");
+    statsEverySec = Integer.parseInt(args[11]);
 
     System.out.println("DIR=" + dirImpl);
     System.out.println("Index=" + dirPath);
@@ -176,6 +194,17 @@ public class NRTPerfTest {
     System.out.println("NumIndexThreads=" + numIndexThreads);
     System.out.println("Reopen/sec=" + reopenPerSec);
     System.out.println("Mode=" + (doUpdates ? "updateDocument" : "addDocument"));
+
+    System.out.println("Record stats every " + statsEverySec + " seconds");
+    final int count = (int) ((runTimeSec / statsEverySec) + 2);
+    docsIndexedByTime = new AtomicInteger[count];
+    searchesByTime = new AtomicInteger[count];
+    final AtomicInteger reopensByTime[] = new AtomicInteger[count];
+    for(int i=0;i<count;i++) {
+      docsIndexedByTime[i] = new AtomicInteger();
+      searchesByTime[i] = new AtomicInteger();
+      reopensByTime[i] = new AtomicInteger();
+    }
 
     final Random random = new Random(seed);
     
@@ -196,8 +225,22 @@ public class NRTPerfTest {
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE)
       .setIndexCommit(findCommitPoint(commit, dir));
+
+    // Make sure merges run @ higher prio than indexing:
+    ((ConcurrentMergeScheduler) iwc.getMergeScheduler()).setMergeThreadPriority(Thread.currentThread().getPriority()+2);
+
+    iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
+        @Override
+        public void warm(IndexReader reader) throws IOException {
+          IndexSearcher s = new IndexSearcher(reader);
+          final Query q = new TermQuery(new Term("body", "state"));
+          s.search(q, 10);
+        }
+      });
+    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+
     final IndexWriter w = new IndexWriter(dir, iwc);
-    //w.setInfoStream(System.out);
+    w.setInfoStream(System.out);
 
     // TODO: maybe more than 1 thread if we can't hit target
     // rate
@@ -205,67 +248,101 @@ public class NRTPerfTest {
     for(int i=0;i<numIndexThreads;i++) {
       indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, doUpdates);
       indexThreads[i].setPriority(Thread.currentThread().getPriority()+1);
+      indexThreads[i].setName("IndexThread " + i);
       indexThreads[i].start();
     }
 
     // Open initial reader/searcher
-    IndexReader r = IndexReader.open(w);
-    System.out.println("Reader=" + r);
-    setSearcher(new IndexSearcher(r));
+    final IndexReader startR = IndexReader.open(w);
+    System.out.println("Reader=" + startR);
+    setSearcher(new IndexSearcher(startR));
     
     final SearchThread[] searchThreads = new SearchThread[numSearchThreads];
 
     final long startNS = System.nanoTime();
     for(int i=0;i<numSearchThreads;i++) {
       searchThreads[i] = new SearchThread(runTimeSec);
+      System.out.println("SEARCH PRI=" + searchThreads[i].getPriority());
+      searchThreads[i].setName("SearchThread " + i);
       searchThreads[i].start();
     }
 
-    Thread.currentThread().setPriority(2+Thread.currentThread().getPriority());
+    Thread reopenThread = new Thread() {
+      @Override
+      public void run() {
+        try {
+          final long startMS = System.currentTimeMillis();
+          final long stopMS = startMS + (long) (runTimeSec * 1000);
+
+          IndexReader r = startR;
+          int reopenCount = 1;
+          while(true) {
+            final long t = System.currentTimeMillis();
+            if (t >= stopMS) {
+              break;
+            }
+            int qt = (int) ((t-startMS)/statsEverySec/1000);
+            if (reopenCount > 1) {
+              reopensByTime[qt].incrementAndGet();
+            }
+            final long sleepMS = (long) Math.max(500/reopenPerSec, startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis());
+            Thread.sleep(sleepMS);
+
+            final IndexReader newR = r.reopen();
+            if (newR != r) {
+              setSearcher(new IndexSearcher(newR));
+              r = newR;
+              reopenCount++;
+            } else {
+              System.out.println("WARNING: no changes on reopen");
+            }
+          }
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+    };
+    reopenThread.setName("ReopenThread");
+    reopenThread.setPriority(2+Thread.currentThread().getPriority());
+    System.out.println("REOPEN PRI " + reopenThread.getPriority());
+    reopenThread.start();
+
+    Thread.currentThread().setPriority(3+Thread.currentThread().getPriority());
+    System.out.println("TIMER PRI " + Thread.currentThread().getPriority());
+
     final long startMS = System.currentTimeMillis();
     final long stopMS = startMS + (long) (runTimeSec * 1000);
-
-    // Main thread does reopens
-    int reopenCount = 1;
+    int lastQT = -1;
     while(true) {
       final long t = System.currentTimeMillis();
       if (t >= stopMS) {
         break;
       }
-      final long sleepMS = startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis();
-      if (sleepMS > 0) {
-        Thread.sleep(sleepMS);
+      int qt = (int) ((t-startMS)/statsEverySec/1000);
+      if (qt != lastQT) {
+        if (lastQT != -1) {
+          System.out.println("QT " + lastQT + " searches=" + searchesByTime[lastQT].get() + " docs=" + docsIndexedByTime[lastQT].get() + " reopens=" + reopensByTime[lastQT].get());
+        }
+        lastQT = qt;
       }
-
-      final IndexReader newR = r.reopen();
-      if (newR != r) {
-        //r.close();
-        setSearcher(new IndexSearcher(newR));
-        r = newR;
-        reopenCount++;
-      } else {
-        System.out.println("WARNING: no changes on reopen");
-      }
+      Thread.sleep(25);
     }
 
-    int numDocs = 0;
     for(IndexThread t : indexThreads) {
       t.join();
-      numDocs += t.indexedCount;
     }
 
-    int numSearches = 0;
     for(SearchThread t : searchThreads) {
       t.join();
-      numSearches += t.searchCount;
     }
-    final long endNS = System.nanoTime();
 
-    System.out.println("Ran for " + ((endNS - startNS)/1000000.0) + " ms");
-    System.out.println("Indexed " + numDocs + " docs");
-    System.out.println("Opened " + reopenCount + " readers");
-    System.out.println("Finished " + numSearches + " searches");
-    r.close();
+    reopenThread.join();
+
+    System.out.println("By time:");
+    for(int i=0;i<searchesByTime.length-2;i++) {
+      System.out.println("  " + (i*statsEverySec) + " searches=" + searchesByTime[i].get() + " docs=" + docsIndexedByTime[i].get() + " reopens=" + reopensByTime[i]);
+    }
+    setSearcher(null);
     w.rollback();
   }
 }

@@ -66,28 +66,6 @@ TEST_ARGS = ' -server -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.alg
 
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
-SOLR_STANDALONE = set()
-if 0:
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.response.TestSpellCheckResponse')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.response.TermsResponseTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.LargeVolumeBinaryJettyTest')
-  SOLR_STANDALONE.add('org.apache.solr.velocity.VelocityResponseWriterTest')
-  SOLR_STANDALONE.add('org.apache.solr.search.QueryParsingTest')
-  SOLR_STANDALONE.add('org.apache.solr.servlet.DirectSolrConnectionTest')
-  SOLR_STANDALONE.add('org.apache.solr.ConvertedLegacyTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.LargeVolumeEmbeddedTest')
-  SOLR_STANDALONE.add('org.apache.solr.servlet.SolrRequestParserTest')
-  SOLR_STANDALONE.add('org.apache.solr.TestSolrCoreProperties')
-  SOLR_STANDALONE.add('org.apache.solr.servlet.CacheHeaderTest')
-
-  SOLR_STANDALONE.add('org.apache.solr.core.AlternateDirectoryTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.MultiCoreEmbeddedTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.SolrExampleJettyTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.MultiCoreExampleJettyTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.MergeIndexesEmbeddedTest')
-  SOLR_STANDALONE.add('org.apache.solr.client.solrj.embedded.TestSolrProperties')
-  SOLR_STANDALONE.add('org.apache.solr.DisMaxRequestHandlerTest')
-
 try:
   testTimes = cPickle.loads(open(TEST_TIMES_FILE, 'rb').read())
 except:
@@ -159,7 +137,7 @@ def aggTests(workQ, tests):
   lastWD = None
   for cost, wd, test, classpath in tests:
 
-    if len(tests0) > 0 and (lastWD != wd or DO_GATHER_TIMES or cost + pendingCost > COST_PER_JOB or tests0[0] in SOLR_STANDALONE or test in SOLR_STANDALONE):
+    if len(tests0) > 0 and (lastWD != wd or DO_GATHER_TIMES or cost + pendingCost > COST_PER_JOB):
       # print 'JOB: %s, %s' % (pendingCost, ' '.join(tests))
       workQ.add(Job(lastWD, tests0, pendingCost, CLASSPATH))
       tests0 = []

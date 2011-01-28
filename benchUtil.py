@@ -395,7 +395,7 @@ class RunAlgs:
       cp.append(p)
       del p
       
-      command = '%s -classpath %s org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
+      command = '%s -classpath "%s" org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
                 (self.javaCommand, self.classPathToString(cp), algFullFile, fullLogFileName)
 
       if DEBUG:
@@ -534,7 +534,7 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
     if os.path.exists(logFile):
       os.remove(logFile)
     for iter in xrange(iters):
-      command = '%s %s -cp %s perf.SearchPerfTest %s %s %s %s %s %s' % \
+      command = '%s %s -classpath "%s" perf.SearchPerfTest %s %s %s %s %s %s' % \
           (self.javaCommand, c.taskRunProperties(), cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, threadCount, itersPerJVM, c.commitPoint)
       if filter is not None:
         command += ' %s %.2f' % filter

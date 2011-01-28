@@ -126,7 +126,7 @@ class Competitor(object):
     self.analyzer = analyzer
 
   def compile(self, cp):
-    benchUtil.run('javac -cp %s perf/*.java >> compile.log 2>&1' % cp,  'compile.log')
+    benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
   def setTask(self, task):
     self.searchTask = self.TASKS[task];

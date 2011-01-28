@@ -149,7 +149,7 @@ def test30vsTrunk():
   index2 = benchUtil.Index('clean.svn', 'wiki', 'ClassicAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
   run(
     Competitor('3.0', '30x', index1, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('4.0', 'clean.svn', index2, 'NIOFSDirectory', 'ClassicAnalyzer', 'multi'),
+    Competitor('4.0', 'clean.svn', index2, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
     )
 
 if __name__ == '__main__':

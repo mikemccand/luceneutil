@@ -213,6 +213,8 @@ public class SearchPerfTest {
       a = new EnglishAnalyzer(Version.LUCENE_31);
     } else if (analyzer.equals("ClassicAnalyzer")) {
       a = new ClassicAnalyzer(Version.LUCENE_30);
+    } else if (analyzer.equals("StandardAnalyzer")) {
+      a = new StandardAnalyzer(Version.LUCENE_40);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 

@@ -144,70 +144,6 @@ class DocValueCompetitor(Competitor):
     benchUtil.run(command,  'compile.log')
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
-def standardVsBulkVIntVarGap():
-  index1 = benchUtil.Index('bulkbranch', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('bulkbranch', 'wiki', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  run(
-    Competitor('base', 'bulkbranch', index1, 'MMapDirectory', 'multi'),
-    Competitor('bulk', 'bulkbranch', index2, 'MMapDirectory', 'multi'),
-    )
-
-def standardVsFOR():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('bulkbranch', 'wiki', 'FrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  run(
-    Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'multi'),
-    Competitor('for', 'bulkbranch', index2, 'MMapDirectory', 'multi'),
-    )
-
-def bigIndex():
-  index = benchUtil.Index('clean.svn', 'wiki', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  run(
-    Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('base2', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def standardVsStandard():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('blockterms', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  run(
-    Competitor('clean', 'clean.svn', index1, 'NIOFSDirectory', 'multi'),
-    Competitor('robspec', 'robspec', index1, 'NIOFSDirectory', 'multi'),
-    #Competitor('blockterms', 'blockterms.old', index2, 'MMapDirectory', 'multi'),
-    )
-
-def testRT():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('realtime', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  run(
-    Competitor('clean', 'clean.svn', index1, 'MMapDirectory', 'multi'),
-    Competitor('realtime', 'realtime', index2, 'MMapDirectory', 'multi'),
-    )
-
-def testNIOWrite():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('niowrite', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  run(
-    Competitor('clean', 'clean.svn', index1, 'NIOFSDirectory', 'multi'),
-    Competitor('niowrite', 'niowrite', index2, 'NIOFSDirectory', 'multi'),
-    )
-
-def sepVsSep():
-  index1 = benchUtil.Index('clean.svn', 'wiki', 'MockSep', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('blockterms', 'wiki', 'MockSep', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  run(
-    Competitor('clean', 'clean.svn', index1, 'MMapDirectory', 'multi'),
-    Competitor('block', 'blockterms', index2, 'MMapDirectory', 'multi'),
-    )
-
-def bulkFixedVsVarGap():
-  index1 = benchUtil.Index('bulkbranch.clean', 'wiki', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('bulkbranch', 'wiki', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=True)
-  run(
-    Competitor('bulkfixedgap', 'bulkbranch.clean', index1, 'MMapDirectory', 'multi'),
-    Competitor('bulkvargap', 'bulkbranch', index2, 'MMapDirectory', 'multi'),
-    )
-  
 def test30vsTrunk():
   index1 = benchUtil.Index('30x', 'wiki', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
   index2 = benchUtil.Index('clean.svn', 'wiki', 'ClassicAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
@@ -216,25 +152,8 @@ def test30vsTrunk():
     Competitor('4.0', 'clean.svn', index2, 'NIOFSDirectory', 'ClassicAnalyzer', 'multi'),
     )
 
-def main():
-  index1 = benchUtil.Index('solrcene-clean', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('solrcene', 'wiki', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  run(
-    Competitor('trunk', 'solrcene-clean', index1, 'NIOFSDirectory', 'multi'),
-    Competitor('patch', 'solrcene', index2, 'NIOFSDirectory', 'multi'),
-    )
-
 if __name__ == '__main__':
-  #standardVsBulkVIntVarGap()
-  #standardVsFOR()
-  #bulkFixedVsVarGap()
-  #standardVsStandard()
-  #testRT()
-  #testNIOWrite()
-  #sepVsSep()
-  #test30vsTrunk()
-  #bigIndex()
-  main()
+  test30vsTrunk()
 
 
 

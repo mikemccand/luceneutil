@@ -30,6 +30,9 @@ JRE_SUPPORTS_SERVER_MODE = True
 # > 1 threads still does not work (docID issues)
 INDEX_NUM_THREADS = 1
 
+SORT_REPORT_BY = 'pctchange'
+#SORT_REPORT_BY = 'query'
+
 if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 

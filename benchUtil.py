@@ -648,7 +648,12 @@ content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
         else:
           w('\n')
 
-        lines.append((ps, ''.join(l0)))
+        if constants.SORT_REPORT_BY == 'pctchange':
+          lines.append((ps, ''.join(l0)))
+        elif constants.SORT_REPORT_BY == 'query':
+          lines.append((qs, ''.join(l0)))
+        else:
+          raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
 
       lines.sort()
 

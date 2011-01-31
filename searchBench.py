@@ -35,8 +35,8 @@ if '-debug' in sys.argv:
 else:
   INDEX_NUM_DOCS = 10000000
 
-# This is #docs in /lucene/data/enwiki-20100302-pages-articles-lines-1k.txt:
-# INDEX_NUM_DOCS = 24900504
+# This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
+#INDEX_NUM_DOCS = 27625038
 
 # Must be evenly divisible by number of threads:
 INDEX_NUM_DOCS -= INDEX_NUM_DOCS % INDEX_NUM_THREADS
@@ -126,7 +126,7 @@ class Competitor(object):
     self.analyzer = analyzer
 
   def compile(self, cp):
-    benchUtil.run('javac -cp %s perf/*.java >> compile.log 2>&1' % cp,  'compile.log')
+    benchUtil.run('javac -cp %s perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
 
   def setTask(self, task):
     self.searchTask = self.TASKS[task];

@@ -111,7 +111,7 @@ merge.policy = org.apache.lucene.index.LogDocMergePolicy
 
 work.dir=$WORKDIR$
 max.field.length= 2047483647
-content.source.forever = true
+content.source.forever = false
 
 ResetSystemErase
 CreateIndex
@@ -273,8 +273,8 @@ class RunAlgs:
       
   def makeIndex(self, index):
 
-    if index.dataSource not in ('wiki', 'random'):
-      raise RuntimeError('source must be wiki or random (got %s)' % index.dataSource)
+    if index.dataSource not in (None, 'wiki', 'random'):
+      raise RuntimeError('source must be None or random (got %s)' % index.dataSource)
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath):
@@ -306,6 +306,7 @@ class RunAlgs:
       buildPath = '%s/lucene/build/classes' % path
     cp.append('%s/java' % buildPath)
     cp.append('%s/test' % buildPath)
+    cp.append('%s/test-framework' % buildPath)
 
     if version == '4.0':
       cp.append('%s/modules/analysis/build/common/classes/java' % path)
@@ -486,19 +487,16 @@ class RunAlgs:
 
     s = alg
 
-    if source == 'wiki':
-      if lineDocSource is not None:
-        s2 = '''
+    if lineDocSource is not None:
+      s2 = '''
 content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource
 docs.file=%s
 ''' % lineDocSource
-      elif xmlDocSource is not None:
-        s2 = '''
+    elif xmlDocSource is not None:
+      s2 = '''
 content.source=org.apache.lucene.benchmark.byTask.feeds.EnwikiContentSource
 docs.file=%s
 ''' % xmlDocSource
-      else:
-        raise RuntimeError('if source is wiki, either lineDocSource or xmlDocSource must be set')
         
     elif source == 'random':
       s2 = '''

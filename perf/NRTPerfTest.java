@@ -75,15 +75,17 @@ public class NRTPerfTest {
       try {
         final long startNS = System.nanoTime();
         final long stopNS = startNS + (long) (runTimeSec * 1000000000);
-        final int maxDoc = w.maxDoc();
         //System.out.println("IW.maxDoc=" + maxDoc);
         int count = 0;;
         while(true) {
           count++;
+          int maxDoc = w.maxDoc();
           final Document doc = docs.nextDoc();
-          if (doUpdate) {
+          //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
+          if (doUpdate && maxDoc > 0 && random.nextBoolean()) {
             final String id = Integer.toString(random.nextInt(maxDoc));
             Field f = doc.getField("docid");
+            //System.out.println("  update " + id);
             if (f == null) {
               doc.add(new Field("docid", id, Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS, Field.TermVector.NO));
             } else {
@@ -153,13 +155,16 @@ public class NRTPerfTest {
             break;
           }
           for(Query query: queries) {
+            int qt = (int) ((t-startMS)/statsEverySec/1000);
             IndexSearcher s = getSearcher();
-            s.search(query, 10);
-            releaseSearcher(s);
+            try {
+              s.search(query, 10);
+            } finally {
+              releaseSearcher(s);
+            }
+            searchesByTime[qt].addAndGet(queries.length);
           }
           count += queries.length;
-          int qt = (int) ((t-startMS)/statsEverySec/1000);
-          searchesByTime[qt].addAndGet(queries.length);
           // Burn: no pause
         }
         searchCount = count;
@@ -235,8 +240,15 @@ public class NRTPerfTest {
     // Open an IW on the requested commit point, but, don't
     // delete other (past or future) commit points:
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
-      .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE)
-      .setIndexCommit(findCommitPoint(commit, dir));
+      .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+
+    iwc.setMergePolicy(new LogByteSizeMergePolicy());
+    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    //((TieredMergePolicy) iwc.getMergePolicy()).setSegmentsPerTier(10.0);
+
+    if (!commit.equals("none")) {
+      iwc.setIndexCommit(findCommitPoint(commit, dir));
+    }
 
     // Make sure merges run @ higher prio than indexing:
     ((ConcurrentMergeScheduler) iwc.getMergeScheduler()).setMergeThreadPriority(Thread.currentThread().getPriority()+2);
@@ -251,10 +263,9 @@ public class NRTPerfTest {
           }
         }
       });
-    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
 
     final IndexWriter w = new IndexWriter(dir, iwc);
-    //w.setInfoStream(System.out);
+    w.setInfoStream(System.out);
 
     // TODO: maybe more than 1 thread if we can't hit target
     // rate

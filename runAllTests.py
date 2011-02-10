@@ -50,7 +50,12 @@ VERBOSE = 'false'
 
 LUCENE_VERSION = '4.0-SNAPSHOT'
 
-CLASSPATH = ['../lucene/lib/junit-4.7.jar', '../lucene/build/classes/test', '../lucene/build/classes/java', '../modules/analysis/build/common/classes/java', '/usr/share/java/ant.jar']
+CLASSPATH = ['../lucene/lib/junit-4.7.jar',
+             '../lucene/build/classes/test',
+             '../lucene/build/classes/test-framework',
+             '../lucene/build/classes/java',
+             '../modules/analysis/build/common/classes/java',
+             '/usr/share/java/ant.jar']
 
 try:
   CODEC = sys.argv[1+sys.argv.index('-codec')]
@@ -360,7 +365,7 @@ if doSolr:
   for dir, subDirs, files in os.walk('%s/solr/src/test' % ROOT):
     for file in files:
       if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-        if file == 'SolrInfoMBeanTest.java':
+        if file in ('SolrInfoMBeanTest.java', 'UIMAUpdateRequestProcessorTest.java'):
           print 'WARNING: skip %s' % file
           continue
         fullFile = '%s/%s' % (dir, file)
@@ -390,6 +395,9 @@ if doSolr:
     for dir, subDirs, files in os.walk('%s/solr/contrib/%s/src/test/java' % (ROOT, contrib)):
       for file in files:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+          if file in ('SolrInfoMBeanTest.java', 'UIMAUpdateRequestProcessorTest.java'):
+            print 'WARNING: skip %s' % file
+            continue
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
           # print '  %s' % testClass

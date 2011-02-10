@@ -30,18 +30,36 @@ if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
-if '-debug' in sys.argv:
-  INDEX_NUM_DOCS = 100000
+
+if '-source' in sys.argv:
+  source = sys.argv[1+sys.argv.index('-source')]
+  if source == 'wikimedium':
+    LINE_FILE = constants.WIKI_MEDIUM_DOCS_LINE_FILE
+    INDEX_NUM_DOCS = 10000000
+  elif source == 'wikibig':
+    LINE_FILE = constants.WIKI_BIG_DOCS_LINE_FILE
+    INDEX_NUM_DOCS = 3000000
+  elif source == 'euromedium':
+    # TODO: need to be able to swap in new queries
+    LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
+    INDEX_NUM_DOCS = 5000000
+  else:
+    # TODO: add geonamestiny
+    raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
 else:
-  INDEX_NUM_DOCS = 10000000
+  raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
+
+if '-debug' in sys.argv:
+  INDEX_NUM_DOCS /= 100
 
 # This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
 #INDEX_NUM_DOCS = 27625038
 
+# This is #docs in /lucene/data/europarl.para.lines.txt
+# INDEX_NUM_DOCS = 5607746
+
 # Must be evenly divisible by number of threads:
 INDEX_NUM_DOCS -= INDEX_NUM_DOCS % INDEX_NUM_THREADS
-
-WIKI_LINE_FILE = constants.WIKI_LINE_FILE
 
 osName = common.osName
 
@@ -144,18 +162,42 @@ class DocValueCompetitor(Competitor):
     benchUtil.run(command,  'compile.log')
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
-def test30vsTrunk():
-  index1 = benchUtil.Index('30x', 'wiki', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('clean.svn', 'wiki', 'ClassicAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=WIKI_LINE_FILE, doOptimize=False)
+def testSimple64():
+  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64VarInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
   run(
-    Competitor('3.0', '30x', index1, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('4.0', 'clean.svn', index2, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('bulkvint', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('simple64varint', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     )
 
+def testPFOR2():
+  index1 = benchUtil.Index('bulk.hao', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('bulk.hao', source, 'StandardAnalyzer', 'PatchedFrameOfRef3', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  run(
+    Competitor('bulkvint', 'bulk.hao', index1, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('pfor3', 'bulk.hao', index2, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
+def testSimple64Mult():
+  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64VarInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  run(
+    Competitor('bulkvint', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('simple64x4', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
+def makeBigIndex():
+  index = benchUtil.Index('newmp', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  run(
+    Competitor('base', 'newmp', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('base2', 'newmp', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+  
 if __name__ == '__main__':
-  test30vsTrunk()
-
-
+  #testPFOR2()
+  #testSimple64()
+  testSimple64Mult()
+  #makeBigIndex()
 
 # NOTE: when running on 3.0, apply this patch:
 """

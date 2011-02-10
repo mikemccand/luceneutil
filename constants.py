@@ -22,13 +22,20 @@
 from localconstants import *
 
 BENCH_BASE_DIR = '%s/util' % BASE_DIR
-WIKI_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR
-WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
+WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR
+WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR
+#WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
+
+# 5607746 docs:
+EUROPARL_MEDIUM_DOCS_LINE_FILE = '%s/data/europarl.para.lines.txt' % BASE_DIR
+
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 JAVA_COMMAND = 'java -Xbatch -Xms1g -Xmx1g -client'
 JRE_SUPPORTS_SERVER_MODE = True
 # > 1 threads still does not work (docID issues)
 INDEX_NUM_THREADS = 1
+
+# geonames: http://download.geonames.org/export/dump/
 
 SORT_REPORT_BY = 'pctchange'
 #SORT_REPORT_BY = 'query'

@@ -193,6 +193,7 @@ class Index:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     
     maxBufferedDocs = numDocs / (SEGS_PER_LEVEL*111)
+    # maxBufferedDocs = 10000000
     if analyzer == 'StandardAnalyzer':
       fullAnalyzer = 'org.apache.lucene.analysis.standard.StandardAnalyzer'
     elif analyzer == 'ClassicAnalyzer':
@@ -211,7 +212,7 @@ class Index:
       s = 'opt.'
     else:
       s = ''
-    return '%s.%s.%snd%gM' % (self.checkout, self.codec, s, self.numDocs/1000000.0)
+    return '%s.%s.%s.%snd%gM' % (self.dataSource, self.checkout, self.codec, s, self.numDocs/1000000.0)
 
 class SearchResult:
 
@@ -272,9 +273,6 @@ class RunAlgs:
       print 'OS:\n%s' % sys.platform
       
   def makeIndex(self, index):
-
-    if index.dataSource not in (None, 'wiki', 'random'):
-      raise RuntimeError('source must be None or random (got %s)' % index.dataSource)
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath):

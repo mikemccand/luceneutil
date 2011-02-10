@@ -94,6 +94,7 @@ if not doLucene and not doSolr and not doModules:
 
 def addCP(dirName):
   if os.path.exists(dirName):
+    print 'ADD %s' % dirName
     CLASSPATH.append(dirName)
     
 def fixCP():
@@ -365,9 +366,6 @@ if doSolr:
   for dir, subDirs, files in os.walk('%s/solr/src/test' % ROOT):
     for file in files:
       if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-        if file in ('SolrInfoMBeanTest.java', 'UIMAUpdateRequestProcessorTest.java'):
-          print 'WARNING: skip %s' % file
-          continue
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
         # print '  %s' % testClass
@@ -385,7 +383,8 @@ if doSolr:
     addCP('%s/solr/contrib/%s/target/extras/classes' % (ROOT, contrib))
     addCP('%s/solr/contrib/%s/build/test-classes' % (ROOT, contrib))
     addCP('%s/solr/contrib/%s/build/classes' % (ROOT, contrib))
-
+    addCP('%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib))
+    addCP('%s/solr/contrib/%s/src/main/resources' % (ROOT, contrib))
     if 0:
       CLASSPATH.append('../solr/build/contrib/%s/classes/java' % contrib)
       CLASSPATH.append('../lucene/build/contrib/%s/classes/test' % contrib)
@@ -395,9 +394,6 @@ if doSolr:
     for dir, subDirs, files in os.walk('%s/solr/contrib/%s/src/test/java' % (ROOT, contrib)):
       for file in files:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-          if file in ('SolrInfoMBeanTest.java', 'UIMAUpdateRequestProcessorTest.java'):
-            print 'WARNING: skip %s' % file
-            continue
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
           # print '  %s' % testClass

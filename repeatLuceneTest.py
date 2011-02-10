@@ -26,11 +26,12 @@ import constants
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
 
+#ROOT = '../../'
+ROOT = ''
+
 osName = common.osName
 
-# nocommit
-#JAVA_ARGS = '-Xmx512m -Xms512m'
-JAVA_ARGS = '-Xmx2g -Xms2g'
+JAVA_ARGS = '-Xmx512m -Xms512m'
 
 allTests = {}
 def locateTest(test):
@@ -90,7 +91,11 @@ if doLog:
 
 print 'Compile...'
 try:
-  if os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1'):
+  if ROOT != '':
+    res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
+  else:
+    res = os.system('ant compile > compile.log 2>&1')
+  if res:
     print open('compile.log', 'rb').read()
     sys.exit(1)
 finally:
@@ -99,7 +104,7 @@ finally:
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
 mult = int(getArg('-mult', 1))
-codec = getArg('-codec', 'random')
+codec = getArg('-codec', 'randomPerField')
 dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
@@ -122,15 +127,20 @@ for test in sys.argv[1:]:
     tests.append((testClass, testMethod))
   
 CP = []
-CP.append('build/classes/test')
-CP.append('build/classes/java')
+CP.append(ROOT+'build/classes/test')
+CP.append(ROOT+'build/classes/test-framework')
+CP.append(ROOT+'build/classes/java')
 if not OLD_JUNIT:
-  JUNIT_JAR = './lib/junit-4.7.jar'
+  JUNIT_JAR = 'lib/junit-4.7.jar'
 else:
-  JUNIT_JAR = './lib/junit-3.8.2.jar'
-CP.append(JUNIT_JAR)
-if os.path.exists('build/classes/demo'):
-  CP.append('build/classes/demo')
+  JUNIT_JAR = 'lib/junit-3.8.2.jar'
+CP.append(ROOT + JUNIT_JAR)
+if os.path.exists(ROOT + 'build/classes/demo'):
+  CP.append(ROOT + 'build/classes/demo')
+
+if ROOT != '':
+  CP.append(ROOT + 'build/contrib/queries/classes/java')
+  CP.append(ROOT + 'build/contrib/queries/classes/test')
 
 JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(CP)
 
@@ -160,6 +170,7 @@ while True:
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
+    command += ' -Dtetsts.luceneMatchVersion=4.0'
     if nightly:
       command += ' -Dtests.nightly=true'
     if seed is not None:

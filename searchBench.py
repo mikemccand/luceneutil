@@ -58,9 +58,6 @@ if '-debug' in sys.argv:
 # This is #docs in /lucene/data/europarl.para.lines.txt
 # INDEX_NUM_DOCS = 5607746
 
-# Must be evenly divisible by number of threads:
-INDEX_NUM_DOCS -= INDEX_NUM_DOCS % INDEX_NUM_THREADS
-
 osName = common.osName
 
 def run(*competitors):  
@@ -162,28 +159,20 @@ class DocValueCompetitor(Competitor):
     benchUtil.run(command,  'compile.log')
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
-def testSimple64():
-  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64VarInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  run(
-    Competitor('bulkvint', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('simple64varint', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def testPFOR2():
-  index1 = benchUtil.Index('bulk.hao', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('bulk.hao', source, 'StandardAnalyzer', 'PatchedFrameOfRef3', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  run(
-    Competitor('bulkvint', 'bulk.hao', index1, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('pfor3', 'bulk.hao', index2, 'NIOFSDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
 def testSimple64Mult():
   index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64VarInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
   run(
     Competitor('bulkvint', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     Competitor('simple64x4', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
+def standardVSSimple64():
+  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
+  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
+  run(
+    Competitor('standard', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'single'),
+    Competitor('bulkvint', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'single'),
     )
 
 def makeBigIndex():
@@ -196,7 +185,8 @@ def makeBigIndex():
 if __name__ == '__main__':
   #testPFOR2()
   #testSimple64()
-  testSimple64Mult()
+  #testSimple64Mult()
+  standardVSSimple64()
   #makeBigIndex()
 
 # NOTE: when running on 3.0, apply this patch:

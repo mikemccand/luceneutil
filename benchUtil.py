@@ -81,88 +81,6 @@ LOG_SUB_DIR = 'logs'
 # for multi-segment index:
 SEGS_PER_LEVEL = 5
 
-CORE_INDEX_ALG = '''
-analyzer=%s
-
-$OTHER$
-
-doc.body.stored = false
-doc.term.vector = false
-doc.tokenized = false
-
-doc.index.props = true
-doc.stored = true
-doc.body.tokenized = true
-
-sort.rng = 1000000
-rand.seed=17
-
-log.step.AddDoc=10000
-writer.info.stream = SystemOut
-
-directory=FSDirectory
-compound=false
-ram.flush.mb = -1
-max.buffered = %s
-# merge.factor=100000
-
-deletion.policy = org.apache.lucene.index.NoDeletionPolicy
-merge.policy = org.apache.lucene.index.LogDocMergePolicy
-
-work.dir=$WORKDIR$
-max.field.length= 2047483647
-content.source.forever = false
-
-ResetSystemErase
-CreateIndex
-
-{ "BuildIndex"
-  $INDEX_LINE$
-  -WaitForMerges
-  -CommitIndex(multi)
-  -CloseIndex
-}
-
-RepSumByPrefRound BuildIndex
-'''
-
-SINGLE_MULTI_INDEX_ALG = CORE_INDEX_ALG + '''
-
-{ "Optimize"
-  -OpenIndex
-  Optimize
-  CommitIndex(single)
-  CloseIndex
-}
-
-RepSumByPrefRound Optimize
-
-OpenReader(false,multi)
-DeleteByPercent(5)
-RepSumByPrefRound DeleteByPercent
-CommitIndex(delmulti)
-CloseReader
-
-OpenReader(false,single)
-DeleteByPercent(5)
-RepSumByPrefRound DeleteByPercent
-CommitIndex(delsingle)
-CloseReader
-'''
-
-ONLY_MULTI_INDEX_ALG = CORE_INDEX_ALG + '''
-
-CloseIndex
-
-RepSumByPrefRound BuildIndex
-
-OpenReader(false,multi)
-DeleteByPercent(5)
-RepSumByPrefRound DeleteByPercent
-CommitIndex(delmulti)
-CloseReader
-'''
-
 def run(cmd, log=None):
   print 'RUN: %s' % cmd
   if os.system(cmd):
@@ -172,7 +90,7 @@ def run(cmd, log=None):
 
 class Index:
 
-  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource=None, xmlDocSource=None, doOptimize=False):
+  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory'):
     self.checkout = checkout
     self.analyzer = analyzer
     self.dataSource = dataSource
@@ -180,32 +98,13 @@ class Index:
     self.numDocs = numDocs
     self.numThreads = numThreads
     self.lineDocSource = lineDocSource
-    self.xmlDocSource = xmlDocSource
     self.doOptimize = doOptimize
-
-    if self.doOptimize:
-      alg = SINGLE_MULTI_INDEX_ALG
-    else:
-      alg = ONLY_MULTI_INDEX_ALG
-
+    self.dirImpl = dirImpl
+    
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     
-    maxBufferedDocs = numDocs / (SEGS_PER_LEVEL*111)
-    # maxBufferedDocs = 10000000
-    if analyzer == 'StandardAnalyzer':
-      fullAnalyzer = 'org.apache.lucene.analysis.standard.StandardAnalyzer'
-    elif analyzer == 'ClassicAnalyzer':
-      fullAnalyzer = 'org.apache.lucene.analysis.standard.ClassicAnalyzer'
-    elif analyzer == 'EnglishAnalyzer':
-      fullAnalyzer = 'org.apache.lucene.analysis.en.EnglishAnalyzer'
-
-    version = getLuceneVersion(self.checkout)
-    if version == '3.0':
-      alg = alg.replace('org.apache.lucene.index.NoDeletionPolicy',
-                        'org.apache.lucene.benchmark.utils.NoDeletionPolicy')
-    self.alg = alg % (fullAnalyzer, maxBufferedDocs)
 
   def getName(self):
     if self.doOptimize:
@@ -213,38 +112,6 @@ class Index:
     else:
       s = ''
     return '%s.%s.%s.%snd%gM' % (self.dataSource, self.checkout, self.codec, s, self.numDocs/1000000.0)
-
-class SearchResult:
-
-  def __init__(self, job, numHits, warmTime, bestQPS, hits):
-
-    self.job = job
-    self.warmTime = warmTime
-    self.bestQPS = bestQPS
-    self.hits = hits
-    self.numHits = numHits
-
-class Job:
-
-  def __init__(self, cat, numIndexDocs, alg, queries=None, numRounds=None):
-
-    # index or search
-    self.cat = cat
-
-    self.queries = queries
-
-    self.numRounds = numRounds
-
-    self.numIndexDocs = numIndexDocs
-    self.alg = alg
-
-class SearchJob(Job):
-  def __init__(self, numIndexDocs, alg, queries, numRounds):
-    Job.__init__(self, 'search', numIndexDocs, alg, queries, numRounds)
-
-class IndexJob(Job):
-  def __init__(self, numIndexDocs, alg):
-    Job.__init__(self, 'index', numIndexDocs, alg)
 
 class RunAlgs:
 
@@ -271,7 +138,7 @@ class RunAlgs:
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
-      
+
   def makeIndex(self, index):
 
     fullIndexPath = nameToIndexPath(index.getName())
@@ -279,14 +146,43 @@ class RunAlgs:
       print 'Index %s already exists...' % fullIndexPath
       return fullIndexPath
 
+    maxBufferedDocs = index.numDocs / (SEGS_PER_LEVEL*111)
+    # maxBufferedDocs = 10000000
+    
     print 'Now create index %s...' % fullIndexPath
 
-    alg = self.getIndexAlg(index.alg, index.codec, fullIndexPath, index.dataSource, index.numDocs, index.numThreads, lineDocSource=index.lineDocSource, xmlDocSource=index.xmlDocSource)
-
-    job = IndexJob(index.numDocs, alg)
-
     try:
-      self.runOne(index.checkout, job, logFileName=index.getName()+'.log')
+      if index.doOptimize:
+        opt = 'yes'
+      else:
+        opt = 'no'
+      
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s' % \
+            (self.javaCommand,
+             self.classPathToString(self.getClassPath(index.checkout)),
+             index.dirImpl,
+             fullIndexPath,
+             index.analyzer,
+             index.lineDocSource,
+             index.numDocs,
+             index.numThreads,
+             opt,
+             'yes',
+             -1,
+             maxBufferedDocs,
+             index.codec)
+      fullLogFile = '%s/%s/%s.log' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR, index.getName())
+      print '  log %s' % fullLogFile
+      if DEBUG:
+        print 'command=%s' % cmd
+
+      cmd += ' > "%s" 2>&1' % fullLogFile
+
+      t0 = time.time()      
+      if os.system(cmd) != 0:
+        raise RuntimeError('FAILED')
+      t1 = time.time()
+
     except:
       if os.path.exists(fullIndexPath):
         shutil.rmtree(fullIndexPath)
@@ -344,180 +240,6 @@ class RunAlgs:
         run('ln -s %s perf' % srcDir)
     competitor.compile(cp)
     
-  def runOne(self, checkout, job, verify=False, logFileName=None):
-
-    if logFileName is None:
-      logFileName = '%d' % self.logCounter
-      algFile = '%d.alg' % self.logCounter
-      self.logCounter += 1
-    else:
-      algFile = logFileName + '.alg'
-
-    savDir = os.getcwd()
-    sourcePath = checkoutToPath(checkout)
-    benchPath = checkoutToBenchPath(checkout)
-    os.chdir(benchPath)
-    print '    cd %s' % benchPath
-    checkoutPath = checkoutToPath(checkout)
-    benchPath = checkoutToBenchPath(checkout)
-    luceneVersion = getLuceneVersion(checkout)
-    
-    try:
-
-      if job.queries is not None:
-        if type(job.queries) in types.StringTypes:
-          job.queries = [job.queries]
-        open('queries.txt', 'wb').write('\n'.join(job.queries))
-
-      if not os.path.exists(LOG_SUB_DIR):
-        os.makedirs(LOG_SUB_DIR)
-
-      algFullFile = '%s/%s' % (LOG_SUB_DIR, algFile)
-
-      open(algFullFile, 'wb').write(job.alg)
-
-      fullLogFileName = '%s/%s' % (LOG_SUB_DIR, logFileName)
-      print '    log: %s/%s' % (benchPath, fullLogFileName)
-
-      cp = list(self.getClassPath(checkout))
-      cp.append('%s/lucene/build/contrib/highlighter/classes/java' % checkoutPath)
-      for fileName in os.listdir('%s/lib' % benchPath):
-        if fileName.endswith('.jar'):
-          cp.append('lib/%s' % fileName)
-
-      if luceneVersion == '4.0':
-        p = '%s/build/classes/java' % benchPath
-      elif luceneVersion == '3.x':
-        p = '%s/lucene/contrib/benchmark/classes/java' % checkoutPath
-      else:
-        p = '%s/build/contrib/benchmark/classes/java' % checkoutPath
-      cp.append(p)
-      del p
-      
-      command = '%s -classpath "%s" org.apache.lucene.benchmark.byTask.Benchmark %s > "%s" 2>&1' % \
-                (self.javaCommand, self.classPathToString(cp), algFullFile, fullLogFileName)
-
-      if DEBUG:
-        print 'command=%s' % command
-
-      t0 = time.time()
-      if os.system(command) != 0:
-        raise RuntimeError('FAILED')
-      t1 = time.time()
-
-      if job.cat == 'index':
-        s = open(fullLogFileName, 'rb').read()
-        if s.find('Exception in thread "') != -1 or s.find('at org.apache.lucene') != -1:
-          raise RuntimeError('alg hit exceptions')
-        return
-
-      else:
-
-        # Parse results:
-        bestQPS = None
-        count = 0
-        nhits = None
-        ndocs = None
-        warmTime = None
-        r = re.compile('^  ([0-9]+): (.*)$')
-        topN = []
-
-        for line in open(fullLogFileName, 'rb').readlines():
-          m = r.match(line.rstrip())
-          if m is not None:
-            topN.append(m.group(2))
-          if line.startswith('totalHits ='):
-            nhits = int(line[11:].strip())
-          if line.startswith('numDocs() ='):
-            ndocs = int(line[11:].strip())
-          if line.startswith('maxDoc()  ='):
-            maxDoc = int(line[11:].strip())
-          if line.startswith('XSearchWarm'):
-            v = line.strip().split()
-            warmTime = float(v[5])
-          if line.startswith('XSearchReal'):
-            v = line.strip().split()
-            # print len(v), v
-            upto = 0
-            i = 0
-            qps = None
-            while i < len(v):
-              if v[i] == '-':
-                i += 1
-                continue
-              else:
-                upto += 1
-                i += 1
-                if upto == 5:
-                  qps = float(v[i-1].replace(',', ''))
-                  break
-
-            if qps is None:
-              raise RuntimeError('did not find qps')
-
-            count += 1
-            if bestQPS is None or qps > bestQPS:
-              bestQPS = qps
-
-        if not verify:
-          if count != job.numRounds:
-            raise RuntimeError('did not find %s rounds (got %s)' % (job.numRounds, count))
-          if warmTime is None:
-            raise RuntimeError('did not find warm time')
-        else:
-          bestQPS = 1.0
-          warmTime = None
-
-        if nhits is None:
-          raise RuntimeError('did not see totalHits line')
-
-        if ndocs is None:
-          raise RuntimeError('did not see numDocs line')
-
-        if ndocs != job.numIndexDocs:
-          raise RuntimeError('indexNumDocs mismatch: expected %d but got %d' % (job.numIndexDocs, ndocs))
-
-        return SearchResult(job, nhits, warmTime, bestQPS, topN)
-    finally:
-      os.chdir(savDir)
-                           
-  def getIndexAlg(self, alg, defaultCodec, fullIndexPath, source, numDocs, numThreads, lineDocSource=None, xmlDocSource=None):
-
-    s = alg
-
-    if lineDocSource is not None:
-      s2 = '''
-content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource
-docs.file=%s
-''' % lineDocSource
-    elif xmlDocSource is not None:
-      s2 = '''
-content.source=org.apache.lucene.benchmark.byTask.feeds.EnwikiContentSource
-docs.file=%s
-''' % xmlDocSource
-        
-    elif source == 'random':
-      s2 = '''
-content.source=org.apache.lucene.benchmark.byTask.feeds.SortableSingleDocSource
-'''
-    else:
-      raise RuntimeError('source must be wiki or random (got "%s")' % source)
-
-    s2 += 'default.codec = %s\n' % defaultCodec
-    
-    if numThreads > 1:
-      # other += 'doc.reuse.fields=false\n'
-      s = s.replace('$INDEX_LINE$', '[ { "AddDocs" AddDoc > : %s } : %s' % \
-                    (numDocs/numThreads, numThreads))
-    else:
-      s = s.replace('$INDEX_LINE$', '{ "AddDocs" AddDoc > : %s' % \
-                    (numDocs))
-
-    s = s.replace('$WORKDIR$', os.path.split(fullIndexPath)[0])
-    s = s.replace('$OTHER$', s2)
-
-    return s
-
   def classPathToString(self, cp):
     return common.pathsep().join(cp)
 

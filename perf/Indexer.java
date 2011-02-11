@@ -21,25 +21,26 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.search.*;
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
-import org.apache.lucene.store.*;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
+import org.apache.lucene.index.*;
+import org.apache.lucene.index.IndexReader.AtomicReaderContext;
+import org.apache.lucene.index.codecs.CoreCodecProvider;
+import org.apache.lucene.search.*;
+import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec
 
 // EG:
 //
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.Indexer NIOFSDirectory /lucene/indices/test StandardAnalyzer /p/lucene/data/enwiki-20110115-lines-1k-fixed.txt 1000000 6 no yes 256.0 -1
+//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.Indexer NIOFSDirectory /lucene/indices/test StandardAnalyzer /p/lucene/data/enwiki-20110115-lines-1k-fixed.txt 1000000 6 no yes 256.0 -1 Standard
 
 public final class Indexer {
   public static void main(String[] args) throws Exception {
@@ -82,6 +83,8 @@ public final class Indexer {
     final double ramBufferSizeMB = Double.parseDouble(args[8]);
     final int maxBufferedDocs = Integer.parseInt(args[9]);
 
+    final String codec = args[10];
+
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
@@ -92,6 +95,7 @@ public final class Indexer {
     System.out.println("Verbose: " + (verbose ? "yes" : "no"));
     System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
     System.out.println("Max buffered docs: " + maxBufferedDocs);
+    System.out.println("Codec: " + codec);
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
     iwc.setMaxBufferedDocs(maxBufferedDocs);
@@ -104,11 +108,16 @@ public final class Indexer {
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 
+    final CoreCodecProvider cp = new CoreCodecProvider();
+    cp.setDefaultFieldCodec(codec);
+    iwc.setCodecProvider(cp);
+
     final IndexWriter w = new IndexWriter(dir, iwc);
     w.setInfoStream(verbose ? System.out : null);
 
     final LineFileDocs docs = new LineFileDocs(lineFile);
 
+    System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();
     final Thread[] threads = new Thread[numThreads];
     for(int thread=0;thread<numThreads;thread++) {

@@ -67,7 +67,7 @@ public class SearchPerfTest {
     "united~0.6",   // 2
     "unit~0.7",     // 1
     "unit~0.5",     // 2
-    "doctitle:/.*[Uu]nited.*/",
+    "title:/.*[Uu]nited.*/",
     "united OR states",
     "united AND states",
     "nebraska AND states",
@@ -289,7 +289,7 @@ public class SearchPerfTest {
     //addQuery(s, queries, q, dateTimeSort, f);
 
     // Seconds in the day 0..86400
-    q = NumericRangeQuery.newIntRange("doctimesecnum", 10000, 60000, true, true);
+    q = NumericRangeQuery.newIntRange("timesecnum", 10000, 60000, true, true);
     addQuery(s, queries, q, null, f);
     //addQuery(s, queries, q, dateTimeSort, f);
 

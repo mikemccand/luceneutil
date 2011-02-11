@@ -27,7 +27,7 @@ import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.document.*;
-import org.apache.lucene.util.*;
+import org.apache.lucene.util.Version;
 
 // cd /a/lucene/trunk/checkout
 // ln -s /path/to/lucene/util/perf .
@@ -35,6 +35,8 @@ import org.apache.lucene.util.*;
 // java -Xmx2g -Xms2g -server -Xbatch -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd24.9005M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10 update 1
 
 public class NRTPerfTest {
+
+  private static boolean NEW_INDEX = true;
 
   // TODO: share w/ SearchPerfTest
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
@@ -60,13 +62,15 @@ public class NRTPerfTest {
     private final Random random;
     public volatile int indexedCount;
     private final boolean doUpdate;
+    private final LineFileDocs.DocState docState;
 
     public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random, boolean doUpdate) {
       this.w = w;
       this.docs = docs;
+      docState = docs.newDocState();
       this.docsPerSec = docsPerSec;
       this.runTimeSec = runTimeSec;
-      this.random = random;
+      this.random = new Random(random.nextInt());
       this.doUpdate = doUpdate;
     }
 
@@ -80,18 +84,12 @@ public class NRTPerfTest {
         while(true) {
           count++;
           int maxDoc = w.maxDoc();
-          final Document doc = docs.nextDoc();
+          final Document doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
-          if (doUpdate && maxDoc > 0 && random.nextBoolean()) {
+          if (doUpdate && (!NEW_INDEX || (maxDoc > 0 && random.nextInt(4) != 2))) {
             final String id = Integer.toString(random.nextInt(maxDoc));
-            Field f = doc.getField("docid");
-            //System.out.println("  update " + id);
-            if (f == null) {
-              doc.add(new Field("docid", id, Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS, Field.TermVector.NO));
-            } else {
-              f.setValue(id);
-            }
-            w.updateDocument(new Term("docid", id), doc);
+            docState.id.setValue(id);
+            w.updateDocument(new Term("id", id), doc);
           } else {
             w.addDocument(doc);
           }
@@ -220,7 +218,7 @@ public class NRTPerfTest {
 
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(null, lineDocFile);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile);
 
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
@@ -240,10 +238,12 @@ public class NRTPerfTest {
     // Open an IW on the requested commit point, but, don't
     // delete other (past or future) commit points:
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
-      .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+      .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
 
     iwc.setMergePolicy(new LogByteSizeMergePolicy());
-    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    //((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+
+    //iwc.setMergePolicy(new TieredMergePolicy());
     //((TieredMergePolicy) iwc.getMergePolicy()).setSegmentsPerTier(10.0);
 
     if (!commit.equals("none")) {
@@ -306,12 +306,24 @@ public class NRTPerfTest {
             if (t >= stopMS) {
               break;
             }
+
+            // final long sleepMS = (long) Math.max(500/reopenPerSec, startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis());
+
+            final long sleepMS;
+            if (random.nextBoolean()) {
+              sleepMS = random.nextInt(200);
+            } else if (random.nextBoolean()) {
+              sleepMS = random.nextInt(1000);
+            } else {
+              sleepMS = random.nextInt(2000);
+            }
+
+            Thread.sleep(sleepMS);
+
             int qt = (int) ((t-startMS)/statsEverySec/1000);
             if (reopenCount > 1) {
               reopensByTime[qt].incrementAndGet();
             }
-            final long sleepMS = (long) Math.max(500/reopenPerSec, startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis());
-            Thread.sleep(sleepMS);
 
             final IndexReader newR = r.reopen();
             if (newR != r) {
@@ -368,6 +380,11 @@ public class NRTPerfTest {
       System.out.println("  " + (i*statsEverySec) + " searches=" + searchesByTime[i].get() + " docs=" + docsIndexedByTime[i].get() + " reopens=" + reopensByTime[i]);
     }
     setSearcher(null);
-    w.rollback();
+    if (NEW_INDEX) {
+      w.waitForMerges();
+      w.close();
+    } else {
+      w.rollback();
+    }
   }
 }

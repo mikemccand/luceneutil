@@ -94,7 +94,7 @@ if not doLucene and not doSolr and not doModules:
 
 def addCP(dirName):
   if os.path.exists(dirName):
-    print 'ADD %s' % dirName
+    # print 'ADD %s' % dirName
     CLASSPATH.append(dirName)
     
 def fixCP():

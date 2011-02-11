@@ -73,27 +73,30 @@ def main():
   upto = 0
   lastT = None
   totMergeMB = 0
+  newestSeg = ''
   for i, ev in enumerate(merges):
     t = ev[1]
     # silly frame doubling, for the end:
     if lastT is not None:
       gap = t - lastT
-      if gap > 1:
+      if gap > 2 and len(merges)-i < 6:
         print 'FILL gap=%s' % gap
         delta = (t-lastT)/5.0
         t0 = lastT
         for x in xrange(gap*5):
           t0 += delta
-          img, mergeToColor = draw(t0, segs, mergeToColor, segs[-1][0], totMergeMB)
+          img, mergeToColor = draw(t0, segs, mergeToColor, newestSeg, totMergeMB)
           img.save('%s/%08d.png' % (TMP_DIR, upto))
           upto += 1
     lastT = t
     
-    print t
+    print '%s/%s' % (i, len(merges))
     #print ev
     if ev[0] == 'index':
       segs = ev[2]
       for seg, fullMB, delPCT in segs:
+        if seg not in segToMBAndDel:
+          newestSeg = seg
         segToMBAndDel[seg] = (fullMB, delPct)
       if i < len(merges)-1 and merges[1+i][0] == 'merge':
         continue
@@ -112,7 +115,7 @@ def main():
     else:
       raise RuntimeError('unknown event %s' % ev[0])
 
-    img, mergeToColor = draw(t, segs, mergeToColor, segs[-1][0], totMergeMB)
+    img, mergeToColor = draw(t, segs, mergeToColor, newestSeg, totMergeMB)
     img.save('%s/%08d.png' % (TMP_DIR, upto))
     upto += 1
     if upto >= LIMIT:
@@ -120,7 +123,7 @@ def main():
 
   for x in xrange(FPS*5):
     t += 0.2
-    img, mergeToColor = draw(t, segs, mergeToColor, segs[-1][0], totMergeMB)
+    img, mergeToColor = draw(t, segs, mergeToColor, newestSeg, totMergeMB)
     img.save('%s/%08d.png' % (TMP_DIR, upto))
     upto += 1
 
@@ -175,7 +178,7 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
   totMB = 0
   mergingMB = 0
   for idx, (seg, mb, delPct) in enumerate(segs):
-    totMB += mb
+    totMB += mb*(1.0-delPct)
     x0 = idx * (xPerSeg) + 1
     x1 = x0 + xPerSeg - 2
     y0 = HEIGHT - 10 - yPerLog * (math.log(LOG_BASE_MB + mb) - LOG_BASE)
@@ -190,11 +193,10 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
     d.rectangle(((x0, y0), (x1, y1)), outline='black', fill=fill)
 
     if delPct > 0.0:
-      y2 = HEIGHT - 10 - yPerLog * (math.log(LOG_BASE_MB + mb*(1.0-delPct)) - LOG_BASE)
-      
+      y2 = y0 + (y1-y0)*delPct
       d.rectangle(((x0, y0), (x1, y2)), outline='black', fill='gray')
 
-  baseY = 10
+  baseY = 35
   baseX = WIDTH - 180
   
   d.text((baseX, baseY), '%d sec' % (t-tMin), fill='black', font=FONT)

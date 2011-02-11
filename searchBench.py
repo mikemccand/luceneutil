@@ -44,7 +44,7 @@ if '-source' in sys.argv:
     LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
     INDEX_NUM_DOCS = 5000000
   else:
-    # TODO: add geonamestiny
+    # TODO: add geonames
     raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
 else:
   raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')

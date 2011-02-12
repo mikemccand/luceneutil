@@ -159,12 +159,12 @@ class DocValueCompetitor(Competitor):
     benchUtil.run(command,  'compile.log')
     benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
 
-def testSimple64Mult():
+def bulkVsFOR():
   index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
+  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'FrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
   run(
     Competitor('bulkvint', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('simple64x4', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('for', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     )
 
 def standardVSSimple64():
@@ -173,6 +173,14 @@ def standardVSSimple64():
   run(
     Competitor('standard', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'single'),
     Competitor('bulkvint', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'single'),
+    )
+
+def fst10vs4():
+  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
+  index2 = benchUtil.Index('clean2.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
+  run(
+    Competitor('fst10', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('fst4', 'clean2.svn', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     )
 
 def makeBigIndex():
@@ -184,10 +192,11 @@ def makeBigIndex():
   
 if __name__ == '__main__':
   #testPFOR2()
-  #testSimple64()
+  #bulkVsFOR()
   #testSimple64Mult()
-  standardVSSimple64()
+  #standardVSSimple64()
   #makeBigIndex()
+  fst10vs4()
 
 # NOTE: when running on 3.0, apply this patch:
 """

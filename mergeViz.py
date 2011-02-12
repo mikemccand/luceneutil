@@ -82,7 +82,7 @@ def main():
       gap = t - lastT
       if gap > 2 and len(merges)-i < 6:
         print 'FILL gap=%s' % gap
-        delta = (t-lastT)/(g*5.0)
+        delta = (t-lastT)/(gap*5.0)
         t0 = lastT
         for x in xrange(gap*5):
           t0 += delta
@@ -198,7 +198,7 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
       y2 = y0 + (y1-y0)*delPct
       d.rectangle(((x0, y0), (x1, y2)), outline='black', fill='gray')
 
-  baseY = HEIGHT - 10 - yPerLog * (math.log(LOG_BASE_MB + 5*1024) - LOG_BASE) + 15
+  baseY = HEIGHT - 10 - yPerLog * (math.log(LOG_BASE_MB + 500) - LOG_BASE) + 15
   baseX = WIDTH - 220
   
   d.text((baseX, baseY), '%d sec' % (t-tMin), fill='black', font=FONT)

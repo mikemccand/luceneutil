@@ -115,7 +115,7 @@ public final class Indexer {
     final IndexWriter w = new IndexWriter(dir, iwc);
     w.setInfoStream(verbose ? System.out : null);
 
-    final LineFileDocs docs = new LineFileDocs(lineFile);
+    final LineFileDocs docs = new LineFileDocs(lineFile, false);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();

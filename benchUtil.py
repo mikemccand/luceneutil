@@ -171,7 +171,10 @@ class RunAlgs:
              -1,
              maxBufferedDocs,
              index.codec)
-      fullLogFile = '%s/%s/%s.log' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR, index.getName())
+      logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
+      if not os.path.exists(logDir):
+        os.makedirs(logDir)
+      fullLogFile = '%s/%s.log' % (logDir, index.getName())
       print '  log %s' % fullLogFile
       if DEBUG:
         print 'command=%s' % cmd

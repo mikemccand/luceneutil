@@ -34,17 +34,28 @@ import org.apache.lucene.document.*;
 
 public class LineFileDocs implements Closeable {
 
-  private final BufferedReader reader;
+  private BufferedReader reader;
   private final static int BUFFER_SIZE = 1 << 16;     // 64K
+  private final boolean doRepeat;
+  private final String path;
 
-  public LineFileDocs(String path) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat) throws IOException {
+    this.path = path;
+    open();
+    this.doRepeat = doRepeat;
+  }
+
+  private void open() throws IOException {
     final InputStream is = new FileInputStream(path);
     final InputStream in = new BufferedInputStream(is, BUFFER_SIZE);
     reader = new BufferedReader(new InputStreamReader(in, "UTF-8"), BUFFER_SIZE);
   }
 
   public synchronized void close() throws IOException {
-    reader.close();
+    if (reader != null) {
+      reader.close();
+      reader = null;
+    }
   }
 
   private final static char SEP = '\t';
@@ -103,7 +114,13 @@ public class LineFileDocs implements Closeable {
       myID = readCount++;
       line = reader.readLine();
       if (line == null) {
-        return null;
+        if (doRepeat) {
+          close();
+          open();
+          line = reader.readLine();
+        } else {
+          return null;
+        }
       }
     }
 

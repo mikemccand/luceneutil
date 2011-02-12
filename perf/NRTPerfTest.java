@@ -218,7 +218,7 @@ public class NRTPerfTest {
 
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true);
 
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
@@ -240,10 +240,10 @@ public class NRTPerfTest {
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
 
-    iwc.setMergePolicy(new LogByteSizeMergePolicy());
+    //iwc.setMergePolicy(new LogByteSizeMergePolicy());
     //((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
 
-    //iwc.setMergePolicy(new TieredMergePolicy());
+    iwc.setMergePolicy(new TieredMergePolicy());
     //((TieredMergePolicy) iwc.getMergePolicy()).setSegmentsPerTier(10.0);
 
     if (!commit.equals("none")) {

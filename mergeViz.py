@@ -14,14 +14,14 @@ WIDTH = 1280
 HEIGHT = 720
 MAX_SEG_COUNT = 60
 MAX_SEG_SIZE_MB = 500.0
-LIMIT = 4000000
+LIMIT = None
 LOG_BASE_MB = 10.0
 LOG_BASE = math.log(LOG_BASE_MB)
-FPS = 15
+FPS = 24
 
 #FONT = ImageFont.truetype('/usr/local/src/yjp-9.0.7/jre64/lib/fonts/LucidaSansRegular.ttf', 15)
 #FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationSans-Bold.ttf', 15)
-FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Regular.ttf', 15)
+FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Regular.ttf', 20)
 
 # TODO
 #   - handle deletions
@@ -57,8 +57,6 @@ def main():
       MAX_SEG_COUNT = max(MAX_SEG_COUNT, len(segs))
       for seg, mb, delPct in segs:
         MAX_SEG_SIZE_MB = max(MAX_SEG_SIZE_MB, mb)
-    if False and i >= LIMIT:
-      break
 
   MAX_SEG_COUNT += 2
   MAX_SEG_SIZE_MB = 100*math.ceil((MAX_SEG_SIZE_MB*1.1)/100.0) + 50.0
@@ -74,23 +72,27 @@ def main():
   lastT = None
   totMergeMB = 0
   newestSeg = ''
+  minT = None
   for i, ev in enumerate(merges):
     t = ev[1]
+    if minT is None:
+      minT = t
     # silly frame doubling, for the end:
     if lastT is not None:
       gap = t - lastT
       if gap > 2 and len(merges)-i < 6:
         print 'FILL gap=%s' % gap
-        delta = (t-lastT)/5.0
+        delta = (t-lastT)/(g*5.0)
         t0 = lastT
         for x in xrange(gap*5):
           t0 += delta
+          print ' fake t %s' % (t0-minT)
           img, mergeToColor = draw(t0, segs, mergeToColor, newestSeg, totMergeMB)
           img.save('%s/%08d.png' % (TMP_DIR, upto))
           upto += 1
     lastT = t
     
-    print '%s/%s' % (i, len(merges))
+    print '%s: %s/%s' % (t-minT, i, len(merges))
     #print ev
     if ev[0] == 'index':
       segs = ev[2]
@@ -118,7 +120,7 @@ def main():
     img, mergeToColor = draw(t, segs, mergeToColor, newestSeg, totMergeMB)
     img.save('%s/%08d.png' % (TMP_DIR, upto))
     upto += 1
-    if upto >= LIMIT:
+    if LIMIT is not None and upto >= LIMIT:
       break
 
   for x in xrange(FPS*5):
@@ -173,7 +175,7 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
       s = '%d GB' % (sz/1024)
     else:
       s = '%d MB' % sz
-    d.text((WIDTH-70, y-15), s, fill='black', font=FONT)
+    d.text((WIDTH-80, y-20), s, fill='black', font=FONT)
 
   totMB = 0
   mergingMB = 0
@@ -196,8 +198,8 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
       y2 = y0 + (y1-y0)*delPct
       d.rectangle(((x0, y0), (x1, y2)), outline='black', fill='gray')
 
-  baseY = 35
-  baseX = WIDTH - 180
+  baseY = HEIGHT - 10 - yPerLog * (math.log(LOG_BASE_MB + 5*1024) - LOG_BASE) + 15
+  baseX = WIDTH - 220
   
   d.text((baseX, baseY), '%d sec' % (t-tMin), fill='black', font=FONT)
 
@@ -207,7 +209,7 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
     sz = '%4.2f GB' % (totMB/1024.)
   d.text((baseX, 20+baseY), '%s' % sz, fill='black', font=FONT)
 
-  d.text((baseX, 40+baseY), '%d segs' % len(segs), fill='black', font=FONT)
+  d.text((baseX, 40+baseY), '%d segs; %s' % (len(segs), rightSegment), fill='black', font=FONT)
 
   if mergingMB < 1024:
     sz = '%.1f MB' % mergingMB
@@ -215,15 +217,13 @@ def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
     sz = '%.2f GB' % (mergingMB/1024.)
   d.text((baseX, 60+baseY), '%s merging' % sz, fill='black', font=FONT)
 
-  d.text((baseX, 80+baseY), 'seg %s' % rightSegment, fill='black', font=FONT)
-
   if totMergeMB >= 1024:
     s = '%4.2f GB' % (totMergeMB/1024)
   else:
     s = '%4.1f MB' % totMergeMB
 
-  d.text((baseX, 100+baseY), '%s tot merged' % s, fill='black', font=FONT)
-  
+  d.text((baseX, 80+baseY), '%s merged' % s, fill='black', font=FONT)
+
   return i, newMergeToColor
 
 reSeg1 = re.compile(r'\*?(_.*?)\(.*?\):[cC]v?([0-9]+)(/[0-9]+)?')

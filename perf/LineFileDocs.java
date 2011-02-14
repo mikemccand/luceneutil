@@ -95,7 +95,10 @@ public class LineFileDocs implements Closeable {
       doc.add(date);
 
       dateMSec = new NumericField("datenum");
+      doc.add(dateMSec);
+
       timeSec = new NumericField("timesecnum");
+      doc.add(timeSec);
     }
   }
 

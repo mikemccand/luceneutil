@@ -226,8 +226,12 @@ public final class Indexer {
       while(true) {
         try {
           final Document doc = docs.nextDoc(docState);
+          final int id = Integer.parseInt(idField.stringValue());
+          if (((1+id) % 1000000) == 0) {
+            System.out.println("Indexer: " + (1+id) + " docs...");
+          }
           if (doc == null ||
-              (numTotalDocs != -1 && Integer.parseInt(idField.stringValue()) >= numTotalDocs)) {
+              (numTotalDocs != -1 && id >= numTotalDocs)) {
             break;
           }
           w.addDocument(doc);

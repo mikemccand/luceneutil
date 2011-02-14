@@ -94,7 +94,7 @@ try:
   if ROOT != '':
     res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
   else:
-    res = os.system('ant compile > compile.log 2>&1')
+    res = os.system('ant compile-test > compile.log 2>&1')
   if res:
     print open('compile.log', 'rb').read()
     sys.exit(1)
@@ -166,7 +166,7 @@ while True:
     if random.randint(0, 1) == 1:
       command += ' -Xbatch'
     command += ' -Dtests.verbose=%s' % verbose
-    command += ' -Drandom.multiplier=%s' % mult
+    command += ' -Dtests.multiplier=%s' % mult
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir

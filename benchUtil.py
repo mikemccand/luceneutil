@@ -250,7 +250,7 @@ class RunAlgs:
     benchDir = checkoutToBenchPath(c.checkout)
     os.chdir(benchDir)
     cp = self.classPathToString(self.getClassPath(c.checkout))
-    logFile = '%s/res-%s.txt' % (benchDir, c.name)
+    logFile = '%s/res-%s.x' % (benchDir, c.name)
     print 'log %s' % logFile
     if os.path.exists(logFile):
       os.remove(logFile)

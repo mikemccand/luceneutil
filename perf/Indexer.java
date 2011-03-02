@@ -156,7 +156,7 @@ public final class Indexer {
       final int id = rand.nextInt(maxDoc);
       if (!deleted.contains(id)) {
         deleted.add(id);
-        w.deleteDocuments(new Term("id", Integer.toString(id)));
+        w.deleteDocuments(new Term("id", String.format("%09d", id)));
       }
     }
     final long t4 = System.currentTimeMillis();
@@ -211,17 +211,16 @@ public final class Indexer {
     private final LineFileDocs docs;
     private final int numTotalDocs;
     private final IndexWriter w;
-    private final LineFileDocs.DocState docState;
 
     public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs) {
       this.w = w;
       this.docs = docs;
-      this.docState = docs.newDocState();
       this.numTotalDocs = numTotalDocs;
     }
 
     @Override
     public void run() {
+      final LineFileDocs.DocState docState = docs.newDocState();
       final Field idField = docState.id;
       while(true) {
         try {

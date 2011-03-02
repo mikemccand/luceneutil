@@ -142,7 +142,7 @@ public class LineFileDocs implements Closeable {
     doc.titleTokenized.setValue(title);
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setValue(dateString);
-    doc.id.setValue(Integer.toString(myID));
+    doc.id.setValue(String.format("%09d", myID));
 
     doc.datePos.setIndex(0);
     final Date date = doc.dateParser.parse(dateString, doc.datePos);

@@ -31,7 +31,7 @@ import org.apache.lucene.util.Version;
 
 // cd /a/lucene/trunk/checkout
 // ln -s /path/to/lucene/util/perf .
-// ant compile; javac -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java
+// ant compile; javac -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java perf/LineFileDocs.java
 // java -Xmx2g -Xms2g -server -Xbatch -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd24.9005M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10 update 1
 
 public class NRTPerfTest {

@@ -99,7 +99,7 @@ public class SearchPerfTest {
       // disambiguate by our stable id:
       Sort sort = new Sort(new SortField[] {
           new SortField(null, SortField.SCORE),
-          new SortField("docid", SortField.INT)});
+          new SortField("id", SortField.INT)});
       if (qs.f == null) {
         hits = s.search(qs.q, null, 50, sort);
       } else {
@@ -109,13 +109,13 @@ public class SearchPerfTest {
       // disambiguate by our stable id:
       SortField[] sortFields = new SortField[qs.s.getSort().length+1];
       System.arraycopy(qs.s.getSort(), 0, sortFields, 0, qs.s.getSort().length);
-      sortFields[sortFields.length-1] = new SortField("docid", SortField.INT);
+      sortFields[sortFields.length-1] = new SortField("id", SortField.INT);
       hits = s.search(qs.q, qs.f, 50, new Sort(sortFields));
     }
     System.out.println("\nHITS q=" + qs.q + " s=" + qs.s + " tot=" + hits.totalHits);
     //System.out.println("  rewrite q=" + s.rewrite(qs.q));
     for(int i=0;i<hits.scoreDocs.length;i++) {
-      System.out.println("  " + i + " doc=" + s.doc(hits.scoreDocs[i].doc).get("docid") + " score=" + hits.scoreDocs[i].score);
+      System.out.println("  " + i + " doc=" + s.doc(hits.scoreDocs[i].doc).get("id") + " score=" + hits.scoreDocs[i].score);
     }
     if (qs.q instanceof MultiTermQuery) {
       System.out.println("  " + ((MultiTermQuery) qs.q).getTotalNumberOfTerms() + " expanded terms");
@@ -221,7 +221,7 @@ public class SearchPerfTest {
     QueryParser p = new QueryParser(Version.LUCENE_31, "body", a);
     p.setLowercaseExpandedTerms(false);
 
-    final Sort dateTimeSort = new Sort(new SortField("docdatenum", SortField.LONG));
+    final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.LONG));
     for(int i=0;i<queryStrings.length;i++) {
       Query q = p.parse(queryStrings[i]);
 

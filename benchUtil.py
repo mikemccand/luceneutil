@@ -212,6 +212,7 @@ class RunAlgs:
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
     else:
       cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
+    cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
 
     # need benchmark path so perf.SearchPerfTest is found:
     cp.append(checkoutToBenchPath(checkout))

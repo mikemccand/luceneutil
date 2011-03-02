@@ -32,19 +32,16 @@ import java.util.Random;
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.*;
-import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
-import org.apache.lucene.util.Constants;
-import org.apache.lucene.util.ReaderUtil;
-import org.apache.lucene.util.Version;
+import org.apache.lucene.util.*;
 
 // commits: single, multi, delsingle, delmulti
 
@@ -92,35 +89,59 @@ public class SearchPerfTest {
   }
 
   private static void printOne(IndexSearcher s, QueryAndSort qs) throws IOException {
-    final TopDocs hits;
-    s.setDefaultFieldSortScoring(true, false);
-    System.out.println("\nRUN: " + qs.q + " s=" + qs.s);
-    if (qs.s == null) {
-      // disambiguate by our stable id:
-      Sort sort = new Sort(new SortField[] {
-          new SortField(null, SortField.SCORE),
-          new SortField("id", SortField.INT)});
-      if (qs.f == null) {
-        hits = s.search(qs.q, null, 50, sort);
-      } else {
-        hits = s.search(qs.q, qs.f, 50, sort);
+    if (qs.respell != null) {
+      final SearchTask st = new SearchTask(null, s, null, 0, false);
+      System.out.println("\nRUN: respell " + qs.respell);
+      for(SuggestWord suggest : st.doRespell(qs.respell)) {
+        System.out.println("  " + suggest.string + " freq=" + suggest.freq + " score=" + suggest.score);
+      }
+    } else if (qs.pkIDs != null) {
+      final SearchTask st = new SearchTask(null, s, null, 0, false);
+      final int[] pkAnswers = st.getPKAnswers();
+      System.out.println("\nRUN: PK lookup [" + pkAnswers.length + " ids]:");
+      st.pkLookup(qs.pkIDs, pkAnswers);
+      System.out.println("\nHITS q=PK[" + qs.pkIDs.length + "] s=" + qs.s + " tot=" + qs.pkIDs.length);
+      for(int idx=0;idx<qs.pkIDs.length;idx++) {
+        if (pkAnswers[idx] == DocsEnum.NO_MORE_DOCS) {
+          throw new RuntimeException("id=" + qs.pkIDs[idx] + " failed to find a document");
+        }
+        System.out.println("  " + qs.pkIDs[idx].utf8ToString() + " -> " + pkAnswers[idx]);
+        final String id = s.doc(pkAnswers[idx]).get("id");
+        if (!qs.pkIDs[idx].equals(new BytesRef(id))) {
+          throw new RuntimeException("lookup of id=" + qs.pkIDs[idx].utf8ToString() + " returned wrong doc (id=" + id);
+        }
       }
     } else {
-      // disambiguate by our stable id:
-      SortField[] sortFields = new SortField[qs.s.getSort().length+1];
-      System.arraycopy(qs.s.getSort(), 0, sortFields, 0, qs.s.getSort().length);
-      sortFields[sortFields.length-1] = new SortField("id", SortField.INT);
-      hits = s.search(qs.q, qs.f, 50, new Sort(sortFields));
+      final TopDocs hits;
+      s.setDefaultFieldSortScoring(true, false);
+      System.out.println("\nRUN: " + qs.q + " s=" + qs.s);
+      if (qs.s == null) {
+        // disambiguate by our stable id:
+        Sort sort = new Sort(new SortField[] {
+            new SortField(null, SortField.SCORE),
+            new SortField("id", SortField.INT)});
+        if (qs.f == null) {
+          hits = s.search(qs.q, null, 50, sort);
+        } else {
+          hits = s.search(qs.q, qs.f, 50, sort);
+        }
+      } else {
+        // disambiguate by our stable id:
+        SortField[] sortFields = new SortField[qs.s.getSort().length+1];
+        System.arraycopy(qs.s.getSort(), 0, sortFields, 0, qs.s.getSort().length);
+        sortFields[sortFields.length-1] = new SortField("id", SortField.INT);
+        hits = s.search(qs.q, qs.f, 50, new Sort(sortFields));
+      }
+      System.out.println("\nHITS q=" + qs.q + " s=" + qs.s + " tot=" + hits.totalHits);
+      //System.out.println("  rewrite q=" + s.rewrite(qs.q));
+      for(int i=0;i<hits.scoreDocs.length;i++) {
+        System.out.println("  " + i + " doc=" + s.doc(hits.scoreDocs[i].doc).get("id") + " score=" + hits.scoreDocs[i].score);
+      }
+      if (qs.q instanceof MultiTermQuery) {
+        System.out.println("  " + ((MultiTermQuery) qs.q).getTotalNumberOfTerms() + " expanded terms");
+      }
+      s.setDefaultFieldSortScoring(false, false);
     }
-    System.out.println("\nHITS q=" + qs.q + " s=" + qs.s + " tot=" + hits.totalHits);
-    //System.out.println("  rewrite q=" + s.rewrite(qs.q));
-    for(int i=0;i<hits.scoreDocs.length;i++) {
-      System.out.println("  " + i + " doc=" + s.doc(hits.scoreDocs[i].doc).get("id") + " score=" + hits.scoreDocs[i].score);
-    }
-    if (qs.q instanceof MultiTermQuery) {
-      System.out.println("  " + ((MultiTermQuery) qs.q).getTotalNumberOfTerms() + " expanded terms");
-    }
-    s.setDefaultFieldSortScoring(false, false);
   }
 
   private static void addQuery(IndexSearcher s, List<QueryAndSort> queries, Query q, Sort sort, Filter f) throws IOException {
@@ -276,6 +297,28 @@ public class SearchPerfTest {
       //addQuery(s, queries, new FuzzyQuery(new Term("body", "united"), 0.7f, 0, 50), null, f);
     }
 
+    final Random rand = new Random(17);
+
+    // PrimaryKey lookups:
+    {
+      // TODO: add N of these into the queries..?
+      // Make up random primary keys to retrieve
+      BytesRef[] pkIDs = new BytesRef[SearchTask.NUM_PK_LOOKUP];
+      for(int idx=0;idx<pkIDs.length;idx++) {
+        pkIDs[idx] = new BytesRef(String.format("%09d", rand.nextInt(s.maxDoc())));
+      }
+      final QueryAndSort pkQS = new QueryAndSort(pkIDs);
+      queries.add(pkQS);
+      printOne(s, pkQS);
+    }
+
+    // Respelling
+    {
+      final QueryAndSort spellQS = new QueryAndSort("unted");
+      queries.add(spellQS);
+      printOne(s, spellQS);
+    }
+
     Query q = new SpanFirstQuery(new SpanTermQuery(new Term("body", "unit")), 5);
     addQuery(s, queries, q, null, f);
     //addQuery(s, queries, q, dateTimeSort, f);
@@ -292,8 +335,6 @@ public class SearchPerfTest {
     q = NumericRangeQuery.newIntRange("timesecnum", 10000, 60000, true, true);
     addQuery(s, queries, q, null, f);
     //addQuery(s, queries, q, dateTimeSort, f);
-
-    final Random rand = new Random(17);
 
     final SearchTask[] threads = new SearchTask[threadCount];
     for(int i=0;i<threadCount-1;i++) {
@@ -321,7 +362,13 @@ public class SearchPerfTest {
         }
       }
 
-      System.out.println("  q=" + qs.q + " s=" + qs.s + " h=" + totHits);
+      if (qs.respell != null) {
+        System.out.println("  q=respell[" + qs.respell + "] s=" + qs.s + " h=" + totHits);
+      } else if (qs.pkIDs != null) {
+        System.out.println("  q=PK[" + qs.pkIDs.length + "] s=" + qs.s + " h=" + totHits);
+      } else {
+        System.out.println("  q=" + qs.q + " s=" + qs.s + " h=" + totHits);
+      }
 
       for(int t=0;t<threadCount;t++) {
         System.out.println("    t=" + t);

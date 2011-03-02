@@ -50,7 +50,8 @@ else:
   raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
 
 if '-debug' in sys.argv:
-  INDEX_NUM_DOCS /= 100
+  # nocommit
+  INDEX_NUM_DOCS /= 1000
 
 # This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
 #INDEX_NUM_DOCS = 27625038
@@ -176,11 +177,18 @@ def standardVSSimple64():
     )
 
 def fst10vs4():
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('clean2.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
+  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = benchUtil.Index('clean2.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   run(
     Competitor('fst10', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     Competitor('fst4', 'clean2.svn', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
+def seekOpto():
+  index = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run(
+    Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('opto', 'seekopto', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     )
 
 def makeBigIndex():
@@ -189,14 +197,41 @@ def makeBigIndex():
     Competitor('base', 'newmp', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     Competitor('base2', 'newmp', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
     )
-  
+
+def pfor4():
+  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'PatchedFrameOfRef4', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run(
+    Competitor('BulkVInt', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('PFor4', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
+def bulkInterleaved():
+  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = benchUtil.Index('bulkbranch.clean', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run(
+    Competitor('bulkint', 'bulkbranch.clean', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('bulk', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
+def bushy():
+  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = benchUtil.Index('bushy3', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run(
+    Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+    )
+
 if __name__ == '__main__':
-  #testPFOR2()
   #bulkVsFOR()
   #testSimple64Mult()
   #standardVSSimple64()
   #makeBigIndex()
-  fst10vs4()
+  #fst10vs4()
+  #seekOpto()
+  bushy()
+  #pfor4()
+  #bulkInterleaved()
 
 # NOTE: when running on 3.0, apply this patch:
 """

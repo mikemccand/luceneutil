@@ -18,16 +18,37 @@ package perf;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.util.BytesRef;
 
-
+// TODO: make this more abstract "task" like class
 public class QueryAndSort {
   final Query q;
   final Sort s;
   final Filter f;
+  final BytesRef[] pkIDs;
+  final String respell;
 
   public QueryAndSort(Query q, Sort s, Filter f) {
     this.q = q;
     this.s = s;
     this.f = f;
+    pkIDs = null;
+    respell = null;
+  }
+
+  public QueryAndSort(BytesRef[] pkIDs) {
+    this.pkIDs = pkIDs;
+    respell = null;
+    q = null;
+    s = null;
+    f = null;
+  }
+
+  public QueryAndSort(String respell) {
+    this.respell = respell;
+    pkIDs = null;
+    q = null;
+    s = null;
+    f = null;
   }
 }

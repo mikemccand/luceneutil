@@ -20,32 +20,62 @@ package perf;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.lucene.analysis.core.*;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.store.*;
+import org.apache.lucene.index.codecs.*;
 import org.apache.lucene.search.*;
+import org.apache.lucene.store.*;
+import org.apache.lucene.util.*;
 
+// TODO
+//  - also test GUID based IDs
+//  - also test base-N (32/36) IDs
 
-// javac -cp build/classes/java perf/PKLookupPerfTest.java; java -cp .:build/classes/java perf.PKLookupPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.nd10M/index multi 1000 17
-// NO deletions allowed
-// Requires you use an index w/ docid primary key field
+// javac -cp build/classes/java:../modules/analysis/build/common/classes/java perf/PKLookupPerfTest.java
+// java -Xbatch -server -Xmx2g -Xms2g -cp .:build/classes/java:../modules/analysis/build/common/classes/java perf.PKLookupPerfTest MMapDirectory /p/lucene/indices/pk 1000000 1000 17
+
 public class PKLookupPerfTest {
 
-  // TODO: share w/ SearchPerfTest
-  private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
-    Collection<IndexCommit> commits = IndexReader.listCommits(dir);
-    for (final IndexCommit ic : commits) {
-      Map<String,String> map = ic.getUserData();
-      String ud = null;
-      if (map != null) {
-        ud = map.get("userData");
-        System.out.println("found commit=" + ud);
-        if (ud != null && ud.equals(commit)) {
-          return ic;
-        }
+  // If true, we pull a DocsEnum to get the matching doc for
+  // the PK; else we only verify the PK is found exactly
+  // once (in one segment)
+  private static boolean DO_DOC_LOOKUP = true;
+
+  private static void createIndex(final Directory dir, final int docCount)
+    throws IOException {
+    System.out.println("Create index... " + docCount + " docs");
+ 
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
+                                                        new WhitespaceAnalyzer(Version.LUCENE_40));
+    iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    CodecProvider cp = new CoreCodecProvider();
+    cp.setDefaultFieldCodec("Pulsing");
+    iwc.setCodecProvider(cp);
+    // 5 segs per level in 3 levels:
+    int mbd = docCount/(5*111);
+    iwc.setMaxBufferedDocs(mbd);
+    iwc.setRAMBufferSizeMB(-1.0);
+    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    final IndexWriter w = new IndexWriter(dir, iwc);
+    w.setInfoStream(System.out);
+   
+    final Document doc = new Document();
+    final Field field = new Field("id", "", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS);
+    field.setOmitTermFreqAndPositions(true);
+    doc.add(field);
+
+    for(int i=0;i<docCount;i++) {
+      field.setValue(String.format("%09d", i));
+      w.addDocument(doc);
+      if ((i+1)%1000000 == 0) {
+        System.out.println((i+1) + "...");
       }
     }
-    throw new RuntimeException("could not find commit '" + commit + "'");
+    w.waitForMerges();
+    w.close();
   }
 
   public static void main(String[] args) throws IOException {
@@ -53,7 +83,7 @@ public class PKLookupPerfTest {
     final Directory dir;
     final String dirImpl = args[0];
     final String dirPath = args[1];
-    final String commit = args[2];
+    final int numDocs = Integer.parseInt(args[2]);
     final int numLookups = Integer.parseInt(args[3]);
     final long seed = Long.parseLong(args[4]);
 
@@ -67,80 +97,96 @@ public class PKLookupPerfTest {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
 
-    System.out.println("Commit=" + commit);
-    final IndexReader r = IndexReader.open(findCommitPoint(commit, dir), true);
-    System.out.println("Reader=" + r);
-    if (r.hasDeletions()) {
-      throw new RuntimeException("can't handle deletions");
+    if (!new File(dirPath).exists()) {
+      createIndex(dir, numDocs);
     }
 
-    final IndexSearcher s = new IndexSearcher(r);
+    final IndexReader r = IndexReader.open(dir);
+    System.out.println("Reader=" + r);
+
+    final IndexReader[] subs = r.getSequentialSubReaders();
+    final DocsEnum[] docsEnums = new DocsEnum[subs.length];
+    final TermsEnum[] termsEnums = new TermsEnum[subs.length];
+    for(int subIdx=0;subIdx<subs.length;subIdx++) {
+      termsEnums[subIdx] = subs[subIdx].fields().terms("id").getThreadTermsEnum();
+    }
+
     final int maxDoc = r.maxDoc();
     final Random rand = new Random(seed);
 
-    for(int cycle=0;cycle<2;cycle++) {
+    for(int cycle=0;cycle<10;cycle++) {
       System.out.println("Cycle: " + (cycle==0 ? "warm" : "test"));
       System.out.println("  Lookup...");
-      final String[] lookup = new String[numLookups];
+      final BytesRef[] lookup = new BytesRef[numLookups];
       final int[] docIDs = new int[numLookups];
       for(int iter=0;iter<numLookups;iter++) {
-        lookup[iter] = Integer.toString(rand.nextInt(maxDoc));
+        lookup[iter] = new BytesRef(String.format("%09d", rand.nextInt(maxDoc)));
       }
       Arrays.fill(docIDs, -1);
 
-      final long tStart = System.currentTimeMillis();
       final AtomicBoolean failed = new AtomicBoolean(false);
-      for(int iter=0;iter<numLookups;iter++) {
-        final Term t = new Term("docid", "");
-        final int iterFinal = iter;
-        s.search(new TermQuery(t.createTerm(lookup[iter])),
-                 new Collector() {
-            int base;
 
-            @Override
-              public void collect(int docID) {
-              if (docIDs[iterFinal] != -1) {
+      final Term t = new Term("id", "");
+
+      final long tStart = System.currentTimeMillis();
+      for(int iter=0;iter<numLookups;iter++) {
+        //System.out.println("lookup " + lookup[iter].utf8ToString());
+        int base = 0;
+        int found = 0;
+        for(int subIdx=0;subIdx<subs.length;subIdx++) {
+          final IndexReader sub = subs[subIdx];
+          final TermsEnum termsEnum = termsEnums[subIdx];
+          //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(lookup[iter], false, true)) { 
+          if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(lookup[iter], false)) { 
+            if (DO_DOC_LOOKUP) {
+              final DocsEnum docs = docsEnums[subIdx] = termsEnum.docs(null, docsEnums[subIdx]);
+              final int docID = docs.nextDoc();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
                 failed.set(true);
               }
-              docIDs[iterFinal] = base + docID;
+              if (docIDs[iter] != -1) {
+                failed.set(true);
+              }
+              docIDs[iter] = base + docID;
+              if (docs.nextDoc() != DocsEnum.NO_MORE_DOCS) {
+                failed.set(true);
+              }
+            } else {
+              found++;
+              if (found > 1) {
+                failed.set(true);
+              }
             }
-
-            @Override
-            public void setNextReader(AtomicReaderContext context) {
-              base = context.docBase;
-            }
-
-            @Override
-              public boolean acceptsDocsOutOfOrder() {
-              return true;
-            }
-
-            @Override
-              public void setScorer(Scorer s) {
-            }
-          });
+          }
+          base += sub.maxDoc();
+        }
       }
+      final long tLookup = (System.currentTimeMillis() - tStart);
+      
+      // cycle 0 is for warming
+      //System.out.println("  " + (cycle == 0 ? "WARM: " : "") + tLookup + " msec for " + numLookups + " lookups (" + (1000*tLookup/numLookups) + " us per lookup) + totSeekMS=" + (BlockTermsReader.totSeekNanos/1000000.));
+      System.out.println("  " + (cycle == 0 ? "WARM: " : "") + tLookup + " msec for " + numLookups + " lookups (" + (1000*tLookup/numLookups) + " us per lookup)");
 
       if (failed.get()) {
         throw new RuntimeException("at least one lookup produced more than one result");
       }
 
-      System.out.println("  Verify...");
-      for(int iter=0;iter<numLookups;iter++) {
-        final String found = r.document(docIDs[iter]).get("docid");
-        if (!found.equals(lookup[iter])) {
-          throw new RuntimeException("lookup of docid=" + lookup[iter] + " hit wrong docid=" + found);
+      if (DO_DOC_LOOKUP) {
+        System.out.println("  Verify...");
+        for(int iter=0;iter<numLookups;iter++) {
+          if (docIDs[iter] == -1) {
+            throw new RuntimeException("lookup of " + lookup[iter] + " failed iter=" + iter);
+          }
+          final String found = r.document(docIDs[iter]).get("id");
+          if (!found.equals(lookup[iter].utf8ToString())) {
+            throw new RuntimeException("lookup of docid=" + lookup[iter].utf8ToString() + " hit wrong docid=" + found);
+          }
         }
-      }
-      
-      // cycle 0 is for warming
-      if (cycle == 1) {
-        final long t = (System.currentTimeMillis() - tStart);
-        System.out.println(t + " msec for " + numLookups + " lookups (" + (1000*t/numLookups) + " us per lookup)");
       }
     }
 
-    s.close();
+    System.out.println("blocks=" + BlockTermsReader.totBlockReadCount + " scans=" + BlockTermsReader.totScanCount + " " + (((float) BlockTermsReader.totScanCount))/(BlockTermsReader.totBlockReadCount) + " scans/block");
+
     r.close();
     dir.close();
   }

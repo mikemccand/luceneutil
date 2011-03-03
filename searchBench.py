@@ -115,6 +115,15 @@ def run(*competitors):
     print 'Search on %s...' % c.checkout
     if osName == 'linux':
       benchUtil.run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
+    elif osName in ('windows', 'cygwin'):
+      # NOTE: requires you have admin priv
+      benchUtil.run('%s/dropCaches.bat' % constants.BENCH_BASE_DIR)
+    elif osName == 'osx':
+      # NOTE: requires you install OSX CHUD developer package
+      benchUtil.run('/usr/bin/purge')
+    else:
+      raise RuntimeError('do not know how to purge buffer cache on this OS (%s)' % osName
+      
     t0 = time.time()
     results[c] = r.runSimpleSearchBench(c, iters, itersPerJVM, threads, filter=None)
     print '  %.2f sec' % (time.time() - t0)

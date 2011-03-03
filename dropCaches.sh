@@ -16,4 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# see http://www.codingjargames.com/blog/2010/11/22/windows-file-cache/ for how to do this on windows
+
+# on os x: /usr/bin/purge
+
 echo 3 > /proc/sys/vm/drop_caches

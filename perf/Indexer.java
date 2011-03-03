@@ -66,7 +66,10 @@ public final class Indexer {
     } else if (analyzer.equals("ClassicAnalyzer")) {
       a = new ClassicAnalyzer(Version.LUCENE_30);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40);
+      a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
+    } else if (analyzer.equals("ShingleStandardAnalyzer")) {
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
+                                     2, 3);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 

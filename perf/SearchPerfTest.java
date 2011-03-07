@@ -17,42 +17,58 @@ package perf;
  * limitations under the License.
  */
 
-// TODO
-//   - mixin some sorting, eg sort by date
-
 import java.io.File;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.FileInputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Collections;
 
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.index.codecs.CodecProvider;
-import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
+//import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.search.spell.SuggestWord;
+import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
 
+// TODO
+//   - post queries on pao
+//   - fix pk lookup to tolerate deletes
+//   - get regexp title queries
+//   - test shingle at search time
+//   - push doSort into here...
+
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -cp build/classes/java:../modules/analysis/build/common/classes/java  SearchPerfTest.java; java -cp .:build/classes/java:../modules/analysis/build/common/classes/java SearchPerfTest Default /x/lucene/trunkwiki/index 2 10000 >& out.x
-
-// 3x:
-//   javac -cp build/classes/java  SearchPerfTest.java; java -cp .:build/classes/java SearchPerfTest Default /x/lucene/3xwiki/index 2 10000 >& out.x
+//   javac -Xlint:deprecation -cp build/classes/java:build/contrib/spellchecker/classes/java:../modules/analysis/build/common/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
+//   java -cp .:build/contrib/spellchecker/classes/java:build/classes/java:../modules/analysis/build/common/classes/java perf.SearchPerfTest MMapDirectory /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index StandardAnalyzer /p/lucene/data/tasks.txt 6 1 body -1 no multi
 
 public class SearchPerfTest {
   
+  /*
   private static String[] queryStrings = {
     //"*:*",
     "states",
@@ -64,13 +80,330 @@ public class SearchPerfTest {
     "united~0.6",   // 2
     "unit~0.7",     // 1
     "unit~0.5",     // 2
-    "title:/.*[Uu]nited.*/",
+    "title:/.*[Uu]nited.* /",
     "united OR states",
     "united AND states",
     "nebraska AND states",
     "\"united states\"",
     "\"united states\"~3",
   };
+  */
+
+  private static class IndexState {
+    public final IndexSearcher searcher;
+    public final IndexReader[] subReaders;
+    public final DirectSpellChecker spellChecker;
+    public int[] docIDToID;
+
+    public IndexState(IndexSearcher searcher, DirectSpellChecker spellChecker) {
+      this.searcher = searcher;
+      this.spellChecker = spellChecker;
+      subReaders = searcher.getIndexReader().getSequentialSubReaders();
+    }
+
+    private void setDocIDToID() throws IOException {
+      docIDToID = new int[searcher.maxDoc()];
+      int base = 0;
+      for(IndexReader sub : searcher.getIndexReader().getSequentialSubReaders()) {
+        final int[] ids = FieldCache.DEFAULT.getInts(sub, "id");
+        System.arraycopy(ids, 0, docIDToID, base, ids.length);
+        base += ids.length;
+      }
+    }
+  }
+
+  // Abstract class representing a single task (one query,
+  // one batch of PK lookups, on respell).  Each Task
+  // instance is executed and results are recorded in it and
+  // then later verified/summarized:
+  private static abstract class Task {
+    public abstract void go(IndexState state) throws IOException;
+
+    public abstract String getCategory();
+
+    @Override
+    public abstract Task clone();
+
+    // these are set once the task is executed
+    public long runTimeNanos;
+    public int threadID;
+
+    // Called after go, to return "summary" of the results.
+    // This may use volatile docIDs -- the checksum is just
+    // used to verify the same task run multiple times got
+    // the same result, ie that things are in fact thread
+    // safe:
+    public abstract long checksum();
+
+    // Called after go to print details of the task & result
+    // to stdout:
+    public abstract void printResults(IndexState state) throws IOException;
+  }
+
+  private final static class SearchTask extends Task {
+    private final String category;
+    private final Query q;
+    private final Sort s;
+    private final Filter f;
+    private final int topN;
+    private TopDocs hits;
+
+    public SearchTask(String category, Query q, Sort s, Filter f, int topN) {
+      this.category = category;
+      this.q = q;
+      this.s = s;
+      this.f = f;
+      this.topN = topN;
+    }
+
+    @Override
+    public Task clone() {
+      return new SearchTask(category, q, s, f, topN);
+    }
+
+    @Override
+    public String getCategory() {
+      return category;
+    }
+
+    @Override
+    public void go(IndexState state) throws IOException {
+      if (s == null && f == null) {
+        hits = state.searcher.search(q, topN);
+      } else if (s == null && f != null) {
+        hits = state.searcher.search(q, f, topN);
+      } else {
+        hits = state.searcher.search(q, f, topN, s);
+      }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof SearchTask) {
+        final SearchTask otherSearchTask = (SearchTask) other;
+        if (!q.equals(otherSearchTask.q)) {
+          return false;
+        }
+        if (s != null) {
+          if (otherSearchTask.s != null) {
+            if (!s.equals(otherSearchTask.s)) {
+              return false;
+            }
+          } else {
+            if (otherSearchTask.s != null) {
+              return false;
+            }
+          }
+        }
+        if (topN != otherSearchTask.topN) {
+          return false;
+        }
+        // TODO: filter
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      int hashCode = q.hashCode();
+      if (s != null) {
+        hashCode *= s.hashCode();
+      }
+      hashCode *= topN;
+      return hashCode;
+    }
+
+    @Override
+    public long checksum() {
+      long sum = hits.totalHits;
+      for(ScoreDoc hit : hits.scoreDocs) {
+        sum += hit.doc;
+      }
+
+      return sum;
+    }
+
+    @Override
+    public String toString() {
+      return "cat=" + category + " q=" + q + " s=" + s + " hits=" + hits.totalHits;
+    }
+
+    @Override
+    public void printResults(IndexState state) throws IOException {
+      if (hits instanceof TopFieldDocs) {
+        final TopFieldDocs fieldHits = (TopFieldDocs) hits;
+        for(int idx=0;idx<hits.scoreDocs.length;idx++) {
+          FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
+          final Comparable v = hit.fields[0];
+          final String vs;
+          if (v instanceof Long) {
+            vs = v.toString();
+          } else {
+            vs = ((BytesRef) v).utf8ToString();
+          }
+          System.out.println("  doc=" + state.docIDToID[hit.doc] + " field=" + vs);
+        }
+      } else {
+        for(ScoreDoc hit : hits.scoreDocs) {
+          System.out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
+        }
+      }
+      if (q instanceof MultiTermQuery) {
+        System.out.println("  " + ((MultiTermQuery) q).getTotalNumberOfTerms() + " expanded terms");
+      }
+    }
+  }
+
+  private final static class PKLookupTask extends Task {
+    private final BytesRef[] ids;
+    private final int[] answers;
+    private final int ord;
+
+    @Override
+    public String getCategory() {
+      return "PKLookup";
+    }
+
+    private PKLookupTask(PKLookupTask other) {
+      ids = other.ids;
+      ord = other.ord;
+      answers = new int[ids.length];
+    }
+
+    public PKLookupTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
+      this.ord = ord;
+      ids = new BytesRef[count];
+      answers = new int[count];
+      int idx = 0;
+      while(idx < count) {
+        final BytesRef id = new BytesRef(String.format("%09d", random.nextInt(maxDoc)));
+        if (!seen.contains(id)) {
+          seen.add(id);
+          ids[idx++] = id;
+        }
+      }
+      Arrays.sort(ids);
+    }
+
+    @Override
+    public Task clone() {
+      return new PKLookupTask(this);
+    }
+
+    @Override
+    public void go(IndexState state) throws IOException {
+      final boolean DO_DOC_LOOKUP = true;
+      int base = 0;
+      for (IndexReader sub : state.subReaders) {
+        DocsEnum docs = null;
+        final TermsEnum termsEnum = sub.fields().terms("id").getThreadTermsEnum();
+        for(int idx=0;idx<ids.length;idx++) {
+          //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false, true)) { 
+          if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false)) { 
+            docs = termsEnum.docs(null, docs);
+            assert docs != null;
+            final int docID = docs.nextDoc();
+            if (docID == DocsEnum.NO_MORE_DOCS) {
+              answers[idx] = -1;
+            } else {
+              answers[idx] = base + docID;
+            }
+          }
+        }
+        base += sub.maxDoc();
+      }
+    }
+
+    @Override
+    public String toString() {
+      return "PK" + ord + "[" + ids.length + "]";
+    }
+
+    @Override
+    public long checksum() {
+      // TODO, but, not sure it makes sense since we will
+      // run a different PK lookup each time...?
+      return 0;
+    }
+
+    @Override
+    public void printResults(IndexState state) throws IOException {
+      for(int idx=0;idx<ids.length;idx++) {
+
+        if (answers[idx] == DocsEnum.NO_MORE_DOCS) {
+          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
+        }
+
+        final int id = Integer.parseInt(ids[idx].utf8ToString());
+        //System.out.println("  " + id + " -> " + answers[idx]);
+        final int actual = state.docIDToID[answers[idx]];
+        if (actual != id) {
+          throw new RuntimeException("PKLookup: id=" + String.format("%09d", id) + " returned doc with id=" + String.format("%09d", actual) + " docID=" + answers[id]);
+        }
+      }
+    }
+  }
+
+  private final static class RespellTask extends Task {
+    private final Term term;
+    private SuggestWord[] answers;
+
+    public RespellTask(Term term) {
+      this.term = term;
+    }
+
+    @Override
+    public Task clone() {
+      return new RespellTask(term);
+    }
+
+    @Override
+    public void go(IndexState state) throws IOException {
+      answers = state.spellChecker.suggestSimilar(term, 10, state.searcher.getIndexReader(), true);
+    }
+
+    @Override
+    public String toString() {
+      return "respell " + term.text();
+    }
+    
+    @Override
+    public String getCategory() {
+      return "Respell";
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof RespellTask) {
+        return term.equals(((RespellTask) other).term);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return term.hashCode();
+    }
+
+    @Override
+    public long checksum() {
+      long sum = 0;
+      for(SuggestWord suggest : answers) {
+        sum += suggest.string.hashCode() + Integer.valueOf(suggest.freq).hashCode();
+      }
+      return sum;
+    }
+
+    @Override
+    public void printResults(IndexState state) {
+      for(SuggestWord suggest : answers) {
+        System.out.println("  " + suggest.string + " freq=" + suggest.freq + " score=" + suggest.score);
+      }
+    }
+  }
 
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
     Collection<IndexCommit> commits = IndexReader.listCommits(dir);
@@ -88,87 +421,111 @@ public class SearchPerfTest {
     throw new RuntimeException("could not find commit '" + commit + "'");
   }
 
-  private static void printOne(IndexSearcher s, QueryAndSort qs) throws IOException {
-    if (qs.respell != null) {
-      final SearchTask st = new SearchTask(null, s, null, 0, false);
-      System.out.println("\nRUN: respell " + qs.respell);
-      for(SuggestWord suggest : st.doRespell(qs.respell)) {
-        System.out.println("  " + suggest.string + " freq=" + suggest.freq + " score=" + suggest.score);
+  private static List<Task> loadTasks(QueryParser p, String fieldName, String filePath, boolean doSort) throws IOException, ParseException {
+
+    final List<Task> tasks = new ArrayList<Task>();
+
+    final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
+    int count = 0;
+
+    final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.LONG));
+    final Sort titleSort = new Sort(new SortField("title", SortField.STRING));
+
+    while(true) {
+      String line = taskFile.readLine();
+      if (line == null) {
+        break;
       }
-    } else if (qs.pkIDs != null) {
-      final SearchTask st = new SearchTask(null, s, null, 0, false);
-      final int[] pkAnswers = st.getPKAnswers();
-      System.out.println("\nRUN: PK lookup [" + pkAnswers.length + " ids]:");
-      st.pkLookup(qs.pkIDs, pkAnswers);
-      System.out.println("\nHITS q=PK[" + qs.pkIDs.length + "] s=" + qs.s + " tot=" + qs.pkIDs.length);
-      for(int idx=0;idx<qs.pkIDs.length;idx++) {
-        if (pkAnswers[idx] == DocsEnum.NO_MORE_DOCS) {
-          throw new RuntimeException("id=" + qs.pkIDs[idx] + " failed to find a document");
-        }
-        System.out.println("  " + qs.pkIDs[idx].utf8ToString() + " -> " + pkAnswers[idx]);
-        final String id = s.doc(pkAnswers[idx]).get("id");
-        if (!qs.pkIDs[idx].equals(new BytesRef(id))) {
-          throw new RuntimeException("lookup of id=" + qs.pkIDs[idx].utf8ToString() + " returned wrong doc (id=" + id);
-        }
+      line = line.trim();
+
+      final int spot = line.indexOf(':');
+      if (spot == -1) {
+        throw new RuntimeException("task line is malformed: " + line);
       }
-    } else {
-      final TopDocs hits;
-      s.setDefaultFieldSortScoring(true, false);
-      System.out.println("\nRUN: " + qs.q + " s=" + qs.s);
-      if (qs.s == null) {
-        // disambiguate by our stable id:
-        Sort sort = new Sort(new SortField[] {
-            new SortField(null, SortField.SCORE),
-            new SortField("id", SortField.INT)});
-        if (qs.f == null) {
-          hits = s.search(qs.q, null, 50, sort);
-        } else {
-          hits = s.search(qs.q, qs.f, 50, sort);
-        }
+      final String category = line.substring(0, spot);
+      
+      int spot2 = line.indexOf(" #");
+      if (spot2 == -1) {
+        spot2 = line.length();
+      }
+      
+      final String text = line.substring(spot+1, spot2).trim();
+      final Task task;
+      if (category.equals("Respell")) {
+        task = new RespellTask(new Term(fieldName, text));
       } else {
-        // disambiguate by our stable id:
-        SortField[] sortFields = new SortField[qs.s.getSort().length+1];
-        System.arraycopy(qs.s.getSort(), 0, sortFields, 0, qs.s.getSort().length);
-        sortFields[sortFields.length-1] = new SortField("id", SortField.INT);
-        hits = s.search(qs.q, qs.f, 50, new Sort(sortFields));
-      }
-      System.out.println("\nHITS q=" + qs.q + " s=" + qs.s + " tot=" + hits.totalHits);
-      //System.out.println("  rewrite q=" + s.rewrite(qs.q));
-      for(int i=0;i<hits.scoreDocs.length;i++) {
-        System.out.println("  " + i + " doc=" + s.doc(hits.scoreDocs[i].doc).get("id") + " score=" + hits.scoreDocs[i].score);
-      }
-      if (qs.q instanceof MultiTermQuery) {
-        System.out.println("  " + ((MultiTermQuery) qs.q).getTotalNumberOfTerms() + " expanded terms");
-      }
-      s.setDefaultFieldSortScoring(false, false);
-    }
-  }
+        if (text.length() == 0) {
+          throw new RuntimeException("null query line");
+        }
 
-  private static void addQuery(IndexSearcher s, List<QueryAndSort> queries, Query q, Sort sort, Filter f) throws IOException {
-    QueryAndSort qs = new QueryAndSort(q, sort, f);
+        final Query query;
+        if (text.startsWith("near//")) {
+          final int spot3 = text.indexOf(' ');
+          if (spot3 == -1) {
+            throw new RuntimeException("failed to parse query=" + text);
+          }
+          query = new SpanNearQuery(
+                                    new SpanQuery[] {new SpanTermQuery(new Term(fieldName, text.substring(6, spot3))),
+                                                     new SpanTermQuery(new Term(fieldName, text.substring(1+spot3)))},
+                                    10,
+                                    true);
+        } else if (text.startsWith("nrq//")) {
+          // field start end
+          final int spot3 = text.indexOf(' ');
+          if (spot3 == -1) {
+            throw new RuntimeException("failed to parse query=" + text);
+          }
+          final int spot4 = text.indexOf(' ', spot3+1);
+          if (spot4 == -1) {
+            throw new RuntimeException("failed to parse query=" + text);
+          }
+          final String nrqFieldName = text.substring(5, spot3);
+          final int start = Integer.parseInt(text.substring(1+spot3, spot4));
+          final int end = Integer.parseInt(text.substring(1+spot4));
+          query = NumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
+        } else {
+          query = p.parse(text);
+        }
 
-    /*
-    if (q instanceof WildcardQuery || q instanceof PrefixQuery) {
-      //((MultiTermQuery) q).setRewriteMethod(MultiTermQuery.CONSTANT_SCORE_BOOLEAN_QUERY_REWRITE);
-      ((MultiTermQuery) q).setRewriteMethod(MultiTermQuery.SCORING_BOOLEAN_QUERY_REWRITE);
-      BooleanQuery.setMaxClauseCount(100000);
+        if (query.toString().equals("")) {
+          throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
+        }
+
+        final int mod = (count++) % 3;
+        final Sort sort;
+        if (!doSort || mod == 0) {
+          sort = null;
+        } else if (mod == 1) {
+          sort = dateTimeSort;
+        } else {
+          sort = titleSort;
+        }
+        task = new SearchTask(category, query, sort, null, 10);
+      }
+
+      tasks.add(task);
     }
-    */
-    queries.add(qs);
-    printOne(s, qs);
+
+    return tasks;
   }
-  
-  private static final boolean shuffleQueries = true;
 
   public static void main(String[] args) throws Exception {
 
     // args: dirImpl indexPath numThread numIterPerThread
-    CodecProvider.getDefault().register(new MockSepCodec());
+    //CodecProvider.getDefault().register(new MockSepCodec());
     // eg java SearchPerfTest /path/to/index 4 100
     final Directory dir;
     final String dirImpl = args[0];
     final String dirPath = args[1];
     final String analyzer = args[2];
+    final String tasksFile = args[3];
+    final int threadCount = Integer.parseInt(args[4]);
+    final int taskRepeatCount = Integer.parseInt(args[5]);
+    final String fieldName = args[6];
+    int numTaskPerCat = Integer.parseInt(args[7]);
+    final boolean doSort = args[8].equals("yes");
+    final long staticRandomSeed = Long.parseLong(args[9]);
+    final long randomSeed = Long.parseLong(args[10]);
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
     } else if (dirImpl.equals("NIOFSDirectory")) {
@@ -179,23 +536,25 @@ public class SearchPerfTest {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
 
-    String taskType = System.getProperty("task.type", SearchTask.class.getName());
     System.out.println("Using dir impl " + dir.getClass().getName());
     System.out.println("Analyzer " + analyzer);
-    System.out.println("Using TaskType: " + taskType);
+    System.out.println("Thread count " + threadCount);
+    System.out.println("Task repeat count " + taskRepeatCount);
+    System.out.println("Tasks file " + tasksFile);
+    System.out.println("Num task per cat " + numTaskPerCat);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
 
-    final long t0 = System.currentTimeMillis();
-    final IndexSearcher s;
+    //final long t0 = System.currentTimeMillis();
+    final IndexSearcher searcher;
     Filter f = null;
     boolean doOldFilter = false;
     boolean doNewFilter = false;
-    if (args.length == 8) {
-      final String commit = args[5];
+    if (args.length == 14) {
+      final String commit = args[11];
       System.out.println("open commit=" + commit);
       IndexReader reader = IndexReader.open(findCommitPoint(commit, dir), true);
-      Filter filt = new RandomFilter(Double.parseDouble(args[7])/100.0);
-      if (args[6].equals("FilterOld")) {
+      Filter filt = new RandomFilter(Double.parseDouble(args[13])/100.0);
+      if (args[12].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
         /*
         AtomicReaderContext[] leaves = ReaderUtil.leaves(reader.getTopReaderContext());
@@ -206,17 +565,18 @@ public class SearchPerfTest {
       } else {
         throw new RuntimeException("4th arg should be FilterOld or FilterNew");
       }
-      s = new IndexSearcher(reader);
-    } else if (args.length == 6) {
-      final String commit = args[5];
+      searcher = new IndexSearcher(reader);
+    } else if (args.length == 12) {
+      final String commit = args[11];
       System.out.println("open commit=" + commit);
-      s = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir), true));
+      searcher = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir), true));
     } else {
       // open last commit
-      s = new IndexSearcher(dir);
+      System.out.println("open latest commit");
+      searcher = new IndexSearcher(dir);
     }
 
-    System.out.println("reader=" + s.getIndexReader());
+    System.out.println("reader=" + searcher.getIndexReader());
 
     //s.search(new TermQuery(new Term("body", "bar")), null, 10, new Sort(new SortField("unique1000000", SortField.STRING)));
     //final long t1 = System.currentTimeMillis();
@@ -224,208 +584,158 @@ public class SearchPerfTest {
 
     //System.gc();
     //System.out.println("RAM: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-
-    final int threadCount = Integer.parseInt(args[3]);
-    final int numIterPerThread = Integer.parseInt(args[4]);
-
-    final List<QueryAndSort> queries = new ArrayList<QueryAndSort>(); 
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
       a = new EnglishAnalyzer(Version.LUCENE_31);
     } else if (analyzer.equals("ClassicAnalyzer")) {
       a = new ClassicAnalyzer(Version.LUCENE_30);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40);
+      a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
+    } else if (analyzer.equals("ShingleStandardAnalyzer")) {
+      ShingleAnalyzerWrapper an = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
+                                                             2, 2);
+      an.setOutputUnigramsIfNoShingles(true);
+      a = an;
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 
-    QueryParser p = new QueryParser(Version.LUCENE_31, "body", a);
+
+    final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
+    final List<PKLookupTask> pkLookupTasks = new ArrayList<PKLookupTask>();
+
+    final QueryParser p = new QueryParser(Version.LUCENE_31, "body", a);
     p.setLowercaseExpandedTerms(false);
 
-    final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.LONG));
-    for(int i=0;i<queryStrings.length;i++) {
-      Query q = p.parse(queryStrings[i]);
+    // Pick a random top N tasks per category:
+    final List<Task> tasks = loadTasks(p, fieldName, tasksFile, doSort);
+    final Random staticRandom = new Random(staticRandomSeed);
+    Collections.shuffle(tasks, staticRandom);
+    final List<Task> prunedTasks = pruneTasks(tasks, numTaskPerCat);
+    final int numPKTasks = (int) Math.min(searcher.maxDoc()/6000., numTaskPerCat);
+    for(int idx=0;idx<numPKTasks;idx++) {
+      prunedTasks.add(new PKLookupTask(searcher.maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
+    }
 
-      // sort by score:
-      addQuery(s, queries, q, null, f);
+    final List<Task> allTasks = new ArrayList<Task>();
 
-      // sort by date:
-      //addQuery(s, queries, (Query) q.clone(), dateTimeSort, f);
+    final Random random = new Random(randomSeed);
 
-      /*
-      for(int j=0;j<7;j++) {
-        String sortField;
-        switch(j) {
-        case 0:
-          sortField = "country";
-          break;
-        case 1:
-          sortField = "unique10";
-          break;
-        case 2:
-          sortField = "unique100";
-          break;
-        case 3:
-          sortField = "unique1000";
-          break;
-        case 4:
-          sortField = "unique10000";
-          break;
-        case 5:
-          sortField = "unique100000";
-          break;
-        case 6:
-          sortField = "unique1000000";
-          break;
-        // not necessary, but compiler disagrees:
-        default:
-          sortField = null;
-          break;
+    // Copy the pruned tasks multiple times, shuffling the order each time:
+    for(int iter=0;iter<taskRepeatCount;iter++) {
+      Collections.shuffle(prunedTasks, random);
+      for(Task task : prunedTasks) {
+        allTasks.add((Task) task.clone());
+      }
+    }
+
+    final AtomicInteger nextTask = new AtomicInteger();
+    final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
+
+    final Thread[] threads = new Thread[threadCount];
+    final CountDownLatch startLatch = new CountDownLatch(1);
+    final CountDownLatch stopLatch = new CountDownLatch(threadCount);
+    final IndexState indexState = new IndexState(searcher, new DirectSpellChecker());
+    for(int threadIDX=0;threadIDX<threadCount;threadIDX++) {
+      threads[threadIDX] = new TaskThread(startLatch, stopLatch, allTasks, nextTask, indexState, threadIDX);
+      threads[threadIDX].start();
+    }
+    Thread.sleep(10);
+
+    final long startNanos = System.nanoTime();
+    startLatch.countDown();
+    stopLatch.await();
+    final long endNanos = System.nanoTime();
+
+    System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
+
+    indexState.setDocIDToID();
+
+    System.out.println("\nResults for " + allTasks.size() + " tasks:");
+    for(final Task task : allTasks) {
+      final Task other = tasksSeen.get(task);
+      if (other != null) {
+        if (task.checksum() != other.checksum()) {
+          throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum());
         }
-        qs = new QueryAndSort(q, new Sort(new
-                                          SortField(sortField,
-                                          SortField.STRING)),
-                                          f);
-        printOne(s, qs);
-        queries.add(qs);
+      } else {
+        tasksSeen.put(task, task);
       }
-      */
+      System.out.println("\nTASK: " + task);
+      System.out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
+      System.out.println("  thread " + task.threadID);
+      task.printResults(indexState);
     }
+  }
 
-    {
-      //addQuery(s, queries, new FuzzyQuery(new Term("body", "united"), 0.6f, 0, 50), null, f);
-      //addQuery(s, queries, new FuzzyQuery(new Term("body", "united"), 0.7f, 0, 50), null, f);
-    }
-
-    final Random rand = new Random(17);
-
-    // PrimaryKey lookups:
-    {
-      // TODO: add N of these into the queries..?
-      // Make up random primary keys to retrieve
-      BytesRef[] pkIDs = new BytesRef[SearchTask.NUM_PK_LOOKUP];
-      for(int idx=0;idx<pkIDs.length;idx++) {
-        pkIDs[idx] = new BytesRef(String.format("%09d", rand.nextInt(s.maxDoc())));
+  private static List<Task> pruneTasks(List<Task> tasks, int numTaskPerCat) {
+    final Map<String,Integer> catCounts = new HashMap<String,Integer>();
+    final List<Task> newTasks = new ArrayList<Task>();
+    for(Task task : tasks) {
+      final String cat = task.getCategory();
+      Integer v = catCounts.get(cat);
+      int catCount;
+      if (v == null) {
+        catCount = 0;
+      } else {
+        catCount = v.intValue();
       }
-      final QueryAndSort pkQS = new QueryAndSort(pkIDs);
-      queries.add(pkQS);
-      printOne(s, pkQS);
+
+      if (catCount >= numTaskPerCat) {
+        continue;
+      }
+      catCount++;
+      catCounts.put(cat, catCount);
+      newTasks.add(task);
     }
 
-    // Respelling
-    {
-      final QueryAndSort spellQS = new QueryAndSort("unted");
-      queries.add(spellQS);
-      printOne(s, spellQS);
+    return newTasks;
+  }
+
+  private static class TaskThread extends Thread {
+    private final CountDownLatch startLatch;
+    private final CountDownLatch stopLatch;
+    private final List<Task> tasks;
+    private final AtomicInteger nextTask;
+    private final IndexState indexState;
+    private final int threadID;
+
+    public TaskThread(CountDownLatch startLatch, CountDownLatch stopLatch, List<Task> tasks, AtomicInteger nextTask, IndexState indexState, int threadID) {
+      this.startLatch = startLatch;
+      this.stopLatch = stopLatch;
+      this.tasks = tasks;
+      this.nextTask = nextTask;
+      this.indexState = indexState;
+      this.threadID = threadID;
     }
 
-    Query q = new SpanFirstQuery(new SpanTermQuery(new Term("body", "unit")), 5);
-    addQuery(s, queries, q, null, f);
-    //addQuery(s, queries, q, dateTimeSort, f);
+    @Override
+    public void run() {
+      try {
+        startLatch.await();
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        return;
+      }
 
-    q = new SpanNearQuery(
-                          new SpanQuery[] {new SpanTermQuery(new Term("body", "unit")),
-                                           new SpanTermQuery(new Term("body", "state"))},
-                          10,
-                          true);
-    addQuery(s, queries, q, null, f);
-    //addQuery(s, queries, q, dateTimeSort, f);
-
-    // Seconds in the day 0..86400
-    q = NumericRangeQuery.newIntRange("timesecnum", 10000, 60000, true, true);
-    addQuery(s, queries, q, null, f);
-    //addQuery(s, queries, q, dateTimeSort, f);
-
-    final SearchTask[] threads = new SearchTask[threadCount];
-    for(int i=0;i<threadCount-1;i++) {
-      threads[i] = task(taskType, rand, s, queries, numIterPerThread, shuffleQueries);
-      threads[i].start();
-    }
-
-    // I run one thread:
-    threads[threadCount-1] = task(taskType, rand, s, queries, numIterPerThread, shuffleQueries);
-    threads[threadCount-1].run();
-
-    for(int i=0;i<threadCount-1;i++) {
-      threads[i].join();
-    }
-
-    System.out.println("ns by query/coll:");
-    for(QueryAndSort qs : queries) {
-      int totHits = -1;
-      for(int t=0;t<threadCount&&totHits==-1;t++) {
-        for(Result r : threads[t].results) {
-          if (r.qs == qs) {
-            totHits = r.totHits;
+      try {
+        while(true) {
+          final int next = nextTask.getAndIncrement();
+          if (next >= tasks.size()) {
             break;
           }
-        }
-      }
-
-      if (qs.respell != null) {
-        System.out.println("  q=respell[" + qs.respell + "] s=" + qs.s + " h=" + totHits);
-      } else if (qs.pkIDs != null) {
-        System.out.println("  q=PK[" + qs.pkIDs.length + "] s=" + qs.s + " h=" + totHits);
-      } else {
-        System.out.println("  q=" + qs.q + " s=" + qs.s + " h=" + totHits);
-      }
-
-      for(int t=0;t<threadCount;t++) {
-        System.out.println("    t=" + t);
-        long best = 0;
-        for(Result r : threads[t].results) {
-          if (r.qs == qs && (best == 0 || r.t < best)) {
-            best = r.t;
+          final Task task = tasks.get(next);
+          final long t0 = System.nanoTime();
+          try {
+            task.go(indexState);
+          } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
           }
+          task.runTimeNanos = System.nanoTime()-t0;
+          task.threadID = threadID;
         }
-        for(Result r : threads[t].results) {
-          if (r.qs == qs) {
-            if (best == r.t) {
-              System.out.println("      " + r.t + " c=" + r.check + " **");
-            } else {
-              System.out.println("      " + r.t + " c=" + r.check);
-            }
-            if (r.totHits != totHits) {
-              throw new RuntimeException("failed");
-            }
-          }
-        }
+      } finally {
+        stopLatch.countDown();
       }
     }
-  }
-  private static final SearchTask task(String task,Random r, IndexSearcher s,
-      List<QueryAndSort> queriesList, int numIter, boolean shuffle) {
-    if(SearchTask.class.getName().equals(task)) {
-      return new SearchTask(r, s, queriesList, numIter, shuffle);
-    } else {
-      try {
-        Constructor<?> constructor = Class.forName(task).getConstructor(Random.class, IndexSearcher.class, List.class, int.class, boolean.class);
-        return (SearchTask) constructor.newInstance(r, s, queriesList, numIter, shuffle);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-      
   }
 }
-
-
-
-/*
-  %  gain
-  0.0  -94.4
-  0.1  -69.5
-  0.25 -51.7
-  0.5  -30.1
-  0.75  -17.9
-  1  -6.0
-  1.25 4.9
-  1.5 14.0
-  2  30.8
-
-
-0.0 0.1 0.25 0.5 0.75 1.0 1.25 1.5 2.0
-
--94.4 -69.5 -51.7 -30.1 -17.9 -6.0 4.9 14.0 30.8
-
- */

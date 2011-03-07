@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -16,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 import types
 import re
 import time
@@ -26,14 +26,44 @@ import cPickle
 import datetime
 import constants
 import common
+import random
+import QPSChart
 
 # TODO
+#   - allow 'onlyCat' option
+#   - stop using -Xbatch?
+#   - put iters (multiple JVMs) back
 #   - add option for testing sorting, applying the SortValues.patch!!
 #   - verify step
 #   - run searches
 #   - get all docs query in here
 
+# Skip the first N runs of a given category (cold) or particular task (hot):
+WARM_SKIP = 10
+
+# Skip this pctg of the slowest runs
+SLOW_SKIP_PCT = 25
+
+LOG_SUB_DIR = 'logs'
+
+# for multi-segment index:
+SEGS_PER_LEVEL = 5
+
+DO_MIN = False
+
 osName = common.osName
+
+def htmlColor(v):
+  if v < 0:
+    return '<font color="red">%d%%</font>' % (-v)
+  else:
+    return '<font color="green">%d%%</font>' % v
+
+def jiraColor(v):
+  if v < 0:
+    return '{color:red}%d%%{color}' % (-v)
+  else:
+    return '{color:green}%d%%{color}' % v
 
 # NOTE: only detects back to 3.0
 def getLuceneVersion(checkout):
@@ -64,33 +94,326 @@ def checkoutToBenchPath(checkout):
 def nameToIndexPath(name):
   return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
 
-reQuery = re.compile('^q=(.*?) s=(.*?) h=(.*?)$')
-reHits = re.compile('^HITS q=(.*?) s=(.*?) tot=(.*?)$')
-reHit = re.compile('^(\d+) doc=(?:doc)?(\d+) score=([0-9.]+)$')
-reResult = re.compile(r'^(\d+) c=(.*?)$')
-reChecksum = re.compile(r'checksum=(\d+)$')
-
 DEBUG = True
 
-# let shell find it:
-#JAVA_COMMAND = 'java -Xms1g -Xmx1g -server'
-#JAVA_COMMAND = 'java -Xms1024M -Xmx1024M -Xbatch -server -XX:+AggressiveOpts -XX:CompileThreshold=100 -XX:+UseFastAccessorMethods'
+class SearchTask:
 
-LOG_SUB_DIR = 'logs'
+  def verifySame(self, other):
+    if not isinstance(other, SearchTask):
+      self.fail('not a SearchTask (%s)' % other)
+    if self.query != other.query:
+      self.fail('wrong query: %s vs %s' % (self.query, other.query))
+    if self.sort != other.sort:
+      self.fail('wrong sort: %s vs %s' % (self.sort, other.sort))
+    # nocommit why!?
+    if False and self.expandedTermCount != other.expandedTermCount:
+      self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
+    if self.hitCount != other.hitCount:
+      self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
+    if len(self.hits) != len(other.hits):
+      self.fail('wrong top hit count: %s vs %s' % (len(self.hits), len(other.hits)))
 
-# for multi-segment index:
-SEGS_PER_LEVEL = 5
+    # Collapse equals... this is sorta messy, but necessary because we
+    # do not dedup by true id in SearchPerfTest
+    hitsSelf = collapseDups(self.hits)
+    hitsOther = collapseDups(other.hits)
 
-def run(cmd, log=None):
-  print 'RUN: %s' % cmd
+    if len(hitsSelf) != len(hitsOther):
+      self.fail('wrong collapsed hit count: %s vs %s' % (len(hitsSelf), len(hitsOther)))
+
+    for i in xrange(len(hitsSelf)):
+      if hitsSelf[i][1] != hitsOther[i][1]:
+        self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+      if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
+        self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+
+  def fail(self, message):
+    s = 'query=%s' % self.query
+    if self.sort is not None:
+      s += ' sort=%s' % self.sort
+    raise RuntimeError('%s: %s' % (s, message))
+
+  def __str__(self):
+    s = self.query
+    if self.sort is not None:
+      s += ' [sort=%s]' % self.sort
+    return s
+
+  def __eq__(self, other):
+    if not isinstance(other, SearchTask):
+      return False
+    else:
+      return self.query == other.query and self.sort == other.sort
+
+  def __hash__(self):
+    return hash(self.query) + hash(self.sort)
+      
+  
+class RespellTask:
+  cat = 'Respell'
+
+  def verifySame(self, other):
+    if not isinstance(other, RespellTask):
+      fail('not a RespellTask')
+    if self.term != other.term:
+      fail('wrong term: %s vs %s' % (self.term, other.term))
+    if self.hits != other.hits:
+      fail('wrong hits: %s vs %s' % (self.hits, other.hits))
+
+  def fail(self, message):
+    raise RuntimeError('respell: term=%s' % (self.term, message))
+
+  def __str__(self):
+    return 'Respell %s' % self.term
+
+  def __eq__(self, other):
+    if not isinstance(other, RespellTask):
+      return False
+    else:
+      return self.term == other.term
+
+  def __hash__(self):
+    return hash(self.term)
+
+    
+class PKLookupTask:
+  cat = 'PKLookup'
+
+  def verifySame(self, other):
+    # already "verified" in search perf test, ie, that the docID
+    # returned in fact has the id that was asked for
+    pass
+
+  def __str__(self):
+    return 'PK%s' % self.pkOrd
+
+  def __eq__(self, other):
+    if not isinstance(other, PKLookupTask):
+      return False
+    else:
+      return self.pkOrd == other.pkOrd
+
+  def __hash__(self):
+    return hash(self.pkOrd)
+
+def collapseDups(hits):
+  newHits = []
+  for id, v in hits:
+    if len(newHits) == 0 or v != newHits[-1][1]:
+      newHits.append(([id], v))
+    else:
+      newHits[-1][0].append(id)
+      newHits[-1][0].sort()
+  return newHits
+
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) hits=(.*?)$')
+reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
+reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
+reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
+rePKOrd = re.compile(r'PK(.*?)\[')
+
+def parseResults(resultsFiles):
+  taskIters = []
+  for resultsFile in resultsFiles:
+    tasks = []
+    f = open(resultsFile, 'rb')
+    while True:
+      line = f.readline()
+      if line == '':
+        break
+      line = line.strip()
+
+      if line.startswith('TASK: cat='):
+        task = SearchTask()
+        task.msec = float(f.readline().strip().split()[0])
+        task.threadID = int(f.readline().strip().split()[1])
+
+        m = reSearchTask.match(line[6:])
+        cat, task.query, sort, hitCount = m.groups()
+        task.cat = cat
+
+        task.hitCount = int(hitCount)
+        if sort == '<string: "title">':
+          task.sort = 'Title'
+        elif sort.startswith('<long: "datenum">'):
+          task.sort = 'DateTime'
+        else:
+          task.sort = None
+
+        task.hits = []
+        task.expandedTermCount = 0
+
+        while True:
+          line = f.readline().strip()
+          if line == '':
+            break
+          if line.find('expanded terms') != -1:
+            task.expandedTermCount = int(line.split()[0])
+            continue
+
+          if sort == 'null':
+            m = reSearchHitScore.match(line)
+            id = int(m.group(1))
+            score = m.group(2)
+            # score stays a string so we can do "precise" ==
+            task.hits.append((id, score))
+          else:
+            m = reSearchHitField.match(line)
+            id = int(m.group(1))
+            field = m.group(2)
+            task.hits.append((id, field))
+
+      elif line.startswith('TASK: respell'):
+        task = RespellTask()
+        task.msec = float(f.readline().strip().split()[0])
+        task.threadID = int(f.readline().strip().split()[1])
+        task.term = line[14:]
+
+        task.hits = []
+        while True:
+          line = f.readline().strip()
+          if line == '':
+            break
+          m = reRespellHit.search(line)
+          suggest, freq, score = m.groups()
+          task.hits.append((suggest, int(freq), float(score)))
+
+      elif line.startswith('TASK: PK'):
+        task = PKLookupTask()
+        task.pkOrd = rePKOrd.search(line).group(1)
+        task.msec = float(f.readline().strip().split()[0])
+        task.threadID = int(f.readline().strip().split()[1])
+      else:
+        task = None
+        if line.find('\tat') != -1:
+          raise RuntimeError('log has exceptions')
+
+      if task is not None:
+        tasks.append(task)
+    taskIters.append(tasks)
+  return taskIters
+
+def collateResults(resultIters):
+  iters = []
+  for results in resultIters:
+    # Keyed first by category (Fuzzy1, Respell, ...) and 2nd be exact
+    # task mapping to list of tasks.  For a cold run (no task repeats)
+    # the 2nd map will always map to a length-1 list.
+    byCat = {}
+    iters.append(byCat)
+    for task in results:
+      if isinstance(task, SearchTask):
+        key = task.cat, task.sort
+      else:
+        key = task.cat
+      if key not in byCat:
+        byCat[key] = ([], {})
+      l, d = byCat[key]
+      l.append(task)
+      if task not in d:
+        d[task] = [task]
+      else:
+        d[task].append(task)
+
+  return iters
+
+def agg(iters, cat):
+
+  bestAvgMS = None
+  lastHitCount = None
+
+  accumMS = []
+  
+  # Iterate over each JVM instance we ran
+  for tasksByCat in iters:
+
+    # Maps cat -> actual tasks ran
+    tasks = tasksByCat[cat]
+    if len(tasks[0]) <= WARM_SKIP:
+      raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
+
+    VERBOSE = True
+    sumMS = 0.0
+    totHitCount = 0
+    count = 0
+    sumMS = 0.0
+    if VERBOSE:
+      print 'AGG: cat=%s' % str(cat)
+
+    # Iterate over each task's runs, eg, a single query will have been
+    # run 40 times:
+    for task, results in tasks[1].items():
+
+      allMS = [result.msec for result in results]
+      if VERBOSE:
+        print '  %s' % task
+        print '    before prune:'
+        for t in allMS:
+          print '      %.4f' % t
+
+      # Skip warmup runs
+      allMS = allMS[WARM_SKIP:]
+
+      allMS.sort()
+      minMS = allMS[0]
+
+      # Skip slowest SLOW_SKIP_PCT runs:
+      skipSlowest = int(len(allMS)*SLOW_SKIP_PCT/100.)
+      if VERBOSE:
+        print 'skipSlowest %s' % skipSlowest
+      
+      pruned = allMS[:-skipSlowest]
+
+      if VERBOSE:
+        print '    after prune:'
+        for t in pruned:
+          print '      %.4f' % t
+          
+      if DO_MIN:
+        sumMS += minMS
+        count += 1
+      else:
+        sumMS += sum(pruned)
+        count += len(pruned)
+      if isinstance(task, SearchTask):
+        totHitCount += task.hitCount
+
+    # AvgMS per query in category, eg if we ran 5 different queries in
+    # each cat, then this is AvgMS for query in that cat:
+    avgMS = sumMS/count
+    accumMS.append(avgMS)
+    
+    if lastHitCount is None:
+      lastHitCount = totHitCount
+    elif totHitCount != lastHitCount:
+      raise RuntimeError('different hit counts: %s vs %s' % (lastHitCount, totHitCount))
+
+  return accumMS, totHitCount
+
+
+def stats(l):
+  sum = 0
+  sumSQ = 0
+  for v in l:
+    sum += v
+    sumSQ += v*v
+
+  # min, mean, stddev
+  return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
+  
+
+def run(cmd, logFile=None, indent='    '):
+  print ' %s[RUN: %s]' % (indent, cmd)
+  if logFile is not None:
+    cmd = '%s > "%s" 2>&1' % (cmd, logFile)
   if os.system(cmd):
-    if log is not None:
-      print open(log).read()
-    raise RuntimeError('failed: %s [wd %s]' % (cmd, os.getcwd()))
+    if logFile is not None and os.path.getsize(logFile) < 5*1024:
+      print open(logFile).read()
+    raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd()), logFile)
 
 class Index:
 
-  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory'):
+  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory', doDeletions=False):
     self.checkout = checkout
     self.analyzer = analyzer
     self.dataSource = dataSource
@@ -100,12 +423,12 @@ class Index:
     self.lineDocSource = lineDocSource
     self.doOptimize = doOptimize
     self.dirImpl = dirImpl
+    self.doDeletions = doDeletions
     
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     
-
   def getName(self):
     if self.doOptimize:
       s = 'opt.'
@@ -139,25 +462,30 @@ class RunAlgs:
     else:
       print 'OS:\n%s' % sys.platform
 
-  def makeIndex(self, index):
+  def makeIndex(self, id, index):
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath):
-      print 'Index %s already exists...' % fullIndexPath
+      print '  %s: already exists' % fullIndexPath
       return fullIndexPath
+    else:
+      print '  %s: now create' % fullIndexPath
 
     maxBufferedDocs = index.numDocs / (SEGS_PER_LEVEL*111)
     # maxBufferedDocs = 10000000
     
-    print 'Now create index %s...' % fullIndexPath
-
     try:
       if index.doOptimize:
         opt = 'yes'
       else:
         opt = 'no'
+
+      if index.doDeletions:
+        doDel = 'yes'
+      else:
+        doDel = 'no'
       
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s' % \
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -170,20 +498,16 @@ class RunAlgs:
              'yes',
              -1,
              maxBufferedDocs,
-             index.codec)
+             index.codec,
+             doDel)
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)
-      fullLogFile = '%s/%s.log' % (logDir, index.getName())
-      print '  log %s' % fullLogFile
-      if DEBUG:
-        print 'command=%s' % cmd
+      fullLogFile = '%s/%s.%s.log' % (logDir, id, index.getName())
+      print '    log %s' % fullLogFile
 
-      cmd += ' > "%s" 2>&1' % fullLogFile
-
-      t0 = time.time()      
-      if os.system(cmd) != 0:
-        raise RuntimeError('FAILED')
+      t0 = time.time()
+      run(cmd, fullLogFile)
       t1 = time.time()
 
     except:
@@ -221,9 +545,9 @@ class RunAlgs:
 
   def compile(self,competitor):
     path = checkoutToBenchPath(competitor.checkout)
-    print 'COMPILE: %s' % path
+    print '  %s' % path
     os.chdir(path)
-    run('ant compile > compile.log 2>&1', 'compile.log')
+    run('ant compile', 'compile.log')
     if path.endswith('/'):
       path = path[:-1]
       
@@ -247,148 +571,214 @@ class RunAlgs:
   def classPathToString(self, cp):
     return common.pathsep().join(cp)
 
-  def runSimpleSearchBench(self, c, iters, itersPerJVM, threadCount, filter=None):
+  def runSimpleSearchBench(self, id, c, repeatCount, threadCount, numTasks, coldRun, randomSeed, jvmCount, filter=None):
+
+    if coldRun:
+      # flush OS buffer cache
+      print 'Drop buffer caches...'
+      if osName == 'linux':
+        run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
+      elif osName in ('windows', 'cygwin'):
+        # NOTE: requires you have admin priv
+        run('%s/dropCaches.bat' % constants.BENCH_BASE_DIR)
+      elif osName == 'osx':
+        # NOTE: requires you install OSX CHUD developer package
+        run('/usr/bin/purge')
+      else:
+        raise RuntimeError('do not know how to purge buffer cache on this OS (%s)' % osName)
+
+    # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
+    #randomSeed = random.randint(-1000000, 1000000)
     benchDir = checkoutToBenchPath(c.checkout)
     os.chdir(benchDir)
     cp = self.classPathToString(self.getClassPath(c.checkout))
-    logFile = '%s/res-%s.x' % (benchDir, c.name)
-    print 'log %s' % logFile
+    logFile = '%s/%s.%s.x' % (benchDir, id, c.name)
     if os.path.exists(logFile):
       os.remove(logFile)
-    for iter in xrange(iters):
-      command = '%s %s -classpath "%s" perf.SearchPerfTest %s %s %s %s %s %s' % \
-          (self.javaCommand, c.taskRunProperties(), cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, threadCount, itersPerJVM, c.commitPoint)
+    if c.doSort:
+      doSort = 'yes'
+    else:
+      doSort = 'no'
+
+    logFiles = []
+    rand = random.Random(randomSeed)
+    staticSeed = rand.randint(-10000000, 1000000)
+    for iter in xrange(jvmCount):
+      print '    iter %s of %s' % (1+iter, jvmCount)
+      randomSeed2 = rand.randint(-10000000, 1000000)      
+      command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s' % \
+          (self.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.commitPoint)
       if filter is not None:
         command += ' %s %.2f' % filter
-      run('%s >> %s' % (command, logFile))
-    return logFile
+      iterLogFile = '%s.%s' % (logFile, iter)
+      print '      log: %s' % iterLogFile
+      t0 = time.time()
+      run(command, iterLogFile, indent='     ')
+      print '      %.1f s' % (time.time()-t0)
+      logFiles.append(iterLogFile)
 
-  def simpleReport(self, baseLogFile, cmpLogFile, jira=False, html=False, baseDesc='Standard', cmpDesc=None):
-    base, hitsBase = getSimpleResults(baseLogFile)
-    cmp, hitsCMP = getSimpleResults(cmpLogFile)
+    return logFiles
 
-    compareHits(hitsBase, hitsCMP)
-    
-    allQueries = set()
+  def getSearchLogFiles(self, id, c, jvmCount):
+    logFiles = []
+    benchDir = checkoutToBenchPath(c.checkout)
+    logFile = '%s/%s.%s.x' % (benchDir, id, c.name)
+    for iter in xrange(jvmCount):
+      iterLogFile = '%s.%s' % (logFile, iter) 
+      logFiles.append(iterLogFile)
+    return logFiles
 
-    for (q, s), t in base.items():
-      allQueries.add(q)
+  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None):
 
-    # for s in ('null', '<long: "docdatenum">'):
-    for s in ('null',):
+    baseRawResults = parseResults(baseLogFiles)
+    cmpRawResults = parseResults(cmpLogFiles)
 
-      lines = []
-      w = sys.stdout.write
+    # make sure they got identical results
+    compareHits(baseRawResults, cmpRawResults)
 
-      if s == 'null':
-        sp = 'score'
+    baseResults = collateResults(baseRawResults)
+    cmpResults = collateResults(cmpRawResults)
+
+    cats = baseResults[0].keys()
+    cats.sort()
+
+    lines = []
+
+    warnings = []
+
+    lines = []
+
+    chartData = []
+
+    for cat in cats:
+
+      if type(cat) is types.TupleType:
+        if cat[1] is not None:
+          desc = '%s (sort %s)' % (cat[0], cat[1])
+        else:
+          desc = cat[0]
       else:
-        sp = 'date'
-        
-      w('\nNOTE: SORT BY %s\n\n' % sp)
+        desc = cat
 
+      l0 = []
+      w = l0.append
       if jira:
-        w('||Query||QPS %s||QPS %s||Pct diff||' % (baseDesc, cmpDesc))
+        w('|%s' % desc)
       elif html:
-        w('<table>')
         w('<tr>')
-        w('<th>Query</th>')
-        w('<th>QPS %s</th>' % baseDesc)
-        w('<th>QPS %s</th>' % cmpDesc)
-        w('<th>%% change</th>')
-        w('</tr>')
+        w('<td>%s</td>' % htmlEscape(desc))
       else:
-        w('%20s' % 'Query')
-        w('%12s' % ('QPS %s' % baseDesc))
-        w('%12s' % ('QPS %s' % cmpDesc))
-        w('%10s' % 'Pct diff')
+        w('%20s' % desc)
+
+      baseMS, baseTotHitCount = agg(baseResults, cat)
+      cmpMS, cmpTotHitCount = agg(cmpResults, cat)
+
+      baseQPS = [1000.0/x for x in baseMS]
+      cmpQPS = [1000.0/x for x in cmpMS]
+
+      minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
+      minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
+
+      rangeQPSBase = maxQPSBase - minQPSBase
+      rangeQPSCmp = maxQPSCmp - minQPSCmp
+
+      if DO_MIN:
+        qpsBase = minQPSBase
+        qpsCmp = minQPSCmp
+      else:
+        qpsBase = avgQPSBase
+        qpsCmp = avgQPSCmp
+
+      if baseTotHitCount != cmpTotHitCount:
+        warnings.append('cat=%s: hit counts differ: %s vs %s' % (desc, baseTotHitCount, cmpTotHitCount))
 
       if jira:
-        w('||\n')
+        w('|%.2f|%.2f|%.2f|%.2f' %
+          (qpsBase, rangeQPSBase, qpsCmp, rangeQPSCmp))
+      elif html:
+        w('<td>%.2f</td><td>%.2f</td><td>%.2f</td><td>%.2f</td>' %
+          (qpsBase, rangeQPSBase, qpsCmp, rangeQPSCmp))
+      else:
+        w('%12.2f%12.2f%12.2f%12.2f'%
+          (qpsBase, rangeQPSBase, qpsCmp, rangeQPSCmp))
+
+      psAvg = 100.0*(qpsCmp - qpsBase)/qpsBase
+
+      qpsBaseBest = qpsBase + qpsStdDevBase
+      qpsBaseWorst = qpsBase - qpsStdDevBase
+
+      qpsCmpBest = qpsCmp + qpsStdDevCmp
+      qpsCmpWorst = qpsCmp - qpsStdDevCmp
+
+      psBest = int(100.0 * (qpsCmpBest - qpsBaseWorst)/qpsBaseWorst)
+      psWorst = int(100.0 * (qpsCmpWorst - qpsBaseBest)/qpsBaseBest)
+
+      if jira:
+        w('|%s-%s' % (color, jiraColor(psWorst), jiraColor(psBest)))
+      elif html:
+        w('<td>%s-%s</td>' % (color, htmlColor(psWorst), htmlcolor(psBest)))
+      else:
+        w('%14s' % ('%4d%% - %4d%%' % (psWorst, psBest)))
+
+      if jira:
+        w('|\n')
       else:
         w('\n')
 
-      l2 = list(allQueries)
-      l2.sort()
+      if constants.SORT_REPORT_BY == 'pctchange':
+        lines.append((psAvg, ''.join(l0)))
+        chartData.append((psAvg, desc, minQPSBase, maxQPSBase, minQPSCmp, maxQPSCmp))
+      elif constants.SORT_REPORT_BY == 'query':
+        lines.append((qs, ''.join(l0)))
+        chartData.append((qs, desc, minQPSBase, maxQPSBase, minQPSCmp, maxQPSCmp))
+      else:
+        raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
 
-      # TODO: assert checksums agree across versions
+    lines.sort()
+    chartData.sort()
+    chartData = [x[1:] for x in chartData]
 
-      warnings = []
+    if QPSChart.supported:
+      QPSChart.QPSChart(chartData, 'out.png')
+      print 'Chart saved to out.png...'
+                        
+    w = sys.stdout.write
 
-      lines = []
-      wOrig = w
+    if jira:
+      w('||Task||QPS %s||Range %s||QPS %s||Range %s||Pct diff||' %
+        (baseDesc, cmpDesc, baseDesc, cmpDesc))
+    elif html:
+      w('<table>')
+      w('<tr>')
+      w('<th>Task</th>')
+      w('<th>QPS %s</th>' % baseDesc)
+      w('<th>Range %s</th>' % baseDesc)
+      w('<th>QPS %s</th>' % cmpDesc)
+      w('<th>Range %s</th>' % cmpDesc)
+      w('<th>%% change</th>')
+      w('</tr>')
+    else:
+      w('%20s' % 'Task')
+      w('%12s' % ('QPS %s' % baseDesc))
+      w('%12s' % ('Range %s' % baseDesc))
+      w('%12s' % ('QPS %s' % cmpDesc))
+      w('%12s' % ('Range %s' % cmpDesc))
+      w('%14s' % 'Pct diff')
 
-      for q in l2:
-        l0 = []
-        w = l0.append
-        qs = q.replace('body:', '').replace('*:*', '<all>')
-        if jira:
-          w('|%s' % qs)
-        elif html:
-          w('<tr>')
-          w('<td>%s</td>' % htmlEscape(qs))
-        else:
-          w('%20s' % qs)
+    if jira:
+      w('||\n')
+    else:
+      w('\n')
 
-        tCmp, hitCount, check = cmp[(q, s)]
-        tBase, hitCount2, check2 = base[(q, s)]
+    for ign, s in lines:
+      w(s)
 
-        tCmp /= 1000000.0
-        tBase /= 1000000.0
+    if html:
+      w('</table>')
 
-        qpsCmp = 1000.0/tCmp
-        qpsBase = 1000.0/tBase
+    for w in warnings:
+      print 'WARNING: %s' % w
 
-        if hitCount != hitCount2:
-          warnings.append('q=%s sort=%s: hit counts differ: %s vs %s' % (q, s, hitCount, hitCount2))
-          #raise RuntimeError('hit counts differ: %s vs %s' % (hitCount, hitCount2))
-        if qpsCmp > qpsBase:
-          color = 'green'
-          sign = -1
-        else:
-          color = 'red'
-          sign = 1
-
-        ps = 100.0*(qpsCmp - qpsBase)/qpsBase
-
-        if jira:
-          w('|%.2f|%.2f' % (qpsBase, qpsCmp))
-        elif html:
-          w('<td>%.2f</td><td>%.2f</td>' % (qpsBase, qpsCmp))
-        else:
-          w('%12.2f%12.2f'% (qpsBase, qpsCmp))
-
-        if jira:
-          w('|{color:%s}%.1f%%{color}' % (color, ps))
-        elif html:
-          w('<td><font color=%s>%.1f%%</font></td>' % (color, ps))
-        else:
-          w('%10s' % ('%.1f%%' % ps))
-
-        if jira:
-          w('|\n')
-        else:
-          w('\n')
-
-        if constants.SORT_REPORT_BY == 'pctchange':
-          lines.append((ps, ''.join(l0)))
-        elif constants.SORT_REPORT_BY == 'query':
-          lines.append((qs, ''.join(l0)))
-        else:
-          raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
-
-      lines.sort()
-
-      w = wOrig
-      for ign, s in lines:
-        w(s)
-
-      if html:
-        w('</table>')
-
-      for w in warnings:
-        print 'WARNING: %s' % w
-    
   def compare(self, baseline, newList, *params):
 
     for new in newList:
@@ -425,119 +815,18 @@ def fixupFuzzy(query):
       query = query.replace('~%s' % fuzzOrig, '~%s.0' % editDistance)
   return query
   
-# cleans up s=<long: "docdatenum">(org.apache.lucene.search.cache.LongValuesCreator@286fbcd7) to remove the (...)s
-reParens = re.compile(r'\(.*?\)')
-
-def getSimpleResults(fname):
-  results = {}
-
-  start = False
-  best = None
-  count = 0
-  lastCheck = None
-  hits = {}
-  totCS = None
-    
-  for l in open(fname).readlines():
-
-    l = l.strip()
-
-    m = reHits.match(l)
-    if m is not None:
-      query, sort, hitCount = m.groups()
-      query = fixupFuzzy(query)
-      sort = reParens.sub('', sort)
-      hitList = []
-      hits[(query, sort)] = (hitCount, hitList)
-
-    m = reHit.match(l)
-    if m is not None:
-      hitList.append(m.groups()[1:])
-      
-    if not start:
-      if l == 'ns by query/coll:':
-        start = True
-      continue
-
-    m = reChecksum.match(l)
-    if m is not None:
-      s = m.group(1)
-      if totCS is None:
-        totCS = s
-      elif totCS != s:
-        # checksum is sum of all docIDs hit in all searches; make sure
-        # all threads match
-        raise RuntimeError('internal total checksum diff %s vs %s' % (totCS, s))
-      
-    if l.startswith('q='):
-      if best is not None:
-        results[(query, sort)] = best, hitCount, check
-        lastCheck = None
-        best = None
-      query, sort, hitCount = reQuery.match(l).groups()
-      sort = reParens.sub('', sort)
-    elif l.startswith('t='):
-      count = 0
-    else:
-      if l.endswith(' **'):
-        l = l[:-3]
-      m = reResult.match(l)
-      if m is not None:
-        t = long(m.group(1))
-        check = long(m.group(2))
-        if lastCheck is None:
-          lastCheck = check
-        elif lastCheck != check:
-          raise RuntimeError('internal checksum diff %s vs %s within query=%s sort=%s' % (check, lastCheck, query, sort))
-        count += 1
-        if count > 3 and (best is None or t < best):
-          best = t
-
-  if len(hits) == 0:
-    raise RuntimeError("didn't see any hits")
-  results[(query, sort)] = best, hitCount, check
-  return results, hits
-
-def cleanScores(l):
-  for i in range(len(l)):
-    pos = l[i].find(' score=')
-    l[i] = l[i][:pos].strip()
-  
-def verify(r1, r2):
-  if r1.numHits != r2.numHits:
-    raise RuntimeError('different total hits: %s vs %s' % (r1.numHits, r2.numHits))
-                       
-  h1 = r1.hits
-  h2 = r2.hits
-  if len(h1) != len(h2):
-    raise RuntimeError('different number of results')
-  else:
-    for i in range(len(h1)):
-      s1 = h1[i].replace('score=NaN', 'score=na').replace('score=0.0', 'score=na')
-      s2 = h2[i].replace('score=NaN', 'score=na').replace('score=0.0', 'score=na')
-      if s1 != s2:
-        raise RuntimeError('hit %s differs: %s vs %s' % (i, repr(s1), repr(s2)))
-
 def compareHits(r1, r2):
-  for (query, sort), (totCount, hits) in r1.items():
-    if (query, sort) not in r2:
-      raise RuntimeError('HITS: q=%s s=%s is missing' % (query, sort))
-    else:
-      #print 'COMPARE q=%s' % query
-      totCount2, hits2 = r2[(query, sort)]
-      #print '  HITS %s vs %s' % (totCount, totCount2)
-      if totCount != totCount2:
-        raise RuntimeError('HITS: q=%s s=%s totCount differs: %s vs %s' % (query, sort, totCount, totCount2))
+  if len(r1) != len(r2):
+    raise RuntimeError('task counts differ: %s vs %s' % (len(r1), len(r2)))
 
-      if len(hits) != len(hits2):
-        raise RuntimeError('HITS: q=%s s=%s top N count differs: %s vs %s' % (query, sort, len(hits), len(hits2)))
+  for iter in xrange(len(r1)):
+    x1 = r1[iter]
+    x2 = r2[iter]
+    if len(x1) != len(x2):
+      raise RuntimeError('task counts differ: %s vs %s' % (len(x1), len(x2)))
+    for idx in range(len(x1)):
+      x1[idx].verifySame(x2[idx])
 
-      for i in range(len(hits)):
-        if hits[i][0] != hits2[i][0]:
-          raise RuntimeError('HITS: q=%s s=%s: different hit: i=%s hit1=%s hit2=%s' % (query, sort, i, hits[i], hits2[i]))
-        if abs(float(hits[i][1]) - float(hits2[i][1])) > 0.00001:
-          raise RuntimeError('HITS: q=%s s=%s: different hit: i=%s hit1=%s hit2=%s' % (query, sort, i, hits[i], hits2[i]))
-        
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
@@ -547,3 +836,4 @@ def getSegmentCount(index):
     if fileName.endswith('.tis') or fileName.endswith('.tib'):
       segCount += 1
   return segCount
+

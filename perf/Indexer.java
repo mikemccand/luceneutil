@@ -21,7 +21,10 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+// nocommit -- pulse id field
+
 import org.apache.lucene.analysis.*;
+import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -36,11 +39,11 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no
 
 // EG:
 //
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.Indexer NIOFSDirectory /lucene/indices/test StandardAnalyzer /p/lucene/data/enwiki-20110115-lines-1k-fixed.txt 1000000 6 no yes 256.0 -1 Standard
+//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no
 
 public final class Indexer {
   public static void main(String[] args) throws Exception {
@@ -69,7 +72,7 @@ public final class Indexer {
       a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
       a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
-                                     2, 3);
+                                     2, 2);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 
@@ -87,6 +90,7 @@ public final class Indexer {
     final int maxBufferedDocs = Integer.parseInt(args[9]);
 
     final String codec = args[10];
+    final boolean doDeletions = args[11].equals("yes");
 
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
@@ -99,8 +103,11 @@ public final class Indexer {
     System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
     System.out.println("Max buffered docs: " + maxBufferedDocs);
     System.out.println("Codec: " + codec);
+    System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
+    iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
@@ -113,6 +120,7 @@ public final class Indexer {
 
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec(codec);
+    cp.setFieldCodec("id", "Pulsing");
     iwc.setCodecProvider(cp);
 
     final IndexWriter w = new IndexWriter(dir, iwc);
@@ -149,44 +157,53 @@ public final class Indexer {
     final long t3 = System.currentTimeMillis();
     System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
 
-    // Randomly delete 5% of the docs
-    final Set<Integer> deleted = new HashSet<Integer>();
-    final int maxDoc = w.maxDoc();
-    final int toDeleteCount = (int) (maxDoc * 0.05);
-    System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
-    final Random rand = new Random(17);
-    while(deleted.size() < toDeleteCount) {
-      final int id = rand.nextInt(maxDoc);
-      if (!deleted.contains(id)) {
-        deleted.add(id);
-        w.deleteDocuments(new Term("id", String.format("%09d", id)));
-      }
-    }
-    final long t4 = System.currentTimeMillis();
-    System.out.println("\nIndexer: deletes done (took " + (t4-t3) + " msec)");
-
-    commitData.put("userData", "delmulti");
-    w.commit(commitData);
-    final long t5 = System.currentTimeMillis();
-    System.out.println("\nIndexer: commit delmulti done (took " + (t5-t4) + " msec)");
-
-    if (w.numDocs() != maxDoc - toDeleteCount) {
-      throw new RuntimeException("count mismatch: w.numDocs()=" + w.numDocs() + " but expected " + (maxDoc - toDeleteCount));
-    }
-
     if (doOptimize) {
       w.optimize();
-      final long t6 = System.currentTimeMillis();
-      System.out.println("\nIndexer: optimize done (took " + (t6-t5) + " msec)");
+      final long t4 = System.currentTimeMillis();
+      System.out.println("\nIndexer: optimize done (took " + (t4-t3) + " msec)");
 
       commitData.put("userData", "single");
-      w.commit();
-      final long t7 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit single done (took " + (t7-t6) + " msec)");
+      w.commit(commitData);
+      final long t5 = System.currentTimeMillis();
+      System.out.println("\nIndexer: commit single done (took " + (t5-t4) + " msec)");
+    }
 
+    if (doDeletions) {
+      final long t5 = System.currentTimeMillis();
+      // Randomly delete 5% of the docs
+      final Set<Integer> deleted = new HashSet<Integer>();
+      final int maxDoc = w.maxDoc();
+      final int toDeleteCount = (int) (maxDoc * 0.05);
+      System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
+      final Random rand = new Random(17);
+      while(deleted.size() < toDeleteCount) {
+        final int id = rand.nextInt(maxDoc);
+        if (!deleted.contains(id)) {
+          deleted.add(id);
+          w.deleteDocuments(new Term("id", String.format("%09d", id)));
+        }
+      }
+      final long t6 = System.currentTimeMillis();
+      System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
+
+      commitData.put("userData", doOptimize ? "delsingle" : "delmulti");
+      w.commit(commitData);
+      final long t7 = System.currentTimeMillis();
+      System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
+
+      if (w.numDocs() != maxDoc - toDeleteCount) {
+        throw new RuntimeException("count mismatch: w.numDocs()=" + w.numDocs() + " but expected " + (maxDoc - toDeleteCount));
+      }
+    }
+
+    // TODO: delmulti isn't done if optimize is yes: we have to go back and open the multi commit point and do deletes against it:
+
+    /*
+    if (doOptimize) {
       final int maxDoc2 = w.maxDoc();
-      if (maxDoc2 != maxDoc - toDeleteCount) {
-        throw new RuntimeException("count mismatch: w.maxDoc()=" + w.maxDoc() + " but expected " + (maxDoc - toDeleteCount));
+      final int expected = doDeletions ? maxDoc : maxDoc - toDeleteCount;
+      if (maxDoc2 != expected {
+        throw new RuntimeException("count mismatch: w.maxDoc()=" + w.maxDoc() + " but expected " + expected);
       }
       final int toDeleteCount2 = (int) (maxDoc2 * 0.05);
       System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
@@ -194,7 +211,7 @@ public final class Indexer {
         final int id = rand.nextInt(maxDoc);
         if (!deleted.contains(id)) {
           deleted.add(id);
-          w.deleteDocuments(new Term("id", Integer.toString(id)));
+          w.deleteDocuments(new Term("id", String.format("%09d", id)));
         }
       }
       final long t8 = System.currentTimeMillis();
@@ -205,6 +222,7 @@ public final class Indexer {
       final long t9 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delsingle done (took " + (t9-t8) + " msec)");
     }
+    */
 
     w.close();
     dir.close();

@@ -22,27 +22,29 @@ import os
 import benchUtil
 import common
 import constants
-
-# TODO
-#  - add sort-by-title
+import random
 
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
+SEARCH_NUM_THREADS = constants.SEARCH_NUM_THREADS
 
 if '-source' in sys.argv:
   source = sys.argv[1+sys.argv.index('-source')]
   if source == 'wikimedium':
     LINE_FILE = constants.WIKI_MEDIUM_DOCS_LINE_FILE
     INDEX_NUM_DOCS = 10000000
+    TASKS_FILE = constants.WIKI_MEDIUM_TASKS_FILE
   elif source == 'wikibig':
     LINE_FILE = constants.WIKI_BIG_DOCS_LINE_FILE
     INDEX_NUM_DOCS = 3000000
+    TASKS_FILE = constants.WIKI_BIG_TASKS_FILE
   elif source == 'euromedium':
     # TODO: need to be able to swap in new queries
     LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
     INDEX_NUM_DOCS = 5000000
+    TASKS_FILE = constants.EUROPARL_MEDIUM_TASKS_FILE
   else:
     # TODO: add geonames
     raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
@@ -50,8 +52,8 @@ else:
   raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
 
 if '-debug' in sys.argv:
-  # nocommit
-  INDEX_NUM_DOCS /= 1000
+  # 400K docs
+  INDEX_NUM_DOCS /= 25
 
 # This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
 #INDEX_NUM_DOCS = 27625038
@@ -61,35 +63,57 @@ if '-debug' in sys.argv:
 
 osName = common.osName
 
-def run(*competitors):  
+def run(id, coldRun, *competitors):
+
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
   if '-noc' not in sys.argv:
+    print
+    print 'Compile:'
     for c in competitors:
       r.compile(c)
   search = '-search' in sys.argv
   index  = '-index' in sys.argv
+  sum = search or '-sum' in sys.argv
 
-  indexSegCount = None
-  indexCommit = None
-  
+  if '-debugs' in sys.argv or '-debug' in sys.argv:
+    id += '-debug'
+    jvmCount = 20
+    if coldRun:
+      countPerCat = 20
+      repeatCount = 1
+    else:
+      countPerCat = 5
+      repeatCount = 30
+  else:
+    jvmCount = 20
+    if coldRun:
+      countPerCat = 500
+      repeatCount = 1
+    else:
+      countPerCat = 5
+      repeatCount = 30
+
   if index:
     seen = set()
     for c in competitors:
       if c.index not in seen:
         seen.add(c.index)
 
-    if len(seen) == 1:
-      # if all jobs are going to share single index, use many threads
-      numThreads = INDEX_NUM_THREADS
-    else:
-      # else we must use 1 thread so indices are identical
-      numThreads = 1
+    # if all jobs are going to share single index, use many threads
+    numThreads = INDEX_NUM_THREADS
 
     seen = set()
+    indexSegCount = None
+    indexCommit = None
+    p = False
     for c in competitors:
       if c.index not in seen:
+        if not p:
+          print
+          print 'Create indices:'
+          p = True
         seen.add(c.index)
-        r.makeIndex(c.index)
+        r.makeIndex(id, c.index)
         segCount = benchUtil.getSegmentCount(c.index)
         if indexSegCount is None:
           indexSegCount = segCount
@@ -97,37 +121,28 @@ def run(*competitors):
         elif indexCommit == c.commitPoint and indexSegCount != segCount:
           raise RuntimeError('segment counts differ across indices: %s vs %s' % (indexSegCount, segCount))
           
-
   logUpto = 0
-  if not search:
-    return
-  if '-debugs' in sys.argv or '-debug' in sys.argv:
-    iters = 1
-    itersPerJVM = 15
-    threads = 1
+
+  if search:
+
+    threads = SEARCH_NUM_THREADS
+
+    randomSeed = random.randint(-10000000, 1000000)
+
+    results = {}
+    print
+    print 'Search:'
+
+    for c in competitors:
+      print '  %s:' % c.name
+      t0 = time.time()
+      results[c] = r.runSimpleSearchBench(id, c, repeatCount, threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
+      print '    %.2f sec' % (time.time() - t0)
   else:
-    iters = 2
-    itersPerJVM = 40
-    threads = 4
-
-  results = {}
-  for c in competitors:
-    print 'Search on %s...' % c.checkout
-    if osName == 'linux':
-      benchUtil.run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
-    elif osName in ('windows', 'cygwin'):
-      # NOTE: requires you have admin priv
-      benchUtil.run('%s/dropCaches.bat' % constants.BENCH_BASE_DIR)
-    elif osName == 'osx':
-      # NOTE: requires you install OSX CHUD developer package
-      benchUtil.run('/usr/bin/purge')
-    else:
-      raise RuntimeError('do not know how to purge buffer cache on this OS (%s)' % osName
+    results = {}
+    for c in competitors:
+      results[c] = r.getSearchLogFiles(id, c, jvmCount)
       
-    t0 = time.time()
-    results[c] = r.runSimpleSearchBench(c, iters, itersPerJVM, threads, filter=None)
-    print '  %.2f sec' % (time.time() - t0)
-
   r.simpleReport(results[competitors[0]],
                  results[competitors[1]],
                  '-jira' in sys.argv,
@@ -137,18 +152,17 @@ def run(*competitors):
 
 
 class Competitor(object):
-  TASKS = { "search" : "perf.SearchTask",
-          "loadIdFC" : "perf.LoadFieldCacheSearchTask",
-          "loadIdDV" : "perf.values.DocValuesSearchTask"}
 
-  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, task='search'):
+  doSort = False
+
+  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile):
     self.name = name
     self.index = index
     self.checkout = checkout
-    self.searchTask = self.TASKS[task];
     self.commitPoint = commitPoint
     self.dirImpl = dirImpl
     self.analyzer = analyzer
+    self.tasksFile = tasksFile
 
   def compile(self, cp):
     benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
@@ -157,90 +171,20 @@ class Competitor(object):
     self.searchTask = self.TASKS[task];
     return self
 
-  def taskRunProperties(self):
-    return '-Dtask.type=%s' % self.searchTask
-
-class DocValueCompetitor(Competitor):
-  def __init__(self, sourceDir, index, task='loadIdDV'):
-    Competitor.__init__(self, sourceDir, index, task)
-  
-  def compile(self, cp):
-    command = 'javac -cp %s perf/*.java >> compile.log 2>&1' % cp
-    benchUtil.run(command,  'compile.log')
-    benchUtil.run('javac -cp %s:./perf perf/values/*.java >> compile.log 2>&1' % cp,  'compile.log')
-
-def bulkVsFOR():
-  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'FrameOfRef', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  run(
-    Competitor('bulkvint', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('for', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def standardVSSimple64():
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
-  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'Simple64', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=True)
-  run(
-    Competitor('standard', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'single'),
-    Competitor('bulkvint', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'single'),
-    )
-
-def fst10vs4():
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = benchUtil.Index('clean2.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run(
-    Competitor('fst10', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('fst4', 'clean2.svn', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def seekOpto():
-  index = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run(
-    Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('opto', 'seekopto', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def makeBigIndex():
-  index = benchUtil.Index('newmp', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, doOptimize=False)
-  run(
-    Competitor('base', 'newmp', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('base2', 'newmp', index, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def pfor4():
-  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'PatchedFrameOfRef4', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run(
-    Competitor('BulkVInt', 'bulkbranch', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('PFor4', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
-def bulkInterleaved():
-  index1 = benchUtil.Index('bulkbranch', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = benchUtil.Index('bulkbranch.clean', source, 'StandardAnalyzer', 'BulkVInt', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run(
-    Competitor('bulkint', 'bulkbranch.clean', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('bulk', 'bulkbranch', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    )
-
 def bushy():
+
+  COLD = False
+
   index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   index2 = benchUtil.Index('bushy3', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run(
-    Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
-    Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi'),
+  run('bushy',
+      COLD,
+      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
     )
 
 if __name__ == '__main__':
-  #bulkVsFOR()
-  #testSimple64Mult()
-  #standardVSSimple64()
-  #makeBigIndex()
-  #fst10vs4()
-  #seekOpto()
   bushy()
-  #pfor4()
-  #bulkInterleaved()
 
 # NOTE: when running on 3.0, apply this patch:
 """

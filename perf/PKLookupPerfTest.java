@@ -185,7 +185,7 @@ public class PKLookupPerfTest {
       }
     }
 
-    System.out.println("blocks=" + BlockTermsReader.totBlockReadCount + " scans=" + BlockTermsReader.totScanCount + " " + (((float) BlockTermsReader.totScanCount))/(BlockTermsReader.totBlockReadCount) + " scans/block");
+   // System.out.println("blocks=" + BlockTermsReader.totBlockReadCount + " scans=" + BlockTermsReader.totScanCount + " " + (((float) BlockTermsReader.totScanCount))/(BlockTermsReader.totBlockReadCount) + " scans/block");
 
     r.close();
     dir.close();

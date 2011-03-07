@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -77,13 +76,13 @@ def run(id, coldRun, *competitors):
 
   if '-debugs' in sys.argv or '-debug' in sys.argv:
     id += '-debug'
-    jvmCount = 20
+    jvmCount = 10
     if coldRun:
       countPerCat = 20
       repeatCount = 1
     else:
-      countPerCat = 5
-      repeatCount = 30
+      countPerCat = 3
+      repeatCount = 50
   else:
     jvmCount = 20
     if coldRun:
@@ -91,7 +90,7 @@ def run(id, coldRun, *competitors):
       repeatCount = 1
     else:
       countPerCat = 5
-      repeatCount = 30
+      repeatCount = 50
 
   if index:
     seen = set()
@@ -183,8 +182,21 @@ def bushy():
       Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
     )
 
+def dwpt():
+
+  COLD = False
+
+  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = benchUtil.Index('realtime', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run('dwpt',
+      COLD,
+      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('dwpt', 'realtime', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+    )
+
 if __name__ == '__main__':
   bushy()
+  #dwpt()
 
 # NOTE: when running on 3.0, apply this patch:
 """

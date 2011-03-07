@@ -38,14 +38,14 @@ class QPSChart:
 
     self.xPixPerCat = 2*BAR_WIDTH + X_SPACER2
     self.yPixPerQPS = (HEIGHT - 2*Y_SPACER)/self.maxQPS
-    print 'max %s' % self.maxQPS
+    #print 'max %s' % self.maxQPS
 
     WIDTH = (1+len(data))*X_SPACER1 + self.xPixPerCat*len(data) + 2*X_AXIS_GAP
 
     i = Image.new('RGB', (WIDTH, HEIGHT), 'white')
     d = ImageDraw.Draw(i)
 
-    d.text((5, HEIGHT/2+10), 'Q/S', fill='black', font=BOLD_FONT)
+    d.text((5, HEIGHT/2), 'Q/S', fill='black', font=BOLD_FONT)
 
     qps = qpsInc
     while True:
@@ -58,15 +58,6 @@ class QPSChart:
 
     x = X_AXIS_GAP + X_SPACER1
     for idx, (cat, minBase, maxBase, minCmp, maxCmp) in enumerate(data):
-
-      if cat == 'IntNumericRange':
-        cat = 'NRQ'
-      elif cat == 'HighFreqExactPhrase':
-        cat = 'Phrase'
-      elif cat == 'HighFreqSloppyPhrase':
-        cat = 'SloppyPhrase'
-      elif cat == 'HighFreqTerm':
-        cat = 'Term'
 
       avgBase = (minBase + maxBase)/2
       avgCmp = (minCmp + maxCmp)/2
@@ -88,9 +79,10 @@ class QPSChart:
 
       # draw horizontal bar on the avg
       y = self.qpsToY(avgBase)
-      print 'idx %s' % idx
-      print '  x %s-%s' % (x, x+BAR_WIDTH)
-      print '  y %s' % y
+      if 0:
+        print 'idx %s' % idx
+        print '  x %s-%s' % (x, x+BAR_WIDTH)
+        print '  y %s' % y
       d.rectangle((x,
                    y-1,
                    x + BAR_WIDTH,
@@ -105,10 +97,11 @@ class QPSChart:
       d.line((x+BAR_WIDTH/2, y0, x+BAR_WIDTH/2, y1), fill='black')
       d.line((x+BAR_WIDTH/2-4, y0, x+BAR_WIDTH/2+4, y0), fill='black')
       d.line((x+BAR_WIDTH/2-4, y1, x+BAR_WIDTH/2+4, y1), fill='black')
-      
-      print '  x %s-%s' % (x, x+BAR_WIDTH)
-      print '  y %s' % y
-      print '  avg %s' % avgCmp
+
+      if 0:
+        print '  x %s-%s' % (x, x+BAR_WIDTH)
+        print '  y %s' % y
+        print '  avg %s' % avgCmp
       # TODO: black, if it's "close"?
       if avgCmp < avgBase:
         color = 'red'

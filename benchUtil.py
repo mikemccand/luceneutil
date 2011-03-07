@@ -31,12 +31,6 @@ import QPSChart
 
 # TODO
 #   - allow 'onlyCat' option
-#   - stop using -Xbatch?
-#   - put iters (multiple JVMs) back
-#   - add option for testing sorting, applying the SortValues.patch!!
-#   - verify step
-#   - run searches
-#   - get all docs query in here
 
 # Skip the first N runs of a given category (cold) or particular task (hot):
 WARM_SKIP = 10
@@ -332,7 +326,7 @@ def agg(iters, cat):
     if len(tasks[0]) <= WARM_SKIP:
       raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
 
-    VERBOSE = True
+    VERBOSE = False
     sumMS = 0.0
     totHitCount = 0
     count = 0
@@ -403,7 +397,7 @@ def stats(l):
   
 
 def run(cmd, logFile=None, indent='    '):
-  print ' %s[RUN: %s]' % (indent, cmd)
+  print '%s[RUN: %s]' % (indent, cmd)
   if logFile is not None:
     cmd = '%s > "%s" 2>&1' % (cmd, logFile)
   if os.system(cmd):
@@ -546,28 +540,32 @@ class RunAlgs:
   def compile(self,competitor):
     path = checkoutToBenchPath(competitor.checkout)
     print '  %s' % path
+    cwd = os.getcwd()
     os.chdir(path)
-    run('ant compile', 'compile.log')
-    if path.endswith('/'):
-      path = path[:-1]
+    try:
+      run('ant compile', 'compile.log')
+      if path.endswith('/'):
+        path = path[:-1]
+
+      cp = self.classPathToString(self.getClassPath(competitor.checkout))
+      if not os.path.exists('perf'):
+        version = getLuceneVersion(competitor.checkout)
+        if version == '3.0':
+          subdir = '/30'
+        elif version == '3.1':
+          subdir = '/31'
+        else:
+          subdir = ''
+        srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
+        # TODO: change to just compile the code & run directly from util
+        if osName in ('windows', 'cygwin'):
+          run('cp -r %s perf' % srcDir)
+        else:
+          run('ln -s %s perf' % srcDir)
+      competitor.compile(cp)
+    finally:
+      os.chdir(cwd)
       
-    cp = self.classPathToString(self.getClassPath(competitor.checkout))
-    if not os.path.exists('perf'):
-      version = getLuceneVersion(competitor.checkout)
-      if version == '3.0':
-        subdir = '/30'
-      elif version == '3.1':
-        subdir = '/31'
-      else:
-        subdir = ''
-      srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
-      # TODO: change to just compile the code & run directly from util
-      if osName in ('windows', 'cygwin'):
-        run('cp -r %s perf' % srcDir)
-      else:
-        run('ln -s %s perf' % srcDir)
-    competitor.compile(cp)
-    
   def classPathToString(self, cp):
     return common.pathsep().join(cp)
 
@@ -590,33 +588,36 @@ class RunAlgs:
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
     benchDir = checkoutToBenchPath(c.checkout)
+    cwd = os.getcwd()
     os.chdir(benchDir)
-    cp = self.classPathToString(self.getClassPath(c.checkout))
-    logFile = '%s/%s.%s.x' % (benchDir, id, c.name)
-    if os.path.exists(logFile):
-      os.remove(logFile)
-    if c.doSort:
-      doSort = 'yes'
-    else:
-      doSort = 'no'
+    try:
+      cp = self.classPathToString(self.getClassPath(c.checkout))
+      logFile = '%s/%s.%s.x' % (benchDir, id, c.name)
+      if os.path.exists(logFile):
+        os.remove(logFile)
+      if c.doSort:
+        doSort = 'yes'
+      else:
+        doSort = 'no'
 
-    logFiles = []
-    rand = random.Random(randomSeed)
-    staticSeed = rand.randint(-10000000, 1000000)
-    for iter in xrange(jvmCount):
-      print '    iter %s of %s' % (1+iter, jvmCount)
-      randomSeed2 = rand.randint(-10000000, 1000000)      
-      command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s' % \
-          (self.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.commitPoint)
-      if filter is not None:
-        command += ' %s %.2f' % filter
-      iterLogFile = '%s.%s' % (logFile, iter)
-      print '      log: %s' % iterLogFile
-      t0 = time.time()
-      run(command, iterLogFile, indent='     ')
-      print '      %.1f s' % (time.time()-t0)
-      logFiles.append(iterLogFile)
-
+      logFiles = []
+      rand = random.Random(randomSeed)
+      staticSeed = rand.randint(-10000000, 1000000)
+      for iter in xrange(jvmCount):
+        print '    iter %s of %s' % (1+iter, jvmCount)
+        randomSeed2 = rand.randint(-10000000, 1000000)      
+        command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s' % \
+            (self.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.commitPoint)
+        if filter is not None:
+          command += ' %s %.2f' % filter
+        iterLogFile = '%s.%s' % (logFile, iter)
+        print '      log: %s' % iterLogFile
+        t0 = time.time()
+        run(command, iterLogFile, indent='      ')
+        print '      %.1f s' % (time.time()-t0)
+        logFiles.append(iterLogFile)
+    finally:
+      os.chdir(cwd)
     return logFiles
 
   def getSearchLogFiles(self, id, c, jvmCount):
@@ -689,6 +690,9 @@ class RunAlgs:
         qpsBase = avgQPSBase
         qpsCmp = avgQPSCmp
 
+      print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
+      significant = (abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp))) > 0.30
+
       if baseTotHitCount != cmpTotHitCount:
         warnings.append('cat=%s: hit counts differ: %s vs %s' % (desc, baseTotHitCount, cmpTotHitCount))
 
@@ -726,14 +730,16 @@ class RunAlgs:
         w('\n')
 
       if constants.SORT_REPORT_BY == 'pctchange':
-        lines.append((psAvg, ''.join(l0)))
-        chartData.append((psAvg, desc, minQPSBase, maxQPSBase, minQPSCmp, maxQPSCmp))
+        sortBy = psAvg
       elif constants.SORT_REPORT_BY == 'query':
-        lines.append((qs, ''.join(l0)))
-        chartData.append((qs, desc, minQPSBase, maxQPSBase, minQPSCmp, maxQPSCmp))
+        sortBy = qs
       else:
         raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
 
+      lines.append((sortBy, ''.join(l0)))
+      if significant:
+        chartData.append((sortBy, desc, minQPSBase, maxQPSBase, minQPSCmp, maxQPSCmp))
+      
     lines.sort()
     chartData.sort()
     chartData = [x[1:] for x in chartData]

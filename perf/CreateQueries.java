@@ -112,7 +112,7 @@ public class CreateQueries {
 
     for(int idx=0;idx<NUM_QUERIES;idx++) {
       final TermFreq tf = topTerms[idx];
-      queriesOut.write("HighFreqTerm: " + tf.term.utf8ToString() + " # freq=" + tf.df + "\n");
+      queriesOut.write("Term: " + tf.term.utf8ToString() + " # freq=" + tf.df + "\n");
     }
 
     while(topTerms[upto].df >= maxDF/100) {
@@ -149,7 +149,7 @@ public class CreateQueries {
       // Seconds in the day 0..86400
       final int gap = 30000 + random.nextInt(56400);
       final int start = random.nextInt(86400-gap);
-      queriesOut.write("IntNumericRange: nrq//timesecnum " + start + " " + (start+gap) + "\n");
+      queriesOut.write("IntNRQ: nrq//timesecnum " + start + " " + (start+gap) + "\n");
     }
     queriesOut.flush();
   }
@@ -376,9 +376,9 @@ public class CreateQueries {
       final TermFreq tf = topShingles[idx];
       final int mod = idx % 3;
       if (mod == 0) {
-        queriesOut.write("HighFreqExactPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "\n");
+        queriesOut.write("Phrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "\n");
       } else if (mod == 1) {
-        queriesOut.write("HighFreqSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "\n");
+        queriesOut.write("SloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "\n");
       } else {
         queriesOut.write("SpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "\n");
       }

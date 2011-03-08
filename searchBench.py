@@ -195,8 +195,8 @@ def dwpt():
     )
 
 if __name__ == '__main__':
-  bushy()
-  #dwpt()
+  #bushy()
+  dwpt()
 
 # NOTE: when running on 3.0, apply this patch:
 """

@@ -680,9 +680,6 @@ class RunAlgs:
       minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
       minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
 
-      rangeQPSBase = maxQPSBase - minQPSBase
-      rangeQPSCmp = maxQPSCmp - minQPSCmp
-
       if DO_MIN:
         qpsBase = minQPSBase
         qpsCmp = minQPSCmp
@@ -690,21 +687,22 @@ class RunAlgs:
         qpsBase = avgQPSBase
         qpsCmp = avgQPSCmp
 
-      print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
-      significant = (abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp))) > 0.30
+      # print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
+      # TODO: need a real significance test here
+      significant = (abs(qpsBase-qpsCmp) / (2*qpsStdDevBase+2*qpsStdDevCmp)) > 0.30
 
       if baseTotHitCount != cmpTotHitCount:
         warnings.append('cat=%s: hit counts differ: %s vs %s' % (desc, baseTotHitCount, cmpTotHitCount))
 
       if jira:
         w('|%.2f|%.2f|%.2f|%.2f' %
-          (qpsBase, rangeQPSBase, qpsCmp, rangeQPSCmp))
+          (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
       elif html:
         w('<td>%.2f</td><td>%.2f</td><td>%.2f</td><td>%.2f</td>' %
-          (qpsBase, rangeQPSBase, qpsCmp, rangeQPSCmp))
+          (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
       else:
         w('%12.2f%12.2f%12.2f%12.2f'%
-          (qpsBase, rangeQPSBase, qpsCmp, rangeQPSCmp))
+          (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
 
       psAvg = 100.0*(qpsCmp - qpsBase)/qpsBase
 
@@ -718,9 +716,9 @@ class RunAlgs:
       psWorst = int(100.0 * (qpsCmpWorst - qpsBaseBest)/qpsBaseBest)
 
       if jira:
-        w('|%s-%s' % (color, jiraColor(psWorst), jiraColor(psBest)))
+        w('|%s-%s' % (jiraColor(psWorst), jiraColor(psBest)))
       elif html:
-        w('<td>%s-%s</td>' % (color, htmlColor(psWorst), htmlcolor(psBest)))
+        w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlcolor(psBest)))
       else:
         w('%14s' % ('%4d%% - %4d%%' % (psWorst, psBest)))
 
@@ -737,8 +735,14 @@ class RunAlgs:
         raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
 
       lines.append((sortBy, ''.join(l0)))
-      if significant:
-        chartData.append((sortBy, desc, minQPSBase, maxQPSBase, minQPSCmp, maxQPSCmp))
+      if True or significant:
+        chartData.append((sortBy,
+                          desc,
+                          qpsBase-qpsStdDevBase,
+                          qpsBase+qpsStdDevBase,
+                          qpsCmp-qpsStdDevCmp,
+                          qpsCmp+qpsStdDevCmp,
+                          ))
       
     lines.sort()
     chartData.sort()
@@ -746,29 +750,29 @@ class RunAlgs:
 
     if QPSChart.supported:
       QPSChart.QPSChart(chartData, 'out.png')
-      print 'Chart saved to out.png...'
+      print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
                         
     w = sys.stdout.write
 
     if jira:
-      w('||Task||QPS %s||Range %s||QPS %s||Range %s||Pct diff||' %
-        (baseDesc, cmpDesc, baseDesc, cmpDesc))
+      w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %
+        (baseDesc, baseDesc, cmpDesc, cmpDesc))
     elif html:
       w('<table>')
       w('<tr>')
       w('<th>Task</th>')
       w('<th>QPS %s</th>' % baseDesc)
-      w('<th>Range %s</th>' % baseDesc)
+      w('<th>StdDev %s</th>' % baseDesc)
       w('<th>QPS %s</th>' % cmpDesc)
-      w('<th>Range %s</th>' % cmpDesc)
+      w('<th>StdDev %s</th>' % cmpDesc)
       w('<th>%% change</th>')
       w('</tr>')
     else:
       w('%20s' % 'Task')
       w('%12s' % ('QPS %s' % baseDesc))
-      w('%12s' % ('Range %s' % baseDesc))
+      w('%12s' % ('StdDev %s' % baseDesc))
       w('%12s' % ('QPS %s' % cmpDesc))
-      w('%12s' % ('Range %s' % cmpDesc))
+      w('%12s' % ('StdDev %s' % cmpDesc))
       w('%14s' % 'Pct diff')
 
     if jira:

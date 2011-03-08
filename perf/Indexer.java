@@ -21,8 +21,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// nocommit -- pulse id field
-
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;

@@ -403,7 +403,7 @@ def run(cmd, logFile=None, indent='    '):
   if os.system(cmd):
     if logFile is not None and os.path.getsize(logFile) < 5*1024:
       print open(logFile).read()
-    raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd()), logFile)
+    raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
 
 class Index:
 

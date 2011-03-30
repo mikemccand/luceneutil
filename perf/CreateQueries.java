@@ -67,7 +67,7 @@ public class CreateQueries {
 
   private static class MostFrequentTerms extends PriorityQueue<TermFreq> {
     public MostFrequentTerms(int maxSize) {
-      initialize(maxSize);
+      super(maxSize, false);
     }
 
     @Override

@@ -407,7 +407,7 @@ def run(cmd, logFile=None, indent='    '):
 
 class Index:
 
-  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory', doDeletions=False):
+  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory', doDeletions=False, ramBufferMB=-1):
     self.checkout = checkout
     self.analyzer = analyzer
     self.dataSource = dataSource
@@ -418,11 +418,18 @@ class Index:
     self.doOptimize = doOptimize
     self.dirImpl = dirImpl
     self.doDeletions = doDeletions
-    
+    self.ramBufferMB = ramBufferMB 
+    self.verbose = 'yes'
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
-    
+
+  def setVerbose(self, verbose):
+    if verbose:
+      self.verbose = 'yes'
+    else:
+      self.verbose = 'no'
+
   def getName(self):
     if self.doOptimize:
       s = 'opt.'
@@ -464,8 +471,10 @@ class RunAlgs:
       return fullIndexPath
     else:
       print '  %s: now create' % fullIndexPath
-
-    maxBufferedDocs = index.numDocs / (SEGS_PER_LEVEL*111)
+    if index.ramBufferMB == -1: 
+      maxBufferedDocs = index.numDocs / (SEGS_PER_LEVEL*111)
+    else:
+      maxBufferedDocs = -1
     # maxBufferedDocs = 10000000
     
     try:
@@ -489,8 +498,8 @@ class RunAlgs:
              index.numDocs,
              index.numThreads,
              opt,
-             'yes',
-             -1,
+             index.verbose,
+             index.ramBufferMB,
              maxBufferedDocs,
              index.codec,
              doDel)

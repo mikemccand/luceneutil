@@ -518,7 +518,7 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
-    return fullIndexPath
+    return fullIndexPath, fullLogFile
 
   def getClassPath(self, checkout):
     path = checkoutToPath(checkout)
@@ -548,10 +548,13 @@ class RunAlgs:
 
   def compile(self,competitor):
     path = checkoutToBenchPath(competitor.checkout)
-    print '  %s' % path
     cwd = os.getcwd()
-    os.chdir(path)
+    print '  %s' % checkoutToPath(competitor.checkout)
+    os.chdir(checkoutToPath(competitor.checkout))
     try:
+      run('ant compile', 'compile.log')
+      print '  %s' % path
+      os.chdir(path)
       run('ant compile', 'compile.log')
       if path.endswith('/'):
         path = path[:-1]
@@ -852,7 +855,26 @@ def htmlEscape(s):
 def getSegmentCount(index):
   segCount = 0
   for fileName in os.listdir(nameToIndexPath(index.getName())):
-    if fileName.endswith('.tis') or fileName.endswith('.tib'):
+    if fileName.endswith('.fdx'):
       segCount += 1
   return segCount
 
+class Competitor(object):
+
+  doSort = False
+
+  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile):
+    self.name = name
+    self.index = index
+    self.checkout = checkout
+    self.commitPoint = commitPoint
+    self.dirImpl = dirImpl
+    self.analyzer = analyzer
+    self.tasksFile = tasksFile
+
+  def compile(self, cp):
+    run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
+
+  def setTask(self, task):
+    self.searchTask = self.TASKS[task];
+    return self

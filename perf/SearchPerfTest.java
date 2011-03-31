@@ -279,6 +279,13 @@ public class SearchPerfTest {
       int idx = 0;
       while(idx < count) {
         final BytesRef id = new BytesRef(String.format("%09d", random.nextInt(maxDoc)));
+        /*
+        if (idx == 0) {
+          id = new BytesRef("000013688");
+        } else {
+          id = new BytesRef(String.format("%09d", random.nextInt(maxDoc)));
+        }
+        */
         if (!seen.contains(id)) {
           seen.add(id);
           ids[idx++] = id;
@@ -299,9 +306,12 @@ public class SearchPerfTest {
       for (IndexReader sub : state.subReaders) {
         DocsEnum docs = null;
         final TermsEnum termsEnum = sub.fields().terms("id").getThreadTermsEnum();
+        //System.out.println("\nTASK: sub=" + sub);
         for(int idx=0;idx<ids.length;idx++) {
+          //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false, true)) { 
           if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false)) { 
+            //System.out.println("  found!");
             docs = termsEnum.docs(null, docs);
             assert docs != null;
             final int docID = docs.nextDoc();
@@ -309,6 +319,7 @@ public class SearchPerfTest {
               answers[idx] = -1;
             } else {
               answers[idx] = base + docID;
+              //System.out.println("  docID=" + docID);
             }
           }
         }
@@ -340,7 +351,7 @@ public class SearchPerfTest {
         //System.out.println("  " + id + " -> " + answers[idx]);
         final int actual = state.docIDToID[answers[idx]];
         if (actual != id) {
-          throw new RuntimeException("PKLookup: id=" + String.format("%09d", id) + " returned doc with id=" + String.format("%09d", actual) + " docID=" + answers[id]);
+          throw new RuntimeException("PKLookup: id=" + String.format("%09d", id) + " returned doc with id=" + String.format("%09d", actual) + " docID=" + answers[idx]);
         }
       }
     }
@@ -627,6 +638,7 @@ public class SearchPerfTest {
         allTasks.add((Task) task.clone());
       }
     }
+    System.out.println("TASK LEN=" + allTasks.size());
 
     final AtomicInteger nextTask = new AtomicInteger();
     final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();

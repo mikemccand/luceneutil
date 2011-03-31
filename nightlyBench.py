@@ -13,7 +13,8 @@ import constants
 DEBUG = True
 
 if DEBUG:
-  INDEX_NUM_DOCS = 100000
+  # INDEX_NUM_DOCS = 100000
+  INDEX_NUM_DOCS = 1000000
 else:
   INDEX_NUM_DOCS = 27625038
 

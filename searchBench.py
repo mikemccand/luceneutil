@@ -113,7 +113,7 @@ def run(id, coldRun, *competitors):
           p = True
         seen.add(c.index)
         r.makeIndex(id, c.index)
-        segCount = benchUtil.getSegmentCount(c.index)
+        segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index))
         if indexSegCount is None:
           indexSegCount = segCount
           indexCommit = c.commitPoint

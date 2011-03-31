@@ -41,7 +41,7 @@ SLOW_SKIP_PCT = 25
 LOG_SUB_DIR = 'logs'
 
 # for multi-segment index:
-SEGS_PER_LEVEL = 5
+SEGS_PER_LEVEL = 3
 
 DO_MIN = False
 
@@ -641,7 +641,7 @@ class RunAlgs:
       logFiles.append(iterLogFile)
     return logFiles
 
-  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None):
+  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
     baseRawResults = parseResults(baseLogFiles)
     cmpRawResults = parseResults(cmpLogFiles)
@@ -662,6 +662,8 @@ class RunAlgs:
     lines = []
 
     chartData = []
+
+    resultsByCatCmp = {}
 
     for cat in cats:
 
@@ -691,6 +693,8 @@ class RunAlgs:
 
       minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
       minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
+
+      resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
 
       if DO_MIN:
         qpsBase = minQPSBase
@@ -730,7 +734,7 @@ class RunAlgs:
       if jira:
         w('|%s-%s' % (jiraColor(psWorst), jiraColor(psBest)))
       elif html:
-        w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlcolor(psBest)))
+        w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlColor(psBest)))
       else:
         w('%14s' % ('%4d%% - %4d%%' % (psWorst, psBest)))
 
@@ -764,7 +768,7 @@ class RunAlgs:
       QPSChart.QPSChart(chartData, 'out.png')
       print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
                         
-    w = sys.stdout.write
+    w = writer
 
     if jira:
       w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %
@@ -800,6 +804,8 @@ class RunAlgs:
 
     for w in warnings:
       print 'WARNING: %s' % w
+
+    return resultsByCatCmp
 
   def compare(self, baseline, newList, *params):
 
@@ -852,9 +858,9 @@ def compareHits(r1, r2):
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
-def getSegmentCount(index):
+def getSegmentCount(indexPath):
   segCount = 0
-  for fileName in os.listdir(nameToIndexPath(index.getName())):
+  for fileName in os.listdir(indexPath):
     if fileName.endswith('.fdx'):
       segCount += 1
   return segCount

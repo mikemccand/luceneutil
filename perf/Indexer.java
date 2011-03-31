@@ -224,6 +224,8 @@ public final class Indexer {
 
     w.close();
     dir.close();
+    final long tFinal = System.currentTimeMillis();
+    System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
   }
 
   private static class IndexThread extends Thread {

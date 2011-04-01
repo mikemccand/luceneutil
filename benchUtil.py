@@ -420,6 +420,7 @@ class Index:
     self.doDeletions = doDeletions
     self.ramBufferMB = ramBufferMB 
     self.verbose = 'yes'
+    self.printDPS = 'yes'
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -429,6 +430,11 @@ class Index:
       self.verbose = 'yes'
     else:
       self.verbose = 'no'
+  def setPrintDPS(self, dps):
+    if dps:
+      self.printDPS = 'yes'
+    else: 
+      self.printDPS = 'no'
 
   def getName(self):
     if self.doOptimize:
@@ -488,7 +494,7 @@ class RunAlgs:
       else:
         doDel = 'no'
       
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s' % \
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -502,7 +508,8 @@ class RunAlgs:
              index.ramBufferMB,
              maxBufferedDocs,
              index.codec,
-             doDel)
+             doDel,
+             index.printDPS)
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)

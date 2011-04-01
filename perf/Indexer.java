@@ -20,6 +20,7 @@ package perf;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
@@ -89,7 +90,7 @@ public final class Indexer {
 
     final String codec = args[10];
     final boolean doDeletions = args[11].equals("yes");
-
+    final boolean printDPS = args[12].equals("yes");
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
@@ -129,12 +130,24 @@ public final class Indexer {
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();
     final Thread[] threads = new Thread[numThreads];
+    final AtomicInteger count = new AtomicInteger();
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(w, docs, docCount);
+      threads[thread] = new IndexThread(w, docs, docCount, count);
       threads[thread].start();
+    }
+    AtomicBoolean stop = null;
+    IngestRatePrinter printer = null;
+    if (printDPS) {
+      stop = new AtomicBoolean(false);
+      printer = new IngestRatePrinter(count, stop);
+      printer.start();
     }
     for(int thread=0;thread<numThreads;thread++) {
       threads[thread].join();
+    }
+    if (printer != null) {
+      stop.getAndSet(true);
+      printer.join();
     }
     docs.close();
 
@@ -227,16 +240,49 @@ public final class Indexer {
     final long tFinal = System.currentTimeMillis();
     System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
   }
+  
+  private static class IngestRatePrinter extends Thread {
 
+    private final AtomicInteger count;
+    private final AtomicBoolean stop;
+    public IngestRatePrinter(AtomicInteger count, AtomicBoolean stop){
+      this.count = count;
+      this.stop = stop;
+    }
+    
+    public void run() {
+       long time = System.currentTimeMillis();
+       System.out.println("startIngest: " + time);
+       final long start = time;
+       int lastCount = count.get();
+       while(!stop.get()) {
+        try {
+         Thread.sleep(200);
+        } catch(Exception ex) {
+        }
+        int numDocs = count.get();
+
+        double current = (double) (numDocs - lastCount);
+        long now = System.currentTimeMillis();
+        double seconds = (now-time) / 1000.0d;
+        System.out.println("ingest: " + (current / seconds) + " " + (now - start));
+        time = now;
+        lastCount = numDocs;
+       }
+
+    }
+  }
   private static class IndexThread extends Thread {
     private final LineFileDocs docs;
     private final int numTotalDocs;
     private final IndexWriter w;
+    private final AtomicInteger count;
 
-    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs) {
+    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs, AtomicInteger count) {
       this.w = w;
       this.docs = docs;
       this.numTotalDocs = numTotalDocs;
+      this.count = count;
     }
 
     @Override
@@ -255,6 +301,7 @@ public final class Indexer {
             break;
           }
           w.addDocument(doc);
+          count.incrementAndGet();
         } catch (Exception e) {
           throw new RuntimeException(e);
         }

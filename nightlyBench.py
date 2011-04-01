@@ -26,36 +26,40 @@ import benchUtil
 import constants
 import smtplib
 import localpass
+import re
 
 # TODO
-#   - maybe first benchmark indexing, then seperately benchmark searching?
-#     - (ie, build index gain w/ "fixed" structure)
+#   - maybe do not wait for merges / close(false) for fast indexing test?
+#   - break out commit vs indexing vs merging time?
+#   - do indexing rate as MB/sec
+#     - maybe build BIG docs too...?
 #   - also run NRT perf test
-#   - move line file to SSD
-#   - crontab to launch 11 pm
 #   - hmm put graphs all on one page...?
 #   - cutover to new SSD
 #   - make sure this finishes before 3:30 am (backups)
-#   - on daily html show graph
-#   - send email if things fail
 #   - maybe multiple queries on one graph...?
-#   - be able to regen all HTML
 #   - measure index size?
-#   - checkout separate util.nightly and run from there
-#   - after 1 night, verify against prior night -- catch regressions
 
-# nocommit
-DEBUG = True
+DEBUG = False
+
+MEDIUM_INDEX_NUM_DOCS = 27625038
+BIG_INDEX_NUM_DOCS = 5982049
 
 if DEBUG:
-  INDEX_NUM_DOCS = 1000000
-else:
-  INDEX_NUM_DOCS = 27625038
+  MEDIUM_INDEX_NUM_DOCS /= 20
+  BIG_INDEX_NUM_DOCS /= 20
 
-LINE_FILE = '/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
+#MED_WIKI_BYTES_PER_DOC = 950.21921304868431
+#BIG_WIKI_BYTES_PER_DOC = 4183.3843150398807
+
+MEDIUM_LINE_FILE = '/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
+BIG_LINE_FILE = '/lucene/data/enwiki-20110115-lines.txt'
 NIGHTLY_LOG_DIR = '/lucene/logs.nightly'
 NIGHTLY_REPORTS_DIR = '/lucene/reports.nightly'
 NIGHTLY_DIR = 'trunk.nightly'
+
+reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
+reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
 
 def now():
   return datetime.datetime.now()
@@ -73,7 +77,25 @@ def runCommand(command):
     message('  FAILED')
     raise RuntimeError('command failed: %s' % command)
   message('  took %.1f sec' % (time.time()-t0))
-                                
+
+def buildIndex(r, runLogDir, desc, index, logFile):
+  message('build %s' % desc)
+  #t0 = now()
+  indexPath = benchUtil.nameToIndexPath(index.getName())
+  if os.path.exists(indexPath):
+    shutil.rmtree(indexPath)
+  indexPath, fullLogFile = r.makeIndex('nightly', index)
+  #indexTime = (now()-t0)
+  
+  s = open(fullLogFile).read()
+  bytesIndexed = int(reBytesIndexed.search(s).group(1))
+
+  indexTimeSec = int(reIndexingTime.search(s).group(1))/1000.0
+  os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
+  message('done: %s' % indexTimeSec)
+
+  return indexPath, indexTimeSec, bytesIndexed
+
 def run():
 
   DO_RESET = '-reset' in sys.argv
@@ -102,36 +124,28 @@ def run():
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
 
-  # First test: full indexing @ 256 MB RAM buffer
-  fastIndex = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=256)
-  fastIndex.setVerbose(False)
+  # First test: med docs, full indexing @ 256 MB RAM buffer
+  fastIndexMedium = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', MEDIUM_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=MEDIUM_LINE_FILE, ramBufferMB=256)
+  fastIndexMedium.setVerbose(False)
+  fastIndexMedium.waitForMerges = False
+  fastIndexMedium.printDPS = 'no'
+
+  # Second test: big docs, full indexing @ 256 MB RAM buffer
+  fastIndexBig = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', BIG_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=BIG_LINE_FILE, ramBufferMB=256)
+  fastIndexBig.setVerbose(False)
+  fastIndexBig.waitForMerges = False
+  fastIndexBig.printDPS = 'no'
   
-  # Second test: build index, flushed by doc count (so we get same index structure night to night)
-  index = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  # 3rd test: build index, flushed by doc count (so we get same index structure night to night)
+  index = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', MEDIUM_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=MEDIUM_LINE_FILE)
+  index.printDPS = 'no'
 
   c = benchUtil.Competitor(id, 'trunk.nightly', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
   r.compile(c)
 
-  message('build fast index')
-  t0 = now()
-  indexPathNow = benchUtil.nameToIndexPath(index.getName())
-  if os.path.exists(indexPathNow):
-    print 'WARNING: removing leftover index at %s' % indexPathNow
-    shutil.rmtree(indexPathNow)
-  indexPathNow, fullLogFile = r.makeIndex('nightly', fastIndex)
-  fastIndexTime = (now()-t0)
-  os.rename(fullLogFile, '%s/fastIndex.log' % runLogDir)
-  message('done build fast index (%s)' % fastIndexTime)
-
-  message('build fixed index')
-  t0 = now()
-  indexPathNow = benchUtil.nameToIndexPath(index.getName())
-  if os.path.exists(indexPathNow):
-    shutil.rmtree(indexPathNow)
-  indexPathNow, fullLogFile = r.makeIndex('nightly', index)
-  fixedIndexTime = (now()-t0)
-  os.rename(fullLogFile, '%s/fixedIndex.log' % runLogDir)
-  message('done build fixed index (%s)' % fixedIndexTime)
+  ign, medIndexTime, medBytesIndexed = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
+  ign, bigIndexTime, bigBytesIndexed = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
+  indexPathNow, ign, ign = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
                                                  
@@ -180,7 +194,6 @@ def run():
       w = f.write
       w('<html>\n')
       w('<h1>%s</h1>' % timeStamp2)
-      w('<b>Indexing time</b>: %s\n' % fastIndexTime)
       w('<br><br><b>Search perf vs day before</b>\n')
       w(''.join(output))
       w('<br><br>')
@@ -190,9 +203,10 @@ def run():
 
       shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
 
-      fastIndexTimeSec = toSeconds(fastIndexTime)
-      fixedIndexTimeSec = toSeconds(fixedIndexTime)
-      dailyResults = start, fastIndexTimeSec, fixedIndexTimeSec, results, INDEX_NUM_DOCS
+      dailyResults = (start,
+                      MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,
+                      BIG_INDEX_NUM_DOCS, bigIndexTime, bigBytesIndexed,
+                      results)
       resultsPK = cPickle.dumps(dailyResults)
 
   for fname in resultsNow:
@@ -213,13 +227,14 @@ def run():
   message('done: total time %s' % (now()-start))
 
 def makeGraphs():
-  indexChartData = ['Date,Docs/Sec']
+  medIndexChartData = ['Date,GB/hour']
+  bigIndexChartData = ['Date,GB/hour']
   searchChartData = {}
   days = []
   for subDir in os.listdir(NIGHTLY_LOG_DIR):
     resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
     if os.path.exists(resultsFile):
-      timeStamp, fastIndexTime, fixedIndexTime, searchResults, numDocs = cPickle.loads(open(resultsFile).read())
+      timeStamp, medNumDocs, medIndexTimeSec, medBytesIndexed, bigNumDocs, bigIndexTimeSec, bigBytesIndexed, searchResults = cPickle.loads(open(resultsFile).read())
       days.append(timeStamp)
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
@@ -228,20 +243,20 @@ def makeGraphs():
                          timeStamp.hour,
                          timeStamp.minute,
                          int(timeStamp.second))
-      indexChartData.append('%s,%.1f' % (timeStampString, float(numDocs)/fastIndexTime))
+      medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
+      bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in searchResults.items():
         if cat not in searchChartData:
           searchChartData[cat] = ['Date,QPS']
         searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS, stdDevQPS))
 
-  sort(indexChartData)
+  sort(medIndexChartData)
+  sort(bigIndexChartData)
   for k, v in searchChartData.items():
     sort(v)
 
   # Index time
-  writeOneGraphHTML('Indexing throughput (docs/sec)',
-                    '%s/indexing.html' % NIGHTLY_REPORTS_DIR,
-                    getOneGraphHTML('IndexTime', indexChartData, errorBars=False))
+  writeIndexingHTML(medIndexChartData, bigIndexChartData)
 
   for k, v in searchChartData.items():
     writeOneGraphHTML('%s QPS' % k,
@@ -296,6 +311,39 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   w('<h1>%s</h1>\n' % htmlEscape(title))
   w(chartHTML)
   w('\n')
+  w('</body>\n')
+  w('</html>\n')
+  f.close()
+
+def writeIndexingHTML(medChartData, bigChartData):
+  f = open('%s/indexing.html' % NIGHTLY_REPORTS_DIR, 'wb')
+  w = f.write
+  w('<html>\n')
+  w('<head>\n')
+  w('<script type="text/javascript" src="dygraph-combined.js"></script>\n')
+  w('</head>\n')
+  w('<body>\n')
+  w('<h1>Ingest rate (GB/hour)</h1>\n')
+  w('<br><br><b>Small (~1 KB doc) Wikipedia English docs</b>:')
+  w('<br>')
+  w(getOneGraphHTML('MedIndexTime', medChartData, errorBars=False))
+
+  w('<br><br><b>Medium (~4 KB doc) Wikipedia English docs</b>:')
+  w('<br>')
+  w(getOneGraphHTML('BigIndexTime', bigChartData, errorBars=False))
+  w('\n')
+  w('<b>Notes</b>:\n')
+  w('<ul>\n')
+  w('  <li> Do not wait for merges on close')
+  w('  <li> Documents created from <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English XML export</a> from 01/15/2011\n')
+  w('  <li> OS: %s\n' % htmlEscape(os.popen('uname -a 2>&1').read().strip()))
+  w('  <li> Java command-line: %s\n' % constants.JAVA_COMMAND)
+  w('  <li> Java version: %s\n' % htmlEscape(os.popen('java -version 2>&1').read().strip()))
+  w('  <li> 24 cores (2 CPU * 6 core * 2 hyperthreads)\n')
+  w('  <li> %d indexing threads\n' % constants.INDEX_NUM_THREADS)
+  w('  <li> 256 MB RAM buffer\n')
+  w('</ul>')
+  w('<em>[last updated: %s]</em>' % now())
   w('</body>\n')
   w('</html>\n')
   f.close()

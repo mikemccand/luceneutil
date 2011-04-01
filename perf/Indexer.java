@@ -91,6 +91,8 @@ public final class Indexer {
     final String codec = args[10];
     final boolean doDeletions = args[11].equals("yes");
     final boolean printDPS = args[12].equals("yes");
+    final boolean waitForMerges = args[13].equals("yes");
+
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
@@ -103,6 +105,7 @@ public final class Indexer {
     System.out.println("Max buffered docs: " + maxBufferedDocs);
     System.out.println("Codec: " + codec);
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
+    System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
@@ -158,9 +161,14 @@ public final class Indexer {
       throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCount);
     }
 
-    w.waitForMerges();
-    final long t2 = System.currentTimeMillis();
-    System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
+    final long t2;
+    if (waitForMerges) {
+      w.waitForMerges();
+      t2 = System.currentTimeMillis();
+      System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
+    } else {
+      t2 = System.currentTimeMillis();
+    }
 
     final Map<String,String> commitData = new HashMap<String,String>();
     commitData.put("userData", "multi");
@@ -235,10 +243,14 @@ public final class Indexer {
     }
     */
 
-    w.close();
+    System.out.println("\nIndexer: at close: " + w.segString());
+    final long tCloseStart = System.currentTimeMillis();
+    w.close(waitForMerges);
+    System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
     final long tFinal = System.currentTimeMillis();
     System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
+    System.out.println("\nIndexer: net bytes indexed " + docs.getBytesIndexed());
   }
   
   private static class IngestRatePrinter extends Thread {

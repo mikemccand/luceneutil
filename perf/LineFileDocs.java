@@ -31,6 +31,7 @@ import java.util.Random;
 import java.text.SimpleDateFormat;
 import java.text.ParsePosition;
 import org.apache.lucene.document.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class LineFileDocs implements Closeable {
 
@@ -38,11 +39,16 @@ public class LineFileDocs implements Closeable {
   private final static int BUFFER_SIZE = 1 << 16;     // 64K
   private final boolean doRepeat;
   private final String path;
+  private final AtomicLong bytesIndexed = new AtomicLong();
 
   public LineFileDocs(String path, boolean doRepeat) throws IOException {
     this.path = path;
     open();
     this.doRepeat = doRepeat;
+  }
+
+  public long getBytesIndexed() {
+    return bytesIndexed.get();
   }
 
   private void open() throws IOException {
@@ -126,6 +132,7 @@ public class LineFileDocs implements Closeable {
         }
       }
     }
+    bytesIndexed.addAndGet(line.length());
 
     int spot = line.indexOf(SEP);
     if (spot == -1) {

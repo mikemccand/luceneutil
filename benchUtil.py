@@ -421,6 +421,7 @@ class Index:
     self.ramBufferMB = ramBufferMB 
     self.verbose = 'yes'
     self.printDPS = 'yes'
+    self.waitForMerges = True
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -493,8 +494,13 @@ class RunAlgs:
         doDel = 'yes'
       else:
         doDel = 'no'
+
+      if index.waitForMerges:
+        waitForMerges = 'yes'
+      else:
+        waitForMerges = 'no'
       
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s' % \
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -509,7 +515,8 @@ class RunAlgs:
              maxBufferedDocs,
              index.codec,
              doDel,
-             index.printDPS)
+             index.printDPS,
+             waitForMerges)
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)

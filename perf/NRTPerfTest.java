@@ -267,8 +267,6 @@ public class NRTPerfTest {
     final IndexWriter w = new IndexWriter(dir, iwc);
     w.setInfoStream(System.out);
 
-    // TODO: maybe more than 1 thread if we can't hit target
-    // rate
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {
       indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, doUpdates);

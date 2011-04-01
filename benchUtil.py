@@ -41,7 +41,7 @@ SLOW_SKIP_PCT = 25
 LOG_SUB_DIR = 'logs'
 
 # for multi-segment index:
-SEGS_PER_LEVEL = 3
+SEGS_PER_LEVEL = 5
 
 DO_MIN = False
 

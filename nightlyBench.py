@@ -28,6 +28,10 @@ import smtplib
 import localpass
 
 # TODO
+#   - maybe first benchmark indexing, then seperately benchmark searching?
+#     - (ie, build index gain w/ "fixed" structure)
+#   - also run NRT perf test
+#   - move line file to SSD
 #   - crontab to launch 11 pm
 #   - hmm put graphs all on one page...?
 #   - cutover to new SSD
@@ -40,14 +44,15 @@ import localpass
 #   - checkout separate util.nightly and run from there
 #   - after 1 night, verify against prior night -- catch regressions
 
-DEBUG = False
+# nocommit
+DEBUG = True
 
 if DEBUG:
   INDEX_NUM_DOCS = 1000000
 else:
   INDEX_NUM_DOCS = 27625038
 
-LINE_FILE = '/p/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
+LINE_FILE = '/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
 NIGHTLY_LOG_DIR = '/lucene/logs.nightly'
 NIGHTLY_REPORTS_DIR = '/lucene/reports.nightly'
 NIGHTLY_DIR = 'trunk.nightly'
@@ -55,8 +60,11 @@ NIGHTLY_DIR = 'trunk.nightly'
 def now():
   return datetime.datetime.now()
 
+def toSeconds(td):
+  return td.days * 86400 + td.seconds + td.microseconds/1000000.
+
 def message(s):
-  print '[%s] %s' % (now(), s)
+ print '[%s] %s' % (now(), s)
 
 def runCommand(command):
   message('RUN: %s' % command)
@@ -93,22 +101,37 @@ def run():
       break
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
+
+  # First test: full indexing @ 256 MB RAM buffer
+  fastIndex = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=256)
+  fastIndex.setVerbose(False)
+  
+  # Second test: build index, flushed by doc count (so we get same index structure night to night)
   index = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
 
   c = benchUtil.Competitor(id, 'trunk.nightly', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
   r.compile(c)
 
-  message('build index')
+  message('build fast index')
   t0 = now()
   indexPathNow = benchUtil.nameToIndexPath(index.getName())
   if os.path.exists(indexPathNow):
     print 'WARNING: removing leftover index at %s' % indexPathNow
     shutil.rmtree(indexPathNow)
-  indexPathNow, fullLogFile = r.makeIndex('nightly', index)
-  os.rename(fullLogFile, '%s/index.log' % runLogDir)
+  indexPathNow, fullLogFile = r.makeIndex('nightly', fastIndex)
+  fastIndexTime = (now()-t0)
+  os.rename(fullLogFile, '%s/fastIndex.log' % runLogDir)
+  message('done build fast index (%s)' % fastIndexTime)
 
-  indexTime = (now()-t0)
-  message('done build index (%s)' % indexTime)
+  message('build fixed index')
+  t0 = now()
+  indexPathNow = benchUtil.nameToIndexPath(index.getName())
+  if os.path.exists(indexPathNow):
+    shutil.rmtree(indexPathNow)
+  indexPathNow, fullLogFile = r.makeIndex('nightly', index)
+  fixedIndexTime = (now()-t0)
+  os.rename(fullLogFile, '%s/fixedIndex.log' % runLogDir)
+  message('done build fixed index (%s)' % fixedIndexTime)
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
                                                  
@@ -120,11 +143,11 @@ def run():
 
   # Search
   if DEBUG:
-    countPerCat = 10
+    countPerCat = 5
     repeatCount = 50
     jvmCount = 3
   else:
-    countPerCat = 10
+    countPerCat = 5
     repeatCount = 50
     jvmCount = 20
 
@@ -137,6 +160,7 @@ def run():
   resultsNow = r.runSimpleSearchBench(id, c, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, jvmCount, filter=None)  
   message('done search (%s)' % (now()-t0))
   resultsPrev = []
+  resultsPK = None
   for fname in resultsNow:
     prevFName = fname + '.prev'
     if os.path.exists(prevFName):
@@ -156,7 +180,7 @@ def run():
       w = f.write
       w('<html>\n')
       w('<h1>%s</h1>' % timeStamp2)
-      w('<b>Indexing time</b>: %s\n' % indexTime)
+      w('<b>Indexing time</b>: %s\n' % fastIndexTime)
       w('<br><br><b>Search perf vs day before</b>\n')
       w(''.join(output))
       w('<br><br>')
@@ -166,9 +190,10 @@ def run():
 
       shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
 
-      indexTimeSec = indexTime.days * 86400 + indexTime.seconds + indexTime.microseconds/1000000.          
-      dailyResults = start, indexTimeSec, results, INDEX_NUM_DOCS
-      open('%s/results.pk' % runLogDir, 'wb').write(cPickle.dumps(dailyResults))
+      fastIndexTimeSec = toSeconds(fastIndexTime)
+      fixedIndexTimeSec = toSeconds(fixedIndexTime)
+      dailyResults = start, fastIndexTimeSec, fixedIndexTimeSec, results, INDEX_NUM_DOCS
+      resultsPK = cPickle.dumps(dailyResults)
 
   for fname in resultsNow:
     shutil.copy(fname, fname + '.prev')
@@ -178,7 +203,13 @@ def run():
     shutil.rmtree(indexPathPrev)
   # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
   os.rename(indexPathNow, indexPathPrev)
-  runCommand('bzip2 %s/index.log' % runLogDir)
+  os.chdir(runLogDir)
+  runCommand('tar cjf logs.tar.bz2 *')
+  for f in os.listdir(runLogDir):
+    if f != 'logs.tar.bz2':
+      os.remove(f)
+  if resultsPK is not None:
+    open('results.pk', 'wb').write(resultsPK)
   message('done: total time %s' % (now()-start))
 
 def makeGraphs():
@@ -188,7 +219,7 @@ def makeGraphs():
   for subDir in os.listdir(NIGHTLY_LOG_DIR):
     resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
     if os.path.exists(resultsFile):
-      timeStamp, indexTime, searchResults, numDocs = cPickle.loads(open(resultsFile).read())
+      timeStamp, fastIndexTime, fixedIndexTime, searchResults, numDocs = cPickle.loads(open(resultsFile).read())
       days.append(timeStamp)
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
@@ -197,7 +228,7 @@ def makeGraphs():
                          timeStamp.hour,
                          timeStamp.minute,
                          int(timeStamp.second))
-      indexChartData.append('%s,%.1f' % (timeStampString, float(numDocs)/indexTime))
+      indexChartData.append('%s,%.1f' % (timeStampString, float(numDocs)/fastIndexTime))
       for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in searchResults.items():
         if cat not in searchChartData:
           searchChartData[cat] = ['Date,QPS']
@@ -317,3 +348,8 @@ if __name__ == '__main__':
     
 # scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs
 
+# TO CLEAN
+#   - rm -rf /p/lucene/indices/trunk.nightly.index.prev/
+#   - rm -rf /lucene/logs.nightly/*
+#   - rm -rf /lucene/reports.nightly/*
+#   - rm -f /lucene/trunk.nightly/modules/benchmark/*.x

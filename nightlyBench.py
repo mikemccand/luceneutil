@@ -332,7 +332,6 @@ def makeGraphs():
                  medNumDocs, medIndexTimeSec, medBytesIndexed, \
                  bigNumDocs, bigIndexTimeSec, bigBytesIndexed, \
                  nrtResults, searchResults = cPickle.loads(open(resultsFile).read())
-      days.append(timeStamp)
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
                          timeStamp.month,
@@ -344,10 +343,12 @@ def makeGraphs():
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       mean, stdDev = nrtResults
       nrtChartData.append('%s,%.3f,%.2f' % (timeStampString, mean, stdDev))
-      for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in searchResults.items():
-        if cat not in searchChartData:
-          searchChartData[cat] = ['Date,QPS']
-        searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS, stdDevQPS))
+      if searchResults is not None:
+        days.append(timeStamp)
+        for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in searchResults.items():
+          if cat not in searchChartData:
+            searchChartData[cat] = ['Date,QPS']
+          searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS, stdDevQPS))
 
   sort(medIndexChartData)
   sort(bigIndexChartData)
@@ -363,7 +364,7 @@ def makeGraphs():
   for k, v in searchChartData.items():
     writeOneGraphHTML('%s QPS' % k,
                       '%s/%s.html' % (NIGHTLY_REPORTS_DIR, k),
-                      getOneGraphHTML(k, v, errorBars=True))
+                      getOneGraphHTML(k, v, "Queries/sec", k, errorBars=True))
 
   writeIndexHTML(searchChartData, days)
   runCommand('scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
@@ -372,8 +373,9 @@ def writeIndexHTML(searchChartData, days):
   f = open('%s/index.html' % NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
   w('<html>')
-  w('<h1>Lucene nightly performance tests</h1>')
+  w('<h1>Lucene nightly benchmarks</h1>')
   w('<br><a href="indexing.html">Indexing performance</a>')
+  w('<br><a href="nrt.html">Near-real-time performance</a>')
   w('<br><br>')
   w('<b>Queries</b>:')
   l = searchChartData.keys()
@@ -413,6 +415,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   w('<h1>%s</h1>\n' % htmlEscape(title))
   w(chartHTML)
   w('\n')
+  footer(w)
   w('</body>\n')
   w('</html>\n')
   f.close()
@@ -425,27 +428,27 @@ def writeIndexingHTML(medChartData, bigChartData):
   w('<script type="text/javascript" src="dygraph-combined.js"></script>\n')
   w('</head>\n')
   w('<body>\n')
-  w('<h1>Ingest rate (GB/hour)</h1>\n')
-  w('<br><br><b>Small (~1 KB doc) Wikipedia English docs</b>:')
+  w('<h1>Indexing</h1>\n')
   w('<br>')
-  w(getOneGraphHTML('MedIndexTime', medChartData, errorBars=False))
+  w(getOneGraphHTML('MedIndexTime', medChartData, "Plain text GB/hour", "~1 KB docs", errorBars=False))
 
-  w('<br><br><b>Medium (~4 KB doc) Wikipedia English docs</b>:')
   w('<br>')
-  w(getOneGraphHTML('BigIndexTime', bigChartData, errorBars=False))
+  w('<br>')
+  w('<br>')
+  w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB docs", errorBars=False))
   w('\n')
   w('<b>Notes</b>:\n')
   w('<ul>\n')
   w('  <li> Test does not wait for merges on close (calls <tt>IW.close(false)</tt>)')
-  w('  <li> Documents created from <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English XML export</a> from 01/15/2011\n')
+  w('  <li> Documents created from 1/15/2011 <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English XML export</a>\n')
+  w('  <li> %d indexing threads\n' % constants.INDEX_NUM_THREADS)
+  w('  <li> Flush at %s MB\n' % INDEXING_RAM_BUFFER_MB)
   w('  <li> OS: %s\n' % htmlEscape(os.popen('uname -a 2>&1').read().strip()))
   w('  <li> Java command-line: %s\n' % constants.JAVA_COMMAND)
   w('  <li> Java version: %s\n' % htmlEscape(os.popen('java -version 2>&1').read().strip()))
   w('  <li> 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores 2 CPU * 6 core * 2 hyperthreads)\n')
-  w('  <li> %d indexing threads\n' % constants.INDEX_NUM_THREADS)
-  w('  <li> %s MB RAM buffer\n' % INDEXING_RAM_BUFFER_MB)
   w('</ul>')
-  w('<em>[last updated: %s; send question to <a href="mailto:lucene@mikemccandless.com">lucene@mikemccandless.com</a>]</em>' % now())
+  footer(w)
   w('</body>\n')
   w('</html>\n')
   f.close()
@@ -460,15 +463,21 @@ def writeNRTHTML(nrtChartData):
   w('<body>\n')
   w('<h1>Near-real-time reader reopen time (msec)</h1>\n')
   w('<br>')
-  w(getOneGraphHTML('NRT', nrtChartData, errorBars=True))
-  w('<em>[last updated: %s; send question to <a href="mailto:lucene@mikemccandless.com">lucene@mikemccandless.com</a>]</em>' % now())
+  w(getOneGraphHTML('NRT', nrtChartData, "Milliseconds", "Near-real-time reopen time", errorBars=True))
+  footer(w)
   w('</body>\n')
   w('</html>\n')
 
-def getOneGraphHTML(id, data, errorBars=True):
+def footer(w):
+  w('<br><em>[last updated: %s; send questions to <a href="mailto:lucene@mikemccandless.com">Mike McCandless</a>]</em>' % now())
+
+def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   l = []
   w = l.append
+  w('<table><tr><td><b>%s</b></td><td>' % htmlEscape(yLabel))
+  w('<center><b>%s</b></center><br>' % htmlEscape(title))
   w('<div id="%s" style="width:600px;height:300px"></div>' % id)
+  w('</td></tr></table>')
   w('<script type="text/javascript">')
   w('  g_%s = new Dygraph(' % id)
   w('    document.getElementById("%s"),' % id)

@@ -38,7 +38,7 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy
 
 // EG:
 //
@@ -92,6 +92,7 @@ public final class Indexer {
     final boolean doDeletions = args[11].equals("yes");
     final boolean printDPS = args[12].equals("yes");
     final boolean waitForMerges = args[13].equals("yes");
+    final String mergePolicy = args[14];
 
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
@@ -113,9 +114,18 @@ public final class Indexer {
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
-    // We want deterministic merging, since we target a multi-seg index w/ 5 segs per level:
-    iwc.setMergePolicy(new LogDocMergePolicy());
-    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    // We want deterministic merging, since we target a
+    // multi-seg index w/ 5 segs per level:
+    final LogMergePolicy mp;
+    if (mergePolicy.equals("LogDocMergePolicy")) {
+      mp = new LogDocMergePolicy();
+    } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
+      mp = new LogByteSizeMergePolicy();
+    } else {
+      throw new RuntimeException("unknown MergePolicy " + mergePolicy);
+    }
+    iwc.setMergePolicy(mp);
+    mp.setUseCompoundFile(false);
 
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
@@ -281,9 +291,9 @@ public final class Indexer {
         time = now;
         lastCount = numDocs;
        }
-
     }
   }
+
   private static class IndexThread extends Thread {
     private final LineFileDocs docs;
     private final int numTotalDocs;
@@ -301,12 +311,13 @@ public final class Indexer {
     public void run() {
       final LineFileDocs.DocState docState = docs.newDocState();
       final Field idField = docState.id;
+      final long tStart = System.currentTimeMillis();
       while(true) {
         try {
           final Document doc = docs.nextDoc(docState);
           final int id = Integer.parseInt(idField.stringValue());
           if (((1+id) % 1000000) == 0) {
-            System.out.println("Indexer: " + (1+id) + " docs...");
+            System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
           }
           if (doc == null ||
               (numTotalDocs != -1 && id >= numTotalDocs)) {

@@ -392,7 +392,7 @@ def stats(l):
     sum += v
     sumSQ += v*v
 
-  # min, mean, stddev
+  # min, max, mean, stddev
   return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
   
 
@@ -422,6 +422,7 @@ class Index:
     self.verbose = 'yes'
     self.printDPS = 'yes'
     self.waitForMerges = True
+    self.mergePolicy = 'LogDocMergePolicy'
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -500,7 +501,7 @@ class RunAlgs:
       else:
         waitForMerges = 'no'
       
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s' % \
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -516,7 +517,8 @@ class RunAlgs:
              index.codec,
              doDel,
              index.printDPS,
-             waitForMerges)
+             waitForMerges,
+             index.mergePolicy)
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)

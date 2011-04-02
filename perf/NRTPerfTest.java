@@ -36,7 +36,7 @@ import org.apache.lucene.util.Version;
 
 public class NRTPerfTest {
 
-  private static boolean NEW_INDEX = true;
+  private static boolean NEW_INDEX = false;
 
   // TODO: share w/ SearchPerfTest
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
@@ -87,7 +87,7 @@ public class NRTPerfTest {
           final Document doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
           if (doUpdate && (!NEW_INDEX || (maxDoc > 0 && random.nextInt(4) != 2))) {
-            final String id = Integer.toString(random.nextInt(maxDoc));
+            final String id = String.format("%09d", random.nextInt(maxDoc));
             docState.id.setValue(id);
             w.updateDocument(new Term("id", id), doc);
           } else {
@@ -193,6 +193,7 @@ public class NRTPerfTest {
     final double reopenPerSec = Double.parseDouble(args[9]);
     final boolean doUpdates = args[10].equals("update");
     statsEverySec = Integer.parseInt(args[11]);
+    final boolean doCommit = args[12].equals("yes");
 
     System.out.println("DIR=" + dirImpl);
     System.out.println("Index=" + dirPath);
@@ -240,11 +241,11 @@ public class NRTPerfTest {
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
 
-    iwc.setMergePolicy(new LogByteSizeMergePolicy());
-    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    //iwc.setMergePolicy(new LogByteSizeMergePolicy());
+    //((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
 
-    //iwc.setMergePolicy(new TieredMergePolicy());
-    //((TieredMergePolicy) iwc.getMergePolicy()).setSegmentsPerTier(10.0);
+    iwc.setMergePolicy(new TieredMergePolicy());
+    ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
 
     if (!commit.equals("none")) {
       iwc.setIndexCommit(findCommitPoint(commit, dir));
@@ -265,7 +266,7 @@ public class NRTPerfTest {
       });
 
     final IndexWriter w = new IndexWriter(dir, iwc);
-    w.setInfoStream(System.out);
+    //w.setInfoStream(System.out);
 
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {
@@ -304,9 +305,10 @@ public class NRTPerfTest {
             if (t >= stopMS) {
               break;
             }
+            
+            final long sleepMS = (long) Math.max(500/reopenPerSec, startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis());
 
-            // final long sleepMS = (long) Math.max(500/reopenPerSec, startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis());
-
+            /*
             final long sleepMS;
             if (random.nextBoolean()) {
               sleepMS = random.nextInt(200);
@@ -315,6 +317,7 @@ public class NRTPerfTest {
             } else {
               sleepMS = random.nextInt(2000);
             }
+            */
 
             Thread.sleep(sleepMS);
 
@@ -323,8 +326,11 @@ public class NRTPerfTest {
               reopensByTime[qt].incrementAndGet();
             }
 
+            final long tStart = System.nanoTime();
             final IndexReader newR = r.reopen();
+
             if (newR != r) {
+              System.out.println("Reopen: " + String.format("%9.4f", (System.nanoTime() - tStart)/1000000.0) + " msec");
               setSearcher(new IndexSearcher(newR));
               r = newR;
               reopenCount++;
@@ -381,6 +387,8 @@ public class NRTPerfTest {
     if (NEW_INDEX) {
       w.waitForMerges();
       w.close();
+    } else if (doCommit) {
+      w.close(false);
     } else {
       w.rollback();
     }

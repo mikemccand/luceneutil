@@ -18,15 +18,14 @@
 from competition import Competition
 from competition import WIKI_MEDIUM
 
+# simple example that runs benchmark with WIKI_MEDIUM source and taks files 
+# Baseline here is ../trunk versus ../modified_trunk
 if __name__ == '__main__':
   comp =  Competition(ramBufferMB=1024, printCharts=True)
-  comp.competitor('trunk').withIndex('trunk', WIKI_MEDIUM)
-  comp.competitor('modified_trunk').withIndex('modified_trunk', WIKI_MEDIUM)
-  # indexOnly
-  # comp.skipSearch()
-  
-  # search only -- if index is prebuild
-  # comp.skipIndex()
-  
-  comp.benchmark("trunk vs. modified_trunk")
+  index = comp.newIndex('trunk', WIKI_MEDIUM)
+  comp.competitor('trunk').withIndex(index)
+  # use the same index here
+  comp.competitor('modified_trunk')
+  #start the benchmark
+  comp.benchmark("trunk_vs_modtrunk")
   

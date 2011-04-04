@@ -46,8 +46,6 @@ JAVA_COMMAND = 'java -Xbatch -Xms1g -Xmx1g -client'
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 2
 SEARCH_NUM_THREADS = 2
-CODEC_DEFAULT='Standard'
-ANALYZER_DEFAULT='StandardAnalyzer'
 # geonames: http://download.geonames.org/export/dump/
 
 SORT_REPORT_BY = 'pctchange'
@@ -55,6 +53,11 @@ SORT_REPORT_BY = 'pctchange'
 
 if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
+#DEFAULTS
+
+CODEC_DEFAULT='Standard'
+ANALYZER_DEFAULT='StandardAnalyzer'
+MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

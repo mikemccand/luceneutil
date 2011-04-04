@@ -18,6 +18,7 @@
 import time
 import sys
 import os
+from competition import *
 import benchUtil
 import common
 import constants
@@ -113,7 +114,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           p = True
         seen.add(c.index)
         r.makeIndex(id, c.index, doCharts)
-        segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index))
+        segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index.getName()))
         if indexSegCount is None:
           indexSegCount = segCount
           indexCommit = c.commitPoint
@@ -123,11 +124,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   logUpto = 0
 
   if search:
-
-    threads = SEARCH_NUM_THREADS
-
     randomSeed = random.randint(-10000000, 1000000)
-
     results = {}
     print
     print 'Search:'
@@ -135,7 +132,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for c in competitors:
       print '  %s:' % c.name
       t0 = time.time()
-      results[c] = r.runSimpleSearchBench(id, c, repeatCount, threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
+      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
       print '    %.2f sec' % (time.time() - t0)
   else:
     results = {}
@@ -148,53 +145,52 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                  '-html' in sys.argv,
                  cmpDesc=competitors[1].name,
                  baseDesc=competitors[0].name)
-Competitor = benchUtil.Competitor
 
 def bushy():
 
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = benchUtil.Index('bushy3', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index1 = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = Index('bushy3', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   run('bushy',
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
+      Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
     )
 
 def dwpt():
 
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
-  index2 = benchUtil.Index('realtime', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
+  index1 = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
+  index2 = Index('realtime', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
 
   index1.setVerbose(False)
   index2.setVerbose(False)
   run('dwpt',
-      Competitor('dwpt', 'realtime', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('dwpt', 'realtime', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
+      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
     )
 
 def bushy4():
 
 
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = benchUtil.Index('bushy4', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index1 = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = Index('bushy4', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   run('bushy4',
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('blocktree', 'bushy4', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
+      Competitor('blocktree', 'bushy4', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
     )
 
 def readVInt():
 
-  index = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   run('workaround',
-      Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('patch', 'workaround', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
+      Competitor('patch', 'workaround', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
     )
 
 if __name__ == '__main__':
   #bushy()
-  #dwpt()
+  dwpt()
   #fis()
   #readVInt()
-  bushy4()
+  #bushy4()
 
 # NOTE: when running on 3.0, apply this patch:
 """

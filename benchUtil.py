@@ -40,9 +40,6 @@ SLOW_SKIP_PCT = 25
 
 LOG_SUB_DIR = 'logs'
 
-# for multi-segment index:
-SEGS_PER_LEVEL = 5
-
 DO_MIN = False
 
 osName = common.osName
@@ -405,46 +402,6 @@ def run(cmd, logFile=None, indent='    '):
       print open(logFile).read()
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
 
-class Index:
-
-  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads, lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory', doDeletions=False, ramBufferMB=-1):
-    self.checkout = checkout
-    self.analyzer = analyzer
-    self.dataSource = dataSource
-    self.codec = codec
-    self.numDocs = numDocs
-    self.numThreads = numThreads
-    self.lineDocSource = lineDocSource
-    self.doOptimize = doOptimize
-    self.dirImpl = dirImpl
-    self.doDeletions = doDeletions
-    self.ramBufferMB = ramBufferMB 
-    self.verbose = 'yes'
-    self.printDPS = 'yes'
-    self.waitForMerges = True
-    self.mergePolicy = 'LogDocMergePolicy'
-    mergeFactor = 10
-    if SEGS_PER_LEVEL >= mergeFactor:
-      raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
-
-  def setVerbose(self, verbose):
-    if verbose:
-      self.verbose = 'yes'
-    else:
-      self.verbose = 'no'
-  def setPrintDPS(self, dps):
-    if dps:
-      self.printDPS = 'yes'
-    else: 
-      self.printDPS = 'no'
-
-  def getName(self):
-    if self.doOptimize:
-      s = 'opt.'
-    else:
-      s = ''
-    return '%s.%s.%s.%snd%gM' % (self.dataSource, self.checkout, self.codec, s, self.numDocs/1000000.0)
-
 class RunAlgs:
 
   def __init__(self, javaCommand):
@@ -479,11 +436,6 @@ class RunAlgs:
       return fullIndexPath
     else:
       print '  %s: now create' % fullIndexPath
-    if index.ramBufferMB == -1: 
-      maxBufferedDocs = index.numDocs / (SEGS_PER_LEVEL*111)
-    else:
-      maxBufferedDocs = -1
-    # maxBufferedDocs = 10000000
     
     try:
       if index.doOptimize:
@@ -513,7 +465,7 @@ class RunAlgs:
              opt,
              index.verbose,
              index.ramBufferMB,
-             maxBufferedDocs,
+             index.maxBufferedDocs,
              index.codec,
              doDel,
              index.printDPS,
@@ -884,23 +836,3 @@ def getSegmentCount(indexPath):
     if fileName.endswith('.fdx'):
       segCount += 1
   return segCount
-
-class Competitor(object):
-
-  doSort = False
-
-  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile):
-    self.name = name
-    self.index = index
-    self.checkout = checkout
-    self.commitPoint = commitPoint
-    self.dirImpl = dirImpl
-    self.analyzer = analyzer
-    self.tasksFile = tasksFile
-
-  def compile(self, cp):
-    run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
-
-  def setTask(self, task):
-    self.searchTask = self.TASKS[task];
-    return self

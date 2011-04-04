@@ -137,7 +137,7 @@ class Competition(object):
     self.indices = []
     self.verbose=verbose
     self.printCharts = printCharts 
-    self.debug=False
+    self._debug=False
     self.benchSearch = True
     self.benchIndex = True
 
@@ -150,7 +150,7 @@ class Competition(object):
     return CompetitorBuilder(name, checkout, self)
 
   def debug(self):
-    self.debug = True
+    self._debug = True
     return self
 
   def skipIndex(self):

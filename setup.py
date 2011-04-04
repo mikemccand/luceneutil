@@ -20,7 +20,7 @@ import sys
 import urllib
 
 BASE_URL = 'http://people.apache.org/~mikemccand'
-DATA_FILES = ['enwiki-20100302-pages-articles-lines-1k.txt.bz2']
+DATA_FILES = ['enwiki-20100302-pages-articles-lines-1k.txt.bz2', 'wikimedium500.tasks']
 USAGE= """
 Usage: python setup.py [-download, [-prepareTrunk]]
 
@@ -67,7 +67,8 @@ def runSetup(download, prepare_trunk):
         print 'download ', url, ' - time might take a long time!'
         download = urllib.urlretrieve(url, filename=target_file)
         print 'downloading %s to  %s done ' % (url, target_file)
-
+      if target_file.endswith('bz2'):
+        print 'NOTE: make sure you decompress %s' % (target_file)
   if prepare_trunk:
     trunk_dir = os.path.join(parent, 'trunk')
     if os.path.exists(trunk_dir):
@@ -86,8 +87,6 @@ def runSetup(download, prepare_trunk):
         client.checkout('https://svn.apache.org/repos/asf/lucene/dev/trunk', trunk_dir)
 
   print 'setup successful'
-          
-    
     
 if __name__ == '__main__':
   if '-help' in sys.argv or '--help' in sys.argv:

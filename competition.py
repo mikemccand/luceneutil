@@ -34,7 +34,7 @@ EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 50000
 DATA = {'wikimedium' : WIKI_MEDIUM, 'wikibig' : WIKI_BIG, 'euromedium' : EURO_MEDIUM }
 
 
-MMAP_DIRECTORY='MMAPDirectory'
+MMAP_DIRECTORY='MMapDirectory'
 NIOFS_DIRECTORY='NIOFSDirectory'
 MULTI_SEGMENTS_COMMIT='multi'
 SINGLE_SEGMENT_COMMIT='single'
@@ -115,7 +115,7 @@ class Competitor(object):
     self.dirImpl = dirImpl
     self.analyzer = analyzer
     self.tasksFile = tasksFile
-
+    self.threads = threads
   def compile(self, cp):
     benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
 
@@ -168,7 +168,8 @@ class Competition(object):
       raise RuntimeError('expected at least one index use withIndex(...)')
     if len(self.indices) == 1:
       for comp in self.competitors:
-        if not comp.index:
+        # only one index given? share it!
+        if not comp._index:
           comp.withIndex(self.indices[0])
     base = self.competitors[0].build()
     challenger = self.competitors[1].build()

@@ -24,47 +24,14 @@ import common
 import constants
 import random
 
-if __name__ == "__main__":
-  if '-ea' in sys.argv:
-    JAVA_COMMAND += ' -ea:org.apache.lucene...'
-  INDEX_CHARTS = False
-  INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
-  SEARCH_NUM_THREADS = constants.SEARCH_NUM_THREADS
-  if '-source' in sys.argv:
-    source = sys.argv[1+sys.argv.index('-source')]
-    if source == 'wikimedium':
-      LINE_FILE = constants.WIKI_MEDIUM_DOCS_LINE_FILE
-      INDEX_NUM_DOCS = 10000000
-      TASKS_FILE = constants.WIKI_MEDIUM_TASKS_FILE
-    elif source == 'wikibig':
-      LINE_FILE = constants.WIKI_BIG_DOCS_LINE_FILE
-      INDEX_NUM_DOCS = 3000000
-      TASKS_FILE = constants.WIKI_BIG_TASKS_FILE
-    elif source == 'euromedium':
-      # TODO: need to be able to swap in new queries
-      LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
-      INDEX_NUM_DOCS = 5000000
-      TASKS_FILE = constants.EUROPARL_MEDIUM_TASKS_FILE
-    else:
-      # TODO: add geonames
-      raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
-  else:
-    raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
-
-  if '-debug' in sys.argv:
-    # 400K docs
-    INDEX_NUM_DOCS /= 25
-
-# This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
-#INDEX_NUM_DOCS = 27625038
-
-# This is #docs in /lucene/data/europarl.para.lines.txt
-# INDEX_NUM_DOCS = 5607746
+if '-ea' in sys.argv:
+  JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 osName = common.osName
 
 def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False):
   competitors = [base, challenger]
+
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
   if '-noc' not in sys.argv:
     print
@@ -146,51 +113,6 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                  cmpDesc=competitors[1].name,
                  baseDesc=competitors[0].name)
 
-def bushy():
-
-  index1 = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = Index('bushy3', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run('bushy',
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-      Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-    )
-
-def dwpt():
-
-  index1 = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
-  index2 = Index('realtime', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
-
-  index1.setVerbose(False)
-  index2.setVerbose(False)
-  run('dwpt',
-      Competitor('dwpt', 'realtime', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-    )
-
-def bushy4():
-
-
-  index1 = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = Index('bushy4', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run('bushy4',
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-      Competitor('blocktree', 'bushy4', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-    )
-
-def readVInt():
-
-  index = Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run('workaround',
-      Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-      Competitor('patch', 'workaround', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE, threads=SEARCH_NUM_THREADS),
-    )
-
-if __name__ == '__main__':
-  #bushy()
-  dwpt()
-  #fis()
-  #readVInt()
-  #bushy4()
 
 # NOTE: when running on 3.0, apply this patch:
 """

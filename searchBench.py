@@ -113,7 +113,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           p = True
         seen.add(c.index)
         r.makeIndex(id, c.index, doCharts)
-        segCount = benchUtil.getSegmentCount(c.index)
+        segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index))
         if indexSegCount is None:
           indexSegCount = segCount
           indexCommit = c.commitPoint
@@ -148,27 +148,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                  '-html' in sys.argv,
                  cmpDesc=competitors[1].name,
                  baseDesc=competitors[0].name)
-
-
-class Competitor(object):
-
-  doSort = False
-
-  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile):
-    self.name = name
-    self.index = index
-    self.checkout = checkout
-    self.commitPoint = commitPoint
-    self.dirImpl = dirImpl
-    self.analyzer = analyzer
-    self.tasksFile = tasksFile
-
-  def compile(self, cp):
-    benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
-
-  def setTask(self, task):
-    self.searchTask = self.TASKS[task];
-    return self
+Competitor = benchUtil.Competitor
 
 def bushy():
 
@@ -191,9 +171,30 @@ def dwpt():
       Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
     )
 
+def bushy4():
+
+
+  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  index2 = benchUtil.Index('bushy4', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run('bushy4',
+      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('blocktree', 'bushy4', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+    )
+
+def readVInt():
+
+  index = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
+  run('workaround',
+      Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+      Competitor('patch', 'workaround', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
+    )
+
 if __name__ == '__main__':
   #bushy()
-  dwpt()
+  #dwpt()
+  #fis()
+  #readVInt()
+  bushy4()
 
 # NOTE: when running on 3.0, apply this patch:
 """

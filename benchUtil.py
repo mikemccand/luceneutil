@@ -392,7 +392,7 @@ def stats(l):
     sum += v
     sumSQ += v*v
 
-  # min, mean, stddev
+  # min, max, mean, stddev
   return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
   
 
@@ -421,6 +421,8 @@ class Index:
     self.ramBufferMB = ramBufferMB 
     self.verbose = 'yes'
     self.printDPS = 'yes'
+    self.waitForMerges = True
+    self.mergePolicy = 'LogDocMergePolicy'
     mergeFactor = 10
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -493,8 +495,13 @@ class RunAlgs:
         doDel = 'yes'
       else:
         doDel = 'no'
+
+      if index.waitForMerges:
+        waitForMerges = 'yes'
+      else:
+        waitForMerges = 'no'
       
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s' % \
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -509,7 +516,9 @@ class RunAlgs:
              maxBufferedDocs,
              index.codec,
              doDel,
-             index.printDPS)
+             index.printDPS,
+             waitForMerges,
+             index.mergePolicy)
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)
@@ -529,7 +538,7 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
-    return fullIndexPath
+    return fullIndexPath, fullLogFile
 
   def getClassPath(self, checkout):
     path = checkoutToPath(checkout)
@@ -559,10 +568,13 @@ class RunAlgs:
 
   def compile(self,competitor):
     path = checkoutToBenchPath(competitor.checkout)
-    print '  %s' % path
     cwd = os.getcwd()
-    os.chdir(path)
+    print '  %s' % checkoutToPath(competitor.checkout)
+    os.chdir(checkoutToPath(competitor.checkout))
     try:
+      run('ant compile', 'compile.log')
+      print '  %s' % path
+      os.chdir(path)
       run('ant compile', 'compile.log')
       if path.endswith('/'):
         path = path[:-1]
@@ -649,7 +661,7 @@ class RunAlgs:
       logFiles.append(iterLogFile)
     return logFiles
 
-  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None):
+  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
     baseRawResults = parseResults(baseLogFiles)
     cmpRawResults = parseResults(cmpLogFiles)
@@ -670,6 +682,8 @@ class RunAlgs:
     lines = []
 
     chartData = []
+
+    resultsByCatCmp = {}
 
     for cat in cats:
 
@@ -699,6 +713,8 @@ class RunAlgs:
 
       minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
       minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
+
+      resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
 
       if DO_MIN:
         qpsBase = minQPSBase
@@ -738,7 +754,7 @@ class RunAlgs:
       if jira:
         w('|%s-%s' % (jiraColor(psWorst), jiraColor(psBest)))
       elif html:
-        w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlcolor(psBest)))
+        w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlColor(psBest)))
       else:
         w('%14s' % ('%4d%% - %4d%%' % (psWorst, psBest)))
 
@@ -772,7 +788,7 @@ class RunAlgs:
       QPSChart.QPSChart(chartData, 'out.png')
       print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
                         
-    w = sys.stdout.write
+    w = writer
 
     if jira:
       w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %
@@ -808,6 +824,8 @@ class RunAlgs:
 
     for w in warnings:
       print 'WARNING: %s' % w
+
+    return resultsByCatCmp
 
   def compare(self, baseline, newList, *params):
 
@@ -860,10 +878,29 @@ def compareHits(r1, r2):
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
-def getSegmentCount(index):
+def getSegmentCount(indexPath):
   segCount = 0
-  for fileName in os.listdir(nameToIndexPath(index.getName())):
-    if fileName.endswith('.tis') or fileName.endswith('.tib'):
+  for fileName in os.listdir(indexPath):
+    if fileName.endswith('.fdx'):
       segCount += 1
   return segCount
 
+class Competitor(object):
+
+  doSort = False
+
+  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile):
+    self.name = name
+    self.index = index
+    self.checkout = checkout
+    self.commitPoint = commitPoint
+    self.dirImpl = dirImpl
+    self.analyzer = analyzer
+    self.tasksFile = tasksFile
+
+  def compile(self, cp):
+    run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
+
+  def setTask(self, task):
+    self.searchTask = self.TASKS[task];
+    return self

@@ -15,18 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from competition import Competition
-from competition import WIKI_MEDIUM
+import math
 
-if __name__ == '__main__':
-  comp =  Competition(ramBufferMB=1024, printCharts=True)
-  comp.competitor('trunk').withIndex('trunk', WIKI_MEDIUM)
-  comp.competitor('modified_trunk').withIndex('modified_trunk', WIKI_MEDIUM)
-  # indexOnly
-  # comp.skipSearch()
-  
-  # search only -- if index is prebuild
-  # comp.skipIndex()
-  
-  comp.benchmark("trunk vs. modified_trunk")
+def getStats(l):
+
+  sum = 0
+  sumSQ = 0
+  for v in l:
+    sum += v
+    sumSQ += v*v
+
+  # min, max, mean, stddev
+  return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
   

@@ -38,7 +38,7 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy
 
 // EG:
 //
@@ -91,6 +91,9 @@ public final class Indexer {
     final String codec = args[10];
     final boolean doDeletions = args[11].equals("yes");
     final boolean printDPS = args[12].equals("yes");
+    final boolean waitForMerges = args[13].equals("yes");
+    final String mergePolicy = args[14];
+
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
@@ -103,6 +106,7 @@ public final class Indexer {
     System.out.println("Max buffered docs: " + maxBufferedDocs);
     System.out.println("Codec: " + codec);
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
+    System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
@@ -110,9 +114,18 @@ public final class Indexer {
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
-    // We want deterministic merging, since we target a multi-seg index w/ 5 segs per level:
-    iwc.setMergePolicy(new LogDocMergePolicy());
-    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    // We want deterministic merging, since we target a
+    // multi-seg index w/ 5 segs per level:
+    final LogMergePolicy mp;
+    if (mergePolicy.equals("LogDocMergePolicy")) {
+      mp = new LogDocMergePolicy();
+    } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
+      mp = new LogByteSizeMergePolicy();
+    } else {
+      throw new RuntimeException("unknown MergePolicy " + mergePolicy);
+    }
+    iwc.setMergePolicy(mp);
+    mp.setUseCompoundFile(false);
 
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
@@ -158,9 +171,14 @@ public final class Indexer {
       throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCount);
     }
 
-    w.waitForMerges();
-    final long t2 = System.currentTimeMillis();
-    System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
+    final long t2;
+    if (waitForMerges) {
+      w.waitForMerges();
+      t2 = System.currentTimeMillis();
+      System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
+    } else {
+      t2 = System.currentTimeMillis();
+    }
 
     final Map<String,String> commitData = new HashMap<String,String>();
     commitData.put("userData", "multi");
@@ -235,8 +253,14 @@ public final class Indexer {
     }
     */
 
-    w.close();
+    System.out.println("\nIndexer: at close: " + w.segString());
+    final long tCloseStart = System.currentTimeMillis();
+    w.close(waitForMerges);
+    System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
+    final long tFinal = System.currentTimeMillis();
+    System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
+    System.out.println("\nIndexer: net bytes indexed " + docs.getBytesIndexed());
   }
   
   private static class IngestRatePrinter extends Thread {
@@ -267,9 +291,9 @@ public final class Indexer {
         time = now;
         lastCount = numDocs;
        }
-
     }
   }
+
   private static class IndexThread extends Thread {
     private final LineFileDocs docs;
     private final int numTotalDocs;
@@ -287,12 +311,13 @@ public final class Indexer {
     public void run() {
       final LineFileDocs.DocState docState = docs.newDocState();
       final Field idField = docState.id;
+      final long tStart = System.currentTimeMillis();
       while(true) {
         try {
           final Document doc = docs.nextDoc(docState);
           final int id = Integer.parseInt(idField.stringValue());
           if (((1+id) % 1000000) == 0) {
-            System.out.println("Indexer: " + (1+id) + " docs...");
+            System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
           }
           if (doc == null ||
               (numTotalDocs != -1 && id >= numTotalDocs)) {

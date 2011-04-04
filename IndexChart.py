@@ -17,7 +17,7 @@ import Gnuplot
 
 class IndexChart(object):
   
-  def __init__(self, log_file, competitor, out_base='/tmp',  start_sec=50, end_sec=200):
+  def __init__(self, log_file, competitor, out_base='.',  start_sec=50, end_sec=200):
     self.log_file = log_file 
     self.start_ms = start_sec * 1000
     self.start_sec= start_sec

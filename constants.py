@@ -46,7 +46,8 @@ JAVA_COMMAND = 'java -Xbatch -Xms1g -Xmx1g -client'
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 2
 SEARCH_NUM_THREADS = 2
-
+CODEC_DEFAULT='Standard'
+ANALYZER_DEFAULT='StandardAnalyzer'
 # geonames: http://download.geonames.org/export/dump/
 
 SORT_REPORT_BY = 'pctchange'

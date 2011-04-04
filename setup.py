@@ -18,9 +18,13 @@
 import os
 import sys
 import urllib
+import shutil
 
 BASE_URL = 'http://people.apache.org/~mikemccand'
-DATA_FILES = ['enwiki-20100302-pages-articles-lines-1k.txt.bz2', 'wikimedium500.tasks']
+DATA_FILES = [
+              'enwiki-20100302-pages-articles-lines-1k.txt.bz2',
+              'wikimedium500.tasks'
+             ]
 USAGE= """
 Usage: python setup.py [-download, [-prepareTrunk]]
 
@@ -55,7 +59,14 @@ def runSetup(download, prepare_trunk):
     finally:
       f.close()
   else:
-    print 'localconstants.py already exists'
+    print 'localconstants.py already exists - skipping'
+
+  local_run = os.path.join(cwd, 'localrun.py')
+  example = os.path.join(cwd, 'example.py')
+  if not os.path.exists(local_run):
+    shutil.copyfile(example, local_run)
+  else:
+    print 'localrun.py already exists - skipping'
     
   if download:
     for filename in DATA_FILES:
@@ -65,7 +76,7 @@ def runSetup(download, prepare_trunk):
         print 'file %s already exists - skipping' % (target_file)
       else:
         print 'download ', url, ' - time might take a long time!'
-        download = urllib.urlretrieve(url, filename=target_file)
+        urllib.urlretrieve(url, filename=target_file)
         print 'downloading %s to  %s done ' % (url, target_file)
       if target_file.endswith('bz2'):
         print 'NOTE: make sure you decompress %s' % (target_file)

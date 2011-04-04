@@ -23,36 +23,36 @@ import common
 import constants
 import random
 
-if '-ea' in sys.argv:
-  JAVA_COMMAND += ' -ea:org.apache.lucene...'
-
-INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
-SEARCH_NUM_THREADS = constants.SEARCH_NUM_THREADS
-
-if '-source' in sys.argv:
-  source = sys.argv[1+sys.argv.index('-source')]
-  if source == 'wikimedium':
-    LINE_FILE = constants.WIKI_MEDIUM_DOCS_LINE_FILE
-    INDEX_NUM_DOCS = 10000000
-    TASKS_FILE = constants.WIKI_MEDIUM_TASKS_FILE
-  elif source == 'wikibig':
-    LINE_FILE = constants.WIKI_BIG_DOCS_LINE_FILE
-    INDEX_NUM_DOCS = 3000000
-    TASKS_FILE = constants.WIKI_BIG_TASKS_FILE
-  elif source == 'euromedium':
-    # TODO: need to be able to swap in new queries
-    LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
-    INDEX_NUM_DOCS = 5000000
-    TASKS_FILE = constants.EUROPARL_MEDIUM_TASKS_FILE
+if __name__ == "__main__":
+  if '-ea' in sys.argv:
+    JAVA_COMMAND += ' -ea:org.apache.lucene...'
+  INDEX_CHARTS = False
+  INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
+  SEARCH_NUM_THREADS = constants.SEARCH_NUM_THREADS
+  if '-source' in sys.argv:
+    source = sys.argv[1+sys.argv.index('-source')]
+    if source == 'wikimedium':
+      LINE_FILE = constants.WIKI_MEDIUM_DOCS_LINE_FILE
+      INDEX_NUM_DOCS = 10000000
+      TASKS_FILE = constants.WIKI_MEDIUM_TASKS_FILE
+    elif source == 'wikibig':
+      LINE_FILE = constants.WIKI_BIG_DOCS_LINE_FILE
+      INDEX_NUM_DOCS = 3000000
+      TASKS_FILE = constants.WIKI_BIG_TASKS_FILE
+    elif source == 'euromedium':
+      # TODO: need to be able to swap in new queries
+      LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
+      INDEX_NUM_DOCS = 5000000
+      TASKS_FILE = constants.EUROPARL_MEDIUM_TASKS_FILE
+    else:
+      # TODO: add geonames
+      raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
   else:
-    # TODO: add geonames
-    raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
-else:
-  raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
+    raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
 
-if '-debug' in sys.argv:
-  # 400K docs
-  INDEX_NUM_DOCS /= 25
+  if '-debug' in sys.argv:
+    # 400K docs
+    INDEX_NUM_DOCS /= 25
 
 # This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
 #INDEX_NUM_DOCS = 27625038
@@ -62,19 +62,22 @@ if '-debug' in sys.argv:
 
 osName = common.osName
 
-def run(id, coldRun, *competitors):
-
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False):
+  competitors = [base, challenger]
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
   if '-noc' not in sys.argv:
     print
     print 'Compile:'
     for c in competitors:
       r.compile(c)
-  search = '-search' in sys.argv
-  index  = '-index' in sys.argv
+  if not search:
+    search = '-search' in sys.argv
+
+  if not index:
+    index  = '-index' in sys.argv
   sum = search or '-sum' in sys.argv
 
-  if '-debugs' in sys.argv or '-debug' in sys.argv:
+  if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
     id += '-debug'
     jvmCount = 10
     if coldRun:
@@ -94,13 +97,10 @@ def run(id, coldRun, *competitors):
 
   if index:
     seen = set()
+    
     for c in competitors:
       if c.index not in seen:
         seen.add(c.index)
-
-    # if all jobs are going to share single index, use many threads
-    numThreads = INDEX_NUM_THREADS
-
     seen = set()
     indexSegCount = None
     indexCommit = None
@@ -112,7 +112,7 @@ def run(id, coldRun, *competitors):
           print 'Create indices:'
           p = True
         seen.add(c.index)
-        r.makeIndex(id, c.index)
+        r.makeIndex(id, c.index, doCharts)
         segCount = benchUtil.getSegmentCount(c.index)
         if indexSegCount is None:
           indexSegCount = segCount
@@ -172,19 +172,14 @@ class Competitor(object):
 
 def bushy():
 
-  COLD = False
-
   index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   index2 = benchUtil.Index('bushy3', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
   run('bushy',
-      COLD,
       Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
       Competitor('bushy', 'bushy3', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
     )
 
 def dwpt():
-
-  COLD = False
 
   index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
   index2 = benchUtil.Index('realtime', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
@@ -192,7 +187,6 @@ def dwpt():
   index1.setVerbose(False)
   index2.setVerbose(False)
   run('dwpt',
-      COLD,
       Competitor('dwpt', 'realtime', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
       Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
     )

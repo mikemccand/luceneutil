@@ -28,7 +28,7 @@ import constants
 import common
 import random
 import QPSChart
-
+import IndexChart
 # TODO
 #   - allow 'onlyCat' option
 
@@ -469,7 +469,7 @@ class RunAlgs:
     else:
       print 'OS:\n%s' % sys.platform
 
-  def makeIndex(self, id, index):
+  def makeIndex(self, id, index, printCharts=False):
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath):
@@ -514,11 +514,15 @@ class RunAlgs:
       if not os.path.exists(logDir):
         os.makedirs(logDir)
       fullLogFile = '%s/%s.%s.log' % (logDir, id, index.getName())
+      
       print '    log %s' % fullLogFile
 
       t0 = time.time()
       run(cmd, fullLogFile)
       t1 = time.time()
+      if printCharts:
+        chart = IndexChart.IndexChart(fullLogFile, index.getName())
+        chart.plot() 
 
     except:
       if os.path.exists(fullIndexPath):

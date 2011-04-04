@@ -12,7 +12,7 @@ First, checkout luceneutil:
 
   * cd /lucene
 
-  * hg clone http://code.google.com/a/apache-extras.org/p/luceneutil util
+  * hg clone https://hg.codespot.com/a/apache-extras.org/luceneutil/ util
 
 Copy down the dataset we've been using:
 

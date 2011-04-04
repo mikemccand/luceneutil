@@ -116,6 +116,7 @@ class Competitor(object):
     self.analyzer = analyzer
     self.tasksFile = tasksFile
     self.threads = threads
+
   def compile(self, cp):
     benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
 
@@ -175,9 +176,9 @@ class Competition(object):
     challenger = self.competitors[1].build()
      
     searchBench.run(id, base, challenger, coldRun=self.cold, doCharts=self.printCharts,
-                search=self.benchSearch, index=self.benchIndex, debug=self.debug)
+                search=self.benchSearch, index=self.benchIndex, debugs=self._debug, debug=self._debug)
     return self
-  
+
   def clearCompetitors(self):
     self.competitors = []
     return self 
@@ -273,6 +274,7 @@ class IndexBuilder(object):
     return self
 
   def build(self):
+
     idx = Index(self._checkout, self._data.name, self._analyzer, self._codec,
           self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB)
     idx.setVerbose(self._verbose)

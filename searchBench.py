@@ -44,8 +44,9 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   if not index:
     index  = '-index' in sys.argv
   sum = search or '-sum' in sys.argv
-
+ 
   if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
+    debug = True
     id += '-debug'
     jvmCount = 10
     if coldRun:
@@ -80,6 +81,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           print 'Create indices:'
           p = True
         seen.add(c.index)
+        if debug:
+          c.index.numDocs = 100000
         r.makeIndex(id, c.index, doCharts)
         segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index.getName()))
         if indexSegCount is None:

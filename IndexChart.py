@@ -100,6 +100,9 @@ class IndexChart(object):
     title = "%(competitor)s No. Threads: %(threads)s RAM Buffer: %(ram)s MB\\n Directory: %(dir)s numDocs: %(docs)d \\n indexing: %(total)d sec \\n merges: %(merge_total)d sec. \\n commit: %(commit_total)d sec." % meta
     x = [sec for _, sec in docs_per_second] 
     y = [docs for docs, sec in docs_per_second]
+    if not x:
+      print "not enough data collected for indexing stats - skipping"
+      return
     kw = {'title':'ingest rate', 'with' :'lines'}
     data = Gnuplot.Data(x, y,  **kw)
     gp('set title "%s"'  % (title))

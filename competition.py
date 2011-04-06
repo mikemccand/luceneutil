@@ -71,7 +71,7 @@ class Index(object):
     self.doDeletions = doDeletions
     self.ramBufferMB = ramBufferMB
     if ramBufferMB == -1:
-      self.maxBufferedDocs = index.numDocs/ (SEGS_PER_LEVEL*111)
+      self.maxBufferedDocs = numDocs/ (SEGS_PER_LEVEL*111)
     else:
       self.maxBufferedDocs = -1
     self.verbose = 'yes'
@@ -216,7 +216,8 @@ class CompetitorBuilder(object):
     return self
 
   def withIndex(self, index):
-    self._index = index 
+    self._index = index
+    return self
   
   def build(self):
     if not self._index:
@@ -239,6 +240,8 @@ class IndexBuilder(object):
     self._printCharts = competition.printCharts
     self._doDeletions = False
     self._doOptimize = False
+    self._mergePolicy = constants.MERGEPOLICY_DEFAULT
+    self._waitForMerges = True
     competition.indices.append(self)
     
   def threads(self, threads):
@@ -273,10 +276,20 @@ class IndexBuilder(object):
     self._codec = codec
     return self
 
+  def mergePolicy(self, p):
+    self._mergePolicy = p
+    return self
+
+  def waitForMerges(self, v):
+    self._waitForMerges = v
+    return self
+
   def build(self):
 
     idx = Index(self._checkout, self._data.name, self._analyzer, self._codec,
           self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB)
     idx.setVerbose(self._verbose)
     idx.setPrintDPS(self._printCharts)
+    idx.mergePolicy = self._mergePolicy
+    idx.waitForMerges = self._waitForMerges
     return idx

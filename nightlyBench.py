@@ -29,6 +29,7 @@ import re
 import benchUtil
 import constants
 import localpass
+import competition
 import stats
 
 """
@@ -90,9 +91,9 @@ NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
 
 if DEBUG:
-  MEDIUM_INDEX_NUM_DOCS /= 20
-  BIG_INDEX_NUM_DOCS /= 20
-  NRT_RUN_TIME /= 20
+  MEDIUM_INDEX_NUM_DOCS /= 100
+  BIG_INDEX_NUM_DOCS /= 100
+  NRT_RUN_TIME /= 90
   JVM_COUNT = 3
 
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
@@ -188,6 +189,16 @@ def runNRTTest(r, indexPath, runLogDir):
   
   return mean, stdDev
 
+def setIndexParams(idx, fastIndex=True):
+  idx.analyzer('StandardAnalyzer')
+  idx.codec('Standard')
+  idx.threads(constants.INDEX_NUM_THREADS)
+  idx.directory(DIR_IMPL)
+  idx.mergePolicy('TieredMergePolicy')
+  if fastIndex:
+    idx.ramBufferMB(INDEXING_RAM_BUFFER_MB)
+    idx.waitForMerges(False)
+
 def run():
 
   DO_RESET = '-reset' in sys.argv
@@ -205,55 +216,67 @@ def run():
   message('log dir %s' % runLogDir)
 
   os.chdir('/lucene/%s' % NIGHTLY_DIR)
-  runCommand('svn cleanup')
-  for i in range(30):
-    try:
-      runCommand('svn update')
-    except RuntimeError:
-      message('  retry...')
-      time.sleep(60.0)
-    else:
-      break
+  if True:
+    runCommand('svn cleanup')
+    for i in range(30):
+      try:
+        runCommand('svn update')
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        break
 
-  runCommand('ant clean')
+    runCommand('ant clean > clean.log 2>&1')
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
 
-  fastIndexMedium = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', MEDIUM_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=MEDIUM_LINE_FILE, ramBufferMB=INDEXING_RAM_BUFFER_MB, dirImpl=DIR_IMPL)
-  fastIndexMedium.setVerbose(False)
-  fastIndexMedium.waitForMerges = False
-  fastIndexMedium.printDPS = 'no'
-  fastIndexMedium.mergePolicy = 'TieredMergePolicy'
+  comp = competition.Competition()
 
-  fastIndexBig = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', BIG_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=BIG_LINE_FILE, ramBufferMB=INDEXING_RAM_BUFFER_MB, dirImpl=DIR_IMPL)
-  fastIndexBig.setVerbose(False)
-  fastIndexBig.waitForMerges = False
-  fastIndexBig.printDPS = 'no'
-  fastIndexBig.mergePolicy = 'TieredMergePolicy'
+  mediumSource = competition.Data('wikimedium',
+                                  MEDIUM_LINE_FILE,
+                                  MEDIUM_INDEX_NUM_DOCS,
+                                  constants.WIKI_MEDIUM_TASKS_FILE)
+  fastIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource)
+  setIndexParams(fastIndexMedium)
+
+  bigSource = competition.Data('wikibig',
+                               BIG_LINE_FILE,
+                               BIG_INDEX_NUM_DOCS,
+                               constants.WIKI_BIG_TASKS_FILE)
+  fastIndexBig = comp.newIndex(NIGHTLY_DIR, bigSource)
+  setIndexParams(fastIndexBig)
+
+  index = comp.newIndex(NIGHTLY_DIR, mediumSource)
+  setIndexParams(index, False)
+
+  c = comp.competitor(id, NIGHTLY_DIR)
+  c.withIndex(index)
+  c.directory(DIR_IMPL)
+  c.analyzer('StandardAnalyzer')
+  c.commitPoint('multi')
   
-  index = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', MEDIUM_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=MEDIUM_LINE_FILE)
-  index.printDPS = 'no'
+  #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
-  c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
-  r.compile(c)
+  r.compile(c.build())
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
+  medIndexPath, medIndexTime, medBytesIndexed = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium.build(), 'fastIndexMediumDocs.log')
 
   # 2: NRT test
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  ign, bigIndexTime, bigBytesIndexed = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
+  ign, bigIndexTime, bigBytesIndexed = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig.build(), 'fastIndexBigDocs.log')
 
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
-  indexPathNow, ign, ign = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
+  indexPathNow, ign, ign = buildIndex(r, runLogDir, 'search index (fixed segments)', index.build(), 'fixedIndex.log')
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
                                                  
   if os.path.exists(indexPathPrev) and not DO_RESET:
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
-    segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.getName()))
+    segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.build().getName()))
     if segCountNow != segCountPrev:
       raise RuntimeError('segment counts differ: prev=%s now=%s' % (segCountPrev, segCountNow))
 
@@ -267,7 +290,7 @@ def run():
   t0 = now()
 
   coldRun = False
-  resultsNow = r.runSimpleSearchBench(id, c, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
+  resultsNow = r.runSimpleSearchBench(id, c.build(), repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
   message('done search (%s)' % (now()-t0))
   resultsPrev = []
 

@@ -480,7 +480,7 @@ class RunAlgs:
       t0 = time.time()
       run(cmd, fullLogFile)
       t1 = time.time()
-      if printCharts:
+      if printCharts and IndexChart.Gnuplot is not None:
         chart = IndexChart.IndexChart(fullLogFile, index.getName())
         chart.plot() 
 

@@ -15,15 +15,17 @@
 
 import Gnuplot
 
-class IndexStats(object):
+class IndexChart(object):
   
-  def __init__(self, log_file, competitor, start_sec=50, end_sec=200):
+  def __init__(self, log_file, competitor, out_base='.',  start_sec=50, end_sec=200):
     self.log_file = log_file 
     self.start_ms = start_sec * 1000
     self.start_sec= start_sec
     self.end_ms = end_sec * 1000
     self.end_sec = end_sec
     self.competitor = competitor
+    self.out_base = out_base
+    self.terminal = 'png' 
 
   def buildRaw(self, meta=None):
     if not meta:
@@ -98,16 +100,20 @@ class IndexStats(object):
     title = "%(competitor)s No. Threads: %(threads)s RAM Buffer: %(ram)s MB\\n Directory: %(dir)s numDocs: %(docs)d \\n indexing: %(total)d sec \\n merges: %(merge_total)d sec. \\n commit: %(commit_total)d sec." % meta
     x = [sec for _, sec in docs_per_second] 
     y = [docs for docs, sec in docs_per_second]
-    data = Gnuplot.Data(x, y, title='ingest rate')
+    if not x:
+      print "not enough data collected for indexing stats - skipping"
+      return
+    kw = {'title':'ingest rate', 'with' :'lines'}
+    data = Gnuplot.Data(x, y,  **kw)
     gp('set title "%s"'  % (title))
-    gp('set style line 1 lc rgb "blue"')
-    gp('set style data lines')
-    gp('set yrange [0 : 60000]')
-    gp('set xrange [%d : %d]' % (self.start_sec, self.end_sec))
-    gp('set xlabel "seconds"')
-    gp('set ylabel "documents per second"')
-    gp.plot(data);
-    gp.hardcopy(filename="%s_dps.png" % (self.competitor),terminal="png")  
+    gp('set style line 1 lc rgb "green"')
+    gp.set_range('yrange',  '[0 : 60000]')
+    gp.set_range('xrange', '[%d : %d]' % (self.start_sec, self.end_sec))
+    gp.xlabel('seconds')
+    gp.ylabel('documents per second')
+    gp.plot(data)
+    gp.save("/tmp/foo.txt")
+    gp.hardcopy(filename="%s/%s_dps.png" % (self.out_base, self.competitor), terminal=self.terminal)  
     gp.close()
     if flush:
       gp = Gnuplot.Gnuplot(persist=1)
@@ -127,21 +133,10 @@ class IndexStats(object):
         gp.replot(data);
        
 
-      gp.hardcopy(filename="%s_flush.png" % (self.competitor),terminal="png")  
+      gp.hardcopy(filename="%s/%s_flush.png" % (self.out_base, self.competitor), terminal=self.terminal)  
       gp.close()
 
     
-if __name__ == "__main__":
-  
-  stats_rt = IndexStats(
-    '/media/benchmark/benchmark/realtime/modules/benchmark/logs/dwpt.wikimedium.realtime.Standard.nd10M.log',
-    'DocumentsWriterPerThread')
-  stats_trunk= IndexStats(
-    '/media/benchmark/benchmark/clean.svn/modules/benchmark/logs/dwpt.wikimedium.clean.svn.Standard.nd10M.log',
-    'Trunk')
-  stats_rt.plot()
-  stats_trunk.plot()
-
 # if you want to get flushing rate for RT apply this patch
 """
 

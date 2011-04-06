@@ -1,0 +1,6 @@
+localconstants.py
+localrun.py
+syntax: glob
+*.class
+*.pyc
+*.swp

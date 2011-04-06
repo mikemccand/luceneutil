@@ -18,6 +18,7 @@
 import time
 import sys
 import os
+from competition import *
 import benchUtil
 import common
 import constants
@@ -26,43 +27,10 @@ import random
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
-INDEX_NUM_THREADS = constants.INDEX_NUM_THREADS
-SEARCH_NUM_THREADS = constants.SEARCH_NUM_THREADS
-
-if '-source' in sys.argv:
-  source = sys.argv[1+sys.argv.index('-source')]
-  if source == 'wikimedium':
-    LINE_FILE = constants.WIKI_MEDIUM_DOCS_LINE_FILE
-    INDEX_NUM_DOCS = 10000000
-    TASKS_FILE = constants.WIKI_MEDIUM_TASKS_FILE
-  elif source == 'wikibig':
-    LINE_FILE = constants.WIKI_BIG_DOCS_LINE_FILE
-    INDEX_NUM_DOCS = 3000000
-    TASKS_FILE = constants.WIKI_BIG_TASKS_FILE
-  elif source == 'euromedium':
-    # TODO: need to be able to swap in new queries
-    LINE_FILE = constants.EUROPARL_MEDIUM_DOCS_LINE_FILE
-    INDEX_NUM_DOCS = 5000000
-    TASKS_FILE = constants.EUROPARL_MEDIUM_TASKS_FILE
-  else:
-    # TODO: add geonames
-    raise RuntimeError('unknown -source "%s" (expected wikimedium, wikibig, euromedium)' % source)
-else:
-  raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
-
-if '-debug' in sys.argv:
-  # 400K docs
-  INDEX_NUM_DOCS /= 25
-
-# This is #docs in /lucene/data/enwiki-20110115-lines-1k-fixed.txt
-#INDEX_NUM_DOCS = 27625038
-
-# This is #docs in /lucene/data/europarl.para.lines.txt
-# INDEX_NUM_DOCS = 5607746
-
 osName = common.osName
 
-def run(id, coldRun, *competitors):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False):
+  competitors = [base, challenger]
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
   if '-noc' not in sys.argv:
@@ -70,11 +38,15 @@ def run(id, coldRun, *competitors):
     print 'Compile:'
     for c in competitors:
       r.compile(c)
-  search = '-search' in sys.argv
-  index  = '-index' in sys.argv
-  sum = search or '-sum' in sys.argv
+  if not search:
+    search = '-search' in sys.argv
 
-  if '-debugs' in sys.argv or '-debug' in sys.argv:
+  if not index:
+    index  = '-index' in sys.argv
+  sum = search or '-sum' in sys.argv
+ 
+  if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
+    debug = True
     id += '-debug'
     jvmCount = 10
     if coldRun:
@@ -94,13 +66,10 @@ def run(id, coldRun, *competitors):
 
   if index:
     seen = set()
+    
     for c in competitors:
       if c.index not in seen:
         seen.add(c.index)
-
-    # if all jobs are going to share single index, use many threads
-    numThreads = INDEX_NUM_THREADS
-
     seen = set()
     indexSegCount = None
     indexCommit = None
@@ -112,8 +81,10 @@ def run(id, coldRun, *competitors):
           print 'Create indices:'
           p = True
         seen.add(c.index)
-        r.makeIndex(id, c.index)
-        segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index))
+        if debug:
+          c.index.numDocs = 100000
+        r.makeIndex(id, c.index, doCharts)
+        segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index.getName()))
         if indexSegCount is None:
           indexSegCount = segCount
           indexCommit = c.commitPoint
@@ -123,11 +94,7 @@ def run(id, coldRun, *competitors):
   logUpto = 0
 
   if search:
-
-    threads = SEARCH_NUM_THREADS
-
     randomSeed = random.randint(-10000000, 1000000)
-
     results = {}
     print
     print 'Search:'
@@ -135,7 +102,7 @@ def run(id, coldRun, *competitors):
     for c in competitors:
       print '  %s:' % c.name
       t0 = time.time()
-      results[c] = r.runSimpleSearchBench(id, c, repeatCount, threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
+      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
       print '    %.2f sec' % (time.time() - t0)
   else:
     results = {}
@@ -149,52 +116,6 @@ def run(id, coldRun, *competitors):
                  cmpDesc=competitors[1].name,
                  baseDesc=competitors[0].name)
 
-Competitor = benchUtil.Competitor
-
-def dwpt():
-
-  COLD = False
-
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
-  index2 = benchUtil.Index('realtime', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE, ramBufferMB=1024)
-
-  index1.setVerbose(False)
-  index2.setVerbose(False)
-  run('dwpt',
-      COLD,
-      Competitor('dwpt', 'realtime', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-    )
-
-def bushy4():
-
-  COLD = False
-
-  index1 = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  index2 = benchUtil.Index('bushy4', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run('bushy4',
-      COLD,
-      Competitor('base', 'clean.svn', index1, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('blocktree', 'bushy4', index2, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-    )
-
-def readVInt():
-
-  COLD = False
-
-  index = benchUtil.Index('clean.svn', source, 'StandardAnalyzer', 'Standard', INDEX_NUM_DOCS, INDEX_NUM_THREADS, lineDocSource=LINE_FILE)
-  run('workaround',
-      COLD,
-      Competitor('base', 'clean.svn', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-      Competitor('patch', 'workaround', index, 'MMapDirectory', 'StandardAnalyzer', 'multi', TASKS_FILE),
-    )
-
-if __name__ == '__main__':
-  #bushy()
-  #dwpt()
-  #fis()
-  #readVInt()
-  bushy4()
 
 # NOTE: when running on 3.0, apply this patch:
 """

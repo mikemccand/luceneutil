@@ -9,9 +9,27 @@ except ImportError:
   
 #FONT = ImageFont.truetype('/usr/local/src/yjp-9.0.7/jre64/lib/fonts/LucidaSansRegular.ttf', 15)
 #FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationSans-Bold.ttf', 15)
-FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Regular.ttf', 12)
-BOLD_FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Bold.ttf', 12)
+#FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Regular.ttf', 12)
+#BOLD_FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Bold.ttf', 12)
 
+def findAndLoadFont(fonts, size):
+  try:
+    return ImageFont.truetype(fonts[0],size)
+  except:
+    for f in fonts[1:]:
+      res = findAndLoadFont([f], size)
+      if res:
+        return res
+  return None
+FONTS = ['LiberationMono-Regular.ttf', 'arial.ttf']   
+BOLD_FONTS = ['LiberationMono-Bold.ttf', 'arial.ttf']
+
+FONT = findAndLoadFont(FONTS, 12)
+BOLD_FONT = findAndLoadFont(BOLD_FONTS, 12)
+
+  
+  
+  
 HEIGHT = 600
 
 BAR_WIDTH = 30

@@ -107,6 +107,7 @@ public final class Indexer {
     System.out.println("Codec: " + codec);
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
+    System.out.println("Merge policy: " + mergePolicy);
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
@@ -121,11 +122,19 @@ public final class Indexer {
       mp = new LogDocMergePolicy();
     } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
       mp = new LogByteSizeMergePolicy();
+    } else if (mergePolicy.equals("TieredMergePolicy")) {
+      final TieredMergePolicy tmp = new TieredMergePolicy();
+      iwc.setMergePolicy(tmp);
+      tmp.setUseCompoundFile(false);
+      mp = null;
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
     }
-    iwc.setMergePolicy(mp);
-    mp.setUseCompoundFile(false);
+
+    if (mp != null) {
+      iwc.setMergePolicy(mp);
+      mp.setUseCompoundFile(false);
+    }
 
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
@@ -135,6 +144,7 @@ public final class Indexer {
     cp.setFieldCodec("id", "Pulsing");
     iwc.setCodecProvider(cp);
 
+    System.out.println("IW config=" + iwc);
     final IndexWriter w = new IndexWriter(dir, iwc);
     w.setInfoStream(verbose ? System.out : null);
 

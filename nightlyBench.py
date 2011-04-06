@@ -214,19 +214,21 @@ def run():
     else:
       break
 
+  runCommand('ant clean')
+
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
 
   fastIndexMedium = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', MEDIUM_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=MEDIUM_LINE_FILE, ramBufferMB=INDEXING_RAM_BUFFER_MB, dirImpl=DIR_IMPL)
   fastIndexMedium.setVerbose(False)
   fastIndexMedium.waitForMerges = False
   fastIndexMedium.printDPS = 'no'
-  fastIndexMedium.mergePolicy = 'LogByteSizeMergePolicy'
+  fastIndexMedium.mergePolicy = 'TieredMergePolicy'
 
   fastIndexBig = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', BIG_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=BIG_LINE_FILE, ramBufferMB=INDEXING_RAM_BUFFER_MB, dirImpl=DIR_IMPL)
   fastIndexBig.setVerbose(False)
   fastIndexBig.waitForMerges = False
   fastIndexBig.printDPS = 'no'
-  fastIndexBig.mergePolicy = 'LogByteSizeMergePolicy'
+  fastIndexBig.mergePolicy = 'TieredMergePolicy'
   
   index = benchUtil.Index(NIGHTLY_DIR, 'wikimedium', 'StandardAnalyzer', 'Standard', MEDIUM_INDEX_NUM_DOCS, constants.INDEX_NUM_THREADS, lineDocSource=MEDIUM_LINE_FILE)
   index.printDPS = 'no'
@@ -363,16 +365,19 @@ def makeGraphs():
   writeNRTHTML(nrtChartData)
 
   for k, v in searchChartData.items():
-    writeOneGraphHTML('%s QPS' % k,
+    writeOneGraphHTML('Lucene %s queries/sec' % taskRename.get(k, k),
                       '%s/%s.html' % (NIGHTLY_REPORTS_DIR, k),
                       getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
 
   writeIndexHTML(searchChartData, days)
+  # publish
   runCommand('scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
+  runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
 
-def header(w):
+def header(w, title):
   w('<html>')
   w('<head>')
+  w('<title>%s</title>' % htmlEscape(title))
   w('<style type="text/css">')
   w('BODY { font-family:verdana; }')
   w('</style>')
@@ -388,7 +393,7 @@ def footer(w):
 def writeIndexHTML(searchChartData, days):
   f = open('%s/index.html' % NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
-  header(w)
+  header(w, 'Lucene nightly benchmarks')
   w('<h1>Lucene nightly benchmarks</h1>')
   w('Each night, an <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.')
   w('<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>')
@@ -397,11 +402,14 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
   w('<br>&nbsp;&nbsp;<a href="nrt.html">Near-real-time latency</a>')
   l = searchChartData.keys()
-  l.sort()
+  lx = []
   for s in l:
     v = taskRename.get(s, s)
-    w('<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % \
-      (htmlEscape(s), htmlEscape(v)))
+    lx.append((v, '<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % \
+               (htmlEscape(s), htmlEscape(v))))
+  lx.sort()
+  for ign, s in lx:
+    w(s)
   w('<br><br>')
   w('<b>Details by day</b>:')
   w('<br>')
@@ -442,11 +450,13 @@ def sort(l):
 def writeOneGraphHTML(title, fileName, chartHTML):
   f = open(fileName, 'wb')
   w = f.write
-  header(w)
+  header(w, title)
   w(chartHTML)
   w('\n')
   w('<b>Notes</b>:')
   w('<ul>')
+  if title.find('Primary Key') != -1:
+    w('<li>Lookup 4000 random documents using unique field "id"')
   w('<li> Test runs %s instances of each tasks/query category (auto-discovered with <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/CreateQueries.java">this Java tool</a>)' % COUNTS_PER_CAT)
   w('<li> Each of the %s instances are run %s times per JVM instance; we keep the best (fastest) time per task/query instance' % (COUNTS_PER_CAT, TASK_REPEAT_COUNT))
   w('<li> %s JVM instances are run; we compute mean/stddev from these' % JVM_COUNT)
@@ -462,7 +472,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
 def writeIndexingHTML(medChartData, bigChartData):
   f = open('%s/indexing.html' % NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
-  header(w)
+  header(w, 'Lucene nightly indexing benchmark')
   w('<h1>Indexing Throughput</h1>\n')
   w('<br>')
   w(getOneGraphHTML('MedIndexTime', medChartData, "Plain text GB/hour", "~1 KB Wikipedia English docs", errorBars=False))
@@ -474,7 +484,8 @@ def writeIndexingHTML(medChartData, bigChartData):
   w('\n')
   w('<b>Notes</b>:\n')
   w('<ul>\n')
-  w('  <li> Test does not wait for merges on close (calls <tt>IW.close(false)</tt>)')
+  w('  <li> Test does <b>not wait for merges on close</b> (calls <tt>IW.close(false)</tt>)')
+  w('  <li> Analyzer is <tt>StandardAnalyzer</tt>, but we <b>index all stop words</b>')
   w('  <li> Test indexes full <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English XML export</a> (1/15/2011), from a pre-created line file (one document per line), on a different drive from the one that stores the index')
   w('  <li> %d indexing threads\n' % constants.INDEX_NUM_THREADS)  
   w('  <li> %s MB RAM buffer\n' % INDEXING_RAM_BUFFER_MB)
@@ -493,11 +504,7 @@ def writeIndexingHTML(medChartData, bigChartData):
 def writeNRTHTML(nrtChartData):
   f = open('%s/nrt.html' % NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
-  w('<html>\n')
-  w('<head>\n')
-  w('<script type="text/javascript" src="dygraph-combined.js"></script>\n')
-  w('</head>\n')
-  w('<body>\n')
+  header(w, 'Lucene nightly near-real-time latency benchmark')
   w('<br>')
   w(getOneGraphHTML('NRT', nrtChartData, "Milliseconds", "Time (msec) to open a new reader", errorBars=True))
   w('<b>Notes</b>:\n')
@@ -509,6 +516,8 @@ def writeNRTHTML(nrtChartData):
   w('  <li> %s indexing thread' % NRT_INDEX_THREADS)
   w('  <li> 1 reopen thread')
   w('  <li> %s searching threads' % NRT_SEARCH_THREADS)
+  w('  <li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/NRTPerfTest.java"><tt>NRTPerfTest.java</tt></a>')
+  w('<li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w('</ul>')
 
   w('<br><a href="index.html">Back to all results</a><br>')

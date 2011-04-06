@@ -46,6 +46,7 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 """
 
 # TODO
+#   - need a tiny docs test?  catch per-doc overhead regressions...
 #   - click on graph should go to details page
 #   - make blog post -- full disclosure; link to it from the pages
 #   - nrt

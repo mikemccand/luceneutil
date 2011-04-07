@@ -53,6 +53,7 @@ LUCENE_VERSION = '4.0-SNAPSHOT'
 CLASSPATH = ['../lucene/lib/junit-4.7.jar',
              '../lucene/build/classes/test',
              '../lucene/build/classes/test-framework',
+             '../solr/build/test-framework',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
              '/usr/share/java/ant.jar']

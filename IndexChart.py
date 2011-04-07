@@ -13,7 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import Gnuplot
+try:
+  import Gnuplot
+except ImportError:
+  print 'WARNING: Gnuplot module not present; will not make charts'
+  Gnuplot = None
 
 class IndexChart(object):
   

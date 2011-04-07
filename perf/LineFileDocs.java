@@ -53,8 +53,7 @@ public class LineFileDocs implements Closeable {
 
   private void open() throws IOException {
     final InputStream is = new FileInputStream(path);
-    final InputStream in = new BufferedInputStream(is, BUFFER_SIZE);
-    reader = new BufferedReader(new InputStreamReader(in, "UTF-8"), BUFFER_SIZE);
+    reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
   }
 
   public synchronized void close() throws IOException {
@@ -132,6 +131,7 @@ public class LineFileDocs implements Closeable {
         }
       }
     }
+
     bytesIndexed.addAndGet(line.length());
 
     int spot = line.indexOf(SEP);

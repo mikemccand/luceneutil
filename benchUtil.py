@@ -28,11 +28,7 @@ import constants
 import common
 import random
 import QPSChart
-
-try:
-  import IndexChart
-except ImportError:
-  IndexChart = None
+import IndexChart
   
 # TODO
 #   - allow 'onlyCat' option
@@ -329,15 +325,14 @@ def agg(iters, cat):
       raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
 
     VERBOSE = False
-    sumMS = 0.0
     totHitCount = 0
     count = 0
     sumMS = 0.0
     if VERBOSE:
       print 'AGG: cat=%s' % str(cat)
 
-    # Iterate over each task's runs, eg, a single query will have been
-    # run 40 times:
+    # Iterate over each category's instances, eg a given category
+    # might have 5 different instances:
     for task, results in tasks[1].items():
 
       allMS = [result.msec for result in results]
@@ -486,7 +481,7 @@ class RunAlgs:
       t0 = time.time()
       run(cmd, fullLogFile)
       t1 = time.time()
-      if printCharts:
+      if printCharts and IndexChart.Gnuplot is not None:
         chart = IndexChart.IndexChart(fullLogFile, index.getName())
         chart.plot() 
 

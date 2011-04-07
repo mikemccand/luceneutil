@@ -57,7 +57,7 @@ if 'ANALYZER' in locals():
 
 CODEC_DEFAULT='Standard'
 ANALYZER_DEFAULT='StandardAnalyzer'
-MERGEPOLICY_DEFAULT='LogDocMergePolicy'
+MERGEPOLICY_DEFAULT='TieredMergePolicy'
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

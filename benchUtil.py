@@ -28,7 +28,12 @@ import constants
 import common
 import random
 import QPSChart
-import IndexChart
+
+try:
+  import IndexChart
+except ImportError:
+  IndexChart = None
+  
 # TODO
 #   - allow 'onlyCat' option
 
@@ -452,7 +457,7 @@ class RunAlgs:
         waitForMerges = 'yes'
       else:
         waitForMerges = 'no'
-      
+
       cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),

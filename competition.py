@@ -71,7 +71,7 @@ class Index(object):
     self.doDeletions = doDeletions
     self.ramBufferMB = ramBufferMB
     if ramBufferMB == -1:
-      self.maxBufferedDocs = index.numDocs/ (SEGS_PER_LEVEL*111)
+      self.maxBufferedDocs = numDocs/ (SEGS_PER_LEVEL*111)
     else:
       self.maxBufferedDocs = -1
     self.verbose = 'yes'
@@ -216,7 +216,8 @@ class CompetitorBuilder(object):
     return self
 
   def withIndex(self, index):
-    self._index = index 
+    self._index = index
+    return self
   
   def build(self):
     if not self._index:

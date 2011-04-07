@@ -53,7 +53,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       countPerCat = 20
       repeatCount = 1
     else:
-      countPerCat = 3
+      countPerCat = 1
       repeatCount = 50
   else:
     jvmCount = 20
@@ -82,7 +82,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           p = True
         seen.add(c.index)
         if debug:
-          c.index.numDocs = 100000
+          c.index.numDocs /= 10
         r.makeIndex(id, c.index, doCharts)
         segCount = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(c.index.getName()))
         if indexSegCount is None:

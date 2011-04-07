@@ -132,7 +132,11 @@ public final class Indexer {
 
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec(codec);
-    cp.setFieldCodec("id", "Pulsing");
+    if (codec.equals("StandardTree")) {
+      cp.setFieldCodec("id", "PulsingTree");
+    } else {
+      cp.setFieldCodec("id", "Pulsing");
+    }
     iwc.setCodecProvider(cp);
 
     final IndexWriter w = new IndexWriter(dir, iwc);

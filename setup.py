@@ -33,6 +33,10 @@ Options:
   -prepareTrunk checks out a lucene trunk into ../trunk
 
 """
+DEFAULT_LOCAL_CONST = """
+BASE_DIR = '%(base_dir)s'
+BENCH_BASE_DIR = '%(base_dir)s/%(cwd)s'
+"""
 def runSetup(download, prepare_trunk):    
   cwd = os.getcwd()
   parent, base = os.path.split(cwd)
@@ -55,7 +59,7 @@ def runSetup(download, prepare_trunk):
   if not os.path.exists(local_const):
     f = open(local_const, 'w')
     try:
-      f.write("BASE_DIR = %s" % parent)
+      f.write(DEFAULT_LOCAL_CONST % ({'base_dir' : parent, 'cwd' : base}))
     finally:
       f.close()
   else:

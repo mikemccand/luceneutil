@@ -545,7 +545,7 @@ class RunAlgs:
         if osName in ('windows', 'cygwin'):
           run('cp -r %s perf' % srcDir)
         else:
-          run('ln -s %s perf' % srcDir)
+          run('ln -sf %s perf' % srcDir)
       competitor.compile(cp)
     finally:
       os.chdir(cwd)

@@ -93,6 +93,7 @@ public final class Indexer {
     final boolean printDPS = args[12].equals("yes");
     final boolean waitForMerges = args[13].equals("yes");
     final String mergePolicy = args[14];
+    final boolean doUpdate = args[15].equals("yes");
 
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
@@ -108,9 +109,16 @@ public final class Indexer {
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
+    System.out.println("update: " + doUpdate);
+    
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
-    iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    
+    if (doUpdate) {
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+    } else {
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    }
 
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
@@ -159,7 +167,7 @@ public final class Indexer {
     final Thread[] threads = new Thread[numThreads];
     final AtomicInteger count = new AtomicInteger();
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(w, docs, docCount, count);
+      threads[thread] = new IndexThread(w, docs, docCount, count, doUpdate);
       threads[thread].start();
     }
     AtomicBoolean stop = null;
@@ -180,8 +188,8 @@ public final class Indexer {
 
     final long t1 = System.currentTimeMillis();
     System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.maxDoc() + " docs");
-
-    if (docCount != -1 && w.maxDoc() != docCount) {
+    // if we update we can not tell how many docs
+    if (!doUpdate && docCount != -1 && w.maxDoc() != docCount) {
       throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCount);
     }
 
@@ -234,7 +242,7 @@ public final class Indexer {
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
 
-      if (w.numDocs() != maxDoc - toDeleteCount) {
+      if (doUpdate || w.numDocs() != maxDoc - toDeleteCount) {
         throw new RuntimeException("count mismatch: w.numDocs()=" + w.numDocs() + " but expected " + (maxDoc - toDeleteCount));
       }
     }
@@ -313,12 +321,13 @@ public final class Indexer {
     private final int numTotalDocs;
     private final IndexWriter w;
     private final AtomicInteger count;
-
-    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs, AtomicInteger count) {
+    private final boolean doUpdate;
+    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs, AtomicInteger count, boolean doUpdate) {
       this.w = w;
       this.docs = docs;
       this.numTotalDocs = numTotalDocs;
       this.count = count;
+      this.doUpdate = doUpdate;
     }
 
     @Override
@@ -326,7 +335,10 @@ public final class Indexer {
       final LineFileDocs.DocState docState = docs.newDocState();
       final Field idField = docState.id;
       final long tStart = System.currentTimeMillis();
+      final Term template = new Term("id");
+      Term delTerm = null;
       while(true) {
+
         try {
           final Document doc = docs.nextDoc(docState);
           final int id = Integer.parseInt(idField.stringValue());
@@ -337,7 +349,10 @@ public final class Indexer {
               (numTotalDocs != -1 && id >= numTotalDocs)) {
             break;
           }
-          w.addDocument(doc);
+	  if (doUpdate) {
+            delTerm = template.createTerm(String.format("%09d", id));
+          }
+          w.updateDocument(delTerm, doc);
           count.incrementAndGet();
         } catch (Exception e) {
           throw new RuntimeException(e);

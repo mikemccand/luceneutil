@@ -58,7 +58,7 @@ class Index(object):
 
   def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads,
                lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory',
-               doDeletions=False, ramBufferMB=-1, mergePolicy=constants.MERGEPOLICY_DEFAULT):
+               doDeletions=False, ramBufferMB=-1, mergePolicy=constants.MERGEPOLICY_DEFAULT, doUpdate='No'):
     self.checkout = checkout
     self.analyzer = analyzer
     self.dataSource = dataSource
@@ -79,6 +79,7 @@ class Index(object):
     self.waitForMerges = True
     self.mergePolicy = mergePolicy
     mergeFactor = 10
+    self.doUpdate = doUpdate
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
@@ -198,11 +199,11 @@ class CompetitorBuilder(object):
     self._commitPoint = MULTI_SEGMENTS_COMMIT
     self._index = None
     competition.competitors.append(self)
-   
  
   def commitPoint(self, commitPoint): 
     self._commitPoint = commitPoint
     return self
+
   def numThreads(self, num):
     self._threads = num
     return self
@@ -242,7 +243,12 @@ class IndexBuilder(object):
     self._doOptimize = False
     self._mergePolicy = constants.MERGEPOLICY_DEFAULT
     self._waitForMerges = True
+    self._doUpdate = False
     competition.indices.append(self)
+
+  def doUpdate(self):
+    self._doUpdate = True 
+    return self    
     
   def threads(self, threads):
     self._threads = threads
@@ -287,7 +293,7 @@ class IndexBuilder(object):
   def build(self):
 
     idx = Index(self._checkout, self._data.name, self._analyzer, self._codec,
-          self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB)
+          self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB, doUpdate = self._doUpdate)
     idx.setVerbose(self._verbose)
     idx.setPrintDPS(self._printCharts)
     idx.mergePolicy = self._mergePolicy

@@ -431,9 +431,13 @@ class RunAlgs:
   def makeIndex(self, id, index, printCharts=False):
 
     fullIndexPath = nameToIndexPath(index.getName())
-    if os.path.exists(fullIndexPath):
+    if os.path.exists(fullIndexPath) and not index.doUpdate:
       print '  %s: already exists' % fullIndexPath
       return fullIndexPath
+    elif index.doUpdate:
+      if not os.path.exists(fullIndexPath):
+        raise RuntimeError('index path does not exists: %s' % fullIndexPath)
+      print '  %s: now update' % fullIndexPath
     else:
       print '  %s: now create' % fullIndexPath
     
@@ -452,8 +456,12 @@ class RunAlgs:
         waitForMerges = 'yes'
       else:
         waitForMerges = 'no'
+      if index.doUpdate:
+        doUpdate = 'yes'
+      else:
+        doUpdate = 'no'
 
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -470,7 +478,8 @@ class RunAlgs:
              doDel,
              index.printDPS,
              waitForMerges,
-             index.mergePolicy)
+             index.mergePolicy,
+             doUpdate)
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)
@@ -486,8 +495,8 @@ class RunAlgs:
         chart.plot() 
 
     except:
-      if os.path.exists(fullIndexPath):
-        shutil.rmtree(fullIndexPath)
+      #if os.path.exists(fullIndexPath):
+      #  shutil.rmtree(fullIndexPath)
       raise
 
     return fullIndexPath, fullLogFile

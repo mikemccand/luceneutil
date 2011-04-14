@@ -350,7 +350,7 @@ public final class Indexer {
             break;
           }
 	  if (doUpdate) {
-            delTerm = template.createTerm(String.format("%09d", id));
+            delTerm = template.createTerm(idField.stringValue());
           }
           w.updateDocument(delTerm, doc);
           count.incrementAndGet();

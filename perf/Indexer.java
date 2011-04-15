@@ -135,6 +135,8 @@ public final class Indexer {
       iwc.setMergePolicy(tmp);
       tmp.setUseCompoundFile(false);
       mp = null;
+    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
+      mp = new BalancedSegmentMergePolicy();
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
     }

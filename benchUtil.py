@@ -86,8 +86,6 @@ def checkoutToBenchPath(checkout):
 def nameToIndexPath(name):
   return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
 
-DEBUG = True
-
 class SearchTask:
 
   def verifySame(self, other):
@@ -495,8 +493,11 @@ class RunAlgs:
         chart.plot() 
 
     except:
-      #if os.path.exists(fullIndexPath):
-      #  shutil.rmtree(fullIndexPath)
+      # if we hit any exception/problem building the index, remove the
+      # partially built index so we don't accidentally think we can
+      # run with it:
+      if os.path.exists(fullIndexPath):
+        shutil.rmtree(fullIndexPath)
       raise
 
     return fullIndexPath, fullLogFile

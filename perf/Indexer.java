@@ -113,7 +113,9 @@ public final class Indexer {
     
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
-    
+
+    iwc.setMaxThreadStates(24);
+
     if (doUpdate) {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     } else {
@@ -133,6 +135,7 @@ public final class Indexer {
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       iwc.setMergePolicy(tmp);
+      tmp.setMaxMergedSegmentMB(1000000.0);
       tmp.setUseCompoundFile(false);
       mp = null;
     } else {
@@ -158,6 +161,7 @@ public final class Indexer {
 
     System.out.println("IW config=" + iwc);
     final IndexWriter w = new IndexWriter(dir, iwc);
+
     w.setInfoStream(verbose ? System.out : null);
 
     final LineFileDocs docs = new LineFileDocs(lineFile, false);

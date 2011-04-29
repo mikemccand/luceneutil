@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
+import org.apache.lucene.index.codecs.CoreCodecProvider;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.document.*;
@@ -32,7 +33,13 @@ import org.apache.lucene.util.Version;
 // cd /a/lucene/trunk/checkout
 // ln -s /path/to/lucene/util/perf .
 // ant compile; javac -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java perf/LineFileDocs.java
-// java -Xmx2g -Xms2g -server -Xbatch -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /lucene/indices/clean.svn.Standard.opt.nd24.9005M/index multi /lucene/clean.svn/lucene/src/test/org/apache/lucene/util/europarl.lines.txt.gz 17 100 10 2 2 10 update 1
+// java -Xmx2g -Xms2g -server -Xbatch -cp .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.NRTPerfTest MMapDirectory /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index multi /lucene/data/enwiki-20110115-lines-1k-fixed.txt 17 1000 1000 2 1 1 update 1 no
+
+// TODO
+//   - maybe target certain MB/sec update rate...?
+//   - hmm: we really should have a separate line file, shuffled, that holds the IDs for each line; this way we can update doc w/ same original doc and then we can assert hit counts match
+//   - share *Task code from SearchPerfTest
+//   - cutover to SearcherManager/NRTManager
 
 public class NRTPerfTest {
 
@@ -93,11 +100,10 @@ public class NRTPerfTest {
           } else {
             w.addDocument(doc);
           }
-          final long t = System.nanoTime();
           if (docsIndexedByTime != null) {
-            int qt = (int) ((t-startNS)/statsEverySec/1000000000);
-            docsIndexedByTime[qt].incrementAndGet();
+            docsIndexedByTime[currentQT.get()].incrementAndGet();
           }
+          final long t = System.nanoTime();
           if (t >= stopNS) {
             break;
           }
@@ -144,23 +150,26 @@ public class NRTPerfTest {
     @Override
     public void run() {
       try {
-        final long startMS = System.currentTimeMillis();
-        final long stopMS = startMS + (long) (runTimeSec*1000);
+        final long startNS = System.nanoTime();
+        final long stopNS = startNS + (long) (runTimeSec*1000000000);
         int count = 0;
         while(true) {
-          final long t = System.currentTimeMillis();
-          if (t >= stopMS) {
+          if (System.nanoTime() >= stopNS) {
             break;
           }
-          for(Query query: queries) {
-            int qt = (int) ((t-startMS)/statsEverySec/1000);
+          for(int queryIdx=0;queryIdx<queries.length;queryIdx++) {
+            final Query query = queries[queryIdx];
             IndexSearcher s = getSearcher();
             try {
-              s.search(query, 10);
+              final int hitCount = s.search(query, 10).totalHits;
+              // Not until we have shuffled line docs file w/ matching IDs
+              //if (queryHitCounts != null && hitCount != queryHitCounts[queryIdx]) {
+              //throw new RuntimeException("hit counts differ for query=" + query + " expected=" + queryHitCounts[queryIdx] + " actual=" + hitCount);
+              //}
             } finally {
               releaseSearcher(s);
             }
-            searchesByTime[qt].addAndGet(queries.length);
+            searchesByTime[currentQT.get()].incrementAndGet();
           }
           count += queries.length;
           // Burn: no pause
@@ -172,15 +181,16 @@ public class NRTPerfTest {
     }
   }
 
+  static final AtomicInteger currentQT = new AtomicInteger();
   static AtomicInteger[] docsIndexedByTime;
   static AtomicInteger[] searchesByTime;
   static int statsEverySec;
 
   static Query[] queries;
+  //static int[] queryHitCounts;                    // only verified if update mode
 
   public static void main(String[] args) throws Exception {
 
-    final Directory dir;
     final String dirImpl = args[0];
     final String dirPath = args[1];
     final String commit = args[2];
@@ -221,17 +231,20 @@ public class NRTPerfTest {
     
     final LineFileDocs docs = new LineFileDocs(lineDocFile, true);
 
+    final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {
-      dir = new MMapDirectory(new File(dirPath));
+      dir0 = new MMapDirectory(new File(dirPath));
     } else if (dirImpl.equals("NIOFSDirectory")) {
-      dir = new NIOFSDirectory(new File(dirPath));
+      dir0 = new NIOFSDirectory(new File(dirPath));
     } else if (dirImpl.equals("SimpleFSDirectory")) {
-      dir = new SimpleFSDirectory(new File(dirPath));
+      dir0 = new SimpleFSDirectory(new File(dirPath));
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
+    final CachingDirectory dir = new CachingDirectory(dir0);
+    final MergeScheduler ms = dir.getMergeScheduler();
 
-    queries = new Query[50];
+    queries = new Query[20];
     for(int idx=0;idx<queries.length;idx++) {
       queries[idx] = new TermQuery(new Term("body", ""+idx));
     }
@@ -240,12 +253,20 @@ public class NRTPerfTest {
     // delete other (past or future) commit points:
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
+    iwc.setMergeScheduler(ms);
+    final CoreCodecProvider cp = new CoreCodecProvider();
+    cp.setDefaultFieldCodec("Standard");
+    cp.setFieldCodec("id", "Pulsing");
+    iwc.setCodecProvider(cp);
 
     //iwc.setMergePolicy(new LogByteSizeMergePolicy());
     //((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
 
-    iwc.setMergePolicy(new TieredMergePolicy());
-    ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    TieredMergePolicy tmp = new TieredMergePolicy();
+    tmp.setUseCompoundFile(false);
+    tmp.setMaxMergedSegmentMB(1000000.0);
+    iwc.setMergePolicy(tmp);
+    //((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(true);
 
     if (!commit.equals("none")) {
       iwc.setIndexCommit(findCommitPoint(commit, dir));
@@ -266,7 +287,7 @@ public class NRTPerfTest {
       });
 
     final IndexWriter w = new IndexWriter(dir, iwc);
-    //w.setInfoStream(System.out);
+    w.setInfoStream(System.out);
 
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {
@@ -280,7 +301,22 @@ public class NRTPerfTest {
     final IndexReader startR = IndexReader.open(w, true);
     System.out.println("Reader=" + startR);
     setSearcher(new IndexSearcher(startR));
-    
+
+    // Cannot do this until we have shuffled line file where IDs match:
+    /*
+    if (doUpdates) {
+      queryHitCounts = new int[queries.length];
+      final IndexSearcher s = getSearcher();
+      try {
+        for(int queryIdx=0;queryIdx<queries.length;queryIdx++) {
+          queryHitCounts[queryIdx] = s.search(queries[queryIdx], 1).totalHits;
+        }
+      } finally {
+        releaseSearcher(s);
+      }
+    }
+    */
+
     final SearchThread[] searchThreads = new SearchThread[numSearchThreads];
 
     final long startNS = System.nanoTime();
@@ -321,9 +357,8 @@ public class NRTPerfTest {
 
             Thread.sleep(sleepMS);
 
-            int qt = (int) ((t-startMS)/statsEverySec/1000);
             if (reopenCount > 1) {
-              reopensByTime[qt].incrementAndGet();
+              reopensByTime[currentQT.get()].incrementAndGet();
             }
 
             final long tStart = System.nanoTime();
@@ -344,12 +379,14 @@ public class NRTPerfTest {
       }
     };
     reopenThread.setName("ReopenThread");
-    reopenThread.setPriority(2+Thread.currentThread().getPriority());
-    //System.out.println("REOPEN PRI " + reopenThread.getPriority());
+    reopenThread.setPriority(4+Thread.currentThread().getPriority());
+    System.out.println("REOPEN PRI " + reopenThread.getPriority());
     reopenThread.start();
 
-    Thread.currentThread().setPriority(3+Thread.currentThread().getPriority());
-    //System.out.println("TIMER PRI " + Thread.currentThread().getPriority());
+    Thread.currentThread().setPriority(5+Thread.currentThread().getPriority());
+    System.out.println("TIMER PRI " + Thread.currentThread().getPriority());
+
+    //System.out.println("Start: " + new Date());
 
     final long startMS = System.currentTimeMillis();
     final long stopMS = startMS + (long) (runTimeSec * 1000);
@@ -359,10 +396,11 @@ public class NRTPerfTest {
       if (t >= stopMS) {
         break;
       }
-      int qt = (int) ((t-startMS)/statsEverySec/1000);
+      final int qt = (int) ((t-startMS)/statsEverySec/1000);
+      currentQT.set(qt);
       if (qt != lastQT) {
-        if (lastQT != -1) {
-          System.out.println("QT " + lastQT + " searches=" + searchesByTime[lastQT].get() + " docs=" + docsIndexedByTime[lastQT].get() + " reopens=" + reopensByTime[lastQT].get());
+        if (lastQT > 0) {
+          System.out.println("QT " + (lastQT-1) + " searches=" + searchesByTime[(lastQT-1)].get() + " docs=" + docsIndexedByTime[(lastQT-1)].get() + " reopens=" + reopensByTime[(lastQT-1)].get());
         }
         lastQT = qt;
       }

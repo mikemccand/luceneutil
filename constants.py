@@ -48,6 +48,9 @@ INDEX_NUM_THREADS = 2
 SEARCH_NUM_THREADS = 2
 # geonames: http://download.geonames.org/export/dump/
 
+REPRO_COMMAND_START = 'python -u %s/repeatLuceneTest.py -once -verbose -nolog' % BENCH_BASE_DIR
+REPRO_COMMAND_END = ''
+
 SORT_REPORT_BY = 'pctchange'
 #SORT_REPORT_BY = 'query'
 
@@ -57,7 +60,7 @@ if 'ANALYZER' in locals():
 
 CODEC_DEFAULT='Standard'
 ANALYZER_DEFAULT='StandardAnalyzer'
-MERGEPOLICY_DEFAULT='TieredMergePolicy'
+MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

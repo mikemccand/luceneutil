@@ -22,6 +22,7 @@ import sys
 import random
 import common
 import constants
+import re
 
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
@@ -32,26 +33,6 @@ ROOT = ''
 osName = common.osName
 
 JAVA_ARGS = '-Xmx512m -Xms512m'
-
-allTests = {}
-def locateTest(test):
-  cwd = os.getcwd()
-  tup = test.split('.')
-  if len(tup) == 1:
-    method = None
-  else:
-    test, method = tup
-  if len(allTests) == 0:
-    for root, dirs, files in os.walk('src/test'):
-      for f in files:
-        if f.endswith('.java') and (f.startswith('Test') or f.endswith('Test.java')):
-          path = root[len('src/test/'):].replace(os.sep, '.')
-          allTests[f[:-5]] = '%s.%s' % (path, f[:-5])
-          #print '%s.%s' % (path, f[:-5])
-  if test not in allTests:
-    return None
-  else:
-    return allTests[test], method
 
 def getArg(argName, default, hasArg=True):
   try:
@@ -66,7 +47,44 @@ def getArg(argName, default, hasArg=True):
       v = True
       del sys.argv[idx]
   return v
-    
+
+reRepro = re.compile('NOTE: reproduce with(.*?)$', re.MULTILINE)
+reDefines = re.compile('-D(.*?)=(.*?)(?: |$)')
+def printReproLines(logFileName):
+  f = open(logFileName, 'rb')
+  print
+  while True:
+    line = f.readline()
+    if line == '':
+      break
+    m = reRepro.search(line)
+    codec = None
+    if m is not None:
+      for x in reDefines.findall(line):
+        k, v = x
+        if k == 'testcase':
+          testCase = v
+        elif k == 'testmethod':
+          testCase += '.%s' % v
+        elif k == 'tests.seed':
+          seed = v
+        elif k == 'tests.codec':
+          codec = v
+        else:
+          print 'WARNING: don\'t know how to repro k/v=%s' % str(x)
+
+      if codec is not None:
+        extra = '-codec %s' % codec
+      else:
+        extra = ''
+      if extra != '':
+        extra = ' ' + extra
+
+      s = 'REPRO: %s %s -seed %s%s'%  (constants.REPRO_COMMAND_START, testCase, seed, extra)
+      if constants.REPRO_COMMAND_END != '':
+        s += ' %s' % constants.REPRO_COMMAND_END
+      print s
+
 tup = os.path.split(os.getcwd())
 
 if tup[1] != 'lucene' and os.path.exists('lucene'):
@@ -80,7 +98,8 @@ else:
   logDirName = '/tmp/logs/%s' % sub
   if osName == 'windows':
     logDirName = 'c:' + logDirName
-doLog = True
+
+doLog = not getArg('-nolog', False, False)
 
 print 'Logging to dir %s' % logDirName
 
@@ -100,9 +119,8 @@ try:
     sys.exit(1)
 finally:
   os.remove('compile.log')
-  
-OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
+onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))
 codec = getArg('-codec', 'randomPerField')
 dir = getArg('-dir', 'random')
@@ -119,30 +137,15 @@ if len(sys.argv) == 1:
 tests = []
 for test in sys.argv[1:]:
   if not test.startswith('org.'):
-    tup = locateTest(test)
+    tup = common.locateTest(test)
     if tup is None:
       print '\nERROR: cannot find test %s\n' % test
       sys.exit(1)
     testClass, testMethod = tup
     tests.append((testClass, testMethod))
-  
-CP = []
-CP.append(ROOT+'build/classes/test')
-CP.append(ROOT+'build/classes/test-framework')
-CP.append(ROOT+'build/classes/java')
-if not OLD_JUNIT:
-  JUNIT_JAR = 'lib/junit-4.7.jar'
-else:
-  JUNIT_JAR = 'lib/junit-3.8.2.jar'
-CP.append(ROOT + JUNIT_JAR)
-if os.path.exists(ROOT + 'build/classes/demo'):
-  CP.append(ROOT + 'build/classes/demo')
 
-if ROOT != '':
-  CP.append(ROOT + 'build/contrib/queries/classes/java')
-  CP.append(ROOT + 'build/contrib/queries/classes/test')
-
-JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(CP)
+JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getTestClassPath(ROOT))
+OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
 TEST_TEMP_DIR = 'build/test/reruns'
 
@@ -186,7 +189,8 @@ while True:
     command += ' %s' % testClass
 
     if doLog:
-      command += ' > %s/%d.log 2>&1' % (logDirName, upto)
+      logFileName = '%s/%d.log' % (logDirName, upto)
+      command += ' > %s 2>&1' % logFileName
       
     if os.path.exists(TEST_TEMP_DIR):
       print '  remove %s' % TEST_TEMP_DIR
@@ -199,6 +203,8 @@ while True:
 
     if res:
       print '  FAILED'
+      if doLog:
+        printReproLines(logFileName)
       raise RuntimeError('hit fail')
     elif doLog:
       if not keepLogs:
@@ -206,4 +212,7 @@ while True:
       pass
       
     upto += 1
+
+  if onlyOnce:
+    break
 

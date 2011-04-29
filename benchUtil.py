@@ -513,7 +513,7 @@ class RunAlgs:
     cp.append('%s/java' % buildPath)
     cp.append('%s/test' % buildPath)
     cp.append('%s/test-framework' % buildPath)
-
+    cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
     if version == '4.0':
       cp.append('%s/modules/analysis/build/common/classes/java' % path)
       cp.append('%s/modules/analysis/build/icu/classes/java' % path)
@@ -535,6 +535,7 @@ class RunAlgs:
     os.chdir(checkoutToPath(competitor.checkout))
     try:
       run('ant compile', 'compile.log')
+      
       print '  %s' % path
       os.chdir(path)
       run('ant compile', 'compile.log')

@@ -138,6 +138,8 @@ public final class Indexer {
       tmp.setMaxMergedSegmentMB(1000000.0);
       tmp.setUseCompoundFile(false);
       mp = null;
+    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
+      mp = new BalancedSegmentMergePolicy();
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
     }

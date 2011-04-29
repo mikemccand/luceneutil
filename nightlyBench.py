@@ -49,19 +49,12 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 # TODO
 #   - need a tiny docs test?  catch per-doc overhead regressions...
 #   - click on graph should go to details page
-#   - make blog post -- full disclosure; link to it from the pages
 #   - nrt
 #     - chart all reopen times by time...?
 #     - chart over-time mean/stddev reopen time
 #   - add annotations, over time, when Lucene fixes/breaks stuff
-#   - maybe tiny docs vs big docs (not medium...)?
-#   - break out commit vs indexing vs merging time?
-#   - also run NRT perf test (so deletions are exercised)
-#   - hmm put graphs all on one page...?
-#   - cutover to new SSD
-#   - make sure this finishes before 3:30 am (backups)
+#   - put graphs all on one page...?
 #   - maybe multiple queries on one graph...?
-#   - measure index size?
 
 DEBUG = '-debug' in sys.argv
 

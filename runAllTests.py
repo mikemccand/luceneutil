@@ -278,7 +278,7 @@ os.chdir('%s/lucene' % ROOT)
 
 if '-noc' not in sys.argv:
 
-  if True or doModules:
+  if os.path.exists('%s/modules/analysis' % ROOT):
     os.chdir('%s/modules/analysis' % ROOT)
     run('Compile modules/analysis...', 'ant compile compile-test', 'compile.log')
 
@@ -367,8 +367,12 @@ if doSolr:
   for dir, subDirs, files in os.walk('%s/solr/src/test' % ROOT):
     for file in files:
       if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+        
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
+        if testClass in ('org.apache.solr.client.solrj.embedded.TestSolrProperties',):
+          print 'WARNING: skipping test %s' % testClass
+          continue
         # print '  %s' % testClass
         tests.append((estimateCost(testClass), '%s/solr/src/test/test-files' % ROOT, testClass, CLASSPATH))
 

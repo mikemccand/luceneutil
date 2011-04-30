@@ -241,8 +241,10 @@ public class NRTPerfTest {
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
-    final CachingDirectory dir = new CachingDirectory(dir0);
-    final MergeScheduler ms = dir.getMergeScheduler();
+    //final CachingDirectory dir = new CachingDirectory(dir0);
+    //final MergeScheduler ms = dir.getMergeScheduler();
+    final Directory dir = dir0;
+    final MergeScheduler ms = new ConcurrentMergeScheduler();
 
     queries = new Query[20];
     for(int idx=0;idx<queries.length;idx++) {

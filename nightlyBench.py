@@ -46,6 +46,9 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
   * Run search test
 """
 
+KNOWN_CHANGES = [
+  ('2011-04-25', 'Switched to 240 GB OCZ Vertex III')]
+
 # TODO
 #   - need a tiny docs test?  catch per-doc overhead regressions...
 #   - click on graph should go to details page
@@ -91,6 +94,7 @@ if DEBUG:
 
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
 reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
+reSVNRev = re.compile(r'revision (.*?)\.')
 
 def now():
   return datetime.datetime.now()
@@ -187,10 +191,14 @@ def setIndexParams(idx, fastIndex=True):
   idx.codec('Standard')
   idx.threads(constants.INDEX_NUM_THREADS)
   idx.directory(DIR_IMPL)
-  idx.mergePolicy('TieredMergePolicy')
   if fastIndex:
     idx.ramBufferMB(INDEXING_RAM_BUFFER_MB)
     idx.waitForMerges(False)
+    # We want same index structure each night (5 segs per level) so
+    # that search results are comparable:
+    idx.mergePolicy('TieredMergePolicy')
+  else:
+    idx.mergePolicy('LogDocMergePolicy')
 
 def run():
 
@@ -209,18 +217,21 @@ def run():
   message('log dir %s' % runLogDir)
 
   os.chdir('/lucene/%s' % NIGHTLY_DIR)
-  if True:
-    runCommand('svn cleanup')
-    for i in range(30):
-      try:
-        runCommand('svn update')
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
-      else:
-        break
+  runCommand('svn cleanup')
+  for i in range(30):
+    try:
+      runCommand('svn update > %s/update.log' % runLogDir)
+    except RuntimeError:
+      message('  retry...')
+      time.sleep(60.0)
+    else:
+      svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
+      print 'SVN rev is %s' % svnRev
+      break
 
-    runCommand('ant clean > clean.log 2>&1')
+  luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
+
+  runCommand('ant clean > clean.log 2>&1')
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
 
@@ -308,6 +319,7 @@ def run():
       w = f.write
       w('<html>\n')
       w('<h1>%s</h1>' % timeStamp2)
+      w('Lucene/Solr trunk rev %s; lucenetuil rev %s' % (svnRev, luceneUtilRev))
       w('<br><br><b>Search perf vs day before</b>\n')
       w(''.join(output))
       w('<br><br>')
@@ -335,23 +347,38 @@ def run():
              MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,
              BIG_INDEX_NUM_DOCS, bigIndexTime, bigBytesIndexed,
              nrtResults,
-             searchResults)
+             searchResults,
+             svnRev,
+             luceneUtilRev)
   open('results.pk', 'wb').write(cPickle.dumps(results))
   message('done: total time %s' % (now()-start))
 
 def makeGraphs():
+  global annotations
   medIndexChartData = ['Date,GB/hour']
   bigIndexChartData = ['Date,GB/hour']
   nrtChartData = ['Date,Reopen Time (msec)']
   searchChartData = {}
   days = []
+  annotations = []
   for subDir in os.listdir(NIGHTLY_LOG_DIR):
     resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
     if os.path.exists(resultsFile):
+      tup = cPickle.loads(open(resultsFile).read())
+      
       timeStamp, \
                  medNumDocs, medIndexTimeSec, medBytesIndexed, \
                  bigNumDocs, bigIndexTimeSec, bigBytesIndexed, \
-                 nrtResults, searchResults = cPickle.loads(open(resultsFile).read())
+                 nrtResults, searchResults = tup[:9]
+      if len(tup) > 9:
+        rev = tup[9]
+      else:
+        rev = None
+      if len(tup) > 10:
+        utilRev = tup[10]
+      else:
+        utilRev = None
+        
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
                          timeStamp.month,
@@ -370,6 +397,9 @@ def makeGraphs():
             searchChartData[cat] = ['Date,QPS']
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS, stdDevQPS))
 
+      for date, desc in KNOWN_CHANGES:
+        if timeStampString.startswith(date):
+          annotations.append((timeStampString, desc))
   sort(medIndexChartData)
   sort(bigIndexChartData)
   for k, v in searchChartData.items():
@@ -387,6 +417,7 @@ def makeGraphs():
                       getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
 
   writeIndexHTML(searchChartData, days)
+
   # publish
   runCommand('scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
   runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
@@ -433,7 +464,7 @@ def writeIndexHTML(searchChartData, days):
   days.sort()
   for t in days:
     timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (t.year, t.month, t.day, t.hour, t.minute, t.second)
-    timeStamp2 = '%s %02d/%02d/%04d' % (t.strftime('%a'), t.day, t.month, t.year)
+    timeStamp2 = '%s %02d/%02d/%04d' % (t.strftime('%a'), t.month, t.day, t.year)
     w('<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % (timeStamp, timeStamp2))
   w('<br><br>')
   footer(w)
@@ -510,7 +541,7 @@ def writeIndexingHTML(medChartData, bigChartData):
   w('  <li> Java version: <tt>%s</tt>\n' % htmlEscape(os.popen('java -version 2>&1').read().strip()))
   w('  <li> OS: <tt>%s</tt>\n' % htmlEscape(os.popen('uname -a 2>&1').read().strip()))
   w('  <li> CPU: 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores = 2 CPU * 6 core * 2 hyperthreads)\n')
-  w('  <li> IO: index stored on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB)')
+  w('  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))')
   w('  <li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/Indexer.java"><tt>Indexer.java</tt></a>')
   w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w('</ul>')
@@ -545,25 +576,56 @@ def writeNRTHTML(nrtChartData):
 def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   l = []
   w = l.append
-  w('<table><tr><td><b>%s</b></td><td>' % htmlEscape(yLabel))
-  w('<center><b>%s</b></center><br>' % htmlEscape(title))
-  w('<div id="%s" style="width:600px;height:300px"></div>' % id)
-  w('</td></tr></table>')
+  series = data[0].split(',')[1]
+  w('<div id="%s" style="width:800px;height:400px"></div>' % id)
   w('<script type="text/javascript">')
   w('  g_%s = new Dygraph(' % id)
   w('    document.getElementById("%s"),' % id)
-  w('    "%s.txt",' % id)
+  for s in data[:-1]:
+    w('    "%s\\n" +' % s)
+  w('    "%s\\n",' % data[-1])
+  options = []
+  options.append('title: "%s"' % title)
+  options.append('xlabel: "Date"')
+  options.append('ylabel: "%s"' % yLabel)
+  if False:
+    if errorBars:
+      maxY = max([float(x.split(',')[1])+float(x.split(',')[2]) for x in data[1:]])
+    else:
+      maxY = max([float(x.split(',')[1]) for x in data[1:]])
+    options.append('valueRange:[0,%.3f]' % (maxY*1.25))
+  #options.append('includeZero: true')
+                 
   if errorBars:
-    w('    {errorBars: true, includeZero:true, sigma:1}')
-  else:
-    w('    {includeZero:true, sigma:1}')
+    options.append('errorBars: true')
+    options.append('sigma: 1')
+
+  w('    {%s}' % ', '.join(options))
+    
+  if 0:
+    if errorBars:
+      w('    {errorBars: true, valueRange:[0,%.3f], sigma:1, title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY*1.25, title, yLabel))
+    else:
+      w('    {valueRange:[0,%.3f], title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY*1.25, title, yLabel))
   w('  );')
+  w('  g_%s.setAnnotations([' % id)
+  label = 'A'
+  for date, desc in annotations:
+    w('    {')
+    w('      series: "%s",' % series)
+    w('      x: "%s",' % date)
+    w('      shortText: "%s",' % label)
+    label = chr(ord(label)+1)
+    w('      text: "%s",' % desc)
+    w('    },')
+  w('  ]);')
   w('</script>')
 
-  f = open('%s/%s.txt' % (NIGHTLY_REPORTS_DIR, id), 'wb')
-  for s in data:
-    f.write('%s\n' % s)
-  f.close()
+  if 0:
+    f = open('%s/%s.txt' % (NIGHTLY_REPORTS_DIR, id), 'wb')
+    for s in data:
+      f.write('%s\n' % s)
+    f.close()
   return '\n'.join(l)
 
 def sendEmail(emailAddress, message):

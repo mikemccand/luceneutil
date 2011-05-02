@@ -353,6 +353,7 @@ def run():
              svnRev,
              luceneUtilRev)
   open('results.pk', 'wb').write(cPickle.dumps(results))
+  runCommand('chmod -R a-w %s' % runLogDir)
   message('done: total time %s' % (now()-start))
 
 def makeGraphs():

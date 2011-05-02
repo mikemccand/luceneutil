@@ -289,7 +289,7 @@ public class NRTPerfTest {
       });
 
     final IndexWriter w = new IndexWriter(dir, iwc);
-    w.setInfoStream(System.out);
+    //w.setInfoStream(System.out);
 
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {

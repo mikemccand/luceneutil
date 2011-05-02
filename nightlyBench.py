@@ -47,7 +47,8 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 """
 
 KNOWN_CHANGES = [
-  ('2011-04-25', 'Switched to 240 GB OCZ Vertex III')]
+  ('2011-04-25', 'Switched to 240 GB OCZ Vertex III'),
+  ('2011-05-02', 'LUCENE-3023: concurrent flushing (DocWriterPerThread)')]
 
 # TODO
 #   - need a tiny docs test?  catch per-doc overhead regressions...
@@ -278,7 +279,7 @@ def run():
   indexPathNow, ign, ign = buildIndex(r, runLogDir, 'search index (fixed segments)', index.build(), 'fixedIndex.log')
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
-                                                 
+
   if os.path.exists(indexPathPrev) and not DO_RESET:
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
     segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.build().getName()))
@@ -362,7 +363,9 @@ def makeGraphs():
   searchChartData = {}
   days = []
   annotations = []
-  for subDir in os.listdir(NIGHTLY_LOG_DIR):
+  l = os.listdir(NIGHTLY_LOG_DIR)
+  l.sort()
+  for subDir in l:
     resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
     if os.path.exists(resultsFile):
       tup = cPickle.loads(open(resultsFile).read())

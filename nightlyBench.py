@@ -96,6 +96,7 @@ if DEBUG:
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
 reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
 reSVNRev = re.compile(r'revision (.*?)\.')
+reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
 
 def now():
   return datetime.datetime.now()
@@ -125,6 +126,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   
   s = open(fullLogFile).read()
   bytesIndexed = int(reBytesIndexed.search(s).group(1))
+  indexAtClose = reIndexAtClose.search(s).group(1)
 
   indexTimeSec = int(reIndexingTime.search(s).group(1))/1000.0
   os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
@@ -134,7 +136,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   checkLogFileName = '%s/checkIndex.%s' % (runLogDir, logFile)
   checkIndex(r, indexPath, checkLogFileName)
 
-  return indexPath, indexTimeSec, bytesIndexed
+  return indexPath, indexTimeSec, bytesIndexed, indexAtClose
 
 def checkIndex(r, indexPath, checkLogFileName):
   message('run CheckIndex')
@@ -204,6 +206,7 @@ def setIndexParams(idx, fastIndex=True):
 def run():
 
   DO_RESET = '-reset' in sys.argv
+  DO_SKIP_CMP = DO_RESET or '-skipCmp' in sys.argv
 
   start = now()
   print
@@ -267,24 +270,29 @@ def run():
   r.compile(c.build())
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium.build(), 'fastIndexMediumDocs.log')
-
+  medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium.build(), 'fastIndexMediumDocs.log')
+  message('medIndexAtClose %s' % atClose)
+  
   # 2: NRT test
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  ign, bigIndexTime, bigBytesIndexed = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig.build(), 'fastIndexBigDocs.log')
+  ign, bigIndexTime, bigBytesIndexed, atClose = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig.build(), 'fastIndexBigDocs.log')
+  message('bigIndexAtClose %s' % atClose)
 
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
-  indexPathNow, ign, ign = buildIndex(r, runLogDir, 'search index (fixed segments)', index.build(), 'fixedIndex.log')
+  indexPathNow, ign, ign, atClose = buildIndex(r, runLogDir, 'search index (fixed segments)', index.build(), 'fixedIndex.log')
+  message('fixedIndexAtClose %s' % atClose)
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
 
-  if os.path.exists(indexPathPrev) and not DO_RESET:
+  if os.path.exists(indexPathPrev) and not DO_SKIP_CMP:
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
     segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.build().getName()))
     if segCountNow != segCountPrev:
-      raise RuntimeError('segment counts differ: prev=%s now=%s' % (segCountPrev, segCountNow))
+      print
+      print 'WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow)
+      print
 
   countPerCat = COUNTS_PER_CAT
   repeatCount = TASK_REPEAT_COUNT
@@ -315,7 +323,8 @@ def run():
                                resultsNow,
                                False, True,
                                'prev', 'now',
-                               writer=output.append)
+                               writer=output.append,
+                               skipCmp=DO_SKIP_CMP)
       f = open('%s/%s.html' % (NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
       timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.day, start.month, start.year)
       w = f.write
@@ -332,14 +341,16 @@ def run():
       shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
       searchResults = results
 
-  for fname in resultsNow:
-    shutil.copy(fname, fname + '.prev')
-    shutil.move(fname, runLogDir)
+  if not DO_SKIP_CMP:
+    for fname in resultsNow:
+      shutil.copy(fname, fname + '.prev')
+      shutil.move(fname, runLogDir)
 
-  if os.path.exists(indexPathPrev):
-    shutil.rmtree(indexPathPrev)
-  # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
-  os.rename(indexPathNow, indexPathPrev)
+    if os.path.exists(indexPathPrev):
+      shutil.rmtree(indexPathPrev)
+    # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
+    os.rename(indexPathNow, indexPathPrev)
+
   os.chdir(runLogDir)
   runCommand('tar cjf logs.tar.bz2 *')
   for f in os.listdir(runLogDir):
@@ -405,6 +416,8 @@ def makeGraphs():
       for date, desc in KNOWN_CHANGES:
         if timeStampString.startswith(date):
           annotations.append((timeStampString, desc))
+          KNOWN_CHANGES.remove((date, desc))
+          
   sort(medIndexChartData)
   sort(bigIndexChartData)
   for k, v in searchChartData.items():
@@ -425,7 +438,8 @@ def makeGraphs():
 
   # publish
   runCommand('scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
-  runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
+  if not DEBUG:
+    runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
 
 def header(w, title):
   w('<html>')

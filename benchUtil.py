@@ -624,13 +624,14 @@ class RunAlgs:
       logFiles.append(iterLogFile)
     return logFiles
 
-  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
+  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write, skipCmp=False):
 
     baseRawResults = parseResults(baseLogFiles)
     cmpRawResults = parseResults(cmpLogFiles)
 
     # make sure they got identical results
-    compareHits(baseRawResults, cmpRawResults)
+    if not skipCmp:
+      compareHits(baseRawResults, cmpRawResults)
 
     baseResults = collateResults(baseRawResults)
     cmpResults = collateResults(cmpRawResults)

@@ -47,8 +47,20 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 """
 
 KNOWN_CHANGES = [
-  ('2011-04-25', 'Switched to 240 GB OCZ Vertex III'),
-  ('2011-05-02', 'LUCENE-3023: concurrent flushing (DocWriterPerThread)')]
+  ('2011-04-25',
+   'Switched to 240 GB OCZ Vertex III',
+   """
+   Switched from a traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB) to a 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex III SSD</a>; this change gave a small increase in indexing rate, drastically reduced variance on the NRT reopen time (NRT is IO intensive), and didn't affect query performance (which is expected since the postings are small enough to fit into the OS's IO cache.
+   """),
+
+  ('2011-05-02',
+   'LUCENE-3023: concurrent flushing (DocWriterPerThread)',
+   """
+   Concurrent flushing, a major improvement to Lucene, was committed.  Before this change, flushing a segment in IndexWriter was single-threaded and blocked all other indexing threads; after this change, each indexing thread flushes its own segment without blocking indexing of other threads.  On highly concurrent hardware (the machine running these tests has 24 cores) this can result in a tremendous increase in Lucene\'s indexing throughput.  For details see <a href="https://issues.apache.org/jira/browse/LUCENE-3023">LUCENE-3023</a>.
+
+   <p> Some queries did get slower, because the index now has more segments.  Unfortunately, the index produced by concurrent flushing will vary, night to night, in how many segments it contains, so this is a further source of noise in the search results.
+   """),
+  ]
 
 # TODO
 #   - need a tiny docs test?  catch per-doc overhead regressions...
@@ -283,6 +295,7 @@ def run():
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
   indexPathNow, ign, ign, atClose = buildIndex(r, runLogDir, 'search index (fixed segments)', index.build(), 'fixedIndex.log')
   message('fixedIndexAtClose %s' % atClose)
+  fixedIndexAtClose = atClose
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
 
@@ -330,7 +343,9 @@ def run():
       w = f.write
       w('<html>\n')
       w('<h1>%s</h1>' % timeStamp2)
-      w('Lucene/Solr trunk rev %s; lucenetuil rev %s' % (svnRev, luceneUtilRev))
+      w('Lucene/Solr trunk rev %s<br>' % svnRev)
+      w('luceneutil rev %s<br>' % luceneUtilRev)
+      w('Index: %s<br>' % fixedIndexAtClose)
       w('<br><br><b>Search perf vs day before</b>\n')
       w(''.join(output))
       w('<br><br>')
@@ -377,6 +392,7 @@ def makeGraphs():
   annotations = []
   l = os.listdir(NIGHTLY_LOG_DIR)
   l.sort()
+
   for subDir in l:
     resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
     if os.path.exists(resultsFile):
@@ -413,10 +429,10 @@ def makeGraphs():
             searchChartData[cat] = ['Date,QPS']
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS, stdDevQPS))
 
-      for date, desc in KNOWN_CHANGES:
+      for date, desc, fullDesc in KNOWN_CHANGES:
         if timeStampString.startswith(date):
-          annotations.append((timeStampString, desc))
-          KNOWN_CHANGES.remove((date, desc))
+          annotations.append((date, timeStampString, desc, fullDesc))
+          KNOWN_CHANGES.remove((date, desc, fullDesc))
           
   sort(medIndexChartData)
   sort(bigIndexChartData)
@@ -520,6 +536,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   header(w, title)
   w(chartHTML)
   w('\n')
+  writeKnownChanges(w)
   w('<b>Notes</b>:')
   w('<ul>')
   if title.find('Primary Key') != -1:
@@ -536,6 +553,16 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   footer(w)
   f.close()
 
+def writeKnownChanges(w):
+  w('<br>')
+  w('<b>Known changes:</b>')
+  w('<ul>')
+  label = 'A'
+  for date, timestamp, desc, fullDesc in annotations:
+    w('<li><b>%s</b> (%s): %s<br><br>' % (label, date, fullDesc))
+    label = chr(ord(label)+1)
+  w('</ul>')
+
 def writeIndexingHTML(medChartData, bigChartData):
   f = open('%s/indexing.html' % NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
@@ -549,6 +576,9 @@ def writeIndexingHTML(medChartData, bigChartData):
   w('<br>')
   w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs", errorBars=False))
   w('\n')
+  writeKnownChanges(w)
+
+  w('<br><br>')
   w('<b>Notes</b>:\n')
   w('<ul>\n')
   w('  <li> Test does <b>not wait for merges on close</b> (calls <tt>IW.close(false)</tt>)')
@@ -574,6 +604,8 @@ def writeNRTHTML(nrtChartData):
   header(w, 'Lucene nightly near-real-time latency benchmark')
   w('<br>')
   w(getOneGraphHTML('NRT', nrtChartData, "Milliseconds", "Time (msec) to open a new reader", errorBars=True))
+  writeKnownChanges(w)
+  
   w('<b>Notes</b>:\n')
   w('<ul>\n')
   w('  <li> Test starts from full Wikipedia index, then use <tt>IW.updateDocument</tt> (so we stress deletions)')
@@ -629,10 +661,10 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   w('  );')
   w('  g_%s.setAnnotations([' % id)
   label = 'A'
-  for date, desc in annotations:
+  for date, timestamp, desc, fullDesc in annotations:
     w('    {')
     w('      series: "%s",' % series)
-    w('      x: "%s",' % date)
+    w('      x: "%s",' % timestamp)
     w('      shortText: "%s",' % label)
     label = chr(ord(label)+1)
     w('      text: "%s",' % desc)

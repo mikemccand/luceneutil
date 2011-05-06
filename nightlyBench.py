@@ -218,7 +218,7 @@ def setIndexParams(idx, fastIndex=True):
 def run():
 
   DO_RESET = '-reset' in sys.argv
-  DO_SKIP_CMP = DO_RESET or '-skipCmp' in sys.argv
+  DO_SKIP_CMP = DEBUG or DO_RESET or '-skipCmp' in sys.argv
 
   start = now()
   print

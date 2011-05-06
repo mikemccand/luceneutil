@@ -270,6 +270,8 @@ def run():
 
   index = comp.newIndex(NIGHTLY_DIR, mediumSource)
   setIndexParams(index, False)
+  # Must use only 1 thread so we get same index structure, always:
+  index.threads(1)
 
   c = comp.competitor(id, NIGHTLY_DIR)
   c.withIndex(index)
@@ -378,7 +380,12 @@ def run():
              searchResults,
              svnRev,
              luceneUtilRev)
-  open('results.pk', 'wb').write(cPickle.dumps(results))
+  if DEBUG:
+    resultsFileName = 'results.debug.pk'
+  else:
+    resultsFileName = 'results.pk'
+
+  open(resultsFileName, 'wb').write(cPickle.dumps(results))
   runCommand('chmod -R a-w %s' % runLogDir)
   message('done: total time %s' % (now()-start))
 
@@ -395,6 +402,9 @@ def makeGraphs():
 
   for subDir in l:
     resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
+    if DEBUG and not os.path.exists(resultsFile):
+      resultsFile = '%s/%s/results.debug.pk' % (NIGHTLY_LOG_DIR, subDir)
+      
     if os.path.exists(resultsFile):
       tup = cPickle.loads(open(resultsFile).read())
       

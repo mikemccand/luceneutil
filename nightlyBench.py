@@ -58,13 +58,18 @@ KNOWN_CHANGES = [
    """
    Concurrent flushing, a major improvement to Lucene, was committed.  Before this change, flushing a segment in IndexWriter was single-threaded and blocked all other indexing threads; after this change, each indexing thread flushes its own segment without blocking indexing of other threads.  On highly concurrent hardware (the machine running these tests has 24 cores) this can result in a tremendous increase in Lucene\'s indexing throughput.  For details see <a href="https://issues.apache.org/jira/browse/LUCENE-3023">LUCENE-3023</a>.
 
-   <p> Some queries did get slower, because the index now has more segments.  Unfortunately, the index produced by concurrent flushing will vary, night to night, in how many segments it contains, so this is a further source of noise in the search results.
-   """),
+   <p> Some queries did get slower, because the index now has more segments.  Unfortunately, the index produced by concurrent flushing will vary, night to night, in how many segments it contains, so this is a further source of noise in the search results."""),
 
   ('2011-05-06',
    'Make search index consistent',
    """
    Changed how I build the index used for searching, to only use one thread.  This results in exactly the same index structure (same segments, same docs per segment) from night to night, to avoid the added noise from change B.
+   """),
+
+  ('2011-05-07',
+   'Change to 20 indexing threads (from 6), 350 MB RAM buffer (from 512)',
+   """
+   Increased number of indexing threads from 6 to 20 and dropped the IndexWriter RAM buffer from 512 MB to 350 MB.
    """),
   ]
 
@@ -84,7 +89,7 @@ DIR_IMPL = 'MMapDirectory'
 
 MEDIUM_INDEX_NUM_DOCS = 27625038
 BIG_INDEX_NUM_DOCS = 5982049
-INDEXING_RAM_BUFFER_MB = 512
+INDEXING_RAM_BUFFER_MB = 350
 
 COUNTS_PER_CAT = 5
 TASK_REPEAT_COUNT = 50
@@ -311,9 +316,7 @@ def run():
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
     segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.build().getName()))
     if segCountNow != segCountPrev:
-      print
-      print 'WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow)
-      print
+      raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
 
   countPerCat = COUNTS_PER_CAT
   repeatCount = TASK_REPEAT_COUNT
@@ -575,7 +578,7 @@ def writeKnownChanges(w):
   w('<ul>')
   label = 'A'
   for date, timestamp, desc, fullDesc in annotations:
-    w('<li><b>%s</b> (%s): %s<br><br>' % (label, date, fullDesc))
+    w('<li><p><b>%s</b> (%s): %s</p>' % (label, date, fullDesc))
     label = chr(ord(label)+1)
   w('</ul>')
 

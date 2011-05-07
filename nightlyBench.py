@@ -60,6 +60,12 @@ KNOWN_CHANGES = [
 
    <p> Some queries did get slower, because the index now has more segments.  Unfortunately, the index produced by concurrent flushing will vary, night to night, in how many segments it contains, so this is a further source of noise in the search results.
    """),
+
+  ('2011-05-06',
+   'Make search index consistent',
+   """
+   Changed how I build the index used for searching, to only use one thread.  This results in exactly the same index structure (same segments, same docs per segment) from night to night, to avoid the added noise from change B.
+   """),
   ]
 
 # TODO

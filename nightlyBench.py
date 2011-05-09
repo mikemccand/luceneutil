@@ -472,7 +472,7 @@ def makeGraphs():
   writeIndexHTML(searchChartData, days)
 
   # publish
-  runCommand('scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
+  runCommand('rsync -arv -e ssh /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
   if not DEBUG:
     runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
 
@@ -499,6 +499,7 @@ def writeIndexHTML(searchChartData, days):
   w('<h1>Lucene nightly benchmarks</h1>')
   w('Each night, an <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.')
   w('<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>')
+  w('<p>See more details in <a href="http://blog.mikemccandless.com/2011/04/catching-slowdowns-in-lucene.html">this blog post</a>.</p>')
   w('<b>Results:</b>')
   w('<br>')
   w('<br>&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
@@ -669,6 +670,8 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   if errorBars:
     options.append('errorBars: true')
     options.append('sigma: 1')
+
+  options.append('showRoller: true')
 
   w('    {%s}' % ', '.join(options))
     

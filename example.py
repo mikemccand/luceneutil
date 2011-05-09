@@ -22,7 +22,7 @@ from competition import WIKI_MEDIUM
 # Baseline here is ../trunk versus ../modified_trunk
 if __name__ == '__main__':
   printIndexCharts = True # creates gnuplot graphs from you indexing throughput and stores them into /tmp
-  comp =  Competition(ramBufferMB=1024, printCharts=printIndexCharts)
+  comp =  Competition(printCharts=printIndexCharts)
   index = comp.newIndex('trunk', WIKI_MEDIUM)
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'trunk').withIndex(index)

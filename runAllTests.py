@@ -11,6 +11,7 @@ import time
 import sys
 import constants
 import copy
+import common
 
 # TODO
 #   - how come quiet logging doesn't "take"???
@@ -22,18 +23,7 @@ import copy
 #   - print total # testcases
 #   - verify i can "ant clean" @ top then run this; eg I'm not compiling Solr tests correctly yet
 
-s = os.getcwd()
-if not s.startswith(constants.BASE_DIR):
-  raise RuntimeError('checkout is not under constants.BASE_DIR?')
-
-s = s[len(constants.BASE_DIR):]
-if s.startswith(os.sep):
-  s = s[1:]
-
-checkout = s.split(os.sep)[0]
-del s
-
-ROOT = '%s/%s' % (constants.BASE_DIR, checkout)
+ROOT = common.findRootDir(os.getcwd())
 
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
@@ -370,7 +360,7 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if testClass in ('org.apache.solr.client.solrj.embedded.TestSolrProperties',):
+        if testClass in ('org.apache.solr.client.solrj.embedded.TestSolrProperties', 'org.apache.solr.cloud.CloudStateUpdateTest'):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass

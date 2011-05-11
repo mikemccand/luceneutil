@@ -217,6 +217,7 @@ def setIndexParams(idx, fastIndex=True):
   idx.codec('Standard')
   idx.threads(constants.INDEX_NUM_THREADS)
   idx.directory(DIR_IMPL)
+  idx.idFieldUsesPulsing(True)
   if fastIndex:
     idx.ramBufferMB(INDEXING_RAM_BUFFER_MB)
     idx.waitForMerges(False)

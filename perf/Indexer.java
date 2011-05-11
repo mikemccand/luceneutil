@@ -38,7 +38,7 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
 
 // EG:
 //
@@ -94,6 +94,7 @@ public final class Indexer {
     final boolean waitForMerges = args[13].equals("yes");
     final String mergePolicy = args[14];
     final boolean doUpdate = args[15].equals("yes");
+    final boolean idFieldUsesPulsingCodec = args[16].equals("yes");
 
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
@@ -109,9 +110,9 @@ public final class Indexer {
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
-    System.out.println("update: " + doUpdate);
+    System.out.println("Update: " + doUpdate);
+    System.out.println("ID field uses Pulsing codec: " + idFieldUsesPulsingCodec);
     
-
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
 
     if (doUpdate) {
@@ -152,10 +153,12 @@ public final class Indexer {
 
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec(codec);
-    if (codec.equals("StandardTree")) {
-      cp.setFieldCodec("id", "PulsingTree");
-    } else {
-      cp.setFieldCodec("id", "Pulsing");
+    if (idFieldUsesPulsingCodec) {
+      if (codec.equals("StandardTree")) {
+        cp.setFieldCodec("id", "PulsingTree");
+      } else {
+        cp.setFieldCodec("id", "Pulsing");
+      }
     }
     iwc.setCodecProvider(cp);
 

@@ -1,5 +1,6 @@
 import sys
 import os
+import constants
 
 if sys.platform.lower().find('darwin') != -1:
   osName = 'osx'
@@ -42,23 +43,48 @@ def locateTest(test):
   else:
     return allTests[test], method
 
-def getTestClassPath(ROOT):
+def findRootDir(s):
+
+  if not s.startswith(constants.BASE_DIR):
+    raise RuntimeError('directory is not under constants.BASE_DIR?')
+
+  s = s[len(constants.BASE_DIR):]
+  if s.startswith(os.sep):
+    s = s[1:]
+
+  checkout = s.split(os.sep)[0]
+  del s
+
+  return '%s/%s' % (constants.BASE_DIR, checkout)
+  
+def getLuceneTestClassPath(ROOT):
   CP = []
-  CP.append(ROOT+'build/classes/test')
-  CP.append(ROOT+'build/classes/test-framework')
-  CP.append(ROOT+'build/classes/java')
+  CP.append(ROOT+'/lucene/build/classes/test')
+  CP.append(ROOT+'/lucene/build/classes/test-framework')
+  CP.append(ROOT+'/lucene/build/classes/java')
 
-  if not os.path.exists('lib/junit-3.8.2.jar'):
-    JUNIT_JAR = 'lib/junit-4.7.jar'
+  if not os.path.exists(ROOT + '/lucene/lib/junit-3.8.2.jar'):
+    JUNIT_JAR = 'junit-4.7.jar'
   else:
-    JUNIT_JAR = 'lib/junit-3.8.2.jar'
-  CP.append(ROOT + JUNIT_JAR)
-  if os.path.exists(ROOT + 'build/classes/demo'):
-    CP.append(ROOT + 'build/classes/demo')
+    JUNIT_JAR = 'junit-3.8.2.jar'
+  CP.append(ROOT + '/lucene/lib/' + JUNIT_JAR)
+  if os.path.exists(ROOT + '/lucene/build/classes/demo'):
+    CP.append(ROOT + '/lucene/build/classes/demo')
 
-  if ROOT != '':
-    CP.append(ROOT + 'build/contrib/queries/classes/java')
-    CP.append(ROOT + 'build/contrib/queries/classes/test')
+  CP.append(ROOT + '/lucene/build/contrib/queries/classes/java')
+  CP.append(ROOT + '/lucene/build/contrib/queries/classes/test')
+  CP.append(ROOT + '/modules/grouping/build/classes/test')
+  CP.append(ROOT + '/modules/grouping/build/classes/java')
 
+  # return filterCWD(CP)
   return CP
+
+def filterCWD(l):
+  l2 = []
+  d = os.getcwd() + os.sep
+  for e in l:
+    if e.startswith(d):
+      e = d[len(d):]
+    l2.append(e)
+  return l2
 

@@ -28,7 +28,8 @@ BENCH_BASE_DIR = '%s/util' % BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k.txt.bz2
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR
-WIKI_MEDIUM_TASKS_FILE = '%s/data/wikimedium500.tasks' % BASE_DIR
+WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/data/wikimedium500.tasks' % BASE_DIR
+WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/data/wikimedium500_1Mdocs.tasks' % BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR

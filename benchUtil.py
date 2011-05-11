@@ -371,6 +371,8 @@ def agg(iters, cat):
     # each cat, then this is AvgMS for query in that cat:
     avgMS = sumMS/count
     accumMS.append(avgMS)
+    if VERBOSE:
+      print '  avgMS=%s accumMS=%s' % (avgMS, accumMS)
     
     if lastHitCount is None:
       lastHitCount = totHitCount

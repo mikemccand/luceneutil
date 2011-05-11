@@ -48,13 +48,13 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
     debug = True
     id += '-debug'
-    jvmCount = 10
+    jvmCount = 4
     if coldRun:
       countPerCat = 20
       repeatCount = 1
     else:
       countPerCat = 1
-      repeatCount = 50
+      repeatCount = 35
   else:
     jvmCount = 20
     if coldRun:

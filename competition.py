@@ -16,7 +16,6 @@ import searchBench
 import benchUtil
 import constants
 
-
 class Data(object):
   
   def __init__(self, name, lineFile, numDocs, tasksFile):
@@ -25,14 +24,16 @@ class Data(object):
     self.numDocs = numDocs
     self.tasksFile = tasksFile
 
+WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
-  
-
-WIKI_MEDIUM = Data('wikimedium', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.WIKI_MEDIUM_TASKS_FILE)
 WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 3000000, constants.WIKI_BIG_TASKS_FILE)
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
-DATA = {'wikimedium' : WIKI_MEDIUM, 'wikibig' : WIKI_BIG, 'euromedium' : EURO_MEDIUM }
 
+DATA = {'wikimedium10m' : WIKI_MEDIUM_10M,
+        'wikimedium1m' : WIKI_MEDIUM_1M,
+        'wikibig' : WIKI_BIG,
+        'euromedium' : EURO_MEDIUM }
 
 MMAP_DIRECTORY='MMapDirectory'
 NIOFS_DIRECTORY='NIOFSDirectory'
@@ -47,12 +48,11 @@ def sourceData(key=None):
     if '-source' in sys.argv:
       key = sys.argv[1+sys.argv.index('-source')]
     else:
-      raise RuntimeError('please specify -source (wikimedium, wikibig, euromedium)')
+      raise RuntimeError('please specify -source (wikimedium10m, wikimedium1m, wikibig, euromedium)')
   if key in DATA:
     return DATA[key]
   else:
-    keys = str([ x for x in DATA.iterkeys()])
-    raise RuntimeError('unknonw data source choose one of %s;'% (keys)) 
+    raise RuntimeError('unknown data source (valid keys: %s)' % DATA.keys())
 
 class Index(object):
 
@@ -144,7 +144,7 @@ class Competition(object):
     self.benchSearch = True
     self.benchIndex = True
 
-  def newIndex(self, checkout, data=WIKI_MEDIUM):
+  def newIndex(self, checkout, data=WIKI_MEDIUM_10M):
     return IndexBuilder(checkout, self.ramBufferMB, data, self)
 
   def competitor(self, name, checkout=None ):

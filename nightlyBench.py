@@ -329,7 +329,9 @@ def run():
   t0 = now()
 
   coldRun = False
-  resultsNow = r.runSimpleSearchBench(id, c.build(), repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
+  comp = c.build()
+  comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
+  resultsNow = r.runSimpleSearchBench(id, comp, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
   message('done search (%s)' % (now()-t0))
   resultsPrev = []
 

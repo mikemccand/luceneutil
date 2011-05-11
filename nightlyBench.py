@@ -446,7 +446,11 @@ def makeGraphs():
         for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in searchResults.items():
           if cat not in searchChartData:
             searchChartData[cat] = ['Date,QPS']
-          searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS, stdDevQPS))
+          if cat == 'PKLookup':
+            qpsMult = 4000
+          else:
+            qpsMult = 1
+          searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
       for date, desc, fullDesc in KNOWN_CHANGES:
         if timeStampString.startswith(date):
@@ -659,6 +663,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   options.append('title: "%s"' % title)
   options.append('xlabel: "Date"')
   options.append('ylabel: "%s"' % yLabel)
+  options.append('labelsKMB: true')
   if False:
     if errorBars:
       maxY = max([float(x.split(',')[1])+float(x.split(',')[2]) for x in data[1:]])

@@ -440,6 +440,7 @@ class RunAlgs:
       print '  %s: now create' % fullIndexPath
     
     try:
+
       if index.doOptimize:
         opt = 'yes'
       else:
@@ -454,12 +455,18 @@ class RunAlgs:
         waitForMerges = 'yes'
       else:
         waitForMerges = 'no'
+
       if index.doUpdate:
         doUpdate = 'yes'
       else:
         doUpdate = 'no'
 
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
+      if index.idFieldUsesPulsing:
+        idFieldUsesPulsingCodec = 'yes'
+      else:
+        idFieldUsesPulsingCodec = 'no'
+
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -477,7 +484,9 @@ class RunAlgs:
              index.printDPS,
              waitForMerges,
              index.mergePolicy,
-             doUpdate)
+             doUpdate,
+             idFieldUsesPulsingCodec
+             )
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)

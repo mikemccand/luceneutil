@@ -110,7 +110,8 @@ public final class Indexer {
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
-    System.out.println("update: " + doUpdate);
+    System.out.println("Update: " + doUpdate);
+    System.out.println("ID field uses Pulsing codec: " + idFieldUsesPulsingCodec);
     
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
 

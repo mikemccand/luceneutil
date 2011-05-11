@@ -101,8 +101,11 @@ MEDIUM_LINE_FILE = '/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
 BIG_LINE_FILE = '/lucene/data/enwiki-20110115-lines.txt'
 NIGHTLY_LOG_DIR = '/lucene/logs.nightly'
 NIGHTLY_REPORTS_DIR = '/lucene/reports.nightly'
-NIGHTLY_DIR = 'trunk.nightly'
-
+if DEBUG:
+  NIGHTLY_DIR = 'clean2.svn'
+else:
+  NIGHTLY_DIR = 'trunk.nightly'
+  
 NRT_DOCS_PER_SECOND = 1103  # = 1 MB / avg med wiki doc size
 NRT_RUN_TIME = 30*60
 NRT_SEARCH_THREADS = 4

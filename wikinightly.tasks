@@ -1,70 +1,80 @@
-Term: 0 # freq=708472
-OrHighHigh: but year # freq=1484398 freq=1098425
-Respell: montes
-Prefix3: man*
+AndHighHigh: +be +up # freq=2115632 freq=824628
+AndHighHigh: +cite +had # freq=1367577 freq=1223103
+AndHighHigh: +is +he # freq=4214104 freq=1663980
+AndHighHigh: +no +4 # freq=1060681 freq=944177
+AndHighHigh: +title +see # freq=2077102 freq=1100862
+AndHighMed: +2010 +16 # freq=933686 freq=531050
+AndHighMed: +5 +power # freq=849829 freq=257919
+AndHighMed: +only +particularly # freq=895806 freq=100045
 AndHighMed: +united +1983 # freq=1185528 freq=150075
-SpanNear: near//see the # freq=52117
-Wildcard: no*n
-OrHighHigh: to but # freq=6105155 freq=1484398
 AndHighMed: +who +ed # freq=1201585 freq=127497
-Fuzzy2: sings~2
-SpanNear: near//the modern # freq=37712
-OrHighHigh: are last # freq=1921211 freq=830278
-SloppyPhrase: "was also"~4 # freq=163302
+Fuzzy1: changer~1
 Fuzzy1: danes~1
-Phrase: "the average" # freq=55409
-Fuzzy2: insta~2
-Phrase: "when a" # freq=45309
-IntNRQ: nrq//timesecnum 3110 51452
-Wildcard: un*l
-OrHighHigh: at united # freq=2834104 freq=1185528
-IntNRQ: nrq//timesecnum 10044 66714
+Fuzzy1: maher~1
+Fuzzy1: manic~1
 Fuzzy1: provo~1
-OrHighHigh: name its # freq=2577591 freq=1160703
-OrHighMed: title bay # freq=2077102 freq=117167
-Phrase: "it was" # freq=597450
-IntNRQ: nrq//timesecnum 3773 78558
+Fuzzy2: bates~2
+Fuzzy2: fined~2
+Fuzzy2: insta~2
+Fuzzy2: sings~2
+Fuzzy2: titel~2
+IntNRQ: nrq//timesecnum 10044 66714
 IntNRQ: nrq//timesecnum 1069 86092
 IntNRQ: nrq//timesecnum 150 34646
+IntNRQ: nrq//timesecnum 3110 51452
+IntNRQ: nrq//timesecnum 3773 78558
+OrHighHigh: are last # freq=1921211 freq=830278
+OrHighHigh: at united # freq=2834104 freq=1185528
+OrHighHigh: but year # freq=1484398 freq=1098425
+OrHighHigh: name its # freq=2577591 freq=1160703
+OrHighHigh: to but # freq=6105155 freq=1484398
+OrHighMed: at mostly # freq=2834104 freq=89401
+OrHighMed: his interview # freq=1771920 freq=94736
+OrHighMed: http 9 # freq=3289683 freq=541405
+OrHighMed: they hard # freq=1031516 freq=92045
+OrHighMed: title bay # freq=2077102 freq=117167
+Phrase: "it was" # freq=597450
+Phrase: "red please" # freq=43948
+Phrase: "the average" # freq=55409
+Phrase: "the us" # freq=68781
+Phrase: "when a" # freq=45309
+Prefix3: any*
 Prefix3: cul*
 Prefix3: his*
-Fuzzy1: manic~1
-Term: names # freq=402762
-Fuzzy1: maher~1
-Term: nbsp # freq=492778
-Phrase: "red please" # freq=43948
-AndHighHigh: +is +he # freq=4214104 freq=1663980
-OrHighMed: at mostly # freq=2834104 freq=89401
-Term: part # freq=588644
-Fuzzy2: titel~2
-OrHighMed: his interview # freq=1771920 freq=94736
-AndHighMed: +2010 +16 # freq=933686 freq=531050
-Respell: dries
-Wildcard: bu*s
-Respell: stove
-AndHighMed: +only +particularly # freq=895806 freq=100045
-Fuzzy1: changer~1
-AndHighMed: +5 +power # freq=849829 freq=257919
-SloppyPhrase: "in an"~4 # freq=181581
-SloppyPhrase: "one of"~4 # freq=587897
-Respell: bowed
-Respell: biker
-SloppyPhrase: "after his"~4 # freq=50193
-SpanNear: near//when it # freq=63385
-Wildcard: fu*r
-SloppyPhrase: "nomination when"~4 # freq=55609
-Fuzzy2: fined~2
-Phrase: "the us" # freq=68781
-Fuzzy2: bates~2
-Wildcard: pr*t
-OrHighMed: they hard # freq=1031516 freq=92045
-SpanNear: near//states american # freq=52681
-SpanNear: near//your nomination # freq=55938
-Term: st # freq=306811
-Prefix3: any*
-AndHighHigh: +no +4 # freq=1060681 freq=944177
-AndHighHigh: +be +up # freq=2115632 freq=824628
 Prefix3: mak*
-OrHighMed: http 9 # freq=3289683 freq=541405
-AndHighHigh: +cite +had # freq=1367577 freq=1223103
-AndHighHigh: +title +see # freq=2077102 freq=1100862
+Prefix3: man*
+Respell: biker
+Respell: bowed
+Respell: dries
+Respell: montes
+Respell: stove
+SloppyPhrase: "after his"~4 # freq=50193
+SloppyPhrase: "in an"~4 # freq=181581
+SloppyPhrase: "nomination when"~4 # freq=55609
+SloppyPhrase: "one of"~4 # freq=587897
+SloppyPhrase: "was also"~4 # freq=163302
+SpanNear: near//see the # freq=52117
+SpanNear: near//states american # freq=52681
+SpanNear: near//the modern # freq=37712
+SpanNear: near//when it # freq=63385
+SpanNear: near//your nomination # freq=55938
+Term: 0 # freq=708472
+Term: names # freq=402762
+Term: nbsp # freq=492778
+Term: part # freq=588644
+Term: st # freq=306811
+TermDateTimeSort: datetimesort//0 # freq=708472
+TermDateTimeSort: datetimesort//names # freq=402762
+TermDateTimeSort: datetimesort//nbsp # freq=492778
+TermDateTimeSort: datetimesort//part # freq=588644
+TermDateTimeSort: datetimesort//st # freq=306811
+TermTitleSort: titlesort//0 # freq=708472
+TermTitleSort: titlesort//names # freq=402762
+TermTitleSort: titlesort//nbsp # freq=492778
+TermTitleSort: titlesort//part # freq=588644
+TermTitleSort: titlesort//st # freq=306811
+Wildcard: bu*s
+Wildcard: fu*r
+Wildcard: no*n
+Wildcard: pr*t
+Wildcard: un*l

@@ -68,27 +68,6 @@ import org.apache.lucene.util.*;
 
 public class SearchPerfTest {
   
-  /*
-  private static String[] queryStrings = {
-    //"*:*",
-    "states",
-    "unit*",
-    "uni*",
-    "u*d",
-    "un*d",
-    "united~0.75",  // 1
-    "united~0.6",   // 2
-    "unit~0.7",     // 1
-    "unit~0.5",     // 2
-    "title:/.*[Uu]nited.* /",
-    "united OR states",
-    "united AND states",
-    "nebraska AND states",
-    "\"united states\"",
-    "\"united states\"~3",
-  };
-  */
-
   private static class IndexState {
     public final IndexSearcher searcher;
     public final IndexReader[] subReaders;
@@ -117,6 +96,8 @@ public class SearchPerfTest {
   // instance is executed and results are recorded in it and
   // then later verified/summarized:
   private static abstract class Task {
+    //public String origString;
+
     public abstract void go(IndexState state) throws IOException;
 
     public abstract String getCategory();
@@ -469,6 +450,7 @@ public class SearchPerfTest {
           throw new RuntimeException("null query line");
         }
 
+        final Sort sort;
         final Query query;
         if (text.startsWith("near//")) {
           final int spot3 = text.indexOf(' ');
@@ -480,6 +462,7 @@ public class SearchPerfTest {
                                                      new SpanTermQuery(new Term(fieldName, text.substring(1+spot3)))},
                                     10,
                                     true);
+          sort = null;
         } else if (text.startsWith("nrq//")) {
           // field start end
           final int spot3 = text.indexOf(' ');
@@ -494,16 +477,24 @@ public class SearchPerfTest {
           final int start = Integer.parseInt(text.substring(1+spot3, spot4));
           final int end = Integer.parseInt(text.substring(1+spot4));
           query = NumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
+          sort = null;
+        } else if (text.startsWith("datetimesort//")) {
+          sort = dateTimeSort;
+          query = p.parse(text.substring(14, text.length()));
+        } else if (text.startsWith("titlesort//")) {
+          sort = titleSort;
+          query = p.parse(text.substring(11, text.length()));
         } else {
           query = p.parse(text);
+          sort = null;
         }
 
         if (query.toString().equals("")) {
           throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
         }
 
+        /*
         final int mod = (count++) % 3;
-        final Sort sort;
         if (!doSort || mod == 0) {
           sort = null;
         } else if (mod == 1) {
@@ -511,9 +502,11 @@ public class SearchPerfTest {
         } else {
           sort = titleSort;
         }
+        */
         task = new SearchTask(category, query, sort, null, 10);
       }
 
+      //task.origString = line;
       tasks.add(task);
     }
 
@@ -622,6 +615,12 @@ public class SearchPerfTest {
     final Random staticRandom = new Random(staticRandomSeed);
     Collections.shuffle(tasks, staticRandom);
     final List<Task> prunedTasks = pruneTasks(tasks, numTaskPerCat);
+
+    //for(Task task : prunedTasks) {
+    //System.out.println("TASK: " + task.origString);
+    //}
+
+    // Add PK tasks
     final int numPKTasks = (int) Math.min(searcher.maxDoc()/6000., numTaskPerCat);
     for(int idx=0;idx<numPKTasks;idx++) {
       prunedTasks.add(new PKLookupTask(searcher.maxDoc(), staticRandom, 4000, pkSeenIDs, idx));

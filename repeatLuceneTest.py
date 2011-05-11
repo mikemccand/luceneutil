@@ -27,8 +27,7 @@ import re
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
 
-#ROOT = '../../'
-ROOT = ''
+ROOT = common.findRootDir(os.getcwd())
 
 osName = common.osName
 
@@ -100,6 +99,7 @@ else:
     logDirName = 'c:' + logDirName
 
 doLog = not getArg('-nolog', False, False)
+doCompile = not getArg('-noc', False, False)
 
 print 'Logging to dir %s' % logDirName
 
@@ -108,17 +108,18 @@ if doLog:
     shutil.rmtree(logDirName)
   os.makedirs(logDirName)
 
-print 'Compile...'
-try:
-  if ROOT != '':
-    res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
-  else:
-    res = os.system('ant compile-test > compile.log 2>&1')
-  if res:
-    print open('compile.log', 'rb').read()
-    sys.exit(1)
-finally:
-  os.remove('compile.log')
+if doCompile:
+  print 'Compile...'
+  try:
+    if ROOT != '':
+      res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
+    else:
+      res = os.system('ant compile-test > compile.log 2>&1')
+    if res:
+      print open('compile.log', 'rb').read()
+      sys.exit(1)
+  finally:
+    os.remove('compile.log')
 
 onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))
@@ -144,7 +145,7 @@ for test in sys.argv[1:]:
     testClass, testMethod = tup
     tests.append((testClass, testMethod))
 
-JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getTestClassPath(ROOT))
+JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
 TEST_TEMP_DIR = 'build/test/reruns'

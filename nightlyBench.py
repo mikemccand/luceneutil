@@ -414,13 +414,6 @@ def run():
              searchResults,
              svnRev,
              luceneUtilRev)
-  if DEBUG:
-    resultsFileName = 'results.debug.pk'
-  else:
-    resultsFileName = 'results.pk'
-
-  open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(cPickle.dumps(results))
-
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
     
@@ -438,6 +431,13 @@ def run():
   for f in os.listdir(runLogDir):
     if f != 'logs.tar.bz2':
       os.remove(f)
+
+  if DEBUG:
+    resultsFileName = 'results.debug.pk'
+  else:
+    resultsFileName = 'results.pk'
+
+  open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(cPickle.dumps(results))
 
   runCommand('chmod -R a-w %s' % runLogDir)
 
@@ -529,7 +529,7 @@ def makeGraphs():
   runCommand('rsync -arv -e ssh /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
   if not DEBUG:
     runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
-
+  
 def header(w, title):
   w('<html>')
   w('<head>')

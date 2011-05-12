@@ -779,7 +779,6 @@ class RunAlgs:
     chartData = [x[1:] for x in chartData]
 
     if QPSChart.supported:
-      print 'CHART DATA %s' % len(chartData)
       QPSChart.QPSChart(chartData, 'out.png')
       print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
                         

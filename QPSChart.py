@@ -86,7 +86,8 @@ class QPSChart:
 
       # write pct diff
       maxQPS = max(maxBase, maxCmp)
-      d.text((x+BAR_WIDTH+X_SPACER2/2-10, self.qpsToY(maxQPS)-20), '%d%%' % (100*(avgCmp-avgBase)/avgBase), fill='black', font=FONT)
+      if avgBase != 0.0:
+        d.text((x+BAR_WIDTH+X_SPACER2/2-10, self.qpsToY(maxQPS)-20), '%d%%' % (100*(avgCmp-avgBase)/avgBase), fill='black', font=FONT)
 
       # draw vertical error bars
       y0 = self.qpsToY(minBase)

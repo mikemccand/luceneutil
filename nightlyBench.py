@@ -71,6 +71,12 @@ KNOWN_CHANGES = [
    """
    Increased number of indexing threads from 6 to 20 and dropped the IndexWriter RAM buffer from 512 MB to 350 MB.
    """),
+
+  ('2011-05-11',
+   'Add TermQuery with sorting',
+   """
+   Added TermQuery, sorting by date/time and title fields.
+   """),
   ]
 
 # TODO
@@ -193,8 +199,6 @@ def runNRTTest(r, indexPath, runLogDir):
   cmd += '> %s 2>&1' % logFile
   runCommand(cmd)
 
-  checkIndex(r, indexPath, 'checkIndex.nrt.log')
-  
   times = []
   for s in reNRTReopenTime.findall(open(logFile, 'rb').read()):
     times.append(float(s))
@@ -212,6 +216,8 @@ def runNRTTest(r, indexPath, runLogDir):
 
   min, max, mean, stdDev = stats.getStats(times)
   message('NRT reopen time (msec) mean=%.4f stdDev=%.4f' % (mean, stdDev))
+  
+  checkIndex(r, indexPath, 'checkIndex.nrt.log')
   
   return mean, stdDev
 
@@ -344,7 +350,7 @@ def run():
     prevFName = fname + '.prev'
     if os.path.exists(prevFName):
       resultsPrev.append(prevFName)
-    else:
+    elif not DO_SKIP_CMP:
       break
   else:
     if not DO_RESET:
@@ -422,6 +428,7 @@ def makeGraphs():
       
     if os.path.exists(resultsFile):
       tup = cPickle.loads(open(resultsFile).read())
+      # print 'RESULTS: %s' % resultsFile
       
       timeStamp, \
                  medNumDocs, medIndexTimeSec, medBytesIndexed, \
@@ -539,6 +546,8 @@ taskRename = {
   'Fuzzy1': 'FuzzyQuery (edit distance 1)',
   'Fuzzy2': 'FuzzyQuery (edit distance 2)',
   'Term': 'TermQuery',
+  'TermDateTimeSort': 'TermQuery (D/T sort)',
+  'TermTitleSort': 'TermQuery (title sort)',
   'IntNRQ': 'NumericRangeQuery (int)',
   'Prefix3': 'PrefixQuery (3 characters)',
   'Phrase': 'PhraseQuery (exact)',

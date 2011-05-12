@@ -221,6 +221,7 @@ def parseResults(resultsFiles):
         m = reSearchTask.match(line[6:])
         cat, task.query, sort, hitCount = m.groups()
         task.cat = cat
+        # print 'CAT %s' % cat
 
         task.hitCount = int(hitCount)
         if sort == '<string: "title">':
@@ -313,6 +314,7 @@ def agg(iters, cat):
   lastHitCount = None
 
   accumMS = []
+  totHitCount = 0
   
   # Iterate over each JVM instance we ran
   for tasksByCat in iters:
@@ -390,8 +392,10 @@ def stats(l):
     sumSQ += v*v
 
   # min, max, mean, stddev
-  return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
-  
+  if len(l) == 0:
+    return 0.0, 0.0, 0.0, 0.0
+  else:
+    return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
 
 def run(cmd, logFile=None, indent='    '):
   print '%s[RUN: %s]' % (indent, cmd)
@@ -647,7 +651,12 @@ class RunAlgs:
     baseResults = collateResults(baseRawResults)
     cmpResults = collateResults(cmpRawResults)
 
-    cats = baseResults[0].keys()
+    cats = set()
+    for l in (baseResults, cmpResults):
+      if len(l) > 0:
+        for k in l[0].keys():
+          cats.add(k)
+    cats = list(cats)
     cats.sort()
 
     lines = []
@@ -663,7 +672,7 @@ class RunAlgs:
     for cat in cats:
 
       if type(cat) is types.TupleType:
-        if cat[1] is not None:
+        if False and cat[1] is not None:
           desc = '%s (sort %s)' % (cat[0], cat[1])
         else:
           desc = cat[0]
@@ -715,7 +724,10 @@ class RunAlgs:
         w('%12.2f%12.2f%12.2f%12.2f'%
           (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
 
-      psAvg = 100.0*(qpsCmp - qpsBase)/qpsBase
+      if qpsBase == 0.0:
+        psAvg = 0.0
+      else:
+        psAvg = 100.0*(qpsCmp - qpsBase)/qpsBase
 
       qpsBaseBest = qpsBase + qpsStdDevBase
       qpsBaseWorst = qpsBase - qpsStdDevBase
@@ -723,8 +735,11 @@ class RunAlgs:
       qpsCmpBest = qpsCmp + qpsStdDevCmp
       qpsCmpWorst = qpsCmp - qpsStdDevCmp
 
-      psBest = int(100.0 * (qpsCmpBest - qpsBaseWorst)/qpsBaseWorst)
-      psWorst = int(100.0 * (qpsCmpWorst - qpsBaseBest)/qpsBaseBest)
+      if qpsBaseWorst == 0.0:
+        psBest = psWorst = 0
+      else:
+        psBest = int(100.0 * (qpsCmpBest - qpsBaseWorst)/qpsBaseWorst)
+        psWorst = int(100.0 * (qpsCmpWorst - qpsBaseBest)/qpsBaseBest)
 
       if jira:
         w('|%s-%s' % (jiraColor(psWorst), jiraColor(psBest)))
@@ -760,6 +775,7 @@ class RunAlgs:
     chartData = [x[1:] for x in chartData]
 
     if QPSChart.supported:
+      print 'CHART DATA %s' % len(chartData)
       QPSChart.QPSChart(chartData, 'out.png')
       print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
                         

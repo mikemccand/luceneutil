@@ -109,12 +109,14 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c, jvmCount)
       
-  r.simpleReport(results[competitors[0]],
-                 results[competitors[1]],
-                 '-jira' in sys.argv,
-                 '-html' in sys.argv,
-                 cmpDesc=competitors[1].name,
-                 baseDesc=competitors[0].name)
+  results, cmpDiffs = r.simpleReport(results[competitors[0]],
+                                     results[competitors[1]],
+                                     '-jira' in sys.argv,
+                                     '-html' in sys.argv,
+                                     cmpDesc=competitors[1].name,
+                                     baseDesc=competitors[0].name)
+  if cmpDiffs is not None:
+    raise RuntimeError('results differ: %s' % str(cmpDiffs))
 
 
 # NOTE: when running on 3.0, apply this patch:

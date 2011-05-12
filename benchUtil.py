@@ -320,6 +320,8 @@ def agg(iters, cat):
   for tasksByCat in iters:
 
     # Maps cat -> actual tasks ran
+    if cat not in tasksByCat:
+      continue
     tasks = tasksByCat[cat]
     if len(tasks[0]) <= WARM_SKIP:
       raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
@@ -639,14 +641,13 @@ class RunAlgs:
       logFiles.append(iterLogFile)
     return logFiles
 
-  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write, skipCmp=False):
+  def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
     baseRawResults = parseResults(baseLogFiles)
     cmpRawResults = parseResults(cmpLogFiles)
 
     # make sure they got identical results
-    if not skipCmp:
-      compareHits(baseRawResults, cmpRawResults)
+    cmpDiffs = compareHits(baseRawResults, cmpRawResults)
 
     baseResults = collateResults(baseRawResults)
     cmpResults = collateResults(cmpRawResults)
@@ -678,6 +679,9 @@ class RunAlgs:
           desc = cat[0]
       else:
         desc = cat
+
+      if desc == 'TermDateTimeSort':
+        desc = 'TermDTSort'
 
       l0 = []
       w = l0.append
@@ -816,7 +820,7 @@ class RunAlgs:
     for w in warnings:
       print 'WARNING: %s' % w
 
-    return resultsByCatCmp
+    return resultsByCatCmp, cmpDiffs
 
   def compare(self, baseline, newList, *params):
 
@@ -853,19 +857,56 @@ def fixupFuzzy(query):
       editDistance = int((1.0-fuzz)*len(term))
       query = query.replace('~%s' % fuzzOrig, '~%s.0' % editDistance)
   return query
-  
+
+def tasksToMap(taskIters):
+  d = {}
+  if len(taskIters) > 0:
+    for task in taskIters[0]:
+      d[task] = task
+    for tasks in taskIters[1:]:
+      for task in tasks:
+        if task not in d:
+          # BUG
+          raise RuntimeError('tasks differ from one iteration to the next')
+        else:
+          # Make sure same task returned same results w/in this run:
+          task.verifySame(d[task])
+  return d
+    
 def compareHits(r1, r2):
-  if len(r1) != len(r2):
-    raise RuntimeError('task counts differ: %s vs %s' % (len(r1), len(r2)))
 
-  for iter in xrange(len(r1)):
-    x1 = r1[iter]
-    x2 = r2[iter]
-    if len(x1) != len(x2):
-      raise RuntimeError('task counts differ: %s vs %s' % (len(x1), len(x2)))
-    for idx in range(len(x1)):
-      x1[idx].verifySame(x2[idx])
+  # Carefully compare, allowing for the addition of new tasks:
+  d1 = tasksToMap(r1)
+  d2 = tasksToMap(r2)
 
+  checked = 0
+  onlyInD1 = 0
+  errors = []
+  for task in d1.keys():
+    if task in d2:
+      try:
+        task.verifySame(d2.get(task))
+      except RuntimeError, re:
+        errors.append(str(re))
+      checked += 1
+    else:
+      onyInD1 += 1
+
+  onlyInD2 = len(d2) - (len(d1) - onlyInD1)
+
+  warnings = []
+  if len(d1) != len(d2):
+    # not necessarily an error because we may have added new tasks in nightly bench
+    warnings.append('non-overlapping tasks onlyInD1=%s onlyInD2=%s' % (onlyInD1, onlyInD2))
+
+  if checked == 0:
+    warnings.append('no results were checked')
+
+  if len(warnings) == 0 and len(errors) == 0:
+    return None
+  else:
+    return warnings, errors
+  
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 

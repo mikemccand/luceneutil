@@ -130,6 +130,8 @@ reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
 reSVNRev = re.compile(r'revision (.*?)\.')
 reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
 
+REAL = True
+
 def now():
   return datetime.datetime.now()
 
@@ -140,28 +142,34 @@ def message(s):
  print '[%s] %s' % (now(), s)
 
 def runCommand(command):
-  message('RUN: %s' % command)
-  t0 = time.time()
-  if os.system(command):
-    message('  FAILED')
-    raise RuntimeError('command failed: %s' % command)
-  message('  took %.1f sec' % (time.time()-t0))
-
+  if REAL:
+    message('RUN: %s' % command)
+    t0 = time.time()
+    if os.system(command):
+      message('  FAILED')
+      raise RuntimeError('command failed: %s' % command)
+    message('  took %.1f sec' % (time.time()-t0))
+  else:
+    message('WOULD RUN: %s' % command)
+    
 def buildIndex(r, runLogDir, desc, index, logFile):
   message('build %s' % desc)
   #t0 = now()
   indexPath = benchUtil.nameToIndexPath(index.getName())
   if os.path.exists(indexPath):
     shutil.rmtree(indexPath)
-  indexPath, fullLogFile = r.makeIndex('nightly', index)
+  if REAL:
+    indexPath, fullLogFile = r.makeIndex('nightly', index)
   #indexTime = (now()-t0)
-  
-  s = open(fullLogFile).read()
+
+  if REAL:
+    os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
+
+  s = open('%s/%s' % (runLogDir, logFile)).read()
   bytesIndexed = int(reBytesIndexed.search(s).group(1))
   indexAtClose = reIndexAtClose.search(s).group(1)
-
   indexTimeSec = int(reIndexingTime.search(s).group(1))/1000.0
-  os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
+
   message('  took %.1f sec' % indexTimeSec)
 
   # run checkIndex
@@ -178,6 +186,8 @@ def checkIndex(r, indexPath, checkLogFileName):
          indexPath,
          checkLogFileName)
   runCommand(cmd)
+  if open(checkLogFileName, 'rb').read().find('No problems were detected with this index') == -1:
+    raise RuntimeError('CheckIndex failed')
 
 reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
 
@@ -239,35 +249,44 @@ def setIndexParams(idx, fastIndex=True):
 def run():
 
   DO_RESET = '-reset' in sys.argv
-  DO_SKIP_CMP = DEBUG or DO_RESET or '-skipCmp' in sys.argv
 
-  start = now()
   print
   print
   print
   print
   message('start')
   id = 'nightly'
+  if not REAL:
+    start = datetime.datetime(year=2011, month=5, day=11, hour=23, minute=0, second=1)
+  else:
+    start = now()
   timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)
   runLogDir = '%s/%s' % (NIGHTLY_LOG_DIR, timeStamp)
-  os.makedirs(runLogDir)
+  if REAL:
+    os.makedirs(runLogDir)
   message('log dir %s' % runLogDir)
 
   os.chdir('/lucene/%s' % NIGHTLY_DIR)
-  runCommand('svn cleanup')
-  for i in range(30):
-    try:
-      runCommand('svn update > %s/update.log' % runLogDir)
-    except RuntimeError:
-      message('  retry...')
-      time.sleep(60.0)
-    else:
-      svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-      print 'SVN rev is %s' % svnRev
-      break
+  if not REAL:
+    svnRev = '1102160'
+    luceneUtilRev = '2270c7a8b3ac+ tip'
+    print 'SVN rev is %s' % svnRev
+    print 'luceneutil rev is %s' % luceneUtilRev
+  else:
+    runCommand('svn cleanup')
+    for i in range(30):
+      try:
+        runCommand('svn update > %s/update.log' % runLogDir)
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
+        print 'SVN rev is %s' % svnRev
+        break
 
-  luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
-  print 'luceneutil rev is %s' % luceneUtilRev
+    luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
+    print 'luceneutil rev is %s' % luceneUtilRev
   
   runCommand('ant clean > clean.log 2>&1')
 
@@ -302,7 +321,8 @@ def run():
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
-  r.compile(c.build())
+  if REAL:
+    r.compile(c.build())
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
   medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium.build(), 'fastIndexMediumDocs.log')
@@ -322,7 +342,7 @@ def run():
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
 
-  if os.path.exists(indexPathPrev) and not DO_SKIP_CMP:
+  if os.path.exists(indexPathPrev) and os.path.exists(benchUtil.nameToIndexPath(index.build().getName())):
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
     segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.build().getName()))
     if segCountNow != segCountPrev:
@@ -340,7 +360,10 @@ def run():
   coldRun = False
   comp = c.build()
   comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
-  resultsNow = r.runSimpleSearchBench(id, comp, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
+  if REAL:
+    resultsNow = r.runSimpleSearchBench(id, comp, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
+  else:
+    resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in xrange(20)]
   message('done search (%s)' % (now()-t0))
   resultsPrev = []
 
@@ -350,50 +373,40 @@ def run():
     prevFName = fname + '.prev'
     if os.path.exists(prevFName):
       resultsPrev.append(prevFName)
-    elif not DO_SKIP_CMP:
-      break
+
+  if not DO_RESET:
+    output = []
+    results, cmpDiffs = r.simpleReport(resultsPrev,
+                                       resultsNow,
+                                       False, True,
+                                       'prev', 'now',
+                                       writer=output.append)
+    f = open('%s/%s.html' % (NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
+    timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.day, start.month, start.year)
+    w = f.write
+    w('<html>\n')
+    w('<h1>%s</h1>' % timeStamp2)
+    w('Lucene/Solr trunk rev %s<br>' % svnRev)
+    w('luceneutil rev %s<br>' % luceneUtilRev)
+    w('Index: %s<br>' % fixedIndexAtClose)
+    w('<br><br><b>Search perf vs day before</b>\n')
+    w(''.join(output))
+    w('<br><br>')
+    w('<img src="%s.png"/>\n' % timeStamp)
+    w('</html>\n')
+    f.close()
+
+    shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
+    searchResults = results
+
+    if cmpDiffs is not None:
+      warnings, errors = cmpDiffs
+      print 'WARNING: search result differences: %s' % str(warnings)
+      if len(errors) > 0:
+        raise RuntimeErrors('search result differences: %s' % str(errors))
   else:
-    if not DO_RESET:
-      output = []
-      results = r.simpleReport(resultsPrev,
-                               resultsNow,
-                               False, True,
-                               'prev', 'now',
-                               writer=output.append,
-                               skipCmp=DO_SKIP_CMP)
-      f = open('%s/%s.html' % (NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
-      timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.day, start.month, start.year)
-      w = f.write
-      w('<html>\n')
-      w('<h1>%s</h1>' % timeStamp2)
-      w('Lucene/Solr trunk rev %s<br>' % svnRev)
-      w('luceneutil rev %s<br>' % luceneUtilRev)
-      w('Index: %s<br>' % fixedIndexAtClose)
-      w('<br><br><b>Search perf vs day before</b>\n')
-      w(''.join(output))
-      w('<br><br>')
-      w('<img src="%s.png"/>\n' % timeStamp)
-      w('</html>\n')
-      f.close()
+    cmpDiffs = None
 
-      shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
-      searchResults = results
-
-  if not DO_SKIP_CMP:
-    for fname in resultsNow:
-      shutil.copy(fname, fname + '.prev')
-      shutil.move(fname, runLogDir)
-
-    if os.path.exists(indexPathPrev):
-      shutil.rmtree(indexPathPrev)
-    # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
-    os.rename(indexPathNow, indexPathPrev)
-
-  os.chdir(runLogDir)
-  runCommand('tar cjf logs.tar.bz2 *')
-  for f in os.listdir(runLogDir):
-    if f != 'logs.tar.bz2':
-      os.remove(f)
   results = (start,
              MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,
              BIG_INDEX_NUM_DOCS, bigIndexTime, bigBytesIndexed,
@@ -406,8 +419,28 @@ def run():
   else:
     resultsFileName = 'results.pk'
 
-  open(resultsFileName, 'wb').write(cPickle.dumps(results))
+  open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(cPickle.dumps(results))
+
+  for fname in resultsNow:
+    shutil.copy(fname, runLogDir)
+    
+  for fname in resultsNow:
+    shutil.move(fname, fname + '.prev')
+
+  # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
+  if os.path.exists(indexPathNow):
+    if os.path.exists(indexPathPrev):
+      shutil.rmtree(indexPathPrev)
+    os.rename(indexPathNow, indexPathPrev)
+
+  os.chdir(runLogDir)
+  runCommand('tar cjf logs.tar.bz2 *')
+  for f in os.listdir(runLogDir):
+    if f != 'logs.tar.bz2':
+      os.remove(f)
+
   runCommand('chmod -R a-w %s' % runLogDir)
+
   message('done: total time %s' % (now()-start))
 
 def makeGraphs():
@@ -481,10 +514,14 @@ def makeGraphs():
   # NRT
   writeNRTHTML(nrtChartData)
 
-  for k, v in searchChartData.items():
-    writeOneGraphHTML('Lucene %s queries/sec' % taskRename.get(k, k),
-                      '%s/%s.html' % (NIGHTLY_REPORTS_DIR, k),
-                      getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
+  for k, v in searchChartData.items()[:]:
+    # Graph does not render right with only one value:
+    if len(v) > 2:
+      writeOneGraphHTML('Lucene %s queries/sec' % taskRename.get(k, k),
+                        '%s/%s.html' % (NIGHTLY_REPORTS_DIR, k),
+                        getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
+    else:
+      del searchChartData[k]
 
   writeIndexHTML(searchChartData, days)
 
@@ -546,7 +583,7 @@ taskRename = {
   'Fuzzy1': 'FuzzyQuery (edit distance 1)',
   'Fuzzy2': 'FuzzyQuery (edit distance 2)',
   'Term': 'TermQuery',
-  'TermDateTimeSort': 'TermQuery (D/T sort)',
+  'TermDTSort': 'TermQuery (date/time sort)',
   'TermTitleSort': 'TermQuery (title sort)',
   'IntNRQ': 'NumericRangeQuery (int)',
   'Prefix3': 'PrefixQuery (3 characters)',

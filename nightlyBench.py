@@ -617,6 +617,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   w('<ul>')
   if title.find('Primary Key') != -1:
     w('<li>Lookup 4000 random documents using unique field "id"')
+    w('<li>The "id" field is indexed with Pulsing codec.')
   w('<li> Test runs %s instances of each tasks/query category (auto-discovered with <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/CreateQueries.java">this Java tool</a>)' % COUNTS_PER_CAT)
   w('<li> Each of the %s instances are run %s times per JVM instance; we keep the best (fastest) time per task/query instance' % (COUNTS_PER_CAT, TASK_REPEAT_COUNT))
   w('<li> %s JVM instances are run; we compute mean/stddev from these' % JVM_COUNT)

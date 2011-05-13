@@ -73,6 +73,21 @@ TermTitleSort: titlesort//names # freq=402762
 TermTitleSort: titlesort//nbsp # freq=492778
 TermTitleSort: titlesort//part # freq=588644
 TermTitleSort: titlesort//st # freq=306811
+TermGroup100: group100//0 # freq=708472
+TermGroup100: group100//names # freq=402762
+TermGroup100: group100//nbsp # freq=492778
+TermGroup100: group100//part # freq=588644
+TermGroup100: group100//st # freq=306811
+TermGroup10K: group10K//0 # freq=708472
+TermGroup10K: group10K//names # freq=402762
+TermGroup10K: group10K//nbsp # freq=492778
+TermGroup10K: group10K//part # freq=588644
+TermGroup10K: group10K//st # freq=306811
+TermGroup1M: group1M//0 # freq=708472
+TermGroup1M: group1M//names # freq=402762
+TermGroup1M: group1M//nbsp # freq=492778
+TermGroup1M: group1M//part # freq=588644
+TermGroup1M: group1M//st # freq=306811
 Wildcard: bu*s
 Wildcard: fu*r
 Wildcard: no*n

@@ -56,6 +56,8 @@ def sourceData(key=None):
 
 class Index(object):
 
+  doGrouping = True
+
   def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads,
                lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory',
                doDeletions=False, ramBufferMB=-1, mergePolicy=constants.MERGEPOLICY_DEFAULT, doUpdate='No'):

@@ -325,14 +325,20 @@ def run():
     r.compile(c.build())
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium.build(), 'fastIndexMediumDocs.log')
+  fastIndexMedium.build()
+  idx.doGrouping = False
+  medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', idx, 'fastIndexMediumDocs.log')
+  del idx
   message('medIndexAtClose %s' % atClose)
   
   # 2: NRT test
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  ign, bigIndexTime, bigBytesIndexed, atClose = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig.build(), 'fastIndexBigDocs.log')
+  idx = fastIndexBig.build()
+  idx.doGrouping = False
+  ign, bigIndexTime, bigBytesIndexed, atClose = buildIndex(r, runLogDir, 'big index (fast)', idx, 'fastIndexBigDocs.log')
+  del idx
   message('bigIndexAtClose %s' % atClose)
 
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)

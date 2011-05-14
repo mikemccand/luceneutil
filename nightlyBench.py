@@ -77,6 +77,12 @@ KNOWN_CHANGES = [
    """
    Added TermQuery, sorting by date/time and title fields.
    """),
+
+  ('2011-05-14',
+   'Add TermQuery with grouping',
+   """
+   Added TermQuery, grouping by fields with 100, 10K, 1M unique values.
+   """),
   ]
 
 # TODO

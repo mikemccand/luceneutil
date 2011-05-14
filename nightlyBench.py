@@ -257,7 +257,7 @@ def run():
   message('start')
   id = 'nightly'
   if not REAL:
-    start = datetime.datetime(year=2011, month=5, day=11, hour=23, minute=0, second=1)
+    start = datetime.datetime(year=2011, month=5, day=14, hour=12, minute=54, second=39)
   else:
     start = now()
   timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)
@@ -325,7 +325,7 @@ def run():
     r.compile(c.build())
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  fastIndexMedium.build()
+  idx = fastIndexMedium.build()
   idx.doGrouping = False
   medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', idx, 'fastIndexMediumDocs.log')
   del idx
@@ -420,23 +420,25 @@ def run():
              searchResults,
              svnRev,
              luceneUtilRev)
+
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
-    
-  for fname in resultsNow:
-    shutil.move(fname, fname + '.prev')
 
-  # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
-  if os.path.exists(indexPathNow):
-    if os.path.exists(indexPathPrev):
-      shutil.rmtree(indexPathPrev)
-    os.rename(indexPathNow, indexPathPrev)
+  if REAL:
+    for fname in resultsNow:
+      shutil.move(fname, fname + '.prev')
 
-  os.chdir(runLogDir)
-  runCommand('tar cjf logs.tar.bz2 *')
-  for f in os.listdir(runLogDir):
-    if f != 'logs.tar.bz2':
-      os.remove(f)
+    # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
+    if os.path.exists(indexPathNow):
+      if os.path.exists(indexPathPrev):
+        shutil.rmtree(indexPathPrev)
+      os.rename(indexPathNow, indexPathPrev)
+
+    os.chdir(runLogDir)
+    runCommand('tar cjf logs.tar.bz2 *')
+    for f in os.listdir(runLogDir):
+      if f != 'logs.tar.bz2':
+        os.remove(f)
 
   if DEBUG:
     resultsFileName = 'results.debug.pk'
@@ -445,7 +447,8 @@ def run():
 
   open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(cPickle.dumps(results))
 
-  runCommand('chmod -R a-w %s' % runLogDir)
+  if REAL:
+    runCommand('chmod -R a-w %s' % runLogDir)
 
   message('done: total time %s' % (now()-start))
 

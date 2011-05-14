@@ -230,8 +230,9 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(.*?)$')
-reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=(.*?) groupTotHits=(.*?)$')
+reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) hits=([0-9]+)$')
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+)$')
+reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)$')
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
@@ -242,6 +243,7 @@ def parseResults(resultsFiles):
   taskIters = []
   for resultsFile in resultsFiles:
     tasks = []
+    # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
     while True:
       line = f.readline()
@@ -250,11 +252,15 @@ def parseResults(resultsFiles):
       line = line.strip()
 
       if line.startswith('TASK: cat='):
+        # print 'LINE %s' % line
         task = SearchTask()
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
 
         m = reSearchTask.match(line[6:])
+        if m is None:
+          m = reSearchTaskOld.match(line[6:])
+
         if m is not None:
           cat, task.query, sort, hitCount = m.groups()
           task.cat = cat
@@ -293,6 +299,7 @@ def parseResults(resultsFiles):
               field = m.group(2)
               task.hits.append((id, field))
         else:
+          # print 'line %s' % str(line)
           m = reSearchGroupTask.match(line[6:])
           cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount = m.groups()
           task.cat = cat

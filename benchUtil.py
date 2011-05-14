@@ -87,6 +87,7 @@ def nameToIndexPath(name):
   return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
 
 class SearchTask:
+  # TODO: subclass SearchGroupTask
 
   def verifySame(self, other):
     if not isinstance(other, SearchTask):
@@ -95,28 +96,59 @@ class SearchTask:
       self.fail('wrong query: %s vs %s' % (self.query, other.query))
     if self.sort != other.sort:
       self.fail('wrong sort: %s vs %s' % (self.sort, other.sort))
-    # nocommit why!?
-    if False and self.expandedTermCount != other.expandedTermCount:
-      self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
-    if self.hitCount != other.hitCount:
-      self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
-    if len(self.hits) != len(other.hits):
-      self.fail('wrong top hit count: %s vs %s' % (len(self.hits), len(other.hits)))
+    if self.groupField is None:
+      if self.expandedTermCount != other.expandedTermCount:
+        # nocommit why!?
+        print 'WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount)
+        # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
+      if self.hitCount != other.hitCount:
+        self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
+      if len(self.hits) != len(other.hits):
+        self.fail('wrong top hit count: %s vs %s' % (len(self.hits), len(other.hits)))
 
-    # Collapse equals... this is sorta messy, but necessary because we
-    # do not dedup by true id in SearchPerfTest
-    hitsSelf = collapseDups(self.hits)
-    hitsOther = collapseDups(other.hits)
+      # Collapse equals... this is sorta messy, but necessary because we
+      # do not dedup by true id in SearchPerfTest
+      hitsSelf = collapseDups(self.hits)
+      hitsOther = collapseDups(other.hits)
 
-    if len(hitsSelf) != len(hitsOther):
-      self.fail('wrong collapsed hit count: %s vs %s' % (len(hitsSelf), len(hitsOther)))
+      if len(hitsSelf) != len(hitsOther):
+        self.fail('wrong collapsed hit count: %s vs %s' % (len(hitsSelf), len(hitsOther)))
 
-    for i in xrange(len(hitsSelf)):
-      if hitsSelf[i][1] != hitsOther[i][1]:
-        self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
-      if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
-        self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+      for i in xrange(len(hitsSelf)):
+        if hitsSelf[i][1] != hitsOther[i][1]:
+          self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+        if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
+          self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+    else:
+      # groups
+      if self.groupCount != other.groupCount:
+        self.fail('wrong groupCount: %s vs %s' % (self.groupCount, other.groupCount))
+      for groupIDX in xrange(self.groupCount):
+        groupValue1, groupTotHits1, groupTopScore1, groups1 = self.groups[groupIDX]
+        groupValue2, groupTotHits2, groupTopScore2, groups2 = other.groups[groupIDX]
 
+        if groupValue1 != groupValue2:
+          self.fail('group %d has wrong groupValue: %s vs %s' % (groupIDX, groupValue1, groupValue2))
+
+        # iffy: this is a float cmp
+        if groupTopScore1 != groupTopScore2:
+          self.fail('group %d has wrong groupTopScor: %s vs %s' % (groupIDX, groupTopScore1, groupTopScore2))
+
+        if groupTotHits1 != groupTotHits2:
+          self.fail('group %d has wrong totHits: %s vs %s' % (groupIDX, groupTotHits1, groupTotHits2))
+
+        if len(groups1) != len(groups2):
+          self.fail('group %d has wrong number of docs: %s vs %s' % (groupIDX, len(groups1), len(groups2)))
+
+        groups1 = collapseDups(groups1)
+        groups2 = collapseDups(groups2)
+
+        for docIDX in xrange(len(groups1)):
+          if groups1[docIDX][1] != groups2[docIDX][1]:
+            self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
+          if groups1[docIDX][0] != groups2[docIDX][0] and i < len(groups1)-1:
+            self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
+          
   def fail(self, message):
     s = 'query=%s' % self.query
     if self.sort is not None:
@@ -127,16 +159,18 @@ class SearchTask:
     s = self.query
     if self.sort is not None:
       s += ' [sort=%s]' % self.sort
+    if self.groupField is not None:
+      s += ' [groupField=%s]' % self.groupField
     return s
 
   def __eq__(self, other):
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort
+      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort)
+    return hash(self.query) + hash(self.sort) + hash(self.groupField)
       
   
 class RespellTask:
@@ -196,11 +230,13 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) hits=(.*?)$')
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(.*?)$')
+reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=(.*?) groupTotHits=(.*?)$')
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
 rePKOrd = re.compile(r'PK(.*?)\[')
+reOneGroup = re.compile('group=(.*?) totalHits=(.*?) groupRelevance=(.*?)$')
 
 def parseResults(resultsFiles):
   taskIters = []
@@ -219,40 +255,72 @@ def parseResults(resultsFiles):
         task.threadID = int(f.readline().strip().split()[1])
 
         m = reSearchTask.match(line[6:])
-        cat, task.query, sort, hitCount = m.groups()
-        task.cat = cat
-        # print 'CAT %s' % cat
+        if m is not None:
+          cat, task.query, sort, hitCount = m.groups()
+          task.cat = cat
+          task.groups = None
+          task.groupField = None
+          # print 'CAT %s' % cat
 
-        task.hitCount = int(hitCount)
-        if sort == '<string: "title">':
-          task.sort = 'Title'
-        elif sort.startswith('<long: "datenum">'):
-          task.sort = 'DateTime'
-        else:
-          task.sort = None
-
-        task.hits = []
-        task.expandedTermCount = 0
-
-        while True:
-          line = f.readline().strip()
-          if line == '':
-            break
-          if line.find('expanded terms') != -1:
-            task.expandedTermCount = int(line.split()[0])
-            continue
-
-          if sort == 'null':
-            m = reSearchHitScore.match(line)
-            id = int(m.group(1))
-            score = m.group(2)
-            # score stays a string so we can do "precise" ==
-            task.hits.append((id, score))
+          task.hitCount = int(hitCount)
+          if sort == '<string: "title">':
+            task.sort = 'Title'
+          elif sort.startswith('<long: "datenum">'):
+            task.sort = 'DateTime'
           else:
-            m = reSearchHitField.match(line)
-            id = int(m.group(1))
-            field = m.group(2)
-            task.hits.append((id, field))
+            task.sort = None
+
+          task.hits = []
+          task.expandedTermCount = 0
+
+          while True:
+            line = f.readline().strip()
+            if line == '':
+              break
+            if line.find('expanded terms') != -1:
+              task.expandedTermCount = int(line.split()[0])
+              continue
+
+            if sort == 'null':
+              m = reSearchHitScore.match(line)
+              id = int(m.group(1))
+              score = m.group(2)
+              # score stays a string so we can do "precise" ==
+              task.hits.append((id, score))
+            else:
+              m = reSearchHitField.match(line)
+              id = int(m.group(1))
+              field = m.group(2)
+              task.hits.append((id, field))
+        else:
+          m = reSearchGroupTask.match(line[6:])
+          cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount = m.groups()
+          task.cat = cat
+          task.hits = hitCount
+          task.gourpedHitCount = groupedHitCount
+          task.groupCount = int(groupCount)
+          # TODO: handle different sorts
+          task.sort = None
+          task.groups = []
+          group = None
+          while True:
+            line = f.readline().strip()
+            if line == '':
+              break
+            m = reOneGroup.search(line)
+            if m is not None:
+              groupValue, groupTotalHits, groupTopScore = m.groups()
+              group = (groupValue, int(groupTotalHits), float(groupTopScore), [])
+              task.groups.append(group)
+              continue
+            m = reSearchHitScore.search(line)
+            if m is not None:
+              doc = int(m.group(1))
+              score = float(m.group(2))
+              group[-1].append((doc, score))
+            else:
+              # BUG
+              raise RuntimeError('result parsing failed')
 
       elif line.startswith('TASK: respell'):
         task = RespellTask()
@@ -369,7 +437,11 @@ def agg(iters, cat):
         sumMS += sum(pruned)
         count += len(pruned)
       if isinstance(task, SearchTask):
-        totHitCount += task.hitCount
+        if task.groupField is None:
+          totHitCount += task.hitCount
+        else:
+          for group in task.groups:
+            totHitCount += group[1]
 
     # AvgMS per query in category, eg if we ran 5 different queries in
     # each cat, then this is AvgMS for query in that cat:
@@ -474,7 +546,12 @@ class RunAlgs:
       else:
         idFieldUsesPulsingCodec = 'no'
 
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
+      if index.doGrouping:
+        doGrouping = 'yes'
+      else:
+        doGrouping = 'no'
+
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -493,7 +570,8 @@ class RunAlgs:
              waitForMerges,
              index.mergePolicy,
              doUpdate,
-             idFieldUsesPulsingCodec
+             idFieldUsesPulsingCodec,
+             doGrouping
              )
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
@@ -534,6 +612,7 @@ class RunAlgs:
     if version == '4.0':
       cp.append('%s/modules/analysis/build/common/classes/java' % path)
       cp.append('%s/modules/analysis/build/icu/classes/java' % path)
+      cp.append('%s/modules/grouping/build/classes/java' % path)
     elif version == '3.x':
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
     else:
@@ -545,7 +624,7 @@ class RunAlgs:
 
     return tuple(cp)
 
-  def compile(self,competitor):
+  def compile(self, competitor):
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
     print '  %s' % checkoutToPath(competitor.checkout)

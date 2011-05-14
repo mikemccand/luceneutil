@@ -49,6 +49,7 @@ import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.*;
+import org.apache.lucene.search.grouping.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -63,7 +64,7 @@ import org.apache.lucene.util.*;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint:deprecation -cp build/classes/java:build/contrib/spellchecker/classes/java:../modules/analysis/build/common/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
+//   javac -Xlint:deprecation -cp build/classes/java:build/contrib/spellchecker/classes/java:../modules/analysis/build/common/classes/java:../modules/grouping/build/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
 //   java -cp .:build/contrib/spellchecker/classes/java:build/classes/java:../modules/analysis/build/common/classes/java perf.SearchPerfTest MMapDirectory /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index StandardAnalyzer /p/lucene/data/tasks.txt 6 1 body -1 no multi
 
 public class SearchPerfTest {
@@ -126,20 +127,23 @@ public class SearchPerfTest {
     private final Query q;
     private final Sort s;
     private final Filter f;
+    private final String group;
     private final int topN;
     private TopDocs hits;
+    private TopGroups groupsResult;
 
-    public SearchTask(String category, Query q, Sort s, Filter f, int topN) {
+    public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN) {
       this.category = category;
       this.q = q;
       this.s = s;
       this.f = f;
+      this.group = group;
       this.topN = topN;
     }
 
     @Override
     public Task clone() {
-      return new SearchTask(category, q, s, f, topN);
+      return new SearchTask(category, q, s, group, f, topN);
     }
 
     @Override
@@ -149,7 +153,22 @@ public class SearchPerfTest {
 
     @Override
     public void go(IndexState state) throws IOException {
-      if (s == null && f == null) {
+      if (group != null) {
+        final FirstPassGroupingCollector c1 = new FirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
+        final CachingCollector cCache = new CachingCollector(c1, true, 32.0);
+        state.searcher.search(q, cCache);
+
+        final Collection<SearchGroup> topGroups = c1.getTopGroups(0, true);
+        if (topGroups != null) {
+          final SecondPassGroupingCollector c2 = new SecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, null, 10, true, true, true);
+          if (cCache.isCached()) {
+            cCache.replay(c2);
+          } else {
+            state.searcher.search(q, c2);
+          }
+          groupsResult = c2.getTopGroups(0);
+        }
+      } else if (s == null && f == null) {
         hits = state.searcher.search(q, topN);
       } else if (s == null && f != null) {
         hits = state.searcher.search(q, f, topN);
@@ -179,6 +198,13 @@ public class SearchPerfTest {
         if (topN != otherSearchTask.topN) {
           return false;
         }
+
+        if (group != null && !group.equals(otherSearchTask.group)) {
+          return false;
+        } else if (otherSearchTask.group != null) {
+          return false;
+        }
+
         // TODO: filter
         return true;
       } else {
@@ -190,7 +216,10 @@ public class SearchPerfTest {
     public int hashCode() {
       int hashCode = q.hashCode();
       if (s != null) {
-        hashCode *= s.hashCode();
+        hashCode ^= s.hashCode();
+      }
+      if (group != null) {
+        hashCode ^= group.hashCode();
       }
       hashCode *= topN;
       return hashCode;
@@ -198,9 +227,19 @@ public class SearchPerfTest {
 
     @Override
     public long checksum() {
-      long sum = hits.totalHits;
-      for(ScoreDoc hit : hits.scoreDocs) {
-        sum += hit.doc;
+      long sum = 0;
+      if (group != null) {
+        for(GroupDocs groupDocs : groupsResult.groups) {
+          sum += groupDocs.totalHits;
+          for(ScoreDoc hit : groupDocs.scoreDocs) {
+            sum += hit.doc;
+          }
+        }
+      } else {
+        sum = hits.totalHits;
+        for(ScoreDoc hit : hits.scoreDocs) {
+          sum += hit.doc;
+        }
       }
 
       return sum;
@@ -208,12 +247,19 @@ public class SearchPerfTest {
 
     @Override
     public String toString() {
-      return "cat=" + category + " q=" + q + " s=" + s + " hits=" + hits.totalHits;
+      return "cat=" + category + " q=" + q + " s=" + s + " group=" + group + (group == null ? " hits=" + hits.totalHits : " groups=" + groupsResult.groups.length + " hits=" + groupsResult.totalHitCount + " groupTotHits=" + groupsResult.totalGroupedHitCount);
     }
 
     @Override
     public void printResults(IndexState state) throws IOException {
-      if (hits instanceof TopFieldDocs) {
+      if (group != null) {
+        for(GroupDocs groupDocs : groupsResult.groups) {
+          System.out.println("  group=" + groupDocs.groupValue.utf8ToString() + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+          for(ScoreDoc hit : groupDocs.scoreDocs) {
+            System.out.println("    doc=" + hit.doc + " score=" + hit.score);
+          }
+        }
+      } else if (hits instanceof TopFieldDocs) {
         final TopFieldDocs fieldHits = (TopFieldDocs) hits;
         for(int idx=0;idx<hits.scoreDocs.length;idx++) {
           FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
@@ -452,6 +498,7 @@ public class SearchPerfTest {
 
         final Sort sort;
         final Query query;
+        final String group;
         if (text.startsWith("near//")) {
           final int spot3 = text.indexOf(' ');
           if (spot3 == -1) {
@@ -463,6 +510,7 @@ public class SearchPerfTest {
                                     10,
                                     true);
           sort = null;
+          group = null;
         } else if (text.startsWith("nrq//")) {
           // field start end
           final int spot3 = text.indexOf(' ');
@@ -478,13 +526,29 @@ public class SearchPerfTest {
           final int end = Integer.parseInt(text.substring(1+spot4));
           query = NumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
           sort = null;
+          group = null;
         } else if (text.startsWith("datetimesort//")) {
           sort = dateTimeSort;
           query = p.parse(text.substring(14, text.length()));
+          group = null;
         } else if (text.startsWith("titlesort//")) {
           sort = titleSort;
           query = p.parse(text.substring(11, text.length()));
+          group = null;
+        } else if (text.startsWith("group100//")) {
+          group = "group100";
+          query = p.parse(text.substring(10, text.length()));
+          sort = null;
+        } else if (text.startsWith("group10K//")) {
+          group = "group10K";
+          query = p.parse(text.substring(10, text.length()));
+          sort = null;
+        } else if (text.startsWith("group1M//")) {
+          group = "group1M";
+          query = p.parse(text.substring(9, text.length()));
+          sort = null;
         } else {
+          group = null;
           query = p.parse(text);
           sort = null;
         }
@@ -503,7 +567,7 @@ public class SearchPerfTest {
           sort = titleSort;
         }
         */
-        task = new SearchTask(category, query, sort, null, 10);
+        task = new SearchTask(category, query, sort, group, null, 10);
       }
 
       //task.origString = line;

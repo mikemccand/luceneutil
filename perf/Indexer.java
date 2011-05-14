@@ -36,7 +36,7 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
 
-// javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
+// javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
 // Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
 
@@ -45,6 +45,21 @@ import org.apache.lucene.util.*;
 //  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no
 
 public final class Indexer {
+
+  // NOTE: returned array might have dups
+  private static String[] randomStrings(int count, Random random) {
+    final String[] strings = new String[count];
+    int i = 0;
+    while(i < count) {
+      final String s = _TestUtil.randomRealisticUnicodeString(random);
+      if (s.length() >= 7) {
+        strings[i++] = s;
+      }
+    }
+
+    return strings;
+  }
+
   public static void main(String[] args) throws Exception {
 
     final String dirImpl = args[0];
@@ -95,6 +110,7 @@ public final class Indexer {
     final String mergePolicy = args[14];
     final boolean doUpdate = args[15].equals("yes");
     final boolean idFieldUsesPulsingCodec = args[16].equals("yes");
+    final boolean addGroupingFields = args[17].equals("yes");
 
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
@@ -123,6 +139,14 @@ public final class Indexer {
 
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
+
+    final Random random = new Random(17);
+
+    if (addGroupingFields) {
+      IndexThread.group100 = randomStrings(100, random);
+      IndexThread.group10K = randomStrings(10000, random);
+      IndexThread.group1M = randomStrings(1000000, random);
+    }
 
     // We want deterministic merging, since we target a
     // multi-seg index w/ 5 segs per level:
@@ -233,9 +257,8 @@ public final class Indexer {
       final int maxDoc = w.maxDoc();
       final int toDeleteCount = (int) (maxDoc * 0.05);
       System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
-      final Random rand = new Random(17);
       while(deleted.size() < toDeleteCount) {
-        final int id = rand.nextInt(maxDoc);
+        final int id = random.nextInt(maxDoc);
         if (!deleted.contains(id)) {
           deleted.add(id);
           w.deleteDocuments(new Term("id", String.format("%09d", id)));
@@ -325,6 +348,9 @@ public final class Indexer {
   }
 
   private static class IndexThread extends Thread {
+    public static String[] group100;
+    public static String[] group10K;
+    public static String[] group1M;
     private final LineFileDocs docs;
     private final int numTotalDocs;
     private final IndexWriter w;
@@ -345,6 +371,21 @@ public final class Indexer {
       final long tStart = System.currentTimeMillis();
       final Term template = new Term("id");
       Term delTerm = null;
+      final Field group100Field;
+      final Field group10KField;
+      final Field group1MField;
+      if (group100 != null) {
+        group100Field = new Field("group100", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        docState.doc.add(group100Field);
+        group10KField = new Field("group10K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        docState.doc.add(group10KField);
+        group1MField = new Field("group1M", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        docState.doc.add(group1MField);
+      } else {
+        group100Field = null;
+        group10KField = null;
+        group1MField = null;
+      }
       while(true) {
 
         try {
@@ -359,6 +400,11 @@ public final class Indexer {
           }
 	  if (doUpdate) {
             delTerm = template.createTerm(idField.stringValue());
+          }
+          if (group100 != null) {
+            group100Field.setValue(group100[id%100]);
+            group10KField.setValue(group10K[id%10000]);
+            group1MField.setValue(group1M[id%1000000]);
           }
           w.updateDocument(delTerm, doc);
           count.incrementAndGet();

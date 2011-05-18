@@ -73,6 +73,8 @@ def getLuceneTestClassPath(ROOT):
 
   CP.append(ROOT + '/lucene/build/contrib/queries/classes/java')
   CP.append(ROOT + '/lucene/build/contrib/queries/classes/test')
+  CP.append(ROOT + '/lucene/build/contrib/misc/classes/java')
+  CP.append(ROOT + '/lucene/build/contrib/misc/classes/test')
   CP.append(ROOT + '/modules/grouping/build/classes/test')
   CP.append(ROOT + '/modules/grouping/build/classes/java')
 

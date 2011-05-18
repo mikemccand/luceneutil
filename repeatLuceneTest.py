@@ -174,7 +174,7 @@ while True:
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
-    command += ' -Dtetsts.luceneMatchVersion=4.0'
+    command += ' -Dtests.luceneMatchVersion=4.0'
     if nightly:
       command += ' -Dtests.nightly=true'
     if seed is not None:

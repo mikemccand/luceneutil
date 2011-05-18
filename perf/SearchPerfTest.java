@@ -155,7 +155,7 @@ public class SearchPerfTest {
     public void go(IndexState state) throws IOException {
       if (group != null) {
         final FirstPassGroupingCollector c1 = new FirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
-        final CachingCollector cCache = new CachingCollector(c1, true, 32.0);
+        final CachingCollector cCache = CachingCollector.create(c1, true, 32.0);
         state.searcher.search(q, cCache);
 
         final Collection<SearchGroup> topGroups = c1.getTopGroups(0, true);
@@ -254,7 +254,7 @@ public class SearchPerfTest {
     public void printResults(IndexState state) throws IOException {
       if (group != null) {
         for(GroupDocs groupDocs : groupsResult.groups) {
-          System.out.println("  group=" + groupDocs.groupValue.utf8ToString() + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+          System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString()) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
           for(ScoreDoc hit : groupDocs.scoreDocs) {
             System.out.println("    doc=" + hit.doc + " score=" + hit.score);
           }
@@ -723,6 +723,19 @@ public class SearchPerfTest {
 
     System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
 
+    // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
+    final Runtime runtime = Runtime.getRuntime();
+    long usedMem1 = usedMemory(runtime);
+    long usedMem2 = Long.MAX_VALUE;
+    for(int iter=0;(usedMem1<usedMem2) && iter<100;iter++) {
+      runtime.runFinalization();
+      runtime.gc();
+      Thread.currentThread().yield();
+      usedMem2 = usedMem1;
+      usedMem1 = usedMemory(runtime);
+    }
+    System.out.println("HEAP: " + usedMemory(runtime));
+
     indexState.setDocIDToID();
 
     System.out.println("\nResults for " + allTasks.size() + " tasks:");
@@ -766,6 +779,10 @@ public class SearchPerfTest {
     return newTasks;
   }
 
+  private static long usedMemory(Runtime runtime) {
+    return runtime.totalMemory() - runtime.freeMemory();
+  }
+  
   private static class TaskThread extends Thread {
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;

@@ -373,7 +373,7 @@ def run():
   message('done search (%s)' % (now()-t0))
   resultsPrev = []
 
-  searchResults = None
+  searchResults = searchHeap = None
   
   for fname in resultsNow:
     prevFName = fname + '.prev'
@@ -382,11 +382,11 @@ def run():
 
   if not DO_RESET:
     output = []
-    results, cmpDiffs = r.simpleReport(resultsPrev,
-                                       resultsNow,
-                                       False, True,
-                                       'prev', 'now',
-                                       writer=output.append)
+    results, cmpDiffs, searchHeap = r.simpleReport(resultsPrev,
+                                                   resultsNow,
+                                                   False, True,
+                                                   'prev', 'now',
+                                                   writer=output.append)
     f = open('%s/%s.html' % (NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
     timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.day, start.month, start.year)
     w = f.write
@@ -419,7 +419,8 @@ def run():
              nrtResults,
              searchResults,
              svnRev,
-             luceneUtilRev)
+             luceneUtilRev,
+             searchHeap)
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
     
@@ -477,10 +478,16 @@ def makeGraphs():
         rev = tup[9]
       else:
         rev = None
+
       if len(tup) > 10:
         utilRev = tup[10]
       else:
         utilRev = None
+
+      if len(tup) > 11:
+        searchHeap = tup[11]
+      else:
+        searchHeap = None
         
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,

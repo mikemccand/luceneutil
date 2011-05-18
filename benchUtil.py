@@ -237,9 +237,11 @@ reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
 rePKOrd = re.compile(r'PK(.*?)\[')
 reOneGroup = re.compile('group=(.*?) totalHits=(.*?) groupRelevance=(.*?)$')
+reHeap = re.compile('HEAP: ([0-9]+)$')
 
 def parseResults(resultsFiles):
   taskIters = []
+  heaps = []
   for resultsFile in resultsFiles:
     tasks = []
     f = open(resultsFile, 'rb')
@@ -248,6 +250,10 @@ def parseResults(resultsFiles):
       if line == '':
         break
       line = line.strip()
+
+      if line.startswith('HEAP: '):
+        m = reHeap.match(line)
+        heaps.append(int(m.group(1)))
 
       if line.startswith('TASK: cat='):
         task = SearchTask()
@@ -350,7 +356,8 @@ def parseResults(resultsFiles):
       if task is not None:
         tasks.append(task)
     taskIters.append(tasks)
-  return taskIters
+
+  return taskIters, heaps
 
 def collateResults(resultIters):
   iters = []
@@ -722,8 +729,8 @@ class RunAlgs:
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
-    baseRawResults = parseResults(baseLogFiles)
-    cmpRawResults = parseResults(cmpLogFiles)
+    baseRawResults, heapBase = parseResults(baseLogFiles)
+    cmpRawResults, heapCmp = parseResults(cmpLogFiles)
 
     # make sure they got identical results
     cmpDiffs = compareHits(baseRawResults, cmpRawResults)
@@ -898,7 +905,7 @@ class RunAlgs:
     for w in warnings:
       print 'WARNING: %s' % w
 
-    return resultsByCatCmp, cmpDiffs
+    return resultsByCatCmp, cmpDiffs, stats(heapCmp)
 
   def compare(self, baseline, newList, *params):
 

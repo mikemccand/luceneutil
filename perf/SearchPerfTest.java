@@ -723,19 +723,6 @@ public class SearchPerfTest {
 
     System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
 
-    // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
-    final Runtime runtime = Runtime.getRuntime();
-    long usedMem1 = usedMemory(runtime);
-    long usedMem2 = Long.MAX_VALUE;
-    for(int iter=0;(usedMem1<usedMem2) && iter<100;iter++) {
-      runtime.runFinalization();
-      runtime.gc();
-      Thread.currentThread().yield();
-      usedMem2 = usedMem1;
-      usedMem1 = usedMemory(runtime);
-    }
-    System.out.println("HEAP: " + usedMemory(runtime));
-
     indexState.setDocIDToID();
 
     System.out.println("\nResults for " + allTasks.size() + " tasks:");
@@ -753,6 +740,21 @@ public class SearchPerfTest {
       System.out.println("  thread " + task.threadID);
       task.printResults(indexState);
     }
+
+    allTasks.clear();
+
+    // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
+    final Runtime runtime = Runtime.getRuntime();
+    long usedMem1 = usedMemory(runtime);
+    long usedMem2 = Long.MAX_VALUE;
+    for(int iter=0;(usedMem1<usedMem2) && iter<100;iter++) {
+      runtime.runFinalization();
+      runtime.gc();
+      Thread.currentThread().yield();
+      usedMem2 = usedMem1;
+      usedMem1 = usedMemory(runtime);
+    }
+    System.out.println("HEAP: " + usedMemory(runtime));
   }
 
   private static List<Task> pruneTasks(List<Task> tasks, int numTaskPerCat) {

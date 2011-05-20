@@ -145,7 +145,7 @@ def toSeconds(td):
   return td.days * 86400 + td.seconds + td.microseconds/1000000.
 
 def message(s):
- print '[%s] %s' % (now(), s)
+  print '[%s] %s' % (now(), s)
 
 def runCommand(command):
   if REAL:
@@ -263,7 +263,7 @@ def run():
   message('start')
   id = 'nightly'
   if not REAL:
-    start = datetime.datetime(year=2011, month=5, day=14, hour=12, minute=54, second=39)
+    start = datetime.datetime(year=2011, month=5, day=19, hour=23, minute=00, second=01)
   else:
     start = now()
   timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)
@@ -433,10 +433,10 @@ def run():
     shutil.copy(fname, runLogDir)
 
   if REAL:
-    if not DEBUG:
-      for fname in resultsNow:
-        shutil.move(fname, fname + '.prev')
+    for fname in resultsNow:
+      shutil.move(fname, fname + '.prev')
 
+    if not DEBUG:
       # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
       if os.path.exists(indexPathNow):
         if os.path.exists(indexPathPrev):
@@ -802,7 +802,7 @@ if __name__ == '__main__':
     makeGraphs()
   except:
     traceback.print_exc()
-    if not DEBUG:
+    if not DEBUG and REAL:
       emailAddr = 'mail@mikemccandless.com'
       message = 'From: %s\r\n' % localpass.FROM_EMAIL
       message += 'To: %s\r\n' % emailAddr

@@ -292,6 +292,10 @@ def parseResults(resultsFiles):
             if line.find('expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
+            if line.startswith('HEAP: '):
+              m = reHeap.match(line)
+              heaps.append(int(m.group(1)))
+              break
 
             if sort == 'null':
               m = reSearchHitScore.match(line)
@@ -320,6 +324,10 @@ def parseResults(resultsFiles):
             line = f.readline().strip()
             if line == '':
               break
+            if line.startswith('HEAP: '):
+              m = reHeap.match(line)
+              heaps.append(int(m.group(1)))
+              break
             m = reOneGroup.search(line)
             if m is not None:
               groupValue, groupTotalHits, groupTopScore = m.groups()
@@ -345,6 +353,10 @@ def parseResults(resultsFiles):
         while True:
           line = f.readline().strip()
           if line == '':
+            break
+          if line.startswith('HEAP: '):
+            m = reHeap.match(line)
+            heaps.append(int(m.group(1)))
             break
           m = reRespellHit.search(line)
           suggest, freq, score = m.groups()

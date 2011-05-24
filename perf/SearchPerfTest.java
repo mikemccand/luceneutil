@@ -64,7 +64,7 @@ import org.apache.lucene.util.*;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint:deprecation -cp build/classes/java:build/contrib/spellchecker/classes/java:../modules/analysis/build/common/classes/java:../modules/grouping/build/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
+//   javac -Xlint:deprecation -cp build/classes/java:../modules/suggest/build/classes/java:../modules/analysis/build/common/classes/java:../modules/grouping/build/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
 //   java -cp .:build/contrib/spellchecker/classes/java:build/classes/java:../modules/analysis/build/common/classes/java perf.SearchPerfTest MMapDirectory /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index StandardAnalyzer /p/lucene/data/tasks.txt 6 1 body -1 no multi
 
 public class SearchPerfTest {

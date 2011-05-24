@@ -19,10 +19,14 @@ import traceback
 import sys
 import os
 import smtplib
-import localpass
 import datetime
 import time
 import re
+
+import benchUtil
+import competition
+import localpass
+import constants
 
 reSVNRev = re.compile(r'revision (.*?)\.')
 REAL = True
@@ -73,6 +77,13 @@ def main():
 
   runCommand('ant clean > clean.log 2>&1')
   runCommand('ant compile > compile.log 2>&1')
+
+  comp = competition.Competition()
+  index = comp.newIndex(NIGHTLY_DIR)
+  c = comp.competitor(id, NIGHTLY_DIR)
+  c.withIndex(index)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
+  r.compile(c.build())
 
 def sendEmail(emailAddress, message):
   SMTP_SERVER = localpass.SMTP_SERVER

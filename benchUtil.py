@@ -639,11 +639,13 @@ class RunAlgs:
       cp.append('%s/modules/analysis/build/common/classes/java' % path)
       cp.append('%s/modules/analysis/build/icu/classes/java' % path)
       cp.append('%s/modules/grouping/build/classes/java' % path)
+      cp.append('%s/modules/suggest/build/classes/java' % path)
     elif version == '3.x':
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
+      cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
     else:
       cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
-    cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
+      cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
     # need benchmark path so perf.SearchPerfTest is found:
     cp.append(checkoutToBenchPath(checkout))

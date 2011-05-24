@@ -225,7 +225,7 @@ class CompetitorBuilder(object):
   
   def build(self):
     if not self._index:
-      raise RuntimeError("no index given to competitor %s " % (self.name))
+      raise RuntimeError("no index given to competitor %s " % self._name)
     data = self._index._data
     return Competitor(self._name, self._checkout, self._index.build(), self._directory, self._analyzer, self._commitPoint, data.tasksFile, self._threads)
 

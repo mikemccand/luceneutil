@@ -394,7 +394,7 @@ def run():
                                                     'prev', 'now',
                                                     writer=output.append)
     f = open('%s/%s.html' % (NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
-    timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.day, start.month, start.year)
+    timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
     w = f.write
     w('<html>\n')
     w('<h1>%s</h1>' % timeStamp2)
@@ -551,6 +551,7 @@ def makeGraphs():
 
   # publish
   runCommand('rsync -arv -e ssh /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
+
   if not DEBUG:
     runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
   
@@ -725,12 +726,28 @@ def writeNRTHTML(nrtChartData):
   w('</body>\n')
   w('</html>\n')
 
+onClickJS = '''
+  function zp(num,count) {
+    var ret = num + '';
+    while(ret.length < count) {
+      ret = "0" + ret;
+    }
+    return ret;
+  }
+
+  function doClick(ev, msec, pts) {
+    d = new Date(msec);
+    top.location = d.getFullYear() + "." + zp(1+d.getMonth(), 2) + "." + zp(d.getDate(), 2) + "." + zp(d.getHours(), 2) + "." + zp(d.getMinutes(), 2) + "." + zp(d.getSeconds(), 2) + ".html";
+  }
+'''
+
 def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   l = []
   w = l.append
   series = data[0].split(',')[1]
   w('<div id="%s" style="width:800px;height:400px"></div>' % id)
   w('<script type="text/javascript">')
+  w(onClickJS)
   w('  g_%s = new Dygraph(' % id)
   w('    document.getElementById("%s"),' % id)
   for s in data[:-1]:
@@ -741,6 +758,10 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   options.append('xlabel: "Date"')
   options.append('ylabel: "%s"' % yLabel)
   options.append('labelsKMB: true')
+  options.append('labelsSeparateLines: true')
+  options.append('labelsDivWidth: 700')
+  options.append('clickCallback: doClick')
+  options.append("labelsDivStyles: {'background-color': 'transparent'}")
   if False:
     if errorBars:
       maxY = max([float(x.split(',')[1])+float(x.split(',')[2]) for x in data[1:]])

@@ -8,13 +8,16 @@ import urlparse
 import sys
 import HTMLParser
 
-# This tool expects to find /lucene and /solr off the base URL
+# This tool expects to find /lucene and /solr off the base URL.  You
+# must have a working gpg, tar, unzip in your path.  This has only
+# been tested on Linux so far!
 
 # http://s.apache.org/lusolr32rc2
 
 # TODO
-#   - verify KEYS contains key that signed the release
-#   - make sure changes HTML looks ok
+#   + verify KEYS contains key that signed the release
+#   + make sure changes HTML looks ok
+#   - verify license/notice of all dep jars
 #   - check maven
 #   - check JAR manifest version
 #   - check license/notice exist
@@ -93,8 +96,8 @@ def checkSigs(project, urlString, version, tmpDir):
       keysURL = subURL
     elif text == 'maven/':
       mavenURL = subURL
-    elif text.startswith('changes-'):
-      if text != 'changes-%s/' % version:
+    elif text.startswith('changes'):
+      if text not in ('changes/', 'changes-%s/' % version):
         raise RuntimeError('%s: found %s vs expected changes-%s/' % (project, text, version))
       changesURL = subURL
     elif artifact == None:
@@ -133,7 +136,7 @@ def checkSigs(project, urlString, version, tmpDir):
 
   actual = [x[0] for x in artifacts]
   if expected != actual:
-    raise RuntimeError('%s: wrong artifacts: expected %s but got %s' % (expected, actual))
+    raise RuntimeError('%s: wrong artifacts: expected %s but got %s' % (project, expected, actual))
                 
   if keysURL is None:
     raise RuntimeError('%s is missing KEYS' % project)
@@ -153,8 +156,10 @@ def checkSigs(project, urlString, version, tmpDir):
   if mavenURL is None:
     raise RuntimeError('%s is missing maven' % project)
 
-  if changesURL is None and project == 'lucene':
-    raise RuntimeError('%s is missing changes-%s' % (project, version))
+  if project == 'lucene':
+    if changesURL is None:
+      raise RuntimeError('%s is missing changes-%s' % (project, version))
+    testChanges(project, version, changesURL)
 
   for artifact, urlString in artifacts:
     print '  download %s...' % artifact
@@ -176,6 +181,26 @@ def checkSigs(project, urlString, version, tmpDir):
         print '      GPG: %s' % line.strip()
     f.close()
 
+def testChanges(project, version, changesURLString):
+  print '  check changes HTML...'
+  changesURL = None
+  contribChangesURL = None
+  for text, subURL in getDirEntries(changesURLString):
+    if text == 'Changes.html':
+      changesURL = subURL
+    elif text == 'Contrib-Changes.html':
+      contribChangesURL = subURL
+
+  if changesURL is None:
+    raise RuntimeError('did not see Changes.html link from %s' % changesURLString)
+  if contribChangesURL is None:
+    raise RuntimeError('did not see Contrib-Changes.html link from %s' % changesURLString)
+
+  s = load(changesURL)
+
+  if s.find('Release %s' % version) == -1:
+    raise RuntimeError('did not see "Release %s" in %s' % (version, changesURL))
+  
 def run(command, logFile):
   if os.system('%s > %s 2>&1' % (command, logFile)):
     raise RuntimeError('command "%s" failed; see log file %s' % (command, logFile))
@@ -213,6 +238,110 @@ def getDirEntries(urlString):
     if text == 'Parent Directory':
       return links[(i+1):]
 
+def unpack(project, tmpDir, artifact, version):
+  destDir = '%s/unpack' % tmpDir
+  if os.path.exists(destDir):
+    shutil.rmtree(destDir)
+  os.makedirs(destDir)
+  os.chdir(destDir)
+  print '    unpack %s...' % artifact
+  unpackLogFile = '%s/%s-unpack-%s.log' % (tmpDir, project, artifact)
+  if artifact.endswith('.tar.gz') or artifact.endswith('.tgz'):
+    run('tar xzf %s/%s' % (tmpDir, artifact), unpackLogFile)
+  elif artifact.endswith('.zip'):
+    run('unzip %s/%s' % (tmpDir, artifact), unpackLogFile)
+
+  # make sure it unpacks to proper subdir
+  l = os.listdir(destDir)
+  if project == 'solr':
+    expected = 'apache-%s-%s' % (project, version)
+  else:
+    expected = '%s-%s' % (project, version)
+  if l != [expected]:
+    raise RuntimeError('unpack produced entries %s; expected only %s' % (l, expected))
+
+  unpackPath = '%s/%s' % (destDir, expected)
+  verifyUnpacked(project, artifact, unpackPath, version)
+
+def verifyUnpacked(project, artifact, unpackPath, version):
+  os.chdir(unpackPath)
+  isSrc = artifact.find('-src') != -1
+  l = os.listdir(unpackPath)
+  textFiles = ['LICENSE', 'NOTICE', 'README']
+  if project == 'lucene':
+    textFiles.extend(('JRE_VERSION_MIGRATION', 'CHANGES'))
+    if isSrc:
+      textFiles.append('BUILD')
+  for fileName in textFiles:
+    fileName += '.txt'
+    if fileName not in l:
+      raise RuntimeError('file "%s" is missing from artifact %s' % (fileName, artifact))
+    l.remove(fileName)
+
+  if not isSrc:
+    if project == 'lucene':
+      expectedJARs = ('lucene-core-%s' % version,
+                      'lucene-core-%s-javadoc' % version,
+                      'lucene-test-framework-%s' % version,
+                      'lucene-test-framework-%s-javadoc' % version)
+    else:
+      expectedJARs = ()
+
+    for fileName in expectedJARs:
+      fileName += '.jar'
+      if fileName not in l:
+        raise RuntimeError('%s: file "%s" is missing from artifact %s' % (project, fileName, artifact))
+      l.remove(fileName)
+
+  if project == 'lucene':
+    extras = ('lib', 'docs', 'contrib')
+    if isSrc:
+      extras += ('build.xml', 'index.html', 'common-build.xml', 'src', 'backwards')
+  else:
+    extras = ()
+
+  for e in extras:
+    if e not in l:
+      raise RuntimeError('%s: %s missing from artifact %s' % (project, e, artifact))
+    l.remove(e)
+
+  if project == 'lucene':
+    if len(l) > 0:
+      raise RuntimeError('%s: unexpected files/dirs in artifact %s: %s' % (project, artifact, l))
+
+  if isSrc:
+    if project == 'lucene':
+      print '    run tests w/ Java 5...'
+      run('export JAVA_HOME=/usr/local/src/jdk1.5.0_22; ant test', '%s/test.log' % unpackPath)
+      run('export JAVA_HOME=/usr/local/src/jdk1.5.0_22; ant jar', '%s/compile.log' % unpackPath)
+      testDemo(isSrc)
+    else:
+      print '    run tests w/ Java 6...'
+      run('export JAVA_HOME=/usr/local/src/jdk1.6.0_21; ant test', '%s/test.log' % unpackPath)
+  else:
+    if project == 'lucene':
+      testDemo(isSrc)
+
+def testDemo(isSrc):
+  print '    test demo...'
+  if isSrc:
+    cp = 'build/lucene-core-3.2-SNAPSHOT.jar:build/contrib/demo/lucene-demo-3.2-SNAPSHOT.jar'
+    docsDir = 'src'
+  else:
+    cp = 'lucene-core-3.2.0.jar:contrib/demo/lucene-demo-3.2.0.jar'
+    docsDir = 'docs'
+  run('export JAVA_HOME=/usr/local/src/jdk1.5.0_22; java -cp %s org.apache.lucene.demo.IndexFiles -index index -docs %s' % (cp, docsDir), 'index.log')
+  run('export JAVA_HOME=/usr/local/src/jdk1.5.0_22; java -cp %s org.apache.lucene.demo.SearchFiles -index index -query lucene' % cp, 'search.log')
+  reMatchingDocs = re.compile('(\d+) total matching documents')
+  m = reMatchingDocs.search(open('search.log', 'rb').read())
+  if m is None:
+    raise RuntimeError('lucene demo\'s SearchFiles found no results')
+  else:
+    numHits = int(m.group(1))
+    if numHits < 100:
+      raise RuntimeError('lucene demo\'s SearchFiles found too few results: %s' % numHits)
+    print '      got %d hits for query "lucene"' % numHits
+        
 def main():
 
   if len(sys.argv) != 4:
@@ -223,7 +352,7 @@ def main():
 
   baseURL = sys.argv[1]
   version = sys.argv[2]
-  tmpDir = sys.argv[3]
+  tmpDir = os.path.abspath(sys.argv[3])
 
   if not DEBUG:
     if os.path.exists(tmpDir):
@@ -244,10 +373,19 @@ def main():
   if solrPath is None:
     raise RuntimeError('could not find solr subdir')
 
+  print
   print 'Test Lucene...'
   checkSigs('lucene', lucenePath, version, tmpDir)
+  for artifact in ('lucene-%s.tgz' % version, 'lucene-%s.zip' % version):
+    unpack('lucene', tmpDir, artifact, version)
+  unpack('lucene', tmpDir, 'lucene-%s-src.tgz' % version, version)
+
+  print
   print 'Test Solr...'
   checkSigs('solr', solrPath, version, tmpDir)
+  for artifact in ('apache-solr-%s.tgz' % version, 'apache-solr-%s.zip' % version):
+    unpack('solr', tmpDir, artifact, version)
+  unpack('solr', tmpDir, 'apache-solr-%s-src.tgz' % version, version)
 
 if __name__ == '__main__':
   main()

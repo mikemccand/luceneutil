@@ -46,6 +46,8 @@ CLASSPATH = ['../lucene/lib/junit-4.7.jar',
              '../solr/build/test-framework',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
+             '../modules/suggest/build/classes/java',
+             '../modules/grouping/build/classes/java',
              '/usr/share/java/ant.jar']
 
 try:
@@ -77,7 +79,7 @@ if '-lucene' in sys.argv:
   doLucene = True
 if '-solr' in sys.argv:
   doSolr = True
-if '-moduels' in sys.argv:
+if '-modules' in sys.argv:
   doModules = True
 
 if not doLucene and not doSolr and not doModules:
@@ -214,8 +216,11 @@ class RunThread:
         #pr('%s: RUN' % self.id)
         pr('.')
         logFile = '%s/%s.log' % (ROOT, self.id)
-        cmd = 'java -Xmx512m -Xms512m %s -Dlucene.version=%s -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
-              (TEST_ARGS, LUCENE_VERSION, self.tempDir, ROOT, ' '.join(job.tests))
+        cmd = 'java -Xmx512m -Xms512m %s -Dlucene.version=%s' % (TEST_ARGS, LUCENE_VERSION)
+        if constants.TESTS_LINE_FILE is not None:
+          cmd += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
+        cmd += ' -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
+              (self.tempDir, ROOT, ' '.join(job.tests))
 
         if 0:
           print
@@ -239,6 +244,8 @@ class RunThread:
 
         if not DO_GATHER_TIMES:
           cmd += ' >> %s 2>&1' % logFile
+        #print 'CP=%s' % (':'.join(job.classpath))
+        #print 'CMD %s' % cmd
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
         output = p.communicate()[0]
         if DO_GATHER_TIMES:
@@ -271,6 +278,14 @@ if '-noc' not in sys.argv:
   if os.path.exists('%s/modules/analysis' % ROOT):
     os.chdir('%s/modules/analysis' % ROOT)
     run('Compile modules/analysis...', 'ant compile compile-test', 'compile.log')
+
+  if os.path.exists('%s/modules/suggest' % ROOT):
+    os.chdir('%s/modules/suggest' % ROOT)
+    run('Compile modules/suggest...', 'ant compile compile-test', 'compile.log')
+
+  if os.path.exists('%s/modules/grouping' % ROOT):
+    os.chdir('%s/modules/grouping' % ROOT)
+    run('Compile modules/grouping...', 'ant compile compile-test', 'compile.log')
 
   os.chdir('%s/lucene' % ROOT)
   #run('Compile Lucene...', 'ant compile-test', 'compile.log')

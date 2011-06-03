@@ -610,6 +610,8 @@ taskRename = {
   'Term': 'TermQuery',
   'TermDTSort': 'TermQuery (date/time sort)',
   'TermTitleSort': 'TermQuery (title sort)',
+  'TermBGroup1M': 'Term (bgroup)',
+  'TermBGroup1M1P': 'Term (bgroup, 1pass)',
   'IntNRQ': 'NumericRangeQuery (int)',
   'Prefix3': 'PrefixQuery (3 characters)',
   'Phrase': 'PhraseQuery (exact)',

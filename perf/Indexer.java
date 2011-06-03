@@ -42,7 +42,7 @@ import org.apache.lucene.util.*;
 
 // EG:
 //
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no
+//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no no yes TieredMergePolicy no yes yes
 
 public final class Indexer {
 
@@ -112,6 +112,10 @@ public final class Indexer {
     final boolean idFieldUsesPulsingCodec = args[16].equals("yes");
     final boolean addGroupingFields = args[17].equals("yes");
 
+    if (addGroupingFields && docCount == -1) {
+      throw new RuntimeException("cannot add grouping fields unless docCount is set");
+    }
+
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
@@ -128,6 +132,7 @@ public final class Indexer {
     System.out.println("Merge policy: " + mergePolicy);
     System.out.println("Update: " + doUpdate);
     System.out.println("ID field uses Pulsing codec: " + idFieldUsesPulsingCodec);
+    System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
     
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
 
@@ -141,11 +146,15 @@ public final class Indexer {
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
     final Random random = new Random(17);
-
+    final AtomicInteger groupBlockIndex;
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
+      IndexThread.group100K = randomStrings(100000, random);
       IndexThread.group1M = randomStrings(1000000, random);
+      groupBlockIndex = new AtomicInteger();
+    } else {
+      groupBlockIndex = null;
     }
 
     // We want deterministic merging, since we target a
@@ -198,7 +207,7 @@ public final class Indexer {
     final Thread[] threads = new Thread[numThreads];
     final AtomicInteger count = new AtomicInteger();
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(w, docs, docCount, count, doUpdate);
+      threads[thread] = new IndexThread(w, docs, docCount, count, doUpdate, groupBlockIndex);
       threads[thread].start();
     }
     AtomicBoolean stop = null;
@@ -347,21 +356,58 @@ public final class Indexer {
     }
   }
 
+  // TODO: is there a pre-existing way to do this!!!
+  static Document cloneDoc(Document doc1) {
+    final Document doc2 = new Document();
+    for(Fieldable f : doc1.getFields()) {
+      if (f instanceof NumericField) {
+        NumericField f2 = new NumericField(f.name());
+        Number n = ((NumericField) f).getNumericValue();
+        if (n instanceof Long) {
+          f2.setLongValue((Long) n);
+        } else {
+          f2.setIntValue((Integer) n);
+        }
+        doc2.add(f2);
+      } else {
+        Field field1 = (Field) f;
+      
+        Field field2 = new Field(field1.name(),
+                                 field1.stringValue(),
+                                 field1.isStored() ? Field.Store.YES : Field.Store.NO,
+                                 field1.isIndexed() ? (field1.isTokenized() ? Field.Index.ANALYZED : Field.Index.NOT_ANALYZED) : Field.Index.NO);
+        if (field1.getOmitNorms()) {
+          field2.setOmitNorms(true);
+        }
+        if (field1.getOmitTermFreqAndPositions()) {
+          field2.setOmitTermFreqAndPositions(true);
+        }
+        doc2.add(field2);
+      }
+    }
+
+    return doc2;
+  }
+
   private static class IndexThread extends Thread {
     public static String[] group100;
+    public static String[] group100K;
     public static String[] group10K;
     public static String[] group1M;
     private final LineFileDocs docs;
     private final int numTotalDocs;
     private final IndexWriter w;
     private final AtomicInteger count;
+    private final AtomicInteger groupBlockIndex;
     private final boolean doUpdate;
-    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs, AtomicInteger count, boolean doUpdate) {
+
+    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs, AtomicInteger count, boolean doUpdate, AtomicInteger groupBlockIndex) {
       this.w = w;
       this.docs = docs;
       this.numTotalDocs = numTotalDocs;
       this.count = count;
       this.doUpdate = doUpdate;
+      this.groupBlockIndex = groupBlockIndex;
     }
 
     @Override
@@ -372,45 +418,129 @@ public final class Indexer {
       final Term template = new Term("id");
       Term delTerm = null;
       final Field group100Field;
+      final Field group100KField;
       final Field group10KField;
       final Field group1MField;
+      final Field groupBlockField;
+      final Field groupEndField;
       if (group100 != null) {
         group100Field = new Field("group100", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        group100Field.setOmitTermFreqAndPositions(true);
+        group100Field.setOmitNorms(true);
         docState.doc.add(group100Field);
         group10KField = new Field("group10K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        group10KField.setOmitTermFreqAndPositions(true);
+        group10KField.setOmitNorms(true);
         docState.doc.add(group10KField);
+        group100KField = new Field("group100K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        group100KField.setOmitTermFreqAndPositions(true);
+        group100KField.setOmitNorms(true);
+        docState.doc.add(group100KField);
         group1MField = new Field("group1M", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        group1MField.setOmitTermFreqAndPositions(true);
+        group1MField.setOmitNorms(true);
         docState.doc.add(group1MField);
+        groupBlockField = new Field("groupblock", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        groupBlockField.setOmitTermFreqAndPositions(true);
+        groupBlockField.setOmitNorms(true);
+        docState.doc.add(groupBlockField);
+        // Binary marker field:
+        groupEndField = new Field("groupend", "x", Field.Store.NO, Field.Index.NOT_ANALYZED);
+        groupEndField.setOmitTermFreqAndPositions(true);
+        groupEndField.setOmitNorms(true);
       } else {
         group100Field = null;
+        group100KField = null;
         group10KField = null;
         group1MField = null;
+        groupBlockField = null;
+        groupEndField = null;
       }
-      while(true) {
 
-        try {
-          final Document doc = docs.nextDoc(docState);
-          final int id = Integer.parseInt(idField.stringValue());
-          if (((1+id) % 1000000) == 0) {
-            System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+      try {
+        if (group100 != null) {
+
+          // Add docs in blocks:
+          
+          final String[] groupBlocks;
+          if (numTotalDocs >= 5000000) {
+            groupBlocks = group1M;
+          } else if (numTotalDocs >= 500000) {
+            groupBlocks = group100K;
+          } else {
+            groupBlocks = group10K;
           }
-          if (doc == null ||
-              (numTotalDocs != -1 && id >= numTotalDocs)) {
-            break;
+          final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
+
+          final List<Document> docsGroup = new ArrayList();
+          while(true) {
+            final int groupCounter = groupBlockIndex.getAndIncrement();
+            if (groupCounter >= groupBlocks.length) {
+              break;
+            }
+            final int numDocs;
+            if (groupCounter == groupBlocks.length-1) {
+              // Put all remaining docs in this group
+              numDocs = 10000;
+            } else {
+              // This will toggle between X and X+1 docs,
+              // converging over time on average to the
+              // floating point docsPerGroupBlock:
+              numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
+            }
+            groupBlockField.setValue(groupBlocks[groupCounter]);
+            for(int docCount=0;docCount<numDocs;docCount++) {
+              final Document doc = docs.nextDoc(docState);
+              if (doc == null) {
+                break;
+              }
+              final int id = Integer.parseInt(idField.stringValue());
+              if (id >= numTotalDocs) {
+                break;
+              }
+              if (((1+id) % 1000000) == 0) {
+                System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+              }
+              group100Field.setValue(group100[id%100]);
+              group10KField.setValue(group10K[id%10000]);
+              group100KField.setValue(group100K[id%100000]);
+              group1MField.setValue(group1M[id%1000000]);
+              docsGroup.add(cloneDoc(doc));
+            }
+            final int docCount = docsGroup.size();
+            docsGroup.get(docCount-1).add(groupEndField);
+            //System.out.println("nd=" + docCount);
+            if (docCount > 0) {
+              w.addDocuments(docsGroup);
+              count.addAndGet(docCount);
+              docsGroup.clear();
+            } else {
+              break;
+            }
           }
-	  if (doUpdate) {
-            delTerm = template.createTerm(idField.stringValue());
+        } else {
+
+          while(true) {
+            final Document doc = docs.nextDoc(docState);
+            if (doc == null) {
+              break;
+            }
+            final int id = Integer.parseInt(idField.stringValue());
+            if (numTotalDocs != -1 && id >= numTotalDocs) {
+              break;
+            }
+            if (((1+id) % 1000000) == 0) {
+              System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            }
+            if (doUpdate) {
+              delTerm = template.createTerm(idField.stringValue());
+            }
+            w.updateDocument(delTerm, doc);
+            count.incrementAndGet();
           }
-          if (group100 != null) {
-            group100Field.setValue(group100[id%100]);
-            group10KField.setValue(group10K[id%10000]);
-            group1MField.setValue(group1M[id%1000000]);
-          }
-          w.updateDocument(delTerm, doc);
-          count.incrementAndGet();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
         }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     }
   }

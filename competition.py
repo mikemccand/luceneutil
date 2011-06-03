@@ -248,10 +248,15 @@ class IndexBuilder(object):
     self._waitForMerges = True
     self._doUpdate = False
     self._idFieldUsesPulsing = False
+    self._doGrouping = True
     competition.indices.append(self)
 
   def doUpdate(self):
     self._doUpdate = True 
+    return self    
+    
+  def doGrouping(self):
+    self._doGrouping = True 
     return self    
     
   def threads(self, threads):
@@ -307,4 +312,5 @@ class IndexBuilder(object):
     idx.mergePolicy = self._mergePolicy
     idx.waitForMerges = self._waitForMerges
     idx.idFieldUsesPulsing = self._idFieldUsesPulsing
+    idx.doGrouping = self._doGrouping
     return idx

@@ -46,6 +46,8 @@ CLASSPATH = ['../lucene/lib/junit-4.7.jar',
              '../solr/build/test-framework',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
+             '../modules/suggest/build/classes/java',
+             '../modules/grouping/build/classes/java',
              '/usr/share/java/ant.jar']
 
 try:
@@ -77,7 +79,7 @@ if '-lucene' in sys.argv:
   doLucene = True
 if '-solr' in sys.argv:
   doSolr = True
-if '-moduels' in sys.argv:
+if '-modules' in sys.argv:
   doModules = True
 
 if not doLucene and not doSolr and not doModules:
@@ -214,8 +216,11 @@ class RunThread:
         #pr('%s: RUN' % self.id)
         pr('.')
         logFile = '%s/%s.log' % (ROOT, self.id)
-        cmd = 'java -Xmx512m -Xms512m %s -Dlucene.version=%s -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
-              (TEST_ARGS, LUCENE_VERSION, self.tempDir, ROOT, ' '.join(job.tests))
+        cmd = 'java -Xmx512m -Xms512m %s -Dlucene.version=%s' % (TEST_ARGS, LUCENE_VERSION)
+        if constants.TESTS_LINE_FILE is not None:
+          cmd += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
+        cmd += ' -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
+              (self.tempDir, ROOT, ' '.join(job.tests))
 
         if 0:
           print
@@ -239,6 +244,8 @@ class RunThread:
 
         if not DO_GATHER_TIMES:
           cmd += ' >> %s 2>&1' % logFile
+        #print 'CP=%s' % (':'.join(job.classpath))
+        #print 'CMD %s' % cmd
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
         output = p.communicate()[0]
         if DO_GATHER_TIMES:
@@ -268,9 +275,9 @@ os.chdir('%s/lucene' % ROOT)
 
 if '-noc' not in sys.argv:
 
-  if os.path.exists('%s/modules/analysis' % ROOT):
-    os.chdir('%s/modules/analysis' % ROOT)
-    run('Compile modules/analysis...', 'ant compile compile-test', 'compile.log')
+  if os.path.exists('%s/modules' % ROOT):
+    os.chdir('%s/modules' % ROOT)
+    run('Compile modules...', 'ant compile compile-test', 'compile.log')
 
   os.chdir('%s/lucene' % ROOT)
   #run('Compile Lucene...', 'ant compile-test', 'compile.log')
@@ -317,26 +324,50 @@ for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb
         if doLucene:
           tests.append((estimateCost(testClass), '%s/lucene' % ROOT, testClass, CLASSPATH))
 
-# analysis modules tests
-for package in os.listdir('%s/modules/analysis' % ROOT):
-  subDir = '%s/modules/analysis/%s' % (ROOT, package)
-  if os.path.isdir(subDir):
-    CLASSPATH.append('../modules/analysis/build/%s/classes/java' % package)
-    CLASSPATH.append('../modules/analysis/build/%s/classes/test' % package)
-    libDir = '../modules/analysis/%s/lib' % package
-    if os.path.exists(libDir):
-      for f in os.listdir(libDir):
-        if f.endswith('.jar'):
-          CLASSPATH.append('%s/%s' % (libDir, f))
-    strip = len(ROOT) + len('/modules/analysis/%s/src/test/' % package)
-    for dir, subDirs, files in os.walk('%s/modules/analysis/%s/src/test' % (ROOT, package)):
-      for file in files:
-        if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-          fullFile = '%s/%s' % (dir, file)
-          testClass = fullFile[strip:-5].replace('/', '.')
-          # print '  %s' % testClass
-          if doModules:
-            tests.append((estimateCost(testClass), '%s/modules/analysis' % ROOT, testClass, CLASSPATH))
+# modules tests
+if os.path.exists('%s/modules' % ROOT):
+  for path in os.listdir('%s/modules' % ROOT):
+    fullPath = '%s/modules/%s' % (ROOT, path)
+    if os.path.isdir(fullPath):
+      module = path
+      if module == 'analysis':
+        # sub-projects
+        for package in os.listdir('%s/modules/analysis' % ROOT):
+          subDir = '%s/modules/analysis/%s' % (ROOT, package)
+          if os.path.isdir(subDir):
+            CLASSPATH.append('../modules/analysis/build/%s/classes/java' % package)
+            CLASSPATH.append('../modules/analysis/build/%s/classes/test' % package)
+            libDir = '../modules/analysis/%s/lib' % package
+            if os.path.exists(libDir):
+              for f in os.listdir(libDir):
+                if f.endswith('.jar'):
+                  CLASSPATH.append('%s/%s' % (libDir, f))
+            strip = len(ROOT) + len('/modules/analysis/%s/src/test/' % package)
+            for dir, subDirs, files in os.walk('%s/modules/analysis/%s/src/test' % (ROOT, package)):
+              for file in files:
+                if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+                  fullFile = '%s/%s' % (dir, file)
+                  testClass = fullFile[strip:-5].replace('/', '.')
+                  # print '  %s' % testClass
+                  if doModules:
+                    tests.append((estimateCost(testClass), '%s/modules/analysis' % ROOT, testClass, CLASSPATH))
+      else:
+        CLASSPATH.append('../modules/%s/build/classes/java' % module)
+        CLASSPATH.append('../modules/%s/build/classes/test' % module)
+        libDir = '../modules/%s/lib' % module
+        if os.path.exists(libDir):
+          for f in os.listdir(libDir):
+            if f.endswith('.jar'):
+              CLASSPATH.append('%s/%s' % (libDir, f))
+        strip = len(ROOT) + len('/modules/%s/src/test/' % module)
+        for dir, subDirs, files in os.walk('%s/modules/%s/src/test' % (ROOT, module)):
+          for file in files:
+            if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+              fullFile = '%s/%s' % (dir, file)
+              testClass = fullFile[strip:-5].replace('/', '.')
+              # print '  %s' % testClass
+              if doModules:
+                tests.append((estimateCost(testClass), '%s/modules/%s' % (ROOT, module), testClass, CLASSPATH))
 
 # solr core tests
 if doSolr:

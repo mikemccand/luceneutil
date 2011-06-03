@@ -64,7 +64,7 @@ import org.apache.lucene.util.*;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint:deprecation -cp build/classes/java:../modules/suggest/build/classes/java:../modules/analysis/build/common/classes/java:../modules/grouping/build/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
+//   javac -Xlint -Xlint:deprecation -cp build/classes/java:../modules/suggest/build/classes/java:../modules/analysis/build/common/classes/java:../modules/grouping/build/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
 //   java -cp .:build/contrib/spellchecker/classes/java:build/classes/java:../modules/analysis/build/common/classes/java perf.SearchPerfTest MMapDirectory /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index StandardAnalyzer /p/lucene/data/tasks.txt 6 1 body -1 no multi
 
 public class SearchPerfTest {
@@ -73,12 +73,14 @@ public class SearchPerfTest {
     public final IndexSearcher searcher;
     public final IndexReader[] subReaders;
     public final DirectSpellChecker spellChecker;
+    public final Filter groupEndFilter;
     public int[] docIDToID;
 
     public IndexState(IndexSearcher searcher, DirectSpellChecker spellChecker) {
       this.searcher = searcher;
       this.spellChecker = spellChecker;
       subReaders = searcher.getIndexReader().getSequentialSubReaders();
+      groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     }
 
     private void setDocIDToID() throws IOException {
@@ -129,21 +131,36 @@ public class SearchPerfTest {
     private final Filter f;
     private final String group;
     private final int topN;
+    private final boolean singlePassGroup;
+    private final boolean doCountGroups;
     private TopDocs hits;
-    private TopGroups groupsResult;
+    private TopGroups<Object> groupsResultBlock;
+    private TopGroups<BytesRef> groupsResultTerms;
 
     public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN) {
       this.category = category;
       this.q = q;
       this.s = s;
       this.f = f;
-      this.group = group;
+      if (group != null && group.startsWith("groupblock")) {
+        this.group = "groupblock";
+        this.singlePassGroup = group.equals("groupblock1pass");
+        doCountGroups = true;
+      } else {
+        this.group = group;
+        this.singlePassGroup = false;
+        doCountGroups = false;
+      }
       this.topN = topN;
     }
 
     @Override
     public Task clone() {
-      return new SearchTask(category, q, s, group, f, topN);
+      if (singlePassGroup) {
+        return new SearchTask(category, q, s, "groupblock1pass", f, topN);
+      } else {
+        return new SearchTask(category, q, s, group, f, topN);
+      }
     }
 
     @Override
@@ -153,20 +170,44 @@ public class SearchPerfTest {
 
     @Override
     public void go(IndexState state) throws IOException {
+      //System.out.println("go group=" + this.group + " single=" + singlePassGroup + " xxx=" + xxx + " this=" + this);
       if (group != null) {
-        final FirstPassGroupingCollector c1 = new FirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
-        final CachingCollector cCache = CachingCollector.create(c1, true, 32.0);
-        state.searcher.search(q, cCache);
+        if (singlePassGroup) {
+          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, state.groupEndFilter);
+          state.searcher.search(q, c);
+          groupsResultBlock = c.getTopGroups(null, 0, 0, 10, true);
+        } else {
+          //System.out.println("GB: " + group);
+          final TermFirstPassGroupingCollector c1 = new TermFirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
+          final CachingCollector cCache = CachingCollector.create(c1, true, 32.0);
 
-        final Collection<SearchGroup> topGroups = c1.getTopGroups(0, true);
-        if (topGroups != null) {
-          final SecondPassGroupingCollector c2 = new SecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, null, 10, true, true, true);
-          if (cCache.isCached()) {
-            cCache.replay(c2);
+          final Collector c;
+          final TermAllGroupsCollector allGroupsCollector;
+          // Turn off AllGroupsCollector for now -- it's very slow:
+          if (false && doCountGroups) {
+            allGroupsCollector = new TermAllGroupsCollector(group);
+            c = MultiCollector.wrap(allGroupsCollector, cCache);
           } else {
-            state.searcher.search(q, c2);
+            allGroupsCollector = null;
+            c = cCache;
           }
-          groupsResult = c2.getTopGroups(0);
+          
+          state.searcher.search(q, c);
+
+          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
+          if (topGroups != null) {
+            final TermSecondPassGroupingCollector c2 = new TermSecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, null, 10, true, true, true);
+            if (cCache.isCached()) {
+              cCache.replay(c2);
+            } else {
+              state.searcher.search(q, c2);
+            }
+            groupsResultTerms = c2.getTopGroups(0);
+            if (allGroupsCollector != null) {
+              groupsResultTerms = new TopGroups<BytesRef>(groupsResultTerms,
+                                                          allGroupsCollector.getGroupCount());
+            }
+          }
         }
       } else if (s == null && f == null) {
         hits = state.searcher.search(q, topN);
@@ -229,10 +270,19 @@ public class SearchPerfTest {
     public long checksum() {
       long sum = 0;
       if (group != null) {
-        for(GroupDocs groupDocs : groupsResult.groups) {
-          sum += groupDocs.totalHits;
-          for(ScoreDoc hit : groupDocs.scoreDocs) {
-            sum += hit.doc;
+        if (singlePassGroup) {
+          for(GroupDocs<Object> groupDocs : groupsResultBlock.groups) {
+            sum += groupDocs.totalHits;
+            for(ScoreDoc hit : groupDocs.scoreDocs) {
+              sum += hit.doc;
+            }
+          }
+        } else {
+          for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
+            sum += groupDocs.totalHits;
+            for(ScoreDoc hit : groupDocs.scoreDocs) {
+              sum += hit.doc;
+            }
           }
         }
       } else {
@@ -247,16 +297,29 @@ public class SearchPerfTest {
 
     @Override
     public String toString() {
-      return "cat=" + category + " q=" + q + " s=" + s + " group=" + group + (group == null ? " hits=" + hits.totalHits : " groups=" + groupsResult.groups.length + " hits=" + groupsResult.totalHitCount + " groupTotHits=" + groupsResult.totalGroupedHitCount);
+      return "cat=" + category + " q=" + q + " s=" + s + " group=" + group +
+        (group == null ? " hits=" + hits.totalHits :
+         " groups=" + (singlePassGroup ?
+                       (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
+                       (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount)));
     }
 
     @Override
     public void printResults(IndexState state) throws IOException {
       if (group != null) {
-        for(GroupDocs groupDocs : groupsResult.groups) {
-          System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString()) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-          for(ScoreDoc hit : groupDocs.scoreDocs) {
-            System.out.println("    doc=" + hit.doc + " score=" + hit.score);
+        if (singlePassGroup) {
+          for(GroupDocs<Object> groupDocs : groupsResultBlock.groups) {
+            System.out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+            for(ScoreDoc hit : groupDocs.scoreDocs) {
+              System.out.println("    doc=" + hit.doc + " score=" + hit.score);
+            }
+          }
+        } else {
+          for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
+            System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString()) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+            for(ScoreDoc hit : groupDocs.scoreDocs) {
+              System.out.println("    doc=" + hit.doc + " score=" + hit.score);
+            }
           }
         }
       } else if (hits instanceof TopFieldDocs) {
@@ -543,9 +606,21 @@ public class SearchPerfTest {
           group = "group10K";
           query = p.parse(text.substring(10, text.length()));
           sort = null;
+        } else if (text.startsWith("group100K//")) {
+          group = "group100K";
+          query = p.parse(text.substring(10, text.length()));
+          sort = null;
         } else if (text.startsWith("group1M//")) {
           group = "group1M";
           query = p.parse(text.substring(9, text.length()));
+          sort = null;
+        } else if (text.startsWith("groupblock1pass//")) {
+          group = "groupblock1pass";
+          query = p.parse(text.substring(17, text.length()));
+          sort = null;
+        } else if (text.startsWith("groupblock//")) {
+          group = "groupblock";
+          query = p.parse(text.substring(12, text.length()));
           sort = null;
         } else {
           group = null;
@@ -698,7 +773,7 @@ public class SearchPerfTest {
     for(int iter=0;iter<taskRepeatCount;iter++) {
       Collections.shuffle(prunedTasks, random);
       for(Task task : prunedTasks) {
-        allTasks.add((Task) task.clone());
+        allTasks.add(task.clone());
       }
     }
     System.out.println("TASK LEN=" + allTasks.size());
@@ -747,14 +822,15 @@ public class SearchPerfTest {
     final Runtime runtime = Runtime.getRuntime();
     long usedMem1 = usedMemory(runtime);
     long usedMem2 = Long.MAX_VALUE;
-    for(int iter=0;(usedMem1<usedMem2) && iter<100;iter++) {
+    for(int iter=0;iter<10;iter++) {
       runtime.runFinalization();
       runtime.gc();
       Thread.currentThread().yield();
+      Thread.sleep(100);
       usedMem2 = usedMem1;
       usedMem1 = usedMemory(runtime);
     }
-    System.out.println("HEAP: " + usedMemory(runtime));
+    System.out.println("\nHEAP: " + usedMemory(runtime));
   }
 
   private static List<Task> pruneTasks(List<Task> tasks, int numTaskPerCat) {
@@ -771,6 +847,7 @@ public class SearchPerfTest {
       }
 
       if (catCount >= numTaskPerCat) {
+        // System.out.println("skip task cat=" + cat);
         continue;
       }
       catCount++;

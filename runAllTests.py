@@ -275,17 +275,9 @@ os.chdir('%s/lucene' % ROOT)
 
 if '-noc' not in sys.argv:
 
-  if os.path.exists('%s/modules/analysis' % ROOT):
-    os.chdir('%s/modules/analysis' % ROOT)
-    run('Compile modules/analysis...', 'ant compile compile-test', 'compile.log')
-
-  if os.path.exists('%s/modules/suggest' % ROOT):
-    os.chdir('%s/modules/suggest' % ROOT)
-    run('Compile modules/suggest...', 'ant compile compile-test', 'compile.log')
-
-  if os.path.exists('%s/modules/grouping' % ROOT):
-    os.chdir('%s/modules/grouping' % ROOT)
-    run('Compile modules/grouping...', 'ant compile compile-test', 'compile.log')
+  if os.path.exists('%s/modules' % ROOT):
+    os.chdir('%s/modules' % ROOT)
+    run('Compile modules...', 'ant compile compile-test', 'compile.log')
 
   os.chdir('%s/lucene' % ROOT)
   #run('Compile Lucene...', 'ant compile-test', 'compile.log')
@@ -332,26 +324,50 @@ for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb
         if doLucene:
           tests.append((estimateCost(testClass), '%s/lucene' % ROOT, testClass, CLASSPATH))
 
-# analysis modules tests
-for package in os.listdir('%s/modules/analysis' % ROOT):
-  subDir = '%s/modules/analysis/%s' % (ROOT, package)
-  if os.path.isdir(subDir):
-    CLASSPATH.append('../modules/analysis/build/%s/classes/java' % package)
-    CLASSPATH.append('../modules/analysis/build/%s/classes/test' % package)
-    libDir = '../modules/analysis/%s/lib' % package
-    if os.path.exists(libDir):
-      for f in os.listdir(libDir):
-        if f.endswith('.jar'):
-          CLASSPATH.append('%s/%s' % (libDir, f))
-    strip = len(ROOT) + len('/modules/analysis/%s/src/test/' % package)
-    for dir, subDirs, files in os.walk('%s/modules/analysis/%s/src/test' % (ROOT, package)):
-      for file in files:
-        if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-          fullFile = '%s/%s' % (dir, file)
-          testClass = fullFile[strip:-5].replace('/', '.')
-          # print '  %s' % testClass
-          if doModules:
-            tests.append((estimateCost(testClass), '%s/modules/analysis' % ROOT, testClass, CLASSPATH))
+# modules tests
+if os.path.exists('%s/modules' % ROOT):
+  for path in os.listdir('%s/modules' % ROOT):
+    fullPath = '%s/modules/%s' % (ROOT, path)
+    if os.path.isdir(fullPath):
+      module = path
+      if module == 'analysis':
+        # sub-projects
+        for package in os.listdir('%s/modules/analysis' % ROOT):
+          subDir = '%s/modules/analysis/%s' % (ROOT, package)
+          if os.path.isdir(subDir):
+            CLASSPATH.append('../modules/analysis/build/%s/classes/java' % package)
+            CLASSPATH.append('../modules/analysis/build/%s/classes/test' % package)
+            libDir = '../modules/analysis/%s/lib' % package
+            if os.path.exists(libDir):
+              for f in os.listdir(libDir):
+                if f.endswith('.jar'):
+                  CLASSPATH.append('%s/%s' % (libDir, f))
+            strip = len(ROOT) + len('/modules/analysis/%s/src/test/' % package)
+            for dir, subDirs, files in os.walk('%s/modules/analysis/%s/src/test' % (ROOT, package)):
+              for file in files:
+                if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+                  fullFile = '%s/%s' % (dir, file)
+                  testClass = fullFile[strip:-5].replace('/', '.')
+                  # print '  %s' % testClass
+                  if doModules:
+                    tests.append((estimateCost(testClass), '%s/modules/analysis' % ROOT, testClass, CLASSPATH))
+      else:
+        CLASSPATH.append('../modules/%s/build/classes/java' % module)
+        CLASSPATH.append('../modules/%s/build/classes/test' % module)
+        libDir = '../modules/%s/lib' % module
+        if os.path.exists(libDir):
+          for f in os.listdir(libDir):
+            if f.endswith('.jar'):
+              CLASSPATH.append('%s/%s' % (libDir, f))
+        strip = len(ROOT) + len('/modules/%s/src/test/' % module)
+        for dir, subDirs, files in os.walk('%s/modules/%s/src/test' % (ROOT, module)):
+          for file in files:
+            if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+              fullFile = '%s/%s' % (dir, file)
+              testClass = fullFile[strip:-5].replace('/', '.')
+              # print '  %s' % testClass
+              if doModules:
+                tests.append((estimateCost(testClass), '%s/modules/%s' % (ROOT, module), testClass, CLASSPATH))
 
 # solr core tests
 if doSolr:

@@ -88,6 +88,16 @@ TermGroup1M: group1M//names # freq=402762
 TermGroup1M: group1M//nbsp # freq=492778
 TermGroup1M: group1M//part # freq=588644
 TermGroup1M: group1M//st # freq=306811
+TermBGroup1M: groupblock//0 # freq=708472
+TermBGroup1M: groupblock//names # freq=402762
+TermBGroup1M: groupblock//nbsp # freq=492778
+TermBGroup1M: groupblock//part # freq=588644
+TermBGroup1M: groupblock//st # freq=306811
+TermBGroup1M1P: groupblock1pass//0 # freq=708472
+TermBGroup1M1P: groupblock1pass//names # freq=402762
+TermBGroup1M1P: groupblock1pass//nbsp # freq=492778
+TermBGroup1M1P: groupblock1pass//part # freq=588644
+TermBGroup1M1P: groupblock1pass//st # freq=306811
 Wildcard: bu*s
 Wildcard: fu*r
 Wildcard: no*n

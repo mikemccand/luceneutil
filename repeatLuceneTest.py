@@ -128,7 +128,7 @@ dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
 seed = getArg('-seed', None)
-nightly = getArg('-nightly', None)
+nightly = getArg('-nightly', None, False)
 keepLogs = getArg('-keeplogs', False, False)
 
 if len(sys.argv) == 1:
@@ -167,7 +167,7 @@ while True:
     command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
     if constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
       command += ' -server'
-    if random.randint(0, 1) == 1:
+    if random.randint(0, 1) == 1 and not onlyOnce:
       command += ' -Xbatch'
     command += ' -Dtests.verbose=%s' % verbose
     command += ' -Dtests.multiplier=%s' % mult
@@ -175,6 +175,8 @@ while True:
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
     command += ' -Dtests.luceneMatchVersion=4.0'
+    if constants.TESTS_LINE_FILE is not None:
+      command += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
     if nightly:
       command += ' -Dtests.nightly=true'
     if seed is not None:

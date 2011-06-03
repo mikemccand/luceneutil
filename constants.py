@@ -63,5 +63,7 @@ CODEC_DEFAULT='Standard'
 ANALYZER_DEFAULT='StandardAnalyzer'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 
+TESTS_LINE_FILE = None
+
 # import again in case you want to override any of the vars set above
 from localconstants import *

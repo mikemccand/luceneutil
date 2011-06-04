@@ -83,6 +83,18 @@ KNOWN_CHANGES = [
    """
    Added TermQuery, grouping by fields with 100, 10K, 1M unique values.
    """),
+
+  ('2011-05-14',
+   'Add TermQuery with grouping',
+   """
+   Added TermQuery, grouping by fields with 100, 10K, 1M unique values.
+   """),
+
+  ('2011-06-03',
+   'Add single-pass grouping',
+   """
+   Added Term (bgroup) and Term (bgroup, 1pass) using the BlockGroupingCollector for grouping into 1M unique groups.
+   """),
   ]
 
 # TODO

@@ -1,3 +1,4 @@
+import math
 import datetime
 import re
 import sys
@@ -8,6 +9,9 @@ reQT = re.compile('^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)')
 qt = 0
 reopen = None
 results = []
+sum = 0
+sumSQ = 0
+count = 0
 for line in open(sys.argv[1], 'rb').readlines():
   m = reReopen.match(line)
   if m is not None:
@@ -18,6 +22,12 @@ for line in open(sys.argv[1], 'rb').readlines():
       qt = int(m.group(1))
       searches = int(m.group(2))
       results.append((qt, reopen, searches))
+      sum += reopen
+      sumSQ += reopen*reopen
+      count += 1
+
+print 'reopen: mean %.2f stddev %.2f' % \
+      (sum/count, math.sqrt(count*sumSQ - sum*sum)/count)
 
 # discard warmup
 results = results[10:]
@@ -35,7 +45,7 @@ open('nrt.html', 'wb').write('''
   src="dygraph-combined.js"></script>
 </head>
 <body>
-<div id="graphdiv" style="width:1000px; height:400px;"></div>
+<div id="graphdiv" style="width:1000px; height:600px;"></div>
 <script type="text/javascript">
   g = new Dygraph(
 
@@ -43,7 +53,12 @@ open('nrt.html', 'wb').write('''
     document.getElementById("graphdiv"),
 
     // CSV or path to a CSV file.
-    "nrt.csv"
+    "nrt.csv",
+
+    {showRoller: true,
+     xlabel: "Run Time (HH:MM)",
+     ylabel: "QPS, NRT Latency (msec)",
+     title: "QPS and NRT Latency over time"}
   );
 </script>
 </body>

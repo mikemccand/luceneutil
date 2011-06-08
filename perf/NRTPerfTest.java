@@ -241,14 +241,14 @@ public class NRTPerfTest {
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
-    //final CachingDirectory dir = new CachingDirectory(dir0);
-    //final MergeScheduler ms = dir.getMergeScheduler();
-    final Directory dir = dir0;
-    final MergeScheduler ms = new ConcurrentMergeScheduler();
+    final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 120.0);
+    final MergeScheduler ms = dir.getMergeScheduler();
+    //final Directory dir = dir0;
+    //final MergeScheduler ms = new ConcurrentMergeScheduler();
 
-    queries = new Query[20];
+    queries = new Query[1];
     for(int idx=0;idx<queries.length;idx++) {
-      queries[idx] = new TermQuery(new Term("body", ""+idx));
+      queries[idx] = new TermQuery(new Term("body", "10"));
     }
 
     // Open an IW on the requested commit point, but, don't

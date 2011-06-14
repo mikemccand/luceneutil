@@ -3,8 +3,10 @@ import datetime
 import re
 import sys
 
+SHOW_DIRTY_BYTES = True
+
 reReopen = re.compile(r'^Reopen:\s+([0-9.]+) msec')
-reQT = re.compile('^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)')
+reQT = re.compile('^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)(?: D=(\d+))?')
 
 qt = 0
 reopen = None
@@ -12,6 +14,7 @@ results = []
 sum = 0
 sumSQ = 0
 count = 0
+hasDirty = False
 for line in open(sys.argv[1], 'rb').readlines():
   m = reReopen.match(line)
   if m is not None:
@@ -21,7 +24,13 @@ for line in open(sys.argv[1], 'rb').readlines():
     if m is not None and reopen is not None:
       qt = int(m.group(1))
       searches = int(m.group(2))
-      results.append((qt, reopen, searches))
+      dirtyBytes = m.group(5)
+      if SHOW_DIRTY_BYTES and dirtyBytes is not None:
+        dirtyMB = float(dirtyBytes)/1024./10.
+        hasDirty = True
+      else:
+        dirtyMB = 0.0
+      results.append((qt, reopen, searches, dirtyMB))
       sum += reopen
       sumSQ += reopen*reopen
       count += 1
@@ -34,10 +43,24 @@ results = results[10:]
 
 js = []
 t = datetime.datetime(year=2011, month=4, day=25)
-for idx, (qt, reopen, searches) in enumerate(results):
-  js.append('"%s,%d,%.2f\\n"' % (t + datetime.timedelta(seconds=qt), searches, reopen))
+for idx, (qt, reopen, searches, dirty) in enumerate(results):
+  if hasDirty:
+    extra = ',%.1f' % dirty
+  else:
+    extra = ''
+  js.append('"%s,%d,%.2f%s\\n"' % (t + datetime.timedelta(seconds=qt), searches, reopen, extra))
 
-open('nrt.csv', 'wb').write('Date,Searches/sec,Reopen (msec)\n%s' % '\n'.join(js))
+if hasDirty:
+  extra = ',Dirty MB/10'
+else:
+  extra = ''
+open('nrt.csv', 'wb').write('Date,Searches/sec,Reopen (msec)%s\n%s' % (extra, '\n'.join(js)))
+
+if hasDirty:
+  extra = ', Dirty MB/10'
+else:
+  extra = ''
+  
 open('nrt.html', 'wb').write('''
 <html>
 <head>
@@ -57,10 +80,10 @@ open('nrt.html', 'wb').write('''
 
     {showRoller: true,
      xlabel: "Run Time (HH:MM)",
-     ylabel: "QPS, NRT Latency (msec)",
+     ylabel: "QPS, NRT Latency (msec)%s",
      title: "QPS and NRT Latency over time"}
   );
 </script>
 </body>
 </html>
-''')
+''' % extra)

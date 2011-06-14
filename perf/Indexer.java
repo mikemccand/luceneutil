@@ -42,7 +42,7 @@ import org.apache.lucene.util.*;
 
 // EG:
 //
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no no yes TieredMergePolicy no yes yes
+//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no no yes TieredMergePolicy no yes yes no
 
 public final class Indexer {
 
@@ -111,6 +111,7 @@ public final class Indexer {
     final boolean doUpdate = args[15].equals("yes");
     final boolean idFieldUsesPulsingCodec = args[16].equals("yes");
     final boolean addGroupingFields = args[17].equals("yes");
+    final boolean useCFS = args[18].equals("yes");
 
     if (addGroupingFields && docCount == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -133,6 +134,7 @@ public final class Indexer {
     System.out.println("Update: " + doUpdate);
     System.out.println("ID field uses Pulsing codec: " + idFieldUsesPulsingCodec);
     System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
+    System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
     
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
 
@@ -157,8 +159,6 @@ public final class Indexer {
       groupBlockIndex = null;
     }
 
-    // We want deterministic merging, since we target a
-    // multi-seg index w/ 5 segs per level:
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
       mp = new LogDocMergePolicy();
@@ -168,7 +168,8 @@ public final class Indexer {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       iwc.setMergePolicy(tmp);
       tmp.setMaxMergedSegmentMB(1000000.0);
-      tmp.setUseCompoundFile(false);
+      tmp.setUseCompoundFile(useCFS);
+      tmp.setNoCFSRatio(1.0);
       mp = null;
     } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
       mp = new BalancedSegmentMergePolicy();
@@ -178,7 +179,8 @@ public final class Indexer {
 
     if (mp != null) {
       iwc.setMergePolicy(mp);
-      mp.setUseCompoundFile(false);
+      mp.setUseCompoundFile(useCFS);
+      mp.setNoCFSRatio(1.0);
     }
 
     // Keep all commit points:

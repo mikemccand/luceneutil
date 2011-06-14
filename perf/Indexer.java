@@ -472,7 +472,7 @@ public final class Indexer {
           }
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
-          final List<Document> docsGroup = new ArrayList();
+          final List<Document> docsGroup = new ArrayList<Document>();
           while(true) {
             final int groupCounter = groupBlockIndex.getAndIncrement();
             if (groupCounter >= groupBlocks.length) {

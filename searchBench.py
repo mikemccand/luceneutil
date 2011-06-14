@@ -102,8 +102,10 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     print
     print 'Search:'
 
+
     for c in competitors:
       print '  %s:' % c.name
+      print '    tasks file: %s' % c.tasksFile
       t0 = time.time()
       results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
       print '    %.2f sec' % (time.time() - t0)

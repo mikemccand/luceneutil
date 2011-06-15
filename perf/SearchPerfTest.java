@@ -326,7 +326,7 @@ public class SearchPerfTest {
         final TopFieldDocs fieldHits = (TopFieldDocs) hits;
         for(int idx=0;idx<hits.scoreDocs.length;idx++) {
           FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
-          final Comparable v = hit.fields[0];
+          final Object v = hit.fields[0];
           final String vs;
           if (v instanceof Long) {
             vs = v.toString();

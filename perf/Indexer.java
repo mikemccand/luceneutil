@@ -415,7 +415,6 @@ public final class Indexer {
       final LineFileDocs.DocState docState = docs.newDocState();
       final Field idField = docState.id;
       final long tStart = System.currentTimeMillis();
-      final Term template = new Term("id");
       Term delTerm = null;
       final Field group100Field;
       final Field group100KField;
@@ -533,7 +532,7 @@ public final class Indexer {
               System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
             if (doUpdate) {
-              delTerm = template.createTerm(idField.stringValue());
+              delTerm = new Term("id", idField.stringValue());
             }
             w.updateDocument(delTerm, doc);
             count.incrementAndGet();

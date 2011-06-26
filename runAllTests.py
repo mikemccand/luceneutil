@@ -391,7 +391,8 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if testClass in ('org.apache.solr.client.solrj.embedded.TestSolrProperties', 'org.apache.solr.cloud.CloudStateUpdateTest'):
+        #if testClass in ('org.apache.solr.client.solrj.embedded.TestSolrProperties', 'org.apache.solr.cloud.CloudStateUpdateTest'):
+        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass

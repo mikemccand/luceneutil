@@ -250,7 +250,7 @@ public class NRTPerfTest {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
     //final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 200.0, mergeMaxWriteMBPerSec);
-    final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 200.0);
+    final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 20, 400.0);
     final MergeScheduler ms = dir.getMergeScheduler();
     //final Directory dir = dir0;
     //final MergeScheduler ms = new ConcurrentMergeScheduler();
@@ -275,7 +275,8 @@ public class NRTPerfTest {
     iwc.setMergeScheduler(ms);
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec("Standard");
-    cp.setFieldCodec("id", "Pulsing");
+    //cp.setFieldCodec("id", "Pulsing");
+    cp.setFieldCodec("id", "Memory");
     iwc.setCodecProvider(cp);
 
     /*
@@ -289,6 +290,8 @@ public class NRTPerfTest {
     TieredMergePolicy tmp = new TieredMergePolicy();
     tmp.setUseCompoundFile(false);
     tmp.setMaxMergedSegmentMB(1000000.0);
+    //tmp.setReclaimDeletesWeight(3.0);
+    //tmp.setMaxMergedSegmentMB(7000.0);
     iwc.setMergePolicy(tmp);
 
     if (!commit.equals("none")) {
@@ -304,8 +307,8 @@ public class NRTPerfTest {
     iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
         @Override
         public void warm(IndexReader reader) throws IOException {
-          // final long t0 = System.currentTimeMillis();
-          //System.out.println("DO WARM: " + reader.maxDoc());
+          //final long t0 = System.currentTimeMillis();
+          //System.out.println("DO WARM: " + reader);
           IndexSearcher s = new IndexSearcher(reader);
           for(Query query : queries) {
             s.search(query, 10);
@@ -334,9 +337,11 @@ public class NRTPerfTest {
           for(BytesRef term : terms) {
             sumDocs += reader.docFreq("body", term);
           }
-          final long t1 = System.currentTimeMillis();
-          System.out.println("warm took " + (t1-t0) + " msec; sumDocs=" + sumDocs);
           */
+          final long t1 = System.currentTimeMillis();
+          System.out.println("warm took " + (t1-t0) + " msec");
+
+          //NativePosixUtil.mlockTermsDict(reader, "id");
         }
       });
 
@@ -353,6 +358,7 @@ public class NRTPerfTest {
 
     // Open initial reader/searcher
     final IndexReader startR = IndexReader.open(w, true);
+    //NativePosixUtil.mlockTermsDict(startR, "id");
     System.out.println("Reader=" + startR);
     setSearcher(new IndexSearcher(startR));
 

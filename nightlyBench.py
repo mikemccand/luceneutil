@@ -211,7 +211,7 @@ reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
 
 def runNRTTest(r, indexPath, runLogDir):
 
-  cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 yes' % \
+  cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 yes 0.0' % \
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,
@@ -254,7 +254,7 @@ def setIndexParams(idx, fastIndex=True):
   idx.codec('Standard')
   idx.threads(constants.INDEX_NUM_THREADS)
   idx.directory(DIR_IMPL)
-  idx.idFieldUsesPulsing(True)
+  idx.idFieldCodec('Memory')
   if fastIndex:
     idx.ramBufferMB(INDEXING_RAM_BUFFER_MB)
     idx.waitForMerges(False)

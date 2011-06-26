@@ -82,7 +82,7 @@ class Index(object):
     self.mergePolicy = mergePolicy
     mergeFactor = 10
     self.doUpdate = doUpdate
-    self.idFieldUsesPulsing = False
+    self.idFieldCodec = 'Memory'
     self.useCFS = useCFS
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -252,7 +252,7 @@ class IndexBuilder(object):
     self._mergePolicy = constants.MERGEPOLICY_DEFAULT
     self._waitForMerges = True
     self._doUpdate = False
-    self._idFieldUsesPulsing = False
+    self._idFieldCodec = 'Memory'
     self._doGrouping = True
     self._useCFS = False
     competition.indices.append(self)
@@ -309,8 +309,8 @@ class IndexBuilder(object):
     self._waitForMerges = v
     return self
 
-  def idFieldUsesPulsing(self, v):
-    self._idFieldUsesPulsing = v
+  def idFieldCodec(self, v):
+    self._idFieldCodec = v
     return self
 
   def build(self):
@@ -322,6 +322,6 @@ class IndexBuilder(object):
     idx.setPrintDPS(self._printCharts)
     idx.mergePolicy = self._mergePolicy
     idx.waitForMerges = self._waitForMerges
-    idx.idFieldUsesPulsing = self._idFieldUsesPulsing
+    idx.idFieldCodec = self._idFieldCodec
     idx.doGrouping = self._doGrouping
     return idx

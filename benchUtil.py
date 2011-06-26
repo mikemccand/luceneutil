@@ -575,11 +575,6 @@ class RunAlgs:
       else:
         doUpdate = 'no'
 
-      if index.idFieldUsesPulsing:
-        idFieldUsesPulsingCodec = 'yes'
-      else:
-        idFieldUsesPulsingCodec = 'no'
-
       if index.doGrouping:
         doGrouping = 'yes'
       else:
@@ -609,7 +604,7 @@ class RunAlgs:
              waitForMerges,
              index.mergePolicy,
              doUpdate,
-             idFieldUsesPulsingCodec,
+             index.idFieldCodec,
              doGrouping,
              useCFS
              )

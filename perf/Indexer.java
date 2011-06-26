@@ -109,7 +109,7 @@ public final class Indexer {
     final boolean waitForMerges = args[13].equals("yes");
     final String mergePolicy = args[14];
     final boolean doUpdate = args[15].equals("yes");
-    final boolean idFieldUsesPulsingCodec = args[16].equals("yes");
+    final String idFieldCodec = args[16];
     final boolean addGroupingFields = args[17].equals("yes");
     final boolean useCFS = args[18].equals("yes");
 
@@ -132,7 +132,7 @@ public final class Indexer {
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
     System.out.println("Update: " + doUpdate);
-    System.out.println("ID field uses Pulsing codec: " + idFieldUsesPulsingCodec);
+    System.out.println("ID field codec: " + idFieldCodec);
     System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
     System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
     
@@ -188,12 +188,16 @@ public final class Indexer {
 
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec(codec);
-    if (idFieldUsesPulsingCodec) {
+    if (idFieldCodec.equals("Pulsing")) {
       if (codec.equals("StandardTree")) {
         cp.setFieldCodec("id", "PulsingTree");
       } else {
         cp.setFieldCodec("id", "Pulsing");
       }
+    } else if (idFieldCodec.equals("Memory")) {
+      cp.setFieldCodec("id", "Memory");
+    } else {
+      throw new RuntimeException("unknown id field codec " + idFieldCodec);
     }
     iwc.setCodecProvider(cp);
 

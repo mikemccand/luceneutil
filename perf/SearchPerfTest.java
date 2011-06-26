@@ -156,10 +156,14 @@ public class SearchPerfTest {
 
     @Override
     public Task clone() {
+      Query q2 = (Query) q.clone();
+      if (q2 == null) {
+        throw new RuntimeException("q=" + q + " failed to clone");
+      }
       if (singlePassGroup) {
-        return new SearchTask(category, q, s, "groupblock1pass", f, topN);
+        return new SearchTask(category, q2, s, "groupblock1pass", f, topN);
       } else {
-        return new SearchTask(category, q, s, group, f, topN);
+        return new SearchTask(category, q2, s, group, f, topN);
       }
     }
 
@@ -326,7 +330,7 @@ public class SearchPerfTest {
         final TopFieldDocs fieldHits = (TopFieldDocs) hits;
         for(int idx=0;idx<hits.scoreDocs.length;idx++) {
           FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
-          final Comparable v = hit.fields[0];
+          final Object v = hit.fields[0];
           final String vs;
           if (v instanceof Long) {
             vs = v.toString();

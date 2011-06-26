@@ -404,7 +404,7 @@ public class SearchPerfTest {
         for(int idx=0;idx<ids.length;idx++) {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false, true)) { 
-          if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false)) { 
+          if (termsEnum.seekExact(ids[idx], false)) { 
             //System.out.println("  found!");
             docs = termsEnum.docs(null, docs);
             assert docs != null;
@@ -533,8 +533,8 @@ public class SearchPerfTest {
     final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
     int count = 0;
 
-    final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.LONG));
-    final Sort titleSort = new Sort(new SortField("title", SortField.STRING));
+    final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
+    final Sort titleSort = new Sort(new SortField("title", SortField.Type.STRING));
 
     while(true) {
       String line = taskFile.readLine();

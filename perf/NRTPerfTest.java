@@ -307,7 +307,7 @@ public class NRTPerfTest {
     iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
         @Override
         public void warm(IndexReader reader) throws IOException {
-          //final long t0 = System.currentTimeMillis();
+          final long t0 = System.currentTimeMillis();
           //System.out.println("DO WARM: " + reader);
           IndexSearcher s = new IndexSearcher(reader);
           for(Query query : queries) {

@@ -585,7 +585,12 @@ class RunAlgs:
       else:
         doGrouping = 'no'
 
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
+      if index.useCFS:
+        useCFS = 'yes'
+      else:
+        useCFS = 'no'
+
+      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
             (self.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
@@ -605,7 +610,8 @@ class RunAlgs:
              index.mergePolicy,
              doUpdate,
              idFieldUsesPulsingCodec,
-             doGrouping
+             doGrouping,
+             useCFS
              )
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
@@ -1027,6 +1033,6 @@ def htmlEscape(s):
 def getSegmentCount(indexPath):
   segCount = 0
   for fileName in os.listdir(indexPath):
-    if fileName.endswith('.fdx'):
+    if fileName.endswith('.fdx') or fileName.endswith('.cfs'):
       segCount += 1
   return segCount

@@ -400,7 +400,7 @@ public class SearchPerfTest {
         for(int idx=0;idx<ids.length;idx++) {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false, true)) { 
-          if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false)) { 
+          if (termsEnum.seekExact(ids[idx], false)) { 
             //System.out.println("  found!");
             docs = termsEnum.docs(null, docs);
             assert docs != null;

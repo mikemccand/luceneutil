@@ -136,8 +136,7 @@ public class PKLookupPerfTest {
         for(int subIdx=0;subIdx<subs.length;subIdx++) {
           final IndexReader sub = subs[subIdx];
           final TermsEnum termsEnum = termsEnums[subIdx];
-          //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(lookup[iter], false, true)) { 
-          if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(lookup[iter], false)) { 
+          if (termsEnum.seekExact(lookup[iter], false)) { 
             if (DO_DOC_LOOKUP) {
               final DocsEnum docs = docsEnums[subIdx] = termsEnum.docs(null, docsEnums[subIdx]);
               final int docID = docs.nextDoc();

@@ -22,12 +22,13 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.index.codecs.CoreCodecProvider;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
-import org.apache.lucene.document.*;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
 
 // cd /a/lucene/trunk/checkout
@@ -204,6 +205,12 @@ public class NRTPerfTest {
     final boolean doUpdates = args[10].equals("update");
     statsEverySec = Integer.parseInt(args[11]);
     final boolean doCommit = args[12].equals("yes");
+    final double mergeMaxWriteMBPerSec = Double.parseDouble(args[13]);
+    if (mergeMaxWriteMBPerSec != 0.0) {
+      throw new IllegalArgumentException("mergeMaxWriteMBPerSec must be 0.0 until LUCENE-3202 is done");
+    }
+
+    final boolean hasProcMemInfo = new File("/proc/meminfo").exists();
 
     System.out.println("DIR=" + dirImpl);
     System.out.println("Index=" + dirPath);
@@ -227,6 +234,7 @@ public class NRTPerfTest {
       reopensByTime[i] = new AtomicInteger();
     }
 
+    System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
     final LineFileDocs docs = new LineFileDocs(lineDocFile, true);
@@ -241,14 +249,23 @@ public class NRTPerfTest {
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
-    //final CachingDirectory dir = new CachingDirectory(dir0);
-    //final MergeScheduler ms = dir.getMergeScheduler();
-    final Directory dir = dir0;
-    final MergeScheduler ms = new ConcurrentMergeScheduler();
+    //final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 200.0, mergeMaxWriteMBPerSec);
+    final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 200.0);
+    final MergeScheduler ms = dir.getMergeScheduler();
+    //final Directory dir = dir0;
+    //final MergeScheduler ms = new ConcurrentMergeScheduler();
 
-    queries = new Query[20];
+    queries = new Query[1];
     for(int idx=0;idx<queries.length;idx++) {
-      queries[idx] = new TermQuery(new Term("body", ""+idx));
+      queries[idx] = new TermQuery(new Term("body", "10"));
+      /*
+      BooleanQuery bq = new BooleanQuery();
+      bq.add(new TermQuery(new Term("body", "10")),
+             BooleanClause.Occur.SHOULD);
+      bq.add(new TermQuery(new Term("body", "11")),
+             BooleanClause.Occur.SHOULD);
+      queries[idx] = bq;
+      */
     }
 
     // Open an IW on the requested commit point, but, don't
@@ -261,30 +278,65 @@ public class NRTPerfTest {
     cp.setFieldCodec("id", "Pulsing");
     iwc.setCodecProvider(cp);
 
-    //iwc.setMergePolicy(new LogByteSizeMergePolicy());
-    //((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
-
+    /*
+    iwc.setMergePolicy(new LogByteSizeMergePolicy());
+    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    ((LogMergePolicy) iwc.getMergePolicy()).setMergeFactor(30);
+    ((LogByteSizeMergePolicy) iwc.getMergePolicy()).setMaxMergeMB(10000.0);
+    System.out.println("USING LOG BS MP");
+    */
+    
     TieredMergePolicy tmp = new TieredMergePolicy();
     tmp.setUseCompoundFile(false);
     tmp.setMaxMergedSegmentMB(1000000.0);
     iwc.setMergePolicy(tmp);
-    //((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(true);
 
     if (!commit.equals("none")) {
       iwc.setIndexCommit(findCommitPoint(commit, dir));
     }
 
     // Make sure merges run @ higher prio than indexing:
-    ((ConcurrentMergeScheduler) iwc.getMergeScheduler()).setMergeThreadPriority(Thread.currentThread().getPriority()+2);
+    final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
+    cms.setMergeThreadPriority(Thread.currentThread().getPriority()+2);
+    cms.setMaxThreadCount(1);
+    cms.setMaxMergeCount(4);
 
     iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
         @Override
         public void warm(IndexReader reader) throws IOException {
+          // final long t0 = System.currentTimeMillis();
           //System.out.println("DO WARM: " + reader.maxDoc());
           IndexSearcher s = new IndexSearcher(reader);
           for(Query query : queries) {
             s.search(query, 10);
           }
+
+          // Warm terms dict & index:
+          /*
+          final TermsEnum te = reader.fields().terms("body").iterator();
+          long sumDocs = 0;
+          DocsEnum docs = null;
+          int counter = 0;
+          final List<BytesRef> terms = new ArrayList<BytesRef>();
+          while(te.next() != null) {
+            docs = te.docs(null, docs);
+            if (counter++ % 50 == 0) {
+              terms.add(new BytesRef(te.term()));
+            }
+            int docID;
+            while((docID = docs.nextDoc()) != DocsEnum.NO_MORE_DOCS) {
+              sumDocs += docID;
+            }
+          }
+          Collections.reverse(terms);
+
+          System.out.println("warm: " + terms.size() + " terms");
+          for(BytesRef term : terms) {
+            sumDocs += reader.docFreq("body", term);
+          }
+          final long t1 = System.currentTimeMillis();
+          System.out.println("warm took " + (t1-t0) + " msec; sumDocs=" + sumDocs);
+          */
         }
       });
 
@@ -388,6 +440,9 @@ public class NRTPerfTest {
     Thread.currentThread().setPriority(5+Thread.currentThread().getPriority());
     System.out.println("TIMER PRI " + Thread.currentThread().getPriority());
 
+    //System.out.println("KICKING OFF OPTIMIZE!!");
+    //w.optimize(false);
+
     //System.out.println("Start: " + new Date());
 
     final long startMS = System.currentTimeMillis();
@@ -401,10 +456,17 @@ public class NRTPerfTest {
       final int qt = (int) ((t-startMS)/statsEverySec/1000);
       currentQT.set(qt);
       if (qt != lastQT) {
-        if (lastQT > 0) {
-          System.out.println("QT " + (lastQT-1) + " searches=" + searchesByTime[(lastQT-1)].get() + " docs=" + docsIndexedByTime[(lastQT-1)].get() + " reopens=" + reopensByTime[(lastQT-1)].get());
-        }
+        final int prevQT = lastQT;
         lastQT = qt;
+        if (prevQT > 0) {
+          final String other;
+          if (hasProcMemInfo) {
+            other = " D=" + getLinuxDirtyBytes();
+          } else {
+            other = "";
+          }
+          System.out.println("QT " + (prevQT-1) + " searches=" + searchesByTime[(prevQT-1)].get() + " docs=" + docsIndexedByTime[(prevQT-1)].get() + " reopens=" + reopensByTime[(prevQT-1)].get() + other);
+        }
       }
       Thread.sleep(25);
     }
@@ -432,5 +494,28 @@ public class NRTPerfTest {
     } else {
       w.rollback();
     }
+  }
+
+  private static long getLinuxDirtyBytes() throws Exception {
+    final BufferedReader br = new BufferedReader(new FileReader("/proc/meminfo"), 4096);
+    int dirtyKB = -1;
+    try {
+      while(true) {
+        String line = br.readLine();
+        if (line == null) {
+          break;
+        } else if (line.startsWith("Dirty:")) {
+          final String trimmed = line.trim();
+          dirtyKB = Integer.parseInt(trimmed.substring(7, trimmed.length()-3).trim());
+          break;
+        }
+      }
+    } catch (Exception e) {
+      e.printStackTrace(System.out);
+    } finally {
+      br.close();
+    }
+    
+    return dirtyKB;
   }
 }

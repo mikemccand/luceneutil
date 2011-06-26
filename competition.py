@@ -60,7 +60,7 @@ class Index(object):
 
   def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads,
                lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory',
-               doDeletions=False, ramBufferMB=-1, mergePolicy=constants.MERGEPOLICY_DEFAULT, doUpdate='No'):
+               doDeletions=False, ramBufferMB=-1, mergePolicy=constants.MERGEPOLICY_DEFAULT, doUpdate='No', useCFS=False):
     self.checkout = checkout
     self.analyzer = analyzer
     self.dataSource = dataSource
@@ -83,6 +83,7 @@ class Index(object):
     mergeFactor = 10
     self.doUpdate = doUpdate
     self.idFieldUsesPulsing = False
+    self.useCFS = useCFS
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
@@ -103,7 +104,11 @@ class Index(object):
       s = 'opt.'
     else:
       s = ''
-    return '%s.%s.%s.%snd%gM' % (self.dataSource, self.checkout, self.codec, s, self.numDocs/1000000.0)
+    if self.useCFS:
+      s2 = 'cfs.'
+    else:
+      s2 = ''
+    return '%s.%s.%s.%s%snd%gM' % (self.dataSource, self.checkout, self.codec, s, s2, self.numDocs/1000000.0)
 
 
 
@@ -249,6 +254,7 @@ class IndexBuilder(object):
     self._doUpdate = False
     self._idFieldUsesPulsing = False
     self._doGrouping = True
+    self._useCFS = False
     competition.indices.append(self)
 
   def doUpdate(self):
@@ -258,6 +264,10 @@ class IndexBuilder(object):
   def doGrouping(self):
     self._doGrouping = True 
     return self    
+    
+  def useCFS(self, v):
+    self._useCFS = v
+    return self
     
   def threads(self, threads):
     self._threads = threads
@@ -306,7 +316,8 @@ class IndexBuilder(object):
   def build(self):
 
     idx = Index(self._checkout, self._data.name, self._analyzer, self._codec,
-          self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB, doUpdate = self._doUpdate)
+          self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB, doUpdate = self._doUpdate,
+                useCFS = self._useCFS)
     idx.setVerbose(self._verbose)
     idx.setPrintDPS(self._printCharts)
     idx.mergePolicy = self._mergePolicy

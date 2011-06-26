@@ -349,7 +349,7 @@ def parseResults(resultsFiles):
               group[-1].append((doc, score))
             else:
               # BUG
-              raise RuntimeError('result parsing failed')
+              raise RuntimeError('result parsing failed: line=%s' % line)
 
       elif line.startswith('TASK: respell'):
         task = RespellTask()

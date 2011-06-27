@@ -95,6 +95,12 @@ KNOWN_CHANGES = [
    """
    Added Term (bgroup) and Term (bgroup, 1pass) using the BlockGroupingCollector for grouping into 1M unique groups.
    """),
+
+  ('2011-06-26',
+   'Use MemoryCodec for id field; switched to NRTCachingDirectory for NRT test',
+   '''
+   Switched to MemoryCodec for the primary-key 'id' field so that lookups (either for PKLookup test or for deletions during reopen in the NRT test) are fast, with no IO.  Also switched to NRTCachingDirectory for the NRT test, so that small new segments are written only in RAM.
+   ''')
   ]
 
 # TODO

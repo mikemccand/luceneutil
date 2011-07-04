@@ -23,7 +23,7 @@ allTests = {}
 
 def locateTest(test):
   if not os.path.exists('src/test'):
-    raise RuntimeError('cwd must be $ROOT/lucene of src checkout')
+    raise RuntimeError('no src/test in cwd')
 
   cwd = os.getcwd()
   tup = test.split('.')

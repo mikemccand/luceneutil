@@ -81,6 +81,8 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/modules/analysis/build/common/classes/test')
   CP.append(ROOT + '/modules/join/build/classes/test')
   CP.append(ROOT + '/modules/join/build/classes/java')
+  CP.append(ROOT + '/modules/facet/build/classes/test')
+  CP.append(ROOT + '/modules/facet/build/classes/java')
 
   # return filterCWD(CP)
   return CP

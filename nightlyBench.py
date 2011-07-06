@@ -100,6 +100,12 @@ KNOWN_CHANGES = [
    'Use MemoryCodec for id field; switched to NRTCachingDirectory for NRT test',
    '''
    Switched to MemoryCodec for the primary-key 'id' field so that lookups (either for PKLookup test or for deletions during reopen in the NRT test) are fast, with no IO.  Also switched to NRTCachingDirectory for the NRT test, so that small new segments are written only in RAM.
+   '''),
+
+  ('2011-07-04',
+   'Switched from Java 1.6.0_21 to 1.6.0_26',
+   '''
+   Switched from Java 1.6.0_21 to 1.6.0_26
    ''')
   ]
 
@@ -311,6 +317,9 @@ def run():
 
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
+
+    javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
+    print '%s' % javaVersion
   
   runCommand('ant clean > clean.log 2>&1')
 
@@ -419,6 +428,7 @@ def run():
     w('<h1>%s</h1>' % timeStamp2)
     w('Lucene/Solr trunk rev %s<br>' % svnRev)
     w('luceneutil rev %s<br>' % luceneUtilRev)
+    w('%s<br>' % javaVersion)
     w('Index: %s<br>' % fixedIndexAtClose)
     w('<br><br><b>Search perf vs day before</b>\n')
     w(''.join(output))

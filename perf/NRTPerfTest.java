@@ -251,7 +251,7 @@ public class NRTPerfTest {
     }
     //final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 200.0, mergeMaxWriteMBPerSec);
     final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 20, 400.0);
-    final MergeScheduler ms = dir.getMergeScheduler();
+    //final MergeScheduler ms = dir.getMergeScheduler();
     //final Directory dir = dir0;
     //final MergeScheduler ms = new ConcurrentMergeScheduler();
 
@@ -272,7 +272,7 @@ public class NRTPerfTest {
     // delete other (past or future) commit points:
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
-    iwc.setMergeScheduler(ms);
+    //iwc.setMergeScheduler(ms);
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec("Standard");
     //cp.setFieldCodec("id", "Pulsing");

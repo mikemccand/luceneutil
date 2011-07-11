@@ -647,6 +647,7 @@ class RunAlgs:
     if version == '4.0':
       cp.append('%s/modules/analysis/build/common/classes/java' % path)
       cp.append('%s/modules/analysis/build/icu/classes/java' % path)
+      cp.append('%s/modules/queryparser/build/classes/java' % path)
       cp.append('%s/modules/grouping/build/classes/java' % path)
       cp.append('%s/modules/suggest/build/classes/java' % path)
     elif version == '3.x':

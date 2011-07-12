@@ -385,9 +385,10 @@ public final class Indexer {
         if (field1.getOmitNorms()) {
           field2.setOmitNorms(true);
         }
-        if (field1.getOmitTermFreqAndPositions()) {
-          field2.setOmitTermFreqAndPositions(true);
-        }
+        field2.setIndexOptions(field1.getIndexOptions());
+        //if (field1.getOmitTermFreqAndPositions()) {
+        //field2.setOmitTermFreqAndPositions(true);
+        //}
         doc2.add(field2);
       }
     }
@@ -430,28 +431,28 @@ public final class Indexer {
       final Field groupEndField;
       if (group100 != null) {
         group100Field = new Field("group100", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group100Field.setOmitTermFreqAndPositions(true);
+        group100Field.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
         group100Field.setOmitNorms(true);
         docState.doc.add(group100Field);
         group10KField = new Field("group10K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group10KField.setOmitTermFreqAndPositions(true);
+        group10KField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
         group10KField.setOmitNorms(true);
         docState.doc.add(group10KField);
         group100KField = new Field("group100K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group100KField.setOmitTermFreqAndPositions(true);
+        group100KField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
         group100KField.setOmitNorms(true);
         docState.doc.add(group100KField);
         group1MField = new Field("group1M", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group1MField.setOmitTermFreqAndPositions(true);
+        group1MField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
         group1MField.setOmitNorms(true);
         docState.doc.add(group1MField);
         groupBlockField = new Field("groupblock", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        groupBlockField.setOmitTermFreqAndPositions(true);
+        groupBlockField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
         groupBlockField.setOmitNorms(true);
         docState.doc.add(groupBlockField);
         // Binary marker field:
         groupEndField = new Field("groupend", "x", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        groupEndField.setOmitTermFreqAndPositions(true);
+        groupEndField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
         groupEndField.setOmitNorms(true);
       } else {
         group100Field = null;

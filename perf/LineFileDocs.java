@@ -17,21 +17,23 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.io.BufferedInputStream;
-import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.io.Closeable;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Random;
-import java.text.SimpleDateFormat;
-import java.text.ParsePosition;
-import org.apache.lucene.document.*;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.lucene.document.*;
+import org.apache.lucene.index.FieldInfo;
 
 public class LineFileDocs implements Closeable {
 
@@ -82,7 +84,7 @@ public class LineFileDocs implements Closeable {
       doc = new Document();
       
       title = new Field("title", "", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
-      title.setOmitTermFreqAndPositions(true);
+      title.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
       doc.add(title);
 
       titleTokenized = new Field("titleTokenized", "", Field.Store.YES, Field.Index.ANALYZED);
@@ -92,11 +94,11 @@ public class LineFileDocs implements Closeable {
       doc.add(body);
 
       id = new Field("id", "", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS);
-      id.setOmitTermFreqAndPositions(true);
+      id.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
       doc.add(id);
 
       date = new Field("date", "", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS);
-      date.setOmitTermFreqAndPositions(true);
+      date.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
       doc.add(date);
 
       dateMSec = new NumericField("datenum");

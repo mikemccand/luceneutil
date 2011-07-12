@@ -64,7 +64,7 @@ public class PKLookupPerfTest {
    
     final Document doc = new Document();
     final Field field = new Field("id", "", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS);
-    field.setOmitTermFreqAndPositions(true);
+    field.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
     doc.add(field);
 
     for(int i=0;i<docCount;i++) {

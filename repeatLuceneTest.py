@@ -212,9 +212,8 @@ while True:
     elif doLog:
       if not keepLogs:
         os.remove('%s/%d.log' % (logDirName, upto))
-      pass
-      
-    upto += 1
+      else:
+        upto += 1
 
   if onlyOnce:
     break

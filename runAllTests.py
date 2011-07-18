@@ -46,6 +46,10 @@ CLASSPATH = ['../lucene/lib/junit-4.7.jar',
              '../solr/build/test-framework',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
+             '../modules/queries/build/common/classes/java',
+             '../modules/facet/build/classes/java',
+             '../modules/facet/build/classes/examples',
+             '../modules/join/build/classes/java',
              '../modules/suggest/build/classes/java',
              '../modules/grouping/build/classes/java',
              '/usr/share/java/ant.jar']
@@ -309,8 +313,12 @@ for dir, subDirs, files in os.walk('%s/lucene/src/test' % ROOT):
 for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
   #print 'contrib/%s' % contrib
   strip = len(ROOT) + len('/lucene/contrib/%s/src/test/' % contrib)
-  addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib)))
-  addCP('%s/lucene/build/contrib/%s/classes/test' % (ROOT, contrib))
+  if contrib == 'queries':
+    contrib2 = 'queries-contrib'
+  else:
+    contrib2 = contrib
+  addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib2)))
+  addCP('%s/lucene/build/contrib/%s/classes/test' % (ROOT, contrib2))
   libDir = '%s/lucene/contrib/%s/lib' % (ROOT, contrib)
   addJARs(libDir)
   for dir, subDirs, files in os.walk('%s/lucene/contrib/%s/src/test' % (ROOT, contrib)):

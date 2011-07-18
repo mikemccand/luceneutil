@@ -23,7 +23,7 @@ allTests = {}
 
 def locateTest(test):
   if not os.path.exists('src/test'):
-    raise RuntimeError('cwd must be $ROOT/lucene of src checkout')
+    raise RuntimeError('no src/test in cwd')
 
   cwd = os.getcwd()
   tup = test.split('.')
@@ -77,8 +77,12 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/contrib/misc/classes/test')
   CP.append(ROOT + '/modules/grouping/build/classes/test')
   CP.append(ROOT + '/modules/grouping/build/classes/java')
+  CP.append(ROOT + '/modules/analysis/build/common/classes/java')
+  CP.append(ROOT + '/modules/analysis/build/common/classes/test')
   CP.append(ROOT + '/modules/join/build/classes/test')
   CP.append(ROOT + '/modules/join/build/classes/java')
+  CP.append(ROOT + '/modules/facet/build/classes/test')
+  CP.append(ROOT + '/modules/facet/build/classes/java')
 
   # return filterCWD(CP)
   return CP

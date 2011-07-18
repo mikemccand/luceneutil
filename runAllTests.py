@@ -25,10 +25,13 @@ import common
 
 ROOT = common.findRootDir(os.getcwd())
 
+HEAP = '512m'
+# HEAP = '14g'
+
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
 
-COST_PER_JOB = 30.0
+COST_PER_JOB = 40.0
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
@@ -43,7 +46,7 @@ LUCENE_VERSION = '4.0-SNAPSHOT'
 CLASSPATH = ['../lucene/lib/junit-4.7.jar',
              '../lucene/build/classes/test',
              '../lucene/build/classes/test-framework',
-             '../solr/build/test-framework',
+             '../solr/build/solr-test-framework/classes/java',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
              '../modules/queries/build/common/classes/java',
@@ -91,7 +94,7 @@ if not doLucene and not doSolr and not doModules:
 
 def addCP(dirName):
   if os.path.exists(dirName):
-    # print 'ADD %s' % dirName
+    #print 'CP: add %s' % dirName
     CLASSPATH.append(dirName)
     
 def fixCP():
@@ -100,6 +103,7 @@ def fixCP():
     if s.startswith('../'):
       s = ROOT + '/' + s[3:]
       CLASSPATH[i] = s
+    # print 'cp: %s' % s
 
 def jarOK(jar):
   return jar != 'log4j-1.2.14.jar'
@@ -220,7 +224,7 @@ class RunThread:
         #pr('%s: RUN' % self.id)
         pr('.')
         logFile = '%s/%s.log' % (ROOT, self.id)
-        cmd = 'java -Xmx512m -Xms512m %s -Dlucene.version=%s' % (TEST_ARGS, LUCENE_VERSION)
+        cmd = 'java -Xmx%s -Xms%s %s -Dlucene.version=%s' % (HEAP, HEAP, TEST_ARGS, LUCENE_VERSION)
         if constants.TESTS_LINE_FILE is not None:
           cmd += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
         cmd += ' -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
@@ -287,11 +291,12 @@ if '-noc' not in sys.argv:
   #run('Compile Lucene...', 'ant compile-test', 'compile.log')
 
   if True:
-    run('Compile Lucene contrib...', 'ant build-contrib', 'compile-contrib.log')
+    run('Compile Lucene core/contrib...', 'ant build-contrib', 'compile-contrib.log')
 
   if True and doSolr:
     os.chdir('%s/solr' % ROOT)
-    run('Compile Solr...', 'ant compileTests build-contrib', 'compile.log')
+    run('Compile Solr...', 'ant compile-test', 'compile.log')
+    run('Compile Solr contrib...', 'ant build-contrib', 'compile-contrib.log')
 
 testDir = '%s/lucene/build/test' % ROOT
 if not os.path.exists(testDir):
@@ -313,8 +318,8 @@ for dir, subDirs, files in os.walk('%s/lucene/src/test' % ROOT):
 for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
   #print 'contrib/%s' % contrib
   strip = len(ROOT) + len('/lucene/contrib/%s/src/test/' % contrib)
-  if contrib == 'queries':
-    contrib2 = 'queries-contrib'
+  if contrib in ('queries', 'queryparser'):
+    contrib2 = '%s-contrib' % contrib
   else:
     contrib2 = contrib
   addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib2)))
@@ -382,9 +387,11 @@ if doSolr:
   addJARs('../solr/lib')
   addJARs('../solr/example/lib')
   addJARs('../solr/example/lib/jsp-2.1')
-  CLASSPATH.append('../solr/build/solr')
-  CLASSPATH.append('../solr/build/tests')
-  CLASSPATH.append('../solr/build/solrj')
+  CLASSPATH.append('../solr/build/solr-core/classes/java')
+  CLASSPATH.append('../solr/build/solr-core/classes/test')
+  CLASSPATH.append('../solr/build/solr-solrj/classes/test')
+  CLASSPATH.append('../solr/build/solr-solrj/classes/java')
+  CLASSPATH.append('../solr/core/src/test-files')
 
   # guess!  to load solrconfig.xml
   #CLASSPATH.append('../solr/src/test/test-files/solr/conf')
@@ -392,41 +399,71 @@ if doSolr:
 
   fixCP()
       
-  strip = len(ROOT) + len('/solr/src/test/')
-  for dir, subDirs, files in os.walk('%s/solr/src/test' % ROOT):
+  strip = len(ROOT) + len('/solr/core/src/test/')
+  for dir, subDirs, files in os.walk('%s/solr/core/src/test' % ROOT):
     for file in files:
       if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        #if testClass in ('org.apache.solr.client.solrj.embedded.TestSolrProperties', 'org.apache.solr.cloud.CloudStateUpdateTest'):
+        if False and testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',):
+          print 'WARNING: skipping test %s' % testClass
+          continue
+        # print '  %s' % testClass
+        tests.append((estimateCost(testClass), '%s/solr/core/src/test/test-files' % ROOT, testClass, CLASSPATH))
+
+  # solrj
+  strip = len(ROOT) + len('/solr/solrj/src/test/')
+  for dir, subDirs, files in os.walk('%s/solr/solrj/src/test' % ROOT):
+    for file in files:
+      if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+        
+        fullFile = '%s/%s' % (dir, file)
+        testClass = fullFile[strip:-5].replace('/', '.')
         if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
-        tests.append((estimateCost(testClass), '%s/solr/src/test/test-files' % ROOT, testClass, CLASSPATH))
+        tests.append((estimateCost(testClass), '%s/solr/solrj/src/test-files' % ROOT, testClass, CLASSPATH))
 
-# solr contrib tests
-if doSolr:
+  # solr contrib tests
   for contrib in os.listdir('%s/solr/contrib' % ROOT):
-    if contrib == 'clustering':
+    if False and contrib == 'clustering':
       continue
-    #print 'contrib/%s' % contrib
-    strip = len(ROOT) + len('/solr/contrib/%s/src/test/java/' % contrib)
-    addCP('%s/solr/contrib/%s/target/test-classes' % (ROOT, contrib))
-    addCP('%s/solr/contrib/%s/target/classes' % (ROOT, contrib))
-    addCP('%s/solr/contrib/%s/target/extras/classes' % (ROOT, contrib))
-    addCP('%s/solr/contrib/%s/build/test-classes' % (ROOT, contrib))
-    addCP('%s/solr/contrib/%s/build/classes' % (ROOT, contrib))
-    addCP('%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib))
-    addCP('%s/solr/contrib/%s/src/main/resources' % (ROOT, contrib))
+    if not os.path.isdir('%s/solr/contrib/%s' % (ROOT, contrib)) or contrib in ('.svn',):
+      continue
+    # print 'contrib/%s' % contrib
+    strip = len(ROOT) + len('/solr/contrib/%s/src/test/' % contrib)
+    if contrib == 'extraction':
+      contrib2 = 'cell'
+    else:
+      contrib2 = contrib
+    addCP('%s/solr/build/contrib/solr-%s/classes/java' % (ROOT, contrib2))
+    addCP('%s/solr/build/contrib/solr-%s/classes/test' % (ROOT, contrib2))
+    if contrib == 'dataimporthandler':
+      s = 'dih'
+    else:
+      s = contrib
+    #addCP('%s/solr/contrib/%s/src/test-files/solr-%s' % (ROOT, contrib, s))
+    addCP('%s/solr/contrib/%s/src/test-files' % (ROOT, contrib))
+    #addCP('%s/solr/contrib/%s/target/classes' % (ROOT, contrib))
+    #addCP('%s/solr/contrib/%s/target/extras/classes' % (ROOT, contrib))
+    #addCP('%s/solr/contrib/%s/build/test-classes' % (ROOT, contrib))
+    #addCP('%s/solr/contrib/%s/build/classes' % (ROOT, contrib))
+    #addCP('%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib))
+    #addCP('%s/solr/contrib/%s/src/main/resources' % (ROOT, contrib))
+    addCP('%s/solr/contrib/%s/src/resources' % (ROOT, contrib))
+      
     if 0:
-      CLASSPATH.append('../solr/build/contrib/%s/classes/java' % contrib)
-      CLASSPATH.append('../lucene/build/contrib/%s/classes/test' % contrib)
-      CLASSPATH.append('../lucene/build/contrib/%s/classes' % contrib)
+      addCP('../solr/build/contrib/%s/classes/java' % contrib)
+      addCP('../lucene/build/contrib/%s/classes/test' % contrib)
+      addCP('../lucene/build/contrib/%s/classes' % contrib)
     libDir = '%s/solr/contrib/%s/lib' % (ROOT, contrib)
     addJARs(libDir)
-    for dir, subDirs, files in os.walk('%s/solr/contrib/%s/src/test/java' % (ROOT, contrib)):
+    os.chdir('%s/solr/contrib/%s' % (ROOT, contrib))
+    if '-noc' not in sys.argv:
+      run('Compile Solr contrib %s...' % contrib, 'ant compile-test', 'compile-contrib-test.log')
+    for dir, subDirs, files in os.walk('%s/solr/contrib/%s/src/test' % (ROOT, contrib)):
       for file in files:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
           fullFile = '%s/%s' % (dir, file)
@@ -436,6 +473,11 @@ if doSolr:
 
 tests.sort(reverse=True)
 repeat = '-repeat' in sys.argv
+
+if 0:
+  for cost, path, test, cp in tests:
+    print 'TEST: %s' % test
+  print 'Total %d tests' % len(tests)
 
 pendingCost = 0
 workQ = WorkQueue()

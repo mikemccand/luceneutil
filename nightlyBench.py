@@ -106,6 +106,12 @@ KNOWN_CHANGES = [
    'Switched from Java 1.6.0_21 to 1.6.0_26',
    '''
    Switched from Java 1.6.0_21 to 1.6.0_26
+   '''),
+
+  ('2011-07-11',
+   'LUCENE-3233: arc array optimizations to FST',
+   '''
+   <a href="https://issues.apache.org/jira/browse/LUCENE-3233">LUCENE-3233</a>: fast SynonymFilter using an FST, including an optimization to the FST representation allowing array arcs even when some arcs have large outputs; this resulted in a good speedup for MemoryCodec, which also speeds up the primary key lookup performance.
    ''')
   ]
 

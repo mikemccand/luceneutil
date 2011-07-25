@@ -112,6 +112,12 @@ KNOWN_CHANGES = [
    'LUCENE-3233: arc array optimizations to FST',
    '''
    <a href="https://issues.apache.org/jira/browse/LUCENE-3233">LUCENE-3233</a>: fast SynonymFilter using an FST, including an optimization to the FST representation allowing array arcs even when some arcs have large outputs; this resulted in a good speedup for MemoryCodec, which also speeds up the primary key lookup performance.
+   '''),
+
+  ('2011-07-22',
+   'LUCENE-3328: specialize code for AND of TermQuery',
+   '''
+   <a href="https://issues.apache.org/jira/browse/LUCENE-3328">LUCENE-3328</a>: If all clauses of a BooleanQuery are MUST and are TermQuery then create a specialized scorer for scoring this common case.
    ''')
   ]
 

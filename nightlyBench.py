@@ -118,7 +118,13 @@ KNOWN_CHANGES = [
    'LUCENE-3328: specialize code for AND of TermQuery',
    '''
    <a href="https://issues.apache.org/jira/browse/LUCENE-3328">LUCENE-3328</a>: If all clauses of a BooleanQuery are MUST and are TermQuery then create a specialized scorer for scoring this common case.
-   ''')
+   '''),
+
+  ('2011-07-30',
+   'Switched back to Java 1.6.0_21 from 1.6.0_26',
+   '''
+   Switched back to Java 1.6.0_21 from 1.6.0_26 because _26 would sometimes deadlock threads.
+   '''),
   ]
 
 # TODO

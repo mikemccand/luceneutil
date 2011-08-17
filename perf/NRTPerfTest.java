@@ -95,7 +95,7 @@ public class NRTPerfTest {
           final Document doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
           if (doUpdate && (!NEW_INDEX || (maxDoc > 0 && random.nextInt(4) != 2))) {
-            final String id = String.format("%09d", random.nextInt(maxDoc));
+            final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
             docState.id.setValue(id);
             w.updateDocument(new Term("id", id), doc);
           } else {

@@ -87,7 +87,12 @@ public class SearchPerfTest {
       docIDToID = new int[searcher.maxDoc()];
       int base = 0;
       for(IndexReader sub : searcher.getIndexReader().getSequentialSubReaders()) {
-        final int[] ids = FieldCache.DEFAULT.getInts(sub, "id");
+        final int[] ids = FieldCache.DEFAULT.getInts(sub, "id", new FieldCache.IntParser() {
+            @Override
+            public int parseInt(BytesRef term) {
+              return LineFileDocs.idToInt(term);
+            }
+          });
         System.arraycopy(ids, 0, docIDToID, base, ids.length);
         base += ids.length;
       }
@@ -220,6 +225,8 @@ public class SearchPerfTest {
       } else {
         hits = state.searcher.search(q, f, topN, s);
       }
+
+      //System.out.println("TE: " + TermsEnum.getStats());
     }
 
     @Override
@@ -301,7 +308,7 @@ public class SearchPerfTest {
 
     @Override
     public String toString() {
-      return "cat=" + category + " q=" + q + " s=" + s + " group=" + group +
+      return "cat=" + category + " q=" + q + " s=" + s + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
         (group == null ? " hits=" + hits.totalHits :
          " groups=" + (singlePassGroup ?
                        (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
@@ -320,7 +327,7 @@ public class SearchPerfTest {
           }
         } else {
           for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-            System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString()) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+            System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
             for(ScoreDoc hit : groupDocs.scoreDocs) {
               System.out.println("    doc=" + hit.doc + " score=" + hit.score);
             }
@@ -372,12 +379,12 @@ public class SearchPerfTest {
       answers = new int[count];
       int idx = 0;
       while(idx < count) {
-        final BytesRef id = new BytesRef(String.format("%09d", random.nextInt(maxDoc)));
+        final BytesRef id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
         /*
         if (idx == 0) {
           id = new BytesRef("000013688");
         } else {
-          id = new BytesRef(String.format("%09d", random.nextInt(maxDoc)));
+          id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
         }
         */
         if (!seen.contains(id)) {
@@ -441,11 +448,11 @@ public class SearchPerfTest {
           throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
         }
 
-        final int id = Integer.parseInt(ids[idx].utf8ToString());
+        final int id = LineFileDocs.idToInt(ids[idx]);
         //System.out.println("  " + id + " -> " + answers[idx]);
         final int actual = state.docIDToID[answers[idx]];
         if (actual != id) {
-          throw new RuntimeException("PKLookup: id=" + String.format("%09d", id) + " returned doc with id=" + String.format("%09d", actual) + " docID=" + answers[idx]);
+          throw new RuntimeException("PKLookup: id=" + LineFileDocs.intToID(id) + " returned doc with id=" + LineFileDocs.intToID(actual) + " docID=" + answers[idx]);
         }
       }
     }
@@ -788,7 +795,11 @@ public class SearchPerfTest {
     final Thread[] threads = new Thread[threadCount];
     final CountDownLatch startLatch = new CountDownLatch(1);
     final CountDownLatch stopLatch = new CountDownLatch(threadCount);
-    final IndexState indexState = new IndexState(searcher, new DirectSpellChecker());
+    final DirectSpellChecker spellChecker = new DirectSpellChecker();
+    // Evil respeller:
+    //spellChecker.setMinPrefix(0);
+    //spellChecker.setMaxInspections(1024);
+    final IndexState indexState = new IndexState(searcher, spellChecker);
     for(int threadIDX=0;threadIDX<threadCount;threadIDX++) {
       threads[threadIDX] = new TaskThread(startLatch, stopLatch, allTasks, nextTask, indexState, threadIDX);
       threads[threadIDX].start();

@@ -164,6 +164,10 @@ public final class Indexer {
       mp = new LogDocMergePolicy();
     } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
       mp = new LogByteSizeMergePolicy();
+    } else if (mergePolicy.equals("NoMergePolicy")) {
+      final MergePolicy nmp = useCFS ? NoMergePolicy.COMPOUND_FILES : NoMergePolicy.NO_COMPOUND_FILES;
+      iwc.setMergePolicy(nmp);
+      mp = null;
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       iwc.setMergePolicy(tmp);
@@ -189,13 +193,11 @@ public final class Indexer {
     final CoreCodecProvider cp = new CoreCodecProvider();
     cp.setDefaultFieldCodec(codec);
     if (idFieldCodec.equals("Pulsing")) {
-      if (codec.equals("StandardTree")) {
-        cp.setFieldCodec("id", "PulsingTree");
-      } else {
-        cp.setFieldCodec("id", "Pulsing");
-      }
+      cp.setFieldCodec("id", "Pulsing");
     } else if (idFieldCodec.equals("Memory")) {
       cp.setFieldCodec("id", "Memory");
+    } else if (idFieldCodec.equals("Standard")) {
+      cp.setFieldCodec("id", "Standard");
     } else {
       throw new RuntimeException("unknown id field codec " + idFieldCodec);
     }
@@ -276,7 +278,7 @@ public final class Indexer {
         final int id = random.nextInt(maxDoc);
         if (!deleted.contains(id)) {
           deleted.add(id);
-          w.deleteDocuments(new Term("id", String.format("%09d", id)));
+          w.deleteDocuments(new Term("id", LineFileDocs.intToID(id)));
         }
       }
       final long t6 = System.currentTimeMillis();
@@ -307,7 +309,7 @@ public final class Indexer {
         final int id = rand.nextInt(maxDoc);
         if (!deleted.contains(id)) {
           deleted.add(id);
-          w.deleteDocuments(new Term("id", String.format("%09d", id)));
+          w.deleteDocuments(new Term("id", LineFileDocs.intToID(id)));
         }
       }
       final long t8 = System.currentTimeMillis();
@@ -500,7 +502,7 @@ public final class Indexer {
               if (doc == null) {
                 break;
               }
-              final int id = Integer.parseInt(idField.stringValue());
+              final int id = LineFileDocs.idToInt(idField.stringValue());
               if (id >= numTotalDocs) {
                 break;
               }
@@ -531,7 +533,7 @@ public final class Indexer {
             if (doc == null) {
               break;
             }
-            final int id = Integer.parseInt(idField.stringValue());
+            final int id = LineFileDocs.idToInt(idField.stringValue());
             if (numTotalDocs != -1 && id >= numTotalDocs) {
               break;
             }

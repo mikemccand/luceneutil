@@ -208,7 +208,8 @@ class CompetitorBuilder(object):
     self._index = None
     competition.competitors.append(self)
  
-  def commitPoint(self, commitPoint): 
+  def commitPoint(self, commitPoint):
+    """multi, single, delmulti, delsingle"""
     self._commitPoint = commitPoint
     return self
 

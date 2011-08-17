@@ -53,7 +53,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       countPerCat = 20
       repeatCount = 1
     else:
-      countPerCat = 1
+      countPerCat = 4
       repeatCount = 35
   else:
     jvmCount = 20
@@ -65,9 +65,9 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       repeatCount = 50
 
   if False:
-    jvmCount = 4
-    countPerCat = 20
-    repeatCount = 30
+    jvmCount = 3
+    countPerCat = 5
+    repeatCount = 35
 
   if index:
     seen = set()
@@ -99,6 +99,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   if search:
     randomSeed = random.randint(-10000000, 1000000)
     results = {}
+
+    if constants.JAVA_COMMAND.find(' -ea') != -1:
+      print
+      print 'WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND
+      print
+      
     print
     print 'Search:'
 

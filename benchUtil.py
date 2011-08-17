@@ -97,10 +97,11 @@ class SearchTask:
     if self.sort != other.sort:
       self.fail('wrong sort: %s vs %s' % (self.sort, other.sort))
     if self.groupField is None:
-      if self.expandedTermCount != other.expandedTermCount:
-        # nocommit why!?
-        print 'WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount)
-        # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
+      if False:
+        # TODO: fix SearchPerfTest -- cannot use term count across threads since mutiple threads store in the query
+        if self.expandedTermCount != other.expandedTermCount:
+          print 'WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount)
+          # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
       if self.hitCount != other.hitCount:
         self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
       if len(self.hits) != len(other.hits):
@@ -150,7 +151,7 @@ class SearchTask:
         for docIDX in xrange(len(groups1)):
           if groups1[docIDX][1] != groups2[docIDX][1]:
             self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
-          if groups1[docIDX][0] != groups2[docIDX][0] and i < len(groups1)-1:
+          if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
             self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
           
   def fail(self, message):
@@ -236,12 +237,12 @@ def collapseDups(hits):
 
 reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) hits=([0-9]+)$')
 reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+)$')
-reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$')
+reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
 rePKOrd = re.compile(r'PK(.*?)\[')
-reOneGroup = re.compile('group=(.*?) totalHits=(.*?) groupRelevance=(.*?)$')
+reOneGroup = re.compile('group=(.*?) totalHits=(.*?) groupRelevance=(.*?)$', re.DOTALL)
 reHeap = re.compile('HEAP: ([0-9]+)$')
 
 def parseResults(resultsFiles):

@@ -32,6 +32,10 @@ ROOT = common.findRootDir(os.getcwd())
 osName = common.osName
 
 JAVA_ARGS = '-Xmx512m -Xms512m'
+# print
+# print 'WARNING: *** running java w/ 8 GB heap ***'
+# print
+# JAVA_ARGS = '-Xmx8g -Xms8g'
 
 def getArg(argName, default, hasArg=True):
   try:
@@ -151,6 +155,7 @@ OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 TEST_TEMP_DIR = 'build/test/reruns'
 
 upto = 0
+iter = 0 
 while True:
   for testClass, testMethod in tests:
     print
@@ -160,9 +165,10 @@ while True:
       s = testClass
 
     if doLog:
-      print '%s TEST: %s -> %s/%d.log' % (datetime.datetime.now(), s, logDirName, upto)
+      print 'iter %s %s TEST: %s -> %s/%d.log' % (iter, datetime.datetime.now(), s, logDirName, upto)
     else:
-      print '%s TEST: %s' % (datetime.datetime.now(), s)
+      print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
+    iter += 1
       
     command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
     if constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
@@ -212,9 +218,8 @@ while True:
     elif doLog:
       if not keepLogs:
         os.remove('%s/%d.log' % (logDirName, upto))
-      pass
-      
-    upto += 1
+      else:
+        upto += 1
 
   if onlyOnce:
     break

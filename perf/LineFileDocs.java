@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.util.BytesRef;
 
 public class LineFileDocs implements Closeable {
 
@@ -63,6 +64,61 @@ public class LineFileDocs implements Closeable {
       reader.close();
       reader = null;
     }
+  }
+
+  public static String intToID(int id) {
+    // Base 36, prefixed with 0s to be length 6 (= 2.2 B)
+    final String s = String.format("%6s", Integer.toString(id, Character.MAX_RADIX)).replace(' ', '0');
+    //System.out.println("fromint: " + id + " -> " + s);
+    return s;
+  }
+
+  public static int idToInt(BytesRef id) {
+    // Decode base 36
+    int accum = 0;
+    int downTo = id.length + id.offset - 1;
+    int multiplier = 1;
+    while(downTo >= id.offset) {
+      final char ch = (char) (id.bytes[downTo--]&0xff);
+      final int digit;
+      if (ch >= '0' && ch <= '9') {
+        digit = ch - '0';
+      } else if (ch >= 'a' && ch <= 'z') {
+        digit = 10 + (ch-'a');
+      } else {
+        assert false;
+        digit = -1;
+      }
+      accum += multiplier * digit;
+      multiplier *= 36;
+    }
+
+    //System.out.println("toint: " + id.utf8ToString() + " -> " + accum);
+    return accum;
+  }
+
+  public static int idToInt(String id) {
+    // Decode base 36
+    int accum = 0;
+    int downTo = id.length() - 1;
+    int multiplier = 1;
+    while(downTo >= 0) {
+      final char ch = (char) id.charAt(downTo--);
+      final int digit;
+      if (ch >= '0' && ch <= '9') {
+        digit = ch - '0';
+      } else if (ch >= 'a' && ch <= 'z') {
+        digit = 10 + (ch-'a');
+      } else {
+        assert false;
+        digit = -1;
+      }
+      accum += multiplier * digit;
+      multiplier *= 36;
+    }
+
+    //System.out.println("toint: " + id + " -> " + accum);
+    return accum;
   }
 
   private final static char SEP = '\t';
@@ -151,7 +207,7 @@ public class LineFileDocs implements Closeable {
     doc.titleTokenized.setValue(title);
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setValue(dateString);
-    doc.id.setValue(String.format("%09d", myID));
+    doc.id.setValue(intToID(myID));
 
     doc.datePos.setIndex(0);
     final Date date = doc.dateParser.parse(dateString, doc.datePos);

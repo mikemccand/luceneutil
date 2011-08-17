@@ -35,7 +35,7 @@ COST_PER_JOB = 40.0
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
-NUM_THREAD = 18
+NUM_THREAD = 20
 
 RAN_MULT = 1
 
@@ -67,7 +67,9 @@ try:
 except ValueError:
   DIR = 'random'
   
-TEST_ARGS = ' -server -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml' % (CODEC, VERBOSE, DIR, RAN_MULT)
+#TEST_ARGS = ' -server -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml' % (CODEC, VERBOSE, DIR, RAN_MULT)
+
+TEST_ARGS = ' -server -Dtestmethod= -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.codecprovider=random -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (CODEC, VERBOSE, DIR, RAN_MULT)
 
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
@@ -227,7 +229,7 @@ class RunThread:
         cmd = 'java -Xmx%s -Xms%s %s -Dlucene.version=%s' % (HEAP, HEAP, TEST_ARGS, LUCENE_VERSION)
         if constants.TESTS_LINE_FILE is not None:
           cmd += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
-        cmd += ' -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr... org.junit.runner.JUnitCore %s' % \
+        cmd += ' -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties org.junit.runner.JUnitCore %s' % \
               (self.tempDir, ROOT, ' '.join(job.tests))
 
         if 0:
@@ -283,20 +285,18 @@ os.chdir('%s/lucene' % ROOT)
 
 if '-noc' not in sys.argv:
 
+  os.chdir('%s/lucene' % ROOT)
+  run('Compile Lucene...', 'ant compile-test', 'compile.log')
+  run('Compile Lucene core/contrib...', 'ant build-contrib', 'compile-contrib.log')
+  
   if os.path.exists('%s/modules' % ROOT):
     os.chdir('%s/modules' % ROOT)
     run('Compile modules...', 'ant compile compile-test', 'compile.log')
 
-  os.chdir('%s/lucene' % ROOT)
-  #run('Compile Lucene...', 'ant compile-test', 'compile.log')
-
-  if True:
-    run('Compile Lucene core/contrib...', 'ant build-contrib', 'compile-contrib.log')
-
   if True and doSolr:
     os.chdir('%s/solr' % ROOT)
-    run('Compile Solr...', 'ant compile-test', 'compile.log')
-    run('Compile Solr contrib...', 'ant build-contrib', 'compile-contrib.log')
+    #run('Compile Solr...', 'ant compile-test', 'compile.log')
+    run('Compile Solr...', 'ant compile compile-test', 'compile.log')
 
 testDir = '%s/lucene/build/test' % ROOT
 if not os.path.exists(testDir):
@@ -406,7 +406,7 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if False and testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',):
+        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.search.TestRealTimeGet', 'org.apache.solr.servlet.CacheHeaderTest'):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
@@ -420,7 +420,7 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',):
+        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.client.solrj.TestBatchUpdate', 'org.apache.solr.client.solrj.embedded.SolrExampleJettyTest', 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest', 'org.apache.solr.client.solrj.SolrExampleBinaryTest'):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
@@ -468,6 +468,9 @@ if doSolr:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
+          if testClass in ('org.apache.solr.handler.clustering.DistributedClusteringComponentTest',):
+            print 'WARNING: skipping test %s' % testClass
+            continue
           # print '  %s' % testClass
           tests.append((estimateCost(testClass), '%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib), testClass, CLASSPATH))
 

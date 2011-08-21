@@ -126,8 +126,8 @@ KNOWN_CHANGES = [
    Switched back to Java 1.6.0_21 from 1.6.0_26 because _26 would sometimes deadlock threads.
    '''),
 
-  ('2011-08-21',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-3030">LUCENE-3030</a>: cutover to more efficient BlockTree terms dict',
+  ('2011-08-20',
+   'LUCENE-3030: cutover to more efficient BlockTree terms dict',
    '''
    <a href="https://issues.apache.org/jira/browse/LUCENE-3030">LUCENE-3030</a>: cutover to more efficient BlockTree terms dict.
    '''),

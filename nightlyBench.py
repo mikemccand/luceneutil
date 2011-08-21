@@ -125,6 +125,12 @@ KNOWN_CHANGES = [
    '''
    Switched back to Java 1.6.0_21 from 1.6.0_26 because _26 would sometimes deadlock threads.
    '''),
+
+  ('2011-08-21',
+   'LUCENE-30303: cutover to more efficient BlockTree terms dict',
+   '''
+   LUCENE-30303: cutover to more efficient BlockTree terms dict.
+   '''),
   ]
 
 # TODO

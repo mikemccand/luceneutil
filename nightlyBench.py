@@ -127,9 +127,9 @@ KNOWN_CHANGES = [
    '''),
 
   ('2011-08-21',
-   'LUCENE-30303: cutover to more efficient BlockTree terms dict',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-3030">LUCENE-3030</a>: cutover to more efficient BlockTree terms dict',
    '''
-   LUCENE-30303: cutover to more efficient BlockTree terms dict.
+   <a href="https://issues.apache.org/jira/browse/LUCENE-3030">LUCENE-3030</a>: cutover to more efficient BlockTree terms dict.
    '''),
   ]
 

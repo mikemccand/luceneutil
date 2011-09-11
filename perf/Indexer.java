@@ -382,7 +382,7 @@ public final class Indexer {
         Field field1 = (Field) f;
       
         Field field2 = new Field(field1.name(),
-                                 field1.getFieldType(),
+                                 field1.fieldType(),
                                  field1.stringValue());
         doc2.add(field2);
       }

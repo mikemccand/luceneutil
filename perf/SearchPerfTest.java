@@ -17,40 +17,41 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.File;
-import java.io.IOException;
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.CountDownLatch;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashMap;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Random;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
+import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.index.codecs.CodecProvider;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
-import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.search.spell.SuggestWord;
-import org.apache.lucene.search.spell.DirectSpellChecker;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.grouping.*;
 import org.apache.lucene.search.spans.*;
+import org.apache.lucene.search.spell.DirectSpellChecker;
+import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
 
@@ -746,10 +747,8 @@ public class SearchPerfTest {
     } else if (analyzer.equals("StandardAnalyzer")) {
       a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      ShingleAnalyzerWrapper an = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
-                                                             2, 2);
-      an.setOutputUnigramsIfNoShingles(true);
-      a = an;
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
+                                     2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 

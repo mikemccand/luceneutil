@@ -51,6 +51,7 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.search.grouping.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
+import org.apache.lucene.search.spell.SuggestMode;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -474,7 +475,7 @@ public class SearchPerfTest {
 
     @Override
     public void go(IndexState state) throws IOException {
-      answers = state.spellChecker.suggestSimilar(term, 10, state.searcher.getIndexReader(), true);
+      answers = state.spellChecker.suggestSimilar(term, 10, state.searcher.getIndexReader(), SuggestMode.SUGGEST_MORE_POPULAR);
     }
 
     @Override

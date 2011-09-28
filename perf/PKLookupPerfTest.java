@@ -63,7 +63,7 @@ public class PKLookupPerfTest {
     w.setInfoStream(System.out);
    
     final Document doc = new Document();
-    final Field field = new Field("id", StringField.TYPE_STORED, "");
+    final Field field = new Field("id", "", StringField.TYPE_STORED);
     doc.add(field);
 
     for(int i=0;i<docCount;i++) {

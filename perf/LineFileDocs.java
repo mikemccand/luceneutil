@@ -142,16 +142,16 @@ public class LineFileDocs implements Closeable {
       title = new StringField("title", "");
       doc.add(title);
 
-      titleTokenized = new Field("titleTokenized", TextField.TYPE_STORED, "");
+      titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
       doc.add(titleTokenized);
 
       body = new TextField("body", "");
       doc.add(body);
 
-      id = new Field("id", StringField.TYPE_STORED, "");
+      id = new Field("id", "", StringField.TYPE_STORED);
       doc.add(id);
 
-      date = new Field("date", StringField.TYPE_STORED, "");
+      date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
 
       dateMSec = new NumericField("datenum");

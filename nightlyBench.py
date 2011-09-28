@@ -131,7 +131,13 @@ KNOWN_CHANGES = [
    '''
    <a href="https://issues.apache.org/jira/browse/LUCENE-3030">LUCENE-3030</a>: cutover to more efficient BlockTree terms dict.
    '''),
-  ]
+
+  ('2011-09-22',
+   'LUCENE-3215: sloppy PhraseQuery speedups',
+   '''
+   <a href="https://issues.apache.org/jira/browse/LUCENE-3215">LUCENE-3215</a>: more efficient scoring for sloppy PhraseQuery.
+   '''),
+   ]
 
 # TODO
 #   - need a tiny docs test?  catch per-doc overhead regressions...

@@ -21,11 +21,9 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.lucene.analysis.core.*;
+import org.apache.lucene.analysis.*;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.index.codecs.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -34,36 +32,34 @@ import org.apache.lucene.util.*;
 //  - also test GUID based IDs
 //  - also test base-N (32/36) IDs
 
-// javac -cp build/classes/java:../modules/analysis/build/common/classes/java perf/PKLookupPerfTest.java
-// java -Xbatch -server -Xmx2g -Xms2g -cp .:build/classes/java:../modules/analysis/build/common/classes/java perf.PKLookupPerfTest MMapDirectory /p/lucene/indices/pk 1000000 1000 17
+// javac -cp build/classes/java:../modules/analysis/build/common/classes/java perf/PKLookupPerfTest3X.java
+// java -Xbatch -server -Xmx2g -Xms2g -cp .:build/classes/java:../modules/analysis/build/common/classes/java perf.PKLookupPerfTest3X MMapDirectory /p/lucene/indices/pk 1000000 1000 17
 
-public class PKLookupPerfTest {
+public class PKLookupPerfTest3X {
 
   // If true, we pull a DocsEnum to get the matching doc for
   // the PK; else we only verify the PK is found exactly
   // once (in one segment)
-  private static boolean DO_DOC_LOOKUP = true;
+  private static boolean DO_DOC_LOOKUP = false;
 
   private static void createIndex(final Directory dir, final int docCount)
     throws IOException {
     System.out.println("Create index... " + docCount + " docs");
  
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
-                                                        new WhitespaceAnalyzer(Version.LUCENE_40));
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_35,
+                                                        new WhitespaceAnalyzer(Version.LUCENE_35));
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    CodecProvider cp = new CoreCodecProvider();
-    cp.setDefaultFieldCodec("Pulsing");
-    iwc.setCodecProvider(cp);
     // 5 segs per level in 3 levels:
     int mbd = docCount/(5*111);
     iwc.setMaxBufferedDocs(mbd);
     iwc.setRAMBufferSizeMB(-1.0);
-    ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
+    ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
     final IndexWriter w = new IndexWriter(dir, iwc);
-    w.setInfoStream(System.out);
+    //w.setInfoStream(System.out);
    
     final Document doc = new Document();
-    final Field field = new Field("id", StringField.TYPE_STORED, "");
+    final Field field = new Field("id", "", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS);
+    field.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
     doc.add(field);
 
     for(int i=0;i<docCount;i++) {
@@ -104,10 +100,9 @@ public class PKLookupPerfTest {
     System.out.println("Reader=" + r);
 
     final IndexReader[] subs = r.getSequentialSubReaders();
-    final DocsEnum[] docsEnums = new DocsEnum[subs.length];
-    final TermsEnum[] termsEnums = new TermsEnum[subs.length];
+    final TermDocs[] termDocsArr = new TermDocs[subs.length];
     for(int subIdx=0;subIdx<subs.length;subIdx++) {
-      termsEnums[subIdx] = subs[subIdx].fields().terms("id").getThreadTermsEnum();
+      termDocsArr[subIdx] = subs[subIdx].termDocs();
     }
 
     final int maxDoc = r.maxDoc();
@@ -116,10 +111,12 @@ public class PKLookupPerfTest {
     for(int cycle=0;cycle<10;cycle++) {
       System.out.println("Cycle: " + (cycle==0 ? "warm" : "test"));
       System.out.println("  Lookup...");
-      final BytesRef[] lookup = new BytesRef[numLookups];
+      final Term[] lookup = new Term[numLookups];
       final int[] docIDs = new int[numLookups];
+      final Term protoTerm = new Term("id");
       for(int iter=0;iter<numLookups;iter++) {
-        lookup[iter] = new BytesRef(String.format("%09d", rand.nextInt(maxDoc)));
+        // Base 36, prefixed with 0s to be length 6 (= 2.2 B)
+        lookup[iter] = protoTerm.createTerm(String.format("%6s", Integer.toString(rand.nextInt(maxDoc), Character.MAX_RADIX)).replace(' ', '0'));
       }
       Arrays.fill(docIDs, -1);
 
@@ -134,24 +131,37 @@ public class PKLookupPerfTest {
         int found = 0;
         for(int subIdx=0;subIdx<subs.length;subIdx++) {
           final IndexReader sub = subs[subIdx];
-          final TermsEnum termsEnum = termsEnums[subIdx];
-          if (termsEnum.seekExact(lookup[iter], false)) { 
-            if (DO_DOC_LOOKUP) {
-              final DocsEnum docs = docsEnums[subIdx] = termsEnum.docs(null, docsEnums[subIdx]);
-              final int docID = docs.nextDoc();
-              if (docID == DocsEnum.NO_MORE_DOCS) {
+          if (!DO_DOC_LOOKUP) { 
+            final int df = sub.docFreq(lookup[iter]);
+            if (df != 0) {
+              if (df != 1) {
+                // Only 1 doc should be found
                 failed.set(true);
               }
+              found++;
+              if (found > 1) {
+                // Should have been found only once across segs
+                System.out.println("FAIL0");
+                failed.set(true);
+              }
+            }
+          } else {
+            final TermDocs termDocs = termDocsArr[subIdx];
+            termDocs.seek(lookup[iter]);
+            if (termDocs.next()) {
+              found++;
+              if (found > 1) {
+                // Should have been found only once across segs
+                failed.set(true);
+              }
+              final int docID = termDocs.doc();
               if (docIDs[iter] != -1) {
+                // Same doc should only be seen once
                 failed.set(true);
               }
               docIDs[iter] = base + docID;
-              if (docs.nextDoc() != DocsEnum.NO_MORE_DOCS) {
-                failed.set(true);
-              }
-            } else {
-              found++;
-              if (found > 1) {
+              if (termDocs.next()) {
+                // Only 1 doc should be found
                 failed.set(true);
               }
             }
@@ -163,7 +173,7 @@ public class PKLookupPerfTest {
       
       // cycle 0 is for warming
       //System.out.println("  " + (cycle == 0 ? "WARM: " : "") + tLookup + " msec for " + numLookups + " lookups (" + (1000*tLookup/numLookups) + " us per lookup) + totSeekMS=" + (BlockTermsReader.totSeekNanos/1000000.));
-      System.out.println("  " + (cycle == 0 ? "WARM: " : "") + tLookup + " msec for " + numLookups + " lookups (" + (1000*tLookup/numLookups) + " us per lookup)");
+      System.out.println("  " + (cycle == 0 ? "WARM: " : "") + tLookup + " msec for " + numLookups + " lookups (" + (1000.0*tLookup/numLookups) + " us per lookup)");
 
       if (failed.get()) {
         throw new RuntimeException("at least one lookup produced more than one result");
@@ -176,8 +186,8 @@ public class PKLookupPerfTest {
             throw new RuntimeException("lookup of " + lookup[iter] + " failed iter=" + iter);
           }
           final String found = r.document(docIDs[iter]).get("id");
-          if (!found.equals(lookup[iter].utf8ToString())) {
-            throw new RuntimeException("lookup of docid=" + lookup[iter].utf8ToString() + " hit wrong docid=" + found);
+          if (!found.equals(lookup[iter].text())) {
+            throw new RuntimeException("lookup of docid=" + lookup[iter].text() + " hit wrong docid=" + found);
           }
         }
       }

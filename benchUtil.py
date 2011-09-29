@@ -674,6 +674,8 @@ class RunAlgs:
     os.chdir(checkoutToPath(competitor.checkout))
     try:
       run('ant compile', 'compile.log')
+      os.chdir('lucene')
+      run('ant compile-test', 'compile.log')
       
       print '  %s' % path
       os.chdir(path)

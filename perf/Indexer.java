@@ -367,10 +367,11 @@ public final class Indexer {
   // TODO: is there a pre-existing way to do this!!!
   static Document cloneDoc(Document doc1) {
     final Document doc2 = new Document();
-    for(Fieldable f : doc1.getFields()) {
+    for(IndexableField f0 : doc1.getFields()) {
+      Field f = (Field) f0;
       if (f instanceof NumericField) {
         NumericField f2 = new NumericField(f.name());
-        Number n = ((NumericField) f).getNumericValue();
+        Number n = ((NumericField) f).numericValue();
         if (n instanceof Long) {
           f2.setLongValue((Long) n);
         } else {
@@ -381,16 +382,8 @@ public final class Indexer {
         Field field1 = (Field) f;
       
         Field field2 = new Field(field1.name(),
-                                 field1.stringValue(),
-                                 field1.isStored() ? Field.Store.YES : Field.Store.NO,
-                                 field1.isIndexed() ? (field1.isTokenized() ? Field.Index.ANALYZED : Field.Index.NOT_ANALYZED) : Field.Index.NO);
-        if (field1.getOmitNorms()) {
-          field2.setOmitNorms(true);
-        }
-        field2.setIndexOptions(field1.getIndexOptions());
-        //if (field1.getOmitTermFreqAndPositions()) {
-        //field2.setOmitTermFreqAndPositions(true);
-        //}
+                                 field1.getFieldType(),
+                                 field1.stringValue());
         doc2.add(field2);
       }
     }
@@ -432,30 +425,18 @@ public final class Indexer {
       final Field groupBlockField;
       final Field groupEndField;
       if (group100 != null) {
-        group100Field = new Field("group100", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group100Field.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
-        group100Field.setOmitNorms(true);
+        group100Field = new StringField("group100", "");
         docState.doc.add(group100Field);
-        group10KField = new Field("group10K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group10KField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
-        group10KField.setOmitNorms(true);
+        group10KField = new StringField("group10K", "");
         docState.doc.add(group10KField);
-        group100KField = new Field("group100K", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group100KField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
-        group100KField.setOmitNorms(true);
+        group100KField = new StringField("group100K", "");
         docState.doc.add(group100KField);
-        group1MField = new Field("group1M", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        group1MField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
-        group1MField.setOmitNorms(true);
+        group1MField = new StringField("group1M", "");
         docState.doc.add(group1MField);
-        groupBlockField = new Field("groupblock", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        groupBlockField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
-        groupBlockField.setOmitNorms(true);
+        groupBlockField = new StringField("groupblock", "");
         docState.doc.add(groupBlockField);
         // Binary marker field:
-        groupEndField = new Field("groupend", "x", Field.Store.NO, Field.Index.NOT_ANALYZED);
-        groupEndField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
-        groupEndField.setOmitNorms(true);
+        groupEndField = new StringField("groupend", "x");
       } else {
         group100Field = null;
         group100KField = null;

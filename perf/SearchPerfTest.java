@@ -46,6 +46,9 @@ import org.apache.lucene.index.codecs.CodecProvider;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.search.similarities.BasicSimilarityProvider;
+import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.search.similarities.SimilarityProvider;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.*;
@@ -689,9 +692,17 @@ public class SearchPerfTest {
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
+    
+    // TODO: this could be way better.
+    final String similarity = args[11];
+    // now reflect
+    final Class<? extends Similarity> simClazz = 
+      Class.forName("org.apache.lucene.search.similarities." + similarity).asSubclass(Similarity.class);
+    final SimilarityProvider provider = new BasicSimilarityProvider(simClazz.newInstance());
 
     System.out.println("Using dir impl " + dir.getClass().getName());
     System.out.println("Analyzer " + analyzer);
+    System.out.println("Similarity " + similarity);
     System.out.println("Thread count " + threadCount);
     System.out.println("Task repeat count " + taskRepeatCount);
     System.out.println("Tasks file " + tasksFile);
@@ -703,12 +714,12 @@ public class SearchPerfTest {
     Filter f = null;
     boolean doOldFilter = false;
     boolean doNewFilter = false;
-    if (args.length == 14) {
-      final String commit = args[11];
+    if (args.length == 15) {
+      final String commit = args[12];
       System.out.println("open commit=" + commit);
       IndexReader reader = IndexReader.open(findCommitPoint(commit, dir), true);
-      Filter filt = new RandomFilter(Double.parseDouble(args[13])/100.0);
-      if (args[12].equals("FilterOld")) {
+      Filter filt = new RandomFilter(Double.parseDouble(args[14])/100.0);
+      if (args[13].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
         /*
         AtomicReaderContext[] leaves = ReaderUtil.leaves(reader.getTopReaderContext());
@@ -720,14 +731,17 @@ public class SearchPerfTest {
         throw new RuntimeException("4th arg should be FilterOld or FilterNew");
       }
       searcher = new IndexSearcher(reader);
-    } else if (args.length == 12) {
-      final String commit = args[11];
+      searcher.setSimilarityProvider(provider);
+    } else if (args.length == 13) {
+      final String commit = args[12];
       System.out.println("open commit=" + commit);
       searcher = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir), true));
+      searcher.setSimilarityProvider(provider);
     } else {
       // open last commit
       System.out.println("open latest commit");
       searcher = new IndexSearcher(dir);
+      searcher.setSimilarityProvider(provider);
     }
 
     System.out.println("reader=" + searcher.getIndexReader());

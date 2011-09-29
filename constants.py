@@ -61,6 +61,7 @@ if 'ANALYZER' in locals():
 
 CODEC_DEFAULT='Standard'
 ANALYZER_DEFAULT='StandardAnalyzer'
+SIMILARITY_DEFAULT='DefaultSimilarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 
 TESTS_LINE_FILE = None

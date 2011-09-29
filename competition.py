@@ -116,7 +116,7 @@ class Competitor(object):
 
   doSort = False
 
-  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile, threads):
+  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile, threads, similarity):
     self.name = name
     self.index = index
     self.checkout = checkout
@@ -125,6 +125,7 @@ class Competitor(object):
     self.analyzer = analyzer
     self.tasksFile = tasksFile
     self.threads = threads
+    self.similarity = similarity
 
   def compile(self, cp):
     benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
@@ -150,6 +151,7 @@ class Competition(object):
     self._debug=False
     self.benchSearch = True
     self.benchIndex = True
+    self._verifyScores = True
 
   def newIndex(self, checkout, data=WIKI_MEDIUM_10M):
     return IndexBuilder(checkout, self.ramBufferMB, data, self)
@@ -170,6 +172,10 @@ class Competition(object):
   def skipSearch(self):
     self.benchSearch=False
     return self
+    
+  def verifyScores(self, verifyScores):
+    self._verifyScores = verifyScores
+    return self
 
   def benchmark(self, id):
     if len(self.competitors) != 2:
@@ -185,7 +191,7 @@ class Competition(object):
     challenger = self.competitors[1].build()
      
     searchBench.run(id, base, challenger, coldRun=self.cold, doCharts=self.printCharts,
-                search=self.benchSearch, index=self.benchIndex, debugs=self._debug, debug=self._debug)
+                search=self.benchSearch, index=self.benchIndex, debugs=self._debug, debug=self._debug, verifyScores=self._verifyScores)
     return self
 
   def clearCompetitors(self):
@@ -202,6 +208,7 @@ class CompetitorBuilder(object):
     self._checkout = checkout
     self._directory = MMAP_DIRECTORY
     self._analyzer = constants.ANALYZER_DEFAULT
+    self._similarity = constants.SIMILARITY_DEFAULT
     self._ramBufferMB = competition.ramBufferMB
     self._threads = competition.searchThreads
     self._commitPoint = MULTI_SEGMENTS_COMMIT
@@ -225,6 +232,10 @@ class CompetitorBuilder(object):
     self._directory = directory
     return self
 
+  def similarity(self, similarity):
+    self._similarity = similarity
+    return self
+
   def withIndex(self, index):
     self._index = index
     return self
@@ -233,7 +244,7 @@ class CompetitorBuilder(object):
     if not self._index:
       raise RuntimeError("no index given to competitor %s " % self._name)
     data = self._index._data
-    return Competitor(self._name, self._checkout, self._index.build(), self._directory, self._analyzer, self._commitPoint, data.tasksFile, self._threads)
+    return Competitor(self._name, self._checkout, self._index.build(), self._directory, self._analyzer, self._commitPoint, data.tasksFile, self._threads, self._similarity)
 
 class IndexBuilder(object):
   

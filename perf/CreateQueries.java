@@ -217,7 +217,7 @@ public class CreateQueries {
       }
       // TODO: make my own fuzzy enum?
       long sumDF = 0;
-      SuggestWord[] suggested = spellChecker.suggestSimilar(new Term(field, tdf.term), 50, r, true);
+      SuggestWord[] suggested = spellChecker.suggestSimilar(new Term(field, tdf.term), 50, r, SuggestMode.SUGGEST_MORE_POPULAR);
       if (suggested.length < 5) {
         continue;
       }

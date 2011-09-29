@@ -39,6 +39,7 @@ import java.util.Collections;
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
+import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
@@ -49,6 +50,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.similarities.BasicSimilarityProvider;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.similarities.SimilarityProvider;
+import org.apache.lucene.search.spell.SuggestMode;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.*;
@@ -476,7 +478,7 @@ public class SearchPerfTest {
 
     @Override
     public void go(IndexState state) throws IOException {
-      answers = state.spellChecker.suggestSimilar(term, 10, state.searcher.getIndexReader(), true);
+      answers = state.spellChecker.suggestSimilar(term, 10, state.searcher.getIndexReader(), SuggestMode.SUGGEST_MORE_POPULAR);
     }
 
     @Override
@@ -761,8 +763,7 @@ public class SearchPerfTest {
       a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
       ShingleAnalyzerWrapper an = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
-                                                             2, 2);
-      an.setOutputUnigramsIfNoShingles(true);
+                                  2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
       a = an;
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);

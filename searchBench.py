@@ -29,10 +29,10 @@ if '-ea' in sys.argv:
 
 osName = common.osName
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True):
   competitors = [base, challenger]
 
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores)
   if '-noc' not in sys.argv:
     print
     print 'Compile:'
@@ -47,7 +47,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
  
   if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
     debug = True
-    id += '-debug'
+    id += '-fast'
     jvmCount = 4
     if coldRun:
       countPerCat = 20

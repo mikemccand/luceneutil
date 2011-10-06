@@ -82,7 +82,7 @@ def main():
   index = comp.newIndex(NIGHTLY_DIR)
   c = comp.competitor(id, NIGHTLY_DIR)
   c.withIndex(index)
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
   r.compile(c.build())
 
 def sendEmail(emailAddress, message):

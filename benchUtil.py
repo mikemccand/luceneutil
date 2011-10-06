@@ -89,7 +89,7 @@ def nameToIndexPath(name):
 class SearchTask:
   # TODO: subclass SearchGroupTask
 
-  def verifySame(self, other):
+  def verifySame(self, other, verifyScores):
     if not isinstance(other, SearchTask):
       self.fail('not a SearchTask (%s)' % other)
     if self.query != other.query:
@@ -107,19 +107,20 @@ class SearchTask:
       if len(self.hits) != len(other.hits):
         self.fail('wrong top hit count: %s vs %s' % (len(self.hits), len(other.hits)))
 
-      # Collapse equals... this is sorta messy, but necessary because we
-      # do not dedup by true id in SearchPerfTest
-      hitsSelf = collapseDups(self.hits)
-      hitsOther = collapseDups(other.hits)
+      if verifyScores:
+        # Collapse equals... this is sorta messy, but necessary because we
+        # do not dedup by true id in SearchPerfTest
+        hitsSelf = collapseDups(self.hits)
+        hitsOther = collapseDups(other.hits)
 
-      if len(hitsSelf) != len(hitsOther):
-        self.fail('wrong collapsed hit count: %s vs %s' % (len(hitsSelf), len(hitsOther)))
+        if len(hitsSelf) != len(hitsOther):
+          self.fail('wrong collapsed hit count: %s vs %s' % (len(hitsSelf), len(hitsOther)))
 
-      for i in xrange(len(hitsSelf)):
-        if hitsSelf[i][1] != hitsOther[i][1]:
-          self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
-        if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
-          self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+        for i in xrange(len(hitsSelf)):
+          if hitsSelf[i][1] != hitsOther[i][1]:
+            self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+          if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
+            self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
     else:
       # groups
       if self.groupCount != other.groupCount:
@@ -136,23 +137,24 @@ class SearchTask:
           self.fail('group %d has wrong groupValue: %s vs %s' % (groupIDX, groupValue1, groupValue2))
 
         # iffy: this is a float cmp
-        if groupTopScore1 != groupTopScore2:
-          self.fail('group %d has wrong groupTopScor: %s vs %s' % (groupIDX, groupTopScore1, groupTopScore2))
+        if verifyScores:
+          if groupTopScore1 != groupTopScore2:
+            self.fail('group %d has wrong groupTopScor: %s vs %s' % (groupIDX, groupTopScore1, groupTopScore2))
 
-        if groupTotHits1 != groupTotHits2:
-          self.fail('group %d has wrong totHits: %s vs %s' % (groupIDX, groupTotHits1, groupTotHits2))
+          if groupTotHits1 != groupTotHits2:
+            self.fail('group %d has wrong totHits: %s vs %s' % (groupIDX, groupTotHits1, groupTotHits2))
 
-        if len(groups1) != len(groups2):
-          self.fail('group %d has wrong number of docs: %s vs %s' % (groupIDX, len(groups1), len(groups2)))
+          if len(groups1) != len(groups2):
+            self.fail('group %d has wrong number of docs: %s vs %s' % (groupIDX, len(groups1), len(groups2)))
 
-        groups1 = collapseDups(groups1)
-        groups2 = collapseDups(groups2)
+          groups1 = collapseDups(groups1)
+          groups2 = collapseDups(groups2)
 
-        for docIDX in xrange(len(groups1)):
-          if groups1[docIDX][1] != groups2[docIDX][1]:
-            self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
-          if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
-            self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
+          for docIDX in xrange(len(groups1)):
+            if groups1[docIDX][1] != groups2[docIDX][1]:
+              self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
+            if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
+              self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
           
   def fail(self, message):
     s = 'query=%s' % self.query
@@ -181,7 +183,7 @@ class SearchTask:
 class RespellTask:
   cat = 'Respell'
 
-  def verifySame(self, other):
+  def verifySame(self, other, verifyScores):
     if not isinstance(other, RespellTask):
       fail('not a RespellTask')
     if self.term != other.term:
@@ -208,7 +210,7 @@ class RespellTask:
 class PKLookupTask:
   cat = 'PKLookup'
 
-  def verifySame(self, other):
+  def verifySame(self, other, verifyScores):
     # already "verified" in search perf test, ie, that the docID
     # returned in fact has the id that was asked for
     pass
@@ -426,6 +428,7 @@ def agg(iters, cat):
     if cat not in tasksByCat:
       continue
     tasks = tasksByCat[cat]
+
     if len(tasks[0]) <= WARM_SKIP:
       raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
 
@@ -517,11 +520,12 @@ def run(cmd, logFile=None, indent='    '):
 
 class RunAlgs:
 
-  def __init__(self, javaCommand):
+  def __init__(self, javaCommand, verifyScores):
     self.logCounter = 0
     self.results = []
     self.compiled = set()
     self.javaCommand = javaCommand
+    self.verifyScores = verifyScores
     print
     print 'JAVA:\n%s' % os.popen('java -version 2>&1').read()
     
@@ -738,8 +742,8 @@ class RunAlgs:
       for iter in xrange(jvmCount):
         print '    iter %s of %s' % (1+iter, jvmCount)
         randomSeed2 = rand.randint(-10000000, 1000000)      
-        command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s' % \
-            (self.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.commitPoint)
+        command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s %s' % \
+            (self.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
         if filter is not None:
           command += ' %s %.2f' % filter
         iterLogFile = '%s.%s' % (logFile, iter)
@@ -767,7 +771,7 @@ class RunAlgs:
     cmpRawResults, heapCmp = parseResults(cmpLogFiles)
 
     # make sure they got identical results
-    cmpDiffs = compareHits(baseRawResults, cmpRawResults)
+    cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores)
 
     baseResults = collateResults(baseRawResults)
     cmpResults = collateResults(cmpRawResults)
@@ -977,7 +981,7 @@ def fixupFuzzy(query):
       query = query.replace('~%s' % fuzzOrig, '~%s.0' % editDistance)
   return query
 
-def tasksToMap(taskIters):
+def tasksToMap(taskIters, verifyScores):
   d = {}
   if len(taskIters) > 0:
     for task in taskIters[0]:
@@ -989,14 +993,14 @@ def tasksToMap(taskIters):
           raise RuntimeError('tasks differ from one iteration to the next')
         else:
           # Make sure same task returned same results w/in this run:
-          task.verifySame(d[task])
+          task.verifySame(d[task], verifyScores)
   return d
     
-def compareHits(r1, r2):
+def compareHits(r1, r2, verifyScores):
 
   # Carefully compare, allowing for the addition of new tasks:
-  d1 = tasksToMap(r1)
-  d2 = tasksToMap(r2)
+  d1 = tasksToMap(r1, verifyScores)
+  d2 = tasksToMap(r2, verifyScores)
 
   checked = 0
   onlyInD1 = 0
@@ -1004,7 +1008,7 @@ def compareHits(r1, r2):
   for task in d1.keys():
     if task in d2:
       try:
-        task.verifySame(d2.get(task))
+        task.verifySame(d2.get(task), verifyScores)
       except RuntimeError, re:
         errors.append(str(re))
       checked += 1

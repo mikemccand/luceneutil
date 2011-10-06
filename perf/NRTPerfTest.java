@@ -422,9 +422,9 @@ public class NRTPerfTest {
             }
 
             final long tStart = System.nanoTime();
-            final IndexReader newR = r.reopen();
+            final IndexReader newR = IndexReader.openIfChanged(r);
 
-            if (newR != r) {
+            if (newR != null) {
               System.out.println("Reopen: " + String.format("%9.4f", (System.nanoTime() - tStart)/1000000.0) + " msec");
               setSearcher(new IndexSearcher(newR));
               r = newR;

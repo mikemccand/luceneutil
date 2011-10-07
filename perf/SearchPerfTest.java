@@ -56,6 +56,7 @@ import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.grouping.*;
+import org.apache.lucene.search.grouping.term.*;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.spell.SuggestMode;

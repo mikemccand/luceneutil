@@ -35,6 +35,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
@@ -267,7 +269,16 @@ public class SearchPerfTest {
           return false;
         }
 
-        // TODO: filter
+        if (f != null) {
+          if (otherSearchTask.f == null) {
+            return false;
+          } else if (!f.equals(otherSearchTask.f)) {
+            return false;
+          }
+        } else if (otherSearchTask.f != null) {
+          return false;
+        }
+
         return true;
       } else {
         return false;
@@ -283,6 +294,9 @@ public class SearchPerfTest {
       if (group != null) {
         hashCode ^= group.hashCode();
       }
+      if (f != null) {
+        hashCode ^= f.hashCode();
+      }
       hashCode *= topN;
       return hashCode;
     }
@@ -290,6 +304,7 @@ public class SearchPerfTest {
     @Override
     public long checksum() {
       long sum = 0;
+      //System.out.println("checksum q=" + q + " f=" + f);
       if (group != null) {
         if (singlePassGroup) {
           for(GroupDocs<Object> groupDocs : groupsResultBlock.groups) {
@@ -309,8 +324,10 @@ public class SearchPerfTest {
       } else {
         sum = hits.totalHits;
         for(ScoreDoc hit : hits.scoreDocs) {
+          //System.out.println("  " + hit.doc);
           sum += hit.doc;
         }
+        //System.out.println("  final=" + sum);
       }
 
       return sum;
@@ -318,7 +335,7 @@ public class SearchPerfTest {
 
     @Override
     public String toString() {
-      return "cat=" + category + " q=" + q + " s=" + s + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
+      return "cat=" + category + " q=" + q + " s=" + s + " f=" + f + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
         (group == null ? " hits=" + hits.totalHits :
          " groups=" + (singlePassGroup ?
                        (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
@@ -543,9 +560,63 @@ public class SearchPerfTest {
     throw new RuntimeException("could not find commit '" + commit + "'");
   }
 
-  private static List<Task> loadTasks(QueryParser p, String fieldName, String filePath, boolean doSort) throws IOException, ParseException {
+  private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
+
+  private static final class PreComputedRandomFilter extends Filter {
+
+    private final FixedBitSet[] segmentBits;
+    private final double pct;
+
+    public PreComputedRandomFilter(List<Integer> maxDocPerSeg, Random random, double pctAcceptDocs) {
+      //System.out.println("FILT: pct=" + pctAcceptDocs);
+      this.pct = pctAcceptDocs;
+      pctAcceptDocs /= 100.0;
+      segmentBits = new FixedBitSet[maxDocPerSeg.size()];
+      for(int segID=0;segID<maxDocPerSeg.size();segID++) {
+        final int maxDoc = maxDocPerSeg.get(segID);
+        final FixedBitSet bits = segmentBits[segID] = new FixedBitSet(maxDoc);
+        int count = 0;
+        for(int docID=0;docID<maxDoc;docID++) {
+          if (random.nextDouble() <= pctAcceptDocs) {
+            bits.set(docID);
+            count++;
+          }
+        }
+        //System.out.println("  r=" + maxDoc + " ct=" + count);
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return new Double(pct).hashCode();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return this == other;
+    }
+
+    @Override
+    public String toString() {
+      return "PreComputedRandomFilter(pctAccept=" + pct + ")";
+    }
+
+    @Override
+    public DocIdSet getDocIdSet(AtomicReaderContext context) {
+      final FixedBitSet bits = segmentBits[context.ord];
+      assert context.reader.maxDoc() == bits.length();
+      return bits;
+    }
+  }
+
+  private static List<Task> loadTasks(IndexReader reader, QueryParser p, String fieldName, String filePath, boolean doSort, Random random) throws IOException, ParseException {
 
     final List<Task> tasks = new ArrayList<Task>();
+
+    final List<Integer> maxDocPerSegment = new ArrayList<Integer>();
+    for(IndexReader subReader : reader.getSequentialSubReaders()) {
+      maxDocPerSegment.add(subReader.maxDoc());
+    }
 
     final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
     int count = 0;
@@ -559,6 +630,9 @@ public class SearchPerfTest {
         break;
       }
       line = line.trim();
+      if (line.indexOf("#") == 0) {
+        continue;
+      }
 
       final int spot = line.indexOf(':');
       if (spot == -1) {
@@ -571,13 +645,25 @@ public class SearchPerfTest {
         spot2 = line.length();
       }
       
-      final String text = line.substring(spot+1, spot2).trim();
+      String text = line.substring(spot+1, spot2).trim();
       final Task task;
       if (category.equals("Respell")) {
         task = new RespellTask(new Term(fieldName, text));
       } else {
         if (text.length() == 0) {
           throw new RuntimeException("null query line");
+        }
+
+        // Check for filter (eg: " +filter=0.5%")
+        final Matcher m = filterPattern.matcher(text);
+        final Filter filter;
+        if (m.find()) {
+          final double filterPct = Double.parseDouble(m.group(1));
+          // Splice out the filter string:
+          text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
+          filter = new CachingWrapperFilter(new PreComputedRandomFilter(maxDocPerSegment, random, filterPct), CachingWrapperFilter.DeletesMode.RECACHE);
+        } else {
+          filter = null;
         }
 
         final Sort sort;
@@ -663,7 +749,7 @@ public class SearchPerfTest {
           sort = titleSort;
         }
         */
-        task = new SearchTask(category, query, sort, group, null, 10);
+        task = new SearchTask(category, query, sort, group, filter, 10);
       }
 
       //task.origString = line;
@@ -688,8 +774,15 @@ public class SearchPerfTest {
     final String fieldName = args[6];
     int numTaskPerCat = Integer.parseInt(args[7]);
     final boolean doSort = args[8].equals("yes");
+
+    // Used to choose which random subset of tasks we will
+    // run, to generate the PKLookup tasks, and to generate
+    // any random pct filters:
     final long staticRandomSeed = Long.parseLong(args[9]);
+
+    // Used to shuffle the random subset of tasks:
     final long randomSeed = Long.parseLong(args[10]);
+
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
     } else if (dirImpl.equals("NIOFSDirectory")) {
@@ -751,7 +844,7 @@ public class SearchPerfTest {
       searcher.setSimilarityProvider(provider);
     }
 
-    System.out.println("reader=" + searcher.getIndexReader());
+    System.out.println("searcher=" + searcher);
 
     //s.search(new TermQuery(new Term("body", "bar")), null, 10, new Sort(new SortField("unique1000000", SortField.STRING)));
     //final long t1 = System.currentTimeMillis();
@@ -780,8 +873,8 @@ public class SearchPerfTest {
     p.setLowercaseExpandedTerms(false);
 
     // Pick a random top N tasks per category:
-    final List<Task> tasks = loadTasks(p, fieldName, tasksFile, doSort);
     final Random staticRandom = new Random(staticRandomSeed);
+    final List<Task> tasks = loadTasks(searcher.getIndexReader(), p, fieldName, tasksFile, doSort, staticRandom);
     Collections.shuffle(tasks, staticRandom);
     final List<Task> prunedTasks = pruneTasks(tasks, numTaskPerCat);
 

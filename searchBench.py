@@ -104,7 +104,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       print
       print 'WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND
       print
-      
+
     print
     print 'Search:'
 
@@ -119,7 +119,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     results = {}
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c, jvmCount)
-      
+
   results, cmpDiffs, cmpHeap = r.simpleReport(results[competitors[0]],
                                               results[competitors[1]],
                                               '-jira' in sys.argv,

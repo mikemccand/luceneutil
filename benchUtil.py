@@ -174,10 +174,10 @@ class SearchTask:
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField
+      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField)
+    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter)
       
   
 class RespellTask:
@@ -237,9 +237,8 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) hits=([0-9]+)$')
-reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+)$')
-reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=([0-9]+)$')
+reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
@@ -271,14 +270,13 @@ def parseResults(resultsFiles):
         task.threadID = int(f.readline().strip().split()[1])
 
         m = reSearchTask.match(line[6:])
-        if m is None:
-          m = reSearchTaskOld.match(line[6:])
 
         if m is not None:
-          cat, task.query, sort, hitCount = m.groups()
+          cat, task.query, sort, filter, hitCount = m.groups()
           task.cat = cat
           task.groups = None
           task.groupField = None
+          task.filter = filter
           # print 'CAT %s' % cat
 
           task.hitCount = int(hitCount)
@@ -318,11 +316,12 @@ def parseResults(resultsFiles):
         else:
           # print 'line %s' % str(line)
           m = reSearchGroupTask.match(line[6:])
-          cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
+          cat, task.query, sort, filter, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
           task.cat = cat
           task.hits = hitCount
-          task.gourpedHitCount = groupedHitCount
+          task.groupedHitCount = groupedHitCount
           task.groupCount = int(groupCount)
+          task.filter = filter
           if totGroupCount in (None, 'null'):
             task.totGroupCount = None
           else:

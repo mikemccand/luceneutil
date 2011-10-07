@@ -62,6 +62,7 @@ def printReproLines(logFileName):
       break
     m = reRepro.search(line)
     codec = None
+    mult = 1
     if m is not None:
       for x in reDefines.findall(line):
         k, v = x
@@ -73,6 +74,8 @@ def printReproLines(logFileName):
           seed = v
         elif k == 'tests.codec':
           codec = v
+        elif k == 'tests.multiplier':
+          mult = v
         else:
           print 'WARNING: don\'t know how to repro k/v=%s' % str(x)
 
@@ -82,6 +85,12 @@ def printReproLines(logFileName):
         extra = ''
       if extra != '':
         extra = ' ' + extra
+
+      if mult != 1:
+        if extra == '':
+          extra = '-mult %s' % mult
+        else:
+          extra += ' -mult %s' % mult
 
       s = 'REPRO: %s %s -seed %s%s'%  (constants.REPRO_COMMAND_START, testCase, seed, extra)
       if constants.REPRO_COMMAND_END != '':

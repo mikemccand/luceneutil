@@ -353,7 +353,7 @@ def run():
   
   runCommand('ant clean > clean.log 2>&1')
 
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
 
   comp = competition.Competition()
 

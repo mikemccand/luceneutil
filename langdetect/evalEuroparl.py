@@ -15,6 +15,9 @@ ROOT = '/lucene/util/langdetect'
 TIKA_ROOT = '/lucene/tika.clean'
 LD_ROOT = '/home/mike/src/langdetect'
 
+# TODO
+#   - maybe also eval https://github.com/vcl/cue.language
+
 # Download corpus at http://code.google.com/p/language-detection/downloads/detail?name=europarl-test.zip
 
 # For a description of the corpus see http://shuyo.wordpress.com/2011/09/29/langdetect-is-updatedadded-profiles-of-estonian-lithuanian-latvian-slovene-and-so-on/
@@ -124,10 +127,11 @@ def accTest():
       for answer, text in testData:
         results.append(detector.detect(text))
       print '    %.3f sec' % (time.time()-startTime)
-      if detector == cld:
+      if False and detector == cld:
         l = list(cld.allLangs)
         l.sort()
         print '%d langs: %s' % (len(l), l)
+    print 'Save all results to %s...' % resultsFile
     f = open(resultsFile, 'wb')
     cPickle.dump(allResults, f)
     f.close()
@@ -167,8 +171,11 @@ def processResults(testData, allResults):
   byDetector = {}
   for name in allResults.keys():
     byDetector[name] = {}
+  byDetector['majority'] = {}
 
-  both = 0
+  cldAlsoWrong = 0
+  tikaAlsoWrong = 0
+  ldWrongCount = 0
   count = 0
   minLen = None
   for idx in xrange(len(testData)):
@@ -183,6 +190,8 @@ def processResults(testData, allResults):
     diffs = []
     cldWrong = False
     ldWrong = False
+    tikaWrong = False
+    tally = {}
     for name, results in allResults.items():
       byLang = byDetector[name]
       if answer not in byLang:
@@ -190,23 +199,45 @@ def processResults(testData, allResults):
       hits = byLang[answer]
       detected = results[idx][0]
       hits[detected] = 1+hits.get(detected, 0)
+      tally[detected] = 1+tally.get(detected, 0)
       if detected != answer:
         diffs.append('%s:%s' % (name, detected))
         if name == 'LangDetect':
           ldWrong = True
         elif name == 'CLD':
           cldWrong = True
+        elif name == 'Tika':
+          tikaWrong = True
         if False:
           print '  %s: wrong (got %s)' % (name, detected)
+
+    tallies = [(ct, name) for name, ct in tally.items()]
+    tallies.sort(reverse=True)
+    if tallies[0][0] > 1:
+      vote = tallies[0][1]
+    else:
+      vote = allResults['LangDetect'][idx][0]
+    
+    byLang = byDetector['majority']
+    if answer not in byLang:
+      byLang[answer] = {}
+    hits = byLang[answer]
+    hits[vote] = 1+hits.get(vote, 0)
 
     if False and len(diffs) == 3:
       print 'line %d all 3 wrong: %s' % (idx+1, diffs)
     if ldWrong:
       print 'line %d [%s]: %s' % (idx+1, answer, diffs)
+      ldWrongCount += 1
       if cldWrong:
-        both += 1
+        cldAlsoWrong += 1
+      if tikaWrong:
+        tikaAlsoWrong += 1
 
-  print 'Both CLD and LD wrong: %d' % both
+  print 'When ld is wrong (%d): tika also wrong %d (%.2f%%); cld also wrong %d (%.2f%%)' % \
+        (ldWrongCount,
+         tikaAlsoWrong, 100.*tikaAlsoWrong/ldWrongCount,
+         cldAlsoWrong, 100.*cldAlsoWrong/ldWrongCount)
 
   HTML = True
   for name, byLang in byDetector.items():

@@ -1,0 +1,126 @@
+AndHighHigh: +be +up # freq=2115632 freq=824628
+AndHighHighF0.1: +be +up +filter=0.1% # freq=2115632 freq=824628
+AndHighHighF0.5: +be +up +filter=0.5% # freq=2115632 freq=824628
+AndHighHighF1.0: +be +up +filter=1.0% # freq=2115632 freq=824628
+AndHighHighF2.0: +be +up +filter=2.0% # freq=2115632 freq=824628
+AndHighHighF5.0: +be +up +filter=5.0% # freq=2115632 freq=824628
+AndHighHighF10.0: +be +up +filter=10.0% # freq=2115632 freq=824628
+AndHighHighF20.0: +be +up +filter=20.0% # freq=2115632 freq=824628
+AndHighHighF50.0: +be +up +filter=50.0% # freq=2115632 freq=824628
+AndHighHighF75.0: +be +up +filter=75.0% # freq=2115632 freq=824628
+AndHighHighF90.0: +be +up +filter=90.0% # freq=2115632 freq=824628
+AndHighHighF95.0: +be +up +filter=95.0% # freq=2115632 freq=824628
+AndHighHighF99.0: +be +up +filter=99.0% # freq=2115632 freq=824628
+AndHighHighF100.0: +be +up +filter=100.0% # freq=2115632 freq=824628
+Fuzzy1: changer~1
+Fuzzy1F0.1: changer~1 +filter=0.1% # 
+Fuzzy1F0.5: changer~1 +filter=0.5% # 
+Fuzzy1F1.0: changer~1 +filter=1.0% # 
+Fuzzy1F2.0: changer~1 +filter=2.0% # 
+Fuzzy1F5.0: changer~1 +filter=5.0% # 
+Fuzzy1F10.0: changer~1 +filter=10.0% # 
+Fuzzy1F20.0: changer~1 +filter=20.0% # 
+Fuzzy1F50.0: changer~1 +filter=50.0% # 
+Fuzzy1F75.0: changer~1 +filter=75.0% # 
+Fuzzy1F90.0: changer~1 +filter=90.0% # 
+Fuzzy1F95.0: changer~1 +filter=95.0% # 
+Fuzzy1F99.0: changer~1 +filter=99.0% # 
+Fuzzy1F100.0: changer~1 +filter=100.0% # 
+Fuzzy2: bates~2
+Fuzzy2F0.1: bates~2 +filter=0.1% # 
+Fuzzy2F0.5: bates~2 +filter=0.5% # 
+Fuzzy2F1.0: bates~2 +filter=1.0% # 
+Fuzzy2F2.0: bates~2 +filter=2.0% # 
+Fuzzy2F5.0: bates~2 +filter=5.0% # 
+Fuzzy2F10.0: bates~2 +filter=10.0% # 
+Fuzzy2F20.0: bates~2 +filter=20.0% # 
+Fuzzy2F50.0: bates~2 +filter=50.0% # 
+Fuzzy2F75.0: bates~2 +filter=75.0% # 
+Fuzzy2F90.0: bates~2 +filter=90.0% # 
+Fuzzy2F95.0: bates~2 +filter=95.0% # 
+Fuzzy2F99.0: bates~2 +filter=99.0% # 
+Fuzzy2F100.0: bates~2 +filter=100.0% # 
+OrHighHigh: are last # freq=1921211 freq=830278
+OrHighHighF0.1: are last +filter=0.1% # freq=1921211 freq=830278
+OrHighHighF0.5: are last +filter=0.5% # freq=1921211 freq=830278
+OrHighHighF1.0: are last +filter=1.0% # freq=1921211 freq=830278
+OrHighHighF2.0: are last +filter=2.0% # freq=1921211 freq=830278
+OrHighHighF5.0: are last +filter=5.0% # freq=1921211 freq=830278
+OrHighHighF10.0: are last +filter=10.0% # freq=1921211 freq=830278
+OrHighHighF20.0: are last +filter=20.0% # freq=1921211 freq=830278
+OrHighHighF50.0: are last +filter=50.0% # freq=1921211 freq=830278
+OrHighHighF75.0: are last +filter=75.0% # freq=1921211 freq=830278
+OrHighHighF90.0: are last +filter=90.0% # freq=1921211 freq=830278
+OrHighHighF95.0: are last +filter=95.0% # freq=1921211 freq=830278
+OrHighHighF99.0: are last +filter=99.0% # freq=1921211 freq=830278
+OrHighHighF100.0: are last +filter=100.0% # freq=1921211 freq=830278
+Phrase: "it was" # freq=597450
+PhraseF0.1: "it was" +filter=0.1% # freq=597450
+PhraseF0.5: "it was" +filter=0.5% # freq=597450
+PhraseF1.0: "it was" +filter=1.0% # freq=597450
+PhraseF2.0: "it was" +filter=2.0% # freq=597450
+PhraseF5.0: "it was" +filter=5.0% # freq=597450
+PhraseF10.0: "it was" +filter=10.0% # freq=597450
+PhraseF20.0: "it was" +filter=20.0% # freq=597450
+PhraseF50.0: "it was" +filter=50.0% # freq=597450
+PhraseF75.0: "it was" +filter=75.0% # freq=597450
+PhraseF90.0: "it was" +filter=90.0% # freq=597450
+PhraseF95.0: "it was" +filter=95.0% # freq=597450
+PhraseF99.0: "it was" +filter=99.0% # freq=597450
+PhraseF100.0: "it was" +filter=100.0% # freq=597450
+SloppyPhrase: "after his"~4 # freq=50193
+SloppyPhraseF0.1: "after his"~4 +filter=0.1% # freq=50193
+SloppyPhraseF0.5: "after his"~4 +filter=0.5% # freq=50193
+SloppyPhraseF1.0: "after his"~4 +filter=1.0% # freq=50193
+SloppyPhraseF2.0: "after his"~4 +filter=2.0% # freq=50193
+SloppyPhraseF5.0: "after his"~4 +filter=5.0% # freq=50193
+SloppyPhraseF10.0: "after his"~4 +filter=10.0% # freq=50193
+SloppyPhraseF20.0: "after his"~4 +filter=20.0% # freq=50193
+SloppyPhraseF50.0: "after his"~4 +filter=50.0% # freq=50193
+SloppyPhraseF75.0: "after his"~4 +filter=75.0% # freq=50193
+SloppyPhraseF90.0: "after his"~4 +filter=90.0% # freq=50193
+SloppyPhraseF95.0: "after his"~4 +filter=95.0% # freq=50193
+SloppyPhraseF99.0: "after his"~4 +filter=99.0% # freq=50193
+SloppyPhraseF100.0: "after his"~4 +filter=100.0% # freq=50193
+SpanNear: near//see the # freq=52117
+SpanNearF0.1: near//see the +filter=0.1% # freq=52117
+SpanNearF0.5: near//see the +filter=0.5% # freq=52117
+SpanNearF1.0: near//see the +filter=1.0% # freq=52117
+SpanNearF2.0: near//see the +filter=2.0% # freq=52117
+SpanNearF5.0: near//see the +filter=5.0% # freq=52117
+SpanNearF10.0: near//see the +filter=10.0% # freq=52117
+SpanNearF20.0: near//see the +filter=20.0% # freq=52117
+SpanNearF50.0: near//see the +filter=50.0% # freq=52117
+SpanNearF75.0: near//see the +filter=75.0% # freq=52117
+SpanNearF90.0: near//see the +filter=90.0% # freq=52117
+SpanNearF95.0: near//see the +filter=95.0% # freq=52117
+SpanNearF99.0: near//see the +filter=99.0% # freq=52117
+SpanNearF100.0: near//see the +filter=100.0% # freq=52117
+Term: 0 # freq=708472
+TermF0.1: 0 +filter=0.1% # freq=708472
+TermF0.5: 0 +filter=0.5% # freq=708472
+TermF1.0: 0 +filter=1.0% # freq=708472
+TermF2.0: 0 +filter=2.0% # freq=708472
+TermF5.0: 0 +filter=5.0% # freq=708472
+TermF10.0: 0 +filter=10.0% # freq=708472
+TermF20.0: 0 +filter=20.0% # freq=708472
+TermF50.0: 0 +filter=50.0% # freq=708472
+TermF75.0: 0 +filter=75.0% # freq=708472
+TermF90.0: 0 +filter=90.0% # freq=708472
+TermF95.0: 0 +filter=95.0% # freq=708472
+TermF99.0: 0 +filter=99.0% # freq=708472
+TermF100.0: 0 +filter=100.0% # freq=708472
+Wildcard: bu*s
+WildcardF0.1: bu*s +filter=0.1% # 
+WildcardF0.5: bu*s +filter=0.5% # 
+WildcardF1.0: bu*s +filter=1.0% # 
+WildcardF2.0: bu*s +filter=2.0% # 
+WildcardF5.0: bu*s +filter=5.0% # 
+WildcardF10.0: bu*s +filter=10.0% # 
+WildcardF20.0: bu*s +filter=20.0% # 
+WildcardF50.0: bu*s +filter=50.0% # 
+WildcardF75.0: bu*s +filter=75.0% # 
+WildcardF90.0: bu*s +filter=90.0% # 
+WildcardF95.0: bu*s +filter=95.0% # 
+WildcardF99.0: bu*s +filter=99.0% # 
+WildcardF100.0: bu*s +filter=100.0% # 

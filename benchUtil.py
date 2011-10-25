@@ -157,7 +157,7 @@ class SearchTask:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
           
   def fail(self, message):
-    s = 'query=%s' % self.query
+    s = 'query=%s filter=%s' % (self.query, self.filter)
     if self.sort is not None:
       s += ' sort=%s' % self.sort
     raise RuntimeError('%s: %s' % (s, message))

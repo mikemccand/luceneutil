@@ -26,6 +26,7 @@ import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.index.codecs.*;
+import org.apache.lucene.index.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -51,9 +52,15 @@ public class PKLookupPerfTest {
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
                                                         new WhitespaceAnalyzer(Version.LUCENE_40));
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    CodecProvider cp = new CoreCodecProvider();
-    cp.setDefaultFieldCodec("Pulsing");
-    iwc.setCodecProvider(cp);
+
+    final Codec codec = new Lucene40Codec() {
+      @Override
+      public PostingsFormat getPostingsFormatForField(String field) {
+        return PostingsFormat.forName("Pulsing40");
+      }
+    };
+
+    iwc.setCodec(codec);
     // 5 segs per level in 3 levels:
     int mbd = docCount/(5*111);
     iwc.setMaxBufferedDocs(mbd);

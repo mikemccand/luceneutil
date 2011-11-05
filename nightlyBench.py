@@ -293,7 +293,7 @@ def runNRTTest(r, indexPath, runLogDir):
 
 def setIndexParams(idx, fastIndex=True):
   idx.analyzer('StandardAnalyzer')
-  idx.codec('Standard')
+  idx.codec('Lucene40')
   idx.threads(constants.INDEX_NUM_THREADS)
   idx.directory(DIR_IMPL)
   idx.idFieldCodec('Memory')

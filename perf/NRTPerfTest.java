@@ -25,7 +25,9 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.index.codecs.CoreCodecProvider;
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.PostingsFormat;
+import org.apache.lucene.index.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.BytesRef;
@@ -273,11 +275,19 @@ public class NRTPerfTest {
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
     //iwc.setMergeScheduler(ms);
-    final CoreCodecProvider cp = new CoreCodecProvider();
-    cp.setDefaultFieldCodec("Standard");
-    //cp.setFieldCodec("id", "Pulsing");
-    cp.setFieldCodec("id", "Memory");
-    iwc.setCodecProvider(cp);
+
+    final Codec codec = new Lucene40Codec() {
+      @Override
+      public PostingsFormat getPostingsFormatForField(String field) {
+        if (field.equals("id")) {
+          return PostingsFormat.forName("Memory");
+        } else {
+          return PostingsFormat.forName("Lucene40");
+        }
+      }
+    };
+
+    iwc.setCodec(codec);
 
     /*
     iwc.setMergePolicy(new LogByteSizeMergePolicy());

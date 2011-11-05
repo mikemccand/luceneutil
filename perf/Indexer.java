@@ -19,19 +19,21 @@ package perf;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.*;
-import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.index.codecs.CoreCodecProvider;
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.PostingsFormat;
+import org.apache.lucene.index.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -103,7 +105,7 @@ public final class Indexer {
     final double ramBufferSizeMB = Double.parseDouble(args[8]);
     final int maxBufferedDocs = Integer.parseInt(args[9]);
 
-    final String codec = args[10];
+    final String defaultPostingsFormat = args[10];
     final boolean doDeletions = args[11].equals("yes");
     final boolean printDPS = args[12].equals("yes");
     final boolean waitForMerges = args[13].equals("yes");
@@ -127,7 +129,7 @@ public final class Indexer {
     System.out.println("Verbose: " + (verbose ? "yes" : "no"));
     System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
     System.out.println("Max buffered docs: " + maxBufferedDocs);
-    System.out.println("Codec: " + codec);
+    System.out.println("Default postings format: " + defaultPostingsFormat);
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
@@ -190,18 +192,26 @@ public final class Indexer {
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 
-    final CoreCodecProvider cp = new CoreCodecProvider();
-    cp.setDefaultFieldCodec(codec);
-    if (idFieldCodec.equals("Pulsing")) {
-      cp.setFieldCodec("id", "Pulsing");
-    } else if (idFieldCodec.equals("Memory")) {
-      cp.setFieldCodec("id", "Memory");
-    } else if (idFieldCodec.equals("Standard")) {
-      cp.setFieldCodec("id", "Standard");
-    } else {
-      throw new RuntimeException("unknown id field codec " + idFieldCodec);
-    }
-    iwc.setCodecProvider(cp);
+    final Codec codec = new Lucene40Codec() {
+      @Override
+      public PostingsFormat getPostingsFormatForField(String field) {
+        if (field.equals("id")) {
+          if (idFieldCodec.equals("Pulsing40")) {
+            return PostingsFormat.forName("Pulsing40");
+          } else if (idFieldCodec.equals("Memory")) {
+            return PostingsFormat.forName("Memory");
+          } else if (idFieldCodec.equals("Lucene40")) {
+            return PostingsFormat.forName("Lucene40");
+          } else {
+            throw new RuntimeException("unknown id field codec " + idFieldCodec);
+          }
+        } else {
+          return PostingsFormat.forName(defaultPostingsFormat);
+        }
+      }
+    };
+
+    iwc.setCodec(codec);
 
     System.out.println("IW config=" + iwc);
     final IndexWriter w = new IndexWriter(dir, iwc);

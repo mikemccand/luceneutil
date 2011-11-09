@@ -216,7 +216,9 @@ public final class Indexer {
     System.out.println("IW config=" + iwc);
     final IndexWriter w = new IndexWriter(dir, iwc);
 
-    w.setInfoStream(verbose ? System.out : null);
+    if (verbose) {
+      InfoStream.setDefault(new PrintStreamInfoStream(System.out));
+    }
 
     final LineFileDocs docs = new LineFileDocs(lineFile, false);
 

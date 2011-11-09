@@ -67,7 +67,7 @@ public class PKLookupPerfTest {
     iwc.setRAMBufferSizeMB(-1.0);
     ((LogMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(false);
     final IndexWriter w = new IndexWriter(dir, iwc);
-    w.setInfoStream(System.out);
+    InfoStream.setDefault(new PrintStreamInfoStream(System.out));
    
     final Document doc = new Document();
     final Field field = new Field("id", "", StringField.TYPE_STORED);

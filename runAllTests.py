@@ -31,7 +31,7 @@ HEAP = '512m'
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
 
-COST_PER_JOB = 40.0
+COST_PER_JOB = 50.0
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
@@ -44,8 +44,8 @@ VERBOSE = 'false'
 LUCENE_VERSION = '4.0-SNAPSHOT'
 
 CLASSPATH = ['../lucene/lib/junit-4.7.jar',
-             '../lucene/build/classes/test',
              '../lucene/build/classes/test-framework',
+             '../lucene/build/classes/test',
              '../solr/build/solr-test-framework/classes/java',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
@@ -58,9 +58,9 @@ CLASSPATH = ['../lucene/lib/junit-4.7.jar',
              '/usr/share/java/ant.jar']
 
 try:
-  CODEC = sys.argv[1+sys.argv.index('-codec')]
+  POSTINGS_FORMAT = sys.argv[1+sys.argv.index('-pf')]
 except ValueError:
-  CODEC = 'randomPerField'
+  POSTINGS_FORMAT = 'random'
 
 try:
   DIR = sys.argv[1+sys.argv.index('-dir')]
@@ -69,7 +69,7 @@ except ValueError:
   
 #TEST_ARGS = ' -server -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml' % (CODEC, VERBOSE, DIR, RAN_MULT)
 
-TEST_ARGS = ' -server -Dtestmethod= -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.codecprovider=random -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (CODEC, VERBOSE, DIR, RAN_MULT)
+TEST_ARGS = ' -server -Dtestmethod= -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=random -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, VERBOSE, DIR, RAN_MULT)
 
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
@@ -406,7 +406,7 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.search.TestRealTimeGet', 'org.apache.solr.servlet.CacheHeaderTest'):
+        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.search.TestRealTimeGet', 'org.apache.solr.servlet.CacheHeaderTest', 'org.apache.solr.request.TestRemoteStreaming', 'org.apache.solr.handler.dataimport.TestSqlEntityProcessorDelta2'):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass

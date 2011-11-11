@@ -103,7 +103,7 @@ public class SearchPerfTest {
             public int parseInt(BytesRef term) {
               return LineFileDocs.idToInt(term);
             }
-          });
+          }, false);
         System.arraycopy(ids, 0, docIDToID, base, ids.length);
         base += ids.length;
       }

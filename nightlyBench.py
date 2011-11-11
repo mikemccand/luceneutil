@@ -333,10 +333,10 @@ def run():
     print 'SVN rev is %s' % svnRev
     print 'luceneutil rev is %s' % luceneUtilRev
   else:
-    runCommand('svn cleanup')
+    runCommand('/usr/local/bin/svn cleanup')
     for i in range(30):
       try:
-        runCommand('svn update > %s/update.log' % runLogDir)
+        runCommand('/usr/local/bin/svn update > %s/update.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)

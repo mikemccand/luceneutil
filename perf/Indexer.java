@@ -40,7 +40,7 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doFullMerge:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
 
 // EG:
 //
@@ -99,7 +99,7 @@ public final class Indexer {
     final int docCount = Integer.parseInt(args[4]);
     final int numThreads = Integer.parseInt(args[5]);
 
-    final boolean doOptimize = args[6].equals("yes");
+    final boolean doFullMerge = args[6].equals("yes");
     final boolean verbose = args[7].equals("yes");
 
     final double ramBufferSizeMB = Double.parseDouble(args[8]);
@@ -125,7 +125,7 @@ public final class Indexer {
     System.out.println("Line file: " + lineFile);
     System.out.println("Doc count: " + (docCount == -1 ? "all docs" : ""+docCount));
     System.out.println("Threads: " + numThreads);
-    System.out.println("Optimize: " + (doOptimize ? "yes" : "no"));
+    System.out.println("Full merge: " + (doFullMerge ? "yes" : "no"));
     System.out.println("Verbose: " + (verbose ? "yes" : "no"));
     System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
     System.out.println("Max buffered docs: " + maxBufferedDocs);
@@ -268,10 +268,10 @@ public final class Indexer {
     final long t3 = System.currentTimeMillis();
     System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
 
-    if (doOptimize) {
-      w.optimize();
+    if (doFullMerge) {
+      w.forceMerge(1);
       final long t4 = System.currentTimeMillis();
-      System.out.println("\nIndexer: optimize done (took " + (t4-t3) + " msec)");
+      System.out.println("\nIndexer: full merge done (took " + (t4-t3) + " msec)");
 
       commitData.put("userData", "single");
       w.commit(commitData);
@@ -296,7 +296,7 @@ public final class Indexer {
       final long t6 = System.currentTimeMillis();
       System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
-      commitData.put("userData", doOptimize ? "delsingle" : "delmulti");
+      commitData.put("userData", doFullMerge ? "delsingle" : "delmulti");
       w.commit(commitData);
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
@@ -306,10 +306,10 @@ public final class Indexer {
       }
     }
 
-    // TODO: delmulti isn't done if optimize is yes: we have to go back and open the multi commit point and do deletes against it:
+    // TODO: delmulti isn't done if doFullMerge is yes: we have to go back and open the multi commit point and do deletes against it:
 
     /*
-    if (doOptimize) {
+    if (doFullMerge) {
       final int maxDoc2 = w.maxDoc();
       final int expected = doDeletions ? maxDoc : maxDoc - toDeleteCount;
       if (maxDoc2 != expected {

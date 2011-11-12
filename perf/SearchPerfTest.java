@@ -377,9 +377,6 @@ public class SearchPerfTest {
           System.out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
         }
       }
-      if (q instanceof MultiTermQuery) {
-        System.out.println("  " + ((MultiTermQuery) q).getTotalNumberOfTerms() + " expanded terms");
-      }
     }
   }
 

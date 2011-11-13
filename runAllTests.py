@@ -14,7 +14,8 @@ import copy
 import common
 
 # TODO
-#   - how come quiet logging doesn't "take"???
+#   - hmm make some effort to assing "hard" jobs to the "fast" resources
+#   - do a better job getting the failure details out
 #   - hmm an i 'compile-contrib' while letting other threads run core-only jobs?
 #   - must test modules/analyzers too!!
 #   - learn over time which tests are slowest and run those first
@@ -31,11 +32,16 @@ HEAP = '512m'
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
 
-COST_PER_JOB = 50.0
+COST_PER_JOB = 30.0
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
-NUM_THREAD = 20
+if DO_GATHER_TIMES:
+  NUM_THREAD = [('local', 14)]
+else:
+  NUM_THREAD = [('local', 16),
+                ('10.17.4.90', 3),
+                ('10.17.4.5', 3)]
 
 RAN_MULT = 1
 
@@ -63,13 +69,20 @@ except ValueError:
   POSTINGS_FORMAT = 'random'
 
 try:
+  CODEC = sys.argv[1+sys.argv.index('-codec')]
+except ValueError:
+  CODEC = 'random'
+
+try:
   DIR = sys.argv[1+sys.argv.index('-dir')]
 except ValueError:
   DIR = 'random'
   
 #TEST_ARGS = ' -server -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml' % (CODEC, VERBOSE, DIR, RAN_MULT)
 
-TEST_ARGS = ' -server -Dtestmethod= -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=random -Dtests.codec="%s" -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, VERBOSE, DIR, RAN_MULT)
+#TEST_ARGS = ' -server -Dtestmethod= -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=random -Dtests.postingsformat=%s -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, VERBOSE, DIR, RAN_MULT)
+
+TEST_ARGS = ' -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -DsolrudirectoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=%s -Dtests.codec=%s -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, CODEC, VERBOSE, DIR, RAN_MULT)
 
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
@@ -147,7 +160,7 @@ def aggTests(workQ, tests):
   for cost, wd, test, classpath in tests:
 
     if len(tests0) > 0 and (lastWD != wd or DO_GATHER_TIMES or cost + pendingCost > COST_PER_JOB):
-      # print 'JOB: %s, %s' % (pendingCost, ' '.join(tests))
+      #print 'JOB: %s, %s' % (pendingCost, ' '.join(tests0))
       workQ.add(Job(lastWD, tests0, pendingCost, CLASSPATH))
       tests0 = []
       pendingCost = 0
@@ -167,9 +180,13 @@ class Job:
     self.cost = cost
     self.classpath = classpath
 
-  # highest cost compares lowest
+  # XXX higher cost compares as lower
+  # fewer number of tests compares as lower
   def __cmp__(self, other):
-    return cmp(-self.cost, -other.cost)
+    c = cmp(len(self.tests), len(other.tests))
+    #c = -cmp(self.cost, other.cost)
+    #print 'cmp %d vs %d: ret %s' % (len(self.tests), len(other.tests), c)
+    return c
 
 class WorkQueue:
   def __init__(self):
@@ -183,26 +200,26 @@ class WorkQueue:
     with self.lock:
       if len(self.q) == 0:
         if '-repeat' in sys.argv:
-          pr('t')
+          pr('t ')
           aggTests(self, tests)
         else:
           return None
 
+      #print
+      #print 'NOW HP'
       v = heapq.heappop(self.q)
-      # print 'WQ: %s %s' % (v.cost, ' '.join(v.tests))
+      #print 'WQ: %s %s' % (v.cost, ' '.join(v.tests))
       return v
 
 class RunThread:
 
-  def __init__(self, id, work):
+  def __init__(self, resource, resourceID, id, work):
+    self.resource = resource
+    self.resourceID = resourceID
     self.id = id
     self.tempDir = '%s/lucene/build/test/%d' % (ROOT, self.id)
     self.cleanup()
     self.work = work
-    try:
-      os.remove('%s/%s.log' % (ROOT, self.id))
-    except OSError:
-      pass
     self.suiteCount = 0
     self.failed = False
     self.myEnv = copy.copy(os.environ)
@@ -220,16 +237,22 @@ class RunThread:
       job = self.work.pop()
       if job is None:
         #pr('%s: DONE' % self.id)
-        pr('d')
+        pr('d%d:%d ' % (self.resourceID, self.id))
         break
       else:
         #pr('%s: RUN' % self.id)
-        pr('.')
+        pr('%d:%d ' % (self.resourceID, self.id))
         logFile = '%s/%s.log' % (ROOT, self.id)
         cmd = 'java -Xmx%s -Xms%s %s -Dlucene.version=%s' % (HEAP, HEAP, TEST_ARGS, LUCENE_VERSION)
         if constants.TESTS_LINE_FILE is not None:
           cmd += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
-        cmd += ' -DtempDir=%s -Djava.util.logging.config=%s/solr/testlogging.properties org.junit.runner.JUnitCore %s' % \
+
+        if self.resource == 'local':
+          self.myEnv['CLASSPATH'] = ':'.join(job.classpath)
+        else:
+          cmd += ' -classpath %s' % ':'.join(job.classpath)
+
+        cmd += ' -DtempDir=%s -Djava.util.logging.config.file=%s/solr/testlogging.properties org.junit.runner.JUnitCore %s' % \
               (self.tempDir, ROOT, ' '.join(job.tests))
 
         if 0:
@@ -239,10 +262,14 @@ class RunThread:
           print 'cmd %s' % cmd
 
         #open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n  RUN: %s\n' % (job.cost, ' '.join(job.tests), job.wd, cmd))
-        open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n' % (job.cost, ' '.join(job.tests), job.wd))
-
-        self.myEnv['CLASSPATH'] = ':'.join(job.classpath)
-        
+        s = '\nTESTS: cost=%.3f %s\n  CWD: %s\n' % (job.cost, ' '.join(job.tests), job.wd)
+        if self.resource == 'local':
+          open(logFile, 'ab').write(s)
+        else:
+          p = subprocess.Popen('ssh %s "cat >> %s"' % (self.resource, logFile), shell=True, stdin=subprocess.PIPE)
+          p.stdin.write(s)
+          p.stdin.close()
+          
         if 0:
           if job.tests[0].find('.solr.') != -1:
             wd = '%s/solr/src/test/test-files' % ROOT
@@ -256,12 +283,19 @@ class RunThread:
           cmd += ' >> %s 2>&1' % logFile
         #print 'CP=%s' % (':'.join(job.classpath))
         #print 'CMD %s' % cmd
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
+        if self.resource == 'local':
+          p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
+        else:
+          # nocommit should i just have stdout come back over ssh...?
+          # print 'CMD %s' % cmd
+          cmd = 'ssh -Tx %s "%s"' % (self.resource, cmd)
+          p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
+          
         output = p.communicate()[0]
         if DO_GATHER_TIMES:
           open(logFile, 'ab').write(output + '\n')
         if p.returncode != 0:
-          pr('\n%s: FAILED %s [see %s]\n' % (self.id, job.tests[0], logFile))
+          pr('\n%s: FAILED %s [see %s:%s]\n' % (self.id, job.tests[0], self.resource, logFile))
           self.failed = True
 
         if DO_GATHER_TIMES:
@@ -312,7 +346,9 @@ for dir, subDirs, files in os.walk('%s/lucene/src/test' % ROOT):
       fullFile = '%s/%s' % (dir, file)
       testClass = fullFile[strip:-5].replace('/', '.')
       if doLucene:
-        tests.append((estimateCost(testClass), '%s/lucene' % ROOT, testClass, CLASSPATH))
+        wd = '%s/lucene' % ROOT
+        #wd = ROOT
+        tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
 # lucene contrib tests
 for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
@@ -335,7 +371,9 @@ for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb
         if testClass == 'org.apache.lucene.store.db.DbStoreTest':
           continue
         if doLucene:
-          tests.append((estimateCost(testClass), '%s/lucene' % ROOT, testClass, CLASSPATH))
+          wd = '%s/lucene' % ROOT
+          #wd = ROOT
+          tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
 # modules tests
 if os.path.exists('%s/modules' % ROOT):
@@ -363,7 +401,9 @@ if os.path.exists('%s/modules' % ROOT):
                   testClass = fullFile[strip:-5].replace('/', '.')
                   # print '  %s' % testClass
                   if doModules:
-                    tests.append((estimateCost(testClass), '%s/modules/analysis' % ROOT, testClass, CLASSPATH))
+                    # wd = '%s/modules/analysis' % ROOT
+                    wd = ROOT
+                    tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
       else:
         CLASSPATH.append('../modules/%s/build/classes/java' % module)
         CLASSPATH.append('../modules/%s/build/classes/test' % module)
@@ -380,7 +420,9 @@ if os.path.exists('%s/modules' % ROOT):
               testClass = fullFile[strip:-5].replace('/', '.')
               # print '  %s' % testClass
               if doModules:
-                tests.append((estimateCost(testClass), '%s/modules/%s' % (ROOT, module), testClass, CLASSPATH))
+                # wd = '%s/modules/%s' % (ROOT, module)
+                wd = ROOT
+                tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
 # solr core tests
 if doSolr:
@@ -410,7 +452,9 @@ if doSolr:
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
-        tests.append((estimateCost(testClass), '%s/solr/core/src/test/test-files' % ROOT, testClass, CLASSPATH))
+        wd = '%s/solr/core/src/test/test-files' % ROOT
+        # wd = '%s/solr' % ROOT
+        tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
   # solrj
   strip = len(ROOT) + len('/solr/solrj/src/test/')
@@ -424,7 +468,9 @@ if doSolr:
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
-        tests.append((estimateCost(testClass), '%s/solr/solrj/src/test-files' % ROOT, testClass, CLASSPATH))
+        wd = '%s/solr/solrj/src/test-files' % ROOT
+        # wd = '%s/solr' % ROOT
+        tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
   # solr contrib tests
   for contrib in os.listdir('%s/solr/contrib' % ROOT):
@@ -472,9 +518,20 @@ if doSolr:
             print 'WARNING: skipping test %s' % testClass
             continue
           # print '  %s' % testClass
-          tests.append((estimateCost(testClass), '%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib), testClass, CLASSPATH))
+          #wd = '%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib)
+          wd = '%s/solr' % ROOT
+          tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
-tests.sort(reverse=True)
+def cmpTests(test1, test2):
+  if test1[1] != test2[1]:
+    # different wd
+    return cmp(test1[1], test2[1])
+  else:
+    return -cmp(test1[0], test2[0])
+
+tests.sort(cmpTests)
+#for test in tests:
+#  print '%s: %s' % (test[0], test[2])
 repeat = '-repeat' in sys.argv
 
 if 0:
@@ -487,15 +544,31 @@ workQ = WorkQueue()
 
 aggTests(workQ, tests)
 
+for resource, threadCount in NUM_THREAD:
+  if resource != 'local':
+    cmd = '/usr/bin/rsync -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=.svn/ --exclude="*.log" mike@%s:%s' % (ROOT, resource, constants.BASE_DIR)
+    print 'Copy to %s: %s' % (resource, cmd)
+    t = time.time()
+    if os.system(cmd):
+      raise RuntimeError('rsync failed')
+    print '  %.1f sec' % (time.time()-t)
+    os.system('ssh %s "rm -f %s/*.log"' % (resource, ROOT))
+    os.system('ssh %s "killall java >& /dev/null"' % resource)
+  else:
+    os.system('rm -f %s/*.log' % ROOT)
+
 threads = []
-for i in range(NUM_THREAD):
-  threads.append(RunThread(i, workQ))
+for resourceID, (resource, threadCount) in enumerate(NUM_THREAD):
+  for threadID in xrange(threadCount):
+    threads.append(RunThread(resource, resourceID, threadID, workQ))
+  # Let beast kick off jobs/threads first
+  time.sleep(0.2)
 
 totSuites = 0
 failed = False
-for i in range(NUM_THREAD):
-  threads[i].join()
-  totSuites += threads[i].suiteCount
+for thread in threads:
+  thread.join()
+  totSuites += thread.suiteCount
 
 if DO_GATHER_TIMES:
   open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(testTimes))

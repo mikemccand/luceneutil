@@ -836,7 +836,8 @@ public class SearchPerfTest {
     } else {
       // open last commit
       System.out.println("open latest commit");
-      searcher = new IndexSearcher(dir);
+      IndexReader reader = IndexReader.open(dir);
+      searcher = new IndexSearcher(reader);
       searcher.setSimilarityProvider(provider);
     }
 

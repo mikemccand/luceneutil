@@ -343,7 +343,7 @@ public class CreateQueries {
     final MostFrequentTerms pq = new MostFrequentTerms(topN);
     Terms terms = MultiFields.getTerms(r, field);
     if (terms != null) {
-      TermsEnum termsEnum = terms.iterator();
+      TermsEnum termsEnum = terms.iterator(null);
       while (termsEnum.next() != null) {
         final boolean isShingle = termsEnum.term().utf8ToString().indexOf(' ') != -1;
         if (isShingle == doShingles) {

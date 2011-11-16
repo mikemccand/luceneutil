@@ -32,6 +32,8 @@ osName = common.osName
 def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True):
   competitors = [base, challenger]
 
+  # nocommit
+  verifyScores = False
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores)
   if '-noc' not in sys.argv:
     print

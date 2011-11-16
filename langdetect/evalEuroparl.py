@@ -11,6 +11,9 @@ import cld
 import unicodedata
 import cPickle
 
+# Cool Python language detection lib: https://github.com/saffsd/langid.py
+import langid
+
 ROOT = '/lucene/util/langdetect'
 TIKA_ROOT = '/lucene/tika.clean'
 LD_ROOT = '/home/mike/src/langdetect'
@@ -54,6 +57,15 @@ class DetectCLD:
       self.allLangs.add(tup[0])
     return code, reliable
 
+class DetectPyLangID:
+  name = 'PyLangID'
+
+  def detect(self, utf8):
+    #lang, conf = langid.classify(codecs.getdecoder('UTF-8')(utf8)[0])
+    lang, conf = langid.classify(utf8)
+    # nocommit conf to bool
+    return lang, conf
+
 class DetectLD:
   name = 'LangDetect'
   
@@ -83,6 +95,8 @@ def loadTestData(corpusFile):
   for line in f.readlines():
     line = line.strip()
     answer, text = line.split('\t')
+    if False and answer in ('bg', 'cs', 'lv'):
+      continue
     bytes += len(text)
     if 0:
       # This corpus never differs
@@ -103,7 +117,7 @@ def accTest():
   testData, bytes = loadTestData(corpusFile)
 
   if False:
-    f = open('/x/tmp3/europarl.17.test', 'wb')
+    f = open('/lucene/util/europarl.18.test', 'wb')
     for answer, text in testData:
       f.write('%s\t%s\n' % (answer, text))
     f.close()
@@ -117,9 +131,10 @@ def accTest():
     tika = DetectTika()
     cld = DetectCLD()
     ld = DetectLD()
+    pylid = DetectPyLangID()
 
     allResults = {}
-    for detector in (cld, ld, tika):
+    for detector in (pylid, cld, ld, tika):
     # for detector in (cld, ld):
       print '  run %s...' % detector.name
       results = allResults[detector.name] = []
@@ -148,16 +163,15 @@ def perfTest():
   tika = DetectTika()
   cld = DetectCLD()
   ld = DetectLD()
+  pylid = DetectPYLangID()
 
-  for detector in (cld, ld, tika):
+  for detector in (pylid, cld, ld, tika):
     print '  run %s...' % detector.name
     best = None
     for iter in xrange(10):
       print '    iter %s...' % iter
       tStart = time.time()
       for answer, text in testData:
-        if answer in ('bg', 'cs', 'lt', 'lv'):
-          continue
         detector.detect(text)
       elapsedSec = time.time() - tStart
       print '      %.3f sec' % elapsedSec
@@ -240,6 +254,8 @@ def processResults(testData, allResults):
          cldAlsoWrong, 100.*cldAlsoWrong/ldWrongCount)
 
   HTML = True
+  if HTML:
+    print '<html>'
   for name, byLang in byDetector.items():
     l = byLang.items()
     l.sort()
@@ -292,6 +308,7 @@ def processResults(testData, allResults):
     if HTML:
       print '</table>'
       print '</font>'
+      print '</html>'
     else:
       print '  total %.2f%% (= %d/%d)' % (100.0*(count-totFail)/count, count-totFail, count)
 

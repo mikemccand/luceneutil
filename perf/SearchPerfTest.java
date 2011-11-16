@@ -45,7 +45,6 @@ import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.index.codecs.CodecProvider;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -96,7 +95,7 @@ public class SearchPerfTest {
     }
 
     private void setDocIDToID() throws IOException {
-      docIDToID = new int[searcher.maxDoc()];
+      docIDToID = new int[searcher.getIndexReader().maxDoc()];
       int base = 0;
       for(IndexReader sub : searcher.getIndexReader().getSequentialSubReaders()) {
         final int[] ids = FieldCache.DEFAULT.getInts(sub, "id", new FieldCache.IntParser() {
@@ -104,7 +103,7 @@ public class SearchPerfTest {
             public int parseInt(BytesRef term) {
               return LineFileDocs.idToInt(term);
             }
-          });
+          }, false);
         System.arraycopy(ids, 0, docIDToID, base, ids.length);
         base += ids.length;
       }
@@ -378,9 +377,6 @@ public class SearchPerfTest {
           System.out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
         }
       }
-      if (q instanceof MultiTermQuery) {
-        System.out.println("  " + ((MultiTermQuery) q).getTotalNumberOfTerms() + " expanded terms");
-      }
     }
   }
 
@@ -562,6 +558,7 @@ public class SearchPerfTest {
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
 
+  // TODO: can't we use RandomFilter here...?
   private static final class PreComputedRandomFilter extends Filter {
 
     private final FixedBitSet[] segmentBits;
@@ -602,10 +599,10 @@ public class SearchPerfTest {
     }
 
     @Override
-    public DocIdSet getDocIdSet(AtomicReaderContext context) {
+    public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
       final FixedBitSet bits = segmentBits[context.ord];
       assert context.reader.maxDoc() == bits.length();
-      return bits;
+      return BitsFilteredDocIdSet.wrap(bits, acceptDocs);
     }
   }
 
@@ -661,7 +658,7 @@ public class SearchPerfTest {
           final double filterPct = Double.parseDouble(m.group(1));
           // Splice out the filter string:
           text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
-          filter = new CachingWrapperFilter(new PreComputedRandomFilter(maxDocPerSegment, random, filterPct), CachingWrapperFilter.DeletesMode.RECACHE);
+          filter = new CachingWrapperFilter(new PreComputedRandomFilter(maxDocPerSegment, random, filterPct));
         } else {
           filter = null;
         }
@@ -762,7 +759,6 @@ public class SearchPerfTest {
   public static void main(String[] args) throws Exception {
 
     // args: dirImpl indexPath numThread numIterPerThread
-    //CodecProvider.getDefault().register(new MockSepCodec());
     // eg java SearchPerfTest /path/to/index 4 100
     final Directory dir;
     final String dirImpl = args[0];
@@ -883,9 +879,9 @@ public class SearchPerfTest {
     //}
 
     // Add PK tasks
-    final int numPKTasks = (int) Math.min(searcher.maxDoc()/6000., numTaskPerCat);
+    final int numPKTasks = (int) Math.min(searcher.getIndexReader().maxDoc()/6000., numTaskPerCat);
     for(int idx=0;idx<numPKTasks;idx++) {
-      prunedTasks.add(new PKLookupTask(searcher.maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
+      prunedTasks.add(new PKLookupTask(searcher.getIndexReader().maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
     }
 
     final List<Task> allTasks = new ArrayList<Task>();

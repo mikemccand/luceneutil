@@ -237,6 +237,8 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
+reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+)$')
+reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=([0-9]+)$')
 reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
@@ -264,7 +266,6 @@ def parseResults(resultsFiles):
         heaps.append(int(m.group(1)))
 
       if line.startswith('TASK: cat='):
-        # print 'LINE %s' % line
         task = SearchTask()
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
@@ -273,6 +274,15 @@ def parseResults(resultsFiles):
 
         if m is not None:
           cat, task.query, sort, filter, hitCount = m.groups()
+        else:
+          m = reSearchTaskOld.match(line[6:])
+          if m is not None:
+            cat, task.query, sort, hitCount = m.groups()
+            filter = None
+          else:
+            cat = None
+
+        if cat is not None:
           task.cat = cat
           task.groups = None
           task.groupField = None
@@ -314,45 +324,53 @@ def parseResults(resultsFiles):
               field = m.group(2)
               task.hits.append((id, field))
         else:
-          # print 'line %s' % str(line)
           m = reSearchGroupTask.match(line[6:])
-          cat, task.query, sort, filter, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
-          task.cat = cat
-          task.hits = hitCount
-          task.groupedHitCount = groupedHitCount
-          task.groupCount = int(groupCount)
-          task.filter = filter
-          if totGroupCount in (None, 'null'):
-            task.totGroupCount = None
+          if m is not None:
+            cat, task.query, sort, filter, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
           else:
-            task.totGroupCount = int(totGroupCount)
-          # TODO: handle different sorts
-          task.sort = None
-          task.groups = []
-          group = None
-          while True:
-            line = f.readline().strip()
-            if line == '':
-              break
-            if line.startswith('HEAP: '):
-              m = reHeap.match(line)
-              heaps.append(int(m.group(1)))
-              break
-            m = reOneGroup.search(line)
+            m = reSearchGroupTaskOld.match(line[6:])
             if m is not None:
-              groupValue, groupTotalHits, groupTopScore = m.groups()
-              group = (groupValue, int(groupTotalHits), float(groupTopScore), [])
-              task.groups.append(group)
-              continue
-            m = reSearchHitScore.search(line)
-            if m is not None:
-              doc = int(m.group(1))
-              score = float(m.group(2))
-              group[-1].append((doc, score))
-            else:
-              # BUG
-              raise RuntimeError('result parsing failed: line=%s' % line)
+              cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
+              filter = None
 
+          if cat is not None:
+            task.cat = cat
+            task.hits = hitCount
+            task.groupedHitCount = groupedHitCount
+            task.groupCount = int(groupCount)
+            task.filter = filter
+            if totGroupCount in (None, 'null'):
+              task.totGroupCount = None
+            else:
+              task.totGroupCount = int(totGroupCount)
+            # TODO: handle different sorts
+            task.sort = None
+            task.groups = []
+            group = None
+            while True:
+              line = f.readline().strip()
+              if line == '':
+                break
+              if line.startswith('HEAP: '):
+                m = reHeap.match(line)
+                heaps.append(int(m.group(1)))
+                break
+              m = reOneGroup.search(line)
+              if m is not None:
+                groupValue, groupTotalHits, groupTopScore = m.groups()
+                group = (groupValue, int(groupTotalHits), float(groupTopScore), [])
+                task.groups.append(group)
+                continue
+              m = reSearchHitScore.search(line)
+              if m is not None:
+                doc = int(m.group(1))
+                score = float(m.group(2))
+                group[-1].append((doc, score))
+              else:
+                # BUG
+                raise RuntimeError('result parsing failed: line=%s' % line)
+          else:
+            raise RuntimeError('result parsing failed: line=%s' % line)
       elif line.startswith('TASK: respell'):
         task = RespellTask()
         task.msec = float(f.readline().strip().split()[0])
@@ -1012,7 +1030,7 @@ def compareHits(r1, r2, verifyScores):
         errors.append(str(re))
       checked += 1
     else:
-      onyInD1 += 1
+      onlyInD1 += 1
 
   onlyInD2 = len(d2) - (len(d1) - onlyInD1)
 

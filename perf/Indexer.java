@@ -19,26 +19,28 @@ package perf;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.*;
-import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.index.codecs.CoreCodecProvider;
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.PostingsFormat;
+import org.apache.lucene.index.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doOptimize:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doFullMerge:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
 
 // EG:
 //
@@ -97,13 +99,13 @@ public final class Indexer {
     final int docCount = Integer.parseInt(args[4]);
     final int numThreads = Integer.parseInt(args[5]);
 
-    final boolean doOptimize = args[6].equals("yes");
+    final boolean doFullMerge = args[6].equals("yes");
     final boolean verbose = args[7].equals("yes");
 
     final double ramBufferSizeMB = Double.parseDouble(args[8]);
     final int maxBufferedDocs = Integer.parseInt(args[9]);
 
-    final String codec = args[10];
+    final String defaultPostingsFormat = args[10];
     final boolean doDeletions = args[11].equals("yes");
     final boolean printDPS = args[12].equals("yes");
     final boolean waitForMerges = args[13].equals("yes");
@@ -123,11 +125,11 @@ public final class Indexer {
     System.out.println("Line file: " + lineFile);
     System.out.println("Doc count: " + (docCount == -1 ? "all docs" : ""+docCount));
     System.out.println("Threads: " + numThreads);
-    System.out.println("Optimize: " + (doOptimize ? "yes" : "no"));
+    System.out.println("Full merge: " + (doFullMerge ? "yes" : "no"));
     System.out.println("Verbose: " + (verbose ? "yes" : "no"));
     System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
     System.out.println("Max buffered docs: " + maxBufferedDocs);
-    System.out.println("Codec: " + codec);
+    System.out.println("Default postings format: " + defaultPostingsFormat);
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
@@ -190,23 +192,33 @@ public final class Indexer {
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 
-    final CoreCodecProvider cp = new CoreCodecProvider();
-    cp.setDefaultFieldCodec(codec);
-    if (idFieldCodec.equals("Pulsing")) {
-      cp.setFieldCodec("id", "Pulsing");
-    } else if (idFieldCodec.equals("Memory")) {
-      cp.setFieldCodec("id", "Memory");
-    } else if (idFieldCodec.equals("Standard")) {
-      cp.setFieldCodec("id", "Standard");
-    } else {
-      throw new RuntimeException("unknown id field codec " + idFieldCodec);
-    }
-    iwc.setCodecProvider(cp);
+    final Codec codec = new Lucene40Codec() {
+      @Override
+      public PostingsFormat getPostingsFormatForField(String field) {
+        if (field.equals("id")) {
+          if (idFieldCodec.equals("Pulsing40")) {
+            return PostingsFormat.forName("Pulsing40");
+          } else if (idFieldCodec.equals("Memory")) {
+            return PostingsFormat.forName("Memory");
+          } else if (idFieldCodec.equals("Lucene40")) {
+            return PostingsFormat.forName("Lucene40");
+          } else {
+            throw new RuntimeException("unknown id field codec " + idFieldCodec);
+          }
+        } else {
+          return PostingsFormat.forName(defaultPostingsFormat);
+        }
+      }
+    };
+
+    iwc.setCodec(codec);
 
     System.out.println("IW config=" + iwc);
     final IndexWriter w = new IndexWriter(dir, iwc);
 
-    w.setInfoStream(verbose ? System.out : null);
+    if (verbose) {
+      InfoStream.setDefault(new PrintStreamInfoStream(System.out));
+    }
 
     final LineFileDocs docs = new LineFileDocs(lineFile, false);
 
@@ -256,10 +268,10 @@ public final class Indexer {
     final long t3 = System.currentTimeMillis();
     System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
 
-    if (doOptimize) {
-      w.optimize();
+    if (doFullMerge) {
+      w.forceMerge(1);
       final long t4 = System.currentTimeMillis();
-      System.out.println("\nIndexer: optimize done (took " + (t4-t3) + " msec)");
+      System.out.println("\nIndexer: full merge done (took " + (t4-t3) + " msec)");
 
       commitData.put("userData", "single");
       w.commit(commitData);
@@ -284,7 +296,7 @@ public final class Indexer {
       final long t6 = System.currentTimeMillis();
       System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
-      commitData.put("userData", doOptimize ? "delsingle" : "delmulti");
+      commitData.put("userData", doFullMerge ? "delsingle" : "delmulti");
       w.commit(commitData);
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
@@ -294,10 +306,10 @@ public final class Indexer {
       }
     }
 
-    // TODO: delmulti isn't done if optimize is yes: we have to go back and open the multi commit point and do deletes against it:
+    // TODO: delmulti isn't done if doFullMerge is yes: we have to go back and open the multi commit point and do deletes against it:
 
     /*
-    if (doOptimize) {
+    if (doFullMerge) {
       final int maxDoc2 = w.maxDoc();
       final int expected = doDeletions ? maxDoc : maxDoc - toDeleteCount;
       if (maxDoc2 != expected {

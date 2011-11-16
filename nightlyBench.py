@@ -293,7 +293,7 @@ def runNRTTest(r, indexPath, runLogDir):
 
 def setIndexParams(idx, fastIndex=True):
   idx.analyzer('StandardAnalyzer')
-  idx.codec('Standard')
+  idx.codec('Lucene40')
   idx.threads(constants.INDEX_NUM_THREADS)
   idx.directory(DIR_IMPL)
   idx.idFieldCodec('Memory')
@@ -333,10 +333,10 @@ def run():
     print 'SVN rev is %s' % svnRev
     print 'luceneutil rev is %s' % luceneUtilRev
   else:
-    runCommand('svn cleanup')
+    runCommand('/usr/local/bin/svn cleanup')
     for i in range(30):
       try:
-        runCommand('svn update > %s/update.log' % runLogDir)
+        runCommand('/usr/local/bin/svn update > %s/update.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
@@ -353,7 +353,7 @@ def run():
   
   runCommand('ant clean > clean.log 2>&1')
 
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
 
   comp = competition.Competition()
 

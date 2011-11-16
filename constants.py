@@ -59,7 +59,7 @@ if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
-CODEC_DEFAULT='Standard'
+CODEC_DEFAULT='Lucene40'
 ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='DefaultSimilarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'

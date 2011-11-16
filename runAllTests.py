@@ -6,7 +6,6 @@ import cPickle
 import threading
 import os
 import heapq
-import subprocess
 import time
 import sys
 import constants
@@ -320,8 +319,7 @@ os.chdir('%s/lucene' % ROOT)
 if '-noc' not in sys.argv:
 
   os.chdir('%s/lucene' % ROOT)
-  run('Compile Lucene...', 'ant compile-test', 'compile.log')
-  run('Compile Lucene core/contrib...', 'ant build-contrib', 'compile-contrib.log')
+  run('Compile Lucene core/contrib...', 'ant compile-test build-contrib', 'compile.log')
   
   if os.path.exists('%s/modules' % ROOT):
     os.chdir('%s/modules' % ROOT)
@@ -546,7 +544,7 @@ aggTests(workQ, tests)
 
 for resource, threadCount in NUM_THREAD:
   if resource != 'local':
-    cmd = '/usr/bin/rsync -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=.svn/ --exclude="*.log" mike@%s:%s' % (ROOT, resource, constants.BASE_DIR)
+    cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=.svn/ --exclude="*.log" mike@%s:%s' % (ROOT, resource, constants.BASE_DIR)
     print 'Copy to %s: %s' % (resource, cmd)
     t = time.time()
     if os.system(cmd):

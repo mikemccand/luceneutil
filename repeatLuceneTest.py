@@ -136,7 +136,8 @@ if doCompile:
 
 onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))
-codec = getArg('-codec', 'randomPerField')
+postingsFormat = getArg('-pf', 'random')
+codec = getArg('-codec', 'random')
 dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
@@ -184,9 +185,14 @@ while True:
       command += ' -server'
     if random.randint(0, 1) == 1 and not onlyOnce:
       command += ' -Xbatch'
+    #command += ' -Dtests.locale=random'
+    #command += ' -Dtests.timezone=random'
+    #command += ' -Dtests.lockdir=build'
     command += ' -Dtests.verbose=%s' % verbose
+    command += ' -Dtests.infostream=false'
     command += ' -Dtests.multiplier=%s' % mult
     command += ' -Dtests.iter=%s' % iters
+    command += ' -Dtests.postingsformat=%s' % postingsFormat
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
     command += ' -Dtests.luceneMatchVersion=4.0'
@@ -232,4 +238,3 @@ while True:
 
   if onlyOnce:
     break
-

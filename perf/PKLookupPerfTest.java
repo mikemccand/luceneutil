@@ -114,7 +114,7 @@ public class PKLookupPerfTest {
     final DocsEnum[] docsEnums = new DocsEnum[subs.length];
     final TermsEnum[] termsEnums = new TermsEnum[subs.length];
     for(int subIdx=0;subIdx<subs.length;subIdx++) {
-      termsEnums[subIdx] = subs[subIdx].fields().terms("id").getThreadTermsEnum();
+      termsEnums[subIdx] = subs[subIdx].fields().terms("id").iterator(null);
     }
 
     final int maxDoc = r.maxDoc();

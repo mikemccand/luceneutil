@@ -59,8 +59,8 @@ def findRootDir(s):
   
 def getLuceneTestClassPath(ROOT):
   CP = []
-  CP.append(ROOT+'/lucene/build/classes/test')
   CP.append(ROOT+'/lucene/build/classes/test-framework')
+  CP.append(ROOT+'/lucene/build/classes/test')
   CP.append(ROOT+'/lucene/build/classes/java')
 
   if not os.path.exists(ROOT + '/lucene/lib/junit-3.8.2.jar'):

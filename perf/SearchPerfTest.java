@@ -83,11 +83,12 @@ public class SearchPerfTest {
   private static class IndexState {
     public final IndexSearcher searcher;
     public final IndexReader[] subReaders;
+    public final ThreadLocal<TermsEnum[]> idTermsEnums = new ThreadLocal<TermsEnum[]>();
     public final DirectSpellChecker spellChecker;
     public final Filter groupEndFilter;
     public int[] docIDToID;
 
-    public IndexState(IndexSearcher searcher, DirectSpellChecker spellChecker) {
+    public IndexState(IndexSearcher searcher, DirectSpellChecker spellChecker) throws IOException {
       this.searcher = searcher;
       this.spellChecker = spellChecker;
       subReaders = searcher.getIndexReader().getSequentialSubReaders();
@@ -427,13 +428,21 @@ public class SearchPerfTest {
     public void go(IndexState state) throws IOException {
       final boolean DO_DOC_LOOKUP = true;
       int base = 0;
-      for (IndexReader sub : state.subReaders) {
+      TermsEnum[] idTermsEnums = state.idTermsEnums.get();
+      if (idTermsEnums == null) {
+        idTermsEnums = new TermsEnum[state.subReaders.length];
+        for(int subIDX=0;subIDX<state.subReaders.length;subIDX++) {
+          idTermsEnums[subIDX] = state.subReaders[subIDX].fields().terms("id").iterator(null);
+        }
+        state.idTermsEnums.set(idTermsEnums);
+      }
+      for (int subIDX=0;subIDX<state.subReaders.length;subIDX++) {
+        final IndexReader sub = state.subReaders[subIDX];
         DocsEnum docs = null;
-        final TermsEnum termsEnum = sub.fields().terms("id").getThreadTermsEnum();
+        final TermsEnum termsEnum = idTermsEnums[subIDX];
         //System.out.println("\nTASK: sub=" + sub);
         for(int idx=0;idx<ids.length;idx++) {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
-          //if (TermsEnum.SeekStatus.FOUND == termsEnum.seek(ids[idx], false, true)) { 
           if (termsEnum.seekExact(ids[idx], false)) { 
             //System.out.println("  found!");
             docs = termsEnum.docs(null, docs);

@@ -38,7 +38,7 @@ public class ShowFields {
     while((name = iterator.next()) != null) {
       System.out.println(name);
       if(name.equals("docdate")) {
-        TermsEnum terms = iterator.terms();
+        TermsEnum terms = iterator.terms().iterator(null);
         BytesRef ref;
         int i = 0;
         while((ref = terms.next()) != null) {

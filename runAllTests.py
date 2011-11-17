@@ -265,7 +265,7 @@ class RunThread:
         if self.resource == 'local':
           open(logFile, 'ab').write(s)
         else:
-          p = subprocess.Popen('ssh %s "cat >> %s"' % (self.resource, logFile), shell=True, stdin=subprocess.PIPE)
+          p = subprocess.Popen('ssh %s "cat >> %s"' % (self.resource, logFile), bufsize=-1, shell=True, stdin=subprocess.PIPE)
           p.stdin.write(s)
           p.stdin.close()
           

@@ -14,7 +14,7 @@ import sys
 import random
 import struct
 
-VERBOSE = False
+VERBOSE = '-debug' in sys.argv
 
 class SkipWriter:
 
@@ -177,8 +177,12 @@ class BlockVIntDeltaCodec:
 
   def __init__(self, blockSize):
     self.blockSize = blockSize
-    self.pending = []
+    self.reset()
     self.buffer = ByteBufferWriter()
+
+  def reset(self):
+    self.upto = 0
+    self.pending = []
 
   lastDocID = 0
 
@@ -186,11 +190,33 @@ class BlockVIntDeltaCodec:
     self.pending.append(docID - self.lastDocID)
     self.lastDocID = docID
     if len(self.pending) == self.blockSize:
-      flush(b)
+      self.flush(b)
+
+  def readDoc(self, b, lastDocID):
+    if self.upto == len(self.pending):
+      self.readBlock(b)
+      self.upto = 0
+    delta = self.pending[self.upto]
+    self.upto += 1
+    return lastDocID + delta
+
+  def readBlock(self, b):
+    # TODO: numBytes is unused...
+    numBytes = b.readInt()
+    self.pending = []
+    for idx in xrange(self.blockSize):
+      self.pending.append(b.readVInt())
+
+  def afterSeek(self):
+    self.reset()
 
   def flush(self, b):
+    # print 'flush'
     for i in self.pending:
-      writeVInt(self.buffer, i)
+      self.buffer.writeVInt(i)
+    for i in xrange(len(self.pending), self.blockSize):
+      self.buffer.writeVInt(0)
+    self.pending = []
     b.writeInt(self.buffer.pos)
     b.writeBytes(''.join(self.buffer.bytes))
     self.buffer.reset()
@@ -199,42 +225,58 @@ def main():
 
   seed = random.randint(0, sys.maxint)
   if VERBOSE:
-    # nocommit
     seed = 17
   print 'SEED %s' % seed
   r = random.Random(seed)
 
-  NUM_DOCS = r.randint(5000, 50000)
+  NUM_DOCS = r.randint(5000, 500000)
 
   if VERBOSE:
-    # nocommit
     NUM_DOCS = 55
 
   docList = makeDocs(r, NUM_DOCS)
 
   b = ByteBufferWriter()
 
-  sw = SkipWriter(r.randint(2, 50))
+  skipInterval = r.randint(2, 50)
+  sw = SkipWriter(skipInterval)
 
   #codec = WholeIntAbsCodec()
   #codec = WholeIntDeltaCodec()
-  codec = VIntDeltaCodec()  
+  #codec = VIntDeltaCodec()
+  blockSize = r.randint(2, 200)
+  codec = BlockVIntDeltaCodec(blockSize)
+
+  print 'numDocs %d' % NUM_DOCS
+  print 'blockSize %d' % blockSize
+  print 'skipInterval %d' % skipInterval
 
   # Non-block coded, fixed 4 byte per docID:
   docCount = 0
   for docID in docList:
     if VERBOSE:
       print '  write docID=%d' % docID
+    oldPos = b.pos
     codec.writeDoc(b, docID)
     docCount += 1
-    sw.visit(docCount, docID, b.pos)
+    if b.pos != oldPos:
+      # Codec wrote something.  NOTE: this simple logic fails w/
+      # codecs that buffer, ie, we assume here that the codec fully
+      # wrote through this last docID:
+      sw.visit(docCount, docID, b.pos)
 
+  codec.flush(b)
+  
   reader = ByteBufferReader(b)
   for iter in xrange(100):
+    if VERBOSE:
+      print
+      print 'ITER %s' % iter
     reader.pos = 0
     sr = SkipReader(sw)
     docIDX = 0
     lastDocID = 0
+    codec.reset()
     while docIDX < len(docList):
 
       if VERBOSE:
@@ -255,6 +297,10 @@ def main():
           docIDX = tup[0]
           lastDocID = tup[1]
           reader.pos = tup[2]
+          if reader.pos >= len(reader.bytes):
+            raise RuntimeError('jumped to pos=%d > length=%d' % \
+                               (reader.pos, len(reader.bytes)))
+          codec.afterSeek()
           if VERBOSE:
             print '  jumped!  lastDocID=%d pointer=%s' % (lastDocID, reader.pos)
 

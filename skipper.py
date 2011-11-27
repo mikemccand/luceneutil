@@ -173,7 +173,7 @@ class VIntDeltaCodec:
   def readDoc(self, b, lastDocID):
     return lastDocID + b.readVInt()
 
-class BlockVIntDeltaCodec:
+class FixedBlockVIntDeltaCodec:
 
   def __init__(self, blockSize):
     self.blockSize = blockSize
@@ -220,6 +220,54 @@ class BlockVIntDeltaCodec:
     b.writeInt(self.buffer.pos)
     b.writeBytes(''.join(self.buffer.bytes))
     self.buffer.reset()
+
+
+class VariableBlockVIntDeltaCodec:
+
+  def __init__(self, r):
+    self.r = r
+    self.reset()
+    self.buffer = ByteBufferWriter()
+
+  def reset(self):
+    self.upto = 0
+    self.pending = []
+    self.blockSize = self.r.randint(1, 50)
+
+  lastDocID = 0
+
+  def writeDoc(self, b, docID):
+    self.pending.append(docID - self.lastDocID)
+    self.lastDocID = docID
+    if len(self.pending) == self.blockSize:
+      self.flush(b)
+
+  def readDoc(self, b, lastDocID):
+    if self.upto == len(self.pending):
+      self.readBlock(b)
+      self.upto = 0
+    delta = self.pending[self.upto]
+    self.upto += 1
+    return lastDocID + delta
+
+  def readBlock(self, b):
+    numBytes = b.readInt()
+    self.pending = []
+    posEnd = b.pos + numBytes
+    while b.pos < posEnd:
+      self.pending.append(b.readVInt())
+
+  def afterSeek(self):
+    self.reset()
+
+  def flush(self, b):
+    # print 'flush'
+    for i in self.pending:
+      self.buffer.writeVInt(i)
+    self.pending = []
+    b.writeInt(self.buffer.pos)
+    b.writeBytes(''.join(self.buffer.bytes))
+    self.buffer.reset()
     
 def main():
 
@@ -229,7 +277,7 @@ def main():
   print 'SEED %s' % seed
   r = random.Random(seed)
 
-  NUM_DOCS = r.randint(5000, 500000)
+  NUM_DOCS = r.randint(10000, 20000)
 
   if VERBOSE:
     NUM_DOCS = 55
@@ -244,11 +292,12 @@ def main():
   #codec = WholeIntAbsCodec()
   #codec = WholeIntDeltaCodec()
   #codec = VIntDeltaCodec()
-  blockSize = r.randint(2, 200)
-  codec = BlockVIntDeltaCodec(blockSize)
+  #blockSize = r.randint(2, 200)
+  #print 'blockSize %d' % blockSize
+  #codec = FixedBlockVIntDeltaCodec(blockSize)
+  codec = VariableBlockVIntDeltaCodec(r)
 
   print 'numDocs %d' % NUM_DOCS
-  print 'blockSize %d' % blockSize
   print 'skipInterval %d' % skipInterval
 
   # Non-block coded, fixed 4 byte per docID:

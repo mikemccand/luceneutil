@@ -2,6 +2,7 @@
 #   - see how separate frq file can be packed in too
 #   - what about skipping w/in positions?
 #   - handle inlining
+#   - we could have arbitrary skipLevel per level...?
 #   - run random stress test
 #   - test delta coded fixed int
 #   - test delta coded var int
@@ -16,56 +17,75 @@ import struct
 
 VERBOSE = '-debug' in sys.argv
 
+class SkipTower:
+
+  def __init__(self, docCount, lastDocID, pointer):
+    self.docCount = docCount
+    self.lastDocID = lastDocID
+    self.pointer = pointer
+    self.entries = []
+
 class SkipWriter:
 
-  def __init__(self, skipInterval):
+  def __init__(self, skipInterval, tower0=None, level=0):
     #print 'skipInterval %d' % skipInterval
     self.skipInterval = skipInterval
-    self.lastSkipDocCount = 0
-    self.lastPointer = 0
-    self.skips = []
+    self.lastSkipItemCount = 0
+    if tower0 is None:
+      tower0 = SkipTower(0, -1, 0)
+    self.tower0 = tower0
+    self.lastTower = tower0
     self.parent = None
+    self.level = level
+    self.numSkips = 0
     
-  def visit(self, docCount, lastDocID, pointer):
-    if docCount - self.lastSkipDocCount >= self.skipInterval:
-      self.skips.append((docCount, lastDocID, pointer))
-      if VERBOSE:
-        print 'add skip %s' % str(self.skips[-1])
-      self.lastSkipDocCount = docCount
-      self.lastPointer = pointer
-      if len(self.skips) == self.skipInterval:
-        # Add another skip level:
-        #print 'recurse'
-        self.parent = SkipWriter(self.skipInterval)
+  def visit(self, itemCount, lastDocID, pointer):
+    if itemCount - self.lastSkipItemCount >= self.skipInterval:
+      if self.level == 0:
+        tower = SkipTower(itemCount, lastDocID, pointer)
+      else:
+        tower = pointer
+      self.numSkips += 1
+      assert len(self.lastTower.entries) == self.level
+      self.lastTower.entries.append(tower)
+      self.lastTower = tower
+      self.lastSkipItemCount = itemCount
+      if self.numSkips == self.skipInterval:
+        # Lazily add another skip level:
+        self.parent = SkipWriter(self.skipInterval, self.tower0, 1+self.level)
 
       if self.parent is not None:
-        self.parent.visit(len(self.skips), lastDocID, len(self.skips)-1)
+        self.parent.visit(self.numSkips, lastDocID, tower)
 
 class SkipReader:
 
-  def __init__(self, w):
-    self.skips = w.skips
-    self.nextSkipIDX = 0
+  def __init__(self, w, level=0):
+    self.tower = w.tower0
+    self.level = level
     if w.parent is not None:
-      self.parent = SkipReader(w.parent)
+      self.parent = SkipReader(w.parent, level+1)
     else:
       self.parent = None
 
   def skip(self, targetDocID):
     skipped = False
     if self.parent is not None:
-      tup = self.parent.skip(targetDocID)
-      if tup is not None:
-        docCount, lastDocID, skipIDX =tup
-        #print 'parent recurse lastDocID=%d' % lastDocID
-        self.nextSkipIDX = skipIDX
+      tower = self.parent.skip(targetDocID)
+      if tower is not None:
+        self.tower = tower
         skipped = True
-    while self.nextSkipIDX < len(self.skips) and \
-          self.skips[self.nextSkipIDX][1] < targetDocID:
-      self.nextSkipIDX += 1
-      skipped = True
+    
+    tower = self.tower
+    while len(tower.entries) > self.level:
+      nextTower = tower.entries[self.level]
+      if nextTower.lastDocID < targetDocID:
+        tower = nextTower
+        skipped = True
+      else:
+        break
     if skipped:
-      return self.skips[self.nextSkipIDX-1]
+      self.tower = tower
+      return self.tower
     else:
       return None
 
@@ -340,12 +360,12 @@ def main():
           targetDocID = docList[min(len(docList)-1, docIDX+r.randint(1, 50))]
         if VERBOSE:
           print '  try jump targetDocID=%d' % targetDocID
-        tup = sr.skip(targetDocID)
-        if tup is not None:
+        tower = sr.skip(targetDocID)
+        if tower is not None:
           # did jump
-          docIDX = tup[0]
-          lastDocID = tup[1]
-          reader.pos = tup[2]
+          docIDX = tower.docCount
+          lastDocID = tower.lastDocID
+          reader.pos = tower.pointer
           if reader.pos >= len(reader.bytes):
             raise RuntimeError('jumped to pos=%d > length=%d' % \
                                (reader.pos, len(reader.bytes)))

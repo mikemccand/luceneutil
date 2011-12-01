@@ -60,7 +60,7 @@ public class CreateQueries {
     long df;
 
     public TermFreq(BytesRef term, long df) {
-      this.term = new BytesRef(term);
+      this.term = BytesRef.deepCopyOf(term);
       this.df = df;
     }
   }

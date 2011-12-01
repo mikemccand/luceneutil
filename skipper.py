@@ -9,6 +9,7 @@
 #   - test delta coded var int
 #   - test block coded
 #   - test inlined or not
+#   - assert we don't seek to the pos we are already at...?  is that too anal?
 #   - make sure we sometimes test recursion case
 #   - hmm need different versions if we know the docCount will be 'regular' (eg every 128 docs)
 #   - assert in the inlined case that the skip reader never 'goes
@@ -20,6 +21,7 @@
 import sys
 import random
 import struct
+import types
 
 VERBOSE = '-debug' in sys.argv
 
@@ -71,13 +73,20 @@ class SkipWriter:
     self.level = level
     self.numSkips = 0
 
-  def write(self, inlined=False):
+  def write(self, postings=None):
+
+    inlined = postings is not None
 
     # Iterate until the pointers converge:
     while True:
+      if VERBOSE:
+        print
+        print 'WRITE: cycle'
       tower = self.tower0
       b = ByteBufferWriter()
-      writePointer = 0
+      b.writeVInt(self.skipInterval)
+      writePointer = b.pos
+      b.reset()
       changed = False
       while True:
         if tower.writePointer != writePointer:
@@ -100,14 +109,28 @@ class SkipWriter:
     print
     print 'FINAL WRITE'
     # Now write for real
+    if inlined:
+      pb = ByteBufferReader(postings)
     b = ByteBufferWriter()
+    b.writeVInt(self.skipInterval)
     tower = self.tower0
-    writePointer = 0
+    writePointer = b.pos
     while True:
-      # print 'tower %s, %d nextTowers' % (tower, len(tower.nextTowers))
+      assert b.pos == tower.writePointer, '%d vs %d' % (b.pos, tower.writePointer)
       tower.write(b)
       if len(tower.nextTowers) == 0:
+        if inlined:
+          chunk = pb.readBytes(len(postings)-tower.pointer)
+          if VERBOSE:
+            print '  write final postings chunk %d bytes pos=%s' % (len(chunk), b.pos)
+          b.writeBytes(chunk)
         break
+      if inlined:
+        postingsChunk = tower.nextTowers[0].pointer - tower.pointer
+        if VERBOSE:
+          print '  write postings chunk %d bytes @ pos=%s' % (postingsChunk, b.pos)
+        b.writeBytes(pb.readBytes(postingsChunk))
+        
       tower = tower.nextTowers[0]
 
     return ''.join(b.bytes)
@@ -177,6 +200,9 @@ class DirectSkipReader:
     else:
       return None
 
+  def skipSkipData(self, count):
+    pass
+
 class SkipReader:
 
   """
@@ -185,13 +211,18 @@ class SkipReader:
 
   def __init__(self, b=None, baseSkipper=None, level=0, numLevels=None):
     self.level = level
+    self.pendingCount = 0
     if level == 0:
       assert b is not None
+      self.skipInterval = b.readVInt()
+      firstTowerPos = b.pos
       numLevels = b.readVInt()
+      self.maxNumLevels = numLevels
       baseSkipper = self
       self.b = b
       if VERBOSE:
-        print '%d skip levels' % numLevels
+        print 'skipInterval %d' % self.skipInterval
+        print ' %d skip levels' % numLevels
     self.baseSkipper = baseSkipper
     self.lastDocID = 0
     self.nextTowerPos = 0
@@ -201,7 +232,15 @@ class SkipReader:
     else:
       self.parent = None
     if level == 0:
-      self.readTower(0, 0)
+      self.b.pos = 0
+      self.readTower(firstTowerPos, 0)
+
+  def skipSkipData(self, count, lastDocID):
+    self.pendingCount += count
+    if self.pendingCount >= self.skipInterval:
+      if VERBOSE:
+        print '  now skip tower pos=%s pendingCount=%s' % (self.b.pos, self.pendingCount)
+      self.readTower(self.b.pos, lastDocID)
 
   def readTower(self, pos, lastDocID, left=None):
     b = self.baseSkipper.b
@@ -209,10 +248,12 @@ class SkipReader:
     self.lastDocID = lastDocID
     self.lastPos = pos
     if left is None:
+      self.pendingCount = 0
       if VERBOSE:
         print 'READ TOWER: pos=%s lastDocID=%s' % (pos, lastDocID)
       b.seek(pos)
       numLevels = b.readVInt()
+      assert numLevels <= self.maxNumLevels
       if VERBOSE:
         print '  %d levels' % numLevels
       self.docCount = b.readVInt()
@@ -223,9 +264,6 @@ class SkipReader:
       if numLevels == 0:
         return
       left = numLevels-1
-    else:
-      if VERBOSE:
-        print '  recurse read tower'
 
     self.nextTowerPos = pos + b.readVLong()
     delta = b.readVInt()
@@ -244,7 +282,7 @@ class SkipReader:
     while self.nextTowerLastDocID < targetDocID and self.nextTowerPos > self.baseSkipper.lastPos:
       self.baseSkipper.readTower(self.nextTowerPos, self.nextTowerLastDocID)
       skipped = True
-      
+
     return skipped
 
 def makeDocs(r, count):
@@ -297,6 +335,8 @@ class ByteBufferReader:
     return v
 
   def seek(self, pos):
+    assert type(pos) is types.IntType
+    assert pos > self.pos, 'currentPos=%s newPos=%s' % (self.pos, pos)
     self.pos = pos
 
   def readByte(self):
@@ -371,14 +411,16 @@ class VIntDeltaCodec:
 
 class FixedBlockVIntDeltaCodec:
 
-  def __init__(self, blockSize):
+  def __init__(self, blockSize, inlinedSkipData):
     self.blockSize = blockSize
     self.reset()
+    self.inlinedSkipData = inlinedSkipData
     self.buffer = ByteBufferWriter()
 
   def reset(self):
     self.upto = 0
     self.pending = []
+    self.lastReadCount = 0
 
   lastDocID = 0
 
@@ -390,45 +432,60 @@ class FixedBlockVIntDeltaCodec:
 
   def readDoc(self, b, lastDocID):
     if self.upto == len(self.pending):
-      self.readBlock(b)
+      self.readBlock(b, lastDocID)
       self.upto = 0
     delta = self.pending[self.upto]
+    print '  readDoc lastDocID=%d delta=%d' % (lastDocID, delta)
     self.upto += 1
     return lastDocID + delta
 
-  def readBlock(self, b):
+  def readBlock(self, b, lastDocID):
     # TODO: numBytes is unused...
+    if self.inlinedSkipData:
+      self.skipper.skipSkipData(self.lastReadCount, lastDocID)
+    print '  readBlock @ b.pos=%s lastDocID=%s b=%s' % (b.pos, lastDocID, b)
     numBytes = b.readInt()
+    print '    numBytes=%d' % numBytes
+    assert len(self.pending) == 0
     self.pending = []
     for idx in xrange(self.blockSize):
-      self.pending.append(b.readVInt())
+      delta = b.readVInt()
+      assert delta > 0
+      self.pending.append(delta)
+      print '    delta=%d' % self.pending[-1]
+    self.lastReadCount = len(self.pending)
 
   def afterSeek(self):
     self.reset()
 
   def flush(self, b):
     # print 'flush'
+    print '  writeBlock @ b.pos=%s' % b.pos
     for i in self.pending:
+      print '    delta=%d' % i
       self.buffer.writeVInt(i)
     for i in xrange(len(self.pending), self.blockSize):
       self.buffer.writeVInt(0)
     self.pending = []
     b.writeInt(self.buffer.pos)
+    print '    numBytes=%d' % self.buffer.pos
     b.writeBytes(''.join(self.buffer.bytes))
     self.buffer.reset()
 
 
 class VariableBlockVIntDeltaCodec:
 
-  def __init__(self, r):
+  def __init__(self, r, inlinedSkipData):
     self.r = r
     self.reset()
+    self.inlinedSkipData = inlinedSkipData
     self.buffer = ByteBufferWriter()
 
   def reset(self):
     self.upto = 0
     self.pending = []
     self.blockSize = self.r.randint(1, 50)
+    self.lastReadCount = 0
 
   lastDocID = 0
 
@@ -440,18 +497,23 @@ class VariableBlockVIntDeltaCodec:
 
   def readDoc(self, b, lastDocID):
     if self.upto == len(self.pending):
-      self.readBlock(b)
+      self.readBlock(b, lastDocID)
       self.upto = 0
     delta = self.pending[self.upto]
     self.upto += 1
     return lastDocID + delta
 
-  def readBlock(self, b):
+  def readBlock(self, b, lastDocID):
+    if self.inlinedSkipData:
+      self.skipper.skipSkipData(self.lastReadCount, lastDocID)
     numBytes = b.readInt()
     self.pending = []
     posEnd = b.pos + numBytes
     while b.pos < posEnd:
-      self.pending.append(b.readVInt())
+      delta = b.readVInt()
+      assert delta > 0
+      self.pending.append(delta)
+    self.lastReadCount = len(pending)
 
   def afterSeek(self):
     self.reset()
@@ -488,13 +550,17 @@ def main():
     
   sw = SkipWriter(skipInterval)
 
+  inlined = True
+
   #codec = WholeIntAbsCodec()
   #codec = WholeIntDeltaCodec()
   #codec = VIntDeltaCodec()
-  #blockSize = r.randint(2, 200)
-  #print 'blockSize %d' % blockSize
-  #codec = FixedBlockVIntDeltaCodec(blockSize)
-  codec = VariableBlockVIntDeltaCodec(r)
+  blockSize = r.randint(2, 200)
+  if VERBOSE:
+    blockSize = 5
+  print 'blockSize %d' % blockSize
+  codec = FixedBlockVIntDeltaCodec(blockSize, inlined)
+  #codec = VariableBlockVIntDeltaCodec(r, inlined)
 
   print 'numDocs %d' % NUM_DOCS
   print 'skipInterval %d' % skipInterval
@@ -514,25 +580,31 @@ def main():
       sw.visit(docCount, docID, b.pos)
 
   codec.flush(b)
+  postingsBytes = b.getBytes()
   
-  print 'WRITE not inlined:'
-  skipBytes = sw.write()
-  print '  %d skip bytes; %d postings bytes' % (len(skipBytes), b.pos)
+  if inlined:
+    allBytes = sw.write(postingsBytes)
+    reader = ByteBufferReader(allBytes)
+    skipBytes = allBytes
+    skipBytesReader = reader
 
-  if False:
-    print 'WRITE inlined:'
-    sw.write(True)
+    print '  %d postings bytes; %d all bytes (%d skip bytes interleaved)' % \
+          (len(postingsBytes), len(allBytes), len(allBytes)-len(postingsBytes))
+  else:
+    skipBytes = sw.write()
+    print '  %d skip bytes; %d postings bytes' % (len(skipBytes), len(postingsBytes))
+    reader = ByteBufferReader(postingsBytes)
+    skipBytesReader = ByteBufferReader(skipBytes)
   
-  reader = ByteBufferReader(b.getBytes())
-  skipBytes = ByteBufferReader(skipBytes)
   for iter in xrange(100):
     if VERBOSE:
       print
       print 'ITER %s' % iter
     reader.pos = 0
+    skipBytesReader.pos = 0
+    sr = SkipReader(skipBytesReader)
     #sr = DirectSkipReader(sw)
-    skipBytes.pos = 0
-    sr = SkipReader(skipBytes)
+    codec.skipper = sr
     docIDX = 0
     lastDocID = 0
     codec.reset()
@@ -554,7 +626,7 @@ def main():
           # did jump
           docIDX = sr.docCount
           lastDocID = sr.lastDocID
-          reader.pos = sr.pointer
+          reader.seek(sr.pointer)
           if reader.pos >= len(reader.bytes):
             raise RuntimeError('jumped to pos=%d > length=%d' % \
                                (reader.pos, len(reader.bytes)))

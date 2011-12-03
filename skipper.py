@@ -2,6 +2,7 @@
 #   - hmm: if skip data is inlined, we must always init a skipper,
 #     even if we will not use the skip data, so we can skip the skip
 #     packets?  unless we tag them / put numbytes header
+#   - add no skipping test!
 #   - write backwards for faster convergence!?
 #     - skipInterval=2, vint delta codec = slow
 #   - interaction @ read time w/ codec is a little messy?
@@ -28,7 +29,7 @@ import types
 
 VERBOSE = '-debug' in sys.argv
 
-NO_MORE_DOCS = sys.maxint
+NO_MORE_DOCS = (1 << 31) - 1
 
 class SkipTower:
 
@@ -130,6 +131,19 @@ def writeTowers(skipWriter, postings=None):
   sav = VERBOSE
   VERBOSE = False
 
+  if postings is not None:
+    endPostings = len(postings)
+  else:
+    endPostings = 0
+  print '  END postings %s' % endPostings
+  endTower = SkipTower(0, NO_MORE_DOCS, endPostings)
+
+  # Add EOF markers:
+  sw = skipWriter
+  while sw is not None:
+    sw.lastTower.nextTowers.append(endTower)
+    sw = sw.parent
+
   err = 0
   # Iterate until the pointers converge:
   while True:
@@ -183,7 +197,7 @@ def writeTowers(skipWriter, postings=None):
     v = 0
   b.writeVInt(v)
   writePointer = b.pos
-  while True:
+  while tower != endTower:
     assert b.pos == tower.writePointer, '%d vs %d' % (b.pos, tower.writePointer)
     tower.write(b, inlined)
     if len(tower.nextTowers) == 0:
@@ -191,12 +205,14 @@ def writeTowers(skipWriter, postings=None):
         chunk = pb.readBytes(len(postings)-tower.pointer)
         if VERBOSE:
           print '  write final postings chunk %d bytes pos=%s (from pointer=%d)' % (len(chunk), b.pos, pb.pos-len(chunk))
+        assert len(chunk) > 0
         b.writeBytes(chunk)
       break
     if inlined:
       postingsChunk = tower.nextTowers[0].pointer - tower.pointer
       if VERBOSE:
         print '  write postings chunk %d bytes @ pos=%s (from pointer=%d)' % (postingsChunk, b.pos, pb.pos)
+      assert postingsChunk > 0
       b.writeBytes(pb.readBytes(postingsChunk))
 
     tower = tower.nextTowers[0]
@@ -226,16 +242,14 @@ class SkipReader:
       self.nextTowers.append((0, 0))
     self.lastDocID = 0
     self.b.pos = 0
-    self.readTower(firstTowerPos, 0, 0, self.maxNumLevels)
+    self.readTower(firstTowerPos, 0, 0)
 
-  def readTower(self, pos, lastDocID, targetDocID, expectedNumLevels):
+  def readTower(self, pos, lastDocID, targetDocID):
     
     if VERBOSE:
-      print 'READ TOWER: pos=%s lastDocID=%s expectedNumLevels=%d' % \
-            (pos, lastDocID, expectedNumLevels)
+      print 'READ TOWER: pos=%s lastDocID=%s' % \
+            (pos, lastDocID)
 
-    assert expectedNumLevels <= self.maxNumLevels
-    
     self.lastDocID = lastDocID
     self.pendingCount = 0
     self.b.seek(pos)
@@ -246,13 +260,7 @@ class SkipReader:
       print '  %d levels' % numLevels
 
     # Towers are written highest to lowest:
-    nextIDX = expectedNumLevels - 1
-    for idx in xrange(expectedNumLevels - numLevels):
-      self.nextTowers[nextIDX] = (NO_MORE_DOCS, 0)
-      if VERBOSE:
-        print '  nextPos=0 nextLastDocId=%d (end fill)' % NO_MORE_DOCS
-      nextIDX -= 1
-      
+    nextIDX = numLevels - 1
     for idx in xrange(numLevels):
       nextTowerPos = pos + self.b.readVLong()
       nextTowerLastDocID = lastDocID + self.b.readVInt()
@@ -301,8 +309,7 @@ class SkipReader:
       while True:
         level = self.readTower(self.nextTowers[level][1],
                                self.nextTowers[level][0],
-                               targetDocID,
-                               level+1)
+                               targetDocID)
         if level == -1 or self.nextTowers[level][0] >= targetDocID:
           break
           
@@ -587,11 +594,11 @@ class VariableBlockVIntDeltaCodec:
     
 def main():
 
-  seed = random.randint(0, sys.maxint)
+  if '-seed' in sys.argv:
+    seed = sys.argv[sys.argv.index('-seed')+1]
+  else:
+    seed = random.randint(0, sys.maxint)
   
-  if VERBOSE:
-    seed = 17
-
   print 'SEED %s' % seed
   r = random.Random(seed)
 
@@ -677,6 +684,10 @@ def main():
       print 'ITER %s' % iter
     reader.pos = 0
     skipBytesReader.pos = 0
+
+    doSkipping = r.randint(0, 3) != 2
+    if VERBOSE:
+      print '  doSkipping %s' % doSkipping
     sr = SkipReader(skipBytesReader, inlined=inlined)
     codec.skipper = sr
     docIDX = 0
@@ -687,7 +698,7 @@ def main():
       if VERBOSE:
         print 'cycle docIDX=%d of %d, pos=%s' % (docIDX, len(docList), reader.pos)
 
-      if r.randint(0, 1) == 1:
+      if doSkipping and r.randint(0, 1) == 1:
         # randomly jump
         if r.randint(0, 10) == 7:
           # big jump

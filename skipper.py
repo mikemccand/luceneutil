@@ -1,6 +1,10 @@
 # TODO
+#   - hmm: if skip data is inlined, we must always init a skipper,
+#     even if we will not use the skip data, so we can skip the skip
+#     packets?  unless we tag them / put numbytes header
 #   - write backwards for faster convergence!?
 #     - skipInterval=2, vint delta codec = slow
+#   - interaction @ read time w/ codec is a little messy?
 #   - write towers from top down not bottom up, and when skipping if
 #     as soon as we read an entry we want to follow, jump; no need to
 #     read lower entries in that tower
@@ -23,6 +27,8 @@ import struct
 import types
 
 VERBOSE = '-debug' in sys.argv
+
+NO_MORE_DOCS = sys.maxint
 
 class SkipTower:
 
@@ -203,33 +209,71 @@ class SkipReader:
   Reads serialized Towers.
   """
 
-  def __init__(self, b=None, baseSkipper=None, level=0, numLevels=None, inlined=False):
-    self.level = level
+  def __init__(self, b, inlined):
+    self.b = b
     self.pendingCount = 0
-    if level == 0:
-      assert b is not None
-      self.inlined = inlined
-      self.skipInterval = b.readVInt()
-      self.fixedDocGap = b.readVInt()
-      firstTowerPos = b.pos
-      numLevels = b.readVInt()
-      self.maxNumLevels = numLevels
-      baseSkipper = self
-      self.b = b
-      if VERBOSE:
-        print 'skipInterval %d' % self.skipInterval
-        print ' %d max skip levels' % numLevels
-    self.baseSkipper = baseSkipper
+    self.inlined = inlined
+    self.skipInterval = b.readVInt()
+    self.fixedDocGap = b.readVInt()
+    firstTowerPos = b.pos
+    self.maxNumLevels = b.readVInt()
+    if VERBOSE:
+      print 'skipInterval %d' % self.skipInterval
+      print ' %d max skip levels' % self.maxNumLevels
+
+    self.nextTowers = []
+    for i in xrange(self.maxNumLevels):
+      self.nextTowers.append((0, 0))
     self.lastDocID = 0
-    self.nextTowerPos = 0
-    self.nextTowerLastDocID = 0
-    if numLevels > level+1:
-      self.parent = SkipReader(baseSkipper=baseSkipper, level=level+1, numLevels=numLevels)
-    else:
-      self.parent = None
-    if level == 0:
-      self.b.pos = 0
-      self.readTower(firstTowerPos, 0)
+    self.b.pos = 0
+    self.readTower(firstTowerPos, 0, self.maxNumLevels)
+
+  def readTower(self, pos, lastDocID, expectedNumLevels):
+    
+    if VERBOSE:
+      print 'READ TOWER: pos=%s lastDocID=%s expectedNumLevels=%d' % \
+            (pos, lastDocID, expectedNumLevels)
+
+    assert expectedNumLevels <= self.maxNumLevels
+    
+    self.lastDocID = lastDocID
+    self.pendingCount = 0
+    self.b.seek(pos)
+
+    numLevels = self.b.readVInt()
+    assert numLevels <= self.maxNumLevels
+    if VERBOSE:
+      print '  %d levels' % numLevels
+
+    # TODO: nuke lastPos somehow?  it's just for the end towers...
+    self.lastPos = pos
+
+    nextIDX = expectedNumLevels - 1
+    for idx in xrange(expectedNumLevels - numLevels):
+      self.nextTowers[nextIDX] = (NO_MORE_DOCS, 0)
+      if VERBOSE:
+        print '  nextPos=0 nextLastDocId=%d (end fill)' % NO_MORE_DOCS
+      nextIDX -= 1
+      
+    # Towers are written highest to lowest:
+    for idx in xrange(numLevels):
+      nextTowerPos = pos + self.b.readVLong()
+      nextTowerLastDocID = lastDocID + self.b.readVInt()
+      self.nextTowers[nextIDX] = (nextTowerLastDocID, nextTowerPos)
+      nextIDX -= 1
+      if VERBOSE:
+        print '  nextPos=%s nextLastDocId=%d' % (nextTowerPos, nextTowerLastDocID)
+
+    self.docCount = self.b.readVInt()
+    if not self.inlined:
+      self.pointer = self.b.readVLong()
+
+    if VERBOSE:
+      print '  docCount=%d' % self.docCount
+      if not self.inlined:
+        print '  pointer=%s' % self.pointer
+
+    return numLevels
 
   def skipSkipData(self, count, lastDocID):
     self.pendingCount += count
@@ -238,54 +282,34 @@ class SkipReader:
         print '  now skip tower pos=%s pendingCount=%s' % (self.b.pos, self.pendingCount)
       self.readTower(self.b.pos, lastDocID)
 
-  def readTower(self, pos, lastDocID, left=None):
-    
-    if VERBOSE:
-      print 'READ TOWER: pos=%s lastDocID=%s' % (pos, lastDocID)
-
-    self.lastDocID = lastDocID
-    self.pendingCount = 0
-    self.b.seek(pos)
-    numLevels = self.b.readVInt()
-    self.lastPos = pos
-    assert numLevels <= self.maxNumLevels
-    if VERBOSE:
-      print '  %d levels' % numLevels
-
-    if numLevels > 0:
-      self.readNextTowerEntry(pos, lastDocID, numLevels)
-
-    self.docCount = self.b.readVInt()
-    if not self.inlined:
-      self.pointer = self.b.readVLong()
-    if VERBOSE:
-      print '  docCount=%d' % self.docCount
-      if not self.inlined:
-        print '  pointer=%s' % self.pointer
-
-  def readNextTowerEntry(self, pos, lastDocID, entriesLeft):
-    if entriesLeft > 1:
-      # top-down:
-      self.parent.readNextTowerEntry(pos, lastDocID, entriesLeft-1)
-
-    b = self.baseSkipper.b
-    self.nextTowerPos = pos + b.readVLong()
-    delta = b.readVInt()
-    self.nextTowerLastDocID = lastDocID + delta
-    if VERBOSE:
-      print '  nextPos=%s nextLastDocId=%d' % (self.nextTowerPos, self.nextTowerLastDocID)
-
-      
   def skip(self, targetDocID):
-    skipped = False
-    if self.parent is not None:
-      skipped = self.parent.skip(targetDocID)
 
-    while self.nextTowerLastDocID < targetDocID and self.nextTowerPos > self.baseSkipper.lastPos:
-      self.baseSkipper.readTower(self.nextTowerPos, self.nextTowerLastDocID)
-      skipped = True
+    # Up, first:
+    level = 0
+    while level < self.maxNumLevels and self.nextTowers[level][0] < targetDocID:
+      if VERBOSE:
+        print '  up to level %d' % (1+level)
+      level += 1
 
-    return skipped
+    if level == 0:
+      # no skipping
+      return False
+    else:
+      level -= 1
+      # Then down:
+      while level >= 0:
+        while self.nextTowers[level][0] < targetDocID:
+          if VERBOSE:
+            print '  jump at level %d' % (1+level)
+          self.readTower(self.nextTowers[level][1],
+                         self.nextTowers[level][0],
+                         level+1)
+        level -= 1
+        if level >= 0:
+          if VERBOSE:
+            print '  down to %d' % (1+level)
+          
+      return True
 
 def makeDocs(r, count):
   docID = 0
@@ -567,16 +591,17 @@ class VariableBlockVIntDeltaCodec:
 def main():
 
   seed = random.randint(0, sys.maxint)
+  
   if VERBOSE:
     seed = 17
-  seed = 1691602525248401069
+
   print 'SEED %s' % seed
   r = random.Random(seed)
 
   NUM_DOCS = r.randint(30000, 100000)
 
   if False and VERBOSE:
-    NUM_DOCS = 5344
+    NUM_DOCS = 534
 
   docList = makeDocs(r, NUM_DOCS)
 

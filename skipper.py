@@ -226,9 +226,9 @@ class SkipReader:
       self.nextTowers.append((0, 0))
     self.lastDocID = 0
     self.b.pos = 0
-    self.readTower(firstTowerPos, 0, self.maxNumLevels)
+    self.readTower(firstTowerPos, 0, 0, self.maxNumLevels)
 
-  def readTower(self, pos, lastDocID, expectedNumLevels):
+  def readTower(self, pos, lastDocID, targetDocID, expectedNumLevels):
     
     if VERBOSE:
       print 'READ TOWER: pos=%s lastDocID=%s expectedNumLevels=%d' % \
@@ -245,9 +245,7 @@ class SkipReader:
     if VERBOSE:
       print '  %d levels' % numLevels
 
-    # TODO: nuke lastPos somehow?  it's just for the end towers...
-    self.lastPos = pos
-
+    # Towers are written highest to lowest:
     nextIDX = expectedNumLevels - 1
     for idx in xrange(expectedNumLevels - numLevels):
       self.nextTowers[nextIDX] = (NO_MORE_DOCS, 0)
@@ -255,11 +253,14 @@ class SkipReader:
         print '  nextPos=0 nextLastDocId=%d (end fill)' % NO_MORE_DOCS
       nextIDX -= 1
       
-    # Towers are written highest to lowest:
     for idx in xrange(numLevels):
       nextTowerPos = pos + self.b.readVLong()
       nextTowerLastDocID = lastDocID + self.b.readVInt()
       self.nextTowers[nextIDX] = (nextTowerLastDocID, nextTowerPos)
+      if nextTowerLastDocID < targetDocID:
+        # Early exit: we know we will skip on this level, so don't
+        # bother decoding tower entries for any levels lower:
+        return nextIDX
       nextIDX -= 1
       if VERBOSE:
         print '  nextPos=%s nextLastDocId=%d' % (nextTowerPos, nextTowerLastDocID)
@@ -273,14 +274,14 @@ class SkipReader:
       if not self.inlined:
         print '  pointer=%s' % self.pointer
 
-    return numLevels
+    return -1
 
   def skipSkipData(self, count, lastDocID):
     self.pendingCount += count
     if self.pendingCount >= self.skipInterval:
       if VERBOSE:
         print '  now skip tower pos=%s pendingCount=%s' % (self.b.pos, self.pendingCount)
-      self.readTower(self.b.pos, lastDocID)
+      self.readTower(self.b.pos, lastDocID, lastDocID)
 
   def skip(self, targetDocID):
 
@@ -297,17 +298,13 @@ class SkipReader:
     else:
       level -= 1
       # Then down:
-      while level >= 0:
-        while self.nextTowers[level][0] < targetDocID:
-          if VERBOSE:
-            print '  jump at level %d' % (1+level)
-          self.readTower(self.nextTowers[level][1],
-                         self.nextTowers[level][0],
-                         level+1)
-        level -= 1
-        if level >= 0:
-          if VERBOSE:
-            print '  down to %d' % (1+level)
+      while True:
+        level = self.readTower(self.nextTowers[level][1],
+                               self.nextTowers[level][0],
+                               targetDocID,
+                               level+1)
+        if level == -1 or self.nextTowers[level][0] >= targetDocID:
+          break
           
       return True
 

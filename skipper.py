@@ -2,13 +2,9 @@
 #   - hmm: if skip data is inlined, we must always init a skipper,
 #     even if we will not use the skip data, so we can skip the skip
 #     packets?  unless we tag them / put numbytes header
-#   - add no skipping test!
 #   - write backwards for faster convergence!?
 #     - skipInterval=2, vint delta codec = slow
 #   - interaction @ read time w/ codec is a little messy?
-#   - write towers from top down not bottom up, and when skipping if
-#     as soon as we read an entry we want to follow, jump; no need to
-#     read lower entries in that tower
 #   - assert net IO ops is really "log(N)" when we skip N
 #   - see how separate frq file can be packed in too
 #   - what about skipping w/in positions?
@@ -40,7 +36,7 @@ class SkipTower:
     self.nextTowers = []
     self.writePointer = 0
 
-  def write(self, b, inlined):
+  def write(self, b, inlined, isFixed):
 
     if VERBOSE:
       print 'SkipTower.write skipPos=%s numNext=%d lastDocID=%s' % \
@@ -56,8 +52,6 @@ class SkipTower:
       downTo -= 1
       if VERBOSE:
         print '  nextTower skipPos=%s nextLastDocID=%d' % (nextTower.writePointer, nextTower.lastDocID)
-      # TODO: delta can be against the END of our tower, not the
-      # start?  Hmm can't do fast path decode then...
       delta = nextTower.writePointer - self.writePointer
       if delta < 0:
         delta = 1000
@@ -67,7 +61,8 @@ class SkipTower:
 
     # TODO: can we delta-code...?
     # TODO: we can avoid writing this when codec is fixed block size!:
-    b.writeVInt(self.docCount)
+    if not isFixed:
+      b.writeVInt(self.docCount)
     if not inlined:
       b.writeVLong(self.pointer)
 
@@ -127,6 +122,8 @@ def writeTowers(skipWriter, postings=None):
   print 'FIXED:'
   print '  %s' % skipWriter.fixedItemGap
 
+  isFixed = skipWriter.fixedItemGap > 0
+  
   inlined = postings is not None
   sav = VERBOSE
   VERBOSE = False
@@ -169,7 +166,7 @@ def writeTowers(skipWriter, postings=None):
         #print '%s vs %s' % (tower.writePointer, writePointer)
         tower.writePointer = writePointer
       # print 'tower %s, %d nextTowers' % (tower, len(tower.nextTowers))
-      tower.write(b, inlined)
+      tower.write(b, inlined, isFixed)
       if len(tower.nextTowers) == 0:
         break
       nextTower = tower.nextTowers[0]
@@ -199,20 +196,20 @@ def writeTowers(skipWriter, postings=None):
   writePointer = b.pos
   while tower != endTower:
     assert b.pos == tower.writePointer, '%d vs %d' % (b.pos, tower.writePointer)
-    tower.write(b, inlined)
+    tower.write(b, inlined, isFixed)
     if len(tower.nextTowers) == 0:
       if inlined:
         chunk = pb.readBytes(len(postings)-tower.pointer)
         if VERBOSE:
           print '  write final postings chunk %d bytes pos=%s (from pointer=%d)' % (len(chunk), b.pos, pb.pos-len(chunk))
-        assert len(chunk) > 0
+        assert len(chunk) >= 0
         b.writeBytes(chunk)
       break
     if inlined:
       postingsChunk = tower.nextTowers[0].pointer - tower.pointer
       if VERBOSE:
         print '  write postings chunk %d bytes @ pos=%s (from pointer=%d)' % (postingsChunk, b.pos, pb.pos)
-      assert postingsChunk > 0
+      assert postingsChunk >= 0
       b.writeBytes(pb.readBytes(postingsChunk))
 
     tower = tower.nextTowers[0]
@@ -237,9 +234,17 @@ class SkipReader:
       print 'skipInterval %d' % self.skipInterval
       print ' %d max skip levels' % self.maxNumLevels
 
-    self.nextTowers = []
+    self.nextTowerLastDocIDs = []
+    self.nextTowerPositions = []
+    self.nextTowerDocCounts = []
+    self.fixedDocGaps = []
+    docGap = self.fixedDocGap
     for i in xrange(self.maxNumLevels):
-      self.nextTowers.append((0, 0))
+      self.nextTowerLastDocIDs.append(0)
+      self.nextTowerPositions.append(0)
+      self.fixedDocGaps.append(docGap)
+      self.nextTowerDocCounts.append(0)
+      docGap *= self.skipInterval
     self.lastDocID = 0
     self.b.pos = 0
     self.readTower(firstTowerPos, 0, 0)
@@ -254,6 +259,8 @@ class SkipReader:
     self.pendingCount = 0
     self.b.seek(pos)
 
+    isFixed = self.fixedDocGap > 0
+
     numLevels = self.b.readVInt()
     assert numLevels <= self.maxNumLevels
     if VERBOSE:
@@ -262,18 +269,29 @@ class SkipReader:
     # Towers are written highest to lowest:
     nextIDX = numLevels - 1
     for idx in xrange(numLevels):
-      nextTowerPos = pos + self.b.readVLong()
-      nextTowerLastDocID = lastDocID + self.b.readVInt()
-      self.nextTowers[nextIDX] = (nextTowerLastDocID, nextTowerPos)
+      self.nextTowerPositions[nextIDX] = pos + self.b.readVLong()
+      self.nextTowerLastDocIDs[nextIDX] = nextTowerLastDocID = lastDocID + self.b.readVInt()
+      if isFixed:
+        if idx == 0:
+          self.docCount = self.nextTowerDocCounts[nextIDX]
+        else:
+          self.nextTowerDocCounts[nextIDX] = self.docCount
+        self.nextTowerDocCounts[nextIDX] += self.fixedDocGaps[nextIDX]
+      if VERBOSE:
+        if isFixed:
+          print '  nextPos=%s nextLastDocId=%d nextDocCount=%d' % \
+                (self.nextTowerPositions[nextIDX], nextTowerLastDocID, self.nextTowerDocCounts[nextIDX])
+        else:
+          print '  nextPos=%s nextLastDocId=%d' % \
+                (self.nextTowerPositions[nextIDX], nextTowerLastDocID)
       if nextTowerLastDocID < targetDocID:
         # Early exit: we know we will skip on this level, so don't
         # bother decoding tower entries for any levels lower:
         return nextIDX
       nextIDX -= 1
-      if VERBOSE:
-        print '  nextPos=%s nextLastDocId=%d' % (nextTowerPos, nextTowerLastDocID)
 
-    self.docCount = self.b.readVInt()
+    if not isFixed:
+      self.docCount = self.b.readVInt()
     if not self.inlined:
       self.pointer = self.b.readVLong()
 
@@ -293,24 +311,24 @@ class SkipReader:
 
   def skip(self, targetDocID):
 
-    # Up, first:
+    # First find highest skip level we could jump on:
     level = 0
-    while level < self.maxNumLevels and self.nextTowers[level][0] < targetDocID:
+    while level < self.maxNumLevels and self.nextTowerLastDocIDs[level] < targetDocID:
       if VERBOSE:
         print '  up to level %d' % (1+level)
       level += 1
 
     if level == 0:
-      # no skipping
+      # No skipping
       return False
     else:
       level -= 1
-      # Then down:
       while True:
-        level = self.readTower(self.nextTowers[level][1],
-                               self.nextTowers[level][0],
+        # Jump on this level / move down a level:
+        level = self.readTower(self.nextTowerPositions[level],
+                               self.nextTowerLastDocIDs[level],
                                targetDocID)
-        if level == -1 or self.nextTowers[level][0] >= targetDocID:
+        if level == -1 or self.nextTowerLastDocIDs[level] >= targetDocID:
           break
           
       return True
@@ -595,7 +613,7 @@ class VariableBlockVIntDeltaCodec:
 def main():
 
   if '-seed' in sys.argv:
-    seed = sys.argv[sys.argv.index('-seed')+1]
+    seed = int(sys.argv[sys.argv.index('-seed')+1])
   else:
     seed = random.randint(0, sys.maxint)
   

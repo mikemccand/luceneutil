@@ -1,17 +1,16 @@
 # TODO
-#   - don't read skipInterval; be told it (it's constant across all postings?
-#   - don't read fixed doc gap; be told it (it's constant across all postings?
 #   - hmm: if skip data is inlined, we must always init a skipper,
 #     even if we will not use the skip data, so we can skip the skip
 #     packets?  unless we tag them / put numbytes header
-#   - write backwards for faster convergence!?
-#     - skipInterval=2, vint delta codec = slow
 #   - interaction @ read time w/ codec is a little messy?
-#   - see how separate frq file can be packed in too
-#   - maybe we should interleave position blocks in w/ doc/freq blocks?
-#   - run random stress test
+#   - need a numBytes packet header for each skip packet...?  only for
+#     the inlined case?  ie, so when not using skip data you can jump
+#     over it quickly?  need a SkipSkipper class for this...
 
 # FUTURE
+#   - frq should have its own skip data, for cases where caller didn't
+#     want freqs
+#   - should postings interleave position blocks in w/ doc/freq blocks...?
 #   - we could have arbitrary skipInterval per level... would it help?
 #   - we could have arbitrary skipInterval per posting list... would it help?
 #   - we can use this to skip w/in positions too
@@ -75,7 +74,6 @@ class SkipWriter:
     self.lastSkipItemCount = 0
     if tower0 is None:
       tower0 = SkipTower(0, 0, 0, None)
-      print 'TOWER0 %s' % tower0
     self.tower0 = tower0
     self.lastTower = tower0
     self.parent = None
@@ -88,7 +86,20 @@ class SkipWriter:
       return 0
     else:
       return 1 + self.parent.getDepth()
-        
+
+  def finish(self, numPostingsBytes, numDocs):
+    print 'numPostingsBytes=%s' % numPostingsBytes
+
+    # Add EOF tower:
+    endTower = SkipTower(numDocs, NO_MORE_DOCS, numPostingsBytes,
+                         self.lastTower)
+
+    sw = self
+    while sw is not None:
+      sw.lastTower.nextTowers.append(endTower)
+      sw.lastTower = endTower
+      sw = sw.parent
+
   def visit(self, itemCount, lastDocID, pointer):
     if itemCount - self.lastSkipItemCount >= self.skipInterval:
       if self.fixedItemGap is None:
@@ -117,105 +128,108 @@ class SkipWriter:
       if self.parent is not None:
         self.parent.visit(self.numSkips, lastDocID, tower)
 
-def writeTowers(skipWriter, postings=None):
+def writeTowers(skipWriter, postingsBytes=None):
   global VERBOSE
 
-  print 'FIXED:'
-  print '  %s' % skipWriter.fixedItemGap
+  if VERBOSE:
+    print 'FIXED:'
+    print '  %s' % skipWriter.fixedItemGap
 
   isFixed = skipWriter.fixedItemGap > 0
   
-  inlined = postings is not None
+  inlined = postingsBytes is not None
   sav = VERBOSE
-  VERBOSE = False
 
-  if postings is not None:
-    endPostings = len(postings)
-  else:
-    endPostings = 0
-  print '  END postings %s' % endPostings
-  endTower = SkipTower(0, NO_MORE_DOCS, endPostings, skipWriter.lastTower)
+  # Write the towers, backwards, assigning each tower's writePointer.
+  # The writePointer starts at 0 and decreases... this works because
+  # the towers only write delta pointers.
 
-  # Add EOF tower:
-  sw = skipWriter
-  while sw is not None:
-    sw.lastTower.nextTowers.append(endTower)
-    sw = sw.parent
+  nextTower = skipWriter.lastTower
+  tower = nextTower.prevTower
 
-  err = 0
-  # Iterate until the pointers converge:
-  while True:
-    if True or VERBOSE:
-      print
-      print 'WRITE: cycle [err=%s]' % err
-    tower = skipWriter.tower0
-    b = ByteBufferWriter()
-    b.writeVInt(skipWriter.skipInterval)
-    v = skipWriter.fixedItemGap
-    if v is None:
-      v = 0
-    b.writeVInt(v)
-    writePointer = b.pos
-    print '  start pos=%s' % writePointer
-    b.reset()
-    changed = False
-    err = 0
-    while tower != endTower:
-      if tower.writePointer != writePointer:
-        changed = True
-        err += abs(tower.writePointer - writePointer)
-        #print '%s vs %s' % (tower.writePointer, writePointer)
-        tower.writePointer = writePointer
-      # print 'tower %s, %d nextTowers' % (tower, len(tower.nextTowers))
-      tower.write(b, inlined, isFixed)
-      if len(tower.nextTowers) == 0:
-        break
-      nextTower = tower.nextTowers[0]
-      writePointer += b.pos
-      if inlined:
-        writePointer += nextTower.pointer - tower.pointer
-      tower = nextTower
-      b.reset()
-    # print 'cycle: %d' % writePointer
-    if not changed:
-      break
+  # Maybe make an unused "startTower" guard, matching endTower...?
 
-  VERBOSE = sav
-
-  print
-  print 'FINAL WRITE'
-  # Now write for real
-  if inlined:
-    pb = ByteBufferReader(postings)
+  towerNumBytes = [0] * (1+len(skipWriter.tower0.nextTowers))
+  
+  writePointer = 0
   b = ByteBufferWriter()
-  tower = skipWriter.tower0
-  b.writeVInt(skipWriter.skipInterval)
-  v = skipWriter.fixedItemGap
-  if v is None:
-    v = 0
-  b.writeVInt(v)
-  writePointer = b.pos
-  while tower != endTower:
-    assert b.pos == tower.writePointer, '%d vs %d' % (b.pos, tower.writePointer)
-    tower.write(b, inlined, isFixed)
-    if len(tower.nextTowers) == 0:
-      if inlined:
-        chunk = pb.readBytes(len(postings)-tower.pointer)
-        if VERBOSE:
-          print '  write final postings chunk %d bytes pos=%s (from pointer=%d)' % (len(chunk), b.pos, pb.pos-len(chunk))
-        assert len(chunk) >= 0
-        b.writeBytes(chunk)
-      break
-    if inlined:
-      postingsChunk = tower.nextTowers[0].pointer - tower.pointer
-      if VERBOSE:
-        print '  write postings chunk %d bytes @ pos=%s (from pointer=%d)' % (postingsChunk, b.pos, pb.pos)
-      assert postingsChunk >= 0
-      b.writeBytes(pb.readBytes(postingsChunk))
+  if VERBOSE:
+    print 'WRITE'
+  while tower is not None:
 
+    if inlined:
+      chunk = nextTower.pointer - tower.pointer
+      assert chunk > 0
+      writePointer -= chunk
+      if VERBOSE:
+        print '  postings chunk %s' % chunk
+
+    if VERBOSE:
+      print '  tower @ pointer=%s lastDocID=%s docCount=%s' % \
+            (tower.pointer, tower.lastDocID, tower.docCount)
+
+    # Guess:
+    guessTowerNumBytes = towerNumBytes[len(tower.nextTowers)]
+    tower.writePointer = writePointer - guessTowerNumBytes
+    while True:
+      tower.write(b, inlined, isFixed)
+      tower.bytes = b.getBytes()
+      b.reset()
+      actualWritePointer = writePointer - len(tower.bytes)
+      if actualWritePointer == tower.writePointer:
+        break
+      else:
+        #print '  tower cycle %s vs %s' % (tower.writePointer, actualWritePointer)
+        tower.writePointer = actualWritePointer
+
+    writePointer -= len(tower.bytes)
+    if VERBOSE:
+      print '    towerNumBytes=%s' % len(tower.bytes)
+      print '    tower.writePointer=%s' % writePointer
+
+    towerNumBytes[len(tower.nextTowers)] = len(tower.bytes)
+    nextTower = tower
+    tower = tower.prevTower
+
+  # Now pull all bytes together, forwards:
+  totalBytes = -writePointer
+
+  if VERBOSE:
+    print 'totalBytes=%s' % totalBytes
+    print 'FINAL WRITE'
+    
+  tower = skipWriter.tower0
+
+  # This time we start at 0 and add to the writePointer:
+  while True:
+
+    if inlined and tower.prevTower is not None:
+      # Interleave postings bytes in:
+      chunk = postingsBytes[tower.prevTower.pointer : tower.pointer]
+      if VERBOSE:
+        print '  postings: chunk %d bytes @ wp=%d' % (len(chunk), b.pos)
+      assert len(chunk) > 0
+      b.writeBytes(chunk)
+
+    if VERBOSE:
+      print '  tower @ pointer=%s lastDocID=%s docCount=%s @ wp=%s (tower.wp=%s)' % \
+            (tower.pointer, tower.lastDocID, tower.docCount, b.pos, tower.writePointer)
+
+    if tower == skipWriter.lastTower:
+      break
+    
+    assert b.pos == totalBytes + tower.writePointer, \
+           'b.pos=%s expected=%s tower.wp=%d' % (b.pos, totalBytes +
+                                                 tower.writePointer, tower.writePointer)
+    b.writeBytes(tower.bytes)
+    if VERBOSE:
+      print '    tower %d bytes' % len(tower.bytes)
+    tower.bytes = None
     tower = tower.nextTowers[0]
 
-  return ''.join(b.bytes)
+  assert b.pos == totalBytes
+  
+  return b.getBytes()
 
 class SkipReader:
 
@@ -223,12 +237,12 @@ class SkipReader:
   Reads serialized Towers.
   """
 
-  def __init__(self, b, inlined):
+  def __init__(self, b, inlined, skipInterval, fixedDocGap):
     self.b = b
     self.pendingCount = 0
     self.inlined = inlined
-    self.skipInterval = b.readVInt()
-    self.fixedDocGap = b.readVInt()
+    self.skipInterval = skipInterval
+    self.fixedDocGap = fixedDocGap
     firstTowerPos = b.pos
     self.maxNumLevels = b.readVInt()
     if VERBOSE:
@@ -263,7 +277,9 @@ class SkipReader:
     isFixed = self.fixedDocGap > 0
 
     numLevels = self.b.readVInt()
-    assert numLevels <= self.maxNumLevels
+    assert numLevels <= self.maxNumLevels, \
+           'numLevels %s vs maxNumLevels %s' % (numLevels, self.maxNumLevels)
+    
     if VERBOSE:
       print '  %d levels' % numLevels
 
@@ -623,7 +639,7 @@ def main():
 
   NUM_DOCS = r.randint(30000, 100000)
 
-  if False and VERBOSE:
+  if VERBOSE:
     NUM_DOCS = 534
 
   docList = makeDocs(r, NUM_DOCS)
@@ -634,9 +650,6 @@ def main():
   if False and VERBOSE:
     skipInterval = 32
 
-  # nocommit
-  skipInterval = 32
-    
   sw = SkipWriter(skipInterval)
 
   inlined = r.randint(0, 1) == 1
@@ -679,6 +692,8 @@ def main():
 
   codec.flush(b)
   postingsBytes = b.getBytes()
+
+  sw.finish(len(postingsBytes), docCount)
   
   if inlined:
     allBytes = writeTowers(sw, postingsBytes)
@@ -707,7 +722,7 @@ def main():
     doSkipping = r.randint(0, 3) != 2
     if VERBOSE:
       print '  doSkipping %s' % doSkipping
-    sr = SkipReader(skipBytesReader, inlined=inlined)
+    sr = SkipReader(skipBytesReader, inlined, skipInterval, sw.fixedItemGap)
     codec.skipper = sr
     docIDX = 0
     lastDocID = 0

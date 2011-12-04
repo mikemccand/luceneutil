@@ -1,19 +1,20 @@
 # TODO
+#   - don't read skipInterval; be told it (it's constant across all postings?
+#   - don't read fixed doc gap; be told it (it's constant across all postings?
 #   - hmm: if skip data is inlined, we must always init a skipper,
 #     even if we will not use the skip data, so we can skip the skip
 #     packets?  unless we tag them / put numbytes header
 #   - write backwards for faster convergence!?
 #     - skipInterval=2, vint delta codec = slow
 #   - interaction @ read time w/ codec is a little messy?
-#   - assert net IO ops is really "log(N)" when we skip N
 #   - see how separate frq file can be packed in too
-#   - what about skipping w/in positions?
-#   - we could have arbitrary skipLevel per level...?
 #   - maybe we should interleave position blocks in w/ doc/freq blocks?
 #   - run random stress test
-#   - make sure we sometimes test recursion case
-#   - hmm need different versions if we know the docCount will be 'regular' (eg every 128 docs)
 
+# FUTURE
+#   - we could have arbitrary skipInterval per level... would it help?
+#   - we could have arbitrary skipInterval per posting list... would it help?
+#   - we can use this to skip w/in positions too
 
 # NOTE: from paper "Compressed Perfect Embedded Skip Lists for Quick Inverted-Index Lookups"
 #       http://vigna.dsi.unimi.it/ftp/.../CompressedPerfectEmbeddedSkipLists.pdf
@@ -29,12 +30,13 @@ NO_MORE_DOCS = (1 << 31) - 1
 
 class SkipTower:
 
-  def __init__(self, docCount, lastDocID, pointer):
+  def __init__(self, docCount, lastDocID, pointer, prevTower):
     self.docCount = docCount
     self.lastDocID = lastDocID
     self.pointer = pointer
     self.nextTowers = []
     self.writePointer = 0
+    self.prevTower = prevTower
 
   def write(self, b, inlined, isFixed):
 
@@ -60,7 +62,6 @@ class SkipTower:
       b.writeVInt(delta)
 
     # TODO: can we delta-code...?
-    # TODO: we can avoid writing this when codec is fixed block size!:
     if not isFixed:
       b.writeVInt(self.docCount)
     if not inlined:
@@ -73,7 +74,7 @@ class SkipWriter:
     self.skipInterval = skipInterval
     self.lastSkipItemCount = 0
     if tower0 is None:
-      tower0 = SkipTower(0, 0, 0)
+      tower0 = SkipTower(0, 0, 0, None)
       print 'TOWER0 %s' % tower0
     self.tower0 = tower0
     self.lastTower = tower0
@@ -95,7 +96,7 @@ class SkipWriter:
       elif itemCount - self.lastSkipItemCount != self.fixedItemGap:
         self.fixedItemGap = 0
       if self.level == 0:
-        tower = SkipTower(itemCount, lastDocID, pointer)
+        tower = SkipTower(itemCount, lastDocID, pointer, self.lastTower)
         assert pointer > self.lastTower.pointer
       else:
         tower = pointer
@@ -133,9 +134,9 @@ def writeTowers(skipWriter, postings=None):
   else:
     endPostings = 0
   print '  END postings %s' % endPostings
-  endTower = SkipTower(0, NO_MORE_DOCS, endPostings)
+  endTower = SkipTower(0, NO_MORE_DOCS, endPostings, skipWriter.lastTower)
 
-  # Add EOF markers:
+  # Add EOF tower:
   sw = skipWriter
   while sw is not None:
     sw.lastTower.nextTowers.append(endTower)
@@ -159,7 +160,7 @@ def writeTowers(skipWriter, postings=None):
     b.reset()
     changed = False
     err = 0
-    while True:
+    while tower != endTower:
       if tower.writePointer != writePointer:
         changed = True
         err += abs(tower.writePointer - writePointer)

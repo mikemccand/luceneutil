@@ -1,7 +1,5 @@
 # TODO
-#   - hmm: if skip data is inlined, we must always init a skipper,
-#     even if we will not use the skip data, so we can skip the skip
-#     packets?  unless we tag them / put numbytes header
+#   - make SkipWriter un-recursive?
 #   - interaction @ read time w/ codec is a little messy?
 #   - need a numBytes packet header for each skip packet...?  only for
 #     the inlined case?  ie, so when not using skip data you can jump
@@ -14,6 +12,11 @@
 #   - we could have arbitrary skipInterval per level... would it help?
 #   - we could have arbitrary skipInterval per posting list... would it help?
 #   - we can use this to skip w/in positions too
+#   - we could use compact byte format in first pass when recording
+#     skip towers, because on reverse we can then efficiently collate
+#     them into the nextTower pointers as we write backwards
+#   - can we avoid actually writing the EOF tower?  that's a 5 byte
+#     vint, per level
 
 # NOTE: from paper "Compressed Perfect Embedded Skip Lists for Quick Inverted-Index Lookups"
 #       http://vigna.dsi.unimi.it/ftp/.../CompressedPerfectEmbeddedSkipLists.pdf
@@ -22,6 +25,7 @@ import sys
 import random
 import struct
 import types
+import math
 
 VERBOSE = '-debug' in sys.argv
 
@@ -30,6 +34,7 @@ NO_MORE_DOCS = (1 << 31) - 1
 class SkipTower:
 
   def __init__(self, docCount, lastDocID, pointer, prevTower):
+    assert docCount <= lastDocID+1
     self.docCount = docCount
     self.lastDocID = lastDocID
     self.pointer = pointer
@@ -58,6 +63,7 @@ class SkipTower:
         delta = 1000
       b.writeVLong(delta)
       delta = nextTower.lastDocID - self.lastDocID
+      assert delta > 0
       b.writeVInt(delta)
 
     # TODO: can we delta-code...?
@@ -66,76 +72,69 @@ class SkipTower:
     if not inlined:
       b.writeVLong(self.pointer)
 
-class SkipWriter:
+class SkipWriterLevel:
 
-  def __init__(self, skipInterval, tower0=None, level=0):
-    #print 'skipInterval %d' % skipInterval
+  def __init__(self, skipInterval, tower0, level):
     self.skipInterval = skipInterval
-    self.lastSkipItemCount = 0
-    if tower0 is None:
-      tower0 = SkipTower(0, 0, 0, None)
     self.tower0 = tower0
     self.lastTower = tower0
     self.parent = None
-    self.level = level
     self.numSkips = 0
-    self.fixedItemGap = None
+    self.level = level
 
-  def getDepth(self):
-    if self.parent is None:
-      return 0
-    else:
-      return 1 + self.parent.getDepth()
+  def bufferSkip(self, tower):
+    self.numSkips += 1
+    assert len(self.lastTower.nextTowers) == self.level
+    self.lastTower.nextTowers.append(tower)
+    self.lastTower = tower
+    if self.numSkips == self.skipInterval:
+      if self.parent is None:
+        # Lazily add another skip level:
+        self.parent = SkipWriterLevel(self.skipInterval, self.tower0, 1+self.level)
+      self.parent.bufferSkip(tower)
+      self.numSkips = 0
+
+class SkipWriter:
+
+  def __init__(self, skipInterval):
+    #print 'skipInterval %d' % skipInterval
+    self.skipInterval = skipInterval
+    self.lastSkipDocCount = 0
+    # TODO: should we pass -1 for lastDocID...?
+    self.tower0 = SkipTower(0, 0, 0, None)
+    self.level0 = SkipWriterLevel(self.skipInterval, self.tower0, 0)
 
   def finish(self, numPostingsBytes, numDocs):
-    print 'numPostingsBytes=%s' % numPostingsBytes
+    if VERBOSE:
+      print 'numPostingsBytes=%s' % numPostingsBytes
 
     # Add EOF tower:
     endTower = SkipTower(numDocs, NO_MORE_DOCS, numPostingsBytes,
-                         self.lastTower)
+                         self.level0.lastTower)
 
-    sw = self
-    while sw is not None:
-      sw.lastTower.nextTowers.append(endTower)
-      sw.lastTower = endTower
-      sw = sw.parent
+    level = self.level0
+    while level is not None:
+      level.lastTower.nextTowers.append(endTower)
+      level.lastTower = endTower
+      level = level.parent
 
-  def visit(self, itemCount, lastDocID, pointer):
-    if itemCount - self.lastSkipItemCount >= self.skipInterval:
-      if self.fixedItemGap is None:
-        self.fixedItemGap = itemCount - self.lastSkipItemCount
-      elif itemCount - self.lastSkipItemCount != self.fixedItemGap:
-        self.fixedItemGap = 0
-      if self.level == 0:
-        tower = SkipTower(itemCount, lastDocID, pointer, self.lastTower)
-        assert pointer > self.lastTower.pointer
-      else:
-        tower = pointer
-      self.numSkips += 1
-      assert len(self.lastTower.nextTowers) == self.level
-      self.lastTower.nextTowers.append(tower)
+  def visit(self, docCount, lastDocID, pointer):
+    if docCount - self.lastSkipDocCount >= self.skipInterval:
       if VERBOSE:
-        if isinstance(pointer, SkipTower):
-          print '%s    record skip itemCount=%d' % (self.getDepth()*'  ', itemCount)
-        else:
-          print '%s    record skip itemCount=%d lastDocID=%s pointer=%s' % (self.getDepth()*'  ', itemCount, lastDocID, pointer)
-      self.lastTower = tower
-      self.lastSkipItemCount = itemCount
-      if self.numSkips == self.skipInterval:
-        # Lazily add another skip level:
-        self.parent = SkipWriter(self.skipInterval, self.tower0, 1+self.level)
+        print '    save skip: docCount=%d lastDocID=%s pointer=%s' % \
+              (docCount, lastDocID, pointer)
+      self.level0.bufferSkip(SkipTower(docCount, lastDocID, pointer, self.level0.lastTower))
+      self.lastSkipDocCount = docCount
 
-      if self.parent is not None:
-        self.parent.visit(self.numSkips, lastDocID, tower)
 
-def writeTowers(skipWriter, postingsBytes=None):
+def writeTowers(skipWriter, fixedDocGap, postingsBytes):
   global VERBOSE
 
   if VERBOSE:
     print 'FIXED:'
-    print '  %s' % skipWriter.fixedItemGap
+    print '  %s' % fixedDocGap
 
-  isFixed = skipWriter.fixedItemGap > 0
+  isFixed = fixedDocGap > 0
   
   inlined = postingsBytes is not None
   sav = VERBOSE
@@ -144,7 +143,7 @@ def writeTowers(skipWriter, postingsBytes=None):
   # The writePointer starts at 0 and decreases... this works because
   # the towers only write delta pointers.
 
-  nextTower = skipWriter.lastTower
+  nextTower = skipWriter.level0.lastTower
   tower = nextTower.prevTower
 
   # Maybe make an unused "startTower" guard, matching endTower...?
@@ -179,7 +178,8 @@ def writeTowers(skipWriter, postingsBytes=None):
       if actualWritePointer == tower.writePointer:
         break
       else:
-        #print '  tower cycle %s vs %s' % (tower.writePointer, actualWritePointer)
+        if VERBOSE:
+          print '    tower retry'
         tower.writePointer = actualWritePointer
 
     writePointer -= len(tower.bytes)
@@ -215,7 +215,7 @@ def writeTowers(skipWriter, postingsBytes=None):
       print '  tower @ pointer=%s lastDocID=%s docCount=%s @ wp=%s (tower.wp=%s)' % \
             (tower.pointer, tower.lastDocID, tower.docCount, b.pos, tower.writePointer)
 
-    if tower == skipWriter.lastTower:
+    if tower == skipWriter.level0.lastTower:
       break
     
     assert b.pos == totalBytes + tower.writePointer, \
@@ -533,7 +533,6 @@ class FixedBlockVIntDeltaCodec:
     return lastDocID + delta
 
   def readBlock(self, b, lastDocID):
-    # TODO: numBytes is unused...
     if self.inlinedSkipData:
       self.skipper.skipSkipData(self.lastReadCount, lastDocID)
     if VERBOSE:
@@ -542,6 +541,7 @@ class FixedBlockVIntDeltaCodec:
     if VERBOSE:
       print '    numBytes=%d' % numBytes
     self.pending = []
+    posStart = b.pos
     for idx in xrange(self.blockSize):
       delta = b.readVInt()
       assert delta > 0
@@ -549,6 +549,7 @@ class FixedBlockVIntDeltaCodec:
       if VERBOSE:
         print '    delta=%d' % self.pending[-1]
     self.lastReadCount = len(self.pending)
+    assert b.pos-posStart == numBytes
 
   def afterSeek(self):
     self.reset()
@@ -639,7 +640,7 @@ def main():
 
   NUM_DOCS = r.randint(30000, 100000)
 
-  if VERBOSE:
+  if False and VERBOSE:
     NUM_DOCS = 534
 
   docList = makeDocs(r, NUM_DOCS)
@@ -673,6 +674,13 @@ def main():
 
   print 'CODEC %s' % codec
 
+  if isinstance(codec, VariableBlockVIntDeltaCodec):
+    fixedDocGap = 0
+  elif isinstance(codec, FixedBlockVIntDeltaCodec):
+    fixedDocGap = blockSize * int(math.ceil(float(skipInterval) / codec.blockSize))
+  else:
+    fixedDocGap = skipInterval
+
   print 'numDocs %d' % NUM_DOCS
   print 'skipInterval %d' % skipInterval
 
@@ -696,7 +704,7 @@ def main():
   sw.finish(len(postingsBytes), docCount)
   
   if inlined:
-    allBytes = writeTowers(sw, postingsBytes)
+    allBytes = writeTowers(sw, fixedDocGap, postingsBytes)
     reader = ByteBufferReader(allBytes)
     skipBytes = allBytes
     skipBytesReader = reader
@@ -705,7 +713,7 @@ def main():
     print '  %.1f%% skip (%d skip bytes; %d postings bytes)' % \
           (pct, len(allBytes)-len(postingsBytes), len(postingsBytes))
   else:
-    skipBytes = writeTowers(sw)
+    skipBytes = writeTowers(sw, fixedDocGap, None)
     pct = 100.0*(len(skipBytes))/len(postingsBytes)
     print '  %.1f%% skip (%d skip bytes; %d postings bytes)' % \
           (pct, len(skipBytes), len(postingsBytes))
@@ -722,7 +730,7 @@ def main():
     doSkipping = r.randint(0, 3) != 2
     if VERBOSE:
       print '  doSkipping %s' % doSkipping
-    sr = SkipReader(skipBytesReader, inlined, skipInterval, sw.fixedItemGap)
+    sr = SkipReader(skipBytesReader, inlined, skipInterval, fixedDocGap)
     codec.skipper = sr
     docIDX = 0
     lastDocID = 0
@@ -739,6 +747,9 @@ def main():
           targetDocID = docList[min(len(docList)-1, docIDX+r.randint(50, 2000))]
         else:
           targetDocID = docList[min(len(docList)-1, docIDX+r.randint(1, 50))]
+
+        # TODO: also sometimes target a non-existent docID!
+        
         if VERBOSE:
           print '  try jump targetDocID=%d' % targetDocID
         if sr.skip(targetDocID):
@@ -757,7 +768,17 @@ def main():
 
             if lastDocID >= targetDocID:
               raise RuntimeError('jumped docID=%d is >= targetDocID=%d' % (lastDocID, targetDocID))
-        
+
+            # Make sure we are in fact w/ in skipInterval of the target:
+            assert lastDocID == docList[docIDX-1]
+            idx = docIDX
+            while docList[idx] != targetDocID:
+              idx += 1
+
+            assert fixedDocGap == 0 or idx - docIDX <= fixedDocGap, 'fixedDocGap=%d but skipper was %d away from target' % \
+                   (fixedDocGap, idx - docIDX)
+            del idx
+            
       # nextDoc
       docID = codec.readDoc(reader, lastDocID)
 
@@ -771,4 +792,6 @@ def main():
       docIDX += 1
 
 if __name__ == '__main__':
+  if not __debug__:
+    raise RuntimeError('no')
   main()

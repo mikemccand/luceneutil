@@ -445,7 +445,7 @@ public class SearchPerfTest {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           if (termsEnum.seekExact(ids[idx], false)) { 
             //System.out.println("  found!");
-            docs = termsEnum.docs(null, docs);
+            docs = termsEnum.docs(null, docs, false);
             assert docs != null;
             final int docID = docs.nextDoc();
             if (docID == DocsEnum.NO_MORE_DOCS) {

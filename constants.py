@@ -43,7 +43,7 @@ EUROPARL_MEDIUM_DOCS_LINE_FILE = '%s/data/europarl.para.lines.txt' % BASE_DIR
 EUROPARL_MEDIUM_TASKS_FILE = '%s/data/europarlmedium.tasks' % BASE_DIR
 
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
-JAVA_COMMAND = 'java -Xbatch -Xms1g -Xmx1g -client'
+JAVA_COMMAND = 'java -server -Xms2g -Xmx2g'
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 2
 SEARCH_NUM_THREADS = 2

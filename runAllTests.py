@@ -267,7 +267,7 @@ class RunThread:
         else:
           p = subprocess.Popen('ssh %s "cat >> %s"' % (self.resource, logFile), bufsize=-1, shell=True, stdin=subprocess.PIPE)
           p.stdin.write(s)
-          p.stdin.close()
+          p.stdin.flush()
           
         if 0:
           if job.tests[0].find('.solr.') != -1:

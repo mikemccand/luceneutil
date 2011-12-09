@@ -822,7 +822,7 @@ public class SearchPerfTest {
     if (args.length == 15) {
       final String commit = args[12];
       System.out.println("open commit=" + commit);
-      IndexReader reader = IndexReader.open(findCommitPoint(commit, dir), true);
+      IndexReader reader = IndexReader.open(findCommitPoint(commit, dir));
       Filter filt = new RandomFilter(Double.parseDouble(args[14])/100.0);
       if (args[13].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
@@ -840,7 +840,7 @@ public class SearchPerfTest {
     } else if (args.length == 13) {
       final String commit = args[12];
       System.out.println("open commit=" + commit);
-      searcher = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir), true));
+      searcher = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir)));
       searcher.setSimilarityProvider(provider);
     } else {
       // open last commit

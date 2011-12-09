@@ -350,6 +350,8 @@ def run():
 
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
     print '%s' % javaVersion
+
+    print 'Java command-line: %s' % constants.JAVA_COMMAND
   
   runCommand('ant clean > clean.log 2>&1')
 

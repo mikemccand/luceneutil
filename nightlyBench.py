@@ -137,6 +137,17 @@ KNOWN_CHANGES = [
    '''
    <a href="https://issues.apache.org/jira/browse/LUCENE-3215">LUCENE-3215</a>: more efficient scoring for sloppy PhraseQuery.
    '''),
+
+  ('2011-11-30',
+   'LUCENE-3584: make postings bulk API codec-private',
+   '''
+   <a href="https://issues.apache.org/jira/browse/LUCENE-3584">LUCENE-3584</a>: make postings bulk API codec-private
+   '''),
+
+  ('2011-12-07',
+   'Switched to Java 1.7.0_01',
+   'Switched to Java 1.7.0_01')
+  
    ]
 
 # TODO

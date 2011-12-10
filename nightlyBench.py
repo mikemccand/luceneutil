@@ -358,11 +358,10 @@ def run():
 
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
-
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
     print '%s' % javaVersion
 
-    print 'Java command-line: %s' % constants.JAVA_COMMAND
+  print 'Java command-line: %s' % constants.JAVA_COMMAND
   
   runCommand('ant clean > clean.log 2>&1')
 
@@ -472,6 +471,7 @@ def run():
     w('Lucene/Solr trunk rev %s<br>' % svnRev)
     w('luceneutil rev %s<br>' % luceneUtilRev)
     w('%s<br>' % javaVersion)
+    w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
     w('Index: %s<br>' % fixedIndexAtClose)
     w('<br><br><b>Search perf vs day before</b>\n')
     w(''.join(output))

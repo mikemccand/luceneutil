@@ -146,7 +146,11 @@ KNOWN_CHANGES = [
 
   ('2011-12-07',
    'Switched to Java 1.7.0_01',
-   'Switched to Java 1.7.0_01')
+   'Switched to Java 1.7.0_01'),
+
+  ('2011-12-16',
+   'LUCENE-3648: JIT optimizations to Lucene40 DocsEnum',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-3648">LUCENE-3648</a>: JIT optimizations to Lucene40 DocsEnum')
   
    ]
 

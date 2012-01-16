@@ -17,16 +17,19 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.core.*;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
+import org.apache.lucene.codecs.*;
+import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.AtomicReaderContext;
-import org.apache.lucene.codecs.*;
-import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;

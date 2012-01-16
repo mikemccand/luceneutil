@@ -382,12 +382,12 @@ public final class Indexer {
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
       if (f instanceof NumericField) {
-        NumericField f2 = new NumericField(f.name());
+        final NumericField f2;
         Number n = ((NumericField) f).numericValue();
         if (n instanceof Long) {
-          f2.setLongValue((Long) n);
+          f2 = new NumericField(f.name(), (Long) n);
         } else {
-          f2.setIntValue((Integer) n);
+          f2 = new NumericField(f.name(), (Integer) n);
         }
         doc2.add(f2);
       } else {

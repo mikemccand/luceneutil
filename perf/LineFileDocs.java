@@ -154,10 +154,10 @@ public class LineFileDocs implements Closeable {
       date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
 
-      dateMSec = new NumericField("datenum");
+      dateMSec = new NumericField("datenum", 0L);
       doc.add(dateMSec);
 
-      timeSec = new NumericField("timesecnum");
+      timeSec = new NumericField("timesecnum", 0);
       doc.add(timeSec);
     }
   }
@@ -208,11 +208,11 @@ public class LineFileDocs implements Closeable {
 
     doc.datePos.setIndex(0);
     final Date date = doc.dateParser.parse(dateString, doc.datePos);
-    doc.dateMSec.setLongValue(date.getTime());
+    doc.dateMSec.setValue(date.getTime());
 
     doc.dateCal.setTime(date);
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-    doc.timeSec.setIntValue(sec);
+    doc.timeSec.setValue(sec);
 
     return doc.doc;
   }

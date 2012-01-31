@@ -187,8 +187,24 @@ class Competition(object):
         # only one index given? share it!
         if not comp._index:
           comp.withIndex(self.indices[0])
-    base = self.competitors[0].build()
-    challenger = self.competitors[1].build()
+
+    # If a competitor is named 'base', use that as base:
+    base = None
+    for c in self.competitors:
+      if c._name == 'base':
+        base = c
+        break
+    if base is None:
+      base = self.competitors[0]
+      challenger = self.competitors[1]
+    else:
+      if base == self.competitors[0]:
+        challenger = self.competitors[1]
+      else:
+        challenger = self.competitors[0]
+
+    base = base.build()
+    challenger = challenger.build()
      
     searchBench.run(id, base, challenger, coldRun=self.cold, doCharts=self.printCharts,
                 search=self.benchSearch, index=self.benchIndex, debugs=self._debug, debug=self._debug, verifyScores=self._verifyScores)

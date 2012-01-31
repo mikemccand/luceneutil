@@ -94,7 +94,7 @@ public class CreateQueries {
     final BufferedWriter queriesOut = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queriesFileOut),"UTF8"));
 
     final Directory dir = FSDirectory.open(new File(indexPath));
-    final IndexReader r = IndexReader.open(dir);
+    final IndexReader r = DirectoryReader.open(dir);
 
     System.out.println("\nFind top df terms...");
     

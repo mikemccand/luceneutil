@@ -44,7 +44,7 @@ import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
+import org.apache.lucene.index.AtomicReaderContext;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -81,6 +81,7 @@ import org.apache.lucene.util.*;
 public class SearchPerfTest {
   
   private static class IndexState {
+    public final DirectoryReader reader;
     public final IndexSearcher searcher;
     public final IndexReader[] subReaders;
     public final ThreadLocal<TermsEnum[]> idTermsEnums = new ThreadLocal<TermsEnum[]>();
@@ -88,18 +89,19 @@ public class SearchPerfTest {
     public final Filter groupEndFilter;
     public int[] docIDToID;
 
-    public IndexState(IndexSearcher searcher, DirectSpellChecker spellChecker) throws IOException {
+    public IndexState(DirectoryReader reader, IndexSearcher searcher, DirectSpellChecker spellChecker) throws IOException {
+      this.reader = reader;
       this.searcher = searcher;
       this.spellChecker = spellChecker;
-      subReaders = searcher.getIndexReader().getSequentialSubReaders();
+      subReaders = reader.getSequentialSubReaders();
       groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     }
 
     private void setDocIDToID() throws IOException {
-      docIDToID = new int[searcher.getIndexReader().maxDoc()];
+      docIDToID = new int[reader.maxDoc()];
       int base = 0;
-      for(IndexReader sub : searcher.getIndexReader().getSequentialSubReaders()) {
-        final int[] ids = FieldCache.DEFAULT.getInts(sub, "id", new FieldCache.IntParser() {
+      for(IndexReader sub : reader.getSequentialSubReaders()) {
+        final int[] ids = FieldCache.DEFAULT.getInts((AtomicReader) sub, "id", new FieldCache.IntParser() {
             @Override
             public int parseInt(BytesRef term) {
               return LineFileDocs.idToInt(term);
@@ -432,7 +434,7 @@ public class SearchPerfTest {
       if (idTermsEnums == null) {
         idTermsEnums = new TermsEnum[state.subReaders.length];
         for(int subIDX=0;subIDX<state.subReaders.length;subIDX++) {
-          idTermsEnums[subIDX] = state.subReaders[subIDX].fields().terms("id").iterator(null);
+          idTermsEnums[subIDX] = ((AtomicReader) state.subReaders[subIDX]).fields().terms("id").iterator(null);
         }
         state.idTermsEnums.set(idTermsEnums);
       }
@@ -505,7 +507,7 @@ public class SearchPerfTest {
 
     @Override
     public void go(IndexState state) throws IOException {
-      answers = state.spellChecker.suggestSimilar(term, 10, state.searcher.getIndexReader(), SuggestMode.SUGGEST_MORE_POPULAR);
+      answers = state.spellChecker.suggestSimilar(term, 10, state.reader, SuggestMode.SUGGEST_MORE_POPULAR);
     }
 
     @Override
@@ -550,7 +552,7 @@ public class SearchPerfTest {
   }
 
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
-    Collection<IndexCommit> commits = IndexReader.listCommits(dir);
+    Collection<IndexCommit> commits = DirectoryReader.listCommits(dir);
     for (final IndexCommit ic : commits) {
       Map<String,String> map = ic.getUserData();
       String ud = null;
@@ -610,12 +612,12 @@ public class SearchPerfTest {
     @Override
     public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
       final FixedBitSet bits = segmentBits[context.ord];
-      assert context.reader.maxDoc() == bits.length();
+      assert context.reader().maxDoc() == bits.length();
       return BitsFilteredDocIdSet.wrap(bits, acceptDocs);
     }
   }
 
-  private static List<Task> loadTasks(IndexReader reader, QueryParser p, String fieldName, String filePath, boolean doSort, Random random) throws IOException, ParseException {
+  private static List<Task> loadTasks(DirectoryReader reader, QueryParser p, String fieldName, String filePath, boolean doSort, Random random) throws IOException, ParseException {
 
     final List<Task> tasks = new ArrayList<Task>();
 
@@ -815,14 +817,14 @@ public class SearchPerfTest {
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
 
     //final long t0 = System.currentTimeMillis();
-    final IndexSearcher searcher;
+    final DirectoryReader reader;
     Filter f = null;
     boolean doOldFilter = false;
     boolean doNewFilter = false;
     if (args.length == 15) {
       final String commit = args[12];
       System.out.println("open commit=" + commit);
-      IndexReader reader = IndexReader.open(findCommitPoint(commit, dir));
+      reader = DirectoryReader.open(findCommitPoint(commit, dir));
       Filter filt = new RandomFilter(Double.parseDouble(args[14])/100.0);
       if (args[13].equals("FilterOld")) {
         f = new CachingWrapperFilter(filt);
@@ -835,20 +837,17 @@ public class SearchPerfTest {
       } else {
         throw new RuntimeException("4th arg should be FilterOld or FilterNew");
       }
-      searcher = new IndexSearcher(reader);
-      searcher.setSimilarityProvider(provider);
     } else if (args.length == 13) {
       final String commit = args[12];
       System.out.println("open commit=" + commit);
-      searcher = new IndexSearcher(IndexReader.open(findCommitPoint(commit, dir)));
-      searcher.setSimilarityProvider(provider);
+      reader = DirectoryReader.open(findCommitPoint(commit, dir));
     } else {
       // open last commit
       System.out.println("open latest commit");
-      IndexReader reader = IndexReader.open(dir);
-      searcher = new IndexSearcher(reader);
-      searcher.setSimilarityProvider(provider);
+      reader = DirectoryReader.open(dir);
     }
+    final IndexSearcher searcher = new IndexSearcher(reader);
+    searcher.setSimilarityProvider(provider);
 
     System.out.println("searcher=" + searcher);
 
@@ -880,7 +879,7 @@ public class SearchPerfTest {
 
     // Pick a random top N tasks per category:
     final Random staticRandom = new Random(staticRandomSeed);
-    final List<Task> tasks = loadTasks(searcher.getIndexReader(), p, fieldName, tasksFile, doSort, staticRandom);
+    final List<Task> tasks = loadTasks(reader, p, fieldName, tasksFile, doSort, staticRandom);
     Collections.shuffle(tasks, staticRandom);
     final List<Task> prunedTasks = pruneTasks(tasks, numTaskPerCat);
 
@@ -889,9 +888,9 @@ public class SearchPerfTest {
     //}
 
     // Add PK tasks
-    final int numPKTasks = (int) Math.min(searcher.getIndexReader().maxDoc()/6000., numTaskPerCat);
+    final int numPKTasks = (int) Math.min(reader.maxDoc()/6000., numTaskPerCat);
     for(int idx=0;idx<numPKTasks;idx++) {
-      prunedTasks.add(new PKLookupTask(searcher.getIndexReader().maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
+      prunedTasks.add(new PKLookupTask(reader.maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
     }
 
     final List<Task> allTasks = new ArrayList<Task>();
@@ -917,7 +916,7 @@ public class SearchPerfTest {
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final IndexState indexState = new IndexState(searcher, spellChecker);
+    final IndexState indexState = new IndexState(reader, searcher, spellChecker);
     for(int threadIDX=0;threadIDX<threadCount;threadIDX++) {
       threads[threadIDX] = new TaskThread(startLatch, stopLatch, allTasks, nextTask, indexState, threadIDX);
       threads[threadIDX].start();

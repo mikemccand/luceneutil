@@ -32,7 +32,7 @@ import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.BytesRef;
@@ -55,7 +55,7 @@ public class NRTPerfTest {
 
   // TODO: share w/ SearchPerfTest
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
-    Collection<IndexCommit> commits = IndexReader.listCommits(dir);
+    Collection<IndexCommit> commits = DirectoryReader.listCommits(dir);
     for (final IndexCommit ic : commits) {
       Map<String,String> map = ic.getUserData();
       String ud = null;
@@ -321,7 +321,7 @@ public class NRTPerfTest {
 
     iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
         @Override
-        public void warm(IndexReader reader) throws IOException {
+        public void warm(AtomicReader reader) throws IOException {
           final long t0 = System.currentTimeMillis();
           //System.out.println("DO WARM: " + reader);
           IndexSearcher s = new IndexSearcher(reader);
@@ -372,7 +372,7 @@ public class NRTPerfTest {
     }
 
     // Open initial reader/searcher
-    final IndexReader startR = IndexReader.open(w, true);
+    final DirectoryReader startR = DirectoryReader.open(w, true);
     //NativePosixUtil.mlockTermsDict(startR, "id");
     System.out.println("Reader=" + startR);
     setSearcher(new IndexSearcher(startR));
@@ -409,7 +409,7 @@ public class NRTPerfTest {
           final long startMS = System.currentTimeMillis();
           final long stopMS = startMS + (long) (runTimeSec * 1000);
 
-          IndexReader r = startR;
+          DirectoryReader r = startR;
           int reopenCount = 1;
           while(true) {
             final long t = System.currentTimeMillis();
@@ -437,7 +437,7 @@ public class NRTPerfTest {
             }
 
             final long tStart = System.nanoTime();
-            final IndexReader newR = IndexReader.openIfChanged(r);
+            final DirectoryReader newR = DirectoryReader.openIfChanged(r);
 
             if (newR != null) {
               System.out.println("Reopen: " + String.format("%9.4f", (System.nanoTime() - tStart)/1000000.0) + " msec");

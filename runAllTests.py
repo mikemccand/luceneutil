@@ -31,16 +31,19 @@ HEAP = '512m'
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
 
-COST_PER_JOB = 30.0
+COST_PER_JOB = 40.0
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
 if DO_GATHER_TIMES:
   NUM_THREAD = [('local', 14)]
+elif '-repeat' in sys.argv:
+  NUM_THREAD = [('local', 16)]
 else:
-  NUM_THREAD = [('local', 16),
-                ('10.17.4.90', 3),
-                ('10.17.4.5', 3)]
+  NUM_THREAD = [('local', 20),
+                #('10.17.4.90', 3),
+                #('10.17.4.5', 3),
+                ]
 
 RAN_MULT = 1
 
@@ -313,7 +316,6 @@ class RunThread:
   def join(self):
     self.t.join()
     
-t0 = time.time()
 os.chdir('%s/lucene' % ROOT)
 
 if '-noc' not in sys.argv:
@@ -349,30 +351,33 @@ for dir, subDirs, files in os.walk('%s/lucene/src/test' % ROOT):
         tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
 # lucene contrib tests
-for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
-  #print 'contrib/%s' % contrib
-  strip = len(ROOT) + len('/lucene/contrib/%s/src/test/' % contrib)
-  if contrib in ('queries', 'queryparser'):
-    contrib2 = '%s-contrib' % contrib
-  else:
-    contrib2 = contrib
-  addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib2)))
-  addCP('%s/lucene/build/contrib/%s/classes/test' % (ROOT, contrib2))
-  libDir = '%s/lucene/contrib/%s/lib' % (ROOT, contrib)
-  addJARs(libDir)
-  for dir, subDirs, files in os.walk('%s/lucene/contrib/%s/src/test' % (ROOT, contrib)):
-    for file in files:
-      if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-        fullFile = '%s/%s' % (dir, file)
-        testClass = fullFile[strip:-5].replace('/', '.')
-        # print '  %s' % testClass
-        if testClass == 'org.apache.lucene.store.db.DbStoreTest':
-          continue
-        if doLucene:
-          wd = '%s/lucene' % ROOT
-          #wd = ROOT
-          tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
-
+if True:
+  for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
+    #print 'contrib/%s' % contrib
+    strip = len(ROOT) + len('/lucene/contrib/%s/src/test/' % contrib)
+    if contrib in ('queries', 'queryparser'):
+      contrib2 = '%s-contrib' % contrib
+    else:
+      contrib2 = contrib
+    addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib2)))
+    addCP('%s/lucene/build/contrib/%s/classes/test' % (ROOT, contrib2))
+    libDir = '%s/lucene/contrib/%s/lib' % (ROOT, contrib)
+    addJARs(libDir)
+    for dir, subDirs, files in os.walk('%s/lucene/contrib/%s/src/test' % (ROOT, contrib)):
+      for file in files:
+        if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+          fullFile = '%s/%s' % (dir, file)
+          testClass = fullFile[strip:-5].replace('/', '.')
+          # print '  %s' % testClass
+          if testClass == 'org.apache.lucene.store.db.DbStoreTest':
+            continue
+          if doLucene:
+            wd = '%s/lucene' % ROOT
+            #wd = ROOT
+            tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
+else:
+  print '***WARNING***: skipping lucene contrib tests'
+  
 # modules tests
 if os.path.exists('%s/modules' % ROOT):
   for path in os.listdir('%s/modules' % ROOT):
@@ -556,6 +561,7 @@ for resource, threadCount in NUM_THREAD:
     os.system('rm -f %s/*.log' % ROOT)
 
 threads = []
+t0 = time.time()
 for resourceID, (resource, threadCount) in enumerate(NUM_THREAD):
   for threadID in xrange(threadCount):
     threads.append(RunThread(resource, resourceID, threadID, workQ))

@@ -189,7 +189,7 @@ while True:
     #command += ' -Dtests.timezone=random'
     #command += ' -Dtests.lockdir=build'
     command += ' -Dtests.verbose=%s' % verbose
-    command += ' -Dtests.infostream=false'
+    command += ' -Dtests.infostream=%s' % verbose
     command += ' -Dtests.multiplier=%s' % mult
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.postingsformat=%s' % postingsFormat

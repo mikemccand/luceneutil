@@ -854,7 +854,10 @@ class RunAlgs:
 
       # print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
       # TODO: need a real significance test here
-      significant = (abs(qpsBase-qpsCmp) / (2*qpsStdDevBase+2*qpsStdDevCmp)) > 0.30
+      if qpsStdDevBase != 0 or qpsStdDevCmp != 0:
+        significant = (abs(qpsBase-qpsCmp) / (2*qpsStdDevBase+2*qpsStdDevCmp)) > 0.30
+      else:
+        significant = False
 
       if baseTotHitCount != cmpTotHitCount:
         warnings.append('cat=%s: hit counts differ: %s vs %s' % (desc, baseTotHitCount, cmpTotHitCount))

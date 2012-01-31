@@ -29,7 +29,7 @@ import org.apache.lucene.codecs.*;
 import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -110,14 +110,14 @@ public class PKLookupPerfTest {
       createIndex(dir, numDocs);
     }
 
-    final IndexReader r = IndexReader.open(dir);
+    final DirectoryReader r = DirectoryReader.open(dir);
     System.out.println("Reader=" + r);
 
     final IndexReader[] subs = r.getSequentialSubReaders();
     final DocsEnum[] docsEnums = new DocsEnum[subs.length];
     final TermsEnum[] termsEnums = new TermsEnum[subs.length];
     for(int subIdx=0;subIdx<subs.length;subIdx++) {
-      termsEnums[subIdx] = subs[subIdx].fields().terms("id").iterator(null);
+      termsEnums[subIdx] = ((AtomicReader) subs[subIdx]).fields().terms("id").iterator(null);
     }
 
     final int maxDoc = r.maxDoc();

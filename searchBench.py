@@ -30,7 +30,7 @@ if '-ea' in sys.argv:
 osName = common.osName
 
 def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True):
-  competitors = [base, challenger]
+  competitors = [challenger, base]
 
   # nocommit
   verifyScores = False
@@ -50,6 +50,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
     debug = True
     id += '-fast'
+    # nocommit
     jvmCount = 4
     if coldRun:
       countPerCat = 20
@@ -122,12 +123,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c, jvmCount)
 
-  results, cmpDiffs, cmpHeap = r.simpleReport(results[competitors[0]],
-                                              results[competitors[1]],
+  results, cmpDiffs, cmpHeap = r.simpleReport(results[base],
+                                              results[challenger],
                                               '-jira' in sys.argv,
                                               '-html' in sys.argv,
-                                              cmpDesc=competitors[1].name,
-                                              baseDesc=competitors[0].name)
+                                              cmpDesc=challenger.name,
+                                              baseDesc=base.name)
   if cmpDiffs is not None:
     raise RuntimeError('results differ: %s' % str(cmpDiffs))
 

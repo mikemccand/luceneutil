@@ -49,9 +49,7 @@ import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.search.similarities.BasicSimilarityProvider;
 import org.apache.lucene.search.similarities.Similarity;
-import org.apache.lucene.search.similarities.SimilarityProvider;
 import org.apache.lucene.search.spell.SuggestMode;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.DirectSpellChecker;
@@ -805,7 +803,7 @@ public class SearchPerfTest {
     // now reflect
     final Class<? extends Similarity> simClazz = 
       Class.forName("org.apache.lucene.search.similarities." + similarity).asSubclass(Similarity.class);
-    final SimilarityProvider provider = new BasicSimilarityProvider(simClazz.newInstance());
+    final Similarity sim = simClazz.newInstance();
 
     System.out.println("Using dir impl " + dir.getClass().getName());
     System.out.println("Analyzer " + analyzer);
@@ -847,7 +845,7 @@ public class SearchPerfTest {
       reader = DirectoryReader.open(dir);
     }
     final IndexSearcher searcher = new IndexSearcher(reader);
-    searcher.setSimilarityProvider(provider);
+    searcher.setSimilarity(sim);
 
     System.out.println("searcher=" + searcher);
 

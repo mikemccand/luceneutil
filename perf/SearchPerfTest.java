@@ -43,22 +43,23 @@ import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.*;
+import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.AtomicReaderContext;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.search.similarities.Similarity;
-import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestWord;
-import org.apache.lucene.search.spell.DirectSpellChecker;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.grouping.*;
 import org.apache.lucene.search.grouping.term.*;
+import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
+import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.spell.SuggestMode;
+import org.apache.lucene.search.spell.SuggestMode;
+import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -861,9 +862,9 @@ public class SearchPerfTest {
     } else if (analyzer.equals("ClassicAnalyzer")) {
       a = new ClassicAnalyzer(Version.LUCENE_30);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
+      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
                                      2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);

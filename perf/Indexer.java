@@ -388,15 +388,10 @@ public final class Indexer {
     final Document doc2 = new Document();
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof NumericField) {
-        final NumericField f2;
-        Number n = ((NumericField) f).numericValue();
-        if (n instanceof Long) {
-          f2 = new NumericField(f.name(), (Long) n);
-        } else {
-          f2 = new NumericField(f.name(), (Integer) n);
-        }
-        doc2.add(f2);
+      if (f instanceof LongField) {
+        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
+      } else if (f instanceof IntField) {
+        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
       } else {
         Field field1 = (Field) f;
       
@@ -496,7 +491,7 @@ public final class Indexer {
               // floating point docsPerGroupBlock:
               numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
             }
-            groupBlockField.setValue(groupBlocks[groupCounter]);
+            groupBlockField.setStringValue(groupBlocks[groupCounter]);
             for(int docCount=0;docCount<numDocs;docCount++) {
               final Document doc = docs.nextDoc(docState);
               if (doc == null) {
@@ -509,10 +504,10 @@ public final class Indexer {
               if (((1+id) % 1000000) == 0) {
                 System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
               }
-              group100Field.setValue(group100[id%100]);
-              group10KField.setValue(group10K[id%10000]);
-              group100KField.setValue(group100K[id%100000]);
-              group1MField.setValue(group1M[id%1000000]);
+              group100Field.setStringValue(group100[id%100]);
+              group10KField.setStringValue(group10K[id%10000]);
+              group100KField.setStringValue(group100K[id%100000]);
+              group1MField.setStringValue(group1M[id%1000000]);
               docsGroup.add(cloneDoc(doc));
             }
             final int docCount = docsGroup.size();

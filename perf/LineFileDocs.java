@@ -33,6 +33,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
+import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.util.BytesRef;
 
@@ -205,7 +206,7 @@ public class LineFileDocs implements Closeable {
     doc.body.setStringValue(line.substring(1+spot2, line.length()));
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
-    doc.titleDV.setBinaryValue(new BytesRef(title));
+    doc.titleDV.setBytesValue(new BytesRef(title));
     doc.titleTokenized.setStringValue(title);
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setStringValue(dateString);

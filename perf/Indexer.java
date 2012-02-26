@@ -392,6 +392,8 @@ public final class Indexer {
         doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
       } else if (f instanceof IntField) {
         doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
+      } else if (f instanceof DocValuesField) {
+        doc2.add(new DocValuesField(f.name(), f.binaryValue(), f.fieldType().docValueType()));
       } else {
         Field field1 = (Field) f;
       

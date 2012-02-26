@@ -629,6 +629,8 @@ public class SearchPerfTest {
 
     final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     final Sort titleSort = new Sort(new SortField("title", SortField.Type.STRING));
+    final Sort titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
+    titleDVSort.setUseIndexValues(true);
 
     while(true) {
       String line = taskFile.readLine();
@@ -709,6 +711,10 @@ public class SearchPerfTest {
           group = null;
         } else if (text.startsWith("titlesort//")) {
           sort = titleSort;
+          query = p.parse(text.substring(11, text.length()));
+          group = null;
+        } else if (text.startsWith("titledvsort//")) {
+          sort = titleDVSort;
           query = p.parse(text.substring(11, text.length()));
           group = null;
         } else if (text.startsWith("group100//")) {

@@ -127,6 +127,7 @@ public class LineFileDocs implements Closeable {
     final Document doc;
     final Field titleTokenized;
     final Field title;
+    final Field titleDV;
     final Field body;
     final Field id;
     final Field date;
@@ -141,6 +142,9 @@ public class LineFileDocs implements Closeable {
       
       title = new StringField("title", "");
       doc.add(title);
+
+      titleDV = new DocValuesField("titleDV", new BytesRef(""), DocValues.Type.BYTES_VAR_SORTED);
+      doc.add(titleDV);
 
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
       doc.add(titleTokenized);
@@ -201,6 +205,7 @@ public class LineFileDocs implements Closeable {
     doc.body.setValue(line.substring(1+spot2, line.length()));
     final String title = line.substring(0, spot);
     doc.title.setValue(title);
+    doc.titleDV.setValue(new BytesRef(title));
     doc.titleTokenized.setValue(title);
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setValue(dateString);

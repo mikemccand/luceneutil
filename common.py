@@ -53,18 +53,28 @@ def findRootDir(s):
     s = s[1:]
 
   checkout = s.split(os.sep)[0]
+  if checkout == 'future':
+    checkout = os.sep.join(s.split(os.sep)[:2])
   del s
 
   return '%s/%s' % (constants.BASE_DIR, checkout)
   
 def getLuceneTestClassPath(ROOT):
   CP = []
-  CP.append(ROOT+'/lucene/build/classes/test-framework')
-  CP.append(ROOT+'/lucene/build/classes/test')
-  CP.append(ROOT+'/lucene/build/classes/java')
+  if os.path.exists(ROOT+'/lucene/build/core'):
+    CP.append(ROOT+'/lucene/build/test-framework/classes/java')
+    CP.append(ROOT+'/lucene/build/core/classes/test')
+    CP.append(ROOT+'/lucene/build/core/classes/java')
+  else:
+    CP.append(ROOT+'/lucene/build/classes/test-framework')
+    CP.append(ROOT+'/lucene/build/classes/test')
+    CP.append(ROOT+'/lucene/build/classes/java')
 
   if not os.path.exists(ROOT + '/lucene/lib/junit-3.8.2.jar'):
-    JUNIT_JAR = 'junit-4.7.jar'
+    if not os.path.exists(ROOT + '/lucene/lib/junit-4.7.jar'):
+      JUNIT_JAR = 'junit-4.10.jar'
+    else:
+      JUNIT_JAR = 'junit-4.7.jar'
   else:
     JUNIT_JAR = 'junit-3.8.2.jar'
   CP.append(ROOT + '/lucene/lib/' + JUNIT_JAR)
@@ -85,6 +95,8 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/modules/join/build/classes/java')
   CP.append(ROOT + '/modules/facet/build/classes/test')
   CP.append(ROOT + '/modules/facet/build/classes/java')
+  CP.append(ROOT + '/modules/suggest/build/classes/test')
+  CP.append(ROOT + '/modules/suggest/build/classes/java')
 
   # return filterCWD(CP)
   return CP

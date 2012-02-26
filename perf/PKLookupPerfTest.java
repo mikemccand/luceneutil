@@ -77,7 +77,7 @@ public class PKLookupPerfTest {
     doc.add(field);
 
     for(int i=0;i<docCount;i++) {
-      field.setValue(String.format("%09d", i));
+      field.setStringValue(String.format("%09d", i));
       w.addDocument(doc);
       if ((i+1)%1000000 == 0) {
         System.out.println((i+1) + "...");

@@ -658,13 +658,10 @@ class RunAlgs:
     path = checkoutToPath(checkout)
     cp = []
     version = getLuceneVersion(checkout)
-    if version == '3.0':
-      buildPath = '%s/build/classes' % path
-    else:
-      buildPath = '%s/lucene/build/classes' % path
+    buildPath = '%s/lucene/build/core/classes' % path
     cp.append('%s/java' % buildPath)
     cp.append('%s/test' % buildPath)
-    cp.append('%s/test-framework' % buildPath)
+    cp.append('%s/lucene/build/test-framework/classes/java' % path)
     cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
     if version == '4.0':
       cp.append('%s/modules/analysis/build/common/classes/java' % path)

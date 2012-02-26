@@ -493,7 +493,7 @@ def run():
       warnings, errors = cmpDiffs
       print 'WARNING: search result differences: %s' % str(warnings)
       if len(errors) > 0:
-        raise RuntimeErrors('search result differences: %s' % str(errors))
+        raise RuntimeError('search result differences: %s' % str(errors))
   else:
     cmpDiffs = None
 

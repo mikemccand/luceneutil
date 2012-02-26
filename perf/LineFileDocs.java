@@ -131,8 +131,8 @@ public class LineFileDocs implements Closeable {
     final Field body;
     final Field id;
     final Field date;
-    final NumericField dateMSec;
-    final NumericField timeSec;
+    final LongField dateMSec;
+    final IntField timeSec;
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
@@ -158,10 +158,10 @@ public class LineFileDocs implements Closeable {
       date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
 
-      dateMSec = new NumericField("datenum", 0L);
+      dateMSec = new LongField("datenum", 0L);
       doc.add(dateMSec);
 
-      timeSec = new NumericField("timesecnum", 0);
+      timeSec = new IntField("timesecnum", 0);
       doc.add(timeSec);
     }
   }
@@ -202,22 +202,22 @@ public class LineFileDocs implements Closeable {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
     }
 
-    doc.body.setValue(line.substring(1+spot2, line.length()));
+    doc.body.setStringValue(line.substring(1+spot2, line.length()));
     final String title = line.substring(0, spot);
-    doc.title.setValue(title);
-    doc.titleDV.setValue(new BytesRef(title));
-    doc.titleTokenized.setValue(title);
+    doc.title.setStringValue(title);
+    doc.titleDV.setBinaryValue(new BytesRef(title));
+    doc.titleTokenized.setStringValue(title);
     final String dateString = line.substring(1+spot, spot2);
-    doc.date.setValue(dateString);
-    doc.id.setValue(intToID(myID));
+    doc.date.setStringValue(dateString);
+    doc.id.setStringValue(intToID(myID));
 
     doc.datePos.setIndex(0);
     final Date date = doc.dateParser.parse(dateString, doc.datePos);
-    doc.dateMSec.setValue(date.getTime());
+    doc.dateMSec.setLongValue(date.getTime());
 
     doc.dateCal.setTime(date);
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-    doc.timeSec.setValue(sec);
+    doc.timeSec.setIntValue(sec);
 
     return doc.doc;
   }

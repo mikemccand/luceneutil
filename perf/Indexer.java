@@ -34,6 +34,7 @@ import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene40.Lucene40Codec;
@@ -91,9 +92,9 @@ public final class Indexer {
     } else if (analyzer.equals("ClassicAnalyzer")) {
       a = new ClassicAnalyzer(Version.LUCENE_30);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
+      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet()),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
                                      2, 2);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -387,15 +388,10 @@ public final class Indexer {
     final Document doc2 = new Document();
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof NumericField) {
-        final NumericField f2;
-        Number n = ((NumericField) f).numericValue();
-        if (n instanceof Long) {
-          f2 = new NumericField(f.name(), (Long) n);
-        } else {
-          f2 = new NumericField(f.name(), (Integer) n);
-        }
-        doc2.add(f2);
+      if (f instanceof LongField) {
+        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
+      } else if (f instanceof IntField) {
+        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
       } else {
         Field field1 = (Field) f;
       
@@ -495,7 +491,7 @@ public final class Indexer {
               // floating point docsPerGroupBlock:
               numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
             }
-            groupBlockField.setValue(groupBlocks[groupCounter]);
+            groupBlockField.setStringValue(groupBlocks[groupCounter]);
             for(int docCount=0;docCount<numDocs;docCount++) {
               final Document doc = docs.nextDoc(docState);
               if (doc == null) {
@@ -508,10 +504,10 @@ public final class Indexer {
               if (((1+id) % 1000000) == 0) {
                 System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
               }
-              group100Field.setValue(group100[id%100]);
-              group10KField.setValue(group10K[id%10000]);
-              group100KField.setValue(group100K[id%100000]);
-              group1MField.setValue(group1M[id%1000000]);
+              group100Field.setStringValue(group100[id%100]);
+              group10KField.setStringValue(group10K[id%10000]);
+              group100KField.setStringValue(group100K[id%100000]);
+              group1MField.setStringValue(group1M[id%1000000]);
               docsGroup.add(cloneDoc(doc));
             }
             final int docCount = docsGroup.size();

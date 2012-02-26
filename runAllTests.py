@@ -51,9 +51,10 @@ VERBOSE = 'false'
 
 LUCENE_VERSION = '4.0-SNAPSHOT'
 
-CLASSPATH = ['../lucene/lib/junit-4.7.jar',
-             '../lucene/build/classes/test-framework',
-             '../lucene/build/classes/test',
+CLASSPATH = ['../lucene/lib/junit-4.10.jar',
+             '../lucene/build/test-framework/classes/java',
+             '../lucene/build/core/classes/java',
+             '../lucene/build/core/classes/test',
              '../solr/build/solr-test-framework/classes/java',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
@@ -112,6 +113,10 @@ if not doLucene and not doSolr and not doModules:
 def addCP(dirName):
   if os.path.exists(dirName):
     #print 'CP: add %s' % dirName
+    CLASSPATH.append(dirName)
+
+def addCPIfExists(dirName):
+  if os.path.exists(dirName):
     CLASSPATH.append(dirName)
     
 def fixCP():
@@ -316,12 +321,13 @@ class RunThread:
   def join(self):
     self.t.join()
     
-os.chdir('%s/lucene' % ROOT)
-
 if '-noc' not in sys.argv:
 
+  os.chdir('%s/lucene/core' % ROOT)
+  run('Compile Lucene core...', 'ant compile-test', 'compile.log')
+
   os.chdir('%s/lucene' % ROOT)
-  run('Compile Lucene core/contrib...', 'ant compile-test build-contrib', 'compile.log')
+  run('Compile Lucene contrib...', 'ant build-contrib', 'compile.log')
   
   if os.path.exists('%s/modules' % ROOT):
     os.chdir('%s/modules' % ROOT)
@@ -332,15 +338,17 @@ if '-noc' not in sys.argv:
     #run('Compile Solr...', 'ant compile-test', 'compile.log')
     run('Compile Solr...', 'ant compile compile-test', 'compile.log')
 
-testDir = '%s/lucene/build/test' % ROOT
+os.chdir('%s/lucene' % ROOT)
+
+testDir = '%s/lucene/build/core/test' % ROOT
 if not os.path.exists(testDir):
   os.makedirs(testDir)
   
 tests = []
-strip = len(ROOT) + len('/lucene/src/test/')
+strip = len(ROOT) + len('/lucene/core/src/test/')
 
 # lucene core tests
-for dir, subDirs, files in os.walk('%s/lucene/src/test' % ROOT):
+for dir, subDirs, files in os.walk('%s/lucene/core/src/test' % ROOT):
   for file in files:
     if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
       fullFile = '%s/%s' % (dir, file)
@@ -396,6 +404,8 @@ if os.path.exists('%s/modules' % ROOT):
               for f in os.listdir(libDir):
                 if f.endswith('.jar'):
                   CLASSPATH.append('%s/%s' % (libDir, f))
+            addCPIfExists('../modules/analysis/%s/src/test-files' % package)
+            addCPIfExists('../modules/analysis/%s/src/resources' % package)
             strip = len(ROOT) + len('/modules/analysis/%s/src/test/' % package)
             for dir, subDirs, files in os.walk('%s/modules/analysis/%s/src/test' % (ROOT, package)):
               for file in files:
@@ -467,7 +477,13 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.client.solrj.TestBatchUpdate', 'org.apache.solr.client.solrj.embedded.SolrExampleJettyTest', 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest', 'org.apache.solr.client.solrj.SolrExampleBinaryTest'):
+        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',
+                         'org.apache.solr.client.solrj.TestBatchUpdate',
+                         'org.apache.solr.client.solrj.embedded.SolrExampleJettyTest',
+                         'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest',
+                         'org.apache.solr.client.solrj.SolrExampleBinaryTest',
+                         'org.apache.solr.client.solrj.embedded.SolrExampleStreamingBinaryTest',
+                         'org.apache.solr.client.solrj.embedded.TestSolrProperties'):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
@@ -533,6 +549,15 @@ def cmpTests(test1, test2):
     return -cmp(test1[0], test2[0])
 
 tests.sort(cmpTests)
+
+if False:
+  newTests = []
+  for test in tests:
+    if test[2].find('uima') != -1:
+      newTests.append(test)
+      #print 'KEEP: %s' % str(test)
+  tests = newTests
+
 #for test in tests:
 #  print '%s: %s' % (test[0], test[2])
 repeat = '-repeat' in sys.argv

@@ -125,7 +125,8 @@ if doCompile:
   print 'Compile...'
   try:
     if os.getcwd().endswith('lucene'):
-      res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
+      #res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
+      res = os.system('ant compile-core compile-test > compile.log 2>&1')
     else:
       res = os.system('ant compile-test > compile.log 2>&1')
     if res:

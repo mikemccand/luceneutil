@@ -84,6 +84,7 @@ class Index(object):
     self.doUpdate = doUpdate
     self.idFieldCodec = 'Memory'
     self.useCFS = useCFS
+    self.javaCommand = constants.JAVA_COMMAND
     if SEGS_PER_LEVEL >= mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
@@ -116,7 +117,7 @@ class Competitor(object):
 
   doSort = False
 
-  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile, threads, similarity):
+  def __init__(self, name, checkout, index, dirImpl, analyzer, commitPoint, tasksFile, threads, similarity, javaCommand):
     self.name = name
     self.index = index
     self.checkout = checkout
@@ -126,6 +127,7 @@ class Competitor(object):
     self.tasksFile = tasksFile
     self.threads = threads
     self.similarity = similarity
+    self.javaCommand = javaCommand
 
   def compile(self, cp):
     benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
@@ -229,6 +231,7 @@ class CompetitorBuilder(object):
     self._threads = competition.searchThreads
     self._commitPoint = MULTI_SEGMENTS_COMMIT
     self._index = None
+    self._javaCommand = constants.JAVA_COMMAND
     competition.competitors.append(self)
  
   def commitPoint(self, commitPoint):
@@ -238,6 +241,10 @@ class CompetitorBuilder(object):
 
   def numThreads(self, num):
     self._threads = num
+    return self
+
+  def javaCommand(self, s):
+    self._javaCommand = s
     return self
 
   def analyzer(self, analyzer):
@@ -260,7 +267,7 @@ class CompetitorBuilder(object):
     if not self._index:
       raise RuntimeError("no index given to competitor %s " % self._name)
     data = self._index._data
-    return Competitor(self._name, self._checkout, self._index.build(), self._directory, self._analyzer, self._commitPoint, data.tasksFile, self._threads, self._similarity)
+    return Competitor(self._name, self._checkout, self._index.build(), self._directory, self._analyzer, self._commitPoint, data.tasksFile, self._threads, self._similarity, self._javaCommand)
 
 class IndexBuilder(object):
   
@@ -283,6 +290,7 @@ class IndexBuilder(object):
     self._idFieldCodec = 'Memory'
     self._doGrouping = True
     self._useCFS = False
+    self._javaCommand = constants.JAVA_COMMAND
     competition.indices.append(self)
 
   def doUpdate(self):
@@ -299,6 +307,10 @@ class IndexBuilder(object):
     
   def threads(self, threads):
     self._threads = threads
+    return self
+  
+  def javaCommand(self, s):
+    self._javaCommand = s
     return self
   
   def analyzer(self, analyzer):
@@ -352,4 +364,5 @@ class IndexBuilder(object):
     idx.waitForMerges = self._waitForMerges
     idx.idFieldCodec = self._idFieldCodec
     idx.doGrouping = self._doGrouping
+    idx.javaCommand = self._javaCommand
     return idx

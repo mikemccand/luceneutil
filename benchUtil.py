@@ -608,7 +608,7 @@ class RunAlgs:
         useCFS = 'no'
 
       cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
-            (self.javaCommand,
+            (index.javaCommand,
              self.classPathToString(self.getClassPath(index.checkout)),
              index.dirImpl,
              fullIndexPath,
@@ -757,7 +757,7 @@ class RunAlgs:
         print '    iter %s of %s' % (1+iter, jvmCount)
         randomSeed2 = rand.randint(-10000000, 1000000)      
         command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s %s' % \
-            (self.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
+            (c.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
         if filter is not None:
           command += ' %s %.2f' % filter
         iterLogFile = '%s.%s' % (logFile, iter)

@@ -237,7 +237,6 @@ public class SearchPerfTest {
         hits = state.searcher.search(q, f, topN);
       } else {
         hits = state.searcher.search(q, f, topN, s);
-        // nocommit
         /*
         final boolean fillFields = true;
         final boolean fieldSortDoTrackScores = true;

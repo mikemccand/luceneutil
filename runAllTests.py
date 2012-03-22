@@ -353,6 +353,10 @@ for dir, subDirs, files in os.walk('%s/lucene/core/src/test' % ROOT):
     if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
       fullFile = '%s/%s' % (dir, file)
       testClass = fullFile[strip:-5].replace('/', '.')
+      if testClass in ('org.apache.lucene.util.junitcompat.TestExceptionInBeforeClassHooks',):
+        print 'WARNING: skipping test %s' % testClass
+        continue
+      
       if doLucene:
         wd = '%s/lucene' % ROOT
         #wd = ROOT

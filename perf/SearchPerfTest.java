@@ -152,7 +152,7 @@ public class SearchPerfTest {
     private final boolean singlePassGroup;
     private final boolean doCountGroups;
     private TopDocs hits;
-    private TopGroups<Object> groupsResultBlock;
+    private TopGroups<?> groupsResultBlock;
     private TopGroups<BytesRef> groupsResultTerms;
 
     public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN) {
@@ -321,7 +321,7 @@ public class SearchPerfTest {
       //System.out.println("checksum q=" + q + " f=" + f);
       if (group != null) {
         if (singlePassGroup) {
-          for(GroupDocs<Object> groupDocs : groupsResultBlock.groups) {
+          for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
             sum += groupDocs.totalHits;
             for(ScoreDoc hit : groupDocs.scoreDocs) {
               sum = sum * PRIME + hit.doc;
@@ -376,7 +376,7 @@ public class SearchPerfTest {
     public void printResults(IndexState state) throws IOException {
       if (group != null) {
         if (singlePassGroup) {
-          for(GroupDocs<Object> groupDocs : groupsResultBlock.groups) {
+          for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
             System.out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
             for(ScoreDoc hit : groupDocs.scoreDocs) {
               System.out.println("    doc=" + hit.doc + " score=" + hit.score);

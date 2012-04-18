@@ -184,8 +184,8 @@ public final class Indexer {
       tmp.setUseCompoundFile(useCFS);
       tmp.setNoCFSRatio(1.0);
       mp = null;
-    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
-      mp = new BalancedSegmentMergePolicy();
+      //    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
+      //      mp = new BalancedSegmentMergePolicy();
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
     }

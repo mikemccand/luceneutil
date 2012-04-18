@@ -693,7 +693,9 @@ class RunAlgs:
       
       print '  %s' % path
       os.chdir(path)
+      os.chdir('../..')
       run('ant compile', 'compile.log')
+      os.chdir(path)      
       if path.endswith('/'):
         path = path[:-1]
 

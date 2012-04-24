@@ -64,7 +64,7 @@ def getLuceneVersion(checkout):
     return '3.0'
   elif os.path.isdir('%s/lucene/contrib/benchmark' % checkoutPath):
     return '3.x'
-  elif os.path.isdir('%s/modules/benchmark' % checkoutPath):
+  elif os.path.isdir('%s/lucene/benchmark' % checkoutPath):
     return '4.0'
   else:
     raise RuntimeError('cannot determine Lucene version for checkout %s' % checkoutPath)
@@ -76,7 +76,7 @@ def checkoutToBenchPath(checkout):
   p = checkoutToPath(checkout)
   for subDir in ('contrib/benchmark', # pre-3.1
                  'lucene/contrib/benchmark', # 3.1
-                 'modules/benchmark', # 4.0
+                 'lucene/benchmark', # 4.0
                  ):
     fullPath = '%s/%s' % (p, subDir)
     if os.path.exists(fullPath):
@@ -664,11 +664,11 @@ class RunAlgs:
     cp.append('%s/lucene/build/test-framework/classes/java' % path)
     cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
     if version == '4.0':
-      cp.append('%s/modules/analysis/build/common/classes/java' % path)
-      cp.append('%s/modules/analysis/build/icu/classes/java' % path)
-      cp.append('%s/modules/queryparser/build/classes/java' % path)
-      cp.append('%s/modules/grouping/build/classes/java' % path)
-      cp.append('%s/modules/suggest/build/classes/java' % path)
+      cp.append('%s/lucene/build/analysis/common/classes/java' % path)
+      cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
+      cp.append('%s/lucene/build/queryparser/classes/java' % path)
+      cp.append('%s/lucene/build/grouping/classes/java' % path)
+      cp.append('%s/lucene/build/suggest/classes/java' % path)
     elif version == '3.x':
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)

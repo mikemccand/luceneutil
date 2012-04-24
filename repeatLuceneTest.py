@@ -125,7 +125,8 @@ if doCompile:
   print 'Compile...'
   try:
     if os.getcwd().endswith('lucene'):
-      res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
+      #res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
+      res = os.system('ant compile-core compile-test > compile.log 2>&1')
     else:
       res = os.system('ant compile-test > compile.log 2>&1')
     if res:
@@ -144,6 +145,9 @@ iters = int(getArg('-iters', 1))
 seed = getArg('-seed', None)
 nightly = getArg('-nightly', None, False)
 keepLogs = getArg('-keeplogs', False, False)
+heap = getArg('-heap', None, True)
+if heap is not None:
+  JAVA_ARGS = JAVA_ARGS.replace('512m', heap)
 
 if len(sys.argv) == 1:
   print '\nERROR: no test specified\n'
@@ -181,15 +185,15 @@ while True:
     iter += 1
       
     command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
-    if constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
+    if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
       command += ' -server'
-    if random.randint(0, 1) == 1 and not onlyOnce:
+    if False and random.randint(0, 1) == 1 and not onlyOnce:
       command += ' -Xbatch'
     #command += ' -Dtests.locale=random'
     #command += ' -Dtests.timezone=random'
     #command += ' -Dtests.lockdir=build'
     command += ' -Dtests.verbose=%s' % verbose
-    command += ' -Dtests.infostream=false'
+    command += ' -Dtests.infostream=%s' % verbose
     command += ' -Dtests.multiplier=%s' % mult
     command += ' -Dtests.iter=%s' % iters
     command += ' -Dtests.postingsformat=%s' % postingsFormat

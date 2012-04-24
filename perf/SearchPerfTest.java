@@ -237,6 +237,18 @@ public class SearchPerfTest {
         hits = state.searcher.search(q, f, topN);
       } else {
         hits = state.searcher.search(q, f, topN, s);
+        /*
+        final boolean fillFields = true;
+        final boolean fieldSortDoTrackScores = true;
+        final boolean fieldSortDoMaxScore = true;
+        final TopFieldCollector c = TopFieldCollector.create(s, topN,
+                                                             fillFields,
+                                                             fieldSortDoTrackScores,
+                                                             fieldSortDoMaxScore,
+                                                             false);
+        state.searcher.search(q, c);
+        hits = c.topDocs();
+        */
       }
 
       //System.out.println("TE: " + TermsEnum.getStats());
@@ -304,6 +316,7 @@ public class SearchPerfTest {
 
     @Override
     public long checksum() {
+      final long PRIME = 641;
       long sum = 0;
       //System.out.println("checksum q=" + q + " f=" + f);
       if (group != null) {
@@ -311,14 +324,22 @@ public class SearchPerfTest {
           for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
             sum += groupDocs.totalHits;
             for(ScoreDoc hit : groupDocs.scoreDocs) {
-              sum += hit.doc;
+              sum = sum * PRIME + hit.doc;
             }
           }
         } else {
           for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
             sum += groupDocs.totalHits;
             for(ScoreDoc hit : groupDocs.scoreDocs) {
-              sum += hit.doc;
+              sum = sum * PRIME + hit.doc;
+              if (hit instanceof FieldDoc) {
+                final FieldDoc fd = (FieldDoc) hit;
+                if (fd.fields != null) {
+                  for(Object o : fd.fields) {
+                    sum = sum * PRIME + o.hashCode();
+                  }
+                }
+              }
             }
           }
         }
@@ -326,7 +347,15 @@ public class SearchPerfTest {
         sum = hits.totalHits;
         for(ScoreDoc hit : hits.scoreDocs) {
           //System.out.println("  " + hit.doc);
-          sum += hit.doc;
+          sum = sum * PRIME + hit.doc;
+          if (hit instanceof FieldDoc) {
+            final FieldDoc fd = (FieldDoc) hit;
+            if (fd.fields != null) {
+              for(Object o : fd.fields) {
+                sum = sum * PRIME + o.hashCode();
+              }
+            }
+          }
         }
         //System.out.println("  final=" + sum);
       }
@@ -630,6 +659,8 @@ public class SearchPerfTest {
 
     final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     final Sort titleSort = new Sort(new SortField("title", SortField.Type.STRING));
+    final Sort titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
+    titleDVSort.getSort()[0].setUseIndexValues(true);
 
     while(true) {
       String line = taskFile.readLine();
@@ -638,6 +669,11 @@ public class SearchPerfTest {
       }
       line = line.trim();
       if (line.indexOf("#") == 0) {
+        // Ignore comment lines
+        continue;
+      }
+      if (line.length() == 0) {
+        // Ignore blank lines
         continue;
       }
 
@@ -710,6 +746,10 @@ public class SearchPerfTest {
           group = null;
         } else if (text.startsWith("titlesort//")) {
           sort = titleSort;
+          query = p.parse(text.substring(11, text.length()));
+          group = null;
+        } else if (text.startsWith("titledvsort//")) {
+          sort = titleDVSort;
           query = p.parse(text.substring(11, text.length()));
           group = null;
         } else if (text.startsWith("group100//")) {
@@ -887,6 +927,7 @@ public class SearchPerfTest {
     //}
 
     // Add PK tasks
+    //System.out.println("WARNING: skip PK tasks");
     final int numPKTasks = (int) Math.min(reader.maxDoc()/6000., numTaskPerCat);
     for(int idx=0;idx<numPKTasks;idx++) {
       prunedTasks.add(new PKLookupTask(reader.maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
@@ -936,7 +977,11 @@ public class SearchPerfTest {
       final Task other = tasksSeen.get(task);
       if (other != null) {
         if (task.checksum() != other.checksum()) {
-          throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum());
+          System.out.println("\nTASK:");
+          task.printResults(indexState);
+          System.out.println("\nOTHER TASK:");
+          other.printResults(indexState);
+          throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
         }
       } else {
         tasksSeen.put(task, task);

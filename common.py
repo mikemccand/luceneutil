@@ -53,18 +53,28 @@ def findRootDir(s):
     s = s[1:]
 
   checkout = s.split(os.sep)[0]
+  if checkout == 'future':
+    checkout = os.sep.join(s.split(os.sep)[:2])
   del s
 
   return '%s/%s' % (constants.BASE_DIR, checkout)
   
 def getLuceneTestClassPath(ROOT):
   CP = []
-  CP.append(ROOT+'/lucene/build/classes/test-framework')
-  CP.append(ROOT+'/lucene/build/classes/test')
-  CP.append(ROOT+'/lucene/build/classes/java')
+  if os.path.exists(ROOT+'/lucene/build/core'):
+    CP.append(ROOT+'/lucene/build/test-framework/classes/java')
+    CP.append(ROOT+'/lucene/build/core/classes/test')
+    CP.append(ROOT+'/lucene/build/core/classes/java')
+  else:
+    CP.append(ROOT+'/lucene/build/classes/test-framework')
+    CP.append(ROOT+'/lucene/build/classes/test')
+    CP.append(ROOT+'/lucene/build/classes/java')
 
   if not os.path.exists(ROOT + '/lucene/lib/junit-3.8.2.jar'):
-    JUNIT_JAR = 'junit-4.7.jar'
+    if not os.path.exists(ROOT + '/lucene/lib/junit-4.7.jar'):
+      JUNIT_JAR = 'junit-4.10.jar'
+    else:
+      JUNIT_JAR = 'junit-4.7.jar'
   else:
     JUNIT_JAR = 'junit-3.8.2.jar'
   CP.append(ROOT + '/lucene/lib/' + JUNIT_JAR)
@@ -73,16 +83,29 @@ def getLuceneTestClassPath(ROOT):
 
   CP.append(ROOT + '/lucene/build/contrib/queries/classes/java')
   CP.append(ROOT + '/lucene/build/contrib/queries/classes/test')
+  CP.append(ROOT + '/lucene/build/contrib/grouping/classes/java')
+  CP.append(ROOT + '/lucene/build/contrib/grouping/classes/test')
+  CP.append(ROOT + '/lucene/build/contrib/join/classes/java')
+  CP.append(ROOT + '/lucene/build/contrib/join/classes/test')
+  CP.append(ROOT + '/lucene/build/contrib/memory/classes/java')
+  CP.append(ROOT + '/lucene/build/contrib/memory/classes/test')
   CP.append(ROOT + '/lucene/build/contrib/misc/classes/java')
   CP.append(ROOT + '/lucene/build/contrib/misc/classes/test')
   CP.append(ROOT + '/modules/grouping/build/classes/test')
   CP.append(ROOT + '/modules/grouping/build/classes/java')
   CP.append(ROOT + '/modules/analysis/build/common/classes/java')
   CP.append(ROOT + '/modules/analysis/build/common/classes/test')
+  CP.append(ROOT + '/modules/analysis/build/icu/classes/java')
+  CP.append(ROOT + '/modules/analysis/build/icu/classes/test')
+  CP.append(ROOT + '/modules/analysis/icu/lib/icu4j-4_8_1_1.jar')
+  CP.append(ROOT + '/modules/analysis/build/kuromoji/classes/java')
+  CP.append(ROOT + '/modules/analysis/build/kuromoji/classes/test')
   CP.append(ROOT + '/modules/join/build/classes/test')
   CP.append(ROOT + '/modules/join/build/classes/java')
   CP.append(ROOT + '/modules/facet/build/classes/test')
   CP.append(ROOT + '/modules/facet/build/classes/java')
+  CP.append(ROOT + '/modules/suggest/build/classes/test')
+  CP.append(ROOT + '/modules/suggest/build/classes/java')
 
   # return filterCWD(CP)
   return CP

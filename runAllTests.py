@@ -31,16 +31,19 @@ HEAP = '512m'
 # We bundle up tests that take roughly this many seconds, together, to reduce JRE startup time:
 DO_GATHER_TIMES = '-setTimes' in sys.argv
 
-COST_PER_JOB = 30.0
+COST_PER_JOB = 40.0
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
 
 if DO_GATHER_TIMES:
   NUM_THREAD = [('local', 14)]
+elif '-repeat' in sys.argv:
+  NUM_THREAD = [('local', 16)]
 else:
-  NUM_THREAD = [('local', 16),
-                ('10.17.4.90', 3),
-                ('10.17.4.5', 3)]
+  NUM_THREAD = [('local', 20),
+                #('10.17.4.90', 3),
+                #('10.17.4.5', 3),
+                ]
 
 RAN_MULT = 1
 
@@ -48,9 +51,10 @@ VERBOSE = 'false'
 
 LUCENE_VERSION = '4.0-SNAPSHOT'
 
-CLASSPATH = ['../lucene/lib/junit-4.7.jar',
-             '../lucene/build/classes/test-framework',
-             '../lucene/build/classes/test',
+CLASSPATH = ['../lucene/lib/junit-4.10.jar',
+             '../lucene/build/test-framework/classes/java',
+             '../lucene/build/core/classes/java',
+             '../lucene/build/core/classes/test',
              '../solr/build/solr-test-framework/classes/java',
              '../lucene/build/classes/java',
              '../modules/analysis/build/common/classes/java',
@@ -109,6 +113,10 @@ if not doLucene and not doSolr and not doModules:
 def addCP(dirName):
   if os.path.exists(dirName):
     #print 'CP: add %s' % dirName
+    CLASSPATH.append(dirName)
+
+def addCPIfExists(dirName):
+  if os.path.exists(dirName):
     CLASSPATH.append(dirName)
     
 def fixCP():
@@ -313,13 +321,13 @@ class RunThread:
   def join(self):
     self.t.join()
     
-t0 = time.time()
-os.chdir('%s/lucene' % ROOT)
-
 if '-noc' not in sys.argv:
 
+  os.chdir('%s/lucene/core' % ROOT)
+  run('Compile Lucene core...', 'ant compile-test', 'compile.log')
+
   os.chdir('%s/lucene' % ROOT)
-  run('Compile Lucene core/contrib...', 'ant compile-test build-contrib', 'compile.log')
+  run('Compile Lucene contrib...', 'ant build-contrib', 'compile.log')
   
   if os.path.exists('%s/modules' % ROOT):
     os.chdir('%s/modules' % ROOT)
@@ -330,49 +338,58 @@ if '-noc' not in sys.argv:
     #run('Compile Solr...', 'ant compile-test', 'compile.log')
     run('Compile Solr...', 'ant compile compile-test', 'compile.log')
 
-testDir = '%s/lucene/build/test' % ROOT
+os.chdir('%s/lucene' % ROOT)
+
+testDir = '%s/lucene/build/core/test' % ROOT
 if not os.path.exists(testDir):
   os.makedirs(testDir)
   
 tests = []
-strip = len(ROOT) + len('/lucene/src/test/')
+strip = len(ROOT) + len('/lucene/core/src/test/')
 
 # lucene core tests
-for dir, subDirs, files in os.walk('%s/lucene/src/test' % ROOT):
+for dir, subDirs, files in os.walk('%s/lucene/core/src/test' % ROOT):
   for file in files:
     if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
       fullFile = '%s/%s' % (dir, file)
       testClass = fullFile[strip:-5].replace('/', '.')
+      if testClass in ('org.apache.lucene.util.junitcompat.TestExceptionInBeforeClassHooks',):
+        print 'WARNING: skipping test %s' % testClass
+        continue
+      
       if doLucene:
         wd = '%s/lucene' % ROOT
         #wd = ROOT
         tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
 
 # lucene contrib tests
-for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
-  #print 'contrib/%s' % contrib
-  strip = len(ROOT) + len('/lucene/contrib/%s/src/test/' % contrib)
-  if contrib in ('queries', 'queryparser'):
-    contrib2 = '%s-contrib' % contrib
-  else:
-    contrib2 = contrib
-  addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib2)))
-  addCP('%s/lucene/build/contrib/%s/classes/test' % (ROOT, contrib2))
-  libDir = '%s/lucene/contrib/%s/lib' % (ROOT, contrib)
-  addJARs(libDir)
-  for dir, subDirs, files in os.walk('%s/lucene/contrib/%s/src/test' % (ROOT, contrib)):
-    for file in files:
-      if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
-        fullFile = '%s/%s' % (dir, file)
-        testClass = fullFile[strip:-5].replace('/', '.')
-        # print '  %s' % testClass
-        if testClass == 'org.apache.lucene.store.db.DbStoreTest':
-          continue
-        if doLucene:
-          wd = '%s/lucene' % ROOT
-          #wd = ROOT
-          tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
-
+if True:
+  for contrib in list(os.listdir('%s/lucene/contrib' % ROOT)) + ['db/bdb', 'db/bdb-je']:
+    #print 'contrib/%s' % contrib
+    strip = len(ROOT) + len('/lucene/contrib/%s/src/test/' % contrib)
+    if contrib in ('queries', 'queryparser'):
+      contrib2 = '%s-contrib' % contrib
+    else:
+      contrib2 = contrib
+    addCP(('%s/lucene/build/contrib/%s/classes/java' % (ROOT, contrib2)))
+    addCP('%s/lucene/build/contrib/%s/classes/test' % (ROOT, contrib2))
+    libDir = '%s/lucene/contrib/%s/lib' % (ROOT, contrib)
+    addJARs(libDir)
+    for dir, subDirs, files in os.walk('%s/lucene/contrib/%s/src/test' % (ROOT, contrib)):
+      for file in files:
+        if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
+          fullFile = '%s/%s' % (dir, file)
+          testClass = fullFile[strip:-5].replace('/', '.')
+          # print '  %s' % testClass
+          if testClass == 'org.apache.lucene.store.db.DbStoreTest':
+            continue
+          if doLucene:
+            wd = '%s/lucene' % ROOT
+            #wd = ROOT
+            tests.append((estimateCost(testClass), wd, testClass, CLASSPATH))
+else:
+  print '***WARNING***: skipping lucene contrib tests'
+  
 # modules tests
 if os.path.exists('%s/modules' % ROOT):
   for path in os.listdir('%s/modules' % ROOT):
@@ -391,6 +408,8 @@ if os.path.exists('%s/modules' % ROOT):
               for f in os.listdir(libDir):
                 if f.endswith('.jar'):
                   CLASSPATH.append('%s/%s' % (libDir, f))
+            addCPIfExists('../modules/analysis/%s/src/test-files' % package)
+            addCPIfExists('../modules/analysis/%s/src/resources' % package)
             strip = len(ROOT) + len('/modules/analysis/%s/src/test/' % package)
             for dir, subDirs, files in os.walk('%s/modules/analysis/%s/src/test' % (ROOT, package)):
               for file in files:
@@ -462,7 +481,13 @@ if doSolr:
         
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
-        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.client.solrj.TestBatchUpdate', 'org.apache.solr.client.solrj.embedded.SolrExampleJettyTest', 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest', 'org.apache.solr.client.solrj.SolrExampleBinaryTest'):
+        if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest',
+                         'org.apache.solr.client.solrj.TestBatchUpdate',
+                         'org.apache.solr.client.solrj.embedded.SolrExampleJettyTest',
+                         'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest',
+                         'org.apache.solr.client.solrj.SolrExampleBinaryTest',
+                         'org.apache.solr.client.solrj.embedded.SolrExampleStreamingBinaryTest',
+                         'org.apache.solr.client.solrj.embedded.TestSolrProperties'):
           print 'WARNING: skipping test %s' % testClass
           continue
         # print '  %s' % testClass
@@ -528,6 +553,15 @@ def cmpTests(test1, test2):
     return -cmp(test1[0], test2[0])
 
 tests.sort(cmpTests)
+
+if False:
+  newTests = []
+  for test in tests:
+    if test[2].find('uima') != -1:
+      newTests.append(test)
+      #print 'KEEP: %s' % str(test)
+  tests = newTests
+
 #for test in tests:
 #  print '%s: %s' % (test[0], test[2])
 repeat = '-repeat' in sys.argv
@@ -556,6 +590,7 @@ for resource, threadCount in NUM_THREAD:
     os.system('rm -f %s/*.log' % ROOT)
 
 threads = []
+t0 = time.time()
 for resourceID, (resource, threadCount) in enumerate(NUM_THREAD):
   for threadID in xrange(threadCount):
     threads.append(RunThread(resource, resourceID, threadID, workQ))

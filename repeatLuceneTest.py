@@ -92,7 +92,7 @@ def printReproLines(logFileName):
         else:
           extra += ' -mult %s' % mult
 
-      s = 'REPRO: %s %s -seed %s%s'%  (constants.REPRO_COMMAND_START, testCase, seed, extra)
+      s = 'REPRO: %s %s -seed %s %s'%  (constants.REPRO_COMMAND_START, testCase, seed, extra)
       if constants.REPRO_COMMAND_END != '':
         s += ' %s' % constants.REPRO_COMMAND_END
       print s

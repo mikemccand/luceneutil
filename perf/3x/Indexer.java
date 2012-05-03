@@ -47,7 +47,7 @@ import org.apache.lucene.util.*;
 
 // EG:
 //
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no no yes TieredMergePolicy no yes yes no
+// java -Xms2g -Xmx2g -server -classpath ".:build/core/classes/java:build/test-framework/classes/java:build/core/classes/test:build/contrib/analyzers/common/classes/java:build/contrib/misc/classes/java" perf.Indexer MMapDirectory "/q/lucene/indices/wikimedium.3x.nightly.nd27.625M/index" StandardAnalyzer /lucene/data/enwiki-20110115-lines-1k-fixed.txt 27625038 1 no no -1 49774 Lucene40 no no yes LogDocMergePolicy no Memory yes no
 
 public final class Indexer {
 

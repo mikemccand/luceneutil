@@ -195,7 +195,7 @@ while True:
     command += ' -Dtests.verbose=%s' % verbose
     command += ' -Dtests.infostream=%s' % verbose
     command += ' -Dtests.multiplier=%s' % mult
-    command += ' -Dtests.iter=%s' % iters
+    command += ' -Dtests.iters=%s' % iters
     command += ' -Dtests.postingsformat=%s' % postingsFormat
     command += ' -Dtests.codec=%s' % codec
     command += ' -Dtests.directory=%s' % dir
@@ -207,7 +207,7 @@ while True:
     if seed is not None:
       command += ' -Dtests.seed=%s' % seed
     if testMethod is not None:
-      command += ' -Dtestmethod=%s' % testMethod
+      command += ' -Dtests.method=%s' % testMethod
       
     if OLD_JUNIT:
       command += ' junit.textui.TestRunner'

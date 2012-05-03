@@ -148,7 +148,7 @@ public class LineFileDocs implements Closeable {
       doc.add(titleDV);
       */
 
-      titleTokenized = new Field("titleTokenized", "", Field.Store.NO, Field.Index.ANALYZED);
+      titleTokenized = new Field("titleTokenized", "", Field.Store.YES, Field.Index.ANALYZED);
       doc.add(titleTokenized);
 
       body = new Field("body", "", Field.Store.NO, Field.Index.ANALYZED);

@@ -40,9 +40,8 @@ if DO_GATHER_TIMES:
 elif '-repeat' in sys.argv:
   NUM_THREAD = [('local', 16)]
 else:
-  NUM_THREAD = [('local', 20),
-                #('10.17.4.90', 3),
-                ('10.17.4.91', 4),
+  NUM_THREAD = [('local', 4),
+                ('10.17.4.10', 20),
                 #('10.17.4.5', 3),
                 ]
 
@@ -53,24 +52,10 @@ VERBOSE = 'false'
 LUCENE_VERSION = '4.0-SNAPSHOT'
 
 CLASSPATH = ['../lucene/test-framework/lib/junit-4.10.jar',
-             '../lucene/test-framework/lib/randomizedtesting-runner-1.3.0.jar',
+             '../lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar',
              '../lucene/build/test-framework/classes/java',
-             '../lucene/build/core/classes/java',
-             '../lucene/build/core/classes/test',
              '../solr/build/solr-test-framework/classes/java',
-             '../lucene/build/analysis/common/classes/java',
-             '../lucene/build/analysis/phonetic/classes/java',
-             '../lucene/build/queries/classes/java',
-             '../lucene/build/highlighter/classes/java',
-             '../lucene/build/misc/classes/java',
-             '../lucene/build/memory/classes/java',
-             '../lucene/build/queryparser/classes/java',
-             '../lucene/build/facet/classes/java',
-             '../lucene/build/facet/classes/examples',
-             '../lucene/build/join/classes/java',
-             '../lucene/build/suggest/classes/java',
-             '../lucene/build/grouping/classes/java',
-             '/usr/share/java/ant.jar']
+             ]
 
 try:
   POSTINGS_FORMAT = sys.argv[1+sys.argv.index('-pf')]
@@ -91,13 +76,12 @@ except ValueError:
 
 #TEST_ARGS = ' -server -Dtestmethod= -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.seed=random -Dtests.cleanthreads=perMethod -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Djava.vm.info="mixed mode" -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=random -Dtests.postingsformat=%s -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, VERBOSE, DIR, RAN_MULT)
 
-TEST_ARGS = ' -Dtests.nightly=false -Dtests.iter=1 -Dtests.iter.min=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.cleanthreads=perMethod -DsolrudirectoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=%s -Dtests.codec=%s -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, CODEC, VERBOSE, DIR, RAN_MULT)
+TEST_ARGS = ' -Dtests.nightly=false -Dtests.iters=1 -Dtests.locale=random -Dtests.timezone=random -Dtests.cleanthreads=perMethod -DsolrudirectoryFactory=org.apache.solr.core.MockDirectoryFactory -Djetty.insecurerandom=1 -Djetty.testMode=1 -Dchecksum.algorithm=md5 -Djava.compat.version=1.6 -Dsun.java.launcher=SUN_STANDARD -Dtests.postingsformat=%s -Dtests.codec=%s -Dtests.verbose=%s -Dtests.directory=%s -Drandom.multiplier=%s -Dweb.xml=/lucene/clean/solr/src/webapp/web/WEB-INF/web.xml -Dtests.luceneMatchVersion=4.0 -ea:org.apache.lucene... -ea:org.apache.solr...' % (POSTINGS_FORMAT, CODEC, VERBOSE, DIR, RAN_MULT)
 
-print
-print '*** WARNING *** fixed seed'
-print
-TEST_ARGS += ' -Dtests.seed=0'
-
+#print
+#print '*** WARNING *** fixed seed'
+#print
+#TEST_ARGS += ' -Dtests.seed=0'
 
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
@@ -249,6 +233,8 @@ class RunThread:
     os.makedirs(self.tempDir)
 
   def run(self):
+    if self.resource != 'local':
+      time.sleep(self.id * .02)
     while True:
       job = self.work.pop()
       if job is None:
@@ -303,7 +289,6 @@ class RunThread:
           p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
         else:
           # nocommit should i just have stdout come back over ssh...?
-          # print 'CMD %s' % cmd
           cmd = 'ssh -Tx %s "%s"' % (self.resource, cmd)
           p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
           

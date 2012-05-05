@@ -81,7 +81,7 @@ def getLuceneTestClassPath(ROOT):
   if os.path.exists(ROOT + '/lucene/build/classes/demo'):
     CP.append(ROOT + '/lucene/build/classes/demo')
 
-  CP.append(ROOT + '/lucene/test-framework/lib/randomizedtesting-runner-1.3.0.jar')
+  CP.append(ROOT + '/lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar')
   CP.append(ROOT + '/lucene/build/queries/classes/java')
   CP.append(ROOT + '/lucene/build/queries/classes/test')
   CP.append(ROOT + '/lucene/build/join/classes/java')

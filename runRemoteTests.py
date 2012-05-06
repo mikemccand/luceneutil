@@ -20,13 +20,11 @@ import os
 
 # NOTE: you must have passwordless ssh to all these machines:
 
-RESOURCES = (
-  ('vine', 4),
-  ('beast', 12),
-  ('scratch', 2),
-  ('mikedesktop', 4),
-  )
+RESOURCES = constants.RESOURCES
 
+if RESOURCES is None:
+  raise RuntimeError('set RESOURCES in your localconstants.py')
+  
 USERNAME = 'mike'
 
 VERBOSE = '-verbose' in sys.argv
@@ -162,8 +160,8 @@ class Stats:
 
   def estimateCost(self, className):
     try:
-      #print '%.1f sec: %s' % (testTimes[testClass], testClass)
       l = self.testTimes[className]
+      #print '%s: %s' % (l, className)
       # TODO: use variance too!
       meanTime = l[0] / l[2]
       return meanTime
@@ -349,8 +347,10 @@ def gatherTests(stats, rootDir):
             tests.append((stats.estimateCost(testClass), testClass))
 
   tests.sort(reverse=True)
-  #for idx in xrange(10):
-  #  print 'top test: %s' % str(tests[idx])
+  if False:
+    print 'Top slowest tests:'
+    for idx in xrange(20):
+      print '  %5.1f sec: %s' % tests[idx]
   return cp, tests
 
 testTimes = {}
@@ -364,15 +364,28 @@ def main():
   stats = Stats()
   
   classpath, tests = gatherTests(stats, rootDir)
+  print '%d test suites' % len(tests)
 
-  # nocommit
+  try:
+    SEED = sys.argv[1+sys.argv.index('-seed')]
+  except ValueError:
+    SEED = hex(random.getrandbits(63))[2:-1]
+
+  try:
+    CODEC = sys.argv[1+sys.argv.index('-codec')]
+  except ValueError:
+    CODEC = 'random'
+
   #tests = [(1.0, 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest')]
 
   # TODO: solr has tests.cleanthreads=perClass but lucene has
   # perMethod... maybe I need dedicated solr vs lucene jvms
-  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.codec=random -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=4.0 -Dtests.cleanthreads=perClass -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Dlucene.version=4.0-SNAPSHOT -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -ea:org.apache.lucene... -ea:org.apache.solr... com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin' % rootDir
+  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=4.0 -Dtests.cleanthreads=perClass -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Dlucene.version=4.0-SNAPSHOT -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory' % rootDir
 
-  command += ' -Dtests.seed=%s' % hex(random.getrandbits(63))[2:-1]
+  command += ' -Dtests.codec=%s' % CODEC
+  command += ' -Dtests.seed=%s' % SEED
+
+  command += ' -ea:org.apache.lucene... -ea:org.apache.solr... com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin'
   
   # Tests first chdir to lucene/build:
   classpath = ':'.join(['../../%s' % x for x in classpath])

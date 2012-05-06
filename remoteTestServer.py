@@ -66,7 +66,6 @@ class Child(threading.Thread) :
         p.stdin.write(job + '\n')
         results = events.waitIdle()
 
-        # nocommit how to detect failure!
         endSuite = False
         output = []
         failed = False

@@ -390,7 +390,6 @@ for module in modules:
 if doSolr:
   addJARs('../solr/lib')
   addJARs('../solr/example/lib')
-  addJARs('../solr/example/lib/jsp-2.1')
   CLASSPATH.append('../solr/build/solr-solrj/classes/java')
   CLASSPATH.append('../solr/build/solr-core/classes/java')
   CLASSPATH.append('../solr/build/solr-core/classes/test')

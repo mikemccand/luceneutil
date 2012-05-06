@@ -70,10 +70,12 @@ class Child(threading.Thread) :
         endSuite = False
         output = []
         failed = False
+        msec = None
         for l in results:
           #if l.find('"chunk": ') != -1 or l.find('"bytes": ') != -1:
           if l.find('"chunk": ') != -1:
             chunk = l.strip().split()[-1][1:-1]
+            #self.parent.remotePrint('C%d: chunk=%s' % (self.id, chunk))
             bytes = []
             idx = 0
             while idx < len(chunk):
@@ -120,7 +122,7 @@ class ReadEvents:
     while True:
       pos = self.f.tell()
       l = self.f.readline()
-      if l == '':
+      if l == '' or not l.endswith('\n'):
         time.sleep(.01)
         self.f.seek(pos)
       else:
@@ -191,7 +193,7 @@ def main():
   classPath = sys.argv[4]
   command = sys.argv[5]
 
-  os.chdir(rootDir)
+  os.chdir('%s/lucene/build' % rootDir)
   env = copy.copy(os.environ)
   env['CLASSPATH'] = classPath
 

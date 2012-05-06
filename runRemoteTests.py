@@ -1,3 +1,4 @@
+import random
 import sys
 import threading
 import time
@@ -371,6 +372,8 @@ def main():
   # perMethod... maybe I need dedicated solr vs lucene jvms
   command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.codec=random -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=4.0 -Dtests.cleanthreads=perClass -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Dlucene.version=4.0-SNAPSHOT -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -ea:org.apache.lucene... -ea:org.apache.solr... com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin' % rootDir
 
+  command += ' -Dtests.seed=%s' % hex(random.getrandbits(63))[2:-1]
+  
   # Tests first chdir to lucene/build:
   classpath = ':'.join(['../../%s' % x for x in classpath])
   #print 'CP: %s' % classpath

@@ -80,7 +80,11 @@ class Child(threading.Thread) :
             while idx < len(chunk):
               bytes.append(chr(int(chunk[idx:idx+2], 16)))
               idx += 2
-            output.append(codecs.getdecoder('UTF8')(''.join(bytes))[0])
+            try:
+              # Spooky I must replace!!!  eg chunk=383637205432313220433720524551205B636F6C6C656374696F6E315D207765626170703D6E756C6C20706174683D6E756C6C20706172616D733D7B736F72743D69642B61736326666C3D696426713D736F72745F74725F63616E6F6E3A22492B57696C6C2B5573652B5475726B6973682B436173F56E67227D20686974733D33207374617475733D30205154696D653D31200A
+              output.append(codecs.getdecoder('UTF8')(''.join(bytes), errors='replace')[0])
+            except:
+              self.parent.remotePrint('C%d: EXC:\n%s\nchunk=%s' % (self.id, traceback.format_exc(), chunk))
 
           if l.find('"trace": ') != -1:
             chunk = l.strip().replace('"trace": "', '')[:-2]

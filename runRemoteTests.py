@@ -94,7 +94,7 @@ class Remote(threading.Thread):
     while True:
       s = p.stdout.readline()
       if s == '':
-        raise RuntimeError('failed to start remoteTestServer.py')
+        raise RuntimeError('failed to start remoteTestServer.py on host "%s"' % self.hostName)
       elif s.strip() == 'REMOTE SERVER STARTED':
         break
       
@@ -148,11 +148,12 @@ class Stats:
 
   def update(self, className, msec):
     if className not in self.testTimes:
-      self.testTimes[className] = [0.0, 0.0, 0]
+      self.testTimes[className] = [0.0, 0.0, 0.0, 0]
     l = self.testTimes[className]
     l[0] += msec
     l[1] += msec*msec
-    l[2] += 1
+    l[2] = max(l[2], msec)
+    l[3] += 1
 
   def save(self):
     #print 'Saved stats...'
@@ -163,8 +164,10 @@ class Stats:
       l = self.testTimes[className]
       #print '%s: %s' % (l, className)
       # TODO: use variance too!
-      meanTime = l[0] / l[2]
-      return meanTime
+      #meanTime = l[0] / l[2]
+      #return meanTime
+      maxTime = l[2]
+      return maxTime
     except KeyError:
       return 100.0
 
@@ -212,6 +215,7 @@ def gatherTests(stats, rootDir):
   addCP('lucene/test-framework/lib/junit4-ant-1.4.0.jar')
   addCP('lucene/build/test-framework/classes/java')
   addCP('solr/build/solr-test-framework/classes/java')
+  addJARs(cp, 'solr/example/example-DIH/solr/db/lib')
 
   testDir = '%s/lucene/build/core/test' % rootDir
   if not os.path.exists(testDir):
@@ -231,7 +235,7 @@ def gatherTests(stats, rootDir):
       os.chdir('%s/solr' % rootDir)
       run('Compile Solr...', 'ant compile-test', 'compile.log', printTime=True)
 
-    os.chdir(rootDir)
+  os.chdir(rootDir)
     
   # lucene tests
   for ent in os.listdir('%s/lucene' % rootDir):
@@ -352,8 +356,6 @@ def gatherTests(stats, rootDir):
     for idx in xrange(20):
       print '  %5.1f sec: %s' % tests[idx]
   return cp, tests
-
-testTimes = {}
 
 def main():
   global tTestsStart

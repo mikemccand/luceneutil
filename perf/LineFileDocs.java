@@ -144,7 +144,7 @@ public class LineFileDocs implements Closeable {
       title = new StringField("title", "");
       doc.add(title);
 
-      titleDV = new DocValuesField("titleDV", new BytesRef(""), DocValues.Type.BYTES_VAR_SORTED);
+      titleDV = new SortedBytesDocValuesField("titleDV", new BytesRef(""));
       doc.add(titleDV);
 
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);

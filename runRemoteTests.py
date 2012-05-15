@@ -32,9 +32,12 @@ VERBOSE = '-verbose' in sys.argv
 printLock = threading.Lock()
 
 tStart = time.time()
+lastPrint = time.time()
 
 def msg(message):
+  global lastPrint
   with printLock:
+    lastPrint = time.time()
     if VERBOSE:
       print '%.3fs: %s' % (time.time()-tStart, message)
     else:
@@ -65,8 +68,11 @@ class Remote(threading.Thread):
     self.processCount = processCount
     self.rootDir = rootDir
     self.anyFails = False
+    self.runningJobs = set()
 
   def run(self):
+    global lastPrint
+    
     if self.hostName != socket.gethostname():
       cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
             (self.rootDir, USERNAME, self.hostName, constants.BASE_DIR)
@@ -107,15 +113,19 @@ class Remote(threading.Thread):
         msg('%s: %s' % (self.hostName, codecs.getdecoder('UTF8')(p.stdout.read(numBytes))[0]))
       elif command == 'READY':
         # TODO: pull new job here
-        bytes = cPickle.dumps(self.jobs.nextJob())
+        job = self.jobs.nextJob()
+        bytes = cPickle.dumps(job)
+        if job is not None:
+          self.runningJobs.add(job)
         p.stdin.write('%8d' % len(bytes))
         p.stdin.write(bytes)
       elif command == 'RESUL':
         numBytes = int(p.stdout.read(8))
         job, msec, errors = cPickle.loads(p.stdout.read(numBytes))
+        self.runningJobs.remove(job)
         if len(errors) != 0:
 
-          s = '\n\nFAILURE: %s' % job
+          s = '\n\nFAILURE: %s on host %s' % (job, self.hostName)
           for error in errors:
             s = s + '\n' + error
           if job in ('org.apache.solr.TestGroupingSearch',
@@ -132,6 +142,7 @@ class Remote(threading.Thread):
         else:
           sys.stdout.write('.')
           sys.stdout.flush()
+          lastPrint = time.time()
       elif command == '':
         break
 
@@ -152,11 +163,15 @@ class Stats:
     l = self.testTimes[className]
     l[0] += msec
     l[1] += msec*msec
+    if msec - l[2] > 2.0:
+      print
+      print '%.2fs -> %.2fs: %s' % (l[2], msec, className)
+      print
     l[2] = max(l[2], msec)
     l[3] += 1
 
   def save(self):
-    #print 'Saved stats...'
+    print 'Saved stats...'
     open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(self.testTimes))
 
   def estimateCost(self, className):
@@ -177,6 +192,12 @@ FLAKY_TESTS = set([
 
   # requires a certain cwd because it writes to a relative path:
   'org.apache.solr.handler.dataimport.TestSolrEntityProcessorEndToEnd',
+
+  # fails sometimes for no apparent reason
+  'org.apache.solr.client.solrj.embedded.MultiCoreExampleJettyTest',
+  'org.apache.solr.cloud.LeaderElectionTest',
+  'org.apache.solr.cloud.RecoveryZkTest',
+  
   ])
 
 class Jobs:
@@ -207,6 +228,8 @@ def addJARs(cp, path):
 
 def gatherTests(stats, rootDir):
 
+  os.chdir(rootDir)
+  
   cp = []
   addCP = cp.append
 
@@ -368,6 +391,11 @@ def main():
   classpath, tests = gatherTests(stats, rootDir)
   print '%d test suites' % len(tests)
 
+  if False:
+    print 'CP:'
+    for x in classpath:
+      print '  %s' % x
+
   try:
     SEED = sys.argv[1+sys.argv.index('-seed')]
   except ValueError:
@@ -413,11 +441,25 @@ def main():
       workers.append(remote)
 
   anyFails = False
-  for worker in workers:
-    worker.join()
-    if worker.anyFails:
-      anyFails = True
-
+  while True:
+    alive = []
+    for worker in workers:
+      if worker.isAlive():
+        alive.append(worker)
+      elif worker.anyFails:
+        anyFails = True
+    if len(alive) == 0:
+      break
+    workers = alive
+    if time.time() - lastPrint > 5.0:
+      l = ['\nRunning:\n']
+      for worker in workers:
+        l.append('  %s:\n' % worker.hostName)
+        for job in worker.runningJobs:
+          l.append('    %s\n' % job)
+      msg(''.join(l))
+    time.sleep(.010)
+    
   stats.save()
   print
   if anyFails:

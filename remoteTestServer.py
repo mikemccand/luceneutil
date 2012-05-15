@@ -9,6 +9,9 @@ import subprocess
 import cPickle
 import traceback
 import sys
+import signal
+
+signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
 """
 One instance of this runs, per machine that will launch tests.  This
@@ -60,7 +63,8 @@ class Child(threading.Thread) :
         job = self.parent.nextJob()
         if job is None:
           #self.parent.remotePrint('C%d no more jobs' % self.id)
-          p.stdin.close()
+          #p.stdin.close()
+          p.kill()
           break
         #self.parent.remotePrint('C%d: job %s' % (self.id, job))
         p.stdin.write(job + '\n')

@@ -70,42 +70,41 @@ def getLuceneTestClassPath(ROOT):
     CP.append(ROOT+'/lucene/build/classes/test')
     CP.append(ROOT+'/lucene/build/classes/java')
 
-  if not os.path.exists(ROOT + '/lucene/lib/junit-3.8.2.jar'):
-    if not os.path.exists(ROOT + '/lucene/lib/junit-4.7.jar'):
+  if not os.path.exists(ROOT + '/lucene/test-framework/lib/junit-3.8.2.jar'):
+    if not os.path.exists(ROOT + '/lucene/test-framework/lib/junit-4.7.jar'):
       JUNIT_JAR = 'junit-4.10.jar'
     else:
       JUNIT_JAR = 'junit-4.7.jar'
   else:
     JUNIT_JAR = 'junit-3.8.2.jar'
-  CP.append(ROOT + '/lucene/lib/' + JUNIT_JAR)
+  CP.append(ROOT + '/lucene/test-framework/lib/' + JUNIT_JAR)
   if os.path.exists(ROOT + '/lucene/build/classes/demo'):
     CP.append(ROOT + '/lucene/build/classes/demo')
 
-  CP.append(ROOT + '/lucene/build/contrib/queries/classes/java')
-  CP.append(ROOT + '/lucene/build/contrib/queries/classes/test')
-  CP.append(ROOT + '/lucene/build/contrib/grouping/classes/java')
-  CP.append(ROOT + '/lucene/build/contrib/grouping/classes/test')
-  CP.append(ROOT + '/lucene/build/contrib/join/classes/java')
-  CP.append(ROOT + '/lucene/build/contrib/join/classes/test')
-  CP.append(ROOT + '/lucene/build/contrib/memory/classes/java')
-  CP.append(ROOT + '/lucene/build/contrib/memory/classes/test')
-  CP.append(ROOT + '/lucene/build/contrib/misc/classes/java')
-  CP.append(ROOT + '/lucene/build/contrib/misc/classes/test')
-  CP.append(ROOT + '/modules/grouping/build/classes/test')
-  CP.append(ROOT + '/modules/grouping/build/classes/java')
-  CP.append(ROOT + '/modules/analysis/build/common/classes/java')
-  CP.append(ROOT + '/modules/analysis/build/common/classes/test')
-  CP.append(ROOT + '/modules/analysis/build/icu/classes/java')
-  CP.append(ROOT + '/modules/analysis/build/icu/classes/test')
-  CP.append(ROOT + '/modules/analysis/icu/lib/icu4j-4_8_1_1.jar')
-  CP.append(ROOT + '/modules/analysis/build/kuromoji/classes/java')
-  CP.append(ROOT + '/modules/analysis/build/kuromoji/classes/test')
-  CP.append(ROOT + '/modules/join/build/classes/test')
-  CP.append(ROOT + '/modules/join/build/classes/java')
-  CP.append(ROOT + '/modules/facet/build/classes/test')
-  CP.append(ROOT + '/modules/facet/build/classes/java')
-  CP.append(ROOT + '/modules/suggest/build/classes/test')
-  CP.append(ROOT + '/modules/suggest/build/classes/java')
+  CP.append(ROOT + '/lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar')
+  CP.append(ROOT + '/lucene/build/queries/classes/java')
+  CP.append(ROOT + '/lucene/build/queries/classes/test')
+  CP.append(ROOT + '/lucene/build/join/classes/java')
+  CP.append(ROOT + '/lucene/build/join/classes/test')
+  CP.append(ROOT + '/lucene/build/memory/classes/java')
+  CP.append(ROOT + '/lucene/build/memory/classes/test')
+  CP.append(ROOT + '/lucene/build/misc/classes/java')
+  CP.append(ROOT + '/lucene/build/misc/classes/test')
+  CP.append(ROOT + '/lucene/build/grouping/classes/test')
+  CP.append(ROOT + '/lucene/build/grouping/classes/java')
+  CP.append(ROOT + '/lucene/build/analysis/common/classes/java')
+  CP.append(ROOT + '/lucene/build/analysis/common/classes/test')
+  CP.append(ROOT + '/lucene/build/analysis/icu/classes/java')
+  CP.append(ROOT + '/lucene/build/analysis/icu/classes/test')
+  CP.append(ROOT + '/lucene/analysis/icu/lib/icu4j-4_8_1_1.jar')
+  CP.append(ROOT + '/lucene/build/analysis/kuromoji/classes/java')
+  CP.append(ROOT + '/lucene/build/analysis/kuromoji/classes/test')
+  CP.append(ROOT + '/lucene/build/join/classes/test')
+  CP.append(ROOT + '/lucene/build/join/classes/java')
+  CP.append(ROOT + '/lucene/build/facet/classes/test')
+  CP.append(ROOT + '/lucene/build/facet/classes/java')
+  CP.append(ROOT + '/lucene/build/suggest/classes/test')
+  CP.append(ROOT + '/lucene/build/suggest/classes/java')
 
   # return filterCWD(CP)
   return CP

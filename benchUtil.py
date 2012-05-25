@@ -43,6 +43,8 @@ LOG_SUB_DIR = 'logs'
 
 DO_MIN = False
 
+MAX_SCORE_DIFF = .00001
+
 osName = common.osName
 
 def htmlColor(v):
@@ -118,7 +120,14 @@ class SearchTask:
 
         for i in xrange(len(hitsSelf)):
           if hitsSelf[i][1] != hitsOther[i][1]:
-            self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+            if False:
+              if abs(float(hitsSelf[i][1])-float(hitsOther[i][1])) > MAX_SCORE_DIFF:
+                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+              else:
+                print 'WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
+                      (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1])
+            else:
+              self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
           if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
             self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
     else:

@@ -45,7 +45,7 @@ public final class RunFuzzyQuery {
     System.out.println("minSim=" + minSim);
 
     for(int iter=0;iter<10;iter++) {
-      final Query q = new FuzzyQuery(new Term("body", text), minSim, 0, 50);
+      final Query q = new FuzzyQuery(new Term("body", text), ed, 0, 50, true);
       final long t0 = System.currentTimeMillis();
       final TopDocs hits = s.search(q, 10);
       final long t1 = System.currentTimeMillis();

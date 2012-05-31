@@ -898,13 +898,13 @@ public class SearchPerfTest {
     //System.out.println("RAM: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_31);
+      a = new EnglishAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("ClassicAnalyzer")) {
-      a = new ClassicAnalyzer(Version.LUCENE_30);
+      a = new ClassicAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
                                      2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -913,7 +913,7 @@ public class SearchPerfTest {
     final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
     final List<PKLookupTask> pkLookupTasks = new ArrayList<PKLookupTask>();
 
-    final QueryParser p = new QueryParser(Version.LUCENE_31, "body", a);
+    final QueryParser p = new QueryParser(Version.LUCENE_50, "body", a);
     p.setLowercaseExpandedTerms(false);
 
     // Pick a random top N tasks per category:

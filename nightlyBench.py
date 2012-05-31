@@ -150,8 +150,19 @@ KNOWN_CHANGES = [
 
   ('2011-12-16',
    'LUCENE-3648: JIT optimizations to Lucene40 DocsEnum',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-3648">LUCENE-3648</a>: JIT optimizations to Lucene40 DocsEnum')
-  
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-3648">LUCENE-3648</a>: JIT optimizations to Lucene40 DocsEnum'),
+
+  ('2012-01-30',
+   'LUCENE-2858: Split IndexReader in AtomicReader and CompositeReader',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-2858">LUCENE-2858</a>: Split IndexReader in AtomicReader and CompositeReader'),
+
+  ('2012-05-25',
+   'LUCENE-4062: new aligned packed-bits implementations',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4062">LUCENE-4062</a>: new aligned packed-bits implementations'),
+
+  ('2012-05-28',
+   'Disable Java\'s compressed OOPS',
+   'Disable Java\'s compressed OOPS (-XX:-UseCompressedOops)'),
    ]
 
 # TODO

@@ -163,6 +163,10 @@ KNOWN_CHANGES = [
   ('2012-05-28',
    'Disable Java\'s compressed OOPS',
    'Disable Java\'s compressed OOPS (-XX:-UseCompressedOops)'),
+
+  ('2012-05-06',
+   'LUCENE-4024: FuzzyQuery never does edit distance > 2',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4024">LUCENE-4024</a>: FuzzyQuery never does edit distance > 2'),
    ]
 
 # TODO

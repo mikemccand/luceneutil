@@ -167,6 +167,14 @@ KNOWN_CHANGES = [
   ('2012-05-06',
    'LUCENE-4024: FuzzyQuery never does edit distance > 2',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4024">LUCENE-4024</a>: FuzzyQuery never does edit distance > 2'),
+
+  ('2012-05-15',
+   'LUCENE-4024: (rev 1338668) fixed ob1 bug causing FuzzyQ(1) to be TermQuery',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4024">LUCENE-4024</a>: (rev <a href="http://svn.apache.org/viewvc?view=revision&revision=1338668">1338668</a>) fixed ob1 bug causing FuzzyQ(1) to be TermQuery'),
+
+  ('2012-06-02',
+   'Re-enable Java\'s compressed OOPS',
+   'Re-enable Java\'s compressed OOPS'),
    ]
 
 # TODO

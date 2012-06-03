@@ -161,8 +161,8 @@ KNOWN_CHANGES = [
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4062">LUCENE-4062</a>: new aligned packed-bits implementations'),
 
   ('2012-05-28',
-   'Disable Java\'s compressed OOPS',
-   'Disable Java\'s compressed OOPS (-XX:-UseCompressedOops)'),
+   'Disable Java\'s compressed OOPS, and LUCENE-4055: refactor SegmentInfos/FieldInfos',
+   'Disable Java\'s compressed OOPS (-XX:-UseCompressedOops), and <a href="https://issues.apache.org/jira/browse/LUCENE-4055">LUCENE-4055</a>: refactor SegmentInfos/FieldInfos'),
 
   ('2012-05-06',
    'LUCENE-4024: FuzzyQuery never does edit distance > 2',

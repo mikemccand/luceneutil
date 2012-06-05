@@ -19,10 +19,6 @@ instance spawns multiple sub-processes and manages communications with
 them, back to the main server.
 """
 
-"""
-/usr/local/src/jdk1.7.0_04/jre/bin/java -Dtests.prefix=tests -Dtests.seed=771F118CC53F329 -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=/l/lucene.trunk/lucene/build -Dtests.codec=random -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=4.0 -Dtests.cleanthreads=perMethod -Djava.util.logging.config.file=/dev/null -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Dlucene.version=4.0-SNAPSHOT -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory -classpath /l/lucene.trunk/lucene/build/test-framework/classes/java:/l/lucene.trunk/lucene/test-framework/lib/junit-4.10.jar:/l/lucene.trunk/lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar:/l/lucene.trunk/lucene/build/core/classes/java:/l/lucene.trunk/lucene/build/core/classes/test:/usr/local/src/apache-ant-1.8.3/lib/ant-launcher.jar:/home/mike/.ant/lib/ivy-2.2.0.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-netrexx.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-jmf.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-commons-net.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-testutil.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-junit.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-bcel.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-regexp.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-jai.jar:/usr/local/src/apache-ant-1.8.3/lib/ant.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-javamail.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-bsf.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-antlr.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-oro.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-resolver.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-xalan2.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-jsch.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-apache-log4j.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-swing.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-jdepend.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-commons-logging.jar:/usr/local/src/apache-ant-1.8.3/lib/ant-junit4.jar:/usr/local/src/jdk1.7.0_04/lib/tools.jar:/l/lucene.trunk/lucene/test-framework/lib/junit4-ant-1.4.0.jar -ea:org.apache.lucene... -ea:org.apache.solr... com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -eventsfile /l/lucene.trunk/lucene/build/core/test/junit4-J0-0819129977b5076df.events @/l/lucene.trunk/lucene/build/core/test/junit4-J0-1916253054fa0d84f.suites
-"""
-
 class Child(threading.Thread) :
 
   """
@@ -53,7 +49,7 @@ class Child(threading.Thread) :
       p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, env=self.parent.env)
       #self.parent.remotePrint('C%d subprocess started' % self.id)
 
-      events = ReadEvents(eventsFile, self.parent)
+      events = ReadEvents(p, eventsFile, self.parent)
       #self.parent.remotePrint('C%d startup0 done' % self.id)
       events.waitIdle()
 
@@ -113,7 +109,8 @@ class Child(threading.Thread) :
 
 class ReadEvents:
 
-  def __init__(self, fileName, parent):
+  def __init__(self, process, fileName, parent):
+    self.process = process
     self.fileName = fileName
     self.parent = parent
     while True:
@@ -131,6 +128,9 @@ class ReadEvents:
       l = self.f.readline()
       if l == '' or not l.endswith('\n'):
         time.sleep(.01)
+        p = self.process.poll()
+        if p is not None:
+          raise RuntimeError('process exited with status %s' % str(p))
         self.f.seek(pos)
       else:
         #self.parent.remotePrint('readline=%s' % l.strip())

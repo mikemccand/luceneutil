@@ -59,6 +59,15 @@ def findRootDir(s):
 
   return '%s/%s' % (constants.BASE_DIR, checkout)
   
+def jarOK(jar):
+  return jar != 'log4j-1.2.14.jar'
+
+def addJARs(cp, path):
+  if os.path.exists(path):
+    for f in os.listdir(path):
+      if f.endswith('.jar') and jarOK(f):
+        cp.append('%s/%s' % (path, f))
+
 def getLuceneTestClassPath(ROOT):
   CP = []
   if os.path.exists(ROOT+'/lucene/build/core'):
@@ -70,18 +79,21 @@ def getLuceneTestClassPath(ROOT):
     CP.append(ROOT+'/lucene/build/classes/test')
     CP.append(ROOT+'/lucene/build/classes/java')
 
-  if not os.path.exists(ROOT + '/lucene/test-framework/lib/junit-3.8.2.jar'):
-    if not os.path.exists(ROOT + '/lucene/test-framework/lib/junit-4.7.jar'):
-      JUNIT_JAR = 'junit-4.10.jar'
+  addJARs(CP, ROOT+'/lucene/test-framework/lib')
+  if False:
+    if not os.path.exists(ROOT + '/lucene/test-framework/lib/junit-3.8.2.jar'):
+      if not os.path.exists(ROOT + '/lucene/test-framework/lib/junit-4.7.jar'):
+        JUNIT_JAR = 'junit-4.10.jar'
+      else:
+        JUNIT_JAR = 'junit-4.7.jar'
     else:
-      JUNIT_JAR = 'junit-4.7.jar'
-  else:
-    JUNIT_JAR = 'junit-3.8.2.jar'
-  CP.append(ROOT + '/lucene/test-framework/lib/' + JUNIT_JAR)
+      JUNIT_JAR = 'junit-3.8.2.jar'
+    CP.append(ROOT + '/lucene/test-framework/lib/' + JUNIT_JAR)
+    CP.append(ROOT + '/lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar')
+
   if os.path.exists(ROOT + '/lucene/build/classes/demo'):
     CP.append(ROOT + '/lucene/build/classes/demo')
 
-  CP.append(ROOT + '/lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar')
   CP.append(ROOT + '/lucene/build/queries/classes/java')
   CP.append(ROOT + '/lucene/build/queries/classes/test')
   CP.append(ROOT + '/lucene/build/join/classes/java')

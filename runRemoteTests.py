@@ -81,6 +81,10 @@ class Remote(threading.Thread):
         msg('local: %s: WARNING rsync failed' % self.hostName)
       msg('local: %s: rsync took %.1f sec' % (self.hostName, time.time()-t))
       os.system('ssh %s "killall java >& /dev/null"' % self.hostName)
+      for line in os.popen('ssh %s "ps axu | grep remoteTestServer.py | grep -v grep"' % self.hostName).readlines():
+        pid = line.strip().split()[1]
+        os.system('ssh %s kill -9 %s' % (self.hostName, pid))
+        msg('local: kill pid %s on %s' % (pid, self.hostName))
         
     cmd = 'ssh -Tx %s@%s python -u %s/remoteTestServer.py %s %s %s %s \'"%s"\'' % \
               (USERNAME,
@@ -92,7 +96,7 @@ class Remote(threading.Thread):
                self.classpath,
                self.command)
 
-    # msg('local: %s: start cmd: %s' % (self.hostName, cmd))
+    #msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -175,6 +179,10 @@ class Stats:
     open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(self.testTimes))
 
   def estimateCost(self, className):
+    if className == 'org.apache.lucene.util.packed.TestPackedInts':
+      # This one often hits OOME if run after other tests...
+      return 10000
+    
     try:
       l = self.testTimes[className]
       #print '%s: %s' % (l, className)
@@ -197,7 +205,8 @@ FLAKY_TESTS = set([
   'org.apache.solr.client.solrj.embedded.MultiCoreExampleJettyTest',
   'org.apache.solr.cloud.LeaderElectionTest',
   'org.apache.solr.cloud.RecoveryZkTest',
-  
+  'org.apache.solr.handler.TestReplicationHandler',
+  'org.apache.solr.cloud.BasicDistributedZkTest',
   ])
 
 class Jobs:
@@ -233,9 +242,7 @@ def gatherTests(stats, rootDir):
   cp = []
   addCP = cp.append
 
-  addCP('lucene/test-framework/lib/junit-4.10.jar')
-  addCP('lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar')
-  addCP('lucene/test-framework/lib/junit4-ant-1.4.0.jar')
+  addJARs(cp, 'lucene/test-framework/lib')
   addCP('lucene/build/test-framework/classes/java')
   addCP('solr/build/solr-test-framework/classes/java')
   addJARs(cp, 'solr/example/example-DIH/solr/db/lib')
@@ -410,7 +417,7 @@ def main():
 
   # TODO: solr has tests.cleanthreads=perClass but lucene has
   # perMethod... maybe I need dedicated solr vs lucene jvms
-  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=4.0 -Dtests.cleanthreads=perClass -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Dlucene.version=4.0-SNAPSHOT -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory' % rootDir
+  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=5.0 -Dtests.cleanthreads=perClass -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Dlucene.version=5.0-SNAPSHOT -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory' % rootDir
 
   command += ' -Dtests.codec=%s' % CODEC
   command += ' -Dtests.seed=%s' % SEED

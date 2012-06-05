@@ -17,12 +17,24 @@ package perf;
  * limitations under the License.
  */
 
+// TODO
+//  - be able to quickly run a/b tests again
+//  - absorb nrt, pklokup, search, indexing into one tool?
+//  - switch to named cmd line args
+//  - get pk lookup working w/ remote tasks
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -44,10 +58,12 @@ import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.AtomicReaderContext;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
-import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
@@ -69,518 +85,19 @@ import org.apache.lucene.util.*;
 //   - fix pk lookup to tolerate deletes
 //   - get regexp title queries
 //   - test shingle at search time
-//   - push doSort into here...
 
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint -Xlint:deprecation -cp build/classes/java:../modules/suggest/build/classes/java:../modules/analysis/build/common/classes/java:../modules/grouping/build/classes/java perf/SearchPerfTest.java perf/RandomFilter.java
-//   java -cp .:build/contrib/spellchecker/classes/java:build/classes/java:../modules/analysis/build/common/classes/java perf.SearchPerfTest MMapDirectory /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index StandardAnalyzer /p/lucene/data/tasks.txt 6 1 body -1 no multi
+//   javac -Xlint -Xlint:deprecation -cp build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomFilter.java
+//   java -cp .:build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf.SearchPerfTest MMapDirectory /indices/fullwiki StandardAnalyzer server:localhost:7777 6 1 body -1 no 0 0 DefaultSimilarity multi
 
 public class SearchPerfTest {
   
-  private static class IndexState {
-    public final DirectoryReader reader;
-    public final IndexSearcher searcher;
-    public final IndexReader[] subReaders;
-    public final ThreadLocal<TermsEnum[]> idTermsEnums = new ThreadLocal<TermsEnum[]>();
-    public final DirectSpellChecker spellChecker;
-    public final Filter groupEndFilter;
-    public int[] docIDToID;
-
-    public IndexState(DirectoryReader reader, IndexSearcher searcher, DirectSpellChecker spellChecker) throws IOException {
-      this.reader = reader;
-      this.searcher = searcher;
-      this.spellChecker = spellChecker;
-      subReaders = reader.getSequentialSubReaders();
-      groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
-    }
-
-    private void setDocIDToID() throws IOException {
-      docIDToID = new int[reader.maxDoc()];
-      int base = 0;
-      for(IndexReader sub : reader.getSequentialSubReaders()) {
-        final int[] ids = FieldCache.DEFAULT.getInts((AtomicReader) sub, "id", new FieldCache.IntParser() {
-            @Override
-            public int parseInt(BytesRef term) {
-              return LineFileDocs.idToInt(term);
-            }
-          }, false);
-        System.arraycopy(ids, 0, docIDToID, base, ids.length);
-        base += ids.length;
-      }
-    }
-  }
-
-  // Abstract class representing a single task (one query,
-  // one batch of PK lookups, on respell).  Each Task
-  // instance is executed and results are recorded in it and
-  // then later verified/summarized:
-  private static abstract class Task {
-    //public String origString;
-
-    public abstract void go(IndexState state) throws IOException;
-
-    public abstract String getCategory();
-
-    @Override
-    public abstract Task clone();
-
-    // these are set once the task is executed
-    public long runTimeNanos;
-    public int threadID;
-
-    // Called after go, to return "summary" of the results.
-    // This may use volatile docIDs -- the checksum is just
-    // used to verify the same task run multiple times got
-    // the same result, ie that things are in fact thread
-    // safe:
-    public abstract long checksum();
-
-    // Called after go to print details of the task & result
-    // to stdout:
-    public abstract void printResults(IndexState state) throws IOException;
-  }
-
-  private final static class SearchTask extends Task {
-    private final String category;
-    private final Query q;
-    private final Sort s;
-    private final Filter f;
-    private final String group;
-    private final int topN;
-    private final boolean singlePassGroup;
-    private final boolean doCountGroups;
-    private TopDocs hits;
-    private TopGroups<?> groupsResultBlock;
-    private TopGroups<BytesRef> groupsResultTerms;
-
-    public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN) {
-      this.category = category;
-      this.q = q;
-      this.s = s;
-      this.f = f;
-      if (group != null && group.startsWith("groupblock")) {
-        this.group = "groupblock";
-        this.singlePassGroup = group.equals("groupblock1pass");
-        doCountGroups = true;
-      } else {
-        this.group = group;
-        this.singlePassGroup = false;
-        doCountGroups = false;
-      }
-      this.topN = topN;
-    }
-
-    @Override
-    public Task clone() {
-      Query q2 = (Query) q.clone();
-      if (q2 == null) {
-        throw new RuntimeException("q=" + q + " failed to clone");
-      }
-      if (singlePassGroup) {
-        return new SearchTask(category, q2, s, "groupblock1pass", f, topN);
-      } else {
-        return new SearchTask(category, q2, s, group, f, topN);
-      }
-    }
-
-    @Override
-    public String getCategory() {
-      return category;
-    }
-
-    @Override
-    public void go(IndexState state) throws IOException {
-      //System.out.println("go group=" + this.group + " single=" + singlePassGroup + " xxx=" + xxx + " this=" + this);
-      if (group != null) {
-        if (singlePassGroup) {
-          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, state.groupEndFilter);
-          state.searcher.search(q, c);
-          groupsResultBlock = c.getTopGroups(null, 0, 0, 10, true);
-        } else {
-          //System.out.println("GB: " + group);
-          final TermFirstPassGroupingCollector c1 = new TermFirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
-          final CachingCollector cCache = CachingCollector.create(c1, true, 32.0);
-
-          final Collector c;
-          final TermAllGroupsCollector allGroupsCollector;
-          // Turn off AllGroupsCollector for now -- it's very slow:
-          if (false && doCountGroups) {
-            allGroupsCollector = new TermAllGroupsCollector(group);
-            c = MultiCollector.wrap(allGroupsCollector, cCache);
-          } else {
-            allGroupsCollector = null;
-            c = cCache;
-          }
-          
-          state.searcher.search(q, c);
-
-          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
-          if (topGroups != null) {
-            final TermSecondPassGroupingCollector c2 = new TermSecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, null, 10, true, true, true);
-            if (cCache.isCached()) {
-              cCache.replay(c2);
-            } else {
-              state.searcher.search(q, c2);
-            }
-            groupsResultTerms = c2.getTopGroups(0);
-            if (allGroupsCollector != null) {
-              groupsResultTerms = new TopGroups<BytesRef>(groupsResultTerms,
-                                                          allGroupsCollector.getGroupCount());
-            }
-          }
-        }
-      } else if (s == null && f == null) {
-        hits = state.searcher.search(q, topN);
-      } else if (s == null && f != null) {
-        hits = state.searcher.search(q, f, topN);
-      } else {
-        hits = state.searcher.search(q, f, topN, s);
-        /*
-        final boolean fillFields = true;
-        final boolean fieldSortDoTrackScores = true;
-        final boolean fieldSortDoMaxScore = true;
-        final TopFieldCollector c = TopFieldCollector.create(s, topN,
-                                                             fillFields,
-                                                             fieldSortDoTrackScores,
-                                                             fieldSortDoMaxScore,
-                                                             false);
-        state.searcher.search(q, c);
-        hits = c.topDocs();
-        */
-      }
-
-      //System.out.println("TE: " + TermsEnum.getStats());
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (other instanceof SearchTask) {
-        final SearchTask otherSearchTask = (SearchTask) other;
-        if (!q.equals(otherSearchTask.q)) {
-          return false;
-        }
-        if (s != null) {
-          if (otherSearchTask.s != null) {
-            if (!s.equals(otherSearchTask.s)) {
-              return false;
-            }
-          } else {
-            if (otherSearchTask.s != null) {
-              return false;
-            }
-          }
-        }
-        if (topN != otherSearchTask.topN) {
-          return false;
-        }
-
-        if (group != null && !group.equals(otherSearchTask.group)) {
-          return false;
-        } else if (otherSearchTask.group != null) {
-          return false;
-        }
-
-        if (f != null) {
-          if (otherSearchTask.f == null) {
-            return false;
-          } else if (!f.equals(otherSearchTask.f)) {
-            return false;
-          }
-        } else if (otherSearchTask.f != null) {
-          return false;
-        }
-
-        return true;
-      } else {
-        return false;
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      int hashCode = q.hashCode();
-      if (s != null) {
-        hashCode ^= s.hashCode();
-      }
-      if (group != null) {
-        hashCode ^= group.hashCode();
-      }
-      if (f != null) {
-        hashCode ^= f.hashCode();
-      }
-      hashCode *= topN;
-      return hashCode;
-    }
-
-    @Override
-    public long checksum() {
-      final long PRIME = 641;
-      long sum = 0;
-      //System.out.println("checksum q=" + q + " f=" + f);
-      if (group != null) {
-        if (singlePassGroup) {
-          for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-            sum += groupDocs.totalHits;
-            for(ScoreDoc hit : groupDocs.scoreDocs) {
-              sum = sum * PRIME + hit.doc;
-            }
-          }
-        } else {
-          for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-            sum += groupDocs.totalHits;
-            for(ScoreDoc hit : groupDocs.scoreDocs) {
-              sum = sum * PRIME + hit.doc;
-              if (hit instanceof FieldDoc) {
-                final FieldDoc fd = (FieldDoc) hit;
-                if (fd.fields != null) {
-                  for(Object o : fd.fields) {
-                    sum = sum * PRIME + o.hashCode();
-                  }
-                }
-              }
-            }
-          }
-        }
-      } else {
-        sum = hits.totalHits;
-        for(ScoreDoc hit : hits.scoreDocs) {
-          //System.out.println("  " + hit.doc);
-          sum = sum * PRIME + hit.doc;
-          if (hit instanceof FieldDoc) {
-            final FieldDoc fd = (FieldDoc) hit;
-            if (fd.fields != null) {
-              for(Object o : fd.fields) {
-                sum = sum * PRIME + o.hashCode();
-              }
-            }
-          }
-        }
-        //System.out.println("  final=" + sum);
-      }
-
-      return sum;
-    }
-
-    @Override
-    public String toString() {
-      return "cat=" + category + " q=" + q + " s=" + s + " f=" + f + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
-        (group == null ? " hits=" + hits.totalHits :
-         " groups=" + (singlePassGroup ?
-                       (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
-                       (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount)));
-    }
-
-    @Override
-    public void printResults(IndexState state) throws IOException {
-      if (group != null) {
-        if (singlePassGroup) {
-          for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-            System.out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-            for(ScoreDoc hit : groupDocs.scoreDocs) {
-              System.out.println("    doc=" + hit.doc + " score=" + hit.score);
-            }
-          }
-        } else {
-          for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-            System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-            for(ScoreDoc hit : groupDocs.scoreDocs) {
-              System.out.println("    doc=" + hit.doc + " score=" + hit.score);
-            }
-          }
-        }
-      } else if (hits instanceof TopFieldDocs) {
-        final TopFieldDocs fieldHits = (TopFieldDocs) hits;
-        for(int idx=0;idx<hits.scoreDocs.length;idx++) {
-          FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
-          final Object v = hit.fields[0];
-          final String vs;
-          if (v instanceof Long) {
-            vs = v.toString();
-          } else {
-            vs = ((BytesRef) v).utf8ToString();
-          }
-          System.out.println("  doc=" + state.docIDToID[hit.doc] + " field=" + vs);
-        }
-      } else {
-        for(ScoreDoc hit : hits.scoreDocs) {
-          System.out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
-        }
-      }
-    }
-  }
-
-  private final static class PKLookupTask extends Task {
-    private final BytesRef[] ids;
-    private final int[] answers;
-    private final int ord;
-
-    @Override
-    public String getCategory() {
-      return "PKLookup";
-    }
-
-    private PKLookupTask(PKLookupTask other) {
-      ids = other.ids;
-      ord = other.ord;
-      answers = new int[ids.length];
-    }
-
-    public PKLookupTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
-      this.ord = ord;
-      ids = new BytesRef[count];
-      answers = new int[count];
-      int idx = 0;
-      while(idx < count) {
-        final BytesRef id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
-        /*
-        if (idx == 0) {
-          id = new BytesRef("000013688");
-        } else {
-          id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
-        }
-        */
-        if (!seen.contains(id)) {
-          seen.add(id);
-          ids[idx++] = id;
-        }
-      }
-      Arrays.sort(ids);
-    }
-
-    @Override
-    public Task clone() {
-      return new PKLookupTask(this);
-    }
-
-    @Override
-    public void go(IndexState state) throws IOException {
-      final boolean DO_DOC_LOOKUP = true;
-      int base = 0;
-      TermsEnum[] idTermsEnums = state.idTermsEnums.get();
-      if (idTermsEnums == null) {
-        idTermsEnums = new TermsEnum[state.subReaders.length];
-        for(int subIDX=0;subIDX<state.subReaders.length;subIDX++) {
-          idTermsEnums[subIDX] = ((AtomicReader) state.subReaders[subIDX]).fields().terms("id").iterator(null);
-        }
-        state.idTermsEnums.set(idTermsEnums);
-      }
-      for (int subIDX=0;subIDX<state.subReaders.length;subIDX++) {
-        final IndexReader sub = state.subReaders[subIDX];
-        DocsEnum docs = null;
-        final TermsEnum termsEnum = idTermsEnums[subIDX];
-        //System.out.println("\nTASK: sub=" + sub);
-        for(int idx=0;idx<ids.length;idx++) {
-          //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
-          if (termsEnum.seekExact(ids[idx], false)) { 
-            //System.out.println("  found!");
-            docs = termsEnum.docs(null, docs, false);
-            assert docs != null;
-            final int docID = docs.nextDoc();
-            if (docID == DocsEnum.NO_MORE_DOCS) {
-              answers[idx] = -1;
-            } else {
-              answers[idx] = base + docID;
-              //System.out.println("  docID=" + docID);
-            }
-          }
-        }
-        base += sub.maxDoc();
-      }
-    }
-
-    @Override
-    public String toString() {
-      return "PK" + ord + "[" + ids.length + "]";
-    }
-
-    @Override
-    public long checksum() {
-      // TODO, but, not sure it makes sense since we will
-      // run a different PK lookup each time...?
-      return 0;
-    }
-
-    @Override
-    public void printResults(IndexState state) throws IOException {
-      for(int idx=0;idx<ids.length;idx++) {
-
-        if (answers[idx] == DocsEnum.NO_MORE_DOCS) {
-          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
-        }
-
-        final int id = LineFileDocs.idToInt(ids[idx]);
-        //System.out.println("  " + id + " -> " + answers[idx]);
-        final int actual = state.docIDToID[answers[idx]];
-        if (actual != id) {
-          throw new RuntimeException("PKLookup: id=" + LineFileDocs.intToID(id) + " returned doc with id=" + LineFileDocs.intToID(actual) + " docID=" + answers[idx]);
-        }
-      }
-    }
-  }
-
-  private final static class RespellTask extends Task {
-    private final Term term;
-    private SuggestWord[] answers;
-
-    public RespellTask(Term term) {
-      this.term = term;
-    }
-
-    @Override
-    public Task clone() {
-      return new RespellTask(term);
-    }
-
-    @Override
-    public void go(IndexState state) throws IOException {
-      answers = state.spellChecker.suggestSimilar(term, 10, state.reader, SuggestMode.SUGGEST_MORE_POPULAR);
-    }
-
-    @Override
-    public String toString() {
-      return "respell " + term.text();
-    }
-    
-    @Override
-    public String getCategory() {
-      return "Respell";
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (other instanceof RespellTask) {
-        return term.equals(((RespellTask) other).term);
-      } else {
-        return false;
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      return term.hashCode();
-    }
-
-    @Override
-    public long checksum() {
-      long sum = 0;
-      for(SuggestWord suggest : answers) {
-        sum += suggest.string.hashCode() + Integer.valueOf(suggest.freq).hashCode();
-      }
-      return sum;
-    }
-
-    @Override
-    public void printResults(IndexState state) {
-      for(SuggestWord suggest : answers) {
-        System.out.println("  " + suggest.string + " freq=" + suggest.freq + " score=" + suggest.score);
-      }
-    }
-  }
-
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
-    Collection<IndexCommit> commits = DirectoryReader.listCommits(dir);
+    List<IndexCommit> commits = DirectoryReader.listCommits(dir);
+    Collections.reverse(commits);
+    
     for (final IndexCommit ic : commits) {
       Map<String,String> map = ic.getUserData();
       String ud = null;
@@ -595,240 +112,15 @@ public class SearchPerfTest {
     throw new RuntimeException("could not find commit '" + commit + "'");
   }
 
-  private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
-
-  // TODO: can't we use RandomFilter here...?
-  private static final class PreComputedRandomFilter extends Filter {
-
-    private final FixedBitSet[] segmentBits;
-    private final double pct;
-
-    public PreComputedRandomFilter(List<Integer> maxDocPerSeg, Random random, double pctAcceptDocs) {
-      //System.out.println("FILT: pct=" + pctAcceptDocs);
-      this.pct = pctAcceptDocs;
-      pctAcceptDocs /= 100.0;
-      segmentBits = new FixedBitSet[maxDocPerSeg.size()];
-      for(int segID=0;segID<maxDocPerSeg.size();segID++) {
-        final int maxDoc = maxDocPerSeg.get(segID);
-        final FixedBitSet bits = segmentBits[segID] = new FixedBitSet(maxDoc);
-        int count = 0;
-        for(int docID=0;docID<maxDoc;docID++) {
-          if (random.nextDouble() <= pctAcceptDocs) {
-            bits.set(docID);
-            count++;
-          }
-        }
-        //System.out.println("  r=" + maxDoc + " ct=" + count);
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      return new Double(pct).hashCode();
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return this == other;
-    }
-
-    @Override
-    public String toString() {
-      return "PreComputedRandomFilter(pctAccept=" + pct + ")";
-    }
-
-    @Override
-    public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
-      final FixedBitSet bits = segmentBits[context.ord];
-      assert context.reader().maxDoc() == bits.length();
-      return BitsFilteredDocIdSet.wrap(bits, acceptDocs);
-    }
-  }
-
-  private static List<Task> loadTasks(DirectoryReader reader, QueryParser p, String fieldName, String filePath, boolean doSort, Random random) throws IOException, ParseException {
-
-    final List<Task> tasks = new ArrayList<Task>();
-
-    final List<Integer> maxDocPerSegment = new ArrayList<Integer>();
-    for(IndexReader subReader : reader.getSequentialSubReaders()) {
-      maxDocPerSegment.add(subReader.maxDoc());
-    }
-
-    final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
-    int count = 0;
-
-    final Sort dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
-    final Sort titleSort = new Sort(new SortField("title", SortField.Type.STRING));
-    final Sort titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
-    titleDVSort.getSort()[0].setUseIndexValues(true);
-
-    while(true) {
-      String line = taskFile.readLine();
-      if (line == null) {
-        break;
-      }
-      line = line.trim();
-      if (line.indexOf("#") == 0) {
-        // Ignore comment lines
-        continue;
-      }
-      if (line.length() == 0) {
-        // Ignore blank lines
-        continue;
-      }
-
-      final int spot = line.indexOf(':');
-      if (spot == -1) {
-        throw new RuntimeException("task line is malformed: " + line);
-      }
-      final String category = line.substring(0, spot);
-      
-      int spot2 = line.indexOf(" #");
-      if (spot2 == -1) {
-        spot2 = line.length();
-      }
-      
-      String text = line.substring(spot+1, spot2).trim();
-      final Task task;
-      if (category.equals("Respell")) {
-        task = new RespellTask(new Term(fieldName, text));
-      } else {
-        if (text.length() == 0) {
-          throw new RuntimeException("null query line");
-        }
-
-        // Check for filter (eg: " +filter=0.5%")
-        final Matcher m = filterPattern.matcher(text);
-        final Filter filter;
-        if (m.find()) {
-          final double filterPct = Double.parseDouble(m.group(1));
-          // Splice out the filter string:
-          text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
-          filter = new CachingWrapperFilter(new PreComputedRandomFilter(maxDocPerSegment, random, filterPct));
-        } else {
-          filter = null;
-        }
-
-        final Sort sort;
-        final Query query;
-        final String group;
-        if (text.startsWith("near//")) {
-          final int spot3 = text.indexOf(' ');
-          if (spot3 == -1) {
-            throw new RuntimeException("failed to parse query=" + text);
-          }
-          query = new SpanNearQuery(
-                                    new SpanQuery[] {new SpanTermQuery(new Term(fieldName, text.substring(6, spot3))),
-                                                     new SpanTermQuery(new Term(fieldName, text.substring(1+spot3)))},
-                                    10,
-                                    true);
-          sort = null;
-          group = null;
-        } else if (text.startsWith("nrq//")) {
-          // field start end
-          final int spot3 = text.indexOf(' ');
-          if (spot3 == -1) {
-            throw new RuntimeException("failed to parse query=" + text);
-          }
-          final int spot4 = text.indexOf(' ', spot3+1);
-          if (spot4 == -1) {
-            throw new RuntimeException("failed to parse query=" + text);
-          }
-          final String nrqFieldName = text.substring(5, spot3);
-          final int start = Integer.parseInt(text.substring(1+spot3, spot4));
-          final int end = Integer.parseInt(text.substring(1+spot4));
-          query = NumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
-          sort = null;
-          group = null;
-        } else if (text.startsWith("datetimesort//")) {
-          sort = dateTimeSort;
-          query = p.parse(text.substring(14, text.length()));
-          group = null;
-        } else if (text.startsWith("titlesort//")) {
-          sort = titleSort;
-          query = p.parse(text.substring(11, text.length()));
-          group = null;
-        } else if (text.startsWith("titledvsort//")) {
-          sort = titleDVSort;
-          query = p.parse(text.substring(11, text.length()));
-          group = null;
-        } else if (text.startsWith("group100//")) {
-          group = "group100";
-          query = p.parse(text.substring(10, text.length()));
-          sort = null;
-        } else if (text.startsWith("group10K//")) {
-          group = "group10K";
-          query = p.parse(text.substring(10, text.length()));
-          sort = null;
-        } else if (text.startsWith("group100K//")) {
-          group = "group100K";
-          query = p.parse(text.substring(10, text.length()));
-          sort = null;
-        } else if (text.startsWith("group1M//")) {
-          group = "group1M";
-          query = p.parse(text.substring(9, text.length()));
-          sort = null;
-        } else if (text.startsWith("groupblock1pass//")) {
-          group = "groupblock1pass";
-          query = p.parse(text.substring(17, text.length()));
-          sort = null;
-        } else if (text.startsWith("groupblock//")) {
-          group = "groupblock";
-          query = p.parse(text.substring(12, text.length()));
-          sort = null;
-        } else {
-          group = null;
-          query = p.parse(text);
-          sort = null;
-        }
-
-        if (query.toString().equals("")) {
-          throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
-        }
-
-        /*
-        final int mod = (count++) % 3;
-        if (!doSort || mod == 0) {
-          sort = null;
-        } else if (mod == 1) {
-          sort = dateTimeSort;
-        } else {
-          sort = titleSort;
-        }
-        */
-        task = new SearchTask(category, query, sort, group, filter, 10);
-      }
-
-      //task.origString = line;
-      tasks.add(task);
-    }
-
-    return tasks;
-  }
-
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] clArgs) throws Exception {
 
     // args: dirImpl indexPath numThread numIterPerThread
     // eg java SearchPerfTest /path/to/index 4 100
-    final Directory dir;
-    final String dirImpl = args[0];
-    final String dirPath = args[1];
-    final String analyzer = args[2];
-    final String tasksFile = args[3];
-    final int threadCount = Integer.parseInt(args[4]);
-    final int taskRepeatCount = Integer.parseInt(args[5]);
-    final String fieldName = args[6];
-    int numTaskPerCat = Integer.parseInt(args[7]);
-    final boolean doSort = args[8].equals("yes");
+    final Args args = new Args(clArgs);
 
-    // Used to choose which random subset of tasks we will
-    // run, to generate the PKLookup tasks, and to generate
-    // any random pct filters:
-    final long staticRandomSeed = Long.parseLong(args[9]);
-
-    // Used to shuffle the random subset of tasks:
-    final long randomSeed = Long.parseLong(args[10]);
-
+    Directory dir;
+    final String dirPath = args.getString("-indexPath");
+    final String dirImpl = args.getString("-dirImpl");
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
     } else if (dirImpl.equals("NIOFSDirectory")) {
@@ -838,161 +130,244 @@ public class SearchPerfTest {
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
-    
+
+    // TODO: NativeUnixDir?
+
+    final String analyzer = args.getString("-analyzer");
+    final String tasksFile = args.getString("-taskSource");
+    final int searchThreadCount = args.getInt("-searchThreadCount");
+    final String fieldName = args.getString("-field");
+
+    // Used to choose which random subset of tasks we will
+    // run, to generate the PKLookup tasks, and to generate
+    // any random pct filters:
+    final long staticRandomSeed = args.getLong("-staticSeed");
+
+    // Used to shuffle the random subset of tasks:
+    final long randomSeed = args.getLong("-seed");
+
     // TODO: this could be way better.
-    final String similarity = args[11];
+    final String similarity = args.getString("-similarity");
     // now reflect
     final Class<? extends Similarity> simClazz = 
       Class.forName("org.apache.lucene.search.similarities." + similarity).asSubclass(Similarity.class);
     final Similarity sim = simClazz.newInstance();
 
-    System.out.println("Using dir impl " + dir.getClass().getName());
-    System.out.println("Analyzer " + analyzer);
-    System.out.println("Similarity " + similarity);
-    System.out.println("Thread count " + threadCount);
-    System.out.println("Task repeat count " + taskRepeatCount);
-    System.out.println("Tasks file " + tasksFile);
-    System.out.println("Num task per cat " + numTaskPerCat);
-    System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
-
-    //final long t0 = System.currentTimeMillis();
-    final DirectoryReader reader;
-    Filter f = null;
-    boolean doOldFilter = false;
-    boolean doNewFilter = false;
-    if (args.length == 15) {
-      final String commit = args[12];
-      System.out.println("open commit=" + commit);
-      reader = DirectoryReader.open(findCommitPoint(commit, dir));
-      Filter filt = new RandomFilter(Double.parseDouble(args[14])/100.0);
-      if (args[13].equals("FilterOld")) {
-        f = new CachingWrapperFilter(filt);
-        /*
-        AtomicReaderContext[] leaves = ReaderUtil.leaves(reader.getTopReaderContext());
-        for(int subID=0;subID<leaves.length;subID++) {
-          f.getDocIdSet(leaves[subID]);
-        }
-        */
-      } else {
-        throw new RuntimeException("4th arg should be FilterOld or FilterNew");
-      }
-    } else if (args.length == 13) {
-      final String commit = args[12];
-      System.out.println("open commit=" + commit);
-      reader = DirectoryReader.open(findCommitPoint(commit, dir));
-    } else {
-      // open last commit
-      System.out.println("open latest commit");
-      reader = DirectoryReader.open(dir);
-    }
-    final IndexSearcher searcher = new IndexSearcher(reader);
-    searcher.setSimilarity(sim);
-
-    System.out.println("searcher=" + searcher);
-
-    //s.search(new TermQuery(new Term("body", "bar")), null, 10, new Sort(new SortField("unique1000000", SortField.STRING)));
-    //final long t1 = System.currentTimeMillis();
-    //System.out.println("warm time = " + (t1-t0)/1000.0);
-
-    //System.gc();
-    //System.out.println("RAM: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_50);
+      a = new EnglishAnalyzer(Version.LUCENE_40);
     } else if (analyzer.equals("ClassicAnalyzer")) {
-      a = new ClassicAnalyzer(Version.LUCENE_50);
+      a = new ClassicAnalyzer(Version.LUCENE_40);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
                                      2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 
 
-    final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
-    final List<PKLookupTask> pkLookupTasks = new ArrayList<PKLookupTask>();
+    final SearcherManager mgr;
+    final IndexWriter writer;
 
-    final QueryParser p = new QueryParser(Version.LUCENE_50, "body", a);
-    p.setLowercaseExpandedTerms(false);
+    if (args.getFlag("-nrt")) {
+      // TODO: factor out & share this CL processing w/ Indexer
+      final int indexThreadCount = args.getInt("-indexThreadCount");
+      final String lineDocsFile = args.getString("-lineDocsFile");
+      final float docsPerSecPerThread = args.getFloat("-docsPerSecPerThread");
+      final float reopenEverySec = args.getFloat("-reopenEverySec");
+      final boolean storeBody = args.getFlag("-store");
+      final boolean tvsBody = args.getFlag("-tvs");
+      final boolean useCFS = args.getFlag("-cfs");
+      final String defaultPostingsFormat = args.getString("-postingsFormat");
+      final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
+      final boolean verbose = args.getFlag("-verbose");
 
-    // Pick a random top N tasks per category:
-    final Random staticRandom = new Random(staticRandomSeed);
-    final List<Task> tasks = loadTasks(reader, p, fieldName, tasksFile, doSort, staticRandom);
-    Collections.shuffle(tasks, staticRandom);
-    final List<Task> prunedTasks = pruneTasks(tasks, numTaskPerCat);
+      final long reopenEveryMS = (long) (1000 * reopenEverySec);
 
-    //for(Task task : prunedTasks) {
-    //System.out.println("TASK: " + task.origString);
-    //}
+      if (verbose) {
+        InfoStream.setDefault(new PrintStreamInfoStream(System.out));
+      }
+      
+      final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+      iwc.setRAMBufferSizeMB(256.0);
 
-    // Add PK tasks
-    //System.out.println("WARNING: skip PK tasks");
-    final int numPKTasks = (int) Math.min(reader.maxDoc()/6000., numTaskPerCat);
-    for(int idx=0;idx<numPKTasks;idx++) {
-      prunedTasks.add(new PKLookupTask(reader.maxDoc(), staticRandom, 4000, pkSeenIDs, idx));
+      ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(useCFS);
+
+      final Codec codec = new Lucene40Codec() {
+          @Override
+          public PostingsFormat getPostingsFormatForField(String field) {
+            return PostingsFormat.forName(field.equals("id") ?
+                                          idFieldPostingsFormat : defaultPostingsFormat);
+          }
+        };
+      iwc.setCodec(codec);
+
+      dir = new NRTCachingDirectory(dir, 20, 400.0);
+
+      final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
+      // Make sure merges run @ higher prio than indexing:
+      cms.setMergeThreadPriority(Thread.currentThread().getPriority()+2);
+      // Only let one merge run at a time...
+      cms.setMaxThreadCount(1);
+      // ... but queue up up to 4, before index thread is stalled:
+      cms.setMaxMergeCount(4);
+
+      iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
+          @Override
+          public void warm(AtomicReader reader) throws IOException {
+            final long t0 = System.currentTimeMillis();
+            //System.out.println("DO WARM: " + reader);
+            IndexSearcher s = new IndexSearcher(reader);
+            s.search(new TermQuery(new Term(fieldName, "united")), 10);
+            final long t1 = System.currentTimeMillis();
+            System.out.println("warm took " + (t1-t0) + " msec");
+          }
+        });
+      
+      writer = new IndexWriter(dir, iwc);
+
+      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody, indexThreadCount, -1, false, false, true, docsPerSecPerThread);
+      threads.start();
+
+      mgr = new SearcherManager(writer, true, new SearcherFactory() {
+          @Override
+          public IndexSearcher newSearcher(IndexReader reader) {
+            IndexSearcher s = new IndexSearcher(reader);
+            s.setSimilarity(sim);
+            return s;
+          }
+        });
+
+      System.out.println("reopen every " + reopenEverySec);
+
+      Thread reopenThread = new Thread() {
+          @Override
+          public void run() {
+            try {
+              final long startMS = System.currentTimeMillis();
+
+              int reopenCount = 1;
+              while (true) {
+                final long nextReopenMS = startMS + (reopenCount * reopenEveryMS);
+                final long sleepMS = Math.max(100, nextReopenMS - System.currentTimeMillis());
+                Thread.sleep(sleepMS);
+                mgr.maybeRefresh();
+                reopenCount++;
+              }
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          }
+        };
+      reopenThread.setName("ReopenThread");
+      reopenThread.setPriority(4+Thread.currentThread().getPriority());
+      reopenThread.start();
+
+    } else {
+      writer = null;
+      mgr = new SearcherManager(dir, new SearcherFactory() {
+          @Override
+          public IndexSearcher newSearcher(IndexReader reader) {
+            IndexSearcher s = new IndexSearcher(reader);
+            s.setSimilarity(sim);
+            return s;
+          }
+        });
     }
 
-    final List<Task> allTasks = new ArrayList<Task>();
+    // nocommit hmm can't pass IndexCommit to SearcherManager!
+    final String commit = args.getString("-commit");
 
+    /*
+    if (commit != null && commit.length() > 0) {
+      reader = DirectoryReader.open(findCommitPoint(commit, dir));
+    } else {
+      // open last commit
+      reader = DirectoryReader.open(dir);
+    }
+    final IndexSearcher searcher = new IndexSearcher(reader);
+    searcher.setSimilarity(sim);
+      */
+
+    //System.out.println("searcher=" + searcher);
+
+    final Random staticRandom = new Random(staticRandomSeed);
     final Random random = new Random(randomSeed);
 
-    // Copy the pruned tasks multiple times, shuffling the order each time:
-    for(int iter=0;iter<taskRepeatCount;iter++) {
-      Collections.shuffle(prunedTasks, random);
-      for(Task task : prunedTasks) {
-        allTasks.add(task.clone());
-      }
-    }
-    System.out.println("TASK LEN=" + allTasks.size());
-
-    final AtomicInteger nextTask = new AtomicInteger();
-    final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
-
-    final Thread[] threads = new Thread[threadCount];
-    final CountDownLatch startLatch = new CountDownLatch(1);
-    final CountDownLatch stopLatch = new CountDownLatch(threadCount);
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
+    final IndexState indexState = new IndexState(mgr, fieldName, spellChecker);
+
+    Map<Double,Filter> filters = new HashMap<Double,Filter>();
+    // TODO: populate filters the next time we want to test
+    // filter perf:
+    /*
+    filter = new CachingWrapperFilter(new PreComputedRandomFilter(reader, random, filterPct));
+    */
+
+    final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);
+    queryParser.setLowercaseExpandedTerms(false);
+    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters);
+
+    final TaskSource tasks;
+
+    // Load the tasks from a file:
+    final int taskRepeatCount = args.getInt("-taskRepeatCount");
+    final int numTaskPerCat = args.getInt("-tasksPerCat");
+    tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount);
+
+    args.check();
+
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final IndexState indexState = new IndexState(reader, searcher, spellChecker);
-    for(int threadIDX=0;threadIDX<threadCount;threadIDX++) {
-      threads[threadIDX] = new TaskThread(startLatch, stopLatch, allTasks, nextTask, indexState, threadIDX);
-      threads[threadIDX].start();
-    }
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount);
     Thread.sleep(10);
 
     final long startNanos = System.nanoTime();
-    startLatch.countDown();
-    stopLatch.await();
+    taskThreads.start();
+    taskThreads.finish();
     final long endNanos = System.nanoTime();
 
     System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
 
-    indexState.setDocIDToID();
+    final List<Task> allTasks = tasks.getAllTasks();
 
-    System.out.println("\nResults for " + allTasks.size() + " tasks:");
-    for(final Task task : allTasks) {
-      final Task other = tasksSeen.get(task);
-      if (other != null) {
-        if (task.checksum() != other.checksum()) {
-          System.out.println("\nTASK:");
-          task.printResults(indexState);
-          System.out.println("\nOTHER TASK:");
-          other.printResults(indexState);
-          throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+    if (allTasks != null) {
+      // Tasks were local: verify checksums:
+
+      indexState.setDocIDToID();
+
+      final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
+
+      System.out.println("\nResults for " + allTasks.size() + " tasks:");
+      for(final Task task : allTasks) {
+        final Task other = tasksSeen.get(task);
+        if (other != null) {
+          if (task.checksum() != other.checksum()) {
+            System.out.println("\nTASK:");
+            task.printResults(indexState);
+            System.out.println("\nOTHER TASK:");
+            other.printResults(indexState);
+            throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+          }
+        } else {
+          tasksSeen.put(task, task);
         }
-      } else {
-        tasksSeen.put(task, task);
+        System.out.println("\nTASK: " + task);
+        System.out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
+        System.out.println("  thread " + task.threadID);
+        task.printResults(indexState);
       }
-      System.out.println("\nTASK: " + task);
-      System.out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
-      System.out.println("  thread " + task.threadID);
-      task.printResults(indexState);
+
+      allTasks.clear();
     }
 
-    allTasks.clear();
+    if (writer != null) {
+      // Don't actually commit any index changes:
+      writer.rollback();
+    }
 
     // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
     final Runtime runtime = Runtime.getRuntime();
@@ -1001,88 +376,18 @@ public class SearchPerfTest {
     for(int iter=0;iter<10;iter++) {
       runtime.runFinalization();
       runtime.gc();
-      Thread.currentThread().yield();
+      Thread.yield();
       Thread.sleep(100);
       usedMem2 = usedMem1;
       usedMem1 = usedMemory(runtime);
     }
+
     System.out.println("\nHEAP: " + usedMemory(runtime));
-  }
-
-  private static List<Task> pruneTasks(List<Task> tasks, int numTaskPerCat) {
-    final Map<String,Integer> catCounts = new HashMap<String,Integer>();
-    final List<Task> newTasks = new ArrayList<Task>();
-    for(Task task : tasks) {
-      final String cat = task.getCategory();
-      Integer v = catCounts.get(cat);
-      int catCount;
-      if (v == null) {
-        catCount = 0;
-      } else {
-        catCount = v.intValue();
-      }
-
-      if (catCount >= numTaskPerCat) {
-        // System.out.println("skip task cat=" + cat);
-        continue;
-      }
-      catCount++;
-      catCounts.put(cat, catCount);
-      newTasks.add(task);
-    }
-
-    return newTasks;
+    mgr.close();
+    dir.close();
   }
 
   private static long usedMemory(Runtime runtime) {
     return runtime.totalMemory() - runtime.freeMemory();
-  }
-  
-  private static class TaskThread extends Thread {
-    private final CountDownLatch startLatch;
-    private final CountDownLatch stopLatch;
-    private final List<Task> tasks;
-    private final AtomicInteger nextTask;
-    private final IndexState indexState;
-    private final int threadID;
-
-    public TaskThread(CountDownLatch startLatch, CountDownLatch stopLatch, List<Task> tasks, AtomicInteger nextTask, IndexState indexState, int threadID) {
-      this.startLatch = startLatch;
-      this.stopLatch = stopLatch;
-      this.tasks = tasks;
-      this.nextTask = nextTask;
-      this.indexState = indexState;
-      this.threadID = threadID;
-    }
-
-    @Override
-    public void run() {
-      try {
-        startLatch.await();
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        return;
-      }
-
-      try {
-        while(true) {
-          final int next = nextTask.getAndIncrement();
-          if (next >= tasks.size()) {
-            break;
-          }
-          final Task task = tasks.get(next);
-          final long t0 = System.nanoTime();
-          try {
-            task.go(indexState);
-          } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-          }
-          task.runTimeNanos = System.nanoTime()-t0;
-          task.threadID = threadID;
-        }
-      } finally {
-        stopLatch.countDown();
-      }
-    }
   }
 }

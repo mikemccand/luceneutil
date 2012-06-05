@@ -194,14 +194,14 @@ class RespellTask:
 
   def verifySame(self, other, verifyScores):
     if not isinstance(other, RespellTask):
-      fail('not a RespellTask')
+      self.fail('not a RespellTask')
     if self.term != other.term:
-      fail('wrong term: %s vs %s' % (self.term, other.term))
+      self.fail('wrong term: %s vs %s' % (self.term, other.term))
     if self.hits != other.hits:
-      fail('wrong hits: %s vs %s' % (self.hits, other.hits))
+      self.fail('wrong hits: %s vs %s' % (self.hits, other.hits))
 
   def fail(self, message):
-    raise RuntimeError('respell: term=%s' % (self.term, message))
+    raise RuntimeError('respell: term=%s: %s' % (self.term, message))
 
   def __str__(self):
     return 'Respell %s' % self.term
@@ -586,59 +586,52 @@ class RunAlgs:
     
     try:
 
+      cmd = []
+      w = cmd.append
+      w(index.javaCommand)
+      w('-classpath "%s"' % self.classPathToString(self.getClassPath(index.checkout)))
+      w('perf.Indexer')
+      w('-dirImpl %s' % index.dirImpl)
+      w('-indexPath "%s"' % fullIndexPath)
+      w('-analyzer %s' % index.analyzer)
+      w('-lineDocsFile %s' % index.lineDocSource)
+      w('-docCountLimit %s' % index.numDocs)
+      w('-threadCount %s' % index.numThreads)
+
       if index.doOptimize:
-        opt = 'yes'
-      else:
-        opt = 'no'
+        w('-forceMerge')
+
+      if index.verbose:
+        w('-verbose')
+
+      w('-ramBufferMB %s' % index.ramBufferMB)
+      w('-maxBufferedDocs %s' % index.maxBufferedDocs)
+      w('-postingsFormat %s' % index.codec)
 
       if index.doDeletions:
-        doDel = 'yes'
-      else:
-        doDel = 'no'
+        w('-deletions')
+
+      if index.printDPS:
+        w('-printDPS')
 
       if index.waitForMerges:
-        waitForMerges = 'yes'
-      else:
-        waitForMerges = 'no'
+        w('-waitForMerges')
+
+      w('-mergePolicy %s' % index.mergePolicy)
 
       if index.doUpdate:
-        doUpdate = 'yes'
-      else:
-        doUpdate = 'no'
+        w('-update')
+        
+      w('-idFieldPostingsFormat %s' % index.idFieldCodec)
 
       if index.doGrouping:
-        doGrouping = 'yes'
-      else:
-        doGrouping = 'no'
-
+        w('-grouping')
+      
       if index.useCFS:
-        useCFS = 'yes'
-      else:
-        useCFS = 'no'
+        w('-cfs')
 
-      cmd = '%s -classpath "%s" perf.Indexer %s "%s" %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s' % \
-            (index.javaCommand,
-             self.classPathToString(self.getClassPath(index.checkout)),
-             index.dirImpl,
-             fullIndexPath,
-             index.analyzer,
-             index.lineDocSource,
-             index.numDocs,
-             index.numThreads,
-             opt,
-             index.verbose,
-             index.ramBufferMB,
-             index.maxBufferedDocs,
-             index.codec,
-             doDel,
-             index.printDPS,
-             waitForMerges,
-             index.mergePolicy,
-             doUpdate,
-             index.idFieldCodec,
-             doGrouping,
-             useCFS
-             )
+      cmd = ' '.join(cmd)
+
       logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)
@@ -678,6 +671,7 @@ class RunAlgs:
       cp.append('%s/lucene/build/queryparser/classes/java' % path)
       cp.append('%s/lucene/build/grouping/classes/java' % path)
       cp.append('%s/lucene/build/suggest/classes/java' % path)
+      cp.append('%s/lucene/build/highlighter/classes/java' % path)
     elif version == '3.x':
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
@@ -757,9 +751,9 @@ class RunAlgs:
       if os.path.exists(logFile):
         os.remove(logFile)
       if c.doSort:
-        doSort = 'yes'
+        doSort = '-sort'
       else:
-        doSort = 'no'
+        doSort = ''
 
       logFiles = []
       rand = random.Random(randomSeed)
@@ -767,7 +761,7 @@ class RunAlgs:
       for iter in xrange(jvmCount):
         print '    iter %s of %s' % (1+iter, jvmCount)
         randomSeed2 = rand.randint(-10000000, 1000000)      
-        command = '%s -classpath "%s" perf.SearchPerfTest %s "%s" %s "%s" %s %s body %s %s %s %s %s %s' % \
+        command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s' % \
             (c.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
         if filter is not None:
           command += ' %s %.2f' % filter

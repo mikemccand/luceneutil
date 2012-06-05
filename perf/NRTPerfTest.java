@@ -244,7 +244,7 @@ public class NRTPerfTest {
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {

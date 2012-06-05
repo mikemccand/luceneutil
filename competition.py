@@ -89,16 +89,10 @@ class Index(object):
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
   def setVerbose(self, verbose):
-    if verbose:
-      self.verbose = 'yes'
-    else:
-      self.verbose = 'no'
+    self.verbose = verbose
 
   def setPrintDPS(self, dps):
-    if dps:
-      self.printDPS = 'yes'
-    else:
-      self.printDPS = 'no'
+    self.printDPS = dps
 
   def getName(self):
     if self.doOptimize:

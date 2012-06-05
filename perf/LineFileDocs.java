@@ -43,10 +43,14 @@ public class LineFileDocs implements Closeable {
   private final static int BUFFER_SIZE = 1 << 16;     // 64K
   private final boolean doRepeat;
   private final String path;
+  private final boolean storeBody;
+  private final boolean tvsBody;
   private final AtomicLong bytesIndexed = new AtomicLong();
 
-  public LineFileDocs(String path, boolean doRepeat) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody) throws IOException {
     this.path = path;
+    this.storeBody = storeBody;
+    this.tvsBody = tvsBody;
     open();
     this.doRepeat = doRepeat;
   }
@@ -56,8 +60,20 @@ public class LineFileDocs implements Closeable {
   }
 
   private void open() throws IOException {
-    final InputStream is = new FileInputStream(path);
+    InputStream is = new FileInputStream(path);
     reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
+    String firstLine = reader.readLine();
+    if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
+      if (!firstLine.trim().equals("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body")) {
+        throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+      }
+      // Skip header
+    } else {
+      // Old format: no header
+      reader.close();
+      is = new FileInputStream(path);
+      reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
+    }
   }
 
   public synchronized void close() throws IOException {
@@ -104,7 +120,7 @@ public class LineFileDocs implements Closeable {
     int downTo = id.length() - 1;
     int multiplier = 1;
     while(downTo >= 0) {
-      final char ch = (char) id.charAt(downTo--);
+      final char ch = id.charAt(downTo--);
       final int digit;
       if (ch >= '0' && ch <= '9') {
         digit = ch - '0';
@@ -138,7 +154,7 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    public DocState() {
+    DocState(boolean storeBody, boolean tvsBody) {
       doc = new Document();
       
       title = new StringField("title", "");
@@ -149,8 +165,19 @@ public class LineFileDocs implements Closeable {
 
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
       doc.add(titleTokenized);
+      
+      FieldType bodyFieldType = new FieldType(TextField.TYPE_UNSTORED);
+      if (storeBody) {
+        bodyFieldType.setStored(true);
+      }
 
-      body = new TextField("body", "");
+      if (tvsBody) {
+        bodyFieldType.setStoreTermVectors(true);
+        bodyFieldType.setStoreTermVectorOffsets(true);
+        bodyFieldType.setStoreTermVectorPositions(true);
+      }
+
+      body = new Field("body", "", bodyFieldType);
       doc.add(body);
 
       id = new Field("id", "", StringField.TYPE_STORED);
@@ -168,7 +195,7 @@ public class LineFileDocs implements Closeable {
   }
 
   public DocState newDocState() {
-    return new DocState();
+    return new DocState(storeBody, tvsBody);
   }
 
   private final ThreadLocal<DocState> threadDocs = new ThreadLocal<DocState>();
@@ -214,6 +241,9 @@ public class LineFileDocs implements Closeable {
 
     doc.datePos.setIndex(0);
     final Date date = doc.dateParser.parse(dateString, doc.datePos);
+    if (date == null) {
+      System.out.println("FAILED: " + dateString);
+    }
     doc.dateMSec.setLongValue(date.getTime());
 
     doc.dateCal.setTime(date);

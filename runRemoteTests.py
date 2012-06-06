@@ -426,10 +426,12 @@ def main():
   
   # Tests first chdir to lucene/build:
   classpath = ':'.join(['../../%s' % x for x in classpath])
-  #print 'CP: %s' % classpath
+  # print 'CP: %s' % classpath
   jobs = Jobs(tests)
 
   tTestsStart = time.time()
+
+  # print 'RUN: %s' % command
   
   # Launch local first since it can immediately start working, and, it
   # will pull the hardest jobs...:

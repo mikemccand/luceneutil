@@ -58,13 +58,13 @@ class Index(object):
 
   doGrouping = True
 
-  def __init__(self, checkout, dataSource, analyzer, codec, numDocs, numThreads,
+  def __init__(self, checkout, dataSource, analyzer, postingsFormat, numDocs, numThreads,
                lineDocSource, doOptimize=False, dirImpl='NIOFSDirectory',
                doDeletions=False, ramBufferMB=-1, mergePolicy=constants.MERGEPOLICY_DEFAULT, doUpdate='No', useCFS=False):
     self.checkout = checkout
     self.analyzer = analyzer
     self.dataSource = dataSource
-    self.codec = codec
+    self.postingsFormat = postingsFormat
     self.numDocs = numDocs
     self.numThreads = numThreads
     self.lineDocSource = lineDocSource
@@ -82,7 +82,7 @@ class Index(object):
     self.mergePolicy = mergePolicy
     mergeFactor = 10
     self.doUpdate = doUpdate
-    self.idFieldCodec = 'Memory'
+    self.idFieldPostingsFormat = 'Memory'
     self.useCFS = useCFS
     self.javaCommand = constants.JAVA_COMMAND
     if SEGS_PER_LEVEL >= mergeFactor:
@@ -103,7 +103,7 @@ class Index(object):
       s2 = 'cfs.'
     else:
       s2 = ''
-    return '%s.%s.%s.%s%snd%gM' % (self.dataSource, self.checkout, self.codec, s, s2, self.numDocs/1000000.0)
+    return '%s.%s.%s.%s%snd%gM' % (self.dataSource, self.checkout, self.postingsFormat, s, s2, self.numDocs/1000000.0)
 
 
 
@@ -273,7 +273,7 @@ class IndexBuilder(object):
     self._ramBufferMB = ramBufferMB
     self._threads = competition.indexThreads
     self._maxBufferedDocs = -1
-    self._codec = constants.CODEC_DEFAULT
+    self._postingsFormat = constants.POSTINGS_FORMAT_DEFAULT
     self._verbose = competition.verbose
     self._printCharts = competition.printCharts
     self._doDeletions = False
@@ -281,7 +281,7 @@ class IndexBuilder(object):
     self._mergePolicy = constants.MERGEPOLICY_DEFAULT
     self._waitForMerges = True
     self._doUpdate = False
-    self._idFieldCodec = 'Memory'
+    self._idFieldPostingsFormat = 'Memory'
     self._doGrouping = True
     self._useCFS = False
     self._javaCommand = constants.JAVA_COMMAND
@@ -331,8 +331,8 @@ class IndexBuilder(object):
     self._doDeletions = doDeletions
     return self
 
-  def codec(self, codec):
-    self._codec = codec
+  def postingsFormat(self, postingsFormat):
+    self._postingsFormat = postingsFormat
     return self
 
   def mergePolicy(self, p):
@@ -343,20 +343,20 @@ class IndexBuilder(object):
     self._waitForMerges = v
     return self
 
-  def idFieldCodec(self, v):
-    self._idFieldCodec = v
+  def idFieldPostingsFormat(self, v):
+    self._idFieldPostingsFormat = v
     return self
 
   def build(self):
 
-    idx = Index(self._checkout, self._data.name, self._analyzer, self._codec,
+    idx = Index(self._checkout, self._data.name, self._analyzer, self._postingsFormat,
           self._data.numDocs, self._threads, self._data.lineFile, doOptimize=self._doOptimize, doDeletions=self._doDeletions, dirImpl=self._directory, ramBufferMB=self._ramBufferMB, doUpdate = self._doUpdate,
                 useCFS = self._useCFS)
     idx.setVerbose(self._verbose)
     idx.setPrintDPS(self._printCharts)
     idx.mergePolicy = self._mergePolicy
     idx.waitForMerges = self._waitForMerges
-    idx.idFieldCodec = self._idFieldCodec
+    idx.idFieldPostingsFormat = self._idFieldPostingsFormat
     idx.doGrouping = self._doGrouping
     idx.javaCommand = self._javaCommand
     return idx

@@ -606,7 +606,7 @@ class RunAlgs:
 
       w('-ramBufferMB %s' % index.ramBufferMB)
       w('-maxBufferedDocs %s' % index.maxBufferedDocs)
-      w('-postingsFormat %s' % index.codec)
+      w('-postingsFormat %s' % index.postingsFormat)
 
       if index.doDeletions:
         w('-deletions')
@@ -622,7 +622,7 @@ class RunAlgs:
       if index.doUpdate:
         w('-update')
         
-      w('-idFieldPostingsFormat %s' % index.idFieldCodec)
+      w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
       if index.doGrouping:
         w('-grouping')

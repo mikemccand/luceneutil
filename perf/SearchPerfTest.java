@@ -312,10 +312,23 @@ public class SearchPerfTest {
 
     final TaskSource tasks;
 
-    // Load the tasks from a file:
-    final int taskRepeatCount = args.getInt("-taskRepeatCount");
-    final int numTaskPerCat = args.getInt("-tasksPerCat");
-    tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount);
+    if (tasksFile.startsWith("server:")) {
+      int idx = tasksFile.indexOf(':', 8);
+      if (idx == -1) {
+        throw new RuntimeException("server is missing the port; should be server:interface:port (got: " + tasksFile + ")");
+      }
+      String iface = tasksFile.substring(7, idx);
+      int port = Integer.valueOf(tasksFile.substring(1+idx));
+      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParser);
+
+      // nocommit must stop thread?
+      tasks = remoteTasks;
+    } else {
+      // Load the tasks from a file:
+      final int taskRepeatCount = args.getInt("-taskRepeatCount");
+      final int numTaskPerCat = args.getInt("-tasksPerCat");
+      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount);
+    }
 
     args.check();
 

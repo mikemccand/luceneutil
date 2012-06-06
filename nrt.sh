@@ -2,8 +2,8 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-java -XX:-UseCompressedOops -Xmx6G -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest \
-    -indexPath /q/lucene/indices/testwiki \
+java -verbose:gc -Xmx6G -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest \
+    -indexPath /p/lucene/indices/testwiki \
     -dirImpl MMapDirectory \
     -analyzer StandardAnalyzer \
     -taskSource server:localhost:7777 \
@@ -15,7 +15,7 @@ java -XX:-UseCompressedOops -Xmx6G -cp .:$LUCENE_HOME/build/core/classes/java:$L
     -staticSeed 0 \
     -nrt \
     -indexThreadCount 1 \
-    -docsPerSecPerThread 200.0 \
+    -docsPerSecPerThread 500.0 \
     -lineDocsFile /x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt \
     -reopenEverySec 1.0 \
     -store \

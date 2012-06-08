@@ -18,6 +18,7 @@
 import random
 import codecs
 import socket
+import Queue
 import sys
 import time
 import threading
@@ -62,6 +63,16 @@ def gatherResponses(sent, s, results):
     sumLatencyMS += latencyMS
     sumQueueTimeMS += queueTimeMS
     #print '  recv %s' % taskString
+
+def sendRequests(queue, s):
+  while True:
+    task = queue.get()
+    startTime = time.time()
+    if s.send(task) != len(task):
+      raise RuntimeError('failed to send all bytes')
+    sendTime = time.time()
+    if sendTime - startTime > .001:
+      print 'WARNING: took %.1f msec to send request' % (1000*(sendTime - startTime))
 
 def pruneTasks(taskStrings, numTasksPerCat):
   byCat = {}
@@ -132,6 +143,12 @@ def runTest():
   t.setDaemon(True)
   t.start()
 
+  queue = Queue.Queue()
+  t = threading.Thread(target=sendRequests,
+                       args=(queue, s))
+  t.setDaemon(True)
+  t.start()
+
   globalStartTime = time.time()
   lastPrint = globalStartTime
   startTime = None
@@ -153,14 +170,10 @@ def runTest():
       #print 'sent %s; sleep %.3f sec' % (origTask, pause)
       time.sleep(pause)
       
-    startTime = time.time()
-    if s.send(task) != len(task):
-      raise RuntimeError('failed to send all bytes')
-    sendTime = time.time()
-    if sendTime - startTime > .001:
-      print 'WARNING: took %.1f msec to send request' % (1000*(sendTime - startTime))
     #origTask = task
+    startTime = time.time()
     sent[taskID] = (startTime, task)
+    queue.put(task)
 
   print '%8.1f sec: Done sending tasks...' % (time.time()-globalStartTime)
   while len(sent) != 0:
@@ -281,6 +294,6 @@ if __name__ == '__main__':
     html = createGraph({'100 QPS': 'results100qps.pk',
                         '150 QPS': 'results150qps.pk'})
     
-  open('/x/tmp4/out2.html', 'wb').write(html)
+  open('out.html', 'wb').write(html)
 
   

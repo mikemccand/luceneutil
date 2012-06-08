@@ -114,6 +114,8 @@ public class SearchPerfTest {
 
   public static void main(String[] clArgs) throws Exception {
 
+     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
+ 
     // args: dirImpl indexPath numThread numIterPerThread
     // eg java SearchPerfTest /path/to/index 4 100
     final Args args = new Args(clArgs);
@@ -127,6 +129,10 @@ public class SearchPerfTest {
       dir = new NIOFSDirectory(new File(dirPath));
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir = new SimpleFSDirectory(new File(dirPath));
+     } else if (dirImpl.equals("RAMDirectory")) {
+       final long t0 = System.currentTimeMillis();
+       dir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
+       System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir).sizeInBytes());
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
@@ -204,7 +210,10 @@ public class SearchPerfTest {
         };
       iwc.setCodec(codec);
 
-      dir = new NRTCachingDirectory(dir, 20, 400.0);
+      if (!dirImpl.equals("RAMDirectory")) {
+        System.out.println("Wrap NRTCachingDirectory");
+        dir = new NRTCachingDirectory(dir, 20, 400.0);
+      }
 
       final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
       // Make sure merges run @ higher prio than indexing:

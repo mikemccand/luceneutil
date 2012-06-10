@@ -202,6 +202,7 @@ final class SearchTask extends Task {
                                                       searcher.getIndexReader(), docID,
                                                       indexState.textFieldName,
                                                       100);
+    //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
   }
 
   @Override

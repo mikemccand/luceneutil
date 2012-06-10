@@ -143,6 +143,7 @@ public class SearchPerfTest {
     final String tasksFile = args.getString("-taskSource");
     final int searchThreadCount = args.getInt("-searchThreadCount");
     final String fieldName = args.getString("-field");
+    final boolean printHeap = args.getFlag("-printHeap");
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
@@ -391,20 +392,23 @@ public class SearchPerfTest {
       writer.rollback();
     }
 
-    // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
-    final Runtime runtime = Runtime.getRuntime();
-    long usedMem1 = usedMemory(runtime);
-    long usedMem2 = Long.MAX_VALUE;
-    for(int iter=0;iter<10;iter++) {
-      runtime.runFinalization();
-      runtime.gc();
-      Thread.yield();
-      Thread.sleep(100);
-      usedMem2 = usedMem1;
-      usedMem1 = usedMemory(runtime);
+    if (printHeap) {
+
+      // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
+      final Runtime runtime = Runtime.getRuntime();
+      long usedMem1 = usedMemory(runtime);
+      long usedMem2 = Long.MAX_VALUE;
+      for(int iter=0;iter<10;iter++) {
+        runtime.runFinalization();
+        runtime.gc();
+        Thread.yield();
+        Thread.sleep(100);
+        usedMem2 = usedMem1;
+        usedMem1 = usedMemory(runtime);
+      }
+      System.out.println("\nHEAP: " + usedMemory(runtime));
     }
 
-    System.out.println("\nHEAP: " + usedMemory(runtime));
     mgr.close();
     dir.close();
   }

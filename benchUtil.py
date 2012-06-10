@@ -760,11 +760,13 @@ class RunAlgs:
       staticSeed = rand.randint(-10000000, 1000000)
       for iter in xrange(jvmCount):
         print '    iter %s of %s' % (1+iter, jvmCount)
-        randomSeed2 = rand.randint(-10000000, 1000000)      
+        randomSeed2 = rand.randint(-10000000, 1000000)
         command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s' % \
             (c.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
         if filter is not None:
           command += ' %s %.2f' % filter
+        if c.printHeap:
+          command += ' -printHeap'
         iterLogFile = '%s.%s' % (logFile, iter)
         print '      log: %s' % iterLogFile
         t0 = time.time()

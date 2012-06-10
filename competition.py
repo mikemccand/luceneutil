@@ -122,6 +122,7 @@ class Competitor(object):
     self.threads = threads
     self.similarity = similarity
     self.javaCommand = javaCommand
+    self.printHeap = False
 
   def compile(self, cp):
     benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')

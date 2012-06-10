@@ -469,6 +469,7 @@ def run():
   coldRun = False
   comp = c.build()
   comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
+  comp.printHeap = True
   if REAL:
     resultsNow = r.runSimpleSearchBench(id, comp, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
   else:

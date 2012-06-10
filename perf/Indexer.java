@@ -166,6 +166,7 @@ public final class Indexer {
       tmp.setMaxMergedSegmentMB(1000000.0);
       tmp.setUseCompoundFile(useCFS);
       tmp.setNoCFSRatio(1.0);
+      System.out.println("CFS=" + useCFS);
       mp = null;
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);

@@ -199,7 +199,7 @@ public final class Indexer {
     final Random random = new Random(17);
 
     IndexThreads threads = new IndexThreads(random, w, lineFile, storeBody, tvsBody, numThreads, docCountLimit, addGroupingFields, printDPS,
-                                            doUpdate, -1.0f);
+                                            doUpdate, -1.0f, false);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();

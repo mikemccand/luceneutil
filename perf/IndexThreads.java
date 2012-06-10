@@ -47,9 +47,9 @@ class IndexThreads {
 
   public IndexThreads(Random random, IndexWriter w, String lineFile, boolean storeBody, boolean tvsBody,
                       int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
-                      boolean doUpdate, float docsPerSecPerThread) throws IOException, InterruptedException {
+                      boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody);
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, cloneDocs);
 
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
@@ -110,29 +110,6 @@ class IndexThreads {
     }
 
     return true;
-  }
-
-  // TODO: is there a pre-existing way to do this!!!
-  static Document cloneDoc(Document doc1) {
-    final Document doc2 = new Document();
-    for(IndexableField f0 : doc1.getFields()) {
-      Field f = (Field) f0;
-      if (f instanceof LongField) {
-        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
-      } else if (f instanceof IntField) {
-        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
-      } else if (f instanceof SortedBytesDocValuesField) {
-        doc2.add(new SortedBytesDocValuesField(f.name(), f.binaryValue()));
-      } else {
-        Field field1 = f;
-        Field field2 = new Field(field1.name(),
-                                 field1.stringValue(),
-                                 field1.fieldType());
-        doc2.add(field2);
-      }
-    }
-
-    return doc2;
   }
 
   private static class IndexThread extends Thread {
@@ -260,7 +237,7 @@ class IndexThreads {
               group10KField.setStringValue(group10K[id%10000]);
               group100KField.setStringValue(group100K[id%100000]);
               group1MField.setStringValue(group1M[id%1000000]);
-              docsGroup.add(cloneDoc(doc));
+              docsGroup.add(LineFileDocs.cloneDoc(doc));
             }
             final int docCount = docsGroup.size();
             docsGroup.get(docCount-1).add(groupEndField);

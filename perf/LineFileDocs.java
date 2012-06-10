@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 
 public class LineFileDocs implements Closeable {
@@ -46,11 +47,13 @@ public class LineFileDocs implements Closeable {
   private final boolean storeBody;
   private final boolean tvsBody;
   private final AtomicLong bytesIndexed = new AtomicLong();
+  private final boolean doClone;
 
-  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean doClone) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
+    this.doClone = doClone;
     open();
     this.doRepeat = doRepeat;
   }
@@ -198,6 +201,29 @@ public class LineFileDocs implements Closeable {
     return new DocState(storeBody, tvsBody);
   }
 
+  // TODO: is there a pre-existing way to do this!!!
+  static Document cloneDoc(Document doc1) {
+    final Document doc2 = new Document();
+    for(IndexableField f0 : doc1.getFields()) {
+      Field f = (Field) f0;
+      if (f instanceof LongField) {
+        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
+      } else if (f instanceof IntField) {
+        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
+      } else if (f instanceof SortedBytesDocValuesField) {
+        doc2.add(new SortedBytesDocValuesField(f.name(), f.binaryValue()));
+      } else {
+        Field field1 = f;
+        Field field2 = new Field(field1.name(),
+                                 field1.stringValue(),
+                                 field1.fieldType());
+        doc2.add(field2);
+      }
+    }
+
+    return doc2;
+  }
+
   private final ThreadLocal<DocState> threadDocs = new ThreadLocal<DocState>();
 
   private int readCount;
@@ -250,7 +276,11 @@ public class LineFileDocs implements Closeable {
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
 
-    return doc.doc;
+    if (doClone) {
+      return cloneDoc(doc.doc);
+    } else {
+      return doc.doc;
+    }
   }
 }
 

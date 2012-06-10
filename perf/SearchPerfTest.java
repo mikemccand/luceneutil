@@ -189,6 +189,7 @@ public class SearchPerfTest {
       final String defaultPostingsFormat = args.getString("-postingsFormat");
       final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
       final boolean verbose = args.getFlag("-verbose");
+      final boolean cloneDocs = args.getFlag("-cloneDocs");
 
       final long reopenEveryMS = (long) (1000 * reopenEverySec);
 
@@ -238,7 +239,7 @@ public class SearchPerfTest {
       
       writer = new IndexWriter(dir, iwc);
 
-      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody, indexThreadCount, -1, false, false, true, docsPerSecPerThread);
+      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody, indexThreadCount, -1, false, false, true, docsPerSecPerThread, cloneDocs);
       threads.start();
 
       mgr = new SearcherManager(writer, true, new SearcherFactory() {

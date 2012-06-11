@@ -161,18 +161,18 @@ class IndexThreads {
         final Field groupBlockField;
         final Field groupEndField;
         if (group100 != null) {
-          group100Field = new StringField("group100", "");
+          group100Field = new StringField("group100", "", Field.Store.NO);
           docState.doc.add(group100Field);
-          group10KField = new StringField("group10K", "");
+          group10KField = new StringField("group10K", "", Field.Store.NO);
           docState.doc.add(group10KField);
-          group100KField = new StringField("group100K", "");
+          group100KField = new StringField("group100K", "", Field.Store.NO);
           docState.doc.add(group100KField);
-          group1MField = new StringField("group1M", "");
+          group1MField = new StringField("group1M", "", Field.Store.NO);
           docState.doc.add(group1MField);
-          groupBlockField = new StringField("groupblock", "");
+          groupBlockField = new StringField("groupblock", "", Field.Store.NO);
           docState.doc.add(groupBlockField);
           // Binary marker field:
-          groupEndField = new StringField("groupend", "x");
+          groupEndField = new StringField("groupend", "x", Field.Store.NO);
         } else {
           group100Field = null;
           group100KField = null;

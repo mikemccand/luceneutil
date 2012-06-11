@@ -29,7 +29,7 @@ if '-ea' in sys.argv:
 
 osName = common.osName
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True, taskPatterns=None):
   competitors = [challenger, base]
 
   #verifyScores = False
@@ -100,6 +100,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
   if search:
     randomSeed = random.randint(-10000000, 1000000)
+    print 'FIXED STATIC SEED'
+    randomSeed = 17
     results = {}
 
     if constants.JAVA_COMMAND.find(' -ea') != -1:
@@ -110,12 +112,17 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     print
     print 'Search:'
 
+    taskFiles = {}
 
     for c in competitors:
       print '  %s:' % c.name
-      print '    tasks file: %s' % c.tasksFile
+      if taskPatterns is not None:
+        print '    tasks file: %s from %s' % (','.join(taskPatterns), c.tasksFile)
+      else:
+        print '    tasks file: %s' % c.tasksFile
+      
       t0 = time.time()
-      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None)
+      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None, taskPatterns=taskPatterns)
       print '    %.2f sec' % (time.time() - t0)
   else:
     results = {}

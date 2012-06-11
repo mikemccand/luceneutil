@@ -160,7 +160,7 @@ public class LineFileDocs implements Closeable {
     DocState(boolean storeBody, boolean tvsBody) {
       doc = new Document();
       
-      title = new StringField("title", "");
+      title = new StringField("title", "", Field.Store.NO);
       doc.add(title);
 
       titleDV = new SortedBytesDocValuesField("titleDV", new BytesRef(""));
@@ -169,7 +169,7 @@ public class LineFileDocs implements Closeable {
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
       doc.add(titleTokenized);
       
-      FieldType bodyFieldType = new FieldType(TextField.TYPE_UNSTORED);
+      FieldType bodyFieldType = new FieldType(TextField.TYPE_NOT_STORED);
       if (storeBody) {
         bodyFieldType.setStored(true);
       }
@@ -189,10 +189,10 @@ public class LineFileDocs implements Closeable {
       date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
 
-      dateMSec = new LongField("datenum", 0L);
+      dateMSec = new LongField("datenum", 0L, Field.Store.NO);
       doc.add(dateMSec);
 
-      timeSec = new IntField("timesecnum", 0);
+      timeSec = new IntField("timesecnum", 0, Field.Store.NO);
       doc.add(timeSec);
     }
   }
@@ -207,9 +207,9 @@ public class LineFileDocs implements Closeable {
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
       if (f instanceof LongField) {
-        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
+        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue(), Field.Store.NO));
       } else if (f instanceof IntField) {
-        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
+        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
       } else if (f instanceof SortedBytesDocValuesField) {
         doc2.add(new SortedBytesDocValuesField(f.name(), f.binaryValue()));
       } else {

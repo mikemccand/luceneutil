@@ -724,7 +724,7 @@ class RunAlgs:
   def classPathToString(self, cp):
     return common.pathsep().join(cp)
 
-  def runSimpleSearchBench(self, id, c, repeatCount, threadCount, numTasks, coldRun, randomSeed, jvmCount, filter=None):
+  def runSimpleSearchBench(self, id, c, repeatCount, threadCount, numTasks, coldRun, randomSeed, jvmCount, filter=None, taskPatterns=None):
 
     if coldRun:
       # flush OS buffer cache
@@ -755,6 +755,28 @@ class RunAlgs:
       else:
         doSort = ''
 
+      if taskPatterns is not None:
+        # TODO: this should be one level up, ie, we don't change the
+        # tasks across the two competitors...
+        patterns = [re.compile(x) for x in taskPatterns]
+        tasksFile = './%s.tasks' % os.getpid()
+        f = open(c.tasksFile)
+        fOut = open(tasksFile, 'wb')
+        for l in f.readlines():
+          i = l.find(':')
+          if i != -1:
+            cat = l[:i]
+            for p in patterns:
+              if p.search(cat) is not None:
+                break
+            else:
+              continue
+          fOut.write(l)
+        f.close()
+        fOut.close()
+      else:
+        tasksFile = c.tasksFile
+
       logFiles = []
       rand = random.Random(randomSeed)
       staticSeed = rand.randint(-10000000, 1000000)
@@ -762,7 +784,7 @@ class RunAlgs:
         print '    iter %s of %s' % (1+iter, jvmCount)
         randomSeed2 = rand.randint(-10000000, 1000000)
         command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s' % \
-            (c.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
+            (c.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
         if filter is not None:
           command += ' %s %.2f' % filter
         if c.printHeap:
@@ -774,6 +796,9 @@ class RunAlgs:
         print '      %.1f s' % (time.time()-t0)
         logFiles.append(iterLogFile)
     finally:
+      if taskPatterns is not None:
+        os.remove(tasksFile)
+        
       os.chdir(cwd)
     return logFiles
 

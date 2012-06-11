@@ -71,8 +71,8 @@ def sendRequests(queue, s):
     if s.send(task) != len(task):
       raise RuntimeError('failed to send all bytes')
     sendTime = time.time()
-    if sendTime - startTime > .001:
-      print 'WARNING: took %.1f msec to send request' % (1000*(sendTime - startTime))
+    #if sendTime - startTime > .001:
+    #print 'WARNING: took %.1f msec to send request' % (1000*(sendTime - startTime))
 
 def pruneTasks(taskStrings, numTasksPerCat):
   byCat = {}
@@ -101,7 +101,15 @@ def runTest():
   serverPort = int(sys.argv[3])
   meanQPS = float(sys.argv[4])
   numTasksPerCat = int(sys.argv[5])
-  repeatCount = int(sys.argv[6])
+  s = sys.argv[6]
+  byResponseTime = s.endswith('s')
+  if byResponseTime:
+    runTimeSec = int(s[:-1])
+    repeatCount = sys.maxint
+  else:
+    runTimeSec = 1000000000.0
+    repeatCount = int(s)
+    
   savFile = sys.argv[7]
 
   print 'Mean QPS %s' % meanQPS
@@ -132,9 +140,6 @@ def runTest():
 
   taskStrings = pruneTasks(taskStrings, numTasksPerCat)
 
-  taskStrings *= repeatCount
-  r.shuffle(taskStrings)
-  
   sent = {}
   results = []
 
@@ -152,29 +157,54 @@ def runTest():
   globalStartTime = time.time()
   lastPrint = globalStartTime
   startTime = None
-  for taskID, task in enumerate(taskStrings):
-    #print task.strip()
-    now = time.time()
-    if now - lastPrint > 2.0 and count > 0:
-      print '%.1f s: %5.1f%%: %.1f qps; %4.1f/%5.2f ms' % \
-            (now - globalStartTime, 100.0*(1+taskID)/float(len(taskStrings)), count/(now-globalStartTime), sumLatencyMS/count, sumQueueTimeMS/count)
-      lastPrint = now
+  
+  r.shuffle(taskStrings)
 
-    pause = r.expovariate(meanQPS)
+  try:
+    for iter in xrange(repeatCount):
 
-    if startTime is not None:
-      # Correct for any time taken in our "overhead" here...:
-      pause = startTime + pause - time.time()
+      if time.time() - globalStartTime > runTimeSec:
+        break
 
-    if pause > 0:
-      #print 'sent %s; sleep %.3f sec' % (origTask, pause)
-      time.sleep(pause)
-      
-    #origTask = task
-    startTime = time.time()
-    sent[taskID] = (startTime, task)
-    queue.put(task)
+      baseTaskID = iter * len(taskStrings)
 
+      for taskID, task in enumerate(taskStrings):
+        #print task.strip()
+        now = time.time()
+        taskID += baseTaskID
+        
+        if now - lastPrint > 2.0 and count > 0:
+          if byResponseTime:
+            pctDone = 100.0*((time.time() - globalStartTime) / runTimeSec)
+            if pctDone > 100.0:
+              pctDone = 100.0
+          else:
+            pctDone = 100.0*(1+taskID)/float(len(taskStrings))
+            
+          print '%.1f s: %5.1f%%: %.1f qps; %4.1f/%5.2f ms' % \
+                (now - globalStartTime, pctDone, count/(now-globalStartTime), sumLatencyMS/count, sumQueueTimeMS/count)
+          lastPrint = now
+
+        pause = r.expovariate(meanQPS)
+
+        if startTime is not None:
+          # Correct for any time taken in our "overhead" here...:
+          pause = startTime + pause - time.time()
+
+        if pause > 0:
+          #print 'sent %s; sleep %.3f sec' % (origTask, pause)
+          time.sleep(pause)
+
+        #origTask = task
+        startTime = time.time()
+        sent[taskID] = (startTime, task)
+        queue.put(task)
+  except KeyboardInterrupt:
+    # Ctrl-c to stop the test
+    print
+    print 'Ctrl+C: stopping now...'
+    print
+  
   print '%8.1f sec: Done sending tasks...' % (time.time()-globalStartTime)
   while len(sent) != 0:
     time.sleep(0.1)
@@ -195,7 +225,8 @@ logPoints = ((50, 2),
              (99.9, 1000),
              (99.99, 10000),
              (99.999, 100000),
-             (99.9999, 1000000))
+             (99.9999, 1000000),
+             (99.99999, 10000000))
 
 def printResults(results):
   for startTime, taskString, latencyMS, queueTimeMS in results:

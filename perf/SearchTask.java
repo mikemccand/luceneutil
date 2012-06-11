@@ -97,6 +97,8 @@ final class SearchTask extends Task {
     //System.out.println("go group=" + this.group + " single=" + singlePassGroup + " xxx=" + xxx + " this=" + this);
     final IndexSearcher searcher = state.mgr.acquire();
 
+    //System.out.println("GO query=" + q);
+
     try {
       if (doHilite) {
         fieldQuery = state.highlighter.getFieldQuery(q, searcher.getIndexReader());

@@ -153,8 +153,10 @@ class Competition(object):
     self._verifyScores = True
     self._onlyTaskPatterns = None
 
-  def onlyTaskPatterns(self, patterns):
-    self._onlyTaskPatterns = patterns
+  def addTaskPattern(self, pattern):
+    if self._onlyTaskPatterns is None:
+      self._onlyTaskPatterns = []
+    self._onlyTaskPatterns.append(pattern)
 
   def newIndex(self, checkout, data=WIKI_MEDIUM_10M):
     return IndexBuilder(checkout, self.ramBufferMB, data, self)

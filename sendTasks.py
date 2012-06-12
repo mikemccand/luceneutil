@@ -39,14 +39,17 @@ MAX_BYTES = 70
 # python -u perf/sendTasks.py /l/util/wikimedium500.tasks localhost 7777 10 10 10
 
 count = 0
+count2 = 0
 sumLatencyMS = 0
 sumQueueTimeMS = 0
 
 def gatherResponses(sent, s, results):
-  global count, sumLatencyMS, sumQueueTimeMS
+  global count, count2, sumLatencyMS, sumQueueTimeMS
   
   while True:
-    result = s.recv(14)
+    result = ''
+    while len(result) < 14:
+      result = result + s.recv(14 - len(result))
     taskID, queueTimeMS = result.split(':')
     taskID = int(taskID)
     queueTimeMS = float(queueTimeMS)
@@ -58,8 +61,9 @@ def gatherResponses(sent, s, results):
       continue
     del sent[taskID]
     latencyMS = (endTime-startTime)*1000
-    results.append((startTime-globalStartTime, taskString, latencyMS, queueTimeMS))
+    results.append((startTime-globalStartTime, taskString.strip(), latencyMS, queueTimeMS))
     count += 1
+    count2 += 1
     sumLatencyMS += latencyMS
     sumQueueTimeMS += queueTimeMS
     #print '  recv %s' % taskString
@@ -68,8 +72,11 @@ def sendRequests(queue, s):
   while True:
     task = queue.get()
     startTime = time.time()
-    if s.send(task) != len(task):
-      raise RuntimeError('failed to send all bytes')
+    while len(task) > 0:
+      sent = s.send(task)
+      if sent == 0:
+        raise RuntimeError('failed to send task "%s"' % task)
+      task = task[sent:]
     sendTime = time.time()
     #if sendTime - startTime > .001:
     #print 'WARNING: took %.1f msec to send request' % (1000*(sendTime - startTime))
@@ -93,26 +100,16 @@ def pruneTasks(taskStrings, numTasksPerCat):
 
   return prunedTasks
   
-def runTest():
+def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, savFile, out, handleCtrlC):
   global globalStartTime
-  
-  tasksFile = sys.argv[1]
-  serverHost = sys.argv[2]
-  serverPort = int(sys.argv[3])
-  meanQPS = float(sys.argv[4])
-  numTasksPerCat = int(sys.argv[5])
-  s = sys.argv[6]
-  byResponseTime = s.endswith('s')
-  if byResponseTime:
-    runTimeSec = int(s[:-1])
-    repeatCount = sys.maxint
-  else:
-    runTimeSec = 1000000000.0
-    repeatCount = int(s)
-    
-  savFile = sys.argv[7]
+  global count, count2, sumLatencyMS, sumQueueTimeMS
 
-  print 'Mean QPS %s' % meanQPS
+  count = 0
+  count2 = 0
+  sumLatencyMS = 0
+  sumQueueMS = 0
+  
+  out.write('Mean QPS %s\n' % meanQPS)
 
   f = open(tasksFile, 'rb')
   taskStrings = []
@@ -161,170 +158,100 @@ def runTest():
   r.shuffle(taskStrings)
 
   try:
-    for iter in xrange(repeatCount):
 
-      if time.time() - globalStartTime > runTimeSec:
-        break
+    taskID = 0
 
-      baseTaskID = iter * len(taskStrings)
+    done = False
+    
+    while not done:
 
-      for taskID, task in enumerate(taskStrings):
+      for task in taskStrings:
         #print task.strip()
         now = time.time()
-        taskID += baseTaskID
-        
+        if now - globalStartTime > runTimeSec:
+          done = True
+          break
+
         if now - lastPrint > 2.0 and count > 0:
-          if byResponseTime:
-            pctDone = 100.0*((time.time() - globalStartTime) / runTimeSec)
-            if pctDone > 100.0:
-              pctDone = 100.0
+          pctDone = 100.0*((time.time() - globalStartTime) / runTimeSec)
+          if pctDone > 100.0:
+            pctDone = 100.0
+
+          if count2 == 0:
+            s = 'n/a'
           else:
-            pctDone = 100.0*(1+taskID)/float(len(taskStrings))
-            
-          print '%.1f s: %5.1f%%: %.1f qps; %4.1f/%5.2f ms' % \
-                (now - globalStartTime, pctDone, count/(now-globalStartTime), sumLatencyMS/count, sumQueueTimeMS/count)
+            s = '%5.2f' % (sumQueueTimeMS/count2)
+
+          out.write('%.1f s: %5.1f%%: %.1f qps; %4.1f/%s ms\n' % \
+                    (now - globalStartTime, pctDone, count/(now-globalStartTime), sumLatencyMS/count, s))
+          out.flush()
+          sumQueueTimeMS = 0
+          count2 = 0
           lastPrint = now
 
         pause = r.expovariate(meanQPS)
 
         if startTime is not None:
           # Correct for any time taken in our "overhead" here...:
-          pause = startTime + pause - time.time()
+          pause = (startTime + pause) - time.time()
 
+        # nocommit print warning if there's a hiccup here:
+        
         if pause > 0:
           #print 'sent %s; sleep %.3f sec' % (origTask, pause)
           time.sleep(pause)
+        elif pause < -.001:
+          out.write('WARNING: hiccup %.1f msec\n' % (-1000*pause))
 
         #origTask = task
         startTime = time.time()
         sent[taskID] = (startTime, task)
         queue.put(task)
+        taskID += 1
+
   except KeyboardInterrupt:
+    if not handleCtrlC:
+      raise
     # Ctrl-c to stop the test
     print
     print 'Ctrl+C: stopping now...'
     print
   
-  print '%8.1f sec: Done sending tasks...' % (time.time()-globalStartTime)
-  while len(sent) != 0:
-    time.sleep(0.1)
-  print '%8.1f sec: Done...' % (time.time()-globalStartTime)
+  out.write('%8.1f sec: Done sending tasks...\n' % (time.time()-globalStartTime))
+  out.flush()
+  try:
+    while len(sent) != 0:
+      time.sleep(0.1)
+  except KeyboardInterrupt:
+    if not handleCtrlC:
+      raise
+    pass
 
+  out.write('%8.1f sec: Done...\n' % (time.time()-globalStartTime))
+  out.flush()
+
+  # Sort by query startTime:
   results.sort()
 
   open(savFile, 'wb').write(cPickle.dumps(results))
 
   # printResults(results)
 
-logPoints = ((50, 2),
-             (75, 4),
-             (90, 10),
-             (95, 20),
-             (97.5, 40),
-             (99, 100),
-             (99.9, 1000),
-             (99.99, 10000),
-             (99.999, 100000),
-             (99.9999, 1000000),
-             (99.99999, 10000000))
-
 def printResults(results):
   for startTime, taskString, latencyMS, queueTimeMS in results:
     print '%8.3f sec: latency %8.1f msec; queue msec %.1f; task %s' % (startTime, latencyMS, queueTimeMS, taskString)
 
-def setRowCol(rows, row, pct, col, val):
-  if len(rows) <= row:
-    assert len(rows) == row
-    rows.append(["'%g%%'" % pct])
-  assert len(rows[row]) == 1+col, '%s vs %s; row=%s' % (len(rows[row]), 1+col, row)
-  rows[row].append('%.1f' % val)
-  #print '  now %s; row=%s' % (len(rows[row]), row)
-  
-def createGraph(fileNames):
-  rows = []
-  names = []
-  col = 0
-  for name, file in fileNames.items():
-    results = cPickle.loads(open(file, 'rb').read())
-    print '%s has %d results' % (file, len(results))
-    # printResults(results)
-
-    responseTimes = [x[2] for x in results]
-    responseTimes.sort()
-
-    setRowCol(rows, 0, 0.0, col, responseTimes[0])
-    for row, (pct, minCount) in enumerate(logPoints):
-      if len(responseTimes) < minCount:
-        endRow = row+1
-        break
-      idx = int(((100.0-pct)/100.0)*len(responseTimes))
-      # TODO: should we take linear blend of the two points...?  Else
-      # we have a sparseness problem...
-      setRowCol(rows, 1+row, pct, col, responseTimes[-idx-1])
-      
-    setRowCol(rows, endRow, 100.0, col, responseTimes[-1])
-    col += 1
-    names.append(name)
-    
-  chart = []
-  w = chart.append
-  w(chartHeader)
-  l = ['Percentile'] + names
-  w("          [%s],\n" % (','.join("'%s'" % x for x in l)))
-  for row in rows:
-    w('          [%s],\n' % (','.join(row)))
-  w(chartFooter)
-  return ''.join(chart)
-  
-chartHeader = '''
-<html>
-  <head>
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    <script type="text/javascript">
-      google.load("visualization", "1", {packages:["corechart"]});
-      google.setOnLoadCallback(drawChart);
-      function drawChart() {
-        var data = google.visualization.arrayToDataTable([
-'''
-
-chartFooter = '''        ]);
-
-        var options = {
-          title: 'Query Time',
-          pointSize: 5,
-          //legend: {position: 'none'},
-          hAxis: {title: 'Percentile', format: '# %'},
-          vAxis: {title: 'Query time (msec)'},
-        };
-
-        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
-        chart.draw(data, options);
-      }
-    </script>
-  </head>
-  <body>
-    <div id="chart_div" style="width: 1000px; height: 500px;"></div>
-  </body>
-</html>
-'''
-
-# silly emacs: '
-
 if __name__ == '__main__':
-  runTest()
-  if True:
-    html = createGraph({
-      'Results': 'results.pk',
-      })
-  if False:
-    html = createGraph({
-      'Oops': 'oops.pk',
-      'No oops': 'nooops.pk',
-      })
-  if False:
-    html = createGraph({'100 QPS': 'results100qps.pk',
-                        '150 QPS': 'results150qps.pk'})
-    
+  tasksFile = sys.argv[1]
+  serverHost = sys.argv[2]
+  serverPort = int(sys.argv[3])
+  meanQPS = float(sys.argv[4])
+  numTasksPerCat = int(sys.argv[5])
+  runTimeSec = float(s[:-1])
+  savFile = sys.argv[7]
+  
+  run(tasksFile, sererHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, savFile, sys.stdout, True)
+  
   open('out.html', 'wb').write(html)
 
   

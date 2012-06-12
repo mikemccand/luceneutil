@@ -247,6 +247,10 @@ public class SearchPerfTest {
           public IndexSearcher newSearcher(IndexReader reader) {
             IndexSearcher s = new IndexSearcher(reader);
             s.setSimilarity(sim);
+            long size = 0;
+            for(AtomicReader sub : reader.getSequentialSubReaders()) {
+              size += ((SegmentReader) sub).getSegmentInfo().sizeInBytes();
+            }
             return s;
           }
         });
@@ -266,6 +270,9 @@ public class SearchPerfTest {
                 Thread.sleep(sleepMS);
                 mgr.maybeRefresh();
                 reopenCount++;
+                if (dir instanceof RAMDirectory) {
+                  System.out.println("index: " + ((RAMDirectory) dir).sizeInBytes() + " bytes");
+                }
               }
             } catch (Exception e) {
               throw new RuntimeException(e);

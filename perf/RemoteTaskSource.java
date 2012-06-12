@@ -66,7 +66,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
       Socket socket = null;
       InputStream in;
       try {
-        System.out.println("  accept...");
+        System.out.println("  ready for client...");
         socket = serverSocket.accept();
         in = socket.getInputStream();
         out = socket.getOutputStream();

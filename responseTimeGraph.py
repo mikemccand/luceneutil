@@ -92,7 +92,6 @@ def createGraph(fileNames, warmupSec):
   w("          [%s],\n" % (','.join("'%s'" % x for x in l)))
   rowID = 0
   while True:
-    print 'cycle rowId=%s' % rowID
     row = []
     for col in cols:
       if len(col) > rowID:
@@ -158,9 +157,8 @@ if __name__ == '__main__':
   fileNameOut = sys.argv[2]
 
   d = {}
-  for arg in sys.argv[3:]:
-    name, resultsFile = arg.split('//')
-    d[name] = resultsFile
+  for name in sys.argv[3:]:
+    d[name] = 'logs/%s/results.pk' % name
 
   html = createGraph(d, warmupSec)
   open(fileNameOut, 'wb').write(html)

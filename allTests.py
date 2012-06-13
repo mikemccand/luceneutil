@@ -22,8 +22,11 @@ import subprocess
 import sendTasks
 
 # TODO
-#   - make graph across load rates w/ curves @ percentiles
-#   - if log already exists (hmm, or "completed marker file") don't regen?
+#   - carry forward any warnings...
+#   - on bare metal
+#      - turn stored field, tvs back on
+
+# Indexing rate ~ 178 MB/minute @ 500 docs/sec; 71.2 MB/minute @ 200 docs/sec
 
 LOGS_DIR = 'logs'
 
@@ -31,20 +34,29 @@ RUN_TIME_SEC = 60
 
 WARMUP_SEC = 10
 
+#CLIENT_HOST = '10.17.4.10'
+#SERVER_HOST = '10.17.4.91'
+
+CLIENT_HOST = None
+SERVER_HOST = 'localhost'
+
 LUCENE_HOME = '/l/direct/lucene'
+
+REMOTE_CLIENT = 'sendTasks.py'
 
 SERVER_PORT = 7777
 
 #INDEX_PATH = '/l/scratch/indices/wikimedium2m.direct.Direct.opt.nd2M/index'
 INDEX_PATH = '/l/scratch/indices/wikimedium2m.direct.Lucene40.opt.nd2M/index'
 
+#DIR_IMPL = 'RAMDirectory'
 DIR_IMPL = 'MMapDirectory'
 
 SEARCH_THREAD_COUNT = 4
 
-MAX_HEAP_GB = 2
+MAX_HEAP_GB = 13
 
-DOCS_PER_SEC_PER_THREAD = 500.0
+DOCS_PER_SEC_PER_THREAD = 200.0
 
 LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
 
@@ -54,12 +66,27 @@ JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
 
 TASKS_FILE = 'hiliteterms500.tasks'
 
-for desc, javaOpts in (
-  ('G1', '-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC'),
-  ('CMS', '-XX:+UnlockExperimentalVMOptions -XX:+UseConcMarkSweepGC'),
-  ('Parallel', '')):
+for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 1000):
 
-  for targetQPS in (50, 100, 150, 200, 250, 300):
+  for desc, javaOpts in (
+    ('G1', '-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC'),
+    ('CMS', '-XX:+UnlockExperimentalVMOptions -XX:+UseConcMarkSweepGC'),
+    #('Parallel', ''),
+    ):
+
+    print
+    print '%s, QPS=%d' % (desc, targetQPS)
+
+    logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
+    doneFile = '%s/done' % logsDir
+
+    if os.path.exists(doneFile):
+      print '  skip: already done'
+      continue
+
+    if not os.path.exists(logsDir):
+      os.makedirs(logsDir)
+
     command = []
     w = command.append
     w('java')
@@ -73,7 +100,7 @@ for desc, javaOpts in (
     w('-dirImpl %s' % DIR_IMPL)
     w('-cloneDocs')
     w('-analyzer StandardAnalyzer')
-    w('-taskSource server:localhost:%s' % SERVER_PORT)
+    w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
     w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
     w('-field body')
     w('-similarity DefaultSimilarity')
@@ -85,52 +112,58 @@ for desc, javaOpts in (
     w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
     w('-lineDocsFile %s' % LINE_DOCS_FILE)
     w('-reopenEverySec 1.0')
-    w('-store')
-    w('-tvs')
+    #w('-store')
+    #w('-tvs')
     w('-postingsFormat %s' % POSTINGS_FORMAT)
     w('-idFieldPostingsFormat %s' % POSTINGS_FORMAT)
 
-    logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
-
-    if not os.path.exists(logsDir):
-      os.makedirs(logsDir)
-
     serverLog = '%s/server.log' % logsDir
+    if os.path.exists(serverLog):
+      os.remove(serverLog)
 
     command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
               (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
 
-    print
-    print '%s, QPS=%d' % (desc, targetQPS)
-
-    doneFile = '%s/done' % logsDir
-    if os.path.exists(doneFile):
-      print '  skip: already done'
-      continue
-
     try:
 
+      t0 = time.time()
       p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
       while True:
         try:
-          if open(serverLog).read().find('  ready for client...'):
+          if open(serverLog).read().find('  ready for client...') != -1:
             break
         except IOError:
           pass
-        time.sleep(1.0)
+        time.sleep(0.5)
+
+      print '  %.1f sec to start' % (time.time()-t0)
 
       time.sleep(2.0)
 
-      f = open('%s/client.log' % logsDir, 'wb')
-      sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.pk' % logsDir, f, False)
-      f.close()
+      if CLIENT_HOST is not None:
+        # Remote client:
+        command = 'python -u %s %s %s %s %.1f 1000 %.1f results.pk' % \
+                  (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, RUN_TIME_SEC)
+
+        if os.system('ssh %s %s > %s/client.log 2>&1' % (CLIENT_HOST, command, logsDir)):
+          raise RuntimeError('client failed; see %s/client.log' % logsDir)
+
+        if os.system('scp %s:results.pk %s > /dev/null 2>&1' % (CLIENT_HOST, logsDir)):
+          raise RuntimeError('scp results.pk failed')
+
+        if os.system('ssh %s rm -f results.pk' % CLIENT_HOST):
+          raise RuntimeError('rm results.pk failed')
+          
+      else:
+        f = open('%s/client.log' % logsDir, 'wb')
+        sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.pk' % logsDir, f, False)
+        f.close()
+
     finally:
-      print '  now find pid...'
       pid = int(os.popen('ps ww | grep SearchPerfTest | grep -v grep | grep -v /bin/sh').read().strip().split()[0])
-      print '  kill %s' % pid
+      print '  stop server'
       os.kill(pid, signal.SIGKILL)
-      print '  now poll'
       p.poll()
     print '  done'
     open(doneFile, 'wb').close()

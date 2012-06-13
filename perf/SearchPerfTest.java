@@ -120,19 +120,19 @@ public class SearchPerfTest {
     // eg java SearchPerfTest /path/to/index 4 100
     final Args args = new Args(clArgs);
 
-    Directory dir;
+    Directory dir0;
     final String dirPath = args.getString("-indexPath");
     final String dirImpl = args.getString("-dirImpl");
     if (dirImpl.equals("MMapDirectory")) {
-      dir = new MMapDirectory(new File(dirPath));
+      dir0 = new MMapDirectory(new File(dirPath));
     } else if (dirImpl.equals("NIOFSDirectory")) {
-      dir = new NIOFSDirectory(new File(dirPath));
+      dir0 = new NIOFSDirectory(new File(dirPath));
     } else if (dirImpl.equals("SimpleFSDirectory")) {
-      dir = new SimpleFSDirectory(new File(dirPath));
-     } else if (dirImpl.equals("RAMDirectory")) {
-       final long t0 = System.currentTimeMillis();
-       dir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
-       System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir).sizeInBytes());
+      dir0 = new SimpleFSDirectory(new File(dirPath));
+    } else if (dirImpl.equals("RAMDirectory")) {
+      final long t0 = System.currentTimeMillis();
+      dir0 = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
+      System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir0).sizeInBytes());
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
@@ -176,6 +176,7 @@ public class SearchPerfTest {
 
     final SearcherManager mgr;
     final IndexWriter writer;
+    final Directory dir;
 
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
@@ -214,8 +215,10 @@ public class SearchPerfTest {
 
       if (!dirImpl.equals("RAMDirectory")) {
         System.out.println("Wrap NRTCachingDirectory");
-        dir = new NRTCachingDirectory(dir, 20, 400.0);
+        dir0 = new NRTCachingDirectory(dir0, 20, 400.0);
       }
+
+      dir = dir0;
 
       final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
       // Make sure merges run @ higher prio than indexing:
@@ -247,10 +250,6 @@ public class SearchPerfTest {
           public IndexSearcher newSearcher(IndexReader reader) {
             IndexSearcher s = new IndexSearcher(reader);
             s.setSimilarity(sim);
-            long size = 0;
-            for(AtomicReader sub : reader.getSequentialSubReaders()) {
-              size += ((SegmentReader) sub).getSegmentInfo().sizeInBytes();
-            }
             return s;
           }
         });
@@ -284,6 +283,7 @@ public class SearchPerfTest {
       reopenThread.start();
 
     } else {
+      dir = dir0;
       writer = null;
       mgr = new SearcherManager(dir, new SearcherFactory() {
           @Override

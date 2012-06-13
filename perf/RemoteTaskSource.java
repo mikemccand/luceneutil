@@ -43,7 +43,6 @@ class RemoteTaskSource extends Thread implements TaskSource {
     this.numThreads = numThreads;
     this.taskParser = taskParser;
     serverSocket = new ServerSocket(port, 50, InetAddress.getByName(iface));
-    System.out.println("SOCK buf=" + serverSocket.getReceiveBufferSize());
     System.out.println("Waiting for client connection on interface " + iface + ", port " + port);
     setPriority(Thread.MAX_PRIORITY);
     setDaemon(true);

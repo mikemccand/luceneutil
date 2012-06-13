@@ -38,48 +38,97 @@ MAX_BYTES = 70
 
 # python -u perf/sendTasks.py /l/util/wikimedium500.tasks localhost 7777 10 10 10
 
-count = 0
-count2 = 0
-sumLatencyMS = 0
-sumQueueTimeMS = 0
+class RollingStats:
 
-def gatherResponses(sent, s, results):
-  global count, count2, sumLatencyMS, sumQueueTimeMS
-  
-  while True:
-    result = ''
-    while len(result) < 14:
-      result = result + s.recv(14 - len(result))
-    taskID, queueTimeMS = result.split(':')
-    taskID = int(taskID)
-    queueTimeMS = float(queueTimeMS)
-    endTime = time.time()
-    try:
-      startTime, taskString = sent[taskID]
-    except KeyError:
-      print 'WARNING: ignore bad return taskID=%s' % taskID
-      continue
-    del sent[taskID]
-    latencyMS = (endTime-startTime)*1000
-    results.append((startTime-globalStartTime, taskString.strip(), latencyMS, queueTimeMS))
-    count += 1
-    count2 += 1
-    sumLatencyMS += latencyMS
-    sumQueueTimeMS += queueTimeMS
-    #print '  recv %s' % taskString
+  def __init__(self, count):
+    self.buffer = [0] * count
+    self.sum = 0
+    self.upto = 0
 
-def sendRequests(queue, s):
-  while True:
-    task = queue.get()
-    startTime = time.time()
-    while len(task) > 0:
-      sent = s.send(task)
-      if sent == 0:
-        raise RuntimeError('failed to send task "%s"' % task)
-      task = task[sent:]
-    sendTime = time.time()
-    #if sendTime - startTime > .001:
-    #print 'WARNING: took %.1f msec to send request' % (1000*(sendTime - startTime))
+  def add(self, value):
+    idx = self.upto % len(self.buffer)
+    self.sum += value - self.buffer[idx]
+    self.buffer[idx] = value
+    self.upto += 1
+
+  def get(self):
+    if self.upto == 0:
+      return -1.0
+    elif self.upto < len(self.buffer):
+      return self.sum/self.upto
+    else:
+      return self.sum/len(self.buffer)
+    
+class SendTasks:
+
+  def __init__(self, serverHost, serverPort):
+    self.queueTimeStats = RollingStats(100)
+    self.totalTimeStats = RollingStats(100)
+    self.results = []
+    self.sent = {}
+    self.queue = Queue.Queue()
+
+    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    self.sock.connect((serverHost, serverPort))
+
+    t = threading.Thread(target=self.gatherResponses,
+                         args=())
+    t.setDaemon(True)
+    t.start()
+
+    t = threading.Thread(target=self.sendRequests,
+                         args=())
+    t.setDaemon(True)
+    t.start()
+
+    self.startTime = time.time()
+    self.taskID = 0
+
+  def send(self, startTime, task):
+    self.sent[self.taskID] = (startTime, task)
+    self.queue.put(task)
+    self.taskID += 1
+
+  def gatherResponses(self):
+
+    '''
+    Runs as dedicated thread gathering results coming from the server.
+    '''
+    
+    while True:
+      result = ''
+      while len(result) < 14:
+        result = result + self.sock.recv(14 - len(result))
+      taskID, queueTimeMS = result.split(':')
+      taskID = int(taskID)
+      queueTimeMS = float(queueTimeMS)
+      endTime = time.time()
+      try:
+        startTime, taskString = self.sent[taskID]
+      except KeyError:
+        print 'WARNING: ignore bad return taskID=%s' % taskID
+        continue
+      del self.sent[taskID]
+      latencyMS = (endTime-startTime)*1000
+      self.queueTimeStats.add(queueTimeMS)
+      self.totalTimeStats.add(latencyMS)
+      self.results.append((startTime-self.startTime, taskString.strip(), latencyMS, queueTimeMS))
+
+  def sendRequests(self):
+
+    '''
+    Runs as dedicated thread, sending requests from the queue to the
+    server.
+    '''
+
+    while True:
+      task = self.queue.get()
+      startTime = time.time()
+      while len(task) > 0:
+        sent = self.sock.send(task)
+        if sent == 0:
+          raise RuntimeError('failed to send task "%s"' % task)
+        task = task[sent:]
 
 def pruneTasks(taskStrings, numTasksPerCat):
   byCat = {}
@@ -101,13 +150,9 @@ def pruneTasks(taskStrings, numTasksPerCat):
   return prunedTasks
   
 def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, savFile, out, handleCtrlC):
-  global globalStartTime
-  global count, count2, sumLatencyMS, sumQueueTimeMS
 
-  count = 0
-  count2 = 0
-  sumLatencyMS = 0
-  sumQueueMS = 0
+  recentLatencyMS = 0
+  recentQueueTimeMS = 0
   
   out.write('Mean QPS %s\n' % meanQPS)
 
@@ -129,85 +174,63 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
     s = s + ((MAX_BYTES-len(s))*' ')
     taskStrings.append(s)
 
-  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  s.connect((serverHost, serverPort))
-
   r = random.Random(0)
   r.shuffle(taskStrings)
 
   taskStrings = pruneTasks(taskStrings, numTasksPerCat)
 
-  sent = {}
-  results = []
+  tasks = SendTasks(serverHost, serverPort)
 
-  t = threading.Thread(target=gatherResponses,
-                       args=(sent, s, results))
-  t.setDaemon(True)
-  t.start()
-
-  queue = Queue.Queue()
-  t = threading.Thread(target=sendRequests,
-                       args=(queue, s))
-  t.setDaemon(True)
-  t.start()
-
-  globalStartTime = time.time()
-  lastPrint = globalStartTime
+  targetTime = tasks.startTime
+  lastPrint = tasks.startTime
   startTime = None
   
-  r.shuffle(taskStrings)
-
   try:
 
-    taskID = 0
-
     done = False
+    warned = False
     
     while not done:
 
       for task in taskStrings:
-        #print task.strip()
+
         now = time.time()
-        if now - globalStartTime > runTimeSec:
+        if now - tasks.startTime > runTimeSec:
           done = True
           break
 
-        if now - lastPrint > 2.0 and count > 0:
-          pctDone = 100.0*((time.time() - globalStartTime) / runTimeSec)
+        if now - lastPrint > 2.0:
+          pctDone = 100.0*(now - tasks.startTime) / runTimeSec
           if pctDone > 100.0:
             pctDone = 100.0
-
-          if count2 == 0:
-            s = 'n/a'
-          else:
-            s = '%5.2f' % (sumQueueTimeMS/count2)
-
-          out.write('%.1f s: %5.1f%%: %.1f qps; %4.1f/%s ms\n' % \
-                    (now - globalStartTime, pctDone, count/(now-globalStartTime), sumLatencyMS/count, s))
+          out.write('%6.1f s: %5.1f%%: %5.1f qps; %6.1f/%6.1f ms [%d]\n' % \
+                    (now - tasks.startTime, pctDone,
+                     tasks.taskID/(now-tasks.startTime),
+                     tasks.totalTimeStats.get(),
+                     tasks.queueTimeStats.get(),
+                     len(tasks.sent)))
           out.flush()
-          sumQueueTimeMS = 0
-          count2 = 0
           lastPrint = now
 
-        pause = r.expovariate(meanQPS)
+        targetTime += r.expovariate(meanQPS)
 
-        if startTime is not None:
-          # Correct for any time taken in our "overhead" here...:
-          pause = (startTime + pause) - time.time()
+        pause = targetTime - time.time()
 
-        # nocommit print warning if there's a hiccup here:
-        
         if pause > 0:
           #print 'sent %s; sleep %.3f sec' % (origTask, pause)
           time.sleep(pause)
-        elif pause < -.001:
-          out.write('WARNING: hiccup %.1f msec\n' % (-1000*pause))
-
+          warned = False
+          startTime = time.time()
+        else:
+          # Pretend query was issued back when we wanted it to be;
+          # this way a system-wide hang is still "counted":
+          startTime = targetTime
+          if not warned and pause < -.005:
+            out.write('WARNING: hiccup %.1f msec\n' % (-1000*pause))
+            warned = True
+          
         #origTask = task
-        startTime = time.time()
-        sent[taskID] = (startTime, task)
-        queue.put(task)
-        taskID += 1
+        tasks.send(startTime, task)
 
   except KeyboardInterrupt:
     if not handleCtrlC:
@@ -217,23 +240,23 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
     print 'Ctrl+C: stopping now...'
     print
   
-  out.write('%8.1f sec: Done sending tasks...\n' % (time.time()-globalStartTime))
+  out.write('%8.1f sec: Done sending tasks...\n' % (time.time()-tasks.startTime))
   out.flush()
   try:
-    while len(sent) != 0:
+    while len(tasks.sent) != 0:
       time.sleep(0.1)
   except KeyboardInterrupt:
     if not handleCtrlC:
       raise
     pass
 
-  out.write('%8.1f sec: Done...\n' % (time.time()-globalStartTime))
+  out.write('%8.1f sec: Done...\n' % (time.time()-tasks.startTime))
   out.flush()
 
   # Sort by query startTime:
-  results.sort()
+  tasks.results.sort()
 
-  open(savFile, 'wb').write(cPickle.dumps(results))
+  open(savFile, 'wb').write(cPickle.dumps(tasks.results))
 
   # printResults(results)
 
@@ -247,11 +270,9 @@ if __name__ == '__main__':
   serverPort = int(sys.argv[3])
   meanQPS = float(sys.argv[4])
   numTasksPerCat = int(sys.argv[5])
-  runTimeSec = float(s[:-1])
+  runTimeSec = float(sys.argv[6])
   savFile = sys.argv[7]
   
-  run(tasksFile, sererHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, savFile, sys.stdout, True)
-  
-  open('out.html', 'wb').write(html)
+  run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, savFile, sys.stdout, True)
 
   

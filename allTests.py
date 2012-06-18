@@ -20,11 +20,10 @@ import signal
 import os
 import subprocess
 import sendTasks
+import datetime
 
 # TODO
-#   - carry forward any warnings...
-#   - on bare metal
-#      - turn stored field, tvs back on
+#   - check for excs in the logs
 
 # Indexing rate ~ 178 MB/minute @ 500 docs/sec; 71.2 MB/minute @ 200 docs/sec
 
@@ -56,7 +55,7 @@ SEARCH_THREAD_COUNT = 4
 
 MAX_HEAP_GB = 13
 
-DOCS_PER_SEC_PER_THREAD = 200.0
+DOCS_PER_SEC_PER_THREAD = 100.0
 
 LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
 
@@ -75,10 +74,12 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
     ):
 
     print
-    print '%s, QPS=%d' % (desc, targetQPS)
+    print '%s: %s, QPS=%d' % (datetime.datetime.now(), desc, targetQPS)
 
     logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
     doneFile = '%s/done' % logsDir
+
+    javaCommand = 'java'
 
     if os.path.exists(doneFile):
       print '  skip: already done'
@@ -91,7 +92,10 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
     w = command.append
     w('java')
     w(javaOpts)
-    w('-Xmx%dg' % MAX_HEAP_GB)
+    if desc.find('MMap') != -1:
+      w('-Xmx4g')
+    else:
+      w('-Xmx%dg' % MAX_HEAP_GB)
     w('-verbose:gc')
     w('-cp')
     w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
@@ -124,7 +128,17 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
     command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
               (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
 
+    # print command
+
+    p = None
+    
     try:
+
+      print '  clean index'
+      touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, INDEX_PATH)
+      #print '  run %s' % touchCmd
+      if os.system(touchCmd):
+        raise RuntimeError('OpenCloseIndexWriter failed')
 
       t0 = time.time()
       p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
@@ -161,10 +175,15 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
         f.close()
 
     finally:
-      pid = int(os.popen('ps ww | grep SearchPerfTest | grep -v grep | grep -v /bin/sh').read().strip().split()[0])
-      print '  stop server'
-      os.kill(pid, signal.SIGKILL)
-      p.poll()
+      if p is not None:
+        l = os.popen('ps ww | grep SearchPerfTest | grep -v grep | grep -v /bin/sh').read().strip().split()
+        if len(l) > 0:
+          pid = int(l[0])
+          print '  stop server'
+          os.kill(pid, signal.SIGKILL)
+        else:
+          print '  server not running'
+        p.poll()
     print '  done'
     open(doneFile, 'wb').close()
     

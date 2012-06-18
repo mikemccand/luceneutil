@@ -99,10 +99,9 @@ def printReproLines(logFileName):
 
 tup = os.path.split(os.getcwd())
 
-if tup[1] != 'lucene' and os.path.exists('lucene'):
-  os.chdir('lucene')
-
-sub = os.path.split(tup[0])[1]
+print 'TUP %s' % str(tup)
+sub = os.path.split(tup[0])[0]
+sub = os.path.split(sub)[1]
 
 if os.path.exists('/dev/shm'):
   logDirName = '/dev/shm/logs/%s' % sub

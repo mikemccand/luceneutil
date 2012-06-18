@@ -69,7 +69,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   if False:
     jvmCount = 3
     countPerCat = 5
-    repeatCount = 35
+    repeatCount = 5000
 
   if index:
     seen = set()

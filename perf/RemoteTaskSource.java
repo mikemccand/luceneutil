@@ -142,7 +142,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
       try {
         // NOTE: can cause NPE here (we are not sync'd)
         // but caller will print & ignore it...
-        out.write(String.format("%6d:%7.1f", task.taskID, queueTimeNS/1000000.0).getBytes("UTF-8"));
+        out.write(String.format("%8d:%7.1f", task.taskID, queueTimeNS/1000000.0).getBytes("UTF-8"));
       } catch (SocketException se) {
         System.out.println("Ignore SocketException: " + se);
         queue.clear();

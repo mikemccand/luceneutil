@@ -97,8 +97,8 @@ class SendTasks:
     
     while True:
       result = ''
-      while len(result) < 14:
-        result = result + self.sock.recv(14 - len(result))
+      while len(result) < 16:
+        result = result + self.sock.recv(16 - len(result))
       taskID, queueTimeMS = result.split(':')
       taskID = int(taskID)
       queueTimeMS = float(queueTimeMS)
@@ -203,11 +203,12 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
           pctDone = 100.0*(now - tasks.startTime) / runTimeSec
           if pctDone > 100.0:
             pctDone = 100.0
-          out.write('%6.1f s: %5.1f%%: %5.1f qps; %6.1f/%6.1f ms [%d]\n' % \
+          out.write('%6.1f s: %5.1f%%: %5.1f qps; %6.1f/%6.1f ms [%d, %d]\n' % \
                     (now - tasks.startTime, pctDone,
                      tasks.taskID/(now-tasks.startTime),
                      tasks.totalTimeStats.get(),
                      tasks.queueTimeStats.get(),
+                     tasks.queue.qsize(),
                      len(tasks.sent)))
           out.flush()
           lastPrint = now

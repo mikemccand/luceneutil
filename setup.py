@@ -22,9 +22,10 @@ import shutil
 
 BASE_URL = 'http://people.apache.org/~mikemccand'
 DATA_FILES = [
-              'enwiki-20100302-pages-articles-lines-1k.txt.bz2',
-              'wikimedium500.tasks'
-             ]
+  #'enwiki-20100302-pages-articles-lines-1k.txt.bz2',
+  'enwiki-20120502-lines-1k.txt.lzma',
+  'wikimedium500.tasks'
+  ]
 USAGE= """
 Usage: python setup.py [-download, [-prepareTrunk]]
 
@@ -82,7 +83,7 @@ def runSetup(download, prepare_trunk):
         print 'download ', url, ' - time might take a long time!'
         urllib.urlretrieve(url, filename=target_file)
         print 'downloading %s to  %s done ' % (url, target_file)
-      if target_file.endswith('bz2'):
+      if target_file.endswith('.bz2') or target.endswith('.lzma'):
         print 'NOTE: make sure you decompress %s' % (target_file)
   if prepare_trunk:
     trunk_dir = os.path.join(parent, 'trunk')

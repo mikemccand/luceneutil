@@ -99,7 +99,6 @@ def printReproLines(logFileName):
 
 tup = os.path.split(os.getcwd())
 
-print 'TUP %s' % str(tup)
 sub = os.path.split(tup[0])[0]
 sub = os.path.split(sub)[1]
 

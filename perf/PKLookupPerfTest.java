@@ -20,6 +20,7 @@ package perf;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -113,11 +114,11 @@ public class PKLookupPerfTest {
     final DirectoryReader r = DirectoryReader.open(dir);
     System.out.println("Reader=" + r);
 
-    final IndexReader[] subs = r.getSequentialSubReaders();
-    final DocsEnum[] docsEnums = new DocsEnum[subs.length];
-    final TermsEnum[] termsEnums = new TermsEnum[subs.length];
-    for(int subIdx=0;subIdx<subs.length;subIdx++) {
-      termsEnums[subIdx] = ((AtomicReader) subs[subIdx]).fields().terms("id").iterator(null);
+    final List<AtomicReaderContext> subs = r.getTopReaderContext().leaves();
+    final DocsEnum[] docsEnums = new DocsEnum[subs.size()];
+    final TermsEnum[] termsEnums = new TermsEnum[subs.size()];
+    for(int subIdx=0;subIdx<subs.size();subIdx++) {
+      termsEnums[subIdx] = subs.get(subIdx).reader().fields().terms("id").iterator(null);
     }
 
     final int maxDoc = r.maxDoc();
@@ -142,8 +143,8 @@ public class PKLookupPerfTest {
         //System.out.println("lookup " + lookup[iter].utf8ToString());
         int base = 0;
         int found = 0;
-        for(int subIdx=0;subIdx<subs.length;subIdx++) {
-          final IndexReader sub = subs[subIdx];
+        for(int subIdx=0;subIdx<subs.size();subIdx++) {
+          final IndexReader sub = subs.get(subIdx).reader();
           final TermsEnum termsEnum = termsEnums[subIdx];
           if (termsEnum.seekExact(lookup[iter], false)) { 
             if (DO_DOC_LOOKUP) {

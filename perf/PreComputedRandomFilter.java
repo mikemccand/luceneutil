@@ -39,10 +39,10 @@ final class PreComputedRandomFilter extends Filter {
     //System.out.println("FILT: pct=" + pctAcceptDocs);
     this.pct = pctAcceptDocs;
     pctAcceptDocs /= 100.0;
-    final IndexReader subReaders[] = reader.getSequentialSubReaders();
-    segmentBits = new FixedBitSet[subReaders.length];
-    for(int segID=0;segID<subReaders.length;segID++) {
-      final int maxDoc = subReaders[segID].maxDoc();
+    final List<AtomicReaderContext> subReaders = reader.getTopReaderContext().leaves();
+    segmentBits = new FixedBitSet[subReaders.size()];
+    for(int segID=0;segID<subReaders.size();segID++) {
+      final int maxDoc = subReaders.get(segID).reader().maxDoc();
       final FixedBitSet bits = segmentBits[segID] = new FixedBitSet(maxDoc);
       int count = 0;
       for(int docID=0;docID<maxDoc;docID++) {

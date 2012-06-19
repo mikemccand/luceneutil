@@ -21,7 +21,7 @@ from competition import WIKI_MEDIUM
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
 # Baseline here is ../trunk versus ../modified_trunk
 if __name__ == '__main__':
-  printIndexCharts = True # creates gnuplot graphs from you indexing throughput and stores them into /tmp
+  printIndexCharts = False # set to True to create gnuplot graphs from the indexing throughput and stores them into /tmp
   comp =  Competition(printCharts=printIndexCharts)
   index = comp.newIndex('trunk', WIKI_MEDIUM)
   # create a competitor named baseline with sources in the ../trunk folder

@@ -22,23 +22,22 @@ import shutil
 
 BASE_URL = 'http://people.apache.org/~mikemccand'
 DATA_FILES = [
-  #'enwiki-20100302-pages-articles-lines-1k.txt.bz2',
   'enwiki-20120502-lines-1k.txt.lzma',
   'wikimedium500.tasks'
   ]
 USAGE= """
-Usage: python setup.py [-download, [-prepareTrunk]]
+Usage: python setup.py [-download]
 
 Options:
   -download downloads a 5GB linedoc file 
-  -prepareTrunk checks out a lucene trunk into ../trunk
 
 """
 DEFAULT_LOCAL_CONST = """
 BASE_DIR = '%(base_dir)s'
 BENCH_BASE_DIR = '%(base_dir)s/%(cwd)s'
 """
-def runSetup(download, prepare_trunk):    
+
+def runSetup(download):
   cwd = os.getcwd()
   parent, base = os.path.split(cwd)
   data_dir = os.path.join(parent, 'data')
@@ -85,22 +84,6 @@ def runSetup(download, prepare_trunk):
         print 'downloading %s to  %s done ' % (url, target_file)
       if target_file.endswith('.bz2') or target.endswith('.lzma'):
         print 'NOTE: make sure you decompress %s' % (target_file)
-  if prepare_trunk:
-    trunk_dir = os.path.join(parent, 'trunk')
-    if os.path.exists(trunk_dir):
-      print 'trunk dir already exists %s' % (trunk_dir)
-    else:
-      print 'check out lucene trunk at %s' % (trunk_dir)
-      supported = False
-      try:
-        import pysvn
-        supported = True 
-      except ImportError:
-        print 'module pysvn not available can not prepare trunk - see http://pysvn.tigris.org/ for details'
-        print 'run svn command instead: svn checkout https://svn.apache.org/repos/asf/lucene/dev/trunk %s' % (trunk_dir)
-      if supported:
-        client = pysvn.Client()
-        client.checkout('https://svn.apache.org/repos/asf/lucene/dev/trunk', trunk_dir)
 
   print 'setup successful'
     
@@ -108,7 +91,6 @@ if __name__ == '__main__':
   if '-help' in sys.argv or '--help' in sys.argv:
     print USAGE
   else:
-    prepare_trunk = '-prepareTrunk' in sys.argv
     download = '-download' in sys.argv
-    runSetup(download, prepare_trunk)
+    runSetup(download)
 

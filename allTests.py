@@ -65,6 +65,15 @@ JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
 
 TASKS_FILE = 'hiliteterms500.tasks'
 
+def kill(name, p):
+  for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
+    l = l.strip().split()
+    pid = int(l[0])
+    print '  stop %s process %s' % (name, pid)
+    os.kill(pid, signal.SIGKILL)
+  if p is not None:
+    p.poll()
+        
 for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 1000):
 
   for desc, javaOpts in (
@@ -131,6 +140,7 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
     # print command
 
     p = None
+    vmstatProcess = None
     
     try:
 
@@ -141,6 +151,7 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
         raise RuntimeError('OpenCloseIndexWriter failed')
 
       t0 = time.time()
+      vmstatProcess = subprocess.Popen('vmstat 1 > %s/vmstat.log 2>&1' % logsDir, shell=True)
       p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
       while True:
@@ -175,15 +186,9 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
         f.close()
 
     finally:
-      if p is not None:
-        l = os.popen('ps ww | grep SearchPerfTest | grep -v grep | grep -v /bin/sh').read().strip().split()
-        if len(l) > 0:
-          pid = int(l[0])
-          print '  stop server'
-          os.kill(pid, signal.SIGKILL)
-        else:
-          print '  server not running'
-        p.poll()
+      kill('SearchPerfTest', p)
+      kill('vmstat', vmstatProcess)
+      
     print '  done'
     open(doneFile, 'wb').close()
     

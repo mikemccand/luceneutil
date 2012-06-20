@@ -140,7 +140,8 @@ class Remote(threading.Thread):
           else:
             msg(s)
             self.anyFails = True
-        self.stats.update(job, msec/1000.0)
+        if msec is not None:
+          self.stats.update(job, msec/1000.0)
         if VERBOSE:
           msg('%s: %d msec for %s' % (self.hostName, msec, job))
         else:

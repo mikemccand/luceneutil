@@ -100,8 +100,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
   if search:
     randomSeed = random.randint(-10000000, 1000000)
-    print 'FIXED STATIC SEED'
-    randomSeed = 17
+    #print 'FIXED STATIC SEED'
+    #randomSeed = 17
     results = {}
 
     if constants.JAVA_COMMAND.find(' -ea') != -1:

@@ -138,7 +138,7 @@ class Competitor(object):
 class Competition(object):
 
   def __init__(self, indexThreads=constants.INDEX_NUM_THREADS, searchThreads=constants.SEARCH_NUM_THREADS,
-    ramBufferMB=-1, cold=False, verbose=False, printCharts=False):
+               ramBufferMB=-1, cold=False, verbose=False, printCharts=False):
     self.indexThreads = indexThreads
     self.searchThreads = searchThreads
     self.ramBufferMB = ramBufferMB

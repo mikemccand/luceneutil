@@ -219,6 +219,7 @@ class Competition(object):
   def clearCompetitors(self):
     self.competitors = []
     return self 
+
   def clearIndices(self):
     self.indices = []
     return self

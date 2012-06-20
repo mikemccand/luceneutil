@@ -688,17 +688,12 @@ class RunAlgs:
   def compile(self, competitor):
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
-    print '  %s' % checkoutToPath(competitor.checkout)
-    os.chdir(checkoutToPath(competitor.checkout))
+    lucenePath = '%s/lucene' % checkoutToPath(competitor.checkout)
+    print '  %s' % lucenePath
+    os.chdir(lucenePath)
     try:
-      run('ant compile', 'compile.log')
-      os.chdir('lucene')
       run('ant compile-test', 'compile.log')
-      
       print '  %s' % path
-      os.chdir(path)
-      os.chdir('../..')
-      run('ant compile', 'compile.log')
       os.chdir(path)      
       if path.endswith('/'):
         path = path[:-1]

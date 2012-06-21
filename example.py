@@ -21,18 +21,20 @@ from competition import WIKI_MEDIUM
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
 # Baseline here is ../trunk versus ../modified_trunk
 if __name__ == '__main__':
-  printIndexCharts = False # set to True to create gnuplot graphs from the indexing throughput and stores them into /tmp
-  comp =  Competition(printCharts=printIndexCharts)
+  # debug=True uses a smaller number of documents and less iterations when searching
+  comp =  Competition(debug=True)
+
   index = comp.newIndex('trunk', WIKI_MEDIUM)
   # create a competitor named baseline with sources in the ../trunk folder
-  comp.competitor('baseline', 'trunk').withIndex(index)
-  comp.debug() # this uses a smaller number of documents and less iterations when searching
+  comp.competitor('baseline', 'trunk',
+                  index = index)
 
   # use the same index here
   # create a competitor named my_modified_version with sources in the ../patch folder
   # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
   # while the codec that is used for running this competitor is taken from this competitor.
-  comp.competitor('my_modified_version', 'patch')
+  comp.competitor('my_modified_version', 'patch',
+                  index = index)
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("trunk_vs_patch")

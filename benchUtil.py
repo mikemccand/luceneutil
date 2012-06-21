@@ -583,6 +583,10 @@ class RunAlgs:
       print '  %s: now update' % fullIndexPath
     else:
       print '  %s: now create' % fullIndexPath
+
+    s = checkoutToBenchPath(index.checkout)
+    print '    cd %s' % s
+    os.chdir(s)
     
     try:
 
@@ -591,14 +595,14 @@ class RunAlgs:
       w(index.javaCommand)
       w('-classpath "%s"' % self.classPathToString(self.getClassPath(index.checkout)))
       w('perf.Indexer')
-      w('-dirImpl %s' % index.dirImpl)
+      w('-dirImpl %s' % index.directory)
       w('-indexPath "%s"' % fullIndexPath)
       w('-analyzer %s' % index.analyzer)
       w('-lineDocsFile %s' % index.lineDocSource)
       w('-docCountLimit %s' % index.numDocs)
       w('-threadCount %s' % index.numThreads)
 
-      if index.doOptimize:
+      if index.optimize:
         w('-forceMerge')
 
       if index.verbose:
@@ -624,7 +628,7 @@ class RunAlgs:
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
-      if index.doGrouping:
+      if index.grouping:
         w('-grouping')
       
       if index.useCFS:
@@ -644,7 +648,15 @@ class RunAlgs:
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:
         chart = IndexChart.IndexChart(fullLogFile, index.getName())
-        chart.plot() 
+        chart.plot()
+
+      with open(fullLogFile, 'rb') as f:
+        while True:
+          l = f.readline()
+          if l == '':
+            break
+          if l.lower().find('exception in thread') != -1:
+            raise RuntimeError('unhandled exceptions in log "%s"' % fullLogFile)
 
     except:
       # if we hit any exception/problem building the index, remove the
@@ -780,7 +792,7 @@ class RunAlgs:
         print '    iter %s of %s' % (1+iter, jvmCount)
         randomSeed2 = rand.randint(-10000000, 1000000)
         command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s' % \
-            (c.javaCommand, cp, c.dirImpl, nameToIndexPath(c.index.getName()), c.analyzer, tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
+            (c.javaCommand, cp, c.directory, nameToIndexPath(c.index.getName()), c.analyzer, tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint)
         if filter is not None:
           command += ' %s %.2f' % filter
         if c.printHeap:

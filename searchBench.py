@@ -72,11 +72,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     repeatCount = 5000
 
   if index:
-    seen = set()
-    
-    for c in competitors:
-      if c.index not in seen:
-        seen.add(c.index)
+
     seen = set()
     indexSegCount = None
     indexCommit = None
@@ -122,7 +118,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         print '    tasks file: %s' % c.tasksFile
       
       t0 = time.time()
-      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.threads, countPerCat, coldRun, randomSeed, jvmCount, filter=None, taskPatterns=taskPatterns)
+      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.numThreads, countPerCat, coldRun, randomSeed, jvmCount, filter=None, taskPatterns=taskPatterns)
       print '    %.2f sec' % (time.time() - t0)
   else:
     results = {}

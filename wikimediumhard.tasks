@@ -1,0 +1,165 @@
+Term: the # freq=8159148
+Term: of # freq=8137814
+Term: in # freq=7260963
+Term: and # freq=7220310
+Term: a # freq=6547413
+Term: to # freq=6105155
+Term: for # freq=4382345
+Term: is # freq=4214104
+Term: on # freq=4057739
+TermBGroup1M: groupblock//the # freq=8159148
+TermBGroup1M: groupblock//of # freq=8137814
+TermBGroup1M: groupblock//in # freq=7260963
+TermBGroup1M: groupblock//and # freq=7220310
+TermBGroup1M: groupblock//a # freq=6547413
+TermBGroup1M: groupblock//to # freq=6105155
+TermBGroup1M: groupblock//for # freq=4382345
+TermBGroup1M: groupblock//is # freq=4214104
+TermBGroup1M: groupblock//on # freq=4057739
+TermBGroup1M1P: groupblock1pass//the # freq=8159148
+TermBGroup1M1P: groupblock1pass//of # freq=8137814
+TermBGroup1M1P: groupblock1pass//in # freq=7260963
+TermBGroup1M1P: groupblock1pass//and # freq=7220310
+TermBGroup1M1P: groupblock1pass//a # freq=6547413
+TermBGroup1M1P: groupblock1pass//to # freq=6105155
+TermBGroup1M1P: groupblock1pass//for # freq=4382345
+TermBGroup1M1P: groupblock1pass//is # freq=4214104
+TermBGroup1M1P: groupblock1pass//on # freq=4057739
+TermGroup1M: group1M//the # freq=8159148
+TermGroup1M: group1M//of # freq=8137814
+TermGroup1M: group1M//in # freq=7260963
+TermGroup1M: group1M//and # freq=7220310
+TermGroup1M: group1M//a # freq=6547413
+TermGroup1M: group1M//to # freq=6105155
+TermGroup1M: group1M//for # freq=4382345
+TermGroup1M: group1M//is # freq=4214104
+TermGroup1M: group1M//on # freq=4057739
+TermGroup1M: group1M//as # freq=3925681
+Prefix3: suc*
+Prefix3: peo*
+Prefix3: wor*
+Prefix3: yea*
+Prefix3: can*
+Prefix3: dur*
+Prefix3: mad*
+Prefix3: ref*
+Prefix3: lin*
+IntNRQ: nrq//timesecnum 6207 55832
+IntNRQ: nrq//timesecnum 53 85622
+IntNRQ: nrq//timesecnum 2669 66142
+IntNRQ: nrq//timesecnum 9936 85687
+IntNRQ: nrq//timesecnum 23189 61377
+IntNRQ: nrq//timesecnum 7624 69351
+IntNRQ: nrq//timesecnum 15733 85583
+IntNRQ: nrq//timesecnum 8791 69420
+IntNRQ: nrq//timesecnum 6125 46693
+IntNRQ: nrq//timesecnum 8006 80120
+AndHighHigh: +the +on # freq=8159148 freq=4057739
+AndHighHigh: +of +from # freq=8137814 freq=3214949
+AndHighHigh: +the +it # freq=8159148 freq=2756592
+AndHighHigh: +of +an # freq=8137814 freq=2663644
+AndHighHigh: +the +have # freq=8159148 freq=1325903
+AndHighHigh: +the +at # freq=8159148 freq=2834104
+AndHighHigh: +in +has # freq=7260963 freq=1543717
+AndHighHigh: +of +it # freq=8137814 freq=2756592
+AndHighHigh: +in +as # freq=7260963 freq=3925681
+AndHighHigh: +the +this # freq=8159148 freq=2339516
+AndHighMed: +the +various # freq=8159148 freq=224799
+AndHighMed: +the +william # freq=8159148 freq=273656
+AndHighMed: +the +academy # freq=8159148 freq=111593
+AndHighMed: +the +station # freq=8159148 freq=239572
+AndHighMed: +the +according # freq=8159148 freq=248767
+AndHighMed: +of +total # freq=8137814 freq=219015
+AndHighMed: +of +15 # freq=8137814 freq=582278
+AndHighMed: +of +group # freq=8137814 freq=426825
+AndHighMed: +a +take # freq=6547413 freq=229057
+AndHighMed: +a +august # freq=6547413 freq=490552
+OrHighHigh: of or # freq=8137814 freq=1890700
+OrHighHigh: of with # freq=8137814 freq=3690478
+OrHighHigh: of on # freq=8137814 freq=4057739
+OrHighHigh: of that # freq=8137814 freq=2939155
+OrHighHigh: the also # freq=8159148 freq=1974628
+OrHighHigh: the to # freq=8159148 freq=6105155
+OrHighHigh: the a # freq=8159148 freq=6547413
+OrHighHigh: the is # freq=8159148 freq=4214104
+OrHighHigh: a as # freq=6547413 freq=3925681
+OrHighHigh: a an # freq=6547413 freq=2663644
+OrHighMed: the being # freq=8159148 freq=590813
+OrHighMed: a she # freq=6547413 freq=430178
+OrHighMed: the population # freq=8159148 freq=367832
+OrHighMed: the water # freq=8159148 freq=204848
+OrHighMed: and 2003 # freq=7220310 freq=453057
+OrHighMed: and magazine # freq=7220310 freq=202371
+OrHighMed: an comments # freq=2663644 freq=215287
+OrHighMed: an non # freq=2663644 freq=367211
+OrHighMed: or although # freq=1890700 freq=341573
+OrHighMed: or line # freq=1890700 freq=366053
+Wildcard: th*e
+Wildcard: an*d
+Wildcard: fo*r
+Wildcard: wa*s
+Wildcard: wi*h
+Wildcard: ht*p
+Wildcard: re*f
+Wildcard: fr*m
+Wildcard: th*t
+Phrase: "of the" # freq=4925025
+SloppyPhrase: "in the"~4 # freq=3624270
+SpanNear: near//to the # freq=2056495
+Phrase: "on the" # freq=1693830
+SloppyPhrase: "and the"~4 # freq=1636131
+SpanNear: near//ref name # freq=1389017
+Phrase: "for the" # freq=1357294
+SloppyPhrase: "at the"~4 # freq=1196301
+SpanNear: near//is a # freq=1170838
+Phrase: "url http" # freq=1133272
+SloppyPhrase: "by the"~4 # freq=1114685
+SpanNear: near//from the # freq=1066289
+Phrase: "as a" # freq=1055953
+SloppyPhrase: "with the"~4 # freq=1042499
+SpanNear: near//as the # freq=929514
+Phrase: "united states" # freq=874757
+SloppyPhrase: "to be"~4 # freq=844060
+SpanNear: near//in a # freq=840639
+Phrase: "of a" # freq=801370
+SloppyPhrase: "ref cite"~4 # freq=777195
+SpanNear: near//it is # freq=769211
+Phrase: "ref http" # freq=751410
+SloppyPhrase: "cite web"~4 # freq=743161
+SpanNear: near//the first # freq=730447
+Phrase: "is the" # freq=663719
+SloppyPhrase: "external links"~4 # freq=644772
+SpanNear: near//the united # freq=638287
+Phrase: "it was" # freq=597450
+SloppyPhrase: "one of"~4 # freq=587897
+SpanNear: near//such as # freq=561741
+Respell: score14
+Fuzzy2: cheer~2
+Fuzzy1: sabre~1
+Respell: lungs
+Fuzzy2: côte~2
+Fuzzy1: bossa~1
+Respell: fonts
+Fuzzy2: gordo~2
+Fuzzy1: roses~1
+Respell: randi
+Fuzzy2: britt~2
+Fuzzy1: lapse~1
+Respell: foxes
+Fuzzy2: curses~2
+Fuzzy1: chron~1
+Respell: flaps
+Fuzzy2: anwar~2
+Fuzzy1: party3~1
+Respell: reims
+Fuzzy2: posten~2
+Fuzzy1: lajos~1
+Respell: mathew
+Fuzzy2: hires~2
+Fuzzy1: cheat~1
+Respell: tania
+Fuzzy2: lanier~2
+Fuzzy1: ringer~1
+Respell: spear
+Fuzzy2: reece~2
+Fuzzy1: planter~1

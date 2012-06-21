@@ -90,12 +90,12 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
 
     javaCommand = 'java'
 
+    if not os.path.exists(logsDir):
+      os.makedirs(logsDir)
+
     if os.path.exists(doneFile):
       print '  skip: already done'
       continue
-
-    if not os.path.exists(logsDir):
-      os.makedirs(logsDir)
 
     command = []
     w = command.append
@@ -117,7 +117,7 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
     w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
     w('-field body')
     w('-similarity DefaultSimilarity')
-    w('-commit single')
+    w('-commit multi')
     w('-seed 0')
     w('-staticSeed 0')
     w('-nrt')

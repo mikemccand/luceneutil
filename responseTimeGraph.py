@@ -17,6 +17,7 @@
 
 import cPickle
 import sys
+import re
 
 logPoints = ((50, 2),
              (75, 4),
@@ -45,7 +46,11 @@ def createGraph(fileNames, warmupSec):
   names = []
   maxRows = 0
 
-  for name, file in fileNames.items():
+  reQPS = re.compile(r'\.qps(\d+)$')
+
+  qps = int(reQPS.search(fileNames[0][0]).group(1))
+
+  for name, file in fileNames:
     results = cPickle.loads(open(file, 'rb').read())
 
     # Discard first warmupSec seconds:
@@ -82,14 +87,21 @@ def createGraph(fileNames, warmupSec):
     print col
 
     maxRows = max(maxRows, len(col))
-      
+
+    i = name.find('.qps')
+    if i != -1:
+      name = name[:i]
     names.append(name)
     
   chart = []
   w = chart.append
   w(chartHeader)
+  cleanName = {'OracleCMS': 'CMS',
+               'OracleCMSMMap': 'CMS + MMap',
+               'OracleCMSMMapDir': 'CMS + MMap'}
+
   l = ['Percentile'] + names
-  w("          [%s],\n" % (','.join("'%s'" % x for x in l)))
+  w("          [%s],\n" % (','.join("'%s'" % cleanName.get(x, x) for x in l)))
   rowID = 0
   while True:
     row = []
@@ -114,7 +126,8 @@ def createGraph(fileNames, warmupSec):
       break
 
         
-  w(chartFooter)
+  w(chartFooter.replace('$QPS$', str(qps)))
+  
   return ''.join(chart)
   
 chartHeader = '''
@@ -131,7 +144,7 @@ chartHeader = '''
 chartFooter = '''        ]);
 
         var options = {
-          title: 'Query Time',
+          title: 'Query Time @ $QPS$ qps',
           pointSize: 5,
           //legend: {position: 'none'},
           hAxis: {title: 'Percentile', format: '# %'},
@@ -156,9 +169,9 @@ if __name__ == '__main__':
   warmupSec = float(sys.argv[1])
   fileNameOut = sys.argv[2]
 
-  d = {}
+  d = []
   for name in sys.argv[3:]:
-    d[name] = 'logs/%s/results.pk' % name
+    d.append((name, 'logs.sweep.06202012/%s/results.pk' % name))
 
   html = createGraph(d, warmupSec)
   open(fileNameOut, 'wb').write(html)

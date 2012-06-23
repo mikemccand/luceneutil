@@ -316,6 +316,7 @@ def gatherTests(stats, rootDir):
   if doSolr:
     addJARs(cp, 'solr/lib')
     addJARs(cp, 'solr/example/lib')
+    addJARs(cp, 'solr/example/example-DIH/solr/db/lib')
     addCP('solr/build/solr-core/classes/java')
     addCP('solr/build/solr-core/classes/test')
     addCP('solr/build/solr-core/test-files')

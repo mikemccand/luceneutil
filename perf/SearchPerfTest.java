@@ -93,6 +93,29 @@ import org.apache.lucene.util.*;
 //   java -cp .:build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf.SearchPerfTest MMapDirectory /indices/fullwiki StandardAnalyzer server:localhost:7777 6 1 body -1 no 0 0 DefaultSimilarity multi
 
 public class SearchPerfTest {
+
+  // ReferenceManager that never changes its searcher:
+  private static class SingleIndexSearcher extends ReferenceManager<IndexSearcher> {
+
+    public SingleIndexSearcher(IndexSearcher s) {
+      this.current = s;
+    }
+
+    @Override
+    public void decRef(IndexSearcher ref) throws IOException {
+      ref.getIndexReader().decRef();
+    }
+
+    @Override
+    protected IndexSearcher refreshIfNeeded(IndexSearcher ref) {
+      return null;
+    }
+
+    @Override
+    protected boolean tryIncRef(IndexSearcher ref) {
+      return ref.getIndexReader().tryIncRef();
+    }
+  }
   
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
     List<IndexCommit> commits = DirectoryReader.listCommits(dir);
@@ -114,7 +137,7 @@ public class SearchPerfTest {
 
   public static void main(String[] clArgs) throws Exception {
 
-     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
+    System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
  
     // args: dirImpl indexPath numThread numIterPerThread
     // eg java SearchPerfTest /path/to/index 4 100
@@ -174,9 +197,23 @@ public class SearchPerfTest {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 
 
-    final SearcherManager mgr;
+    final ReferenceManager<IndexSearcher> mgr;
     final IndexWriter writer;
     final Directory dir;
+
+    // nocommit hmm can't pass IndexCommit to SearcherManager!
+    final String commit = args.getString("-commit");
+
+    /*
+    if (commit != null && commit.length() > 0) {
+      reader = DirectoryReader.open(findCommitPoint(commit, dir));
+    } else {
+      // open last commit
+      reader = DirectoryReader.open(dir);
+    }
+    final IndexSearcher searcher = new IndexSearcher(reader);
+    searcher.setSimilarity(sim);
+      */
 
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
@@ -198,9 +235,22 @@ public class SearchPerfTest {
         InfoStream.setDefault(new PrintStreamInfoStream(System.out));
       }
       
+      if (!dirImpl.equals("RAMDirectory")) {
+        System.out.println("Wrap NRTCachingDirectory");
+        dir0 = new NRTCachingDirectory(dir0, 20, 400.0);
+      }
+
+      dir = dir0;
+
       final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
       iwc.setRAMBufferSizeMB(256.0);
+      iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+
+      if (commit != null && commit.length() > 0) {
+        System.out.println("Opening writer on commit=" + commit);
+        iwc.setIndexCommit(findCommitPoint(commit, dir));
+      }
 
       ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(useCFS);
 
@@ -212,13 +262,6 @@ public class SearchPerfTest {
           }
         };
       iwc.setCodec(codec);
-
-      if (!dirImpl.equals("RAMDirectory")) {
-        System.out.println("Wrap NRTCachingDirectory");
-        dir0 = new NRTCachingDirectory(dir0, 20, 400.0);
-      }
-
-      dir = dir0;
 
       final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
       // Make sure merges run @ higher prio than indexing:
@@ -285,29 +328,19 @@ public class SearchPerfTest {
     } else {
       dir = dir0;
       writer = null;
-      mgr = new SearcherManager(dir, new SearcherFactory() {
-          @Override
-          public IndexSearcher newSearcher(IndexReader reader) {
-            IndexSearcher s = new IndexSearcher(reader);
-            s.setSimilarity(sim);
-            return s;
-          }
-        });
+      final DirectoryReader reader;
+      if (commit != null && commit.length() > 0) {
+        System.out.println("Opening searcher on commit=" + commit);
+        reader = DirectoryReader.open(findCommitPoint(commit, dir));
+      } else {
+        // open last commit
+        reader = DirectoryReader.open(dir);
+      }
+      IndexSearcher s = new IndexSearcher(reader);
+      s.setSimilarity(sim);
+      
+      mgr = new SingleIndexSearcher(s);
     }
-
-    // nocommit hmm can't pass IndexCommit to SearcherManager!
-    final String commit = args.getString("-commit");
-
-    /*
-    if (commit != null && commit.length() > 0) {
-      reader = DirectoryReader.open(findCommitPoint(commit, dir));
-    } else {
-      // open last commit
-      reader = DirectoryReader.open(dir);
-    }
-    final IndexSearcher searcher = new IndexSearcher(reader);
-    searcher.setSimilarity(sim);
-      */
 
     //System.out.println("searcher=" + searcher);
 
@@ -395,10 +428,14 @@ public class SearchPerfTest {
       allTasks.clear();
     }
 
+    mgr.close();
+
     if (writer != null) {
       // Don't actually commit any index changes:
       writer.rollback();
     }
+
+    dir.close();
 
     if (printHeap) {
 
@@ -416,9 +453,6 @@ public class SearchPerfTest {
       }
       System.out.println("\nHEAP: " + usedMemory(runtime));
     }
-
-    mgr.close();
-    dir.close();
   }
 
   private static long usedMemory(Runtime runtime) {

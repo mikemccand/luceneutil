@@ -29,6 +29,7 @@ import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.QueryWrapperFilter;
+import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.spell.DirectSpellChecker;
@@ -36,14 +37,14 @@ import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.BytesRef;
 
 class IndexState {
-  public final SearcherManager mgr;
+  public final ReferenceManager<IndexSearcher> mgr;
   public final DirectSpellChecker spellChecker;
   public final Filter groupEndFilter;
   public final FastVectorHighlighter highlighter;
   public final String textFieldName;
   public int[] docIDToID;
 
-  public IndexState(SearcherManager mgr, String textFieldName, DirectSpellChecker spellChecker) throws IOException {
+  public IndexState(ReferenceManager<IndexSearcher> mgr, String textFieldName, DirectSpellChecker spellChecker) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;

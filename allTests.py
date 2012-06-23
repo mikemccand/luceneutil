@@ -106,6 +106,7 @@ for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 100
     else:
       w('-Xmx%dg' % MAX_HEAP_GB)
     w('-verbose:gc')
+    w('-XX:+PrintGCDetails')
     w('-cp')
     w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
     w('perf.SearchPerfTest')

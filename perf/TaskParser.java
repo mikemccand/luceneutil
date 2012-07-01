@@ -24,14 +24,17 @@ import java.util.regex.Pattern;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
-import org.apache.lucene.search.Sort;
 
 class TaskParser {
   private final QueryParser queryParser;
@@ -142,7 +145,7 @@ class TaskParser {
         group = null;
       } else if (text.startsWith("titledvsort//")) {
         sort = titleDVSort;
-        query = queryParser.parse(text.substring(11, text.length()));
+        query = queryParser.parse(text.substring(13, text.length()));
         group = null;
       } else if (text.startsWith("group100//")) {
         group = "group100";
@@ -177,6 +180,14 @@ class TaskParser {
       if (query.toString().equals("")) {
         throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
       }
+
+      /*
+      if (category.startsWith("Or")) {
+        for(BooleanClause clause : ((BooleanQuery) query).clauses()) {
+          ((TermQuery) clause.getQuery()).setNoSkip();
+        }
+      }
+      */
 
       task = new SearchTask(category, query, sort, group, filter, 10, doHilite);
     }

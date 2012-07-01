@@ -19,10 +19,12 @@ package perf;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
 import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
@@ -44,12 +46,14 @@ final class PKLookupTask extends Task {
     ids = other.ids;
     ord = other.ord;
     answers = new int[ids.length];
+    Arrays.fill(answers, -1);
   }
 
   public PKLookupTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
     this.ord = ord;
     ids = new BytesRef[count];
     answers = new int[count];
+    Arrays.fill(answers, -1);
     int idx = 0;
     while(idx < count) {
       final BytesRef id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
@@ -79,28 +83,33 @@ final class PKLookupTask extends Task {
     final IndexSearcher searcher = state.mgr.acquire();
     try {
       final boolean DO_DOC_LOOKUP = true;
-      int base = 0;
-      for (IndexReader sub : ((DirectoryReader) searcher.getIndexReader()).getSequentialSubReaders()) {
-        final TermsEnum termsEnum = ((AtomicReader) sub).fields().terms("id").iterator(null);
+      final List<AtomicReaderContext> subReaders = searcher.getIndexReader().getTopReaderContext().leaves();
+      final TermsEnum[] termsEnums = new TermsEnum[subReaders.size()];
+      final DocsEnum[] docsEnums = new DocsEnum[subReaders.size()];
+      for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
+        termsEnums[subIDX] = subReaders.get(subIDX).reader().fields().terms("id").iterator(null);
+      }
 
-        DocsEnum docs = null;
-        //System.out.println("\nTASK: sub=" + sub);
-        for(int idx=0;idx<ids.length;idx++) {
+      for(int idx=0;idx<ids.length;idx++) {
+        int base = 0;
+        final BytesRef id = ids[idx];
+        for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
+          final AtomicReader sub = subReaders.get(subIDX).reader();
+          final TermsEnum termsEnum = termsEnums[subIDX];
+          //System.out.println("\nTASK: sub=" + sub);
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
-          if (termsEnum.seekExact(ids[idx], false)) { 
+          if (termsEnum.seekExact(id, false)) { 
             //System.out.println("  found!");
-            docs = termsEnum.docs(null, docs, false);
+            final DocsEnum docs = docsEnums[subIDX] = termsEnum.docs(sub.getLiveDocs(), docsEnums[subIDX], false);
             assert docs != null;
             final int docID = docs.nextDoc();
-            if (docID == DocsEnum.NO_MORE_DOCS) {
-              answers[idx] = -1;
-            } else {
+            if (docID != DocsEnum.NO_MORE_DOCS) {
               answers[idx] = base + docID;
-              //System.out.println("  docID=" + docID);
+              break;
             }
           }
+          base += sub.maxDoc();
         }
-        base += sub.maxDoc();
       }
     } finally {
       state.mgr.release(searcher);
@@ -123,7 +132,7 @@ final class PKLookupTask extends Task {
   public void printResults(IndexState state) throws IOException {
     for(int idx=0;idx<ids.length;idx++) {
 
-      if (answers[idx] == DocsEnum.NO_MORE_DOCS) {
+      if (answers[idx] == -1) {
         throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
       }
 

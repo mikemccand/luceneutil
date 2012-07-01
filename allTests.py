@@ -15,7 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+import shutil
 import time
+import sys
 import signal
 import os
 import subprocess
@@ -65,6 +68,41 @@ JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
 
 TASKS_FILE = 'hiliteterms500.tasks'
 
+reSVNRev = re.compile(r'revision (.*?)\.')
+
+class Tee(object):
+  def __init__(self, file, att):
+    self.file = file
+    self.att = att
+    self.orig = getattr(sys, att)
+    setattr(sys, att, self)
+
+  def __del__(self):
+    setattr(sys, self.att, self.orig)
+
+  def write(self, data):
+    self.file.write(data)
+    self.file.flush()
+    self.orig.write(data)
+
+def captureEnv(logsDir):
+  svnRev = os.popen('svnversion %s' % LUCENE_HOME).read().strip()
+  print 'Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME)
+  if svnRev.endswith('M'):
+    if os.system('svn diff %s > %s/lucene.diffs' % (LUCENE_HOME, logsDir)):
+      raise RuntimeError('svn diff failed')
+
+  luceneUtilDir = os.path.abspath(os.path.split(sys.argv[0])[0])
+
+  luceneUtilRev = os.popen('hg id %s' % luceneUtilDir).read().strip()  
+  print 'Luceneutil hg rev is %s (%s)' % (luceneUtilRev, luceneUtilDir)
+  if luceneUtilRev.find('+') != -1:
+    if os.system('hg diff %s > %s/luceneutil.diffs' % (luceneUtilDir, logsDir)):
+      raise RuntimeError('hg diff failed')
+
+  shutil.copy('%s/allTests.py' % luceneUtilDir,
+              '%s/allTests.py' % logsDir)
+              
 def kill(name, p):
   for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
     l = l.strip().split()
@@ -74,122 +112,144 @@ def kill(name, p):
   if p is not None:
     p.poll()
         
-for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 1000):
+def run():
 
-  for desc, javaOpts in (
-    ('G1', '-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC'),
-    ('CMS', '-XX:+UnlockExperimentalVMOptions -XX:+UseConcMarkSweepGC'),
-    #('Parallel', ''),
-    ):
+  captureEnv(LOGS_DIR)
 
-    print
-    print '%s: %s, QPS=%d' % (datetime.datetime.now(), desc, targetQPS)
+  for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 1000):
 
-    logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
-    doneFile = '%s/done' % logsDir
+    for desc, javaOpts in (
+      ('G1', '-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC'),
+      ('CMS', '-XX:+UnlockExperimentalVMOptions -XX:+UseConcMarkSweepGC'),
+      #('Parallel', ''),
+      ):
 
-    javaCommand = 'java'
+      print
+      print '%s: %s, QPS=%d' % (datetime.datetime.now(), desc, targetQPS)
 
-    if not os.path.exists(logsDir):
+      logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
+      doneFile = '%s/done' % logsDir
+
+      javaCommand = 'java'
+
       os.makedirs(logsDir)
 
-    if os.path.exists(doneFile):
-      print '  skip: already done'
-      continue
-
-    command = []
-    w = command.append
-    w('java')
-    w(javaOpts)
-    if desc.find('MMap') != -1:
-      w('-Xmx4g')
-    else:
-      w('-Xmx%dg' % MAX_HEAP_GB)
-    w('-verbose:gc')
-    w('-XX:+PrintGCDetails')
-    w('-cp')
-    w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
-    w('perf.SearchPerfTest')
-    w('-indexPath %s' % INDEX_PATH)
-    w('-dirImpl %s' % DIR_IMPL)
-    w('-cloneDocs')
-    w('-analyzer StandardAnalyzer')
-    w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
-    w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
-    w('-field body')
-    w('-similarity DefaultSimilarity')
-    w('-commit multi')
-    w('-seed 0')
-    w('-staticSeed 0')
-    w('-nrt')
-    w('-indexThreadCount 1')
-    w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
-    w('-lineDocsFile %s' % LINE_DOCS_FILE)
-    w('-reopenEverySec 1.0')
-    #w('-store')
-    #w('-tvs')
-    w('-postingsFormat %s' % POSTINGS_FORMAT)
-    w('-idFieldPostingsFormat %s' % POSTINGS_FORMAT)
-
-    serverLog = '%s/server.log' % logsDir
-    if os.path.exists(serverLog):
-      os.remove(serverLog)
-
-    command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
-              (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
-
-    # print command
-
-    p = None
-    vmstatProcess = None
-    
-    try:
-
-      print '  clean index'
-      touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, INDEX_PATH)
-      #print '  run %s' % touchCmd
-      if os.system(touchCmd):
-        raise RuntimeError('OpenCloseIndexWriter failed')
-
-      t0 = time.time()
-      vmstatProcess = subprocess.Popen('vmstat 1 > %s/vmstat.log 2>&1' % logsDir, shell=True)
-      p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-
-      while True:
-        try:
-          if open(serverLog).read().find('  ready for client...') != -1:
-            break
-        except IOError:
-          pass
-        time.sleep(0.5)
-
-      print '  %.1f sec to start' % (time.time()-t0)
-
-      time.sleep(2.0)
-
-      if CLIENT_HOST is not None:
-        # Remote client:
-        command = 'python -u %s %s %s %s %.1f 1000 %.1f results.pk' % \
-                  (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, RUN_TIME_SEC)
-
-        if os.system('ssh %s %s > %s/client.log 2>&1' % (CLIENT_HOST, command, logsDir)):
-          raise RuntimeError('client failed; see %s/client.log' % logsDir)
-
-        if os.system('scp %s:results.pk %s > /dev/null 2>&1' % (CLIENT_HOST, logsDir)):
-          raise RuntimeError('scp results.pk failed')
-
-        if os.system('ssh %s rm -f results.pk' % CLIENT_HOST):
-          raise RuntimeError('rm results.pk failed')
-          
+      command = []
+      w = command.append
+      w('java')
+      w(javaOpts)
+      if desc.find('MMap') != -1:
+        w('-Xmx4g')
       else:
-        f = open('%s/client.log' % logsDir, 'wb')
-        sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.pk' % logsDir, f, False)
-        f.close()
+        w('-Xmx%dg' % MAX_HEAP_GB)
+      w('-verbose:gc')
+      w('-XX:+PrintGCDetails')
+      w('-cp')
+      w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
+      w('perf.SearchPerfTest')
+      w('-indexPath %s' % INDEX_PATH)
+      w('-dirImpl %s' % DIR_IMPL)
+      w('-cloneDocs')
+      w('-analyzer StandardAnalyzer')
+      w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
+      w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
+      w('-field body')
+      w('-similarity DefaultSimilarity')
+      w('-commit single')
+      w('-seed 0')
+      w('-staticSeed 0')
+      w('-nrt')
+      w('-indexThreadCount 1')
+      w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
+      w('-lineDocsFile %s' % LINE_DOCS_FILE)
+      w('-reopenEverySec 1.0')
+      #w('-store')
+      #w('-tvs')
+      w('-postingsFormat %s' % POSTINGS_FORMAT)
+      w('-idFieldPostingsFormat %s' % POSTINGS_FORMAT)
 
-    finally:
-      kill('SearchPerfTest', p)
-      kill('vmstat', vmstatProcess)
-      
-    print '  done'
-    open(doneFile, 'wb').close()
-    
+      serverLog = '%s/server.log' % logsDir
+      if os.path.exists(serverLog):
+        os.remove(serverLog)
+
+      command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
+                (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
+
+      # print command
+
+      p = None
+      vmstatProcess = None
+
+      try:
+
+        print '  clean index'
+        touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, INDEX_PATH)
+        #print '  run %s' % touchCmd
+        if os.system(touchCmd):
+          raise RuntimeError('OpenCloseIndexWriter failed')
+
+        t0 = time.time()
+        vmstatProcess = subprocess.Popen('vmstat 1 > %s/vmstat.log 2>&1' % logsDir, shell=True)
+        #print '  run %s' % command
+        p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+
+        pc = 0
+        while True:
+          try:
+            if open(serverLog).read().find('  ready for client...') != -1:
+              break
+          except IOError:
+            pass
+          time.sleep(0.5)
+          pc += 1
+          if pc == 4:
+            print '  wait for server startup...'
+            pc = 0
+
+        print '  %.1f sec to start' % (time.time()-t0)
+
+        time.sleep(2.0)
+
+        if CLIENT_HOST is not None:
+          # Remote client:
+          command = 'python -u %s %s %s %s %.1f 1000 %.1f results.pk' % \
+                    (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, RUN_TIME_SEC)
+
+          if os.system('ssh %s %s > %s/client.log 2>&1' % (CLIENT_HOST, command, logsDir)):
+            raise RuntimeError('client failed; see %s/client.log' % logsDir)
+
+          if os.system('scp %s:results.pk %s > /dev/null 2>&1' % (CLIENT_HOST, logsDir)):
+            raise RuntimeError('scp results.pk failed')
+
+          if os.system('ssh %s rm -f results.pk' % CLIENT_HOST):
+            raise RuntimeError('rm results.pk failed')
+
+        else:
+          f = open('%s/client.log' % logsDir, 'wb')
+          sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.pk' % logsDir, f, False)
+          f.close()
+
+      finally:
+        kill('SearchPerfTest', p)
+        kill('vmstat', vmstatProcess)
+
+      print '  done'
+      open(doneFile, 'wb').close()
+
+def main():
+  if os.path.exists(LOGS_DIR):
+    raise RuntimeError('please move last logs dir away')
+
+  os.makedirs(LOGS_DIR)
+
+  logOut = open('%s/log.txt' % LOGS_DIR, 'wb')
+  Tee(logOut, 'stdout')
+  Tee(logOut, 'stderr')
+
+  try:
+    run()
+  finally:
+    logOut.close()
+
+if __name__ == '__main__':
+  main()

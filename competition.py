@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import glob
 import searchBench
 import benchUtil
 import constants
@@ -140,7 +141,13 @@ class Competitor(object):
     self.printHeap = printHeap
 
   def compile(self, cp):
-    benchUtil.run('javac -classpath "%s" perf/*.java >> compile.log 2>&1' % cp, 'compile.log')
+    files = glob.glob('perf/*.java')
+    for skip in ('PKLookupPerfTest', 'PKLookupUpdatePerfTest'):
+      try:
+        files.remove('perf%s.java' % skip)
+      except ValueError:
+        pass
+    benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):
 

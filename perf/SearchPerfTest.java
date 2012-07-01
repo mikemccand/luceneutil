@@ -201,19 +201,7 @@ public class SearchPerfTest {
     final IndexWriter writer;
     final Directory dir;
 
-    // nocommit hmm can't pass IndexCommit to SearcherManager!
     final String commit = args.getString("-commit");
-
-    /*
-    if (commit != null && commit.length() > 0) {
-      reader = DirectoryReader.open(findCommitPoint(commit, dir));
-    } else {
-      // open last commit
-      reader = DirectoryReader.open(dir);
-    }
-    final IndexSearcher searcher = new IndexSearcher(reader);
-    searcher.setSimilarity(sim);
-      */
 
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer

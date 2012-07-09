@@ -144,7 +144,7 @@ class Competitor(object):
     files = glob.glob('perf/*.java')
     for skip in ('PKLookupPerfTest', 'PKLookupUpdatePerfTest'):
       try:
-        files.remove('perf%s.java' % skip)
+        files.remove('perf/%s.java' % skip)
       except ValueError:
         pass
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')

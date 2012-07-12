@@ -15,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO AMD
+#   - where to publish
+#   - outgoing smtp
+
 import cPickle
 import traceback
 import time
@@ -28,7 +32,6 @@ import re
 # local imports:
 import benchUtil
 import constants
-import localpass
 import competition
 import stats
 
@@ -191,8 +194,13 @@ DEBUG = '-debug' in sys.argv
 
 DIR_IMPL = 'MMapDirectory'
 
-MEDIUM_INDEX_NUM_DOCS = 27625038
-BIG_INDEX_NUM_DOCS = 5982049
+#MEDIUM_INDEX_NUM_DOCS = 27625038
+MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS
+
+#BIG_INDEX_NUM_DOCS = 5982049
+BIG_INDEX_NUM_DOCS = constants.NIGHTLY_BIG_INDEX_NUM_DOCS
+
+# TODO: tune for AMD box
 INDEXING_RAM_BUFFER_MB = 350
 
 COUNTS_PER_CAT = 5
@@ -201,10 +209,11 @@ TASK_REPEAT_COUNT = 50
 #MED_WIKI_BYTES_PER_DOC = 950.21921304868431
 #BIG_WIKI_BYTES_PER_DOC = 4183.3843150398807
 
-MEDIUM_LINE_FILE = '/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
-BIG_LINE_FILE = '/lucene/data/enwiki-20110115-lines.txt'
-NIGHTLY_LOG_DIR = '/lucene/logs.nightly'
-NIGHTLY_REPORTS_DIR = '/lucene/reports.nightly'
+MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
+BIG_LINE_FILE = constants.NIGHTLY_BIG_LINE_FILE
+NIGHTLY_LOG_DIR = constants.NIGHTLY_LOG_DIR
+NIGHTLY_REPORTS_DIR = constants.NIGHTLY_REPORTS_DIR
+
 if DEBUG:
   NIGHTLY_DIR = 'clean2.svn'
 else:
@@ -329,21 +338,6 @@ def runNRTTest(r, indexPath, runLogDir):
   
   return mean, stdDev
 
-def setIndexParams(idx, fastIndex=True):
-  idx.analyzer('StandardAnalyzer')
-  idx.codec('Lucene40')
-  idx.threads(constants.INDEX_NUM_THREADS)
-  idx.directory(DIR_IMPL)
-  idx.idFieldCodec('Memory')
-  if fastIndex:
-    idx.ramBufferMB(INDEXING_RAM_BUFFER_MB)
-    idx.waitForMerges(False)
-    # We want same index structure each night (5 segs per level) so
-    # that search results are comparable:
-    idx.mergePolicy('TieredMergePolicy')
-  else:
-    idx.mergePolicy('LogDocMergePolicy')
-
 def run():
 
   DO_RESET = '-reset' in sys.argv
@@ -364,17 +358,17 @@ def run():
     os.makedirs(runLogDir)
   message('log dir %s' % runLogDir)
 
-  os.chdir('/lucene/%s' % NIGHTLY_DIR)
+  os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
   if not REAL:
     svnRev = '1102160'
     luceneUtilRev = '2270c7a8b3ac+ tip'
     print 'SVN rev is %s' % svnRev
     print 'luceneutil rev is %s' % luceneUtilRev
   else:
-    runCommand('/usr/local/bin/svn cleanup')
+    runCommand('%s cleanup' % constants.SVN_EXE)
     for i in range(30):
       try:
-        runCommand('/usr/local/bin/svn update > %s/update.log' % runLogDir)
+        runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
@@ -390,7 +384,7 @@ def run():
 
   print 'Java command-line: %s' % constants.JAVA_COMMAND
   
-  runCommand('ant clean > clean.log 2>&1')
+  runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
 
@@ -400,59 +394,75 @@ def run():
                                   MEDIUM_LINE_FILE,
                                   MEDIUM_INDEX_NUM_DOCS,
                                   constants.WIKI_MEDIUM_TASKS_FILE)
-  fastIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource)
-  setIndexParams(fastIndexMedium)
+
+  fastIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
+                                  analyzer='StandardAnalyzer',
+                                  postingsFormat='Lucene40',
+                                  numThreads=constants.INDEX_NUM_THREADS,
+                                  directory=DIR_IMPL,
+                                  idFieldPostingsFormat='Memory',
+                                  ramBufferMB=INDEXING_RAM_BUFFER_MB,
+                                  waitForMerges=False,
+                                  grouping=False,
+                                  mergePolicy='TieredMergePolicy')
 
   bigSource = competition.Data('wikibig',
                                BIG_LINE_FILE,
                                BIG_INDEX_NUM_DOCS,
-                               constants.WIKI_BIG_TASKS_FILE)
-  fastIndexBig = comp.newIndex(NIGHTLY_DIR, bigSource)
-  setIndexParams(fastIndexBig)
+                               constants.WIKI_MEDIUM_TASKS_FILE)
 
-  index = comp.newIndex(NIGHTLY_DIR, mediumSource)
-  setIndexParams(index, False)
+  fastIndexBig = comp.newIndex(NIGHTLY_DIR, bigSource,
+                               analyzer='StandardAnalyzer',
+                               postingsFormat='Lucene40',
+                               numThreads=constants.INDEX_NUM_THREADS,
+                               directory=DIR_IMPL,
+                               idFieldPostingsFormat='Memory',
+                               ramBufferMB=INDEXING_RAM_BUFFER_MB,
+                               waitForMerges=False,
+                               grouping=False,
+                               mergePolicy='TieredMergePolicy')
+
   # Must use only 1 thread so we get same index structure, always:
-  index.threads(1)
+  index = comp.newIndex(NIGHTLY_DIR, mediumSource,
+                        analyzer='StandardAnalyzer',
+                        postingsFormat='Lucene40',
+                        numThreads=1,
+                        directory=DIR_IMPL,
+                        idFieldPostingsFormat='Memory',
+                        mergePolicy='LogDocMergePolicy')
 
-  c = comp.competitor(id, NIGHTLY_DIR)
-  c.withIndex(index)
-  c.directory(DIR_IMPL)
-  c.analyzer('StandardAnalyzer')
-  c.commitPoint('multi')
+  c = comp.competitor(id, NIGHTLY_DIR,
+                      index=index,
+                      directory=DIR_IMPL,
+                      analyzer='StandardAnalyzer',
+                      commitPoint='multi')
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
   if REAL:
-    r.compile(c.build())
+    r.compile(c)
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  idx = fastIndexMedium.build()
-  idx.doGrouping = False
-  medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', idx, 'fastIndexMediumDocs.log')
-  del idx
+  medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
   message('medIndexAtClose %s' % atClose)
   
   # 2: NRT test
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  idx = fastIndexBig.build()
-  idx.doGrouping = False
-  ign, bigIndexTime, bigBytesIndexed, atClose = buildIndex(r, runLogDir, 'big index (fast)', idx, 'fastIndexBigDocs.log')
-  del idx
+  ign, bigIndexTime, bigBytesIndexed, atClose = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
   message('bigIndexAtClose %s' % atClose)
 
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
-  indexPathNow, ign, ign, atClose = buildIndex(r, runLogDir, 'search index (fixed segments)', index.build(), 'fixedIndex.log')
+  indexPathNow, ign, ign, atClose = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
   message('fixedIndexAtClose %s' % atClose)
   fixedIndexAtClose = atClose
 
   indexPathPrev = '%s/trunk.nightly.index.prev' % constants.INDEX_DIR_BASE
 
-  if os.path.exists(indexPathPrev) and os.path.exists(benchUtil.nameToIndexPath(index.build().getName())):
+  if os.path.exists(indexPathPrev) and os.path.exists(benchUtil.nameToIndexPath(index.getName())):
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
-    segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.build().getName()))
+    segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.getName()))
     if segCountNow != segCountPrev:
       # raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
       print 'WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow)
@@ -467,7 +477,7 @@ def run():
   t0 = now()
 
   coldRun = False
-  comp = c.build()
+  comp = c
   comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
   comp.printHeap = True
   if REAL:
@@ -650,10 +660,11 @@ def makeGraphs():
   writeIndexHTML(searchChartData, days)
 
   # publish
-  runCommand('rsync -arv -e ssh /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs')
+  #runCommand('rsync -arv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
   if not DEBUG:
-    runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
+    #runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
+    runCommand('rsync -arv -e ssh %s/reports.nightly/* %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
   
 def header(w, title):
   w('<html>')
@@ -907,6 +918,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   return '\n'.join(l)
 
 def sendEmail(emailAddress, message):
+  import localpass
   SMTP_SERVER = localpass.SMTP_SERVER
   SMTP_PORT = localpass.SMTP_PORT
   FROM_EMAIL = 'admin@mikemccandless.com'
@@ -926,6 +938,7 @@ if __name__ == '__main__':
   except:
     traceback.print_exc()
     if not DEBUG and REAL:
+      import localpass
       emailAddr = 'mail@mikemccandless.com'
       message = 'From: %s\r\n' % localpass.FROM_EMAIL
       message += 'To: %s\r\n' % emailAddr

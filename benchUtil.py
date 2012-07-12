@@ -677,7 +677,7 @@ class RunAlgs:
     cp.append('%s/test' % buildPath)
     cp.append('%s/lucene/build/test-framework/classes/java' % path)
     cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
-    cp.append('%s/lucene/test-framework/lib/randomizedtesting-runner-1.5.0.jar' % path)
+    common.addJARs(cp, '%s/lucene/test-framework/lib' % path)
     if version == '4.0':
       cp.append('%s/lucene/build/analysis/common/classes/java' % path)
       cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
@@ -704,7 +704,7 @@ class RunAlgs:
     print '  %s' % lucenePath
     os.chdir(lucenePath)
     try:
-      run('ant compile-test', 'compile.log')
+      run('%s compile-test' % constants.ANT_EXE, 'compile.log')
       print '  %s' % path
       os.chdir(path)      
       if path.endswith('/'):

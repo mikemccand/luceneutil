@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.lucene.analysis.core.*;
 import org.apache.lucene.codecs.*;
 import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
+import org.apache.lucene.codecs.bloom.DefaultBloomFilterFactory;
 import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
@@ -40,6 +41,7 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.search.NRTManager.TrackingIndexWriter;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
+import org.apache.lucene.util.hash.MurmurHash2;
 
 // javac -cp ../build/core/classes/java:../build/analysis/common/classes/java perf/PKLookupUpdatePerfTest.java
 // java -Xbatch -server -Xmx2g -Xms2g -cp .:../build/core/classes/java:../build/analysis/common/classes/java perf.PKLookupUpdatePerfTest MMapDirectory /p/lucene/indices/pk 1000000 17 [bloom|pulsing|memory|lucene40]
@@ -71,7 +73,7 @@ import org.apache.lucene.util.*;
  *
  */
 public class PKLookupUpdatePerfTest {
-  private static final boolean doWorstCaseFlushing = false;
+  private static final boolean doWorstCaseFlushing = true;
   private static final boolean shareEnums = true;
   private static final boolean doSortKeys = true;
   private static final boolean useDocValues = true;
@@ -91,7 +93,14 @@ public class PKLookupUpdatePerfTest {
   };
   static final Codec bloomCodec = new Lucene40Codec() {      
     PostingsFormat bloomPf = new BloomFilteringPostingsFormat(
-        PostingsFormat.forName("Pulsing40"));
+        PostingsFormat.forName("Pulsing40"), new DefaultBloomFilterFactory()
+        {
+          @Override
+          public FuzzySet getSetForField(FieldInfo info) {
+            return FuzzySet.createSetBasedOnMaxMemory(100 * 1024 * 1024,
+                new MurmurHash2());
+          }          
+        });
     
     @Override
     public PostingsFormat getPostingsFormatForField(String field) {
@@ -109,8 +118,6 @@ public class PKLookupUpdatePerfTest {
   
   private static IndexWriter createEmptyIndex(final Directory dir,
       final int docCount, Codec codec) throws IOException {
-    System.out.println("Create index... ");
-    
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
         new WhitespaceAnalyzer(Version.LUCENE_40));
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
@@ -134,28 +141,22 @@ public class PKLookupUpdatePerfTest {
     final String dirImpl = args[0];
     final String dirPath = args[1];
     final int numDocs = Integer.parseInt(args[2]);
-    final long seed = Long.parseLong(args[3]);
-    final String codecChoice = args[4];
+    final int keySpaceSize = Integer.parseInt(args[3]);
+    final long seed = Long.parseLong(args[4]);
+    final String codecChoice = args[5];
     
-    Codec codec=pulsingCodec;
+    final Codec codec;
     if("bloom".equalsIgnoreCase(codecChoice))
     {
-      System.out.println("Using bloom codec");
       codec=bloomCodec;
     } else if ("lucene40".equalsIgnoreCase(codecChoice)) {
-      System.out.println("Using Lucene40 codec");
       codec=new Lucene40Codec();
     } else if ("memory".equalsIgnoreCase(codecChoice)) {
-      System.out.println("Using Memory codec");
       codec=memoryCodec;
-    }
-    else
-    {
-      if(!"pulsing".equalsIgnoreCase(codecChoice))
-      {
-        throw new RuntimeException("Bad choice of codec :"+codecChoice);
-      }
-      
+    } else if ("pulsing".equalsIgnoreCase(codecChoice)) {
+      codec = pulsingCodec;
+    } else  {
+      throw new RuntimeException("Bad choice of codec :"+codecChoice);
     }
 
     //InfoStream.setDefault(new PrintStreamInfoStream(System.out));
@@ -178,6 +179,8 @@ public class PKLookupUpdatePerfTest {
       TrackingIndexWriter tw = new TrackingIndexWriter(writer);
       NRTManager nrtManager = new NRTManager(tw, new SearcherFactory(), true);
     
+      int insertsThisBatch=0;
+      int updatesThisBatch=0;
       final Random rand = new Random(seed);
       final Document doc = new Document();
       final Field keyField = new Field(KEY_FIELD_NAME, "", StringField.TYPE_NOT_STORED);
@@ -207,13 +210,13 @@ public class PKLookupUpdatePerfTest {
 
       int dirDelCount = 0;
       int nonDirDelCount = 0;
+      System.out.println("codec="+codecChoice+" dir="+dirImpl);
     
       long start = System.currentTimeMillis();
       HashMap<BytesRef,Integer> dedupedBatch = new HashMap<BytesRef,Integer>();
       for (int i = 0; i < numDocs; i++) {
-        // ncommit use base 36:
         final String s;
-        final int id = rand.nextInt(numDocs);
+        final int id = rand.nextInt(keySpaceSize);
         if (useBase36) {
           s = String.format("%6s", Integer.toString(id, Character.MAX_RADIX)).replace(' ', '0');
         } else {
@@ -324,15 +327,12 @@ public class PKLookupUpdatePerfTest {
                       }
                       if (oldCount != 0) {
                         int newCount = oldCount + countThisBatch;
-                        // nocommit
-                        /*
                         if (doDirectDelete && tw.tryDeleteDocument(((SegmentReader) subReader).getSegmentInfo(), nextDoc) != -1) {
                           newCount = -newCount;
                           dirDelCount++;
                         } else {
                           nonDirDelCount++;
                         }
-                        */
                         newCounts[entIDX] = newCount;
                       } else {
                         newCounts[entIDX] = -countThisBatch;
@@ -356,11 +356,14 @@ public class PKLookupUpdatePerfTest {
                 if (newCount == 0) {
                   doUpdate = false;
                   newCount = keyAndCount.getValue();
+                  insertsThisBatch++;
                 } else if (newCount < 0) {
                   doUpdate = false;
                   newCount = -newCount;
+                  updatesThisBatch++;
                 } else {
                   doUpdate = true;
+                  updatesThisBatch++;
                 }
                 
                 keyField.setStringValue(pkBytes.utf8ToString());
@@ -441,6 +444,12 @@ public class PKLookupUpdatePerfTest {
                 }
                 checkSum = checkSum * PRIME + newCount;
 
+                if (oldCount == 0) {
+                  insertsThisBatch++;
+                } else {
+                  updatesThisBatch++;
+                }
+
                 //Did we find an already-stored document?
                 if (oldCount == 0 || !doUpdate) {
                   //No - a new document - store using addDocument()
@@ -459,14 +468,18 @@ public class PKLookupUpdatePerfTest {
           nrtManager.maybeRefreshBlocking();
           long endTime = System.currentTimeMillis();
           long batchDiff = endTime - batchStart;
-          //System.out.println("Writing batch took " + batchDiff + " ms; refresh reader took " + (endTime - beforeRefresh) + " ms");
+          System.out.println("Writing batch took " + batchDiff + " ms; refresh reader took " + (endTime - beforeRefresh) + " ms inserts="+insertsThisBatch+" updates="+updatesThisBatch);
+          insertsThisBatch=0;
+          updatesThisBatch=0;          
           dedupedBatch.clear();
         }
       }
+      long tCloseStart = System.currentTimeMillis();
       nrtManager.close();
       writer.close();
-      long diff = System.currentTimeMillis() - start;
-      System.out.println("Took " + diff + " ms; checksum=" + checkSum + " delCount=" + dirDelCount + " vs " + nonDirDelCount);
+      long tEnd = System.currentTimeMillis();
+      long diff = tEnd - start;
+      System.out.println("Took " + diff + " ms; close took " + (tEnd - tCloseStart) + " (checksum=" + checkSum + " delCount=" + dirDelCount + " vs " + nonDirDelCount);
       dir.close();
 
       if (diff < minTime) {

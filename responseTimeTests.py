@@ -120,7 +120,7 @@ def run():
 
     for desc, javaOpts in (
       ('G1', '-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC'),
-      ('CMS', '-XX:+UnlockExperimentalVMOptions -XX:+UseConcMarkSweepGC'),
+      ('CMS', '-XX:+UseConcMarkSweepGC'),
       #('Parallel', ''),
       ):
 

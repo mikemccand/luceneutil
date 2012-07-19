@@ -704,7 +704,7 @@ class RunAlgs:
     print '  %s' % lucenePath
     os.chdir(lucenePath)
     try:
-      run('ant compile-test', 'compile.log')
+      run('%s compile-test' % constants.ANT_EXE, 'compile.log')
       print '  %s' % path
       os.chdir(path)      
       if path.endswith('/'):

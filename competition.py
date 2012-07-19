@@ -29,6 +29,7 @@ class Data(object):
     self.tasksFile = tasksFile
 
 WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+WIKI_MEDIUM_5M = Data('wikimedium5m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 5000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_2M = Data('wikimedium2m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 2000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
@@ -37,6 +38,7 @@ EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 50000
 
 DATA = {'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
+        'wikimedium5m' : WIKI_MEDIUM_5M,
         'wikimedium2m' : WIKI_MEDIUM_2M,
         'wikibig' : WIKI_BIG,
         'euromedium' : EURO_MEDIUM }
@@ -193,11 +195,6 @@ class Competition(object):
       raise RuntimeError('expected 2 competitors but was %d' % (len(self.competitors)))
     if not self.indices:
       raise RuntimeError('expected at least one index use withIndex(...)')
-    if len(self.indices) == 1:
-      for comp in self.competitors:
-        # only one index given? share it!
-        if not comp._index:
-          comp.withIndex(self.indices[0])
 
     # If a competitor is named 'base', use that as base:
     base = None

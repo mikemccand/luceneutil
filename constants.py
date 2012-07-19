@@ -68,5 +68,8 @@ MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 #TESTS_LINE_FILE = '/lucene/clean2.svn/lucene/test-framework/src/resources/org/apache/lucene/util/europarl.lines.txt'
 TESTS_LINE_FILE = None
 
+ANT_EXE = 'ant'
+
 # import again in case you want to override any of the vars set above
 from localconstants import *
+

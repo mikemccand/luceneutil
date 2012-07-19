@@ -178,7 +178,9 @@ final class SearchTask extends Task {
           hits = c.topDocs();
         */
       }
-
+    } catch (Throwable t) {
+      System.out.println("EXC: " + q);
+      throw new RuntimeException(t);
       //System.out.println("TE: " + TermsEnum.getStats());
     } finally {
       state.mgr.release(searcher);

@@ -97,8 +97,8 @@ class SendTasks:
     
     while True:
       result = ''
-      while len(result) < 16:
-        result = result + self.sock.recv(16 - len(result))
+      while len(result) < 20:
+        result = result + self.sock.recv(20 - len(result))
       taskID, queueTimeMS = result.split(':')
       taskID = int(taskID)
       queueTimeMS = float(queueTimeMS)

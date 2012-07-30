@@ -29,8 +29,11 @@ if '-ea' in sys.argv:
 
 osName = common.osName
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True, taskPatterns=None):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True, taskPatterns=None, randomSeed=None):
   competitors = [challenger, base]
+
+  if randomSeed is None:
+    raise RuntimeError('missing randomSeed')
 
   #verifyScores = False
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores)
@@ -95,9 +98,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   logUpto = 0
 
   if search:
-    randomSeed = random.randint(-10000000, 1000000)
-    #print 'FIXED STATIC SEED'
-    #randomSeed = 17
+    
     results = {}
 
     if constants.JAVA_COMMAND.find(' -ea') != -1:
@@ -133,21 +134,3 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                                               baseDesc=base.name)
   if cmpDiffs is not None:
     raise RuntimeError('results differ: %s' % str(cmpDiffs))
-
-
-# NOTE: when running on 3.0, apply this patch:
-"""
-Index: src/java/org/apache/lucene/search/FuzzyQuery.java
-===================================================================
---- src/java/org/apache/lucene/search/FuzzyQuery.java	(revision 1062278)
-+++ src/java/org/apache/lucene/search/FuzzyQuery.java	(working copy)
-@@ -133,6 +133,8 @@
-     }
- 
-     int maxSize = BooleanQuery.getMaxClauseCount();
-+    // nocommit
-+    maxSize = 50;
-     PriorityQueue<ScoreTerm> stQueue = new PriorityQueue<ScoreTerm>();
-     FilteredTermEnum enumerator = getEnum(reader);
-     try {
-"""

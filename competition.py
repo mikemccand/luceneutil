@@ -156,7 +156,9 @@ class Competition(object):
   def __init__(self, cold=False,
                printCharts=False,
                debug=False,
-               verifyScores=True):
+               verifyScores=True,
+               # Pass fixed randomSeed so separate runs are comparable (pick the same tasks):
+               randomSeed=None):
     self.cold = cold
     self.competitors = []
     self.indices = []
@@ -166,6 +168,10 @@ class Competition(object):
     self.benchIndex = True
     self.verifyScores = verifyScores
     self.onlyTaskPatterns = None
+    if randomSeed is not None:
+      self.randomSeed = randomSeed
+    else:
+      self.randomSeed = random.randint(-10000000, 1000000)
 
   def addTaskPattern(self, pattern):
     if self.onlyTaskPatterns is None:
@@ -216,7 +222,7 @@ class Competition(object):
 
     searchBench.run(id, base, challenger, coldRun = self.cold, doCharts = self.printCharts,
                     search = self.benchSearch, index = self.benchIndex, debugs = self.debug, debug = self.debug,
-                    verifyScores = self.verifyScores, taskPatterns = self.onlyTaskPatterns)
+                    verifyScores = self.verifyScores, taskPatterns = self.onlyTaskPatterns, randomSeed = self.randomSeed)
     return self
 
   def clearCompetitors(self):

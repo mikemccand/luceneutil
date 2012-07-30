@@ -377,7 +377,9 @@ for module in modules:
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
         if testClass in ('org.apache.lucene.util.junitcompat.TestExceptionInBeforeClassHooks',
-                         'org.apache.lucene.analysis.core.TestRandomChains'):
+                         'org.apache.lucene.analysis.core.TestRandomChains',
+                         'org.apache.lucene.analysis.core.TestAllAnalyzersHaveFactories',
+                         'org.apache.lucene.analysis.core.TestFactories'):
           print 'WARNING: skipping test %s' % testClass
           continue
 

@@ -408,13 +408,13 @@ public class PKLookupUpdatePerfTest {
                   DocsEnum de;
                   if (shareEnums) {
                     if (termsEnums[subIDX].seekExact(pkBytes, false)) {
-                      de = docsEnums[subIDX] = termsEnums[subIDX].docs(liveDocs, docsEnums[subIDX], false);
+                      de = docsEnums[subIDX] = termsEnums[subIDX].docs(liveDocs, docsEnums[subIDX], 0);
                     } else {
                       continue;
                     }
                   } else {
                     de = subReader.termDocsEnum(liveDocs, KEY_FIELD_NAME,
-                                                pkBytes, false);
+                                                pkBytes, 0);
                   }
                   if (de != null) {
                     int nextDoc=de.nextDoc();

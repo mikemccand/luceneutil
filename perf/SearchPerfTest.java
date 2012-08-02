@@ -42,6 +42,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -301,7 +302,9 @@ public class SearchPerfTest {
                 mgr.maybeRefresh();
                 reopenCount++;
                 if (dir instanceof RAMDirectory) {
-                  System.out.println("index: " + ((RAMDirectory) dir).sizeInBytes() + " bytes");
+                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes", (System.currentTimeMillis() - startMS)/1000.0, ((RAMDirectory) dir).sizeInBytes()));
+                } else {
+                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen", (System.currentTimeMillis() - startMS)/1000.0));
                 }
               }
             } catch (Exception e) {

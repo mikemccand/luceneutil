@@ -26,6 +26,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -142,7 +143,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
       try {
         // NOTE: can cause NPE here (we are not sync'd)
         // but caller will print & ignore it...
-        out.write(String.format("%8d:%7.1f", task.taskID, queueTimeNS/1000000.0).getBytes("UTF-8"));
+        out.write(String.format(Locale.ENGLISH, "%8d:%11.1f", task.taskID, queueTimeNS/1000000.0).getBytes("UTF-8"));
       } catch (SocketException se) {
         System.out.println("Ignore SocketException: " + se);
         queue.clear();

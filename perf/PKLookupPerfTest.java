@@ -148,7 +148,7 @@ public class PKLookupPerfTest {
           final TermsEnum termsEnum = termsEnums[subIdx];
           if (termsEnum.seekExact(lookup[iter], false)) { 
             if (DO_DOC_LOOKUP) {
-              final DocsEnum docs = docsEnums[subIdx] = termsEnum.docs(null, docsEnums[subIdx], false);
+              final DocsEnum docs = docsEnums[subIdx] = termsEnum.docs(null, docsEnums[subIdx], 0);
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 failed.set(true);

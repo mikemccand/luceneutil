@@ -139,6 +139,7 @@ class Tee(object):
     self.orig.write(data)
 
 def captureEnv(logsDir):
+  print 'Python version: %s' % sys.version
   svnRev = os.popen('svnversion %s' % LUCENE_HOME).read().strip()
   print 'Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME)
   if svnRev.endswith('M'):

@@ -198,6 +198,8 @@ class Stats:
 FLAKY_TESTS = set([
   # Not flaky, just gets angry about polluted classpaths!:
   'org.apache.lucene.analysis.core.TestRandomChains',
+  'org.apache.lucene.analysis.core.TestAllAnalyzersHaveFactories',
+  'org.apache.lucene.analysis.core.TestFactories',
 
   # requires a certain cwd because it writes to a relative path:
   'org.apache.solr.handler.dataimport.TestSolrEntityProcessorEndToEnd',

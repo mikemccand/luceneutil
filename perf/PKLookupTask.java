@@ -100,7 +100,7 @@ final class PKLookupTask extends Task {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           if (termsEnum.seekExact(id, false)) { 
             //System.out.println("  found!");
-            final DocsEnum docs = docsEnums[subIDX] = termsEnum.docs(sub.getLiveDocs(), docsEnums[subIDX], false);
+            final DocsEnum docs = docsEnums[subIDX] = termsEnum.docs(sub.getLiveDocs(), docsEnums[subIDX], 0);
             assert docs != null;
             final int docID = docs.nextDoc();
             if (docID != DocsEnum.NO_MORE_DOCS) {

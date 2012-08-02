@@ -19,6 +19,7 @@ import sys
 import os
 import re
 import cPickle
+import responseTimeGraph
 
 logPoints = ((50, 2),
              (75, 4),
@@ -32,7 +33,7 @@ logPoints = ((50, 2),
              (99.9999, 1000000),
              (99.99999, 10000000))
 
-def graph(rowPoint, logsDir, warmupSec, names, fileName):
+def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
 
   allQPS = set()
 
@@ -45,14 +46,17 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName):
     for f in os.listdir(logsDir):
       m = reQPS.match(f)
       resultsFile = '%s/%s/results.pk' % (logsDir, f)
+      if not os.path.exists(resultsFile):
+        resultsFile = '%s/%s/results.bin' % (logsDir, f)
+        
       if m is not None and os.path.exists(resultsFile):
         qps = int(m.group(1))
-        if False and qps == 275:
-          print 'SKIPPING 275 qps'
+        if maxQPS is not None and qps > maxQPS:
+          print 'SKIPPING %s qps' % qps
           continue
 
         allQPS.add(qps)
-        results = cPickle.load(open(resultsFile))
+        results = responseTimeGraph.loadResults(resultsFile)
 
         # Discard first warmupSec seconds:
         upto = 0
@@ -142,11 +146,10 @@ graphFooter = '''
 '''
 
 if __name__ == '__main__':
-  warmupSec = float(sys.argv[1])
-  reportDir = sys.argv[2]
+  logsDir = sys.argv[1]
+  warmupSec = float(sys.argv[2])
+  reportDir = sys.argv[3]
   for idx in xrange(len(logPoints)):
-    #graph(idx, 'logs.sweep.06202012', warmupSec, sys.argv[3:], '%s/ramload%spct.html' % (reportDir, logPoints[idx][0]))
-    graph(idx, 'logs.sweep.06202012', warmupSec, sys.argv[3:], '%s/load%spct.html' % (reportDir, logPoints[idx][0]))
-  graph('max', 'logs.sweep.06202012', warmupSec, sys.argv[3:], '%s/loadmax.html' % reportDir)
-  #graph('max', 'logs.sweep.06202012', warmupSec, sys.argv[3:], '%s/ramloadmax.html' % reportDir)
+    graph(idx, logsDir, warmupSec, sys.argv[4:], '%s/load%spct.html' % (reportDir, logPoints[idx][0]))
+  graph('max', logsDir, warmupSec, sys.argv[4:], '%s/loadmax.html' % reportDir)
   

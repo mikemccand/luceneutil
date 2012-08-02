@@ -2,20 +2,36 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-java -XX:-UseCompressedOops -Xmx6G -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
-    -indexPath /q/lucene/indices/memterms \
+LUCENE_HOME=/l/4x.azul/lucene
+INDEX_PATH=/l/scratch/indices/direct1M
+LINE_DOCS_FILE=/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt
+THREAD_COUNT=4
+DOC_COUNT_LIMIT=1000000
+JAVA=/usr/local/src/jdk1.7.0_04/bin/java
+HEAP=-Xmx12g
+
+#LUCENE_HOME=/localhome/lucene4x/lucene
+#INDEX_PATH=/localhome/indices/direct.1M
+#LINE_DOCS_FILE=/localhome/data/enwiki-20120502-lines-1k.txt
+#THREAD_COUNT=16
+#DOC_COUNT_LIMIT=-1
+#DOC_COUNT_LIMIT=1000000
+#JAVA=/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java
+#HEAP=-Xmx400g
+
+$JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
+    -indexPath $INDEX_PATH \
     -dirImpl MMapDirectory \
     -analyzer StandardAnalyzer \
-    -lineDocsFile /x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt \
-    -docCountLimit -1 \
-    -threadCount 5 \
+    -lineDocsFile $LINE_DOCS_FILE \
+    -docCountLimit $DOC_COUNT_LIMIT \
+    -threadCount $THREAD_COUNT \
     -ramBufferMB 1024 \
     -maxBufferedDocs 60058 \
-    -postingsFormat MemoryTerms \
-    -idFieldPostingsFormat MemoryTerms \
+    -postingsFormat Direct \
+    -idFieldPostingsFormat Direct \
     -waitForMerges \
-    -mergePolicy TieredMergePolicy \
-    -verbose
-
-#    -store \
-#    -tvs \
+    -mergePolicy LogDocMergePolicy \
+    -verbose \
+    -store \
+    -tvs

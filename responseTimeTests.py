@@ -24,49 +24,102 @@ import os
 import subprocess
 import sendTasks
 import datetime
+import traceback
+import threading
 
-# TODO
-#   - check for excs in the logs
+# TODO: pull these from localconstants.py:
 
-# Indexing rate ~ 178 MB/minute @ 500 docs/sec; 71.2 MB/minute @ 200 docs/sec
+SMOKE_TEST = True
+
+if True:
+  # Home
+  env = 'home'
+  LUCENE_HOME = '/l/4x.azul/lucene'
+  INDEX_PATH = '/l/scratch/indices/direct'
+  LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
+  JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
+  #ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
+  #ZING_JVM = '/usr/local/src/jdk1.7.0_04/bin/java'
+  ORACLE_JVM = '/usr/local/src/jdk1.6.0_32/bin/java'
+  ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
+  DO_STOP_START_ZST = True
+  MAX_HEAP_GB = 10
+  SEARCH_THREAD_COUNT = 4
+  DO_ZV_ROBOT = False
+  ZV_ROBOT_ROOT = '/root/ZVRobot'
+  QPS_START = 50
+  QPS_INC = 50
+  QPS_END = None
+  CLIENT_HOST = '10.17.4.10'
+  CLIENT_USER = 'mike'
+  SERVER_HOST = '10.17.4.91'
+  POSTINGS_FORMAT = 'Direct'
+  COMMIT_POINT = 'multi'
+elif True:
+  # EC2:
+  env = 'ec2'
+  LUCENE_HOME = '/root/lucene4x/lucene'
+  #INDEX_PATH = '/large/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
+  INDEX_PATH = '/large/indices/fullwiki'
+  LINE_DOCS_FILE = '/large/enwiki-20120502-lines-1k.txt'
+  JHICCUP_PATH = '/root/jHiccup.1.1.4/jHiccup'
+  ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
+  ORACLE_JVM = '/root/jdk1.6.0_31/bin/java'
+  DO_STOP_START_ZST = True
+  MAX_HEAP_GB = 40
+  SEARCH_THREAD_COUNT = 20
+  DO_ZV_ROBOT = False
+  ZV_ROBOT_ROOT = '/root/ZVRobot'
+  QPS_START = 25
+  QPS_INC = 25
+  QPS_END = None
+  CLIENT_HOST = None
+  CLIENT_USER = 'root'
+  SERVER_HOST = 'localhost'
+  POSTINGS_FORMAT = 'Lucene40'
+  COMMIT_POINT = 'multi'
+else:
+  # Lab box:
+  env = 'lab'
+  LUCENE_HOME = '/localhome/lucene4x/lucene'
+  #INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
+  INDEX_PATH = '/localhome/indices/direct'
+  LINE_DOCS_FILE = '/localhome/data/enwiki-20120502-lines-1k.txt'
+  JHICCUP_PATH = '/localhome/jHiccup.1.1.4/jHiccup'
+  ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
+  ORACLE_JVM = '/localhome/jdk1.6.0_32/bin/java'
+  DO_STOP_START_ZST = True
+  MAX_HEAP_GB = 250
+  SEARCH_THREAD_COUNT = 40
+  DO_ZV_ROBOT = False
+  ZV_ROBOT_ROOT = '/root/ZVRobot'
+  QPS_START = 150
+  QPS_INC = 50
+  QPS_END = 150
+  CLIENT_HOST = 'isvx40'
+  SERVER_HOST = 'isvx512'
+  CLIENT_USER = 'root'
+  SERVER_HOST = 'localhost'
+  POSTINGS_FORMAT = 'Direct'
+  COMMIT_POINT = 'multi'
 
 LOGS_DIR = 'logs'
 
-RUN_TIME_SEC = 60
-
-WARMUP_SEC = 10
-
-#CLIENT_HOST = '10.17.4.10'
-#SERVER_HOST = '10.17.4.91'
-
-CLIENT_HOST = None
-SERVER_HOST = 'localhost'
-
-LUCENE_HOME = '/l/direct/lucene'
+if SMOKE_TEST:
+  RUN_TIME_SEC = 60
+  WARMUP_SEC = 10
+  INDEX_PATH += '.1M'
+else:
+  RUN_TIME_SEC = 3600
+  WARMUP_SEC = 5 * 60
 
 REMOTE_CLIENT = 'sendTasks.py'
 
 SERVER_PORT = 7777
 
-#INDEX_PATH = '/l/scratch/indices/wikimedium2m.direct.Direct.opt.nd2M/index'
-INDEX_PATH = '/l/scratch/indices/wikimedium2m.direct.Lucene40.opt.nd2M/index'
-
-#DIR_IMPL = 'RAMDirectory'
-DIR_IMPL = 'MMapDirectory'
-
-SEARCH_THREAD_COUNT = 4
-
-MAX_HEAP_GB = 13
-
 DOCS_PER_SEC_PER_THREAD = 100.0
 
-LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
-
-POSTINGS_FORMAT = 'Lucene40'
-
-JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
-
-TASKS_FILE = 'hiliteterms500.tasks'
+TASKS_FILE = 'hiliteTermsNoStopWords.tasks'
 
 reSVNRev = re.compile(r'revision (.*?)\.')
 
@@ -89,7 +142,7 @@ def captureEnv(logsDir):
   svnRev = os.popen('svnversion %s' % LUCENE_HOME).read().strip()
   print 'Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME)
   if svnRev.endswith('M'):
-    if os.system('svn diff %s > %s/lucene.diffs' % (LUCENE_HOME, logsDir)):
+    if system('svn diff %s > %s/lucene.diffs' % (LUCENE_HOME, logsDir)):
       raise RuntimeError('svn diff failed')
 
   luceneUtilDir = os.path.abspath(os.path.split(sys.argv[0])[0])
@@ -97,36 +150,102 @@ def captureEnv(logsDir):
   luceneUtilRev = os.popen('hg id %s' % luceneUtilDir).read().strip()  
   print 'Luceneutil hg rev is %s (%s)' % (luceneUtilRev, luceneUtilDir)
   if luceneUtilRev.find('+') != -1:
-    if os.system('hg diff %s > %s/luceneutil.diffs' % (luceneUtilDir, logsDir)):
+    if system('hg diff %s > %s/luceneutil.diffs' % (luceneUtilDir, logsDir)):
       raise RuntimeError('hg diff failed')
 
-  shutil.copy('%s/allTests.py' % luceneUtilDir,
-              '%s/allTests.py' % logsDir)
+  shutil.copy('%s/responseTimeTests.py' % luceneUtilDir,
+              '%s/responseTimeTests.py' % logsDir)
               
 def kill(name, p):
   for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
     l = l.strip().split()
     pid = int(l[0])
     print '  stop %s process %s' % (name, pid)
-    os.kill(pid, signal.SIGKILL)
+    try:
+      os.kill(pid, signal.SIGKILL)
+    except OSError:
+      pass
   if p is not None:
     p.poll()
-        
+
+stopPSThread = False
+
+def runPSThread(logFileName):
+
+  startTime = time.time()
+  f = open(logFileName, 'wb')
+  try:
+    while not stopPSThread:
+      # ps axuw | sed "1 d" | sort -n -r -k3 | head
+      for i in xrange(10):
+        if stopPSThread:
+          break
+        time.sleep(0.5)
+
+      # TODO: top instead?
+      f.write('\n\nTime %.1f s:\n' % (time.time() - startTime))
+      p = os.popen('ps axuw | sed "1 d" | sort -n -r -k3')
+      try:
+        keep = []
+        for l in p.readlines():
+          l = l.strip()
+          tup = l.split()
+          if float(tup[2]) >= 0.1 or float(tup[3]) > 0.1:
+            keep.append(l)
+        f.write('\n'.join(keep))
+      finally:
+        p.close()
+      
+      f.write('\n')
+      
+  finally:
+    f.close()
+
+def system(command):
+  #print '  run: %s' % command
+  p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+  output = p.communicate()[0].strip()
+  if len(output) > 0:
+    print output
+  return p.returncode
+
 def run():
+
+  global stopPSThread
+
+  if SMOKE_TEST:
+    print
+    print '***SMOKE_TEST***'
+    print
 
   captureEnv(LOGS_DIR)
 
-  for targetQPS in (100, 200, 300, 400, 500,600, 700, 750, 800, 850, 900, 950, 1000):
+  # Which tasks exceeded capacity:
+  finished = set()
 
-    for desc, javaOpts in (
-      ('G1', '-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC'),
-      ('CMS', '-XX:+UseConcMarkSweepGC'),
-      #('Parallel', ''),
-      ):
+  targetQPS = QPS_START
 
+  JOBS =  (
+    ('Zing', 'RAMDirectory', ''),
+    ('OracleCMS', 'RAMDirectory', '-XX:+UseConcMarkSweepGC'),
+    )
+
+  startTime = datetime.datetime.now()
+  
+  while len(finished) != len(JOBS):
+
+    for desc, dirImpl, javaOpts in JOBS:
+
+      if desc in finished:
+        continue
+    
       print
       print '%s: %s, QPS=%d' % (datetime.datetime.now(), desc, targetQPS)
 
+      if False and env == 'home' and desc == 'Zing':
+        # fake Zing:
+        javaOpts = '-XX:+UseConcMarkSweepGC'
+        
       logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
       doneFile = '%s/done' % logsDir
 
@@ -134,28 +253,53 @@ def run():
 
       os.makedirs(logsDir)
 
+      if desc.startswith('Zing'):
+        if DO_STOP_START_ZST:
+          while True:
+            if system('service zing-memory start 2>&1'):
+              print 'Failed to start zing-memory... retry; java processes:'
+              system('ps axuw | grep java')
+              time.sleep(2.0)
+            else:
+              break
+        javaCommand = ZING_JVM
+      else:
+        if DO_STOP_START_ZST:
+          while True:
+            if system('service zing-memory stop 2>&1'):
+              print 'Failed to stop zing-memory... retry; java processes:'
+              system('ps axuw | grep java')
+              time.sleep(2.0)
+            else:
+              break
+        javaCommand = ORACLE_JVM
+
       command = []
       w = command.append
-      w('java')
+      w(javaCommand)
       w(javaOpts)
       if desc.find('MMap') != -1:
         w('-Xmx4g')
       else:
         w('-Xmx%dg' % MAX_HEAP_GB)
+
+      if DO_ZV_ROBOT and desc.startswith('Zing'):
+        w('-XX:ARTAPort=8111')
+        
       w('-verbose:gc')
       w('-XX:+PrintGCDetails')
       w('-cp')
       w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
       w('perf.SearchPerfTest')
       w('-indexPath %s' % INDEX_PATH)
-      w('-dirImpl %s' % DIR_IMPL)
+      w('-dirImpl %s' % dirImpl)
       w('-cloneDocs')
       w('-analyzer StandardAnalyzer')
       w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
       w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
       w('-field body')
       w('-similarity DefaultSimilarity')
-      w('-commit single')
+      w('-commit %s' % COMMIT_POINT)
       w('-seed 0')
       w('-staticSeed 0')
       w('-nrt')
@@ -163,14 +307,12 @@ def run():
       w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
       w('-lineDocsFile %s' % LINE_DOCS_FILE)
       w('-reopenEverySec 1.0')
-      #w('-store')
-      #w('-tvs')
+      w('-store')
+      w('-tvs')
       w('-postingsFormat %s' % POSTINGS_FORMAT)
       w('-idFieldPostingsFormat %s' % POSTINGS_FORMAT)
 
       serverLog = '%s/server.log' % logsDir
-      if os.path.exists(serverLog):
-        os.remove(serverLog)
 
       command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
                 (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
@@ -179,13 +321,16 @@ def run():
 
       p = None
       vmstatProcess = None
+      zvRobotProcess = None
+      psThread = None
+      success = False
 
       try:
 
         print '  clean index'
         touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, INDEX_PATH)
-        #print '  run %s' % touchCmd
-        if os.system(touchCmd):
+        print '  run %s' % touchCmd
+        if system(touchCmd):
           raise RuntimeError('OpenCloseIndexWriter failed')
 
         t0 = time.time()
@@ -193,48 +338,100 @@ def run():
         #print '  run %s' % command
         p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
-        pc = 0
+        if DO_ZV_ROBOT and desc.startswith('Zing'):
+          cmd = '%s -Xmx1g -jar %s/ZVRobot-5.2.0.0-18.jar any %s/ZVRobot.prop > /dev/null 2>&1' % \
+                (ORACLE_JVM, ZV_ROBOT_ROOT, ZV_ROBOT_ROOT)
+          print 'run %s' % cmd
+          zvRobotProcess = subprocess.Popen(cmd, shell=True)
+          del cmd
+
+        print '  wait for server startup...'
+
+        time.sleep(2.0)
+        
         while True:
           try:
             if open(serverLog).read().find('  ready for client...') != -1:
               break
           except IOError:
             pass
-          time.sleep(0.5)
-          pc += 1
-          if pc == 4:
-            print '  wait for server startup...'
-            pc = 0
+          time.sleep(1.0)
 
-        print '  %.1f sec to start' % (time.time()-t0)
+        print '  %.1f sec to start; start test now' % (time.time()-t0)
 
         time.sleep(2.0)
 
+        stopPSThread = False
+        psThread = threading.Thread(target=runPSThread, args=('%s/ps.log' % logsDir,))
+        psThread.start()
+
+        t0 = time.time()
         if CLIENT_HOST is not None:
           # Remote client:
-          command = 'python -u %s %s %s %s %.1f 1000 %.1f results.pk' % \
+          command = 'python -u %s %s %s %s %.1f 1000 %.1f results.bin' % \
                     (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, RUN_TIME_SEC)
 
-          if os.system('ssh %s %s > %s/client.log 2>&1' % (CLIENT_HOST, command, logsDir)):
+          if system('ssh %s@%s %s > %s/client.log 2>&1' % (CLIENT_USER, CLIENT_HOST, command, logsDir)):
             raise RuntimeError('client failed; see %s/client.log' % logsDir)
 
-          if os.system('scp %s:results.pk %s > /dev/null 2>&1' % (CLIENT_HOST, logsDir)):
-            raise RuntimeError('scp results.pk failed')
+          print '  copy results.bin back...'
+          if system('scp %s@%s:results.bin %s > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST, logsDir)):
+            raise RuntimeError('scp results.bin failed')
 
-          if os.system('ssh %s rm -f results.pk' % CLIENT_HOST):
-            raise RuntimeError('rm results.pk failed')
+          if system('ssh %s@%s rm -f results.bin' % (CLIENT_USER, CLIENT_HOST)):
+            raise RuntimeError('rm results.bin failed')
 
         else:
           f = open('%s/client.log' % logsDir, 'wb')
-          sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.pk' % logsDir, f, False)
+          sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.bin' % logsDir, f, False)
           f.close()
+          
+        t1 = time.time()
+        print '  test done (%.1f total sec)' % (t1-t0)
 
+        if (t1 - t0) > RUN_TIME_SEC * 1.3:
+          print '  marking %s finished' % desc
+          finished.add(desc)
+
+        success = True
+        
       finally:
-        kill('SearchPerfTest', p)
+        kill('SearchPerfTest', vmstatProcess)
         kill('vmstat', vmstatProcess)
+        kill('ZVRobot', zvRobotProcess)
+        kill('java', p)
+        if not success:
+          system('rm -rf ZVRobot_2012*')
+        if psThread is not None:
+          stopPSThread = True
+          psThread.join()
+        
+      if DO_ZV_ROBOT and desc.startswith('Zing'):
+        found = False
+        l = os.listdir('.')
+        for fileName in l:
+          if fileName.find('ZVRobot') != -1:
+            if not found:
+              os.rename(fileName, '%s/%s' % (logsDir, fileName))
+              found = True
+            else:
+              raise RuntimeError('more than one ZVRobot log dir')
+        if not found:
+          raise RuntimeError('could not find ZVRobot log dir')
 
       print '  done'
       open(doneFile, 'wb').close()
+
+    if QPS_END is not None and targetQPS >= QPS_END:
+      break
+
+    targetQPS += QPS_INC
+
+  now = datetime.datetime.now()
+
+  print
+  print '%s: ALL DONE (elapsed time %s)' % (now, now - startTime)
+  print
 
 def main():
   if os.path.exists(LOGS_DIR):
@@ -243,13 +440,17 @@ def main():
   os.makedirs(LOGS_DIR)
 
   logOut = open('%s/log.txt' % LOGS_DIR, 'wb')
-  Tee(logOut, 'stdout')
-  Tee(logOut, 'stderr')
+  teeStdout = Tee(logOut, 'stdout')
+  teeStderr = Tee(logOut, 'stderr')
 
   try:
     run()
+  except:
+    traceback.print_exc()
   finally:
     logOut.close()
-
+    del teeStdout
+    del teeStderr
+    
 if __name__ == '__main__':
   main()

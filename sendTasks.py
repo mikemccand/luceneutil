@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cStringIO
 import random
 import codecs
 import socket
@@ -24,6 +25,10 @@ import time
 import threading
 import cPickle
 import gc
+import struct
+
+# More frequent thread switching:
+sys.setcheckinterval(10)
 
 # We don't create cyclic garbage, and we want no hiccups:
 gc.disable()
@@ -58,13 +63,37 @@ class RollingStats:
       return self.sum/self.upto
     else:
       return self.sum/len(self.buffer)
-    
+
+class Results:
+
+  def __init__(self):
+    self.buffers = []
+    self.current = cStringIO.StringIO()
+
+  def add(self, taskString, timestamp, latencyMS, queueTimeMS):
+    self.current.write(struct.pack('fffB', timestamp, latencyMS, queueTimeMS, len(taskString)))
+    self.current.write(taskString)
+    if self.current.tell() >= 256*1024:
+      self.buffers.append(self.current.getvalue())
+      self.current = cStringIO.StringIO()
+
+  def finish(self, fileNameOut):
+    self.buffers.append(self.current.getvalue())
+    f = open(fileNameOut, 'wb')
+    for buffer in self.buffers:
+      f.write(buffer)
+    f.close()
+  
 class SendTasks:
 
-  def __init__(self, serverHost, serverPort):
+  def __init__(self, serverHost, serverPort, out, runTimeSec):
+    self.startTime = time.time()
+
+    self.out = out
+    self.runTimeSec = runTimeSec
     self.queueTimeStats = RollingStats(100)
     self.totalTimeStats = RollingStats(100)
-    self.results = []
+    self.results = Results()
     self.sent = {}
     self.queue = Queue.Queue()
 
@@ -81,7 +110,6 @@ class SendTasks:
     t.setDaemon(True)
     t.start()
 
-    self.startTime = time.time()
     self.taskID = 0
 
   def send(self, startTime, task):
@@ -94,26 +122,47 @@ class SendTasks:
     '''
     Runs as dedicated thread gathering results coming from the server.
     '''
+
+    startTime = self.startTime
+    lastPrint = self.startTime
     
     while True:
       result = ''
-      while len(result) < 16:
-        result = result + self.sock.recv(16 - len(result))
+      while len(result) < 20:
+        result = result + self.sock.recv(20 - len(result))
       taskID, queueTimeMS = result.split(':')
       taskID = int(taskID)
       queueTimeMS = float(queueTimeMS)
       endTime = time.time()
       try:
-        startTime, taskString = self.sent[taskID]
+        taskStartTime, taskString = self.sent[taskID]
       except KeyError:
         print 'WARNING: ignore bad return taskID=%s' % taskID
         continue
       del self.sent[taskID]
-      latencyMS = (endTime-startTime)*1000
+      latencyMS = (endTime-taskStartTime)*1000
       self.queueTimeStats.add(queueTimeMS)
       self.totalTimeStats.add(latencyMS)
-      self.results.append((startTime-self.startTime, taskString.strip(), latencyMS, queueTimeMS))
+      self.results.add(taskString.strip(),
+                       taskStartTime-startTime,
+                       latencyMS,
+                       queueTimeMS)
 
+      now = time.time()
+      if now - lastPrint > 2.0:
+        pctDone = 100.0*(now - startTime) / self.runTimeSec
+        if pctDone > 100.0:
+          pctDone = 100.0
+        self.out.write('%6.1f s: %5.1f%%: %5.1f qps; %6.1f/%6.1f ms [%d, %d]\n' % \
+                       (now - startTime, pctDone,
+                        self.taskID/(now-startTime),
+                        self.totalTimeStats.get(),
+                        self.queueTimeStats.get(),
+                        self.queue.qsize(),
+                        len(self.sent)))
+        #self.out.flush()
+        lastPrint = now
+                  
   def sendRequests(self):
 
     '''
@@ -126,7 +175,7 @@ class SendTasks:
       startTime = time.time()
       while len(task) > 0:
         sent = self.sock.send(task)
-        if sent == 0:
+        if sent <= 0:
           raise RuntimeError('failed to send task "%s"' % task)
         task = task[sent:]
 
@@ -170,20 +219,19 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
       continue
     s = l
     if len(s) > MAX_BYTES:
-      raise RuntimeError('task is > 50 bytes: %s' % l)
+      raise RuntimeError('task is > %d bytes: %s' % (MAX_BYTES, l))
     s = s + ((MAX_BYTES-len(s))*' ')
     taskStrings.append(s)
 
   r = random.Random(0)
   r.shuffle(taskStrings)
+  out.write('%d tasks\n' % len(taskStrings))
 
   taskStrings = pruneTasks(taskStrings, numTasksPerCat)
 
-  tasks = SendTasks(serverHost, serverPort)
+  tasks = SendTasks(serverHost, serverPort, out, runTimeSec)
 
   targetTime = tasks.startTime
-  lastPrint = tasks.startTime
-  startTime = None
   
   try:
 
@@ -198,20 +246,6 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
         if now - tasks.startTime > runTimeSec:
           done = True
           break
-
-        if now - lastPrint > 2.0:
-          pctDone = 100.0*(now - tasks.startTime) / runTimeSec
-          if pctDone > 100.0:
-            pctDone = 100.0
-          out.write('%6.1f s: %5.1f%%: %5.1f qps; %6.1f/%6.1f ms [%d, %d]\n' % \
-                    (now - tasks.startTime, pctDone,
-                     tasks.taskID/(now-tasks.startTime),
-                     tasks.totalTimeStats.get(),
-                     tasks.queueTimeStats.get(),
-                     tasks.queue.qsize(),
-                     len(tasks.sent)))
-          out.flush()
-          lastPrint = now
 
         targetTime += r.expovariate(meanQPS)
 
@@ -254,10 +288,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   out.write('%8.1f sec: Done...\n' % (time.time()-tasks.startTime))
   out.flush()
 
-  # Sort by query startTime:
-  tasks.results.sort()
-
-  open(savFile, 'wb').write(cPickle.dumps(tasks.results))
+  tasks.results.finish(savFile)
 
   # printResults(results)
 

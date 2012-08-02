@@ -18,6 +18,8 @@
 import cPickle
 import sys
 import re
+import struct
+import os
 
 logPoints = ((50, 2),
              (75, 4),
@@ -40,6 +42,27 @@ def setRowCol(rows, row, pct, col, val):
     rows[row].append(rows[row-1][col])
   rows[row].append('%.1f' % val)
   #print '  now %s; row=%s' % (len(rows[row]), row)
+
+resultsCache = {}
+
+def loadResults(file, sort=True):
+  if file not in resultsCache:
+    if file.endswith('.pk'):
+      results = cPickle.loads(open(file, 'rb').read())
+    else:
+      f = open(file, 'rb')
+      results = []
+      while True:
+        b = f.read(13)
+        if len(b) == 0:
+          break
+        timestamp, latencyMS, queueTimeMS, taskLen = struct.unpack('fffB', b)
+        taskString = f.read(taskLen)
+        results.append((timestamp, taskString, latencyMS, queueTimeMS))
+      f.close()
+      results.sort()
+    resultsCache[file] = results
+  return resultsCache[file]
   
 def createGraph(fileNames, warmupSec):
   cols = []
@@ -51,7 +74,7 @@ def createGraph(fileNames, warmupSec):
   qps = int(reQPS.search(fileNames[0][0]).group(1))
 
   for name, file in fileNames:
-    results = cPickle.loads(open(file, 'rb').read())
+    results = loadResults(file, sort=False)
 
     # Discard first warmupSec seconds:
     upto = 0
@@ -166,12 +189,28 @@ chartFooter = '''        ]);
 
 if __name__ == '__main__':
 
-  warmupSec = float(sys.argv[1])
-  fileNameOut = sys.argv[2]
+  if False:
+    results = loadResults('/x/azul/phase1/ec2logs.reprozingslow.again/logs/Zing.qps175/results.bin')
+    upto = 0
+    while results[upto][0] < 300.0:
+      upto += 1
+    print 'upto %s' % upto
+    for tup in results[upto:]:
+      print tup
+      if tup[2] > 50000:
+        print '  ***'
+    sys.exit(0)
+
+  logsDir = sys.argv[1]
+  warmupSec = float(sys.argv[2])
+  fileNameOut = sys.argv[3]
 
   d = []
-  for name in sys.argv[3:]:
-    d.append((name, 'logs.sweep.06202012/%s/results.pk' % name))
+  for name in sys.argv[4:]:
+    resultsFile = '%s/%s/results.pk' % (logsDir, name)
+    if not os.path.exists(resultsFile):
+      resultsFile = '%s/%s/results.bin' % (logsDir, name)
+    d.append((name, resultsFile))
 
   html = createGraph(d, warmupSec)
   open(fileNameOut, 'wb').write(html)

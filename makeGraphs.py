@@ -1,5 +1,5 @@
 import responseTimeGraph
-import loadGraph
+import loadGraphActualQPS
 import sys
 import re
 import os
@@ -38,6 +38,9 @@ def main(maxQPS = None):
     
   w = indexOut.write
 
+  names = list(names)
+  names.sort()
+  
   try:
     if maxQPS is None:
       w('<h2>By QPS:</h2>')
@@ -64,20 +67,20 @@ def main(maxQPS = None):
     else:
       w('<h2>By percentile (max QPS %d):</h2>' % maxQPS)
 
-    for idx in xrange(len(loadGraph.logPoints)):
+    for idx in xrange(len(loadGraphActualQPS.logPoints)):
       if maxQPS is not None:
-        fileName = 'load%spct_max%s.html' % (loadGraph.logPoints[idx][0], maxQPS)
+        fileName = 'load%spct_max%s.html' % (loadGraphActualQPS.logPoints[idx][0], maxQPS)
       else:
-        fileName = 'load%spct.html' % (loadGraph.logPoints[idx][0])
+        fileName = 'load%spct.html' % (loadGraphActualQPS.logPoints[idx][0])
       try:
-        loadGraph.graph(idx, logsDir, warmupSec, list(names), '%s/%s' % (reportsDir, fileName), maxQPS=maxQPS)
+        loadGraphActualQPS.graph(idx, logsDir, warmupSec, names, '%s/%s' % (reportsDir, fileName), maxQPS=maxQPS)
       except RuntimeError:
         break
-      w('<a href="%s">%s %%</a>' % (fileName, loadGraph.logPoints[idx][0]))
+      w('<a href="%s">%s %%</a>' % (fileName, loadGraphActualQPS.logPoints[idx][0]))
       w('<br>\n')
 
     fileName = '%s/loadmax.html' % reportsDir      
-    loadGraph.graph('max', logsDir, warmupSec, list(names), fileName, maxQPS=maxQPS)
+    loadGraphActualQPS.graph('max', logsDir, warmupSec, names, fileName, maxQPS=maxQPS)
     w('<a href="%s">100%%</a>' % fileName)
     w('<br>')
 

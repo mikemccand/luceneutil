@@ -35,7 +35,8 @@ if True:
   # Home
   env = 'home'
   LUCENE_HOME = '/l/4x.azul/lucene'
-  INDEX_PATH = '/l/scratch/indices/direct'
+  LUCENE40_INDEX_PATH = '/l/scratch/indices/lucene40'
+  DIRECT_INDEX_PATH = '/l/scratch/indices/direct'
   LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
   #ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
@@ -44,7 +45,7 @@ if True:
   ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
   DO_STOP_START_ZST = True
   MAX_HEAP_GB = 10
-  SEARCH_THREAD_COUNT = 4
+  SEARCH_THREAD_COUNT = 6
   DO_ZV_ROBOT = False
   ZV_ROBOT_ROOT = '/root/ZVRobot'
   QPS_START = 50
@@ -55,12 +56,12 @@ if True:
   SERVER_HOST = '10.17.4.91'
   POSTINGS_FORMAT = 'Direct'
   COMMIT_POINT = 'multi'
-elif True:
+elif False:
   # EC2:
   env = 'ec2'
   LUCENE_HOME = '/root/lucene4x/lucene'
-  #INDEX_PATH = '/large/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
-  INDEX_PATH = '/large/indices/fullwiki'
+  LUCENE40_INDEX_PATH = '/large/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
+  DIRECT_INDEX_PATH = '/large/indices/fullwiki'
   LINE_DOCS_FILE = '/large/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/root/jHiccup.1.1.4/jHiccup'
   ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
@@ -82,20 +83,20 @@ else:
   # Lab box:
   env = 'lab'
   LUCENE_HOME = '/localhome/lucene4x/lucene'
-  #INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
-  INDEX_PATH = '/localhome/indices/direct'
+  LUCENE40_INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
+  DIREC_TINDEX_PATH = '/localhome/indices/direct'
   LINE_DOCS_FILE = '/localhome/data/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/localhome/jHiccup.1.1.4/jHiccup'
   ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
   ORACLE_JVM = '/localhome/jdk1.6.0_32/bin/java'
   DO_STOP_START_ZST = True
   MAX_HEAP_GB = 250
-  SEARCH_THREAD_COUNT = 40
+  SEARCH_THREAD_COUNT = 64
   DO_ZV_ROBOT = False
   ZV_ROBOT_ROOT = '/root/ZVRobot'
-  QPS_START = 150
+  QPS_START = 50
   QPS_INC = 50
-  QPS_END = 150
+  QPS_END = None
   CLIENT_HOST = 'isvx40'
   SERVER_HOST = 'isvx512'
   CLIENT_USER = 'root'
@@ -108,7 +109,6 @@ LOGS_DIR = 'logs'
 if SMOKE_TEST:
   RUN_TIME_SEC = 60
   WARMUP_SEC = 10
-  INDEX_PATH += '.1M'
 else:
   RUN_TIME_SEC = 3600
   WARMUP_SEC = 5 * 60
@@ -145,6 +145,7 @@ def captureEnv(logsDir):
   if svnRev.endswith('M'):
     if system('svn diff %s > %s/lucene.diffs' % (LUCENE_HOME, logsDir)):
       raise RuntimeError('svn diff failed')
+    os.chmod('%s/lucene.diffs' % logsDir, 0444)
 
   luceneUtilDir = os.path.abspath(os.path.split(sys.argv[0])[0])
 
@@ -153,9 +154,11 @@ def captureEnv(logsDir):
   if luceneUtilRev.find('+') != -1:
     if system('hg diff %s > %s/luceneutil.diffs' % (luceneUtilDir, logsDir)):
       raise RuntimeError('hg diff failed')
-
+    os.chmod('%s/luceneutil.diffs' % logsDir, 0444)
+    
   shutil.copy('%s/responseTimeTests.py' % luceneUtilDir,
               '%s/responseTimeTests.py' % logsDir)
+  os.chmod('%s/responseTimeTests.py' % logsDir, 0444)
               
 def kill(name, p):
   for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
@@ -207,7 +210,7 @@ def system(command):
   p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
   output = p.communicate()[0].strip()
   if len(output) > 0:
-    print output
+    print '  %s' % output.replace('\n', '\n  ')
   return p.returncode
 
 def run():
@@ -227,37 +230,45 @@ def run():
   targetQPS = QPS_START
 
   JOBS =  (
-    ('Zing', 'RAMDirectory', ''),
-    ('OracleCMS', 'RAMDirectory', '-XX:+UseConcMarkSweepGC'),
+    ('Zing', 'MMapDirectory', 'Lucene40'),
+    ('OracleCMS', 'MMapDirectory', 'Lucene40'),
+    ('Zing', 'RAMDirectory', 'Lucene40'),
+    ('OracleCMS', 'RAMDirectory', 'Lucene40'),
+    ('Zing', 'RAMDirectory', 'Direct'),
+    ('OracleCMS', 'RAMDirectory', 'Direct'),
     )
 
   startTime = datetime.datetime.now()
   
   while len(finished) != len(JOBS):
 
-    for desc, dirImpl, javaOpts in JOBS:
+    for job in JOBS:
 
-      if desc in finished:
+      if job in finished:
         continue
     
+      desc, dirImpl, postingsFormat = job
+      
       print
-      print '%s: %s, QPS=%d' % (datetime.datetime.now(), desc, targetQPS)
+      print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%d' % \
+            (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS)
 
-      if False and env == 'home' and desc == 'Zing':
-        # fake Zing:
-        javaOpts = '-XX:+UseConcMarkSweepGC'
-        
-      logsDir = '%s/%s.qps%s' % (LOGS_DIR, desc, targetQPS)
-      doneFile = '%s/done' % logsDir
+      logsDir = '%s/%s.%s.%s.qps%s' % (LOGS_DIR, desc, dirImpl, postingsFormat, targetQPS)
 
-      javaCommand = 'java'
+      if postingsFormat == 'Lucene40':
+        indexPath = LUCENE40_INDEX_PATH
+      else:
+        indexPath = DIRECT_INDEX_PATH
+
+      if SMOKE_TEST:
+        indexPath += '.1M'
 
       os.makedirs(logsDir)
 
       if desc.startswith('Zing'):
         if DO_STOP_START_ZST:
           while True:
-            if system('service zing-memory start 2>&1'):
+            if system('sudo service zing-memory start 2>&1'):
               print 'Failed to start zing-memory... retry; java processes:'
               system('ps axuw | grep java')
               time.sleep(2.0)
@@ -267,7 +278,7 @@ def run():
       else:
         if DO_STOP_START_ZST:
           while True:
-            if system('service zing-memory stop 2>&1'):
+            if system('sudo service zing-memory stop 2>&1'):
               print 'Failed to stop zing-memory... retry; java processes:'
               system('ps axuw | grep java')
               time.sleep(2.0)
@@ -278,8 +289,10 @@ def run():
       command = []
       w = command.append
       w(javaCommand)
-      w(javaOpts)
-      if desc.find('MMap') != -1:
+      if desc.find('CMS') != -1:
+        w('-XX:+UseConcMarkSweepGC')
+
+      if dirImpl == 'MMapDirectory':
         w('-Xmx4g')
       else:
         w('-Xmx%dg' % MAX_HEAP_GB)
@@ -292,7 +305,7 @@ def run():
       w('-cp')
       w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
       w('perf.SearchPerfTest')
-      w('-indexPath %s' % INDEX_PATH)
+      w('-indexPath %s' % indexPath)
       w('-dirImpl %s' % dirImpl)
       w('-cloneDocs')
       w('-analyzer StandardAnalyzer')
@@ -310,15 +323,13 @@ def run():
       w('-reopenEverySec 1.0')
       w('-store')
       w('-tvs')
-      w('-postingsFormat %s' % POSTINGS_FORMAT)
-      w('-idFieldPostingsFormat %s' % POSTINGS_FORMAT)
+      w('-postingsFormat %s' % postingsFormat)
+      w('-idFieldPostingsFormat %s' % postingsFormat)
 
       serverLog = '%s/server.log' % logsDir
 
       command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
                 (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
-
-      # print command
 
       p = None
       vmstatProcess = None
@@ -329,14 +340,14 @@ def run():
       try:
 
         print '  clean index'
-        touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, INDEX_PATH)
-        print '  run %s' % touchCmd
+        touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
+        #print '  run %s' % touchCmd
         if system(touchCmd):
           raise RuntimeError('OpenCloseIndexWriter failed')
 
         t0 = time.time()
         vmstatProcess = subprocess.Popen('vmstat 1 > %s/vmstat.log 2>&1' % logsDir, shell=True)
-        #print '  run %s' % command
+        print '  server command: %s' % command
         p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
         if DO_ZV_ROBOT and desc.startswith('Zing'):
@@ -391,8 +402,8 @@ def run():
         print '  test done (%.1f total sec)' % (t1-t0)
 
         if (t1 - t0) > RUN_TIME_SEC * 1.3:
-          print '  marking %s finished' % desc
-          finished.add(desc)
+          print '  marking this job finished!'
+          finished.add(job)
 
         success = True
         
@@ -421,7 +432,7 @@ def run():
           raise RuntimeError('could not find ZVRobot log dir')
 
       print '  done'
-      open(doneFile, 'wb').close()
+      open('%s/done' % logsDir, 'wb').close()
 
     if QPS_END is not None and targetQPS >= QPS_END:
       break
@@ -450,6 +461,7 @@ def main():
     traceback.print_exc()
   finally:
     logOut.close()
+    os.chmod('%s/log.txt' % LOGS_DIR, 0444)
     del teeStdout
     del teeStderr
     

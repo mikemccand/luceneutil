@@ -98,10 +98,34 @@ public class CreateQueries {
 
     System.out.println("\nFind top df terms...");
     
-    // First pass: get high/medium freq terms:
+    // First pass: get high/medium/low freq terms:
     final TermFreq[] topTerms = getTopTermsByDocFreq(r, field, TOP_N, false);
 
     final long maxDF = topTerms[0].df;
+
+    int counter = 0;
+    String prefix = "High";
+    for(int idx=0;idx<topTerms.length;idx++) {
+      final TermFreq tf = topTerms[idx];
+      if (tf.df >= maxDF/10) {
+        prefix = "High";
+      } else if (tf.df >= maxDF/100) {
+        if (!prefix.equals("Med")) {
+          counter = 0;
+        }
+        prefix = "Med";
+      } else {
+        if (!prefix.equals("Low")) {
+          counter = 0;
+        }
+        prefix = "Low";
+      }
+
+      if (counter++ < 500) {
+        queriesOut.write(prefix + "Term" + ": " + tf.term.utf8ToString() + " # freq=" + tf.df + "\n");
+      }
+    }
+
     int upto = 1;
     while(topTerms[upto].df >= maxDF/10) {
       upto++;
@@ -110,26 +134,30 @@ public class CreateQueries {
     final TermFreq[] highFreqTerms = new TermFreq[upto];
     System.arraycopy(topTerms, 0, highFreqTerms, 0, highFreqTerms.length);
 
-    for(int idx=0;idx<NUM_QUERIES;idx++) {
-      final TermFreq tf = topTerms[idx];
-      queriesOut.write("Term: " + tf.term.utf8ToString() + " # freq=" + tf.df + "\n");
-    }
-
     while(topTerms[upto].df >= maxDF/100) {
       upto++;
     }
     final TermFreq[] mediumFreqTerms = new TermFreq[upto - highFreqTerms.length];
     System.arraycopy(topTerms, highFreqTerms.length, mediumFreqTerms, 0, mediumFreqTerms.length);
 
+    int downTo = topTerms.length-1;
+    while(topTerms[downTo].df < maxDF/1000) {
+      downTo--;
+    }
+    downTo++;
+    final TermFreq[] lowFreqTerms = new TermFreq[topTerms.length - downTo];
+    System.arraycopy(topTerms, downTo, lowFreqTerms, 0, lowFreqTerms.length);
+
     final Random random = new Random(1742);
 
     System.out.println("  " + highFreqTerms.length + " high freq terms");
     System.out.println("  " + mediumFreqTerms.length + " medium freq terms");
+    System.out.println("  " + lowFreqTerms.length + " low freq terms");
 
     makePrefixQueries(mediumFreqTerms, queriesOut);
     makeNRQs(random, queriesOut);
 
-    makeAndOrQueries(random, highFreqTerms, mediumFreqTerms, queriesOut);
+    makeAndOrQueries(random, highFreqTerms, mediumFreqTerms, lowFreqTerms, queriesOut);
 
     makeWildcardQueries(topTerms, queriesOut);
 
@@ -204,7 +232,7 @@ public class CreateQueries {
     final DirectSpellChecker spellChecker = new DirectSpellChecker();    
     spellChecker.setThresholdFrequency(1.0f);
 
-    final MostFrequentTerms pq = new MostFrequentTerms(3*NUM_QUERIES);
+    final MostFrequentTerms pq = new MostFrequentTerms(NUM_QUERIES);
 
     // TODO: use threads...?
     int count = 0;
@@ -236,28 +264,23 @@ public class CreateQueries {
       }
     }
 
-    if (pq.size() < 3*NUM_QUERIES) {
+    if (pq.size() < NUM_QUERIES) {
       throw new RuntimeException("index is too small: only " + pq.size() + " top fuzzy terms");
     }
 
-    int downTo = 3*NUM_QUERIES;
+    int downTo = NUM_QUERIES;
     while (pq.size()>0) {
       TermFreq tdf = pq.pop();
       System.out.println("  " + tdf.term.utf8ToString() + " freq=" + tdf.df);
-      final int mod = pq.size() % 3;
-      if (mod == 0) {
-        queriesOut.write("Fuzzy1: " + tdf.term.utf8ToString() + "~1\n");
-      } else if (mod == 1) {
-        queriesOut.write("Fuzzy2: " + tdf.term.utf8ToString() + "~2\n");
-      } else {
-        queriesOut.write("Respell: " + tdf.term.utf8ToString() + "\n");
-      }
+      queriesOut.write("Fuzzy1: " + tdf.term.utf8ToString() + "~1\n");
+      queriesOut.write("Fuzzy2: " + tdf.term.utf8ToString() + "~2\n");
+      queriesOut.write("Respell: " + tdf.term.utf8ToString() + "\n");
     }
     queriesOut.flush();
   }
 
 
-  private static void makeAndOrQueries(Random random, TermFreq[] highFreqTerms, TermFreq[] mediumFreqTerms, Writer queriesOut) throws IOException {
+  private static void makeAndOrQueries(Random random, TermFreq[] highFreqTerms, TermFreq[] mediumFreqTerms, TermFreq[] lowFreqTerms, Writer queriesOut) throws IOException {
 
     final Set<String> seen = new HashSet<String>();
 
@@ -280,7 +303,7 @@ public class CreateQueries {
       if (!seen.contains(query)) {
         seen.add(query);
         count++;
-        queriesOut.write("AndHighHigh: " + query + " # freq=" + high1.df + " freq=" + high2.df + "\n");
+        queriesOut.write("AndHighHigh: " + query + " # freq=" + high1.df + " freq=" + high2.df + " " + String.format("%.1f", ((float) high1.df) / high2.df) + "\n");
       }
     }
 
@@ -296,6 +319,21 @@ public class CreateQueries {
         seen.add(query);
         count++;
         queriesOut.write("AndHighMed: " + query + " # freq=" + high.df + " freq=" + medium.df + "\n");
+      }
+    }
+
+    // +high +low
+    count = 0;
+    while(count < NUM_QUERIES) {
+      final int idx1 = random.nextInt(highFreqTerms.length);
+      final int idx2 = random.nextInt(lowFreqTerms.length);
+      final TermFreq high = highFreqTerms[idx1];
+      final TermFreq low = lowFreqTerms[idx2];
+      final String query = "+" + high.term.utf8ToString() + " +" + low.term.utf8ToString();
+      if (!seen.contains(query)) {
+        seen.add(query);
+        count++;
+        queriesOut.write("AndHighLow: " + query + " # freq=" + high.df + " freq=" + low.df + "\n");
       }
     }
     
@@ -336,6 +374,21 @@ public class CreateQueries {
         queriesOut.write("OrHighMed: " + query + " # freq=" + high.df + " freq=" + medium.df + "\n");
       }
     }
+
+    // high low
+    count = 0;
+    while(count < NUM_QUERIES) {
+      final int idx1 = random.nextInt(highFreqTerms.length);
+      final int idx2 = random.nextInt(lowFreqTerms.length);
+      final TermFreq high = highFreqTerms[idx1];
+      final TermFreq low = lowFreqTerms[idx2];
+      final String query = high.term.utf8ToString() + " " + low.term.utf8ToString();
+      if (!seen.contains(query)) {
+        seen.add(query);
+        count++;
+        queriesOut.write("OrHighLow: " + query + " # freq=" + high.df + " freq=" + low.df + "\n");
+      }
+    }
     queriesOut.flush();
   }
 
@@ -370,17 +423,62 @@ public class CreateQueries {
   private static void processShingles(IndexReader r, String field, Writer queriesOut) throws IOException {
     System.out.println("\nFind phrase queries...");
     // First pass: get high/medium freq shingles:
-    final TermFreq[] topShingles = getTopTermsByDocFreq(r, field, 3*NUM_QUERIES, true);
-    
-    for(int idx=0;idx<3*NUM_QUERIES;idx++) {
-      final TermFreq tf = topShingles[idx];
-      final int mod = idx % 3;
-      if (mod == 0) {
-        queriesOut.write("Phrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "\n");
-      } else if (mod == 1) {
-        queriesOut.write("SloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "\n");
-      } else {
-        queriesOut.write("SpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "\n");
+    final TermFreq[] topShingles = getTopTermsByDocFreq(r, field, TOP_N, true);
+
+    long topDF = topShingles[0].df;
+    int upto = 0;
+    int counter = 0;
+    while(topShingles[upto].df >= topDF/10) {
+      final TermFreq tf = topShingles[upto];
+      String [] terms = tf.term.utf8ToString().split(" ");
+      if (terms.length != 2) {
+        throw new RuntimeException("expected two terms from " + tf.term.utf8ToString());
+      }
+      int df1 = r.docFreq(new Term(field, terms[0]));
+      int df2 = r.docFreq(new Term(field, terms[1]));
+      queriesOut.write("HighPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("HighSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("HighSpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      upto++;
+      counter++;
+      if (counter >= NUM_QUERIES) {
+        break;
+      }
+    }
+    counter = 0;
+    while(topShingles[upto].df >= topDF/100) {
+      final TermFreq tf = topShingles[upto];
+      String [] terms = tf.term.utf8ToString().split(" ");
+      if (terms.length != 2) {
+        throw new RuntimeException("expected two terms from " + tf.term.utf8ToString());
+      }
+      int df1 = r.docFreq(new Term(field, terms[0]));
+      int df2 = r.docFreq(new Term(field, terms[1]));
+      queriesOut.write("MedPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("MedSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("MedSpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      upto++;
+      counter++;
+      if (counter >= NUM_QUERIES) {
+        break;
+      }
+    }
+    counter = 0;
+    while(topShingles[upto].df >= topDF/1000) {
+      final TermFreq tf = topShingles[upto];
+      String [] terms = tf.term.utf8ToString().split(" ");
+      if (terms.length != 2) {
+        throw new RuntimeException("expected two terms from " + tf.term.utf8ToString());
+      }
+      int df1 = r.docFreq(new Term(field, terms[0]));
+      int df2 = r.docFreq(new Term(field, terms[1]));
+      queriesOut.write("LowPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("LowSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("LowSpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      upto++;
+      counter++;
+      if (counter >= NUM_QUERIES) {
+        break;
       }
     }
     queriesOut.flush();

@@ -117,7 +117,14 @@ class Index(object):
       s2 = 'cfs.'
     else:
       s2 = ''
-    return '%s.%s.%s.%s%snd%gM' % (self.dataSource.name, self.checkout, self.postingsFormat, s, s2, self.numDocs/1000000.0)
+
+    if self.postingsFormat == self.idFieldPostingsFormat:
+      s3 = self.postingsFormat
+    else:
+      s3 = '%s.%s' % (self.postingsFormat, self.idFieldPostingsFormat)
+      
+    return '%s.%s.%s.%s%snd%gM' % (self.dataSource.name, self.checkout,
+                                   s3, s, s2, self.numDocs/1000000.0)
 
 class Competitor(object):
 

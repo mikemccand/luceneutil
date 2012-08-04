@@ -941,7 +941,7 @@ class RunAlgs:
       if constants.SORT_REPORT_BY == 'pctchange':
         sortBy = psAvg
       elif constants.SORT_REPORT_BY == 'query':
-        sortBy = qs
+        sortBy = desc
       else:
         raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
 

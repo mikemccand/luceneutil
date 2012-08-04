@@ -33,6 +33,13 @@ logPoints = ((50, 2),
              (99.9999, 1000000),
              (99.99999, 10000000))
 
+def cleanName(name):
+  name = name.replace('Directory', '')
+  name = name.replace('Oracle', '')
+  name = name.replace('.Lucene40', '')
+  name = name.replace('.RAM.Direct', '.Direct')
+  return name
+
 def setRowCol(rows, row, pct, col, val):
   if len(rows) <= row:
     assert len(rows) == row
@@ -61,7 +68,18 @@ def loadResults(file, sort=True):
         results.append((timestamp, taskString, latencyMS, queueTimeMS))
       f.close()
       results.sort()
-    resultsCache[file] = results
+
+    # Find time when test finally finished:
+    endTime = None
+    for tup in results:
+      endTime = max(tup[0] + tup[2]/1000.0, endTime)
+
+    actualQPS = len(results) / endTime
+      
+    print '%s: actualQPS=%s endTime=%s len(results)=%d' % (file, actualQPS, endTime, len(results))
+    
+    resultsCache[file] = results, actualQPS
+    
   return resultsCache[file]
   
 def createGraph(fileNames, warmupSec):
@@ -74,7 +92,7 @@ def createGraph(fileNames, warmupSec):
   qps = int(reQPS.search(fileNames[0][0]).group(1))
 
   for name, file in fileNames:
-    results = loadResults(file, sort=False)
+    results, actualQPS = loadResults(file, sort=False)
 
     # Discard first warmupSec seconds:
     upto = 0
@@ -119,12 +137,9 @@ def createGraph(fileNames, warmupSec):
   chart = []
   w = chart.append
   w(chartHeader)
-  cleanName = {'OracleCMS': 'CMS',
-               'OracleCMSMMap': 'CMS + MMap',
-               'OracleCMSMMapDir': 'CMS + MMap'}
 
   l = ['Percentile'] + names
-  w("          [%s],\n" % (','.join("'%s'" % cleanName.get(x, x) for x in l)))
+  w("          [%s],\n" % (','.join("'%s'" % cleanName(x) for x in l)))
   rowID = 0
   while True:
     row = []

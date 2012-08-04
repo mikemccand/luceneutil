@@ -32,9 +32,9 @@ $JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-f
     -maxBufferedDocs 60058 \
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
-    -waitForMerges \
     -mergePolicy LogDocMergePolicy \
     -verbose
 
+#    -waitForMerges \
 #    -store \
 #    -tvs

@@ -917,18 +917,37 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
     f.close()
   return '\n'.join(l)
 
-def sendEmail(emailAddress, message):
-  import localpass
-  SMTP_SERVER = localpass.SMTP_SERVER
-  SMTP_PORT = localpass.SMTP_PORT
-  FROM_EMAIL = 'admin@mikemccandless.com'
-  smtp = smtplib.SMTP(SMTP_SERVER, port=SMTP_PORT)
-  smtp.ehlo(FROM_EMAIL)
-  smtp.starttls()
-  smtp.ehlo(FROM_EMAIL)
-  localpass.smtplogin(smtp)
-  smtp.sendmail(FROM_EMAIL, emailAddress.split(','), message)
-  smtp.quit()
+def sendEmail(toEmailAddr, subject, messageText):
+  try:
+    import localpass
+    useSendMail = False
+  except ImportError:
+    useSendMail = True
+  if not useSendMail:
+    SMTP_SERVER = localpass.SMTP_SERVER
+    SMTP_PORT = localpass.SMTP_PORT
+    FROM_EMAIL = 'admin@mikemccandless.com'
+    smtp = smtplib.SMTP(SMTP_SERVER, port=SMTP_PORT)
+    smtp.ehlo(FROM_EMAIL)
+    smtp.starttls()
+    smtp.ehlo(FROM_EMAIL)
+    localpass.smtplogin(smtp)
+    msg = 'From: %s\r\n' % 'mail@mikemccandless.com'
+    msg += 'To: %s\r\n' % toEmailAddr
+    msg += 'Subject: %s\r\n' % subject
+    msg += '\r\n'
+    smtp.sendmail('mail@mikemccandless.com', toEmailAddress.split(','), msg)
+    smtp.quit()
+  else:
+    from email.mime.text import MIMEText
+    from subprocess import Popen, PIPE
+
+    msg = MIMEText(messageText)
+    msg["From"] = 'mail@mikemccandless.com'
+    msg["To"] = toEmailAddr
+    msg["Subject"] = subject
+    p = Popen(["/usr/sbin/sendmail", "-t"], stdin=PIPE)
+    p.communicate(msg.as_string())
 
 if __name__ == '__main__':
   try:
@@ -938,12 +957,8 @@ if __name__ == '__main__':
   except:
     traceback.print_exc()
     if not DEBUG and REAL:
-      import localpass
-      emailAddr = 'mail@mikemccandless.com'
-      message = 'From: %s\r\n' % localpass.FROM_EMAIL
-      message += 'To: %s\r\n' % emailAddr
-      message += 'Subject: Nightly Lucene bench FAILED!!\r\n'
-      sendEmail(emailAddr, message)
+      import socket
+      sendEmail('mail@mikemccandless.com', 'Nightly Lucene bench FAILED (%s)' % socket.gethostname(), '')
     
 # scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs
 

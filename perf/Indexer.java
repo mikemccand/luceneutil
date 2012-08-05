@@ -186,10 +186,16 @@ public final class Indexer {
     final Codec codec = new Lucene40Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
-        if (field.equals("id") && idFieldPostingsFormat.equals("BloomLucene40")) {
-          return new BloomFilteringPostingsFormat(
-                            PostingsFormat.forName("Lucene40"),
-                            new DefaultBloomFilterFactory());
+        if (field.equals("id")) {
+          if (idFieldPostingsFormat.equals("BloomLucene40")) {
+            return new BloomFilteringPostingsFormat(
+                     PostingsFormat.forName("Lucene40"),
+                     new DefaultBloomFilterFactory());
+          } else if (idFieldPostingsFormat.equals("BloomMemory")) {
+            return new BloomFilteringPostingsFormat(
+                     PostingsFormat.forName("Memory"),
+                     new DefaultBloomFilterFactory());
+          }
         }
             
         return PostingsFormat.forName(field.equals("id") ?

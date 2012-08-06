@@ -41,15 +41,25 @@ class IndexState {
   public final DirectSpellChecker spellChecker;
   public final Filter groupEndFilter;
   public final FastVectorHighlighter highlighter;
+  //public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
   public int[] docIDToID;
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, String textFieldName, DirectSpellChecker spellChecker) throws IOException {
+  public IndexState(ReferenceManager<IndexSearcher> mgr, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
-    highlighter = new FastVectorHighlighter(true, true);
+    if (hiliteImpl.equals("FastVectorHighlighter")) {
+      highlighter = new FastVectorHighlighter(true, true);
+      // postingsHighlighter = null;
+    } else if (hiliteImpl.equals("PostingsHighlighter")) {
+      highlighter = null;
+      // nocommit fixme
+      // postingsHighlighter = ...
+    } else {
+      throw new IllegalArgumentException("unrecognized -hiliteImpl \"" + hiliteImpl + "\"");
+    }
   }
 
   public void setDocIDToID() throws IOException {

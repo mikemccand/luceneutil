@@ -110,6 +110,7 @@ public final class Indexer {
     final boolean useCFS = args.getFlag("-cfs");
     final boolean storeBody = args.getFlag("-store");
     final boolean tvsBody = args.getFlag("-tvs");
+    final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -212,7 +213,8 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    IndexThreads threads = new IndexThreads(random, w, lineFile, storeBody, tvsBody, numThreads, docCountLimit, addGroupingFields, printDPS,
+    IndexThreads threads = new IndexThreads(random, w, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
+                                            numThreads, docCountLimit, addGroupingFields, printDPS,
                                             doUpdate, -1.0f, false);
 
     System.out.println("\nIndexer: start");

@@ -46,10 +46,11 @@ class IndexThreads {
   final Thread[] threads;
 
   public IndexThreads(Random random, IndexWriter w, String lineFile, boolean storeBody, boolean tvsBody,
+                      boolean bodyPostingsOffsets,
                       int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
                       boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, cloneDocs);
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs);
 
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);

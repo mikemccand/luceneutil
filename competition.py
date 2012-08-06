@@ -77,7 +77,11 @@ class Index(object):
                grouping = True,
                verbose = False,
                printDPS = False,
-               waitForMerges = True):
+               waitForMerges = True,
+               bodyTermVectors = False,
+               bodyStoredFields = False,
+               bodyPostingsOffsets = False,
+               ):
     self.checkout = checkout
     self.dataSource = dataSource
     self.analyzer = analyzer
@@ -103,6 +107,9 @@ class Index(object):
     self.printDPS = printDPS
     self.waitForMerges = waitForMerges
     self.idFieldPostingsFormat = idFieldPostingsFormat
+    self.bodyTermVectors = bodyTermVectors
+    self.bodyStoredFields = bodyStoredFields
+    self.bodyPostingsOffsets = bodyPostingsOffsets
 
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
@@ -138,7 +145,8 @@ class Competitor(object):
                commitPoint = 'multi',
                similarity = constants.SIMILARITY_DEFAULT,
                javaCommand = constants.JAVA_COMMAND,
-               printHeap = False):
+               printHeap = False,
+               hiliteImpl = 'FastVectorHighlighter'):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -149,6 +157,7 @@ class Competitor(object):
     self.similarity = similarity
     self.javaCommand = javaCommand
     self.printHeap = printHeap
+    self.hiliteImpl = hiliteImpl
 
   def compile(self, cp):
     files = glob.glob('perf/*.java')

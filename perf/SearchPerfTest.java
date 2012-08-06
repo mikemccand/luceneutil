@@ -203,6 +203,7 @@ public class SearchPerfTest {
     final Directory dir;
 
     final String commit = args.getString("-commit");
+    final String hiliteImpl = args.getString("-hiliteImpl");
 
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
@@ -274,7 +275,12 @@ public class SearchPerfTest {
       
       writer = new IndexWriter(dir, iwc);
 
-      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody, indexThreadCount, -1, false, false, true, docsPerSecPerThread, cloneDocs);
+      // TODO: add -nrtBodyPostingsOffsets instead of
+      // hardwired false:
+      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody,
+                                              false,
+                                              indexThreadCount, -1,
+                                              false, false, true, docsPerSecPerThread, cloneDocs);
       threads.start();
 
       mgr = new SearcherManager(writer, true, new SearcherFactory() {
@@ -339,7 +345,7 @@ public class SearchPerfTest {
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, fieldName, spellChecker);
+    final IndexState indexState = new IndexState(mgr, fieldName, spellChecker, hiliteImpl);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     // TODO: populate filters the next time we want to test

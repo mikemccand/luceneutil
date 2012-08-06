@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
@@ -46,13 +47,15 @@ public class LineFileDocs implements Closeable {
   private final String path;
   private final boolean storeBody;
   private final boolean tvsBody;
+  private final boolean bodyPostingsOffsets;
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
 
-  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean doClone) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
+    this.bodyPostingsOffsets = bodyPostingsOffsets;
     this.doClone = doClone;
     open();
     this.doRepeat = doRepeat;
@@ -157,7 +160,7 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets) {
       doc = new Document();
       
       title = new StringField("title", "", Field.Store.NO);
@@ -180,6 +183,10 @@ public class LineFileDocs implements Closeable {
         bodyFieldType.setStoreTermVectorPositions(true);
       }
 
+      if (bodyPostingsOffsets) {
+        bodyFieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
+      }
+
       body = new Field("body", "", bodyFieldType);
       doc.add(body);
 
@@ -198,7 +205,7 @@ public class LineFileDocs implements Closeable {
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets);
   }
 
   // TODO: is there a pre-existing way to do this!!!

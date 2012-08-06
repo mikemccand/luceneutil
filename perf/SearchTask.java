@@ -101,7 +101,11 @@ final class SearchTask extends Task {
 
     try {
       if (doHilite) {
-        fieldQuery = state.highlighter.getFieldQuery(q, searcher.getIndexReader());
+        if (state.highlighter != null) {
+          fieldQuery = state.highlighter.getFieldQuery(q, searcher.getIndexReader());
+        } else {
+          // no setup for postingshighlighter
+        }
       }
 
       if (group != null) {
@@ -153,17 +157,17 @@ final class SearchTask extends Task {
       } else if (s == null && f == null) {
         hits = searcher.search(q, topN);
         if (doHilite) {
-          hilite(hits, state, searcher);
+          hilite(hits, state, searcher, q);
         }
       } else if (s == null && f != null) {
         hits = searcher.search(q, f, topN);
         if (doHilite) {
-          hilite(hits, state, searcher);
+          hilite(hits, state, searcher, q);
         }
       } else {
         hits = searcher.search(q, f, topN, s);
         if (doHilite) {
-          hilite(hits, state, searcher);
+          hilite(hits, state, searcher, q);
         }
         /*
           final boolean fillFields = true;
@@ -195,9 +199,13 @@ final class SearchTask extends Task {
     }
   }
 
-  private void hilite(TopDocs hits, IndexState indexState, IndexSearcher searcher) throws IOException {
-    for(ScoreDoc sd : hits.scoreDocs) {
-      hilite(sd.doc, indexState, searcher);
+  private void hilite(TopDocs hits, IndexState indexState, IndexSearcher searcher, Query query) throws IOException {
+    if (indexState.highlighter != null) {
+      for(ScoreDoc sd : hits.scoreDocs) {
+        hilite(sd.doc, indexState, searcher);
+      }
+    } else {
+      indexState.postingsHighlighter.highlight(query, searcher, hits);
     }
   }
 

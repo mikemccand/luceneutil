@@ -637,6 +637,9 @@ class RunAlgs:
       if index.bodyTermVectors:
         w('-tvs')
 
+      if index.bodyPostingsOffsets:
+        w('-bodyPostingsOffsets')
+
       if index.bodyStoredFields:
         w('-store')
 

@@ -205,7 +205,7 @@ final class SearchTask extends Task {
         hilite(sd.doc, indexState, searcher);
       }
     } else {
-      indexState.postingsHighlighter.highlight(query, searcher, hits);
+      //indexState.postingsHighlighter.highlight(query, searcher, hits);
     }
   }
 

@@ -41,7 +41,7 @@ SLOW_SKIP_PCT = 25
 
 LOG_SUB_DIR = 'logs'
 
-DO_MIN = False
+DO_MIN = True
 
 MAX_SCORE_DIFF = .00001
 
@@ -709,11 +709,13 @@ class RunAlgs:
   def compile(self, competitor):
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
-    lucenePath = '%s/lucene' % checkoutToPath(competitor.checkout)
-    print '  %s' % lucenePath
-    os.chdir(lucenePath)
     try:
-      run('%s compile-test' % constants.ANT_EXE, 'compile.log')
+      for module in ('core', 'suggest', 'highlighter', 'analysis/common', 'grouping', 'test-framework'):
+        modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
+        print '  %s...' % modulePath
+        os.chdir(modulePath)
+        run('%s compile' % constants.ANT_EXE, 'compile.log')
+
       print '  %s' % path
       os.chdir(path)      
       if path.endswith('/'):

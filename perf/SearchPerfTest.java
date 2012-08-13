@@ -329,6 +329,7 @@ public class SearchPerfTest {
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening searcher on commit=" + commit);
         reader = DirectoryReader.open(findCommitPoint(commit, dir));
+        System.out.println("maxDoc=" + reader.maxDoc());
       } else {
         // open last commit
         reader = DirectoryReader.open(dir);

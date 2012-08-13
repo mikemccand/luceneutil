@@ -106,6 +106,10 @@ def createGraph(fileNames, warmupSec):
     responseTimes = [x[2] for x in results]
     responseTimes.sort()
 
+    if responseTimes[-1] > 20000:
+      print '  discard %s: max responseTime=%s' % (name, responseTimes[-1])
+      continue
+
     col = []
     cols.append(col)
     col.append(responseTimes[0])
@@ -122,7 +126,7 @@ def createGraph(fileNames, warmupSec):
 
     # Max:
     if not didMax:
-      print 'max %s vs %s' % (responseTimes[-1], col[-1])
+      #print 'max %s vs %s' % (responseTimes[-1], col[-1])
       col.append(responseTimes[-1])
     print '%s has %d rows' % (name, len(col))
     print col
@@ -154,6 +158,7 @@ def createGraph(fileNames, warmupSec):
     elif rowID == 0:
       label = '0%'
     else:
+      #print 'rowID %s vs %s, %s' % (rowID, len(logPoints), maxRows)
       label = '%g' % logPoints[rowID-1][0]
 
     w('          ["%s",%s],\n' % (label, ','.join(row)))

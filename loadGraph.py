@@ -69,9 +69,9 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         responseTimes.sort()
 
         if rowPoint == 'min':
-          points[(name, qps)] = responseTimes[0]
+          t = responseTimes[0]
         elif rowPoint == 'max':
-          points[(name, qps)] = responseTimes[-1]
+          t = responseTimes[-1]
         else:
           pct, minCount = logPoints[rowPoint]
           if len(responseTimes) < minCount:
@@ -79,7 +79,11 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
           idx = int(((100.0-pct)/100.0)*len(responseTimes))
           # TODO: should we take linear blend of the two points...?  Else
           # we have a sparseness problem...
-          points[(name, qps)] = responseTimes[-idx-1]
+          t = responseTimes[-idx-1]
+
+        points[(name, qps)] = t
+        if sla is not None and t <= sla:
+          passesSLA.add(name)
 
   qpsList = list(allQPS)
   qpsList.sort()
@@ -113,7 +117,6 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   html = graphHeader + ''.join(l) + graphFooter % p
   open(fileName, 'wb').write(html)
   print '  saved %s' % fileName
-  
 
 graphHeader = '''<html>
   <head>

@@ -33,9 +33,29 @@ logPoints = ((50, 2),
              (99.9999, 1000000),
              (99.99999, 10000000))
 
+# percentile, max-msec
+SLA = ((50, 1000.0),
+       (99, 5000.0),
+       (100, 15000.0))
+
 def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
 
   graphData = []
+
+  if rowPoint == 'min':
+    sla = None
+  elif rowPoint == 'max':
+    sla = SLA[-1][1]
+  else:
+    sla = None
+    for pct, maxResponseTime in SLA:
+      if pct == logPoints[rowPoint][0]:
+        sla = maxResponseTime
+        break
+
+  print 'SLA=%s' % str(sla)
+  
+  passesSLA = set()
   
   for name in names:
 
@@ -88,6 +108,10 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
           # we have a sparseness problem...
           t = responseTimes[-idx-1]
 
+        if sla is not None and t <= sla:
+          passesSLA.add((qps, name))
+          print '  PASS'
+
         graphData.append((qps, actualQPS, name, t))
 
   graphData.sort()
@@ -115,6 +139,10 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   html = graphHeader + ''.join(l) + graphFooter % p
   open(fileName, 'wb').write(html)
   print '  saved %s' % fileName
+  if sla is None:
+    return None
+  else:
+    return passesSLA
   
 
 graphHeader = '''<html>

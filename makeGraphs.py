@@ -57,7 +57,10 @@ def main(maxQPS = None):
             d.append(('%s.qps%s' % (name, qps), resultsFile))
 
         if len(d) != 0:
-          html = responseTimeGraph.createGraph(d, warmupSec)
+          try:
+            html = responseTimeGraph.createGraph(d, warmupSec)
+          except IndexError:
+            break
           open('%s/%sqps.html' % (reportsDir, qps), 'wb').write(html)
           w('<a href="%sqps.html">%d queries/sec</a>' % (qps, qps))
           w('<br>\n')
@@ -67,20 +70,53 @@ def main(maxQPS = None):
     else:
       w('<h2>By percentile (max QPS %d):</h2>' % maxQPS)
 
+    allPassesSLA = None
+
     for idx in xrange(len(loadGraphActualQPS.logPoints)):
       if maxQPS is not None:
         fileName = 'load%spct_max%s.html' % (loadGraphActualQPS.logPoints[idx][0], maxQPS)
       else:
         fileName = 'load%spct.html' % (loadGraphActualQPS.logPoints[idx][0])
+
+      stop = False
       try:
-        loadGraphActualQPS.graph(idx, logsDir, warmupSec, names, '%s/%s' % (reportsDir, fileName), maxQPS=maxQPS)
+        passesSLA = loadGraphActualQPS.graph(idx, logsDir, warmupSec, names, '%s/%s' % (reportsDir, fileName), maxQPS=maxQPS)
       except RuntimeError:
+        stop = True
+
+      if passesSLA is not None:
+        if allPassesSLA is None:
+          allPassesSLA = passesSLA
+        else:
+          for x in list(allPassesSLA):
+            if x not in passesSLA:
+              allPassesSLA.remove(x)
+
+      if stop:
         break
+      
       w('<a href="%s">%s %%</a>' % (fileName, loadGraphActualQPS.logPoints[idx][0]))
       w('<br>\n')
 
     fileName = '%s/loadmax.html' % reportsDir      
-    loadGraphActualQPS.graph('max', logsDir, warmupSec, names, fileName, maxQPS=maxQPS)
+    passesSLA = loadGraphActualQPS.graph('max', logsDir, warmupSec, names, fileName, maxQPS=maxQPS)
+    if passesSLA is not None:
+      for x in list(allPassesSLA):
+        if x not in passesSLA:
+          allPassesSLA.remove(x)
+
+    highest = {}
+    for qps, name in allPassesSLA:
+      if name not in highest or qps > highest[name]:
+        highest[name] = qps
+
+    l = [(y, x) for x, y in highest.items()]
+    l.sort()
+      
+    print 'Highest QPS w/ SLA met:'
+    for qps, name in l:
+      print '  %s: %s' % (responseTimeGraph.cleanName(name), qps)
+
     w('<a href="%s">100%%</a>' % fileName)
     w('<br>')
 

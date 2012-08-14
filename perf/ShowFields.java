@@ -22,6 +22,7 @@ import java.util.Iterator;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.store.FSDirectory;
@@ -33,9 +34,7 @@ public class ShowFields {
   public static void main(String[] args) throws CorruptIndexException, IOException {
     DirectoryReader reader = DirectoryReader.open(FSDirectory.open(new File("/home/simon/work/projects/lucene/bench/indices/Standard.work.trunk.wiki.nd0.1M/index")));
     Fields fields = MultiFields.getFields(reader);
-    Iterator<String> iterator = fields.iterator();
-    String name;
-    while((name = iterator.next()) != null) {
+    for(String name : fields) {
       System.out.println(name);
       if(name.equals("docdate")) {
         TermsEnum terms = fields.terms(name).iterator(null);
@@ -43,11 +42,11 @@ public class ShowFields {
         int i = 0;
         while((ref = terms.next()) != null) {
           System.out.println(ref.utf8ToString());
-          if(i++ == 10)
+          if(i++ == 10) {
             break;
+          }
         }
       }
-        
     }
   }
 }

@@ -83,7 +83,7 @@ final class PKLookupTask extends Task {
     final IndexSearcher searcher = state.mgr.acquire();
     try {
       final boolean DO_DOC_LOOKUP = true;
-      final List<AtomicReaderContext> subReaders = searcher.getIndexReader().getTopReaderContext().leaves();
+      final List<AtomicReaderContext> subReaders = searcher.getIndexReader().leaves();
       final TermsEnum[] termsEnums = new TermsEnum[subReaders.size()];
       final DocsEnum[] docsEnums = new DocsEnum[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {

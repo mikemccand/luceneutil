@@ -39,7 +39,7 @@ final class PreComputedRandomFilter extends Filter {
     //System.out.println("FILT: pct=" + pctAcceptDocs);
     this.pct = pctAcceptDocs;
     pctAcceptDocs /= 100.0;
-    final List<AtomicReaderContext> subReaders = reader.getTopReaderContext().leaves();
+    final List<AtomicReaderContext> subReaders = reader.leaves();
     segmentBits = new FixedBitSet[subReaders.size()];
     for(int segID=0;segID<subReaders.size();segID++) {
       final int maxDoc = subReaders.get(segID).reader().maxDoc();

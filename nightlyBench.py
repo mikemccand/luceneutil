@@ -518,7 +518,8 @@ def run():
     w('</html>\n')
     f.close()
 
-    shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
+    if os.path.exists('out.png'):
+      shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
     searchResults = results
 
     print '  heaps: %s' % str(searchHeaps)

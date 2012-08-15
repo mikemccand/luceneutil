@@ -153,6 +153,28 @@ public class SearchPerfTest {
       dir0 = new NIOFSDirectory(new File(dirPath));
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
+    } else if (dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
+      // Load only non-postings files into RAMDir:
+      Set<String> postingsExtensions = new HashSet<String>();
+      postingsExtensions.add("frq");
+      postingsExtensions.add("prx");
+      postingsExtensions.add("tip");
+      postingsExtensions.add("tim");
+
+      RAMDirectory ramDir =  new RAMDirectory();
+      Directory fsDir = new MMapDirectory(new File(dirPath));
+      for (String file : fsDir.listAll()) {
+        int idx = file.indexOf('.');
+        if (idx != -1 && postingsExtensions.contains(file.substring(idx+1, file.length()))) {
+          continue;
+        }
+
+        fsDir.copy(ramDir, file, file, IOContext.READ);
+      }
+      dir0 = new FileSwitchDirectory(postingsExtensions,
+                                     fsDir,
+                                     ramDir,
+                                     true);
     } else if (dirImpl.equals("RAMDirectory")) {
       final long t0 = System.currentTimeMillis();
       dir0 = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
@@ -225,7 +247,7 @@ public class SearchPerfTest {
         InfoStream.setDefault(new PrintStreamInfoStream(System.out));
       }
       
-      if (!dirImpl.equals("RAMDirectory")) {
+      if (!dirImpl.equals("RAMDirectory") && !dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
         System.out.println("Wrap NRTCachingDirectory");
         dir0 = new NRTCachingDirectory(dir0, 20, 400.0);
       }

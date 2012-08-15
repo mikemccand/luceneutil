@@ -36,14 +36,18 @@ if True:
   env = 'home'
   LUCENE_HOME = '/l/4x.azul/lucene'
   LUCENE40_INDEX_PATH = '/l/scratch/indices/lucene40'
-  DIRECT_INDEX_PATH = '/l/scratch/indices/direct'
+  DIRECT_INDEX_PATH = '/l/scratch/indices/Direct'
   LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
   #ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
   #ZING_JVM = '/usr/local/src/jdk1.7.0_04/bin/java'
-  ORACLE_JVM = '/usr/local/src/jdk1.6.0_32/bin/java'
-  ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
-  DO_STOP_START_ZST = True
+  ORACLE_JVM = '/usr/local/src/jdk1.7.0_04/bin/java'
+  # nocommit
+  #ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
+  ZING_JVM = ORACLE_JVM
+  # nocommit
+  # DO_STOP_START_ZST = True
+  DO_STOP_START_ZST = False
   MAX_HEAP_GB = 10
   SEARCH_THREAD_COUNT = 6
   DO_ZV_ROBOT = False
@@ -54,7 +58,6 @@ if True:
   CLIENT_HOST = '10.17.4.10'
   CLIENT_USER = 'mike'
   SERVER_HOST = '10.17.4.91'
-  POSTINGS_FORMAT = 'Direct'
   COMMIT_POINT = 'multi'
 elif False:
   # EC2:
@@ -77,14 +80,13 @@ elif False:
   CLIENT_HOST = None
   CLIENT_USER = 'root'
   SERVER_HOST = 'localhost'
-  POSTINGS_FORMAT = 'Lucene40'
   COMMIT_POINT = 'multi'
 else:
   # Lab box:
   env = 'lab'
   LUCENE_HOME = '/localhome/lucene4x/lucene'
   LUCENE40_INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
-  DIREC_TINDEX_PATH = '/localhome/indices/direct'
+  DIRECT_INDEX_PATH = '/localhome/indices/direct'
   LINE_DOCS_FILE = '/localhome/data/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/localhome/jHiccup.1.1.4/jHiccup'
   ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
@@ -100,8 +102,6 @@ else:
   CLIENT_HOST = 'isvx40'
   SERVER_HOST = 'isvx512'
   CLIENT_USER = 'root'
-  SERVER_HOST = 'localhost'
-  POSTINGS_FORMAT = 'Direct'
   COMMIT_POINT = 'multi'
 
 LOGS_DIR = 'logs'
@@ -188,13 +188,25 @@ def runPSThread(logFileName):
 
       # TODO: top instead?
       f.write('\n\nTime %.1f s:\n' % (time.time() - startTime))
-      p = os.popen('ps axuw | sed "1 d" | sort -n -r -k3')
+      #p = os.popen('ps axuw | sed "1 d" | sort -n -r -k3')
+      sawHeader = False
+      p = os.popen('top -b -n1')
       try:
         keep = []
         for l in p.readlines():
           l = l.strip()
+          if l == '':
+            continue
+          if not sawHeader:
+            if l.find('PID') != -1:
+              sawHeader = True
+              tup = l.split()
+              cpuIDX = tup.index('%CPU')
+              memIDX = tup.index('%MEM')
+            keep.append(l)
+            continue
           tup = l.split()
-          if float(tup[2]) >= 0.1 or float(tup[3]) > 0.1:
+          if float(tup[cpuIDX]) > 0 or float(tup[memIDX]) > 0.1:
             keep.append(l)
         f.write('\n'.join(keep))
       finally:
@@ -230,10 +242,10 @@ def run():
   targetQPS = QPS_START
 
   JOBS =  (
-    ('Zing', 'MMapDirectory', 'Lucene40'),
-    ('OracleCMS', 'MMapDirectory', 'Lucene40'),
-    ('Zing', 'RAMDirectory', 'Lucene40'),
-    ('OracleCMS', 'RAMDirectory', 'Lucene40'),
+    #('Zing', 'MMapDirectory', 'Lucene40'),
+    #('OracleCMS', 'MMapDirectory', 'Lucene40'),
+    #('Zing', 'RAMDirectory', 'Lucene40'),
+    #('OracleCMS', 'RAMDirectory', 'Lucene40'),
     ('Zing', 'RAMDirectory', 'Direct'),
     ('OracleCMS', 'RAMDirectory', 'Direct'),
     )
@@ -297,6 +309,8 @@ def run():
       else:
         w('-Xmx%dg' % MAX_HEAP_GB)
 
+      w('-Xloggc:%s/gc.log' % logsDir)
+      
       if DO_ZV_ROBOT and desc.startswith('Zing'):
         w('-XX:ARTAPort=8111')
         
@@ -306,7 +320,10 @@ def run():
       w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
       w('perf.SearchPerfTest')
       w('-indexPath %s' % indexPath)
-      w('-dirImpl %s' % dirImpl)
+      if dirImpl == 'RAMDirectory' and postingsFormat == 'Direct':
+        w('-dirImpl RAMExceptDirectPostingsDirectory')
+      else:
+        w('-dirImpl %s' % dirImpl)
       w('-cloneDocs')
       w('-analyzer StandardAnalyzer')
       w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
@@ -325,7 +342,8 @@ def run():
       w('-tvs')
       w('-postingsFormat %s' % postingsFormat)
       w('-idFieldPostingsFormat %s' % postingsFormat)
-
+      w('-hiliteImpl FastVectorHighlighter')
+      
       serverLog = '%s/server.log' % logsDir
 
       command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
@@ -374,7 +392,7 @@ def run():
         time.sleep(2.0)
 
         stopPSThread = False
-        psThread = threading.Thread(target=runPSThread, args=('%s/ps.log' % logsDir,))
+        psThread = threading.Thread(target=runPSThread, args=('%s/top.log' % logsDir,))
         psThread.start()
 
         t0 = time.time()

@@ -18,7 +18,6 @@
 import sys
 import os
 import re
-import cPickle
 import responseTimeGraph
 
 logPoints = ((50, 2),

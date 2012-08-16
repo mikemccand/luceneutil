@@ -34,27 +34,23 @@ SMOKE_TEST = True
 if True:
   # Home
   env = 'home'
-  LUCENE_HOME = '/l/4x.azul/lucene'
+  LUCENE_HOME = '/l/4x/lucene'
   LUCENE40_INDEX_PATH = '/l/scratch/indices/lucene40'
   DIRECT_INDEX_PATH = '/l/scratch/indices/Direct'
   LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
-  #ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
-  #ZING_JVM = '/usr/local/src/jdk1.7.0_04/bin/java'
   ORACLE_JVM = '/usr/local/src/jdk1.7.0_04/bin/java'
   # nocommit
-  #ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
-  ZING_JVM = ORACLE_JVM
-  # nocommit
-  # DO_STOP_START_ZST = True
-  DO_STOP_START_ZST = False
+  ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
+  #ZING_JVM = ORACLE_JVM
+  DO_STOP_START_ZST = True
   MAX_HEAP_GB = 10
   SEARCH_THREAD_COUNT = 6
   DO_ZV_ROBOT = False
   ZV_ROBOT_ROOT = '/root/ZVRobot'
-  QPS_START = 50
+  QPS_START = 500
   QPS_INC = 50
-  QPS_END = None
+  QPS_END = 500
   CLIENT_HOST = '10.17.4.10'
   CLIENT_USER = 'mike'
   SERVER_HOST = '10.17.4.91'
@@ -244,10 +240,10 @@ def run():
   JOBS =  (
     #('Zing', 'MMapDirectory', 'Lucene40'),
     #('OracleCMS', 'MMapDirectory', 'Lucene40'),
-    #('Zing', 'RAMDirectory', 'Lucene40'),
+    ('Zing', 'RAMDirectory', 'Lucene40'),
     #('OracleCMS', 'RAMDirectory', 'Lucene40'),
     ('Zing', 'RAMDirectory', 'Direct'),
-    ('OracleCMS', 'RAMDirectory', 'Direct'),
+    #('OracleCMS', 'RAMDirectory', 'Direct'),
     )
 
   startTime = datetime.datetime.now()
@@ -301,6 +297,10 @@ def run():
       command = []
       w = command.append
       w(javaCommand)
+
+      # nocommit
+      # w('-agentlib:yjpagent=sampling,disablej2ee,alloceach=10')
+      
       if desc.find('CMS') != -1:
         w('-XX:+UseConcMarkSweepGC')
 
@@ -324,7 +324,6 @@ def run():
         w('-dirImpl RAMExceptDirectPostingsDirectory')
       else:
         w('-dirImpl %s' % dirImpl)
-      w('-cloneDocs')
       w('-analyzer StandardAnalyzer')
       w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
       w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
@@ -333,16 +332,20 @@ def run():
       w('-commit %s' % COMMIT_POINT)
       w('-seed 0')
       w('-staticSeed 0')
-      w('-nrt')
-      w('-indexThreadCount 1')
-      w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
-      w('-lineDocsFile %s' % LINE_DOCS_FILE)
-      w('-reopenEverySec 1.0')
-      w('-store')
-      w('-tvs')
-      w('-postingsFormat %s' % postingsFormat)
-      w('-idFieldPostingsFormat %s' % postingsFormat)
       w('-hiliteImpl FastVectorHighlighter')
+
+      # Do indexing/NRT reopens:
+      if True:
+        w('-nrt')
+        w('-indexThreadCount 1')
+        w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
+        w('-lineDocsFile %s' % LINE_DOCS_FILE)
+        w('-reopenEverySec 1.0')
+        w('-store')
+        w('-tvs')
+        w('-postingsFormat %s' % postingsFormat)
+        w('-idFieldPostingsFormat %s' % postingsFormat)
+        w('-cloneDocs')
       
       serverLog = '%s/server.log' % logsDir
 

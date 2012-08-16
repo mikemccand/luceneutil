@@ -115,7 +115,7 @@ class LocalTaskSource implements TaskSource {
   }
 
   @Override
-  public void taskDone(Task task, long queueTimeNS) {
+  public void taskDone(Task task, long queueTimeNS, int toalHitCount) {
   }
 
   private static List<Task> loadTasks(TaskParser taskParser, String filePath) throws IOException, ParseException {

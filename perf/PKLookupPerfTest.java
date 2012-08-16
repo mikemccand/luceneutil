@@ -114,7 +114,7 @@ public class PKLookupPerfTest {
     final DirectoryReader r = DirectoryReader.open(dir);
     System.out.println("Reader=" + r);
 
-    final List<AtomicReaderContext> subs = r.getTopReaderContext().leaves();
+    final List<AtomicReaderContext> subs = r.leaves();
     final DocsEnum[] docsEnums = new DocsEnum[subs.size()];
     final TermsEnum[] termsEnums = new TermsEnum[subs.size()];
     for(int subIdx=0;subIdx<subs.size();subIdx++) {

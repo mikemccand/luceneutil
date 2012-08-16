@@ -22,7 +22,7 @@ import java.util.List;
 
 interface TaskSource {
   public Task nextTask() throws InterruptedException;
-  public void taskDone(Task task, long queueTimeNS) throws IOException;
+  public void taskDone(Task task, long queueTimeNS, int totalHitCount) throws IOException;
   public List<Task> getAllTasks();
 };
 

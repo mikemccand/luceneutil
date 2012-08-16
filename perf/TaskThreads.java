@@ -81,7 +81,7 @@ public class TaskThreads {
             throw new RuntimeException(ioe);
           }
           try {
-            tasks.taskDone(task, t0-task.recvTimeNS);
+            tasks.taskDone(task, t0-task.recvTimeNS, task.totalHitCount);
           } catch (Exception e) {
             System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
             e.printStackTrace();

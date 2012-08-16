@@ -182,6 +182,11 @@ final class SearchTask extends Task {
           hits = c.topDocs();
         */
       }
+      if (hits != null) {
+        totalHitCount = hits.totalHits;
+      } else if (groupsResultBlock != null) {
+        totalHitCount = groupsResultBlock.totalHitCount;
+      }
     } catch (Throwable t) {
       System.out.println("EXC: " + q);
       throw new RuntimeException(t);
@@ -209,11 +214,14 @@ final class SearchTask extends Task {
     }
   }
 
+  public int totHiliteHash;
+
   private void hilite(int docID, IndexState indexState, IndexSearcher searcher) throws IOException {
     String h = indexState.highlighter.getBestFragment(fieldQuery,
                                                       searcher.getIndexReader(), docID,
                                                       indexState.textFieldName,
                                                       100);
+    totHiliteHash += h.hashCode();
     //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
   }
 

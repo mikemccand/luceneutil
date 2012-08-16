@@ -59,13 +59,15 @@ def loadResults(file, sort=True):
     else:
       f = open(file, 'rb')
       results = []
+      netHitCount = 0
       while True:
-        b = f.read(13)
+        b = f.read(17)
         if len(b) == 0:
           break
-        timestamp, latencyMS, queueTimeMS, taskLen = struct.unpack('fffB', b)
+        timestamp, latencyMS, queueTimeMS, totalHitCount, taskLen = struct.unpack('fffIB', b)
         taskString = f.read(taskLen)
         results.append((timestamp, taskString, latencyMS, queueTimeMS))
+        netHitCount += totalHitCount
       f.close()
       results.sort()
 
@@ -76,7 +78,7 @@ def loadResults(file, sort=True):
 
     actualQPS = len(results) / endTime
       
-    print '%s: actualQPS=%s endTime=%s len(results)=%d' % (file, actualQPS, endTime, len(results))
+    print '%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%d' % (file, actualQPS, endTime, len(results), netHitCount)
     
     resultsCache[file] = results, actualQPS
     

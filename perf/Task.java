@@ -28,6 +28,8 @@ abstract class Task {
 
   public int taskID;
 
+  public int totalHitCount;
+
   public long recvTimeNS;
 
   public abstract void go(IndexState state) throws IOException;

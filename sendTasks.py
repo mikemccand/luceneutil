@@ -70,8 +70,8 @@ class Results:
     self.buffers = []
     self.current = cStringIO.StringIO()
 
-  def add(self, taskString, timestamp, latencyMS, queueTimeMS):
-    self.current.write(struct.pack('fffB', timestamp, latencyMS, queueTimeMS, len(taskString)))
+  def add(self, taskString, totalHitCount, timestamp, latencyMS, queueTimeMS):
+    self.current.write(struct.pack('fffIB', timestamp, latencyMS, queueTimeMS, totalHitCount, len(taskString)))
     self.current.write(taskString)
     if self.current.tell() >= 256*1024:
       self.buffers.append(self.current.getvalue())
@@ -128,10 +128,11 @@ class SendTasks:
     
     while True:
       result = ''
-      while len(result) < 20:
-        result = result + self.sock.recv(20 - len(result))
-      taskID, queueTimeMS = result.split(':')
+      while len(result) < 30:
+        result = result + self.sock.recv(30 - len(result))
+      taskID, totalHitCount, queueTimeMS = result.split(':')
       taskID = int(taskID)
+      totalHitCount = int(totalHitCount)
       queueTimeMS = float(queueTimeMS)
       endTime = time.time()
       try:
@@ -144,6 +145,7 @@ class SendTasks:
       self.queueTimeStats.add(queueTimeMS)
       self.totalTimeStats.add(latencyMS)
       self.results.add(taskString.strip(),
+                       totalHitCount,
                        taskStartTime-startTime,
                        latencyMS,
                        queueTimeMS)

@@ -145,14 +145,18 @@ public class SearchPerfTest {
     final Args args = new Args(clArgs);
 
     Directory dir0;
+    final RAMDirectory ramDir;
     final String dirPath = args.getString("-indexPath");
     final String dirImpl = args.getString("-dirImpl");
     if (dirImpl.equals("MMapDirectory")) {
       dir0 = new MMapDirectory(new File(dirPath));
+      ramDir = null;
     } else if (dirImpl.equals("NIOFSDirectory")) {
       dir0 = new NIOFSDirectory(new File(dirPath));
+      ramDir = null;
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
+      ramDir = null;
     } else if (dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
       // Load only non-postings files into RAMDir:
       Set<String> postingsExtensions = new HashSet<String>();
@@ -160,8 +164,8 @@ public class SearchPerfTest {
       postingsExtensions.add("prx");
       postingsExtensions.add("tip");
       postingsExtensions.add("tim");
-
-      RAMDirectory ramDir =  new RAMDirectory();
+      
+      ramDir =  new RAMDirectory();
       Directory fsDir = new MMapDirectory(new File(dirPath));
       for (String file : fsDir.listAll()) {
         int idx = file.indexOf('.');
@@ -177,7 +181,7 @@ public class SearchPerfTest {
                                      true);
     } else if (dirImpl.equals("RAMDirectory")) {
       final long t0 = System.currentTimeMillis();
-      dir0 = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
+      dir0 = ramDir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
       System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir0).sizeInBytes());
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
@@ -329,8 +333,8 @@ public class SearchPerfTest {
                 Thread.sleep(sleepMS);
                 mgr.maybeRefresh();
                 reopenCount++;
-                if (dir instanceof RAMDirectory) {
-                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes", (System.currentTimeMillis() - startMS)/1000.0, ((RAMDirectory) dir).sizeInBytes()));
+                if (ramDir != null) {
+                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes in RAMDir", (System.currentTimeMillis() - startMS)/1000.0, ramDir.sizeInBytes()));
                 } else {
                   System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen", (System.currentTimeMillis() - startMS)/1000.0));
                 }

@@ -38,7 +38,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
   private static final int MAX_BYTES = 70;
 
   // nocommit maybe fair=true?
-  private final BlockingQueue<Task> queue = new ArrayBlockingQueue<Task>(100);
+  private final BlockingQueue<Task> queue = new ArrayBlockingQueue<Task>(100000);
 
   public RemoteTaskSource(String iface, int port, int numThreads, TaskParser taskParser) throws IOException {
     this.numThreads = numThreads;

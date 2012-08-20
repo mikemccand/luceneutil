@@ -80,6 +80,7 @@ class Remote(threading.Thread):
       if os.system(cmd):
         msg('local: %s: WARNING rsync failed' % self.hostName)
       msg('local: %s: rsync took %.1f sec' % (self.hostName, time.time()-t))
+      os.system('scp %s/remoteTestServer.py "%s@%s:%s" > /dev/null 2>&1' % (constants.BENCH_BASE_DIR, USERNAME, self.hostName, constants.BENCH_BASE_DIR))
       os.system('ssh %s "killall java >& /dev/null"' % self.hostName)
       for line in os.popen('ssh %s "ps axu | grep remoteTestServer.py | grep -v grep"' % self.hostName).readlines():
         pid = line.strip().split()[1]
@@ -418,6 +419,7 @@ def main():
     CODEC = 'random'
 
   #tests = [(1.0, 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest')]
+  #tests = [(1.0, 'org.apache.lucene.TestDemo')]
 
   # TODO: solr has tests.cleanthreads=perClass but lucene has
   # perMethod... maybe I need dedicated solr vs lucene jvms

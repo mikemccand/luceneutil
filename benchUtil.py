@@ -316,6 +316,9 @@ def parseResults(resultsFiles):
             if line.find('expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
+            if line.find('Zing VM Warning') != -1:
+              continue
+            
             if line.startswith('HEAP: '):
               m = reHeap.match(line)
               heaps.append(int(m.group(1)))
@@ -360,6 +363,8 @@ def parseResults(resultsFiles):
               line = f.readline().strip()
               if line == '':
                 break
+              if line.find('Zing VM Warning') != -1:
+                continue
               if line.startswith('HEAP: '):
                 m = reHeap.match(line)
                 heaps.append(int(m.group(1)))
@@ -378,6 +383,8 @@ def parseResults(resultsFiles):
               else:
                 # BUG
                 raise RuntimeError('result parsing failed: line=%s' % line)
+          elif line.find('Zing VM Warning') != -1:
+            continue
           else:
             raise RuntimeError('result parsing failed: line=%s' % line)
       elif line.startswith('TASK: respell'):
@@ -391,6 +398,8 @@ def parseResults(resultsFiles):
           line = f.readline().strip()
           if line == '':
             break
+          if line.find('Zing VM Warning') != -1:
+            continue
           if line.startswith('HEAP: '):
             m = reHeap.match(line)
             heaps.append(int(m.group(1)))

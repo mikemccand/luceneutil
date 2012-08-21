@@ -46,8 +46,8 @@ if True:
   DO_STOP_START_ZST = True
   MAX_HEAP_GB = 10
   SEARCH_THREAD_COUNT = 6
-  DO_ZV_ROBOT = False
-  ZV_ROBOT_ROOT = '/root/ZVRobot'
+  DO_ZV_ROBOT = True
+  ZV_ROBOT_JAR = '/usr/local/src/ZVRobot/ZVRobot-5.2.1.0-3.jar'
   QPS_START = 500
   QPS_INC = 50
   QPS_END = 500
@@ -91,7 +91,7 @@ else:
   MAX_HEAP_GB = 250
   SEARCH_THREAD_COUNT = 64
   DO_ZV_ROBOT = False
-  ZV_ROBOT_ROOT = '/root/ZVRobot'
+  ZV_ROBOT_JAR = '/root/ZVRobot/ZVRobot-5.2.0.0-18.jar'
   QPS_START = 50
   QPS_INC = 50
   QPS_END = None
@@ -361,7 +361,7 @@ def run():
       try:
 
         print '  clean index'
-        touchCmd = '%s -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
+        touchCmd = '%s -Xmx1g -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
         #print '  run %s' % touchCmd
         if system(touchCmd):
           raise RuntimeError('OpenCloseIndexWriter failed')
@@ -372,9 +372,9 @@ def run():
         p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
         if DO_ZV_ROBOT and desc.startswith('Zing'):
-          cmd = '%s -Xmx1g -jar %s/ZVRobot-5.2.0.0-18.jar any %s/ZVRobot.prop > /dev/null 2>&1' % \
-                (ORACLE_JVM, ZV_ROBOT_ROOT, ZV_ROBOT_ROOT)
-          print 'run %s' % cmd
+          cmd = '%s -Xmx1g -jar %s %s/ZVRobot %s/ZVRobot.prop > /dev/null 2>&1' % \
+                (ORACLE_JVM, ZV_ROBOT_JAR, logsDir, os.path.split(ZV_ROBOT_JAR)[0])
+          print '  ZVRobot command: %s' % cmd
           zvRobotProcess = subprocess.Popen(cmd, shell=True)
           del cmd
 
@@ -439,19 +439,6 @@ def run():
           stopPSThread = True
           psThread.join()
         
-      if DO_ZV_ROBOT and desc.startswith('Zing'):
-        found = False
-        l = os.listdir('.')
-        for fileName in l:
-          if fileName.find('ZVRobot') != -1:
-            if not found:
-              os.rename(fileName, '%s/%s' % (logsDir, fileName))
-              found = True
-            else:
-              raise RuntimeError('more than one ZVRobot log dir')
-        if not found:
-          raise RuntimeError('could not find ZVRobot log dir')
-
       print '  done'
       open('%s/done' % logsDir, 'wb').close()
 

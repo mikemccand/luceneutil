@@ -108,7 +108,7 @@ def createGraph(fileNames, warmupSec):
     responseTimes = [x[2] for x in results]
     responseTimes.sort()
 
-    if responseTimes[-1] > 20000:
+    if responseTimes[-1] > 100000:
       print '  discard %s: max responseTime=%s' % (name, responseTimes[-1])
       continue
 

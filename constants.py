@@ -28,8 +28,7 @@ BENCH_BASE_DIR = '%s/util' % BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k.txt.bz2
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR
-# nocommit
-WIKI_MEDIUM_DOCS_COUNT = 0
+WIKI_MEDIUM_DOCS_COUNT = 24900504
 
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/wikimedium.1M.tasks' % BENCH_BASE_DIR

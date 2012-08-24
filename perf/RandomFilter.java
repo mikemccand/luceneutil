@@ -27,14 +27,16 @@ import org.apache.lucene.util.OpenBitSet;
 
 class RandomFilter extends Filter {
   final double pctKeep;
+  final long randomSeed;
 
-  public RandomFilter(double pctKeep) {
+  public RandomFilter(double pctKeep, long randomSeed) {
     this.pctKeep = pctKeep;
+    this.randomSeed = randomSeed;
   }
 
   @Override
   public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
-    final Random rand = new Random(42);
+    final Random rand = new Random(randomSeed);
     final int maxDoc = context.reader().maxDoc();
     OpenBitSet bits = new OpenBitSet(maxDoc);
     for(int docID = 0;docID<maxDoc;docID++) {
@@ -43,7 +45,20 @@ class RandomFilter extends Filter {
       }
     }
 
-    System.out.println("rfilt " + bits.cardinality());
     return BitsFilteredDocIdSet.wrap(bits, acceptDocs);
+  }
+  @Override
+  public int hashCode() {
+    return new Double(pctKeep).hashCode();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return this == other;
+  }
+
+  @Override
+  public String toString() {
+    return "RandomFilter(seed=" + randomSeed + " pctAccept=" + pctKeep + ")";
   }
 }

@@ -1067,7 +1067,7 @@ def tasksToMap(taskIters, verifyScores):
       for task in tasks:
         if task not in d:
           # BUG
-          raise RuntimeError('tasks differ from one iteration to the next')
+          raise RuntimeError('tasks differ from one iteration to the next: task=%s' % str(task))
         else:
           # Make sure same task returned same results w/in this run:
           task.verifySame(d[task], verifyScores)

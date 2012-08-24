@@ -375,15 +375,9 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, fieldName, spellChecker, hiliteImpl);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
-    // TODO: populate filters the next time we want to test
-    // filter perf:
-    /*
-    filter = new CachingWrapperFilter(new PreComputedRandomFilter(reader, random, filterPct));
-    */
-
     final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters);
+    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, staticRandom);
 
     final TaskSource tasks;
 

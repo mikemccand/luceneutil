@@ -18,14 +18,17 @@ package perf;
  */
 
 import java.util.Map;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
@@ -43,13 +46,16 @@ class TaskParser {
   private final Sort dateTimeSort;
   private final Sort titleSort;
   private final Sort titleDVSort;
+  private final Random random;
 
   public TaskParser(QueryParser queryParser,
                     String fieldName,
-                    Map<Double,Filter> filters) {
+                    Map<Double,Filter> filters,
+                    Random random) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.filters = filters;
+    this.random = random;
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
@@ -82,14 +88,15 @@ class TaskParser {
 
       // Check for filter (eg: " +filter=0.5%")
       final Matcher m = filterPattern.matcher(text);
-      final Filter filter;
+      Filter filter;
       if (m.find()) {
         final double filterPct = Double.parseDouble(m.group(1));
         // Splice out the filter string:
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         filter = filters.get(filterPct);
         if (filter == null) {
-          throw new RuntimeException("missing pre-computed filter for pct=" + filterPct);
+          filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()));
+          filters.put(filterPct, filter);
         }
       } else {
         filter = null;

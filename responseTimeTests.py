@@ -26,6 +26,8 @@ import sendTasks
 import datetime
 import traceback
 import threading
+import email.mime.text
+import smtplib
 
 # TODO: pull these from localconstants.py:
 
@@ -80,20 +82,21 @@ elif False:
 else:
   # Lab box:
   env = 'lab'
-  LUCENE_HOME = '/localhome/lucene4x/lucene'
-  LUCENE40_INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
-  DIRECT_INDEX_PATH = '/localhome/indices/direct'
+  LUCENE_HOME = '/localhome/lucene4xbeta/lucene'
+  #LUCENE40_INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
+  LUCENE40_INDEX_PATH = '/localhome/indices/Lucene40beta'
+  DIRECT_INDEX_PATH = '/localhome/indices/Lucene40beta.Direct'
   LINE_DOCS_FILE = '/localhome/data/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/localhome/jHiccup.1.1.4/jHiccup'
-  ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
+  ZING_JVM = '/home/buildmaster/nightly/AVM/5.2.x-avm/in_progress/avm-5.2.3.0-6//sandbox/azlinux/j2sdk1.6/x86_64/product/bin/java'
   ORACLE_JVM = '/localhome/jdk1.6.0_32/bin/java'
   DO_STOP_START_ZST = True
   MAX_HEAP_GB = 250
   SEARCH_THREAD_COUNT = 64
   DO_ZV_ROBOT = False
-  ZV_ROBOT_JAR = '/root/ZVRobot/ZVRobot-5.2.0.0-18.jar'
-  QPS_START = 50
-  QPS_INC = 50
+  ZV_ROBOT_JAR = '/localhome/ZVRobot/ZVRobot-5.2.0.0-18.jar'
+  QPS_START = 25
+  QPS_INC = 25
   QPS_END = None
   CLIENT_HOST = 'isvx40'
   SERVER_HOST = 'isvx512'
@@ -141,7 +144,7 @@ def captureEnv(logsDir):
   svnRev = os.popen('svnversion %s' % LUCENE_HOME).read().strip()
   print 'Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME)
   if svnRev.endswith('M'):
-    if system('svn diff %s > %s/lucene.diffs' % (LUCENE_HOME, logsDir)):
+    if system('svn diff %s > %s/lucene.diffs 2>&1' % (LUCENE_HOME, logsDir)):
       raise RuntimeError('svn diff failed')
     os.chmod('%s/lucene.diffs' % logsDir, 0444)
 
@@ -150,26 +153,35 @@ def captureEnv(logsDir):
   luceneUtilRev = os.popen('hg id %s' % luceneUtilDir).read().strip()  
   print 'Luceneutil hg rev is %s (%s)' % (luceneUtilRev, luceneUtilDir)
   if luceneUtilRev.find('+') != -1:
-    if system('hg diff %s > %s/luceneutil.diffs' % (luceneUtilDir, logsDir)):
+    if system('hg diff %s > %s/luceneutil.diffs 2>&1' % (luceneUtilDir, logsDir)):
       raise RuntimeError('hg diff failed')
     os.chmod('%s/luceneutil.diffs' % logsDir, 0444)
-    
+
+  # nocommit for loop:
   shutil.copy('%s/responseTimeTests.py' % luceneUtilDir,
               '%s/responseTimeTests.py' % logsDir)
   os.chmod('%s/responseTimeTests.py' % logsDir, 0444)
+  shutil.copy('%s/%s' % (luceneUtilDir, TASKS_FILE),
+              '%s/%s' % (logsDir, TASKS_FILE))
+  os.chmod('%s/%s' % (logsDir, TASKS_FILE), 0444)
               
 def kill(name, p):
-  for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
-    l = l.strip().split()
-    pid = int(l[0])
-    print '  stop %s process %s' % (name, pid)
-    try:
-      os.kill(pid, signal.SIGKILL)
-    except OSError:
-      pass
-  if p is not None:
-    p.poll()
-
+  while True:
+    for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
+      l2 = l.strip().split()
+      pid = int(l2[0])
+      print '  stop %s process %s: %s' % (name, pid, l.strip())
+      try:
+        os.kill(pid, signal.SIGKILL)
+      except OSError:
+        pass
+      if p is not None:
+        p.poll()
+    else:
+      print '  done killing "%s"' % name
+      return
+    time.sleep(1.0)
+    
 stopPSThread = False
 
 def runPSThread(logFileName):
@@ -242,8 +254,8 @@ def run():
   JOBS =  (
     #('Zing', 'MMapDirectory', 'Lucene40'),
     #('OracleCMS', 'MMapDirectory', 'Lucene40'),
-    ('Zing', 'MMapDirectory', 'Lucene40'),
-    ('OracleCMS', 'MMapDirectory', 'Lucene40'),
+    #('Zing', 'MMapDirectory', 'Lucene40'),
+    #('OracleCMS', 'MMapDirectory', 'Lucene40'),
     ('Zing', 'MMapDirectory', 'Direct'),
     ('OracleCMS', 'MMapDirectory', 'Direct'),
     )
@@ -368,11 +380,15 @@ def run():
 
       try:
 
-        print '  clean index'
-        touchCmd = '%s -Xmx1g -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
+        touchCmd = '%s -Xmx1g -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s 2>&1'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
         #print '  run %s' % touchCmd
-        if system(touchCmd):
-          raise RuntimeError('OpenCloseIndexWriter failed')
+        while True:
+          print '  clean index'
+          if system(touchCmd):
+            print '    failed .. retry'
+            time.sleep(2.0)
+          else:
+            break
 
         t0 = time.time()
         vmstatProcess = subprocess.Popen('vmstat 1 > %s/vmstat.log 2>&1' % logsDir, shell=True)
@@ -380,8 +396,8 @@ def run():
         p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
         if DO_ZV_ROBOT and desc.startswith('Zing'):
-          cmd = '%s -Xmx1g -jar %s %s/ZVRobot %s/ZVRobot.prop > /dev/null 2>&1' % \
-                (ORACLE_JVM, ZV_ROBOT_JAR, logsDir, os.path.split(ZV_ROBOT_JAR)[0])
+          cmd = '%s -Xmx1g -jar %s %s/ZVRobot %s/ZVRobot.prop > %s/ZVRobot.log 2>&1' % \
+                (ORACLE_JVM, ZV_ROBOT_JAR, logsDir, os.path.split(ZV_ROBOT_JAR)[0], logsDir)
           print '  ZVRobot command: %s' % cmd
           zvRobotProcess = subprocess.Popen(cmd, shell=True)
           del cmd
@@ -437,12 +453,9 @@ def run():
         success = True
         
       finally:
-        kill('SearchPerfTest', vmstatProcess)
+        kill('SearchPerfTest', p)
         kill('vmstat', vmstatProcess)
         kill('ZVRobot', zvRobotProcess)
-        kill('java', p)
-        if not success:
-          system('rm -rf ZVRobot_2012*')
         if psThread is not None:
           stopPSThread = True
           psThread.join()
@@ -461,6 +474,37 @@ def run():
   print '%s: ALL DONE (elapsed time %s)' % (now, now - startTime)
   print
 
+def emailResult(body, failed):
+  fromAddress = toAddress = 'mail@mikemccandless.com'
+
+  msg = email.mime.text.MIMEText(body)
+  msg["From"] = fromAddress
+  msg["To"] = toAddress
+  if failed:
+    msg["Subject"] = 'Test FAILED'
+  else:
+    msg["Subject"] = 'Test SUCCESS'
+
+  message = msg.as_string()
+
+  if True:
+    if False:
+      s = smtplib.SMTP('localhost')
+    else:
+      import localpass
+      s = smtplib.SMTP(localpass.SMTP_SERVER, port=localpass.SMTP_PORT)
+      s.ehlo(fromAddress)
+      s.starttls()
+      s.ehlo(fromAddress)
+      localpass.smtplogin(s)
+    print 'sending mail...'
+    s.sendmail(fromAddress, (toAddress,), message)
+    print 'quitting smtp...'
+    s.quit()
+  else:
+    p = subprocess.Popen(["/usr/sbin/sendmail", "-t"], stdin=subprocess.PIPE)
+    p.communicate(message)
+
 def main():
   if os.path.exists(LOGS_DIR):
     raise RuntimeError('please move last logs dir away')
@@ -471,11 +515,17 @@ def main():
   teeStdout = Tee(logOut, 'stdout')
   teeStderr = Tee(logOut, 'stderr')
 
+  failed = False
+  
   try:
     run()
   except:
     traceback.print_exc()
+    failed = True
   finally:
+    system('/localhome/ftpit.sh')
+    logOut.flush()
+    emailResult(open('%s/log.txt' % LOGS_DIR).read(), failed)
     logOut.close()
     os.chmod('%s/log.txt' % LOGS_DIR, 0444)
     del teeStdout

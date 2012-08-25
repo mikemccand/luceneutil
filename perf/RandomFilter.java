@@ -23,7 +23,7 @@ import org.apache.lucene.search.BitsFilteredDocIdSet;
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
-import org.apache.lucene.util.OpenBitSet;
+import org.apache.lucene.util.FixedBitSet;
 
 class RandomFilter extends Filter {
   final double pctKeep;
@@ -38,7 +38,7 @@ class RandomFilter extends Filter {
   public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
     final Random rand = new Random(randomSeed);
     final int maxDoc = context.reader().maxDoc();
-    OpenBitSet bits = new OpenBitSet(maxDoc);
+    FixedBitSet bits = new FixedBitSet(maxDoc);
     for(int docID = 0;docID<maxDoc;docID++) {
       if (rand.nextDouble() <= pctKeep) {        
         bits.fastSet(docID);

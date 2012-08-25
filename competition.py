@@ -35,6 +35,11 @@ WIKI_MEDIUM_5M = Data('wikimedium5m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 5000
 WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_2M = Data('wikimedium2m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 2000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
+MEME_ALL = Data('memeall',
+                '/x/lucene/data/memetracker/lines.txt',
+                210999824,
+                constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+
 WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 3000000, constants.WIKI_BIG_TASKS_FILE)
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
@@ -43,6 +48,7 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium1m' : WIKI_MEDIUM_1M,
         'wikimedium5m' : WIKI_MEDIUM_5M,
         'wikimedium2m' : WIKI_MEDIUM_2M,
+        'memeall': MEME_ALL,
         'wikibig' : WIKI_BIG,
         'euromedium' : EURO_MEDIUM }
 

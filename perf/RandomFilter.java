@@ -41,7 +41,7 @@ class RandomFilter extends Filter {
     FixedBitSet bits = new FixedBitSet(maxDoc);
     for(int docID = 0;docID<maxDoc;docID++) {
       if (rand.nextDouble() <= pctKeep) {        
-        bits.fastSet(docID);
+        bits.set(docID);
       }
     }
 

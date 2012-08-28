@@ -26,11 +26,11 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.FixedBitSet;
 
 class RandomFilter extends Filter {
-  final double pctKeep;
+  final double fractionKeep;
   final long randomSeed;
 
   public RandomFilter(double pctKeep, long randomSeed) {
-    this.pctKeep = pctKeep;
+    this.fractionKeep = pctKeep/100.0;
     this.randomSeed = randomSeed;
   }
 
@@ -40,16 +40,17 @@ class RandomFilter extends Filter {
     final int maxDoc = context.reader().maxDoc();
     FixedBitSet bits = new FixedBitSet(maxDoc);
     for(int docID = 0;docID<maxDoc;docID++) {
-      if (rand.nextDouble() <= pctKeep) {        
+      if (rand.nextDouble() <= fractionKeep) {        
         bits.set(docID);
       }
     }
 
     return BitsFilteredDocIdSet.wrap(bits, acceptDocs);
   }
+
   @Override
   public int hashCode() {
-    return new Double(pctKeep).hashCode();
+    return new Double(fractionKeep).hashCode();
   }
 
   @Override
@@ -59,6 +60,6 @@ class RandomFilter extends Filter {
 
   @Override
   public String toString() {
-    return "RandomFilter(seed=" + randomSeed + " pctAccept=" + pctKeep + ")";
+    return "RandomFilter(seed=" + randomSeed + " pctKeep=" + (100.0*fractionKeep) + "%)";
   }
 }

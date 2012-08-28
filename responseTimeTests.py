@@ -43,12 +43,17 @@ if True:
   JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
   ORACLE_JVM = '/usr/local/src/jdk1.7.0_05/bin/java'
   # nocommit
-  ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
-  #ZING_JVM = ORACLE_JVM
-  DO_STOP_START_ZST = True
+  if True:
+    # fake zing:
+    ZING_JVM = ORACLE_JVM
+    DO_STOP_START_ZST = False
+    DO_ZV_ROBOT = False
+  else:
+    ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
+    DO_STOP_START_ZST = True
+    DO_ZV_ROBOT = True
   MAX_HEAP_GB = 10
   SEARCH_THREAD_COUNT = 6
-  DO_ZV_ROBOT = True
   ZV_ROBOT_JAR = '/usr/local/src/ZVRobot/ZVRobot-5.2.1.0-3.jar'
   QPS_START = 100
   QPS_INC = 50
@@ -57,6 +62,9 @@ if True:
   CLIENT_USER = 'mike'
   SERVER_HOST = '10.17.4.91'
   COMMIT_POINT = 'multi'
+  USE_SMTP = True
+  DO_EMAIL = False
+  DO_NRT = False
 elif False:
   # EC2:
   env = 'ec2'
@@ -79,6 +87,9 @@ elif False:
   CLIENT_USER = 'root'
   SERVER_HOST = 'localhost'
   COMMIT_POINT = 'multi'
+  USE_SMTP = False
+  DO_EMAIL = True
+  DO_NRT = False
 else:
   # Lab box:
   env = 'lab'
@@ -88,12 +99,14 @@ else:
   DIRECT_INDEX_PATH = '/localhome/indices/Lucene40beta.Direct'
   LINE_DOCS_FILE = '/localhome/data/enwiki-20120502-lines-1k.txt'
   JHICCUP_PATH = '/localhome/jHiccup.1.1.4/jHiccup'
+  #ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
+  #ZING_JVM = '/home/buildmaster/nightly/AVM/main-dev-x86/in_progress/avm-x86-1742/sandbox/azlinux/jdk6/x86_64/product/bin/java'
   ZING_JVM = '/home/buildmaster/nightly/AVM/5.2.x-avm/in_progress/avm-5.2.3.0-6//sandbox/azlinux/j2sdk1.6/x86_64/product/bin/java'
   ORACLE_JVM = '/localhome/jdk1.6.0_32/bin/java'
   DO_STOP_START_ZST = True
   MAX_HEAP_GB = 250
   SEARCH_THREAD_COUNT = 64
-  DO_ZV_ROBOT = False
+  DO_ZV_ROBOT = True
   ZV_ROBOT_JAR = '/localhome/ZVRobot/ZVRobot-5.2.0.0-18.jar'
   QPS_START = 25
   QPS_INC = 25
@@ -102,12 +115,16 @@ else:
   SERVER_HOST = 'isvx512'
   CLIENT_USER = 'root'
   COMMIT_POINT = 'multi'
+  USE_SMTP = False
+  DO_EMAIL = True
+  DO_NRT = False
 
 LOGS_DIR = 'logs'
 
 if SMOKE_TEST:
   RUN_TIME_SEC = 30
   WARMUP_SEC = 10
+  DO_EMAIL = False
 else:
   RUN_TIME_SEC = 3600
   WARMUP_SEC = 5 * 60
@@ -157,13 +174,10 @@ def captureEnv(logsDir):
       raise RuntimeError('hg diff failed')
     os.chmod('%s/luceneutil.diffs' % logsDir, 0444)
 
-  # nocommit for loop:
-  shutil.copy('%s/responseTimeTests.py' % luceneUtilDir,
-              '%s/responseTimeTests.py' % logsDir)
-  os.chmod('%s/responseTimeTests.py' % logsDir, 0444)
-  shutil.copy('%s/%s' % (luceneUtilDir, TASKS_FILE),
-              '%s/%s' % (logsDir, TASKS_FILE))
-  os.chmod('%s/%s' % (logsDir, TASKS_FILE), 0444)
+  for fileName in ('responseTimeTests.py', TASKS_FILE):
+    shutil.copy('%s/%s' % (luceneUtilDir, fileName),
+                '%s/%s' % (logsDir, fileName))
+    os.chmod('%s/%s' % (logsDir, fileName), 0444)
               
 def kill(name, p):
   while True:
@@ -173,14 +187,12 @@ def kill(name, p):
       print '  stop %s process %s: %s' % (name, pid, l.strip())
       try:
         os.kill(pid, signal.SIGKILL)
-      except OSError:
-        pass
-      if p is not None:
-        p.poll()
-    else:
+      except OSError, e:
+        print '    OSError: %s' % str(e)
+    if p.poll() is not None:
       print '  done killing "%s"' % name
       return
-    time.sleep(1.0)
+    time.sleep(2.0)
     
 stopPSThread = False
 
@@ -355,7 +367,7 @@ def run():
       w('-hiliteImpl FastVectorHighlighter')
 
       # Do indexing/NRT reopens:
-      if True:
+      if DO_NRT:
         w('-nrt')
         w('-indexThreadCount 1')
         w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
@@ -385,7 +397,7 @@ def run():
         while True:
           print '  clean index'
           if system(touchCmd):
-            print '    failed .. retry'
+            print '   failed .. retry'
             time.sleep(2.0)
           else:
             break
@@ -455,13 +467,20 @@ def run():
       finally:
         kill('SearchPerfTest', p)
         kill('vmstat', vmstatProcess)
-        kill('ZVRobot', zvRobotProcess)
+        if DO_ZV_ROBOT:
+          kill('ZVRobot', zvRobotProcess)
         if psThread is not None:
           stopPSThread = True
           psThread.join()
         
       print '  done'
       open('%s/done' % logsDir, 'wb').close()
+      if DO_EMAIL and os.path.getsize('%s/log.txt' % LOGS_DIR) < 5*1024*1024:
+        try:
+          emailResult(open('%s/log.txt' % LOGS_DIR).read(), 'Test RUNNING [%s]' % (datetime.datetime.now() - startTime))
+        except:
+          print '  send email failed'
+          traceback.print_exc()
 
     if QPS_END is not None and targetQPS >= QPS_END:
       break
@@ -474,20 +493,17 @@ def run():
   print '%s: ALL DONE (elapsed time %s)' % (now, now - startTime)
   print
 
-def emailResult(body, failed):
+def emailResult(body, subject):
   fromAddress = toAddress = 'mail@mikemccandless.com'
 
   msg = email.mime.text.MIMEText(body)
   msg["From"] = fromAddress
   msg["To"] = toAddress
-  if failed:
-    msg["Subject"] = 'Test FAILED'
-  else:
-    msg["Subject"] = 'Test SUCCESS'
+  msg["Subject"] = subject
 
   message = msg.as_string()
 
-  if True:
+  if USE_SMTP:
     if False:
       s = smtplib.SMTP('localhost')
     else:
@@ -523,9 +539,15 @@ def main():
     traceback.print_exc()
     failed = True
   finally:
-    system('/localhome/ftpit.sh')
+    if os.path.exists('/localhome/ftpit.sh'):
+      system('/localhome/ftpit.sh')
     logOut.flush()
-    emailResult(open('%s/log.txt' % LOGS_DIR).read(), failed)
+    if DO_EMAIL and os.path.getsize('%s/log.txt' % LOGS_DIR) < 5*1024*1024:
+      if failed:
+        subject = 'Test FAIL'
+      else:
+        subject = 'Test SUCCESS'
+      emailResult(open('%s/log.txt' % LOGS_DIR).read(), subject)
     logOut.close()
     os.chmod('%s/log.txt' % LOGS_DIR, 0444)
     del teeStdout

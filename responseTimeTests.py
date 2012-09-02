@@ -124,7 +124,6 @@ LOGS_DIR = 'logs'
 if SMOKE_TEST:
   RUN_TIME_SEC = 30
   WARMUP_SEC = 10
-  DO_EMAIL = False
 else:
   RUN_TIME_SEC = 3600
   WARMUP_SEC = 5 * 60

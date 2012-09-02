@@ -53,7 +53,7 @@ public final class RunFuzzyQuery {
       if (iter == 0) {
         System.out.println("  " + hits.totalHits + " total hits");
         for(ScoreDoc hit : hits.scoreDocs) {
-          final Document doc = s.doc(hit.doc);
+          final StoredDocument doc = s.doc(hit.doc);
           System.out.println("    doc=" + doc.get("titleTokenized") + " score=" + hit.score);
         }
       }

@@ -703,6 +703,7 @@ class RunAlgs:
       cp.append('%s/lucene/build/grouping/classes/java' % path)
       cp.append('%s/lucene/build/suggest/classes/java' % path)
       cp.append('%s/lucene/build/highlighter/classes/java' % path)
+      cp.append('%s/lucene/build/codecs/classes/java' % path)
     elif version == '3.x':
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)

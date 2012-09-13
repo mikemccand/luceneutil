@@ -366,7 +366,8 @@ def run():
     print 'luceneutil rev is %s' % luceneUtilRev
   else:
     runCommand('%s cleanup' % constants.SVN_EXE)
-    for i in range(30):
+    iters = 30
+    for i in range(iters):
       try:
         runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
       except RuntimeError:
@@ -376,6 +377,8 @@ def run():
         svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
         print 'SVN rev is %s' % svnRev
         break
+    else:
+      raise RuntimeError('failed to run svn update after %d tries' % iters)
 
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev

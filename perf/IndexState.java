@@ -18,8 +18,10 @@ package perf;
  */
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
@@ -67,8 +69,8 @@ class IndexState {
     try {
       docIDToID = new int[searcher.getIndexReader().maxDoc()];
       int base = 0;
-      for(IndexReader sub : ((DirectoryReader) searcher.getIndexReader()).getSequentialSubReaders()) {
-        final int[] ids = FieldCache.DEFAULT.getInts((AtomicReader) sub, "id", new FieldCache.IntParser() {
+      for(AtomicReaderContext sub : searcher.getIndexReader().getContext().leaves()) {
+        final int[] ids = FieldCache.DEFAULT.getInts(sub.reader(), "id", new FieldCache.IntParser() {
             @Override
             public int parseInt(BytesRef term) {
               return LineFileDocs.idToInt(term);

@@ -25,7 +25,10 @@ import re
 
 import benchUtil
 import competition
-import localpass
+try:
+  import localpass
+except ImportError:
+  localpass = None
 import constants
 
 reSVNRev = re.compile(r'revision (.*?)\.')
@@ -60,32 +63,45 @@ def runCommand(command):
 
 def main():
   
-  os.chdir('/lucene/%s' % NIGHTLY_DIR)
+  os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
-  runCommand('svn cleanup')
-  open('update.log', 'ab').write('\n\n[%s]: update' % datetime.datetime.now())
-  for i in range(30):
-    try:
-      runCommand('svn update > update.log 2>&1')
-    except RuntimeError:
-      message('  retry...')
-      time.sleep(60.0)
+  if True:
+    runCommand('svn cleanup')
+    open('update.log', 'ab').write('\n\n[%s]: update' % datetime.datetime.now())
+    for i in range(30):
+      try:
+        runCommand('svn update > update.log 2>&1')
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        svnRev = int(reSVNRev.search(open('update.log', 'rb').read()).group(1))
+        print 'SVN rev is %s' % svnRev
+        break
     else:
-      svnRev = int(reSVNRev.search(open('update.log', 'rb').read()).group(1))
-      print 'SVN rev is %s' % svnRev
-      break
+      raise RuntimeError('svn update failed')
 
-  runCommand('ant clean > clean.log 2>&1')
-  runCommand('ant compile > compile.log 2>&1')
+  runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
+  runCommand('%s compile > compile.log 2>&1' % constants.ANT_EXE)
+
+  MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
+  MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS
+
+  mediumSource = competition.Data('wikimedium',
+                                  MEDIUM_LINE_FILE,
+                                  MEDIUM_INDEX_NUM_DOCS,
+                                  constants.WIKI_MEDIUM_TASKS_FILE)
 
   comp = competition.Competition()
-  index = comp.newIndex(NIGHTLY_DIR)
-  c = comp.competitor(id, NIGHTLY_DIR)
-  c.withIndex(index)
+  index = comp.newIndex(NIGHTLY_DIR, mediumSource)
+  c = comp.competitor(id, NIGHTLY_DIR, index=index)
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
-  r.compile(c.build())
+  r.compile(c)
 
 def sendEmail(emailAddress, message):
+  if localpass is None:
+    print 'WARNING: no smtp password; skipping email'
+    return
   SMTP_SERVER = localpass.SMTP_SERVER
   SMTP_PORT = localpass.SMTP_PORT
   FROM_EMAIL = 'admin@mikemccandless.com'
@@ -101,7 +117,7 @@ try:
   main()
 except:
   traceback.print_exc()
-  if not DEBUG:
+  if localpass is not None and not DEBUG:
     emailAddr = 'mail@mikemccandless.com'
     message = 'From: %s\r\n' % localpass.FROM_EMAIL
     message += 'To: %s\r\n' % emailAddr

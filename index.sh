@@ -2,12 +2,12 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-LUCENE_HOME=/l/4x/lucene
+LUCENE_HOME=/l/4x.beta.azul/lucene
 LINE_DOCS_FILE=/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt
 THREAD_COUNT=6
 DOC_COUNT_LIMIT=1000000
-#JAVA=/usr/local/src/jdk1.7.0_04/bin/java
-JAVA=/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java
+JAVA=/usr/local/src/jdk1.7.0_05/bin/java
+#JAVA=/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java
 HEAP=-Xmx10g
 #PF=Lucene40
 #INDEX_PATH=/l/scratch/indices/lucene40.1M

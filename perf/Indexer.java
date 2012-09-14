@@ -36,8 +36,6 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-//import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
-//import org.apache.lucene.codecs.bloom.DefaultBloomFilterFactory;
 import org.apache.lucene.codecs.lucene40.Lucene40Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
@@ -187,19 +185,6 @@ public final class Indexer {
     final Codec codec = new Lucene40Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
-	  /*
-        if (field.equals("id")) {
-          if (idFieldPostingsFormat.equals("BloomLucene40")) {
-            return new BloomFilteringPostingsFormat(
-                     PostingsFormat.forName("Lucene40"),
-                     new DefaultBloomFilterFactory());
-          } else if (idFieldPostingsFormat.equals("BloomMemory")) {
-            return new BloomFilteringPostingsFormat(
-                     PostingsFormat.forName("Memory"),
-                     new DefaultBloomFilterFactory());
-          }
-        }
-	  */
         return PostingsFormat.forName(field.equals("id") ?
                                       idFieldPostingsFormat : defaultPostingsFormat);
       }

@@ -69,7 +69,7 @@ class IndexState {
     try {
       docIDToID = new int[searcher.getIndexReader().maxDoc()];
       int base = 0;
-      for(AtomicReaderContext sub : searcher.getIndexReader().getContext().leaves()) {
+      for(AtomicReaderContext sub : searcher.getIndexReader().leaves()) {
         final int[] ids = FieldCache.DEFAULT.getInts(sub.reader(), "id", new FieldCache.IntParser() {
             @Override
             public int parseInt(BytesRef term) {

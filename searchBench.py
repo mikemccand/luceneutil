@@ -18,11 +18,13 @@
 import time
 import sys
 import os
+import re
+import random
+
 from competition import *
 import benchUtil
 import common
 import constants
-import random
 
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
@@ -48,31 +50,6 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   if not index:
     index  = '-index' in sys.argv
   sum = search or '-sum' in sys.argv
- 
-  if debugs or debug or '-debugs' in sys.argv or '-debug' in sys.argv:
-    debug = True
-    id += '-fast'
-    # nocommit
-    jvmCount = 4
-    if coldRun:
-      countPerCat = 20
-      repeatCount = 1
-    else:
-      countPerCat = 4
-      repeatCount = 35
-  else:
-    jvmCount = 20
-    if coldRun:
-      countPerCat = 500
-      repeatCount = 1
-    else:
-      countPerCat = 5
-      repeatCount = 50
-
-  if False:
-    jvmCount = 3
-    countPerCat = 5
-    repeatCount = 5000
 
   if index:
 
@@ -80,7 +57,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     indexSegCount = None
     indexCommit = None
     p = False
+    tasksFile = None
     for c in competitors:
+      if tasksFile is None:
+        tasksFile = c.tasksFile
+      elif tasksFile != c.tasksFile:
+        raise RuntimeError('inconsistent taskFile %s vs %s' % (taskFile, c.taskFile))
       if c.index not in seen:
         if not p:
           print
@@ -98,39 +80,125 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   logUpto = 0
 
   if search:
-    
-    results = {}
 
-    if constants.JAVA_COMMAND.find(' -ea') != -1:
-      print
-      print 'WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND
-      print
-
-    print
-    print 'Search:'
-
-    taskFiles = {}
-
-    for c in competitors:
-      print '  %s:' % c.name
-      if taskPatterns is not None:
-        print '    tasks file: %s from %s' % (','.join(taskPatterns), c.tasksFile)
+    if taskPatterns is not (None, None):
+      pos, neg = taskPatterns
+      if pos is None:
+        print '    tasks file: NOT %s from %s' % (','.join(neg), tasksFile)
+      elif neg is None:
+        print '    tasks file: %s from %s' % (','.join(pos), tasksFile)
       else:
-        print '    tasks file: %s' % c.tasksFile
-      
-      t0 = time.time()
-      results[c] = r.runSimpleSearchBench(id, c, repeatCount, c.numThreads, countPerCat, coldRun, randomSeed, jvmCount, filter=None, taskPatterns=taskPatterns)
-      print '    %.2f sec' % (time.time() - t0)
+        print '    tasks file: %s, NOT %s from %s' % (','.join(pos), ','.join(neg), tasksFile)
+      newTasksFile = '%s/%s.tasks' % (constants.BENCH_BASE_DIR, os.getpid())
+      pos, neg = taskPatterns
+      if pos is None:
+        posPatterns = None
+      else:
+        posPatterns = [re.compile(x) for x in pos]
+      if neg is None:
+        negPatterns = None
+      else:
+        negPatterns = [re.compile(x) for x in neg]
+
+      f = open(c.tasksFile)
+      fOut = open(newTasksFile, 'wb')
+      for l in f.readlines():
+        i = l.find(':')
+        if i != -1:
+          cat = l[:i]
+          if posPatterns is not None:
+            for p in posPatterns:
+              if p.search(cat) is not None:
+                #print 'KEEP: match on %s' % cat
+                break
+            else:
+              continue
+          if negPatterns is not None:
+            skip = False
+            for p in negPatterns:
+              if p.search(cat) is not None:
+                skip = True
+                #print 'SKIP: match on %s' % cat
+                break
+            if skip:
+              continue
+
+        fOut.write(l)
+      f.close()
+      fOut.close()
+
+      for c in competitors:
+        c.tasksFile = newTasksFile
+        
+    else:
+      print '    tasks file: %s' % c.tasksFile
+      newTasksFile = None
+
+    try:
+
+      results = {}
+
+      if constants.JAVA_COMMAND.find(' -ea') != -1:
+        print
+        print 'WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND
+        print
+
+      print
+      print 'Search:'
+
+      taskFiles = {}
+
+      rand = random.Random(randomSeed)
+      staticSeed = rand.randint(-10000000, 1000000)
+
+      # Remove old log files:
+      for c in competitors:
+        for fileName in r.getSearchLogFiles(id, c):
+          if os.path.exists(fileName):
+            os.remove(fileName)
+
+      for iter in xrange(base.competition.jvmCount):
+
+        print '  iter %d' % iter
+
+        seed = rand.randint(-10000000, 1000000)
+
+        for c in competitors:
+          print '    %s:' % c.name
+          t0 = time.time()
+          if c not in results:
+            results[c] = []
+          logFile = r.runSimpleSearchBench(iter, id, c,
+                                           coldRun, seed, staticSeed,
+                                           filter=None, taskPatterns=taskPatterns) 
+          results[c].append(logFile)
+
+        print
+        print 'Report after iter %d:' % iter
+        #print '  results: %s' % results
+        details, cmpDiffs, cmpHeap = r.simpleReport(results[base],
+                                                    results[challenger],
+                                                    '-jira' in sys.argv,
+                                                    '-html' in sys.argv,
+                                                    cmpDesc=challenger.name,
+                                                    baseDesc=base.name)
+        if cmpDiffs is not None:
+          raise RuntimeError('results differ: %s' % str(cmpDiffs))
+        
+    finally:
+      if newTasksFile is not None and os.path.exists(newTasksFile):
+        os.remove(newTasksFile)
+          
   else:
     results = {}
     for c in competitors:
-      results[c] = r.getSearchLogFiles(id, c, jvmCount)
+      results[c] = r.getSearchLogFiles(id, c)
 
-  results, cmpDiffs, cmpHeap = r.simpleReport(results[base],
-                                              results[challenger],
-                                              '-jira' in sys.argv,
-                                              '-html' in sys.argv,
-                                              cmpDesc=challenger.name,
-                                              baseDesc=base.name)
-  if cmpDiffs is not None:
-    raise RuntimeError('results differ: %s' % str(cmpDiffs))
+    details, cmpDiffs, cmpHeap = r.simpleReport(results[base],
+                                                results[challenger],
+                                                '-jira' in sys.argv,
+                                                '-html' in sys.argv,
+                                                cmpDesc=challenger.name,
+                                                baseDesc=base.name)
+    if cmpDiffs is not None:
+      raise RuntimeError('results differ: %s' % str(cmpDiffs))

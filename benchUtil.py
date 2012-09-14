@@ -30,20 +30,24 @@ import random
 import QPSChart
 import IndexChart
   
-# TODO
-#   - allow 'onlyCat' option
-
 # Skip the first N runs of a given category (cold) or particular task (hot):
-WARM_SKIP = 10
+WARM_SKIP = 3
 
-# Skip this pctg of the slowest runs
-SLOW_SKIP_PCT = 25
+# Skip this pctg of the slowest runs:
+SLOW_SKIP_PCT = 10
 
 LOG_SUB_DIR = 'logs'
 
-DO_MIN = True
+# From the N times we run each task in a single JVM, how do we pick
+# the single QPS to represent those results:
+
+# SELECT = 'min'
+# SELECT = 'mean'
+SELECT = 'median'
 
 MAX_SCORE_DIFF = .00001
+
+VERBOSE = False
 
 osName = common.osName
 
@@ -262,6 +266,10 @@ def parseResults(resultsFiles):
   heaps = []
   for resultsFile in resultsFiles:
     tasks = []
+
+    if not os.path.exists(resultsFile):
+      continue
+    
     # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
     while True:
@@ -420,6 +428,7 @@ def parseResults(resultsFiles):
 
       if task is not None:
         tasks.append(task)
+
     taskIters.append(tasks)
 
   return taskIters, heaps
@@ -448,7 +457,7 @@ def collateResults(resultIters):
 
   return iters
 
-def agg(iters, cat):
+def agg(iters, cat, name):
 
   bestAvgMS = None
   lastHitCount = None
@@ -467,7 +476,6 @@ def agg(iters, cat):
     if len(tasks[0]) <= WARM_SKIP:
       raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
 
-    VERBOSE = False
     totHitCount = 0
     count = 0
     sumMS = 0.0
@@ -490,25 +498,45 @@ def agg(iters, cat):
 
       allMS.sort()
       minMS = allMS[0]
+      if VERBOSE:
+        print '    after sort:'
+        for t in allMS:
+          print '      %.4f' % t
 
       # Skip slowest SLOW_SKIP_PCT runs:
       skipSlowest = int(len(allMS)*SLOW_SKIP_PCT/100.)
       if VERBOSE:
         print 'skipSlowest %s' % skipSlowest
-      
-      pruned = allMS[:-skipSlowest]
+
+      if skipSlowest > 0:
+        pruned = allMS[:-skipSlowest]
+      else:
+        pruned = allMS
 
       if VERBOSE:
         print '    after prune:'
         for t in pruned:
           print '      %.4f' % t
           
-      if DO_MIN:
+      if SELECT == 'min':
         sumMS += minMS
         count += 1
-      else:
+      elif SELECT == 'mean':
         sumMS += sum(pruned)
         count += len(pruned)
+      elif SELECT == 'median':
+        mid = len(pruned)/2
+        if len(pruned) % 2 == 0:
+          median = (pruned[mid-1] + pruned[mid])/2.0
+        else:
+          median = pruned[mid]
+        if VERBOSE:
+          print '  median %.4f' % median
+        sumMS += median
+        count += 1
+      else:
+        raise RuntimeError('unrecognized SELECT=%s: should be min, median or mean' % SELECT)
+          
       if isinstance(task, SearchTask):
         if task.groupField is None:
           totHitCount += task.hitCount
@@ -520,14 +548,18 @@ def agg(iters, cat):
     # each cat, then this is AvgMS for query in that cat:
     avgMS = sumMS/count
     accumMS.append(avgMS)
-    if VERBOSE:
-      print '  avgMS=%s accumMS=%s' % (avgMS, accumMS)
     
     if lastHitCount is None:
       lastHitCount = totHitCount
     elif totHitCount != lastHitCount:
       raise RuntimeError('different hit counts: %s vs %s' % (lastHitCount, totHitCount))
 
+  if VERBOSE:
+    #accumMS.sort()
+    minValue = min(accumMS)
+    #print '  accumMS=%s' % ' '.join(['%5.1f' % x for x in accumMS])
+    print '  %s %s: accumMS=%s' % (name, cat[0], ' '.join(['%5.1f' % (100.0*(x-minValue)/minValue) for x in accumMS]))
+    
   return accumMS, totHitCount
 
 
@@ -720,7 +752,9 @@ class RunAlgs:
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
     try:
-      for module in ('core', 'suggest', 'highlighter', 'analysis/common', 'grouping', 'test-framework'):
+      for module in ('core', 'suggest', 'highlighter',
+                     'analysis/common', 'grouping', 'test-framework',
+                     'codecs'):
         modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
         print '  %s...' % modulePath
         os.chdir(modulePath)
@@ -753,7 +787,9 @@ class RunAlgs:
   def classPathToString(self, cp):
     return common.pathsep().join(cp)
 
-  def runSimpleSearchBench(self, id, c, repeatCount, threadCount, numTasks, coldRun, randomSeed, jvmCount, filter=None, taskPatterns=None):
+  def runSimpleSearchBench(self, iter, id, c,
+                           coldRun, seed, staticSeed,
+                           filter=None, taskPatterns=None):
 
     if coldRun:
       # flush OS buffer cache
@@ -772,72 +808,39 @@ class RunAlgs:
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
     benchDir = checkoutToBenchPath(c.checkout)
-    cwd = os.getcwd()
-    os.chdir(benchDir)
-    try:
-      cp = self.classPathToString(self.getClassPath(c.checkout))
-      logFile = '%s/%s.%s.x' % (benchDir, id, c.name)
-      if os.path.exists(logFile):
-        os.remove(logFile)
-      if c.doSort:
-        doSort = '-sort'
-      else:
-        doSort = ''
 
-      if taskPatterns is not None:
-        # TODO: this should be one level up, ie, we don't change the
-        # tasks across the two competitors...
-        patterns = [re.compile(x) for x in taskPatterns]
-        tasksFile = './%s.tasks' % os.getpid()
-        f = open(c.tasksFile)
-        fOut = open(tasksFile, 'wb')
-        for l in f.readlines():
-          i = l.find(':')
-          if i != -1:
-            cat = l[:i]
-            for p in patterns:
-              if p.search(cat) is not None:
-                break
-            else:
-              continue
-          fOut.write(l)
-        f.close()
-        fOut.close()
-      else:
-        tasksFile = c.tasksFile
+    cp = self.classPathToString(self.getClassPath(c.checkout))
+    logFile = '%s/%s.%s.%d' % (benchDir, id, c.name, iter)
 
-      logFiles = []
-      rand = random.Random(randomSeed)
-      staticSeed = rand.randint(-10000000, 1000000)
-      for iter in xrange(jvmCount):
-        print '    iter %s of %s' % (1+iter, jvmCount)
-        randomSeed2 = rand.randint(-10000000, 1000000)
-        command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s' % \
-            (c.javaCommand, cp, c.directory, nameToIndexPath(c.index.getName()), c.analyzer, tasksFile, threadCount, repeatCount, numTasks, doSort, staticSeed, randomSeed2, c.similarity, c.commitPoint, c.hiliteImpl)
-        if filter is not None:
-          command += ' %s %.2f' % filter
-        if c.printHeap:
-          command += ' -printHeap'
-        iterLogFile = '%s.%s' % (logFile, iter)
-        print '      log: %s' % iterLogFile
-        t0 = time.time()
-        run(command, iterLogFile, indent='      ')
-        print '      %.1f s' % (time.time()-t0)
-        logFiles.append(iterLogFile)
-    finally:
-      if taskPatterns is not None:
-        os.remove(tasksFile)
-        
-      os.chdir(cwd)
-    return logFiles
+    if c.doSort:
+      doSort = '-sort'
+    else:
+      doSort = ''
 
-  def getSearchLogFiles(self, id, c, jvmCount):
+    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s' % \
+        (c.javaCommand, cp, c.directory,
+        nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
+        c.numThreads, c.competition.taskRepeatCount,
+        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl)
+    if filter is not None:
+      command += ' %s %.2f' % filter
+    if c.printHeap:
+      command += ' -printHeap'
+    if c.pk:
+      command += ' -pk'
+    print '      log: %s' % logFile
+    t0 = time.time()
+    run(command, logFile, indent='      ')
+    print '      %.1f s' % (time.time()-t0)
+
+    return logFile
+
+  def getSearchLogFiles(self, id, c):
     logFiles = []
     benchDir = checkoutToBenchPath(c.checkout)
-    logFile = '%s/%s.%s.x' % (benchDir, id, c.name)
-    for iter in xrange(jvmCount):
-      iterLogFile = '%s.%s' % (logFile, iter) 
-      logFiles.append(iterLogFile)
+    for iter in xrange(c.competition.jvmCount):
+      logFile = '%s/%s.%s.%d' % (benchDir, id, c.name, iter)
+      logFiles.append(logFile)
     return logFiles
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
@@ -890,25 +893,34 @@ class RunAlgs:
         w('<tr>')
         w('<td>%s</td>' % htmlEscape(desc))
       else:
-        w('%20s' % desc)
+        w('%24s' % desc)
 
-      baseMS, baseTotHitCount = agg(baseResults, cat)
-      cmpMS, cmpTotHitCount = agg(cmpResults, cat)
+      # baseMS, cmpMS are lists of milli-seconds of the run-time for
+      # this task across the N JVMs:
+      baseMS, baseTotHitCount = agg(baseResults, cat, 'base')
+      cmpMS, cmpTotHitCount = agg(cmpResults, cat, 'cmp')
 
       baseQPS = [1000.0/x for x in baseMS]
       cmpQPS = [1000.0/x for x in cmpMS]
 
+      # Aggregate stats over the N JVMs we ran:
       minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
       minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
 
       resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
 
-      if DO_MIN:
-        qpsBase = minQPSBase
-        qpsCmp = minQPSCmp
-      else:
-        qpsBase = avgQPSBase
-        qpsCmp = avgQPSCmp
+      if VERBOSE:
+        if type(cat) is types.TupleType:
+          print 'cat %s' % cat[0]
+        else:
+          print 'cat %s' % cat
+        print '  baseQPS: %s' % ' '.join('%.1f' % x for x in baseQPS)
+        print '    avg %.1f' % avgQPSBase
+        print '  cmpQPS: %s' % ' '.join('%.1f' % x for x in cmpQPS)
+        print '    avg %.1f' % avgQPSCmp
+
+      qpsBase = avgQPSBase
+      qpsCmp = avgQPSCmp
 
       # print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
       # TODO: need a real significance test here
@@ -927,8 +939,9 @@ class RunAlgs:
         w('<td>%.2f</td><td>%.2f</td><td>%.2f</td><td>%.2f</td>' %
           (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
       else:
-        w('%12.2f%12.2f%12.2f%12.2f'%
-          (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
+        p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
+        p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
+        w('%12.2f%12s%12.2f%12s' % (qpsBase, p1, qpsCmp, p2))
 
       if qpsBase == 0.0:
         psAvg = 0.0
@@ -952,7 +965,7 @@ class RunAlgs:
       elif html:
         w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlColor(psBest)))
       else:
-        w('%14s' % ('%4d%% - %4d%%' % (psWorst, psBest)))
+        w('%16s' % ('%7.1f%% (%4d%% - %4d%%)' % (psAvg, psWorst, psBest)))
 
       if jira:
         w('|\n')
@@ -1000,12 +1013,12 @@ class RunAlgs:
       w('<th>%% change</th>')
       w('</tr>')
     else:
-      w('%20s' % 'Task')
+      w('%24s' % 'Task')
       w('%12s' % ('QPS %s' % baseDesc))
-      w('%12s' % ('StdDev %s' % baseDesc))
+      w('%12s' % 'StdDev')
       w('%12s' % ('QPS %s' % cmpDesc))
-      w('%12s' % ('StdDev %s' % cmpDesc))
-      w('%14s' % 'Pct diff')
+      w('%12s' % 'StdDev')
+      w('%24s' % 'Pct diff')
 
     if jira:
       w('||\n')

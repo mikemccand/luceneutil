@@ -250,6 +250,8 @@ def gatherTests(stats, rootDir):
   addCP('lucene/build/test-framework/classes/java')
   addCP('solr/build/solr-test-framework/classes/java')
   addJARs(cp, 'solr/example/example-DIH/solr/db/lib')
+  addJARs(cp, 'solr/solrj/lib')
+  addJARs(cp, 'solr/core/lib')
 
   testDir = '%s/lucene/build/core/test' % rootDir
   if not os.path.exists(testDir):

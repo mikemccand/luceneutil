@@ -137,6 +137,7 @@ onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))
 postingsFormat = getArg('-pf', 'random')
 codec = getArg('-codec', 'random')
+sim = getArg('-sim', 'random')
 dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
@@ -196,6 +197,7 @@ while True:
     command += ' -Dtests.iters=%s' % iters
     command += ' -Dtests.postingsformat=%s' % postingsFormat
     command += ' -Dtests.codec=%s' % codec
+    command += ' -Dtests.similarity=%s' % sim
     command += ' -Dtests.directory=%s' % dir
     command += ' -Dtests.luceneMatchVersion=4.0'
     if constants.TESTS_LINE_FILE is not None:

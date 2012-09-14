@@ -412,7 +412,9 @@ def run():
           print '  ZVRobot command: %s' % cmd
           zvRobotProcess = subprocess.Popen(cmd, shell=True)
           del cmd
-
+        else:
+          zvRobotProcess = None
+          
         print '  wait for server startup...'
 
         time.sleep(2.0)
@@ -466,7 +468,7 @@ def run():
       finally:
         kill('SearchPerfTest', p)
         kill('vmstat', vmstatProcess)
-        if DO_ZV_ROBOT:
+        if DO_ZV_ROBOT and zvRobotProcess is not None:
           kill('ZVRobot', zvRobotProcess)
         if psThread is not None:
           stopPSThread = True

@@ -73,10 +73,7 @@ import org.apache.lucene.search.grouping.term.*;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
-import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -157,6 +154,11 @@ public class SearchPerfTest {
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
       ramDir = null;
+      /*
+    } else if (dirImpl.equals("CachingDirWrapper")) {
+      dir0 = new CachingRAMDirectory(new MMapDirectory(new File(dirPath)));
+      ramDir = null;
+      */
     } else if (dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
       // Load only non-postings files into RAMDir:
       Set<String> postingsExtensions = new HashSet<String>();
@@ -194,6 +196,7 @@ public class SearchPerfTest {
     final int searchThreadCount = args.getInt("-searchThreadCount");
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
+    final boolean doPKLookup = args.getFlag("-pk");
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
@@ -396,7 +399,7 @@ public class SearchPerfTest {
       // Load the tasks from a file:
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount);
+      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup);
     }
 
     args.check();

@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Collection;
 
 import org.apache.lucene.search.CachingCollector;
@@ -344,20 +345,20 @@ final class SearchTask extends Task {
   }
 
   @Override
-  public void printResults(IndexState state) throws IOException {
+  public void printResults(PrintStream out, IndexState state) throws IOException {
     if (group != null) {
       if (singlePassGroup) {
         for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-          System.out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+          out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
           for(ScoreDoc hit : groupDocs.scoreDocs) {
-            System.out.println("    doc=" + hit.doc + " score=" + hit.score);
+            out.println("    doc=" + hit.doc + " score=" + hit.score);
           }
         }
       } else {
         for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-          System.out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+          out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
           for(ScoreDoc hit : groupDocs.scoreDocs) {
-            System.out.println("    doc=" + hit.doc + " score=" + hit.score);
+            out.println("    doc=" + hit.doc + " score=" + hit.score);
           }
         }
       }
@@ -372,11 +373,11 @@ final class SearchTask extends Task {
         } else {
           vs = ((BytesRef) v).utf8ToString();
         }
-        System.out.println("  doc=" + state.docIDToID[hit.doc] + " field=" + vs);
+        out.println("  doc=" + state.docIDToID[hit.doc] + " field=" + vs);
       }
     } else {
       for(ScoreDoc hit : hits.scoreDocs) {
-        System.out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
+        out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
       }
     }
   }

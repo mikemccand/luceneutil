@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.net.InetAddress;
@@ -234,6 +235,8 @@ public class SearchPerfTest {
     final String commit = args.getString("-commit");
     final String hiliteImpl = args.getString("-hiliteImpl");
 
+    final String logFile = args.getString("-log");
+
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
       final int indexThreadCount = args.getInt("-indexThreadCount");
@@ -419,6 +422,8 @@ public class SearchPerfTest {
 
     final List<Task> allTasks = tasks.getAllTasks();
 
+    PrintStream out = new PrintStream(logFile);
+
     if (allTasks != null) {
       // Tasks were local: verify checksums:
 
@@ -426,24 +431,24 @@ public class SearchPerfTest {
 
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 
-      System.out.println("\nResults for " + allTasks.size() + " tasks:");
+      out.println("\nResults for " + allTasks.size() + " tasks:");
       for(final Task task : allTasks) {
         final Task other = tasksSeen.get(task);
         if (other != null) {
           if (task.checksum() != other.checksum()) {
             System.out.println("\nTASK:");
-            task.printResults(indexState);
+            task.printResults(System.out, indexState);
             System.out.println("\nOTHER TASK:");
-            other.printResults(indexState);
+            other.printResults(System.out, indexState);
             throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
           }
         } else {
           tasksSeen.put(task, task);
         }
-        System.out.println("\nTASK: " + task);
-        System.out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
-        System.out.println("  thread " + task.threadID);
-        task.printResults(indexState);
+        out.println("\nTASK: " + task);
+        out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
+        out.println("  thread " + task.threadID);
+        task.printResults(out, indexState);
       }
 
       allTasks.clear();
@@ -472,8 +477,9 @@ public class SearchPerfTest {
         usedMem2 = usedMem1;
         usedMem1 = usedMemory(runtime);
       }
-      System.out.println("\nHEAP: " + usedMemory(runtime));
+      out.println("\nHEAP: " + usedMemory(runtime));
     }
+    out.close();
   }
 
   private static long usedMemory(Runtime runtime) {

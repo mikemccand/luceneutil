@@ -817,20 +817,20 @@ class RunAlgs:
     else:
       doSort = ''
 
-    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s' % \
+    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
         (c.javaCommand, cp, c.directory,
         nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
         c.numThreads, c.competition.taskRepeatCount,
-        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl)
+        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
     if filter is not None:
       command += ' %s %.2f' % filter
     if c.printHeap:
       command += ' -printHeap'
     if c.pk:
       command += ' -pk'
-    print '      log: %s' % logFile
+    print '      log: %s + stdout' % logFile
     t0 = time.time()
-    run(command, logFile, indent='      ')
+    run(command, logFile + '.stdout', indent='      ')
     print '      %.1f s' % (time.time()-t0)
 
     return logFile

@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Collection;
 
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
@@ -39,6 +41,12 @@ import org.apache.lucene.search.grouping.TopGroups;
 import org.apache.lucene.search.grouping.term.TermAllGroupsCollector;
 import org.apache.lucene.search.grouping.term.TermFirstPassGroupingCollector;
 import org.apache.lucene.search.grouping.term.TermSecondPassGroupingCollector;
+import org.apache.lucene.search.highlight.Highlighter;
+import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
+import org.apache.lucene.search.highlight.QueryScorer;
+import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.apache.lucene.search.highlight.TextFragment;
+import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.vectorhighlight.FieldQuery;
 import org.apache.lucene.util.BytesRef;
 
@@ -56,6 +64,7 @@ final class SearchTask extends Task {
   private TopGroups<?> groupsResultBlock;
   private TopGroups<BytesRef> groupsResultTerms;
   private FieldQuery fieldQuery;
+  private Highlighter highlighter;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN, boolean doHilite) {
     this.category = category;
@@ -102,8 +111,10 @@ final class SearchTask extends Task {
 
     try {
       if (doHilite) {
-        if (state.highlighter != null) {
-          fieldQuery = state.highlighter.getFieldQuery(q, searcher.getIndexReader());
+        if (state.fastHighlighter != null) {
+          fieldQuery = state.fastHighlighter.getFieldQuery(q, searcher.getIndexReader());
+        } else if (state.useHighlighter) {
+          highlighter = new Highlighter(new SimpleHTMLFormatter(), new QueryScorer(q));
         } else {
           // no setup for postingshighlighter
         }
@@ -194,6 +205,8 @@ final class SearchTask extends Task {
       //System.out.println("TE: " + TermsEnum.getStats());
     } finally {
       state.mgr.release(searcher);
+      fieldQuery = null;
+      highlighter = null;
     }
   }
 
@@ -206,7 +219,8 @@ final class SearchTask extends Task {
   }
 
   private void hilite(TopDocs hits, IndexState indexState, IndexSearcher searcher, Query query) throws IOException {
-    if (indexState.highlighter != null) {
+    //System.out.println("hilite: " + q + " sort=" + s + " totalHits=" + hits.totalHits);
+    if (indexState.fastHighlighter != null || indexState.useHighlighter) {
       for(ScoreDoc sd : hits.scoreDocs) {
         hilite(sd.doc, indexState, searcher);
       }
@@ -218,12 +232,37 @@ final class SearchTask extends Task {
   public int totHiliteHash;
 
   private void hilite(int docID, IndexState indexState, IndexSearcher searcher) throws IOException {
-    String h = indexState.highlighter.getBestFragment(fieldQuery,
-                                                      searcher.getIndexReader(), docID,
-                                                      indexState.textFieldName,
-                                                      100);
-    totHiliteHash += h.hashCode();
-    //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
+    if (indexState.fastHighlighter != null) {
+      for(String h : indexState.fastHighlighter.getBestFragments(fieldQuery,
+                                                                 searcher.getIndexReader(), docID,
+                                                                 indexState.textFieldName,
+                                                                 100, 6)) {
+        totHiliteHash += h.hashCode();
+      }
+      //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
+    } else {
+      Document doc = searcher.doc(docID);
+      String text = doc.get(indexState.textFieldName);
+      // NOTE: passing null for analyzer: TermVectors must
+      // be indexed!
+      TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), docID, indexState.textFieldName, null);
+      TextFragment[] frags;
+      try {
+        frags = highlighter.getBestTextFragments(tokenStream, text, false, 6);
+      } catch (InvalidTokenOffsetsException ioe) {
+        throw new RuntimeException(ioe);
+      }
+
+      //int fragCount = 0;
+      for (int j = 0; j < frags.length; j++) {
+        if (frags[j] != null && frags[j].getScore() > 0) {
+          //System.out.println(frags[j].toString());
+          totHiliteHash += frags[j].toString().hashCode();
+          //fragCount++;
+        }
+      }
+      //System.out.println("  " + docID + ": " + fragCount + " frags");
+    }
   }
 
   @Override

@@ -43,7 +43,8 @@ class IndexState {
   public final ReferenceManager<IndexSearcher> mgr;
   public final DirectSpellChecker spellChecker;
   public final Filter groupEndFilter;
-  public final FastVectorHighlighter highlighter;
+  public final FastVectorHighlighter fastHighlighter;
+  public final boolean useHighlighter;
   //public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
   public int[] docIDToID;
@@ -54,11 +55,16 @@ class IndexState {
     this.textFieldName = textFieldName;
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
-      highlighter = new FastVectorHighlighter(true, true);
+      fastHighlighter = new FastVectorHighlighter(true, true);
+      useHighlighter = false;
       //postingsHighlighter = null;
     } else if (hiliteImpl.equals("PostingsHighlighter")) {
-      highlighter = null;
+      fastHighlighter = null;
+      useHighlighter = false;
       //postingsHighlighter = new PostingsHighlighter(textFieldName);
+    } else if (hiliteImpl.equals("Highlighter")) {
+      fastHighlighter = null;
+      useHighlighter = true;
     } else {
       throw new IllegalArgumentException("unrecognized -hiliteImpl \"" + hiliteImpl + "\"");
     }

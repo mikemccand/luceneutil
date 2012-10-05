@@ -152,6 +152,11 @@ public final class Indexer {
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
+    ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
+    iwc.setMergeScheduler(cms);
+    cms.setMaxThreadCount(1);
+    cms.setMaxMergeCount(2);
+
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
       mp = new LogDocMergePolicy();

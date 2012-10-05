@@ -51,6 +51,8 @@ class RollingStats:
     self.upto = 0
 
   def add(self, value):
+    if value < 0:
+      raise RuntimeError('values should be positive')
     idx = self.upto % len(self.buffer)
     self.sum += value - self.buffer[idx]
     self.buffer[idx] = value
@@ -59,10 +61,13 @@ class RollingStats:
   def get(self):
     if self.upto == 0:
       return -1.0
-    elif self.upto < len(self.buffer):
-      return self.sum/self.upto
     else:
-      return self.sum/len(self.buffer)
+      if self.upto < len(self.buffer):
+        v = self.sum/self.upto
+      else:
+        v = self.sum/len(self.buffer)
+      # Don't let roundoff error manifest as -0.0:
+      return max(0.0, v)
 
 class Results:
 
@@ -91,8 +96,6 @@ class SendTasks:
 
     self.out = out
     self.runTimeSec = runTimeSec
-    self.queueTimeStats = RollingStats(100)
-    self.totalTimeStats = RollingStats(100)
     self.results = Results()
     self.sent = {}
     self.queue = Queue.Queue()
@@ -125,6 +128,13 @@ class SendTasks:
 
     startTime = self.startTime
     lastPrint = self.startTime
+
+    lastSec = None
+    queriesThisSec = 0
+    
+    queueTimeStats = RollingStats(100)
+    totalTimeStats = RollingStats(100)
+    actualQPSStats = RollingStats(5)
     
     while True:
       result = ''
@@ -135,6 +145,15 @@ class SendTasks:
       totalHitCount = int(totalHitCount)
       queueTimeMS = float(queueTimeMS)
       endTime = time.time()
+      intSec = int(endTime)
+      if intSec != lastSec:
+        if intSec - self.startTime >= 1:
+          actualQPSStats.add(float(queriesThisSec))
+        queriesThisSec = 1
+        lastSec = intSec
+      else:
+        queriesThisSec += 1
+      
       try:
         taskStartTime, taskString = self.sent[taskID]
       except KeyError:
@@ -142,8 +161,8 @@ class SendTasks:
         continue
       del self.sent[taskID]
       latencyMS = (endTime-taskStartTime)*1000
-      self.queueTimeStats.add(queueTimeMS)
-      self.totalTimeStats.add(latencyMS)
+      queueTimeStats.add(queueTimeMS)
+      totalTimeStats.add(latencyMS)
       self.results.add(taskString.strip(),
                        totalHitCount,
                        taskStartTime-startTime,
@@ -155,11 +174,12 @@ class SendTasks:
         pctDone = 100.0*(now - startTime) / self.runTimeSec
         if pctDone > 100.0:
           pctDone = 100.0
-        self.out.write('%6.1f s: %5.1f%%: %5.1f qps; %6.1f/%6.1f ms [%d, %d]\n' % \
+        self.out.write('%6.1f s: %5.1f%%: %5.1f qps in; %5.1f qps out; %6.1f/%6.1f ms [%d, %d]\n' % \
                        (now - startTime, pctDone,
                         self.taskID/(now-startTime),
-                        self.totalTimeStats.get(),
-                        self.queueTimeStats.get(),
+                        actualQPSStats.get(),
+                        totalTimeStats.get(),
+                        queueTimeStats.get(),
                         self.queue.qsize(),
                         len(self.sent)))
         #self.out.flush()
@@ -193,9 +213,6 @@ def pruneTasks(taskStrings, numTasksPerCat):
 
   prunedTasks = []
   for cat, l in byCat.items():
-    # nocommit
-    if cat != 'Term':
-      continue
     prunedTasks.extend(l)
 
   return prunedTasks
@@ -213,6 +230,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
     l = f.readline()
     if l == '':
       break
+    orig = l
     idx = l.find('#')
     if idx != -1:
       l = l[:idx]
@@ -230,6 +248,10 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   out.write('%d tasks\n' % len(taskStrings))
 
   taskStrings = pruneTasks(taskStrings, numTasksPerCat)
+  out.write('%d tasks after prune\n' % len(taskStrings))
+  
+  # Shuffle again (pruneTasks collates):
+  r.shuffle(taskStrings)
 
   tasks = SendTasks(serverHost, serverPort, out, runTimeSec)
 
@@ -237,17 +259,14 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   
   try:
 
-    done = False
     warned = False
+    iters = 0
     
-    while not done:
+    while True:
+
+      iters += 1
 
       for task in taskStrings:
-
-        now = time.time()
-        if now - tasks.startTime > runTimeSec:
-          done = True
-          break
 
         targetTime += r.expovariate(meanQPS)
 
@@ -268,6 +287,11 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
           
         #origTask = task
         tasks.send(startTime, task)
+
+      if time.time() - tasks.startTime > runTimeSec:
+        break
+
+    print 'Sent all tasks %d times.' % iters
 
   except KeyboardInterrupt:
     if not handleCtrlC:

@@ -115,9 +115,11 @@ doCompile = not getArg('-noc', False, False)
 print 'Logging to dir %s' % logDirName
 
 if doLog:
-  if os.path.exists(logDirName):
-    shutil.rmtree(logDirName)
-  os.makedirs(logDirName)
+  if False:
+    if os.path.exists(logDirName):
+      shutil.rmtree(logDirName)
+  if not os.path.exists(logDirName):      
+    os.makedirs(logDirName)
 
 if doCompile:
   print 'Compile...'
@@ -165,7 +167,7 @@ for test in sys.argv[1:]:
 JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
-TEST_TEMP_DIR = 'build/test/reruns'
+TEST_TEMP_DIR = 'build/core/test/reruns.%s.%s' % (tests[0][0].split('.')[-1], tests[0][1])
 
 upto = 0
 iter = 0 
@@ -178,7 +180,8 @@ while True:
       s = testClass
 
     if doLog:
-      print 'iter %s %s TEST: %s -> %s/%d.log' % (iter, datetime.datetime.now(), s, logDirName, upto)
+      logFileName = '%s/%s.%s.%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto)
+      print 'iter %s %s TEST: %s -> %s' % (iter, datetime.datetime.now(), s, logFileName)
     else:
       print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
     iter += 1
@@ -207,7 +210,7 @@ while True:
     if seed is not None:
       command += ' -Dtests.seed=%s' % seed
     if testMethod is not None:
-      command += ' -Dtests.method=%s' % testMethod
+      command += ' -Dtests.method=%s*' % testMethod
       
     if OLD_JUNIT:
       command += ' junit.textui.TestRunner'
@@ -217,7 +220,6 @@ while True:
     command += ' %s' % testClass
 
     if doLog:
-      logFileName = '%s/%d.log' % (logDirName, upto)
       command += ' > %s 2>&1' % logFileName
       
     if os.path.exists(TEST_TEMP_DIR):
@@ -236,7 +238,7 @@ while True:
       raise RuntimeError('hit fail')
     elif doLog:
       if not keepLogs:
-        os.remove('%s/%d.log' % (logDirName, upto))
+        os.remove('%s/%s.%s.%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto))
       else:
         upto += 1
 

@@ -29,114 +29,31 @@ import threading
 import email.mime.text
 import smtplib
 
-# TODO: pull these from localconstants.py:
+def usage():
+  print
+  print 'Usage: python -u %s -config <config>.py [-smoke]' % sys.argv[0]
+  print
+  sys.exit(1)
 
-SMOKE_TEST = True
+SMOKE_TEST = '-smoke' in sys.argv
 
-if True:
-  # Home
-  env = 'home'
-  LUCENE_HOME = '/l/4x.beta.azul/lucene'
-  LUCENE40_INDEX_PATH = '/l/scratch/indices/Lucene40'
-  DIRECT_INDEX_PATH = '/l/scratch/indices/Direct'
-  LINE_DOCS_FILE = '/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt'
-  JHICCUP_PATH = '/x/tmp4/jHiccup.1.1.4/jHiccup'
-  ORACLE_JVM = '/usr/local/src/jdk1.7.0_05/bin/java'
-  # nocommit
-  if True:
-    # fake zing:
-    ZING_JVM = ORACLE_JVM
-    DO_STOP_START_ZST = False
-    DO_ZV_ROBOT = False
-  else:
-    ZING_JVM = '/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java'
-    DO_STOP_START_ZST = True
-    DO_ZV_ROBOT = True
-  MAX_HEAP_GB = 10
-  SEARCH_THREAD_COUNT = 6
-  ZV_ROBOT_JAR = '/usr/local/src/ZVRobot/ZVRobot-5.2.1.0-3.jar'
-  QPS_START = 100
-  QPS_INC = 50
-  QPS_END = None
-  CLIENT_HOST = '10.17.4.10'
-  CLIENT_USER = 'mike'
-  SERVER_HOST = '10.17.4.91'
-  COMMIT_POINT = 'multi'
-  USE_SMTP = True
-  DO_EMAIL = False
-  DO_NRT = False
-elif False:
-  # EC2:
-  env = 'ec2'
-  LUCENE_HOME = '/root/lucene4x/lucene'
-  LUCENE40_INDEX_PATH = '/large/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
-  DIRECT_INDEX_PATH = '/large/indices/fullwiki'
-  LINE_DOCS_FILE = '/large/enwiki-20120502-lines-1k.txt'
-  JHICCUP_PATH = '/root/jHiccup.1.1.4/jHiccup'
-  ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
-  ORACLE_JVM = '/root/jdk1.6.0_31/bin/java'
-  DO_STOP_START_ZST = True
-  MAX_HEAP_GB = 40
-  SEARCH_THREAD_COUNT = 20
-  DO_ZV_ROBOT = False
-  ZV_ROBOT_ROOT = '/root/ZVRobot'
-  QPS_START = 25
-  QPS_INC = 25
-  QPS_END = None
-  CLIENT_HOST = None
-  CLIENT_USER = 'root'
-  SERVER_HOST = 'localhost'
-  COMMIT_POINT = 'multi'
-  USE_SMTP = False
-  DO_EMAIL = True
-  DO_NRT = False
+if '-help' in sys.argv:
+  usage()
+  
+try:
+  idx = sys.argv.index('-config')
+except ValueError:
+  configFile = 'localconfig.py'
 else:
-  # Lab box:
-  env = 'lab'
-  LUCENE_HOME = '/localhome/lucene4xbeta/lucene'
-  #LUCENE40_INDEX_PATH = '/localhome/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index'
-  LUCENE40_INDEX_PATH = '/localhome/indices/Lucene40beta'
-  DIRECT_INDEX_PATH = '/localhome/indices/Lucene40beta.Direct'
-  LINE_DOCS_FILE = '/localhome/data/enwiki-20120502-lines-1k.txt'
-  JHICCUP_PATH = '/localhome/jHiccup.1.1.4/jHiccup'
-  #ZING_JVM = '/opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java'
-  #ZING_JVM = '/home/buildmaster/nightly/AVM/main-dev-x86/in_progress/avm-x86-1742/sandbox/azlinux/jdk6/x86_64/product/bin/java'
-  ZING_JVM = '/home/buildmaster/nightly/AVM/5.2.x-avm/in_progress/avm-5.2.3.0-6//sandbox/azlinux/j2sdk1.6/x86_64/product/bin/java'
-  ORACLE_JVM = '/localhome/jdk1.6.0_32/bin/java'
-  DO_STOP_START_ZST = True
-  MAX_HEAP_GB = 250
-  SEARCH_THREAD_COUNT = 64
-  DO_ZV_ROBOT = True
-  ZV_ROBOT_JAR = '/localhome/ZVRobot/ZVRobot-5.2.0.0-18.jar'
-  QPS_START = 25
-  QPS_INC = 25
-  QPS_END = None
-  CLIENT_HOST = 'isvx40'
-  SERVER_HOST = 'isvx512'
-  CLIENT_USER = 'root'
-  COMMIT_POINT = 'multi'
-  USE_SMTP = False
-  DO_EMAIL = True
-  DO_NRT = False
+  configFile = sys.argv[idx+1]
+
+exec(open(configFile).read())
 
 LOGS_DIR = 'logs'
-
-if SMOKE_TEST:
-  RUN_TIME_SEC = 30
-  WARMUP_SEC = 10
-else:
-  RUN_TIME_SEC = 3600
-  WARMUP_SEC = 5 * 60
 
 REMOTE_CLIENT = 'sendTasks.py'
 
 SERVER_PORT = 7777
-
-DOCS_PER_SEC_PER_THREAD = 100.0
-
-#TASKS_FILE = 'hiliteTermsNoStopWords.tasks'
-#TASKS_FILE = 'termsNoStopWords.tasks'
-TASKS_FILE = 'single.tasks'
 
 reSVNRev = re.compile(r'revision (.*?)\.')
 
@@ -156,6 +73,8 @@ class Tee(object):
     self.orig.write(data)
 
 def captureEnv(logsDir):
+  print
+  print 'Started: %s' % datetime.datetime.now()
   print 'Python version: %s' % sys.version
   svnRev = os.popen('svnversion %s' % LUCENE_HOME).read().strip()
   print 'Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME)
@@ -177,7 +96,25 @@ def captureEnv(logsDir):
     shutil.copy('%s/%s' % (luceneUtilDir, fileName),
                 '%s/%s' % (logsDir, fileName))
     os.chmod('%s/%s' % (logsDir, fileName), 0444)
-              
+
+  for fileName in ('/sys/kernel/mm/transparent_hugepage/enabled',
+                   '/sys/kernel/mm/redhat_transparent_hugepage/enabled'):
+    if os.path.exists(fileName):
+      s = open(fileName, 'rb').read().strip()
+      print 'Transparent huge pages @ %s: currently %s' % (fileName, s)
+      if not ENABLE_THP:
+        if s.find('[never]') == -1:
+          open(fileName, 'wb').write('never')
+          print '  now setting to [never]...'
+        else:
+          print '  already disabled'
+      else:
+        if s.find('[always]') == -1:
+          open(fileName, 'wb').write('always')
+          print '  now setting to [always]...'
+        else:
+          print '  already enabled'
+        
 def kill(name, p):
   while True:
     for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
@@ -234,6 +171,7 @@ def runPSThread(logFileName):
         p.close()
       
       f.write('\n')
+      f.flush()
       
   finally:
     f.close()
@@ -262,19 +200,19 @@ def run():
 
   targetQPS = QPS_START
 
-  JOBS =  (
-    #('Zing', 'MMapDirectory', 'Lucene40'),
-    #('OracleCMS', 'MMapDirectory', 'Lucene40'),
-    #('Zing', 'MMapDirectory', 'Lucene40'),
-    #('OracleCMS', 'MMapDirectory', 'Lucene40'),
-    ('Zing', 'MMapDirectory', 'Direct'),
-    ('OracleCMS', 'MMapDirectory', 'Direct'),
-    )
+  print 'Compile java sources...'
+  cmd = '%sc -Xlint -Xlint:deprecation -cp $LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/Args.java perf/IndexThreads.java perf/OpenCloseIndexWriter.java perf/Task.java perf/CreateQueries.java perf/LineFileDocs.java perf/PKLookupPerfTest.java perf/RandomFilter.java perf/SearchPerfTest.java perf/TaskParser.java perf/Indexer.java perf/LocalTaskSource.java perf/PKLookupTask.java perf/RemoteTaskSource.java perf/SearchTask.java perf/TaskSource.java perf/IndexState.java perf/NRTPerfTest.java perf/RespellTask.java perf/ShowFields.java perf/TaskThreads.java perf/KeepNoCommitsDeletionPolicy.java perf/RateLimitingRAMDirectory.java perf/RateLimitingRAMOutputStream.java perf/RateLimitingRAMFile.java' % ORACLE_JVM
+  cmd = cmd.replace('$LUCENE_HOME', LUCENE_HOME)
 
+  if system(cmd):
+    raise RuntimeError('compile failed')
 
   if CLIENT_HOST is not None:
     print 'Copy sendTasks.py to client host %s' % CLIENT_HOST
     if system('scp sendTasks.py %s@%s: > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST)):
+      raise RuntimeError('copy sendTasks.py failed')
+    print 'Copy tasks file "%s" to client host %s' % (TASKS_FILE, CLIENT_HOST)
+    if system('scp %s %s@%s: > /dev/null 2>&1' % (TASKS_FILE, CLIENT_USER, CLIENT_HOST)):
       raise RuntimeError('copy sendTasks.py failed')
 
   startTime = datetime.datetime.now()
@@ -298,9 +236,6 @@ def run():
         indexPath = LUCENE40_INDEX_PATH
       else:
         indexPath = DIRECT_INDEX_PATH
-
-      if SMOKE_TEST:
-        indexPath += '.1M'
 
       os.makedirs(logsDir)
 
@@ -334,6 +269,8 @@ def run():
       
       if desc.find('CMS') != -1:
         w('-XX:+UseConcMarkSweepGC')
+      elif desc.find('G1') != -1:
+        w('-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC')
 
       if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene40':
         w('-Xmx4g')
@@ -348,14 +285,17 @@ def run():
       w('-verbose:gc')
       w('-XX:+PrintGCDetails')
       w('-cp')
-      w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
+      w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/memory/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
       w('perf.SearchPerfTest')
       w('-indexPath %s' % indexPath)
       if dirImpl == 'RAMDirectory' and postingsFormat == 'Direct':
+        # Leaves postings on disk (since they will be turned into
+        # DirectPF in RAM), and loads everything else into RAM:
         w('-dirImpl RAMExceptDirectPostingsDirectory')
       else:
         w('-dirImpl %s' % dirImpl)
-      w('-analyzer StandardAnalyzer')
+        #w('-ramMergeMaxMBPerSec %s' % RAM_MERGE_MAX_MB_PER_SEC)
+      w('-analyzer %s' % ANALYZER)
       w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
       w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)
       w('-field body')
@@ -363,25 +303,31 @@ def run():
       w('-commit %s' % COMMIT_POINT)
       w('-seed 0')
       w('-staticSeed 0')
-      w('-hiliteImpl FastVectorHighlighter')
+      w('-hiliteImpl %s' % HIGHLIGHT_IMPL)
+      w('-topN %d' % TOP_N)
+
+      serverLog = '%s/server.log' % logsDir
+      w('-log %s' % serverLog)
 
       # Do indexing/NRT reopens:
       if DO_NRT:
+        if VERBOSE_INDEXING:
+          w('-verbose')
         w('-nrt')
         w('-indexThreadCount 1')
         w('-docsPerSecPerThread %s' % DOCS_PER_SEC_PER_THREAD)
         w('-lineDocsFile %s' % LINE_DOCS_FILE)
-        w('-reopenEverySec 1.0')
+        w('-reopenEverySec %g' % REOPEN_EVERY_SEC)
         w('-store')
         w('-tvs')
         w('-postingsFormat %s' % postingsFormat)
         w('-idFieldPostingsFormat %s' % postingsFormat)
         w('-cloneDocs')
-      
-      serverLog = '%s/server.log' % logsDir
 
+      stdLog = '%s/std.log' % logsDir
+      
       command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
-                (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), serverLog)
+                (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), stdLog)
 
       p = None
       vmstatProcess = None
@@ -391,7 +337,7 @@ def run():
 
       try:
 
-        touchCmd = '%s -Xmx1g -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s 2>&1'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
+        touchCmd = '%s -Xmx1g -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s 2>&1'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
         #print '  run %s' % touchCmd
         while True:
           print '  clean index'
@@ -421,8 +367,11 @@ def run():
         
         while True:
           try:
-            if open(serverLog).read().find('  ready for client...') != -1:
+            if open(stdLog).read().find('  ready for client...') != -1:
               break
+            v = p.poll()
+            if p.poll() is not None:
+              raise RuntimeError('  failed to start:\n\n%s' % open(stdLog).read())
           except IOError:
             pass
           time.sleep(1.0)
@@ -438,9 +387,10 @@ def run():
         t0 = time.time()
         if CLIENT_HOST is not None:
           # Remote client:
-          command = 'python -u %s %s %s %s %.1f 1000 %.1f results.bin' % \
-                    (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, RUN_TIME_SEC)
+          command = 'python -u %s %s %s %s %.1f %d %.1f results.bin' % \
+                    (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, TASKS_PER_CAT, RUN_TIME_SEC)
 
+          print '  client command: %s' % command
           if system('ssh %s@%s %s > %s/client.log 2>&1' % (CLIENT_USER, CLIENT_HOST, command, logsDir)):
             raise RuntimeError('client failed; see %s/client.log' % logsDir)
 
@@ -453,13 +403,13 @@ def run():
 
         else:
           f = open('%s/client.log' % logsDir, 'wb')
-          sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, 1000, RUN_TIME_SEC, '%s/results.bin' % logsDir, f, False)
+          sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, TASKS_PER_CAT, RUN_TIME_SEC, '%s/results.bin' % logsDir, f, False)
           f.close()
           
         t1 = time.time()
         print '  test done (%.1f total sec)' % (t1-t0)
 
-        if (t1 - t0) > RUN_TIME_SEC * 1.3:
+        if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.3:
           print '  marking this job finished!'
           finished.add(job)
 

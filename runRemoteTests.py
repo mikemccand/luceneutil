@@ -74,7 +74,7 @@ class Remote(threading.Thread):
     global lastPrint
     
     if self.hostName != socket.gethostname():
-      cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
+      cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude="build/core/test" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
             (self.rootDir, USERNAME, self.hostName, constants.BASE_DIR)
       t = time.time()
       if os.system(cmd):
@@ -97,13 +97,14 @@ class Remote(threading.Thread):
                self.classpath,
                self.command)
 
-    #msg('local: %s: start cmd: %s' % (self.hostName, cmd))
+    # msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Skip login banner:
     while True:
       s = p.stdout.readline()
+      #print s.rstrip()
       if s == '':
         raise RuntimeError('failed to start remoteTestServer.py on host "%s"' % self.hostName)
       elif s.strip() == 'REMOTE SERVER STARTED':

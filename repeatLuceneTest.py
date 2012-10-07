@@ -208,6 +208,8 @@ def run(threadID):
 
       if doLog:
         logFileName = '%s/%s.%s.%d.t%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto, threadID)
+      else:
+        logFileName = None
 
       if False:
         if doLog:
@@ -261,7 +263,11 @@ def run(threadID):
       res = os.system(command)
 
       if res:
-        print '  FAILED [log %s]' % logFileName
+        if logFileName is None:
+          print '  FAILED'
+        else:
+          print '  FAILED [log %s]' % logFileName
+          
         if doLog:
           printReproLines(logFileName)
         failed = True

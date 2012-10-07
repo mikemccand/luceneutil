@@ -212,6 +212,7 @@ FLAKY_TESTS = set([
   'org.apache.solr.cloud.RecoveryZkTest',
   'org.apache.solr.handler.TestReplicationHandler',
   'org.apache.solr.cloud.BasicDistributedZkTest',
+  'org.apache.solr.update.SolrCmdDistributorTest',
   ])
 
 class Jobs:

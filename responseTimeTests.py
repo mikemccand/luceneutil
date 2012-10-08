@@ -294,7 +294,6 @@ def run():
         w('-dirImpl RAMExceptDirectPostingsDirectory')
       else:
         w('-dirImpl %s' % dirImpl)
-        #w('-ramMergeMaxMBPerSec %s' % RAM_MERGE_MAX_MB_PER_SEC)
       w('-analyzer %s' % ANALYZER)
       w('-taskSource server:%s:%s' % (SERVER_HOST, SERVER_PORT))
       w('-searchThreadCount %d' % SEARCH_THREAD_COUNT)

@@ -181,12 +181,15 @@ failed = False
 iterLock = threading.Lock()
 iter = 0
 
-def nextIter(threadID):
+def nextIter(threadID, logFileName):
   global iter
   
   with iterLock:
     print
-    print '%s [%d, thread %d]:' % (datetime.datetime.now(), iter, threadID)
+    if logFileName is None:
+      print '%s [%d, thread %d]:' % (datetime.datetime.now(), iter, threadID)
+    else:
+      print '%s [%d, thread %d]: %s' % (datetime.datetime.now(), iter, threadID, logFileName)
     iter += 1
     return iter
   
@@ -204,12 +207,12 @@ def run(threadID):
       else:
         s = testClass
 
-      iter = nextIter(threadID)
-
       if doLog:
         logFileName = '%s/%s.%s.%d.t%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto, threadID)
       else:
         logFileName = None
+
+      iter = nextIter(threadID, logFileName)
 
       if False:
         if doLog:

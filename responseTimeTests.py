@@ -337,6 +337,7 @@ def run():
       p = None
       vmstatProcess = None
       zvRobotProcess = None
+      clientProcess = None
       psThread = None
       success = False
 

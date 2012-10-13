@@ -201,7 +201,7 @@ def run():
   targetQPS = QPS_START
 
   print 'Compile java sources...'
-  cmd = '%sc -Xlint -Xlint:deprecation -cp $LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/Args.java perf/IndexThreads.java perf/OpenCloseIndexWriter.java perf/Task.java perf/CreateQueries.java perf/LineFileDocs.java perf/PKLookupPerfTest.java perf/RandomFilter.java perf/SearchPerfTest.java perf/TaskParser.java perf/Indexer.java perf/LocalTaskSource.java perf/PKLookupTask.java perf/RemoteTaskSource.java perf/SearchTask.java perf/TaskSource.java perf/IndexState.java perf/NRTPerfTest.java perf/RespellTask.java perf/ShowFields.java perf/TaskThreads.java perf/KeepNoCommitsDeletionPolicy.java perf/RateLimitingRAMDirectory.java perf/RateLimitingRAMOutputStream.java perf/RateLimitingRAMFile.java' % ORACLE_JVM
+  cmd = '%sc -Xlint -Xlint:deprecation -cp $LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/Args.java perf/IndexThreads.java perf/OpenCloseIndexWriter.java perf/Task.java perf/CreateQueries.java perf/LineFileDocs.java perf/PKLookupPerfTest.java perf/RandomFilter.java perf/SearchPerfTest.java perf/TaskParser.java perf/Indexer.java perf/LocalTaskSource.java perf/PKLookupTask.java perf/RemoteTaskSource.java perf/SearchTask.java perf/TaskSource.java perf/IndexState.java perf/NRTPerfTest.java perf/RespellTask.java perf/ShowFields.java perf/TaskThreads.java perf/KeepNoCommitsDeletionPolicy.java' % ORACLE_JVM
   cmd = cmd.replace('$LUCENE_HOME', LUCENE_HOME)
 
   if system(cmd):
@@ -284,6 +284,10 @@ def run():
         
       w('-verbose:gc')
       w('-XX:+PrintGCDetails')
+      if desc.startswith('Zing'):
+        w('-XX:+PrintCommandLine')
+      w('-XX:+PrintCommandLineFlags')
+      #w('-XX:+PrintFlagsFinal')
       w('-cp')
       w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/memory/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
       w('perf.SearchPerfTest')
@@ -388,9 +392,14 @@ def run():
           # Remote client:
           command = 'python -u %s %s %s %s %.1f %d %.1f results.bin' % \
                     (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, TASKS_PER_CAT, RUN_TIME_SEC)
-
+          command = 'ssh %s@%s %s > %s/client.log 2>&1' % (CLIENT_USER, CLIENT_HOST, command, logsDir)
+          
           print '  client command: %s' % command
-          if system('ssh %s@%s %s > %s/client.log 2>&1' % (CLIENT_USER, CLIENT_HOST, command, logsDir)):
+          clientProcess = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+          output = clientProcess.communicate()[0].strip()
+          if len(output) > 0:
+            print '  %s' % output.replace('\n', '\n  ')
+          if clientProcess.returncode:
             raise RuntimeError('client failed; see %s/client.log' % logsDir)
 
           print '  copy results.bin back...'
@@ -401,6 +410,7 @@ def run():
             raise RuntimeError('rm results.bin failed')
 
         else:
+          clientProcess = None
           f = open('%s/client.log' % logsDir, 'wb')
           sendTasks.run(TASKS_FILE, 'localhost', SERVER_PORT, targetQPS, TASKS_PER_CAT, RUN_TIME_SEC, '%s/results.bin' % logsDir, f, False)
           f.close()
@@ -417,11 +427,19 @@ def run():
       finally:
         kill('SearchPerfTest', p)
         kill('vmstat', vmstatProcess)
+        if clientProcess is not None:
+          kill('sendTasks.py', clientProcess)
         if DO_ZV_ROBOT and zvRobotProcess is not None:
           kill('ZVRobot', zvRobotProcess)
         if psThread is not None:
           stopPSThread = True
           psThread.join()
+
+      try:
+        printAvgCPU('%s/top.log' % logsDir)
+      except:
+        print 'WARNING: failed to compute avg CPU usage:'
+        traceback.print_exc()
         
       print '  done'
       open('%s/done' % logsDir, 'wb').close()
@@ -442,6 +460,52 @@ def run():
   print
   print '%s: ALL DONE (elapsed time %s)' % (now, now - startTime)
   print
+
+def printAvgCPU(topLog):
+
+  cpuCoreCount = int(os.popen('grep processor /proc/cpuinfo | wc').read().strip().split()[0])
+
+  with open(topLog) as f:
+
+    byPid = {}
+
+    cpuCol = None
+    for line in f.readlines():
+      line = line.strip()
+      if line.startswith('Time'):
+        cpuCol = None
+      elif line.startswith('PID'):
+        cpuCol = line.split().index('%CPU')
+      elif cpuCol is not None:
+        cols = line.split()
+        if len(cols) > cpuCol:
+          pid = int(cols[0])
+          cpu = float(cols[cpuCol])
+          if pid not in byPid:
+            # sum, min, max, count
+            byPid[pid] = [0.0, None, None, 0]
+          l = byPid[pid]
+          l[0] += cpu
+          l[3] += 1
+
+          if l[1] is None:
+            l[1] = cpu
+          else:
+            l[1] = min(cpu, l[1])
+
+          if l[2] is None:
+            l[2] = cpu
+          else:
+            l[2] = max(cpu, l[2])
+
+  pids = []
+  for pid, (sum, minCPU, maxCPU, count) in byPid.items():
+    pids.append((sum/count, minCPU, maxCPU, pid))
+
+  pids.sort(reverse=True)
+  print '  CPU usage [%d CPU cores]' % cpuCoreCount
+  for avgCPU, minCPU, maxCPU, pid in pids:
+    print '    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid)
 
 def emailResult(body, subject):
   fromAddress = toAddress = 'mail@mikemccandless.com'

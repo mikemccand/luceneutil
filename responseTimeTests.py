@@ -219,6 +219,8 @@ def run():
   
   while len(finished) != len(JOBS):
 
+    testsRemain = False
+    
     for job in JOBS:
 
       if job in finished:
@@ -419,8 +421,11 @@ def run():
         print '  test done (%.1f total sec)' % (t1-t0)
 
         if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.3:
-          print '  marking this job finished!'
-          finished.add(job)
+          if desc.lower().find('warmup') == -1:
+            print '  marking this job finished!'
+            finished.add(job)
+        elif desc.lower().find('warmup') == -1:
+          testsRemain = True
 
         success = True
         
@@ -451,6 +456,9 @@ def run():
           traceback.print_exc()
 
     if QPS_END is not None and targetQPS >= QPS_END:
+      break
+
+    if not testsRemain:
       break
 
     targetQPS += QPS_INC

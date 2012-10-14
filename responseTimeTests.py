@@ -139,16 +139,17 @@ def runPSThread(logFileName):
   try:
     while not stopPSThread:
       # ps axuw | sed "1 d" | sort -n -r -k3 | head
-      for i in xrange(10):
+
+      # Run top every 3 sec:
+      for i in xrange(6):
         if stopPSThread:
           break
         time.sleep(0.5)
 
-      # TODO: top instead?
       f.write('\n\nTime %.1f s:\n' % (time.time() - startTime))
       #p = os.popen('ps axuw | sed "1 d" | sort -n -r -k3')
       sawHeader = False
-      p = os.popen('top -b -n1')
+      p = os.popen('top -c -b -n1')
       try:
         keep = []
         for l in p.readlines():
@@ -514,7 +515,8 @@ def printAvgCPU(topLog):
   pids.sort(reverse=True)
   print '  CPU usage [%d CPU cores]' % cpuCoreCount
   for avgCPU, minCPU, maxCPU, pid in pids:
-    print '    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid)
+    if maxCPU > 10:
+      print '    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid)
 
 def emailResult(body, subject):
   fromAddress = toAddress = 'mail@mikemccandless.com'

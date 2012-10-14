@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
+import java.io.PrintStream;
 
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
@@ -81,9 +82,9 @@ final class RespellTask extends Task {
   }
 
   @Override
-  public void printResults(IndexState state) {
+  public void printResults(PrintStream out, IndexState state) {
     for(SuggestWord suggest : answers) {
-      System.out.println("  " + suggest.string + " freq=" + suggest.freq + " score=" + suggest.score);
+      out.println("  " + suggest.string + " freq=" + suggest.freq + " score=" + suggest.score);
     }
   }
 }

@@ -25,7 +25,9 @@ def main(maxQPS = None):
     m = reQPS.search(f)
     if m is not None:
       qps.add(int(m.group(1)))
-      names.add(f[:f.find('.qps')])
+      name = f[:f.find('.qps')]
+      if name.lower().find('warmup') == -1:
+        names.add(name)
 
   l = list(qps)
   l.sort()

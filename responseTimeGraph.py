@@ -56,6 +56,7 @@ def loadResults(file, sort=True):
   if file not in resultsCache:
     if file.endswith('.pk'):
       results = cPickle.loads(open(file, 'rb').read())
+      netHitCount = None
     else:
       f = open(file, 'rb')
       results = []
@@ -78,7 +79,7 @@ def loadResults(file, sort=True):
 
     actualQPS = len(results) / endTime
       
-    print '%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%d' % (file, actualQPS, endTime, len(results), netHitCount)
+    print '%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%s' % (file, actualQPS, endTime, len(results), netHitCount)
     
     resultsCache[file] = results, actualQPS
     

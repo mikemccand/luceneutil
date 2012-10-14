@@ -2,17 +2,26 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-LUCENE_HOME=/l/4x/lucene
-LINE_DOCS_FILE=/x/lucene/data/enwiki/enwiki-20120502-lines-1k.txt
+LUCENE_HOME=/l/40.azul.ga/lucene
+LINE_DOCS_FILE=/lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 THREAD_COUNT=6
+
+#DOC_COUNT_LIMIT=33332620
+#MAX_BUFFERED_DOCS=60058
+
 DOC_COUNT_LIMIT=1000000
-#JAVA=/usr/local/src/jdk1.7.0_04/bin/java
-JAVA=/usr/local/src/zingLX-jdk1.6.0_31-5.2.1.0-3/bin/java
-HEAP=-Xmx10g
-#PF=Lucene40
-#INDEX_PATH=/l/scratch/indices/lucene40.1M
-PF=Direct
-INDEX_PATH=/l/scratch/indices/Direct.1M
+MAX_BUFFERED_DOCS=2703
+
+#DOC_COUNT_LIMIT=6000000
+#MAX_BUFFERED_DOCS=21622
+
+JAVA=/usr/local/src/jdk1.7.0_07/bin/java
+
+HEAP=-Xmx2g
+PF=Lucene40
+INDEX_PATH=/s2/indices/Lucene40.1M
+#PF=Direct
+#INDEX_PATH=/l/scratch/indices/Direct.1M
 
 #LUCENE_HOME=/localhome/lucene4x/lucene
 #INDEX_PATH=/localhome/indices/direct.1M
@@ -24,15 +33,15 @@ INDEX_PATH=/l/scratch/indices/Direct.1M
 #HEAP=-Xmx400g
 #PF=Lucene40
 
-$JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
+$JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
     -indexPath $INDEX_PATH \
     -dirImpl MMapDirectory \
-    -analyzer StandardAnalyzer \
+    -analyzer EnglishAnalyzer \
     -lineDocsFile $LINE_DOCS_FILE \
     -docCountLimit $DOC_COUNT_LIMIT \
     -threadCount $THREAD_COUNT \
     -ramBufferMB 1024 \
-    -maxBufferedDocs 60058 \
+    -maxBufferedDocs $MAX_BUFFERED_DOCS \
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
     -waitForMerges \

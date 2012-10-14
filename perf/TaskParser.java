@@ -46,15 +46,18 @@ class TaskParser {
   private final Sort dateTimeSort;
   private final Sort titleSort;
   private final Sort titleDVSort;
+  private final int topN;
   private final Random random;
 
   public TaskParser(QueryParser queryParser,
                     String fieldName,
                     Map<Double,Filter> filters,
+                    int topN,
                     Random random) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.filters = filters;
+    this.topN = topN;
     this.random = random;
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
@@ -196,7 +199,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, 10, doHilite);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite);
     }
 
     return task;

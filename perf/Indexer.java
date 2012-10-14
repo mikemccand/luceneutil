@@ -36,8 +36,6 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-//import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
-//import org.apache.lucene.codecs.bloom.DefaultBloomFilterFactory;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
@@ -154,6 +152,11 @@ public final class Indexer {
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
+    ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
+    iwc.setMergeScheduler(cms);
+    cms.setMaxThreadCount(1);
+    cms.setMaxMergeCount(2);
+
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
       mp = new LogDocMergePolicy();
@@ -187,19 +190,6 @@ public final class Indexer {
     final Codec codec = new Lucene41Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
-	  /*
-        if (field.equals("id")) {
-          if (idFieldPostingsFormat.equals("BloomLucene41")) {
-            return new BloomFilteringPostingsFormat(
-                     PostingsFormat.forName("Lucene41"),
-                     new DefaultBloomFilterFactory());
-          } else if (idFieldPostingsFormat.equals("BloomMemory")) {
-            return new BloomFilteringPostingsFormat(
-                     PostingsFormat.forName("Memory"),
-                     new DefaultBloomFilterFactory());
-          }
-        }
-	  */
         return PostingsFormat.forName(field.equals("id") ?
                                       idFieldPostingsFormat : defaultPostingsFormat);
       }

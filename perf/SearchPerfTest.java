@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.net.InetAddress;
@@ -73,10 +74,7 @@ import org.apache.lucene.search.grouping.term.*;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
-import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.*;
@@ -157,8 +155,14 @@ public class SearchPerfTest {
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
       ramDir = null;
+      /*
+    } else if (dirImpl.equals("CachingDirWrapper")) {
+      dir0 = new CachingRAMDirectory(new MMapDirectory(new File(dirPath)));
+      ramDir = null;
+      */
     } else if (dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
-      // Load only non-postings files into RAMDir:
+      // Load only non-postings files into RAMDir (assumes
+      // Lucene40PF is the wrapped PF):
       Set<String> postingsExtensions = new HashSet<String>();
       postingsExtensions.add("frq");
       postingsExtensions.add("prx");
@@ -194,6 +198,8 @@ public class SearchPerfTest {
     final int searchThreadCount = args.getInt("-searchThreadCount");
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
+    final boolean doPKLookup = args.getFlag("-pk");
+    final int topN = args.getInt("-topN");
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
@@ -216,6 +222,8 @@ public class SearchPerfTest {
     } else if (analyzer.equals("ClassicAnalyzer")) {
       a = new ClassicAnalyzer(Version.LUCENE_40);
     } else if (analyzer.equals("StandardAnalyzer")) {
+      a = new StandardAnalyzer(Version.LUCENE_40);
+    } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
       a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
       a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
@@ -230,6 +238,8 @@ public class SearchPerfTest {
 
     final String commit = args.getString("-commit");
     final String hiliteImpl = args.getString("-hiliteImpl");
+
+    final String logFile = args.getString("-log");
 
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
@@ -263,12 +273,22 @@ public class SearchPerfTest {
       iwc.setRAMBufferSizeMB(256.0);
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 
+      // TODO: also RAMDirExceptDirect...?  need to
+      // ... block deletes against wrapped FSDir?
+      if (dirImpl.equals("RAMDirectory")) {
+        // Let IW remove files only referenced by starting commit:
+        iwc.setIndexDeletionPolicy(new KeepNoCommitsDeletionPolicy());
+      }
+      
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening writer on commit=" + commit);
         iwc.setIndexCommit(findCommitPoint(commit, dir));
       }
 
       ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(useCFS);
+      //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(1024);
+      //((TieredMergePolicy) iwc.getMergePolicy()).setReclaimDeletesWeight(3.0);
+      //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergeAtOnce(4);
 
       final Codec codec = new Lucene41Codec() {
           @Override
@@ -295,11 +315,12 @@ public class SearchPerfTest {
             IndexSearcher s = new IndexSearcher(reader);
             s.search(new TermQuery(new Term(fieldName, "united")), 10);
             final long t1 = System.currentTimeMillis();
-            System.out.println("warm took " + (t1-t0) + " msec");
+            System.out.println("warm segment=" + reader + " numDocs=" + reader.numDocs() + ": took " + (t1-t0) + " msec");
           }
         });
       
       writer = new IndexWriter(dir, iwc);
+      System.out.println("Initial writer.maxDoc()=" + writer.maxDoc());
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
@@ -333,10 +354,25 @@ public class SearchPerfTest {
                 Thread.sleep(sleepMS);
                 mgr.maybeRefresh();
                 reopenCount++;
-                if (ramDir != null) {
-                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes in RAMDir", (System.currentTimeMillis() - startMS)/1000.0, ramDir.sizeInBytes()));
-                } else {
-                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen", (System.currentTimeMillis() - startMS)/1000.0));
+                IndexSearcher s = mgr.acquire();
+                try {
+                  if (ramDir != null) {
+                    System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes in RAMDir; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
+                                                     (System.currentTimeMillis() - startMS)/1000.0, ramDir.sizeInBytes(),
+                                                     writer.maxDoc(), s.getIndexReader().maxDoc(), s.getIndexReader().numDocs()));
+                    //String[] l = ramDir.listAll();
+                    //Arrays.sort(l);
+                    //for(String f : l) {
+                    //System.out.println("  " + f + ": " + ramDir.fileLength(f));
+                    //}
+                  } else {
+                    System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
+                                                     (System.currentTimeMillis() - startMS)/1000.0,
+                                                     writer.maxDoc(), s.getIndexReader().maxDoc(),
+                                                     s.getIndexReader().numDocs()));
+                  }
+                } finally {
+                  mgr.release(s);
                 }
               }
             } catch (Exception e) {
@@ -377,7 +413,7 @@ public class SearchPerfTest {
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, staticRandom);
+    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom);
 
     final TaskSource tasks;
 
@@ -396,7 +432,7 @@ public class SearchPerfTest {
       // Load the tasks from a file:
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount);
+      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup);
     }
 
     args.check();
@@ -416,6 +452,8 @@ public class SearchPerfTest {
 
     final List<Task> allTasks = tasks.getAllTasks();
 
+    PrintStream out = new PrintStream(logFile);
+
     if (allTasks != null) {
       // Tasks were local: verify checksums:
 
@@ -423,24 +461,24 @@ public class SearchPerfTest {
 
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 
-      System.out.println("\nResults for " + allTasks.size() + " tasks:");
+      out.println("\nResults for " + allTasks.size() + " tasks:");
       for(final Task task : allTasks) {
         final Task other = tasksSeen.get(task);
         if (other != null) {
           if (task.checksum() != other.checksum()) {
             System.out.println("\nTASK:");
-            task.printResults(indexState);
+            task.printResults(System.out, indexState);
             System.out.println("\nOTHER TASK:");
-            other.printResults(indexState);
+            other.printResults(System.out, indexState);
             throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
           }
         } else {
           tasksSeen.put(task, task);
         }
-        System.out.println("\nTASK: " + task);
-        System.out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
-        System.out.println("  thread " + task.threadID);
-        task.printResults(indexState);
+        out.println("\nTASK: " + task);
+        out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
+        out.println("  thread " + task.threadID);
+        task.printResults(out, indexState);
       }
 
       allTasks.clear();
@@ -469,8 +507,9 @@ public class SearchPerfTest {
         usedMem2 = usedMem1;
         usedMem1 = usedMemory(runtime);
       }
-      System.out.println("\nHEAP: " + usedMemory(runtime));
+      out.println("\nHEAP: " + usedMemory(runtime));
     }
+    out.close();
   }
 
   private static long usedMemory(Runtime runtime) {

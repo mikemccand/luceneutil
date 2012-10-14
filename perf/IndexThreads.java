@@ -265,16 +265,16 @@ class IndexThreads {
               break;
             }
 
-            if (!doUpdate && ((1+id) % 100000) == 0) {
+            if (((1+id) % 100000) == 0) {
               System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
-            // nocommit make the id we update random so it's
-            // not always going to sequential segments
             // nocommit have a 'sometimesAdd' mode where 25%
             // of the time we add a new doc
             if (doUpdate) {
               final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
-              docState.id.setStringValue(updateID);
+              // NOTE: can't use docState.id in case doClone
+              // was true
+              ((Field) doc.getField("id")).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);

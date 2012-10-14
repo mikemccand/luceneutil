@@ -41,7 +41,7 @@ class LocalTaskSource implements TaskSource {
   private final AtomicInteger nextTask = new AtomicInteger();
 
   public LocalTaskSource(IndexState indexState, TaskParser taskParser, String tasksFile,
-                         Random staticRandom, Random random, int numTaskPerCat, int taskRepeatCount) throws IOException, ParseException {
+                         Random staticRandom, Random random, int numTaskPerCat, int taskRepeatCount, boolean doPKLookup) throws IOException, ParseException {
 
     final List<Task> loadedTasks = loadTasks(taskParser, tasksFile);
     Collections.shuffle(loadedTasks, staticRandom);
@@ -57,10 +57,12 @@ class LocalTaskSource implements TaskSource {
 
     // Add PK tasks
     //System.out.println("WARNING: skip PK tasks");
-    final int numPKTasks = (int) Math.min(maxDoc/6000., numTaskPerCat);
-    final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
-    for(int idx=0;idx<numPKTasks;idx++) {
-      prunedTasks.add(new PKLookupTask(maxDoc, staticRandom, 4000, pkSeenIDs, idx));
+    if (doPKLookup) {
+      final int numPKTasks = (int) Math.min(maxDoc/6000., numTaskPerCat);
+      final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
+      for(int idx=0;idx<numPKTasks;idx++) {
+        prunedTasks.add(new PKLookupTask(maxDoc, staticRandom, 4000, pkSeenIDs, idx));
+      }
     }
 
     tasks = new ArrayList<Task>();

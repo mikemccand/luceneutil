@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
+import java.io.PrintStream;
 
 // Abstract class representing a single task (one query,
 // one batch of PK lookups, on respell).  Each Task
@@ -52,7 +53,7 @@ abstract class Task {
 
   // Called after go to print details of the task & result
   // to stdout:
-  public abstract void printResults(IndexState state) throws IOException;
+  public abstract void printResults(PrintStream out, IndexState state) throws IOException;
 
   // Sentinal
   static final Task END_TASK = new Task() {
@@ -77,7 +78,7 @@ abstract class Task {
     }
 
     @Override
-    public void printResults(IndexState state) {
+      public void printResults(PrintStream out, IndexState state) {
     }
   };
 }

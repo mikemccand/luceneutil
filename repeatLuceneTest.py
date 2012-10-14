@@ -23,11 +23,20 @@ import random
 import common
 import constants
 import re
+import threading
 
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
 
 ROOT = common.findRootDir(os.getcwd())
+
+try:
+  idx = sys.argv.index('-threads')
+except ValueError:
+  threadCount = 1
+else:
+  threadCount = int(sys.argv[1+idx])
+  del sys.argv[idx:idx+2]
 
 osName = common.osName
 
@@ -115,9 +124,11 @@ doCompile = not getArg('-noc', False, False)
 print 'Logging to dir %s' % logDirName
 
 if doLog:
-  if os.path.exists(logDirName):
-    shutil.rmtree(logDirName)
-  os.makedirs(logDirName)
+  if False:
+    if os.path.exists(logDirName):
+      shutil.rmtree(logDirName)
+  if not os.path.exists(logDirName):      
+    os.makedirs(logDirName)
 
 if doCompile:
   print 'Compile...'
@@ -137,6 +148,7 @@ onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))
 postingsFormat = getArg('-pf', 'random')
 codec = getArg('-codec', 'random')
+sim = getArg('-sim', 'random')
 dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
@@ -164,79 +176,119 @@ for test in sys.argv[1:]:
 JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
-TEST_TEMP_DIR = 'build/test/reruns'
+failed = False
 
-upto = 0
-iter = 0 
-while True:
-  for testClass, testMethod in tests:
+iterLock = threading.Lock()
+iter = 0
+
+def nextIter(threadID, logFileName):
+  global iter
+  
+  with iterLock:
     print
-    if testMethod is not None:
-      s = '%s#%s' % (testClass, testMethod)
+    if logFileName is None:
+      print '%s [%d, thread %d]:' % (datetime.datetime.now(), iter, threadID)
     else:
-      s = testClass
-
-    if doLog:
-      print 'iter %s %s TEST: %s -> %s/%d.log' % (iter, datetime.datetime.now(), s, logDirName, upto)
-    else:
-      print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
+      print '%s [%d, thread %d]: %s' % (datetime.datetime.now(), iter, threadID, logFileName)
     iter += 1
-      
-    command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
-    if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
-      command += ' -server'
-    if False and random.randint(0, 1) == 1 and not onlyOnce:
-      command += ' -Xbatch'
-    #command += ' -Dtests.locale=random'
-    #command += ' -Dtests.timezone=random'
-    #command += ' -Dtests.lockdir=build'
-    command += ' -Dtests.verbose=%s' % str(verbose).lower()
-    command += ' -Dtests.infostream=%s' % str(verbose).lower()
-    command += ' -Dtests.multiplier=%s' % mult
-    command += ' -Dtests.iters=%s' % iters
-    command += ' -Dtests.postingsformat=%s' % postingsFormat
-    command += ' -Dtests.codec=%s' % codec
-    command += ' -Dtests.directory=%s' % dir
-    command += ' -Dtests.luceneMatchVersion=4.0'
-    if constants.TESTS_LINE_FILE is not None:
-      command += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
-    if nightly:
-      command += ' -Dtests.nightly=true'
-    if seed is not None:
-      command += ' -Dtests.seed=%s' % seed
-    if testMethod is not None:
-      command += ' -Dtests.method=%s' % testMethod
-      
-    if OLD_JUNIT:
-      command += ' junit.textui.TestRunner'
-    else:
-      command += ' org.junit.runner.JUnitCore'
+    return iter
+  
+def run(threadID):
 
-    command += ' %s' % testClass
+  global failed
 
-    if doLog:
-      logFileName = '%s/%d.log' % (logDirName, upto)
-      command += ' > %s 2>&1' % logFileName
-      
-    if os.path.exists(TEST_TEMP_DIR):
-      print '  remove %s' % TEST_TEMP_DIR
-      try:
-        shutil.rmtree(TEST_TEMP_DIR)
-      except OSError:
-        pass
-    print '  RUN: %s' % command
-    res = os.system(command)
+  TEST_TEMP_DIR = 'build/core/test/reruns.%s.%s.t%d' % (tests[0][0].split('.')[-1], tests[0][1], threadID)
 
-    if res:
-      print '  FAILED'
-      if doLog:
-        printReproLines(logFileName)
-      raise RuntimeError('hit fail')
-    elif doLog:
-      if not keepLogs:
-        os.remove('%s/%d.log' % (logDirName, upto))
+  upto = 0
+  while not failed:
+    for testClass, testMethod in tests:
+      if testMethod is not None:
+        s = '%s#%s' % (testClass, testMethod)
       else:
-        upto += 1
+        s = testClass
 
-  if onlyOnce:
-    break
+      if doLog:
+        logFileName = '%s/%s.%s.%d.t%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto, threadID)
+      else:
+        logFileName = None
+
+      iter = nextIter(threadID, logFileName)
+
+      if False:
+        if doLog:
+          print 'iter %s %s TEST: %s -> %s' % (iter, datetime.datetime.now(), s, logFileName)
+        else:
+          print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
+
+      command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
+      if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
+        command += ' -server'
+      if False and random.randint(0, 1) == 1 and not onlyOnce:
+        command += ' -Xbatch'
+      #command += ' -Dtests.locale=random'
+      #command += ' -Dtests.timezone=random'
+      #command += ' -Dtests.lockdir=build'
+      command += ' -Dtests.verbose=%s' % str(verbose).lower()
+      command += ' -Dtests.infostream=%s' % str(verbose).lower()
+      command += ' -Dtests.multiplier=%s' % mult
+      command += ' -Dtests.iters=%s' % iters
+      command += ' -Dtests.postingsformat=%s' % postingsFormat
+      command += ' -Dtests.codec=%s' % codec
+      command += ' -Dtests.similarity=%s' % sim
+      command += ' -Dtests.directory=%s' % dir
+      command += ' -Dtests.luceneMatchVersion=4.0'
+      if constants.TESTS_LINE_FILE is not None:
+        command += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE
+      if nightly:
+        command += ' -Dtests.nightly=true'
+      if seed is not None:
+        command += ' -Dtests.seed=%s' % seed
+      if testMethod is not None:
+        command += ' -Dtests.method=%s*' % testMethod
+
+      if OLD_JUNIT:
+        command += ' junit.textui.TestRunner'
+      else:
+        command += ' org.junit.runner.JUnitCore'
+
+      command += ' %s' % testClass
+
+      if doLog:
+        command += ' > %s 2>&1' % logFileName
+
+      if os.path.exists(TEST_TEMP_DIR):
+        #print '  remove %s' % TEST_TEMP_DIR
+        try:
+          shutil.rmtree(TEST_TEMP_DIR)
+        except OSError:
+          pass
+      #print '  RUN: %s' % command
+      res = os.system(command)
+
+      if res:
+        if logFileName is None:
+          print '  FAILED'
+        else:
+          print '  FAILED [log %s]' % logFileName
+          
+        if doLog:
+          printReproLines(logFileName)
+        failed = True
+        raise RuntimeError('hit fail')
+      elif doLog:
+        if not keepLogs:
+          os.remove(logFileName)
+        else:
+          upto += 1
+
+    if onlyOnce:
+      break
+
+if threadCount > 1:
+  threads = []
+  for threadID in xrange(threadCount):
+    t = threading.Thread(target=run, args=(threadID,))
+    t.start()
+    threads.append(t)
+else:
+  run(0)

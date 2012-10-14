@@ -154,7 +154,8 @@ class Competitor(object):
                similarity = constants.SIMILARITY_DEFAULT,
                javaCommand = constants.JAVA_COMMAND,
                printHeap = False,
-               hiliteImpl = 'FastVectorHighlighter'):
+               hiliteImpl = 'FastVectorHighlighter',
+               pk = True):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -166,6 +167,7 @@ class Competitor(object):
     self.javaCommand = javaCommand
     self.printHeap = printHeap
     self.hiliteImpl = hiliteImpl
+    self.pk = pk
 
   def compile(self, cp):
     files = glob.glob('perf/*.java')
@@ -182,26 +184,58 @@ class Competition(object):
                printCharts=False,
                debug=False,
                verifyScores=True,
+               remoteHost=None,
                # Pass fixed randomSeed so separate runs are comparable (pick the same tasks):
-               randomSeed=None):
+               randomSeed=None,
+               benchSearch=True,
+               taskCountPerCat = 1,
+               taskRepeatCount = 20,
+               jvmCount = 20):
     self.cold = cold
     self.competitors = []
     self.indices = []
     self.printCharts = printCharts 
     self.debug = debug
-    self.benchSearch = True
+    self.benchSearch = benchSearch
     self.benchIndex = True
     self.verifyScores = verifyScores
     self.onlyTaskPatterns = None
+    self.notTaskPatterns = None
+    # TODO: not implemented yet
+    self.remoteHost = remoteHost
     if randomSeed is not None:
       self.randomSeed = randomSeed
     else:
       self.randomSeed = random.randint(-10000000, 1000000)
 
+    # How many queries in each category to repeat.  Increasing this
+    # beyond 1 doesn't seem to alter relative results, ie most queries
+    # within a category behave the same.  Note that even with 1,
+    # you'll get a random choice each time you run the competition:
+    self.taskCountPerCat = taskCountPerCat
+
+    # How many times to run each query.  Curiously anything higher than
+    # ~15 (I've tested up to 1000) doesn't alter results, ie once
+    # hotspot compiles (after 1st or 2nd time the query is run) it
+    # doesn't seem to re-compile:
+    self.taskRepeatCount = taskRepeatCount
+
+    # JVM count: how many times to run the java process for each
+    # competitor.  Increase this to get more repeatable results, because each run can compile the
+    # code differently.  Often the results are bi or tri modal for a
+    # given query.
+    self.jvmCount = jvmCount
+    
+
   def addTaskPattern(self, pattern):
     if self.onlyTaskPatterns is None:
       self.onlyTaskPatterns = []
     self.onlyTaskPatterns.append(pattern)
+
+  def addNotTaskPattern(self, pattern):
+    if self.notTaskPatterns is None:
+      self.notTaskPatterns = []
+    self.notTaskPatterns.append(pattern)
 
   def newIndex(self, checkout, data, **kwArgs):
     index = Index(checkout, data, **kwArgs)
@@ -212,6 +246,7 @@ class Competition(object):
     if not checkout:
       checkout = name
     c = Competitor(name, checkout, **kwArgs)
+    c.competition = self
     self.competitors.append(c)
     return c
   
@@ -247,7 +282,7 @@ class Competition(object):
 
     searchBench.run(id, base, challenger, coldRun = self.cold, doCharts = self.printCharts,
                     search = self.benchSearch, index = self.benchIndex, debugs = self.debug, debug = self.debug,
-                    verifyScores = self.verifyScores, taskPatterns = self.onlyTaskPatterns, randomSeed = self.randomSeed)
+                    verifyScores = self.verifyScores, taskPatterns = (self.onlyTaskPatterns, self.notTaskPatterns), randomSeed = self.randomSeed)
     return self
 
   def clearCompetitors(self):

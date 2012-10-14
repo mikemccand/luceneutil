@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -129,7 +130,7 @@ final class PKLookupTask extends Task {
   }
 
   @Override
-  public void printResults(IndexState state) throws IOException {
+  public void printResults(PrintStream out, IndexState state) throws IOException {
     for(int idx=0;idx<ids.length;idx++) {
 
       if (answers[idx] == -1) {

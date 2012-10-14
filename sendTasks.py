@@ -27,6 +27,12 @@ import cPickle
 import gc
 import struct
 
+# If targetQPS is 'sweep' then we start at this QPS:
+SWEEP_START_QPS = 10
+
+# ... and every this many seconds we see if we can increase the target:
+SWEEP_CHECK_EVERY_SEC = 15
+
 # More frequent thread switching:
 sys.setcheckinterval(10)
 
@@ -256,7 +262,15 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   tasks = SendTasks(serverHost, serverPort, out, runTimeSec)
 
   targetTime = tasks.startTime
-  
+
+  if meanQPS == 'sweep':
+    doSweep = True
+    print 'Sweep: start at %s QPS' % SWEEP_START_QPS
+    meanQPS = SWEEP_START_QPS
+    lastSweepCheck = time.time()
+  else:
+    doSweep = False
+    
   try:
 
     warned = False
@@ -288,7 +302,20 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
         #origTask = task
         tasks.send(startTime, task)
 
-      if time.time() - tasks.startTime > runTimeSec:
+      t = time.time()
+
+      if doSweep:
+        if t - lastSweepCheck > SWEEP_CHECK_EVERY_SEC:
+          if meanQPS == SWEEP_START_QPS and len(tasks.sent) > 4:
+            print 'Sweep: stay @ %s QPS for warmup...' % SWEEP_START_QPS
+          elif len(tasks.sent) < 2000:
+            # Still not saturated
+            meanQPS *= 2
+            print 'Sweep: set target to %.1f QPS' % meanQPS
+          else:
+            break
+          lastSweepCheck = t
+      elif t - tasks.startTime > runTimeSec:
         break
 
     print 'Sent all tasks %d times.' % iters
@@ -326,7 +353,11 @@ if __name__ == '__main__':
   tasksFile = sys.argv[1]
   serverHost = sys.argv[2]
   serverPort = int(sys.argv[3])
-  meanQPS = float(sys.argv[4])
+  s = sys.argv[4]
+  if s == 'sweep':
+    meanQPS = s
+  else:
+    meanQPS = float(s)
   numTasksPerCat = int(sys.argv[5])
   runTimeSec = float(sys.argv[6])
   savFile = sys.argv[7]

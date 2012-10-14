@@ -61,7 +61,7 @@ import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene40.Lucene40Codec;
+import org.apache.lucene.codecs.lucene41.Lucene41Codec;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.AtomicReaderContext;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
@@ -270,7 +270,7 @@ public class SearchPerfTest {
 
       ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(useCFS);
 
-      final Codec codec = new Lucene40Codec() {
+      final Codec codec = new Lucene41Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return PostingsFormat.forName(field.equals("id") ?

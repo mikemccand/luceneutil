@@ -38,7 +38,7 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 //import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
 //import org.apache.lucene.codecs.bloom.DefaultBloomFilterFactory;
-import org.apache.lucene.codecs.lucene40.Lucene40Codec;
+import org.apache.lucene.codecs.lucene41.Lucene41Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.AtomicReaderContext;
@@ -184,14 +184,14 @@ public final class Indexer {
     // Keep all commit points:
     iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 
-    final Codec codec = new Lucene40Codec() {
+    final Codec codec = new Lucene41Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
 	  /*
         if (field.equals("id")) {
-          if (idFieldPostingsFormat.equals("BloomLucene40")) {
+          if (idFieldPostingsFormat.equals("BloomLucene41")) {
             return new BloomFilteringPostingsFormat(
-                     PostingsFormat.forName("Lucene40"),
+                     PostingsFormat.forName("Lucene41"),
                      new DefaultBloomFilterFactory());
           } else if (idFieldPostingsFormat.equals("BloomMemory")) {
             return new BloomFilteringPostingsFormat(

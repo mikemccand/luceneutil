@@ -400,7 +400,7 @@ def run():
 
   fastIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                   analyzer='StandardAnalyzer',
-                                  postingsFormat='Lucene40',
+                                  postingsFormat='Lucene41',
                                   numThreads=constants.INDEX_NUM_THREADS,
                                   directory=DIR_IMPL,
                                   idFieldPostingsFormat='Memory',
@@ -416,7 +416,7 @@ def run():
 
   fastIndexBig = comp.newIndex(NIGHTLY_DIR, bigSource,
                                analyzer='StandardAnalyzer',
-                               postingsFormat='Lucene40',
+                               postingsFormat='Lucene41',
                                numThreads=constants.INDEX_NUM_THREADS,
                                directory=DIR_IMPL,
                                idFieldPostingsFormat='Memory',
@@ -428,7 +428,7 @@ def run():
   # Must use only 1 thread so we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
                         analyzer='StandardAnalyzer',
-                        postingsFormat='Lucene40',
+                        postingsFormat='Lucene41',
                         numThreads=1,
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',

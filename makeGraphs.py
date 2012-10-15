@@ -4,7 +4,7 @@ import sys
 import re
 import os
 
-reQPS = re.compile(r'\.qps(\d+)$')
+reQPS = re.compile(r'\.qps([\.0-9]+)$')
 
 def main(maxQPS = None):
   logsDir = sys.argv[1]
@@ -24,7 +24,7 @@ def main(maxQPS = None):
   for f in os.listdir(logsDir):
     m = reQPS.search(f)
     if m is not None:
-      qps.add(int(m.group(1)))
+      qps.add(float(m.group(1)))
       name = f[:f.find('.qps')]
       if name.lower().find('warmup') == -1:
         names.add(name)

@@ -90,9 +90,9 @@ def createGraph(fileNames, warmupSec):
   names = []
   maxRows = 0
 
-  reQPS = re.compile(r'\.qps(\d+)$')
+  reQPS = re.compile(r'\.qps([\.0-9]+)$')
 
-  qps = int(reQPS.search(fileNames[0][0]).group(1))
+  qps = float(reQPS.search(fileNames[0][0]).group(1))
 
   for name, file in fileNames:
     results, actualQPS = loadResults(file, sort=False)

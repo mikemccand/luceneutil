@@ -58,7 +58,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   
   for name in names:
 
-    reQPS = re.compile(r'^%s\.qps(\d+)$' % re.escape(name))
+    reQPS = re.compile(r'^%s\.qps([\.0-9]+)$' % re.escape(name))
 
     for f in os.listdir(logsDir):
       m = reQPS.match(f)
@@ -67,7 +67,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         resultsFile = '%s/%s/results.bin' % (logsDir, f)
         
       if m is not None and os.path.exists(resultsFile):
-        qps = int(m.group(1))
+        qps = float(m.group(1))
         if maxQPS is not None and qps > maxQPS:
           print 'SKIPPING %s qps' % qps
           continue

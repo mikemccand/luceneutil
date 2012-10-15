@@ -190,11 +190,11 @@ def system(command):
     print '  %s' % output.replace('\n', '\n  ')
   return p.returncode
 
-def runOne(desc, dirImpl, postingsFormat, targetQPS):
+def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   print
-  print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s' % \
-        (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS)
+  print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s %s' % \
+        (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS, details)
 
   logsDir = '%s/%s.%s.%s.qps%s' % (LOGS_DIR, desc, dirImpl, postingsFormat, targetQPS)
 
@@ -467,17 +467,25 @@ def run():
         raise RuntimeError('max QPS for job %s (= %s) is < 2*AUTO_QPS_START (= %s)' % \
                            (desc, maxQPS[job], AUTO_QPS_START))
 
-    for pctPoint in AUTO_QPS_POINTS:
+    finished = set()
+    for pctPoint in AUTO_QPS_PERCENT_POINTS:
+      realJobsLeft = False
       for job in JOBS:
+        if job in finished:
+          continue
+
         desc, dirImpl, postingsFormat = job
 
         targetQPS = AUTO_QPS_START + (pctPoint/100.)*(maxQPS[job] - AUTO_QPS_START)
 
-        if runOne(desc, dirImpl, postingsFormat, targetQPS)[1]:
+        if runOne(desc, dirImpl, postingsFormat, targetQPS, ' autoPCT=%s' % pctPoint)[1]:
           if desc.lower().find('warmup') == -1:
             finished.add(job)
         elif desc.lower().find('warmup') == -1:
           realJobsLeft = True
+
+      if not realJobsLeft:
+        break
 
   else:
     # Which tasks exceeded capacity:

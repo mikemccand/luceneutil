@@ -334,7 +334,7 @@ def runNRTTest(r, indexPath, runLogDir):
   min, max, mean, stdDev = stats.getStats(times)
   message('NRT reopen time (msec) mean=%.4f stdDev=%.4f' % (mean, stdDev))
   
-  checkIndex(r, indexPath, 'checkIndex.nrt.log')
+  checkIndex(r, indexPath, '%s/checkIndex.nrt.log' % runLogDir)
   
   return mean, stdDev
 

@@ -29,7 +29,7 @@ public class ToHGRM {
     
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
-    Histogram h = new Histogram((long) (maxSec * 1000), 4);
+    Histogram h = new Histogram((long) (maxSec * 1000), 6);
     while(true) {
       String line = br.readLine();
       if (line == null) {
@@ -38,6 +38,6 @@ public class ToHGRM {
       h.recordValue((long) (1000*Double.parseDouble(line.trim())));
     }
 
-    h.getRawHistogramData().outputPercentileDistribution(System.out, 2, 1000.0);
+    h.getRawHistogramData().outputPercentileDistribution(System.out, 50, 1.0);
   }
 }

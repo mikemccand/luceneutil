@@ -43,8 +43,8 @@ f.close()
 if os.system('javac -cp .:%s/src ToHGRM.java' % HDR_HISTOGRAM_PATH):
   raise RuntimeError('compile failed')
 
-p = subprocess.Popen('java -cp .:%s/src ToHGRM %g > out.hgrm 2>&1' % (HDR_HISTOGRAM_PATH, maxLatencyMS), shell=True, stdin=subprocess.PIPE)
+p = subprocess.Popen('java -cp .:%s/src ToHGRM %g > out.hgrm 2>&1' % (HDR_HISTOGRAM_PATH, maxLatencyMS/1000.), shell=True, stdin=subprocess.PIPE)
 print '%d queries' % len(allMS)
 for ms in allMS:
-  p.stdin.write('%g\n' % ms)
+  p.stdin.write('%g\n' % (ms/1000.0))
 p.stdin.close()

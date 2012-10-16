@@ -489,7 +489,6 @@ def run():
 
   else:
     # Which tasks exceeded capacity:
-    finished = set()
     targetQPS = QPS_START
 
     while len(finished) != len(JOBS):

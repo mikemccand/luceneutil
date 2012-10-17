@@ -11,7 +11,7 @@ def main(maxQPS = None):
   warmupSec = int(sys.argv[2])
   reportsDir = sys.argv[3]
 
-  if maxQPS is None:
+  if False and maxQPS is None:
     if os.path.exists(reportsDir):
       print 'ERROR: please move existing reportsDir (%s) out of the way' % reportsDir
       sys.exit(1)
@@ -44,7 +44,8 @@ def main(maxQPS = None):
   names.sort()
   
   try:
-    if maxQPS is None:
+    # nocommit
+    if False and maxQPS is None:
       w('<h2>By QPS:</h2>')
 
       for qps in l:
@@ -55,8 +56,13 @@ def main(maxQPS = None):
           resultsFile = '%s/%s.qps%s/results.pk' % (logsDir, name, qps)
           if not os.path.exists(resultsFile):
             resultsFile = '%s/%s.qps%s/results.bin' % (logsDir, name, qps)
+          if not os.path.exists(resultsFile):
+            resultsFile = '%s/%s.qps%d/results.bin' % (logsDir, name, int(qps))
           if os.path.exists(resultsFile):
             d.append(('%s.qps%s' % (name, qps), resultsFile))
+
+        print
+        print 'Create response-time graph @ qps=%s: d=%s' % (qps, d)
 
         if len(d) != 0:
           try:
@@ -75,6 +81,10 @@ def main(maxQPS = None):
     allPassesSLA = None
 
     for idx in xrange(len(loadGraphActualQPS.logPoints)):
+
+      print
+      print 'Create pct graph @ %s%%' % loadGraphActualQPS.logPoints[idx][0]
+
       if maxQPS is not None:
         fileName = 'load%spct_max%s.html' % (loadGraphActualQPS.logPoints[idx][0], maxQPS)
       else:
@@ -82,9 +92,12 @@ def main(maxQPS = None):
 
       stop = False
       try:
-        passesSLA = loadGraphActualQPS.graph(idx, logsDir, warmupSec, names, '%s/%s' % (reportsDir, fileName), maxQPS=maxQPS)
+        passesSLA, maxActualQPS = loadGraphActualQPS.graph(idx, logsDir, warmupSec, names, '%s/%s' % (reportsDir, fileName), maxQPS=maxQPS)
       except RuntimeError:
         stop = True
+
+      for name, qps in maxActualQPS.items():
+        print '  max QPS for %s: %s' % (name, qps)
 
       if passesSLA is not None:
         if allPassesSLA is None:

@@ -55,6 +55,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   print 'SLA=%s' % str(sla)
   
   passesSLA = set()
+  maxActualQPS = {}
   
   for name in names:
 
@@ -113,6 +114,11 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
 
         graphData.append((qps, actualQPS, name, t))
 
+        if name not in maxActualQPS:
+          maxActualQPS[name] = actualQPS
+        elif actualQPS > maxActualQPS[name]:
+          maxActualQPS[name] = actualQPS
+
   graphData.sort()
 
   l = []
@@ -139,9 +145,9 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   open(fileName, 'wb').write(html)
   print '  saved %s' % fileName
   if sla is None:
-    return None
+    return None, maxActualQPS
   else:
-    return passesSLA
+    return passesSLA, maxActualQPS
   
 
 graphHeader = '''<html>

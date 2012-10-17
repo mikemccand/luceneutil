@@ -241,6 +241,8 @@ public class SearchPerfTest {
 
     final String logFile = args.getString("-log");
 
+    final long tSearcherStart = System.currentTimeMillis();
+
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
       final int indexThreadCount = args.getInt("-indexThreadCount");
@@ -401,6 +403,7 @@ public class SearchPerfTest {
       
       mgr = new SingleIndexSearcher(s);
     }
+    System.out.println((System.currentTimeMillis() - tSearcherStart) + " msec to init searcher/NRT");
 
     //System.out.println("searcher=" + searcher);
 

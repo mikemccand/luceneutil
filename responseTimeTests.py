@@ -92,7 +92,7 @@ def captureEnv(logsDir):
       raise RuntimeError('hg diff failed')
     os.chmod('%s/luceneutil.diffs' % logsDir, 0444)
 
-  for fileName in ('responseTimeTests.py', TASKS_FILE):
+  for fileName in ('responseTimeTests.py', TASKS_FILE, configFile):
     shutil.copy('%s/%s' % (luceneUtilDir, fileName),
                 '%s/%s' % (logsDir, fileName))
     os.chmod('%s/%s' % (logsDir, fileName), 0444)
@@ -236,6 +236,8 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   if desc.find('CMS') != -1:
     w('-XX:+UseConcMarkSweepGC')
+    if CMS_NEW_GEN_SIZE is not None:
+      w('-XX:NewSize=%s' % CMS_NEW_GEN_SIZE)
   elif desc.find('G1') != -1:
     w('-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC')
 

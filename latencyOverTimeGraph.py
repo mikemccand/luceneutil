@@ -3,6 +3,7 @@ import sys
 import responseTimeGraph
 
 results = responseTimeGraph.loadResults(sys.argv[1])[0]
+htmlOut = sys.argv[2]
 
 lastTick = None
 
@@ -98,8 +99,8 @@ for t, msec in graphData:
   w('          [%d,%s],\n' % (t, msec))
 w(chartFooter)
 
-open(sys.argv[2], 'wb').write(''.join(chart))
-print 'Saved to %s' % sys.argv[2]
+open(htmlOut, 'wb').write(''.join(chart))
+print 'Saved to %s' % htmlOut
     
 
 

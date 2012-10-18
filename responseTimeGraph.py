@@ -50,71 +50,60 @@ def setRowCol(rows, row, pct, col, val):
   rows[row].append('%.1f' % val)
   #print '  now %s; row=%s' % (len(rows[row]), row)
 
-resultsCache = {}
-
 def loadResults(file, sort=True):
-  if file not in resultsCache:
-    if file.endswith('.pk'):
-      results = cPickle.loads(open(file, 'rb').read())
-      netHitCount = None
-    else:
-      f = open(file, 'rb')
-      results = []
-      netHitCount = 0
-      while True:
-        b = f.read(17)
-        if len(b) == 0:
-          break
-        timestamp, latencyMS, queueTimeMS, totalHitCount, taskLen = struct.unpack('fffIB', b)
-        taskString = f.read(taskLen)
-        results.append((timestamp, taskString, latencyMS, queueTimeMS))
-        netHitCount += totalHitCount
-      f.close()
-      results.sort()
+  if file.endswith('.pk'):
+    results = cPickle.loads(open(file, 'rb').read())
+    netHitCount = None
+  else:
+    f = open(file, 'rb')
+    results = []
+    netHitCount = 0
+    while True:
+      b = f.read(17)
+      if len(b) == 0:
+        break
+      timestamp, latencyMS, queueTimeMS, totalHitCount, taskLen = struct.unpack('fffIB', b)
+      taskString = f.read(taskLen)
+      results.append((timestamp, taskString, latencyMS, queueTimeMS))
+      netHitCount += totalHitCount
+    f.close()
+    results.sort()
 
-    # Find time when test finally finished:
-    endTime = None
-    for tup in results:
-      endTime = max(tup[0] + tup[2]/1000.0, endTime)
+  # Find time when test finally finished:
+  endTime = None
+  for tup in results:
+    endTime = max(tup[0] + tup[2]/1000.0, endTime)
 
-    actualQPS = len(results) / endTime
-      
-    print '%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%s' % (file, actualQPS, endTime, len(results), netHitCount)
-    
-    resultsCache[file] = results, actualQPS
-    
-  return resultsCache[file]
-  
-def createGraph(fileNames, warmupSec):
-  cols = []
-  names = []
-  maxRows = 0
+  actualQPS = len(results) / endTime
 
-  reQPS = re.compile(r'\.qps([\.0-9]+)$')
+  print '%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%s' % (file, actualQPS, endTime, len(results), netHitCount)
+  return results, actualQPS
 
-  qps = float(reQPS.search(fileNames[0][0]).group(1))
+pctPointsCache = {}
 
-  for name, file in fileNames:
-    results, actualQPS = loadResults(file, sort=False)
+def getPctPoints(fileName, name, warmupSec):
+
+  if fileName not in pctPointsCache:
+
+    results, actualQPS = loadResults(fileName, sort=False)
 
     # Discard first warmupSec seconds:
     upto = 0
     while results[upto][0] < warmupSec:
       upto += 1
 
-    print '%s has %d results (less %d = first %.1f seconds warmup); %.1f sec' % \
-          (file, len(results), upto, warmupSec, results[-1][0]-warmupSec)
+    # TODO: use HdrHisto to get all pct points?
+    print '%s: %d results (less %d = first %.1f seconds warmup); %.1f sec' % \
+          (name, len(results), upto, warmupSec, results[-1][0]-warmupSec)
     results = results[upto:]
 
+    # Find time when test finally finished:
+    endTimeSec = max(x[0]+x[2] for x in results)/1000.0
+    
     responseTimes = [x[2] for x in results]
     responseTimes.sort()
 
-    if responseTimes[-1] > 100000:
-      print '  discard %s: max responseTime=%s' % (name, responseTimes[-1])
-      continue
-
     col = []
-    cols.append(col)
     col.append(responseTimes[0])
     didMax = False
     for row, (pct, minCount) in enumerate(logPoints):
@@ -131,8 +120,30 @@ def createGraph(fileNames, warmupSec):
     if not didMax:
       #print 'max %s vs %s' % (responseTimes[-1], col[-1])
       col.append(responseTimes[-1])
-    print '%s has %d rows' % (name, len(col))
-    print col
+    print '  %d pct points' % len(col)
+    print '  %s' % col
+    pctPointsCache[fileName] = col, actualQPS, endTimeSec
+    
+  return pctPointsCache[fileName]
+  
+def createGraph(fileNames, warmupSec):
+  cols = []
+  names = []
+  maxRows = 0
+
+  reQPS = re.compile(r'\.qps([\.0-9]+)$')
+
+  qps = float(reQPS.search(fileNames[0][0]).group(1))
+
+  for name, file in fileNames:
+
+    col = getPctPoints(file, name, warmupSec)[0]
+
+    if col[-1] > 50000:
+      print '  skip: max responseTime=%s' % col[-1]
+      continue
+
+    cols.append(col)
 
     maxRows = max(maxRows, len(col))
 
@@ -170,7 +181,6 @@ def createGraph(fileNames, warmupSec):
 
     if rowID == maxRows:
       break
-
         
   w(chartFooter.replace('$QPS$', str(qps)))
   

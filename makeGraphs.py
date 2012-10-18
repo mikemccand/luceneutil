@@ -11,7 +11,7 @@ def main(maxQPS = None):
   warmupSec = int(sys.argv[2])
   reportsDir = sys.argv[3]
 
-  if False and maxQPS is None:
+  if maxQPS is None:
     if os.path.exists(reportsDir):
       print 'ERROR: please move existing reportsDir (%s) out of the way' % reportsDir
       sys.exit(1)
@@ -24,10 +24,17 @@ def main(maxQPS = None):
   for f in os.listdir(logsDir):
     m = reQPS.search(f)
     if m is not None:
+
+      if False and float(m.group(1)) > 200:
+        continue
+        
       qps.add(float(m.group(1)))
       name = f[:f.find('.qps')]
       if name.lower().find('warmup') == -1:
         names.add(name)
+
+  if len(names) == 0:
+    raise RuntimeError('no logs found @ %s' % logsDir)
 
   l = list(qps)
   l.sort()
@@ -44,8 +51,7 @@ def main(maxQPS = None):
   names.sort()
   
   try:
-    # nocommit
-    if False and maxQPS is None:
+    if maxQPS is None:
       w('<h2>By QPS:</h2>')
 
       for qps in l:
@@ -96,9 +102,6 @@ def main(maxQPS = None):
       except RuntimeError:
         stop = True
 
-      for name, qps in maxActualQPS.items():
-        print '  max QPS for %s: %s' % (name, qps)
-
       if passesSLA is not None:
         if allPassesSLA is None:
           allPassesSLA = passesSLA
@@ -114,7 +117,7 @@ def main(maxQPS = None):
       w('<br>\n')
 
     fileName = '%s/loadmax.html' % reportsDir      
-    passesSLA = loadGraphActualQPS.graph('max', logsDir, warmupSec, names, fileName, maxQPS=maxQPS)
+    passesSLA, maxActualQPS = loadGraphActualQPS.graph('max', logsDir, warmupSec, names, fileName, maxQPS=maxQPS)
     if passesSLA is not None:
       for x in list(allPassesSLA):
         if x not in passesSLA:
@@ -127,10 +130,16 @@ def main(maxQPS = None):
 
     l = [(y, x) for x, y in highest.items()]
     l.sort()
-      
+
+    print
+    print 'Max actual QPS:'
+    for name, qps in maxActualQPS.items():
+      print '  %s: %.1f QPS' % (name, qps)
+
+    print
     print 'Highest QPS w/ SLA met:'
     for qps, name in l:
-      print '  %s: %s' % (responseTimeGraph.cleanName(name), qps)
+      print '  %s: %s QPS' % (responseTimeGraph.cleanName(name), qps)
 
     w('<a href="%s">100%%</a>' % fileName)
     w('<br>')

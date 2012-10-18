@@ -52,8 +52,6 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         sla = maxResponseTime
         break
 
-  print 'SLA=%s' % str(sla)
-  
   passesSLA = set()
   maxActualQPS = {}
   
@@ -69,6 +67,10 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         
       if m is not None and os.path.exists(resultsFile):
         qps = float(m.group(1))
+
+        if False and qps > 200:
+          continue
+        
         if maxQPS is not None and qps > maxQPS:
           print 'SKIPPING %s qps' % qps
           continue
@@ -76,37 +78,18 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         # qps is the "target", ie the rate at which we sent the
         # queries to the server; actualQPS is what the server actually
         # achieved overall:
-        results, actualQPS = responseTimeGraph.loadResults(resultsFile)
-
-        # Find time when test finally finished:
-        endTime = None
-        for tup in results:
-          endTime = max(tup[0] + tup[2]/1000.0, endTime)
+        pctPoints, actualQPS, endTimeSec = responseTimeGraph.getPctPoints(resultsFile, name, warmupSec)
 
         print '%s: qps %s, actualQPS %s' % (name, qps, actualQPS)
 
-        # Discard first warmupSec seconds:
-        upto = 0
-        while results[upto][0] < warmupSec:
-          upto += 1
-
-        results = results[upto:]
-
-        responseTimes = [x[2] for x in results]
-        responseTimes.sort()
-
         if rowPoint == 'min':
-          t = responseTimes[0]
+          t = pctPoints[0]
         elif rowPoint == 'max':
-          t = responseTimes[-1]
+          t = pctPoints[-1]
         else:
-          pct, minCount = logPoints[rowPoint]
-          if len(responseTimes) < minCount:
-            raise RuntimeError('%s doesn\'t have enough enough data' % name)
-          idx = int(((100.0-pct)/100.0)*len(responseTimes))
-          # TODO: should we take linear blend of the two points...?  Else
-          # we have a sparseness problem...
-          t = responseTimes[-idx-1]
+          if rowPoint >= len(pctPoints):
+            break
+          t = pctPoints[rowPoint]
 
         if sla is not None and t <= sla:
           passesSLA.add((qps, name))

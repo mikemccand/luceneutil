@@ -29,7 +29,7 @@ public class ToHGRM {
     
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
-    Histogram h = new Histogram((long) (maxSec * 1000), 6);
+    Histogram h = new Histogram((long) (maxSec * 1000), 3);
     while(true) {
       String line = br.readLine();
       if (line == null) {

@@ -139,7 +139,7 @@ def createGraph(fileNames, warmupSec):
 
     col = getPctPoints(file, name, warmupSec)[0]
 
-    if col[-1] > 50000:
+    if False and col[-1] > 100000 and len(fileNames) > 1:
       print '  skip: max responseTime=%s' % col[-1]
       continue
 
@@ -158,6 +158,7 @@ def createGraph(fileNames, warmupSec):
 
   l = ['Percentile'] + names
   w("          [%s],\n" % (','.join("'%s'" % cleanName(x) for x in l)))
+
   rowID = 0
   while True:
     row = []
@@ -172,7 +173,6 @@ def createGraph(fileNames, warmupSec):
     elif rowID == 0:
       label = '0%'
     else:
-      #print 'rowID %s vs %s, %s' % (rowID, len(logPoints), maxRows)
       label = '%g' % logPoints[rowID-1][0]
 
     w('          ["%s",%s],\n' % (label, ','.join(row)))

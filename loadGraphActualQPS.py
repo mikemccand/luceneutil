@@ -95,7 +95,10 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
           passesSLA.add((qps, name))
           print '  PASS'
 
-        graphData.append((qps, actualQPS, name, t))
+        if True or t < 30000:
+          graphData.append((qps, actualQPS, name, t))
+        else:
+          print '%s: drop data point qps=%s t=%s: t is >= 30000' % (name, qps, t)
 
         if name not in maxActualQPS:
           maxActualQPS[name] = actualQPS

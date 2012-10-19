@@ -31,7 +31,7 @@ import struct
 SWEEP_START_QPS = 10
 
 # ... and every this many seconds we see if we can increase the target:
-SWEEP_CHECK_EVERY_SEC = 15
+SWEEP_CHECK_EVERY_SEC = 60
 
 # More frequent thread switching:
 sys.setcheckinterval(10)
@@ -308,7 +308,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
         if t - lastSweepCheck > SWEEP_CHECK_EVERY_SEC:
           if meanQPS == SWEEP_START_QPS and len(tasks.sent) > 4:
             print 'Sweep: stay @ %s QPS for warmup...' % SWEEP_START_QPS
-          elif len(tasks.sent) < 2000:
+          elif len(tasks.sent) < 10000:
             # Still not saturated
             meanQPS *= 2
             print 'Sweep: set target to %.1f QPS' % meanQPS

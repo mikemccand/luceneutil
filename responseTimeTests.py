@@ -47,6 +47,8 @@ except ValueError:
 else:
   configFile = sys.argv[idx+1]
 
+CMS_NEW_GEN_SIZE = None
+
 exec(open(configFile).read())
 
 LOGS_DIR = 'logs'
@@ -388,7 +390,7 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
     t1 = time.time()
     print '  test done (%.1f total sec)' % (t1-t0)
 
-    if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.3:
+    if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.30:
       finished = True
 
   finally:
@@ -542,7 +544,7 @@ def printAvgCPU(topLog):
       elif line.startswith('PID'):
         cpuCol = line.split().index('%CPU')
         entCount += 1
-      elif cpuCol is not None and entCount < 2:
+      elif cpuCol is not None and entCount > 20:
         cols = line.split()
         if len(cols) > cpuCol:
           pid = int(cols[0])

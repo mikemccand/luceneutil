@@ -25,10 +25,13 @@ def main(maxQPS = None):
     m = reQPS.search(f)
     if m is not None:
 
-      if False and float(m.group(1)) > 200:
+      qpsString = m.group(1)
+      qpsValue = float(qpsString)
+
+      if False and qpsValue > 200:
         continue
         
-      qps.add(float(m.group(1)))
+      qps.add((qpsValue, qpsString))
       name = f[:f.find('.qps')]
       if name.lower().find('warmup') == -1:
         names.add(name)
@@ -54,18 +57,19 @@ def main(maxQPS = None):
     if maxQPS is None:
       w('<h2>By QPS:</h2>')
 
-      for qps in l:
+      for idx, (qps, qpsString) in enumerate(l):
         # python -u /l/util.azul/responseTimeGraph.py /x/azul/0712.phase3.test1/logs 300 /x/tmp4/phase3/graph.html Zing.qps350 OracleCMS.qps350
 
         d = []
+        validNames = []
         for name in names:
-          resultsFile = '%s/%s.qps%s/results.pk' % (logsDir, name, qps)
-          if not os.path.exists(resultsFile):
-            resultsFile = '%s/%s.qps%s/results.bin' % (logsDir, name, qps)
-          if not os.path.exists(resultsFile):
-            resultsFile = '%s/%s.qps%d/results.bin' % (logsDir, name, int(qps))
+          resultsFile = '%s/%s.qps%s/results.bin' % (logsDir, name, qpsString)
           if os.path.exists(resultsFile):
-            d.append(('%s.qps%s' % (name, qps), resultsFile))
+            d.append(('%s.qps%s' % (name, qpsString), resultsFile))
+            validNames.append(name)
+
+        if len(d) == 0:
+          raise RuntimeError('nothing matches qps=%s' % qpsString)
 
         print
         print 'Create response-time graph @ qps=%s: d=%s' % (qps, d)
@@ -74,9 +78,9 @@ def main(maxQPS = None):
           try:
             html = responseTimeGraph.createGraph(d, warmupSec)
           except IndexError:
-            break
+            raise
           open('%s/%sqps.html' % (reportsDir, qps), 'wb').write(html)
-          w('<a href="%sqps.html">%d queries/sec</a>' % (qps, qps))
+          w('<a href="%sqps.html">%d queries/sec [%s]</a>' % (qpsString, qps, ', '.join(responseTimeGraph.cleanName(x) for x in validNames)))
           w('<br>\n')
 
     if maxQPS is None:

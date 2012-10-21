@@ -822,6 +822,7 @@ class RunAlgs:
         nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
         c.numThreads, c.competition.taskRepeatCount,
         c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
+    command += ' -topN 10'
     if filter is not None:
       command += ' %s %.2f' % filter
     if c.printHeap:

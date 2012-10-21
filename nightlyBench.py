@@ -399,7 +399,7 @@ def run():
                                   constants.WIKI_MEDIUM_TASKS_FILE)
 
   fastIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
-                                  analyzer='StandardAnalyzer',
+                                  analyzer='StandardAnalyzerNoStopWords',
                                   postingsFormat='Lucene41',
                                   numThreads=constants.INDEX_NUM_THREADS,
                                   directory=DIR_IMPL,
@@ -415,7 +415,7 @@ def run():
                                constants.WIKI_MEDIUM_TASKS_FILE)
 
   fastIndexBig = comp.newIndex(NIGHTLY_DIR, bigSource,
-                               analyzer='StandardAnalyzer',
+                               analyzer='StandardAnalyzerNoStopWords',
                                postingsFormat='Lucene41',
                                numThreads=constants.INDEX_NUM_THREADS,
                                directory=DIR_IMPL,
@@ -427,7 +427,7 @@ def run():
 
   # Must use only 1 thread so we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
-                        analyzer='StandardAnalyzer',
+                        analyzer='StandardAnalyzerNoStopWords',
                         postingsFormat='Lucene41',
                         numThreads=1,
                         directory=DIR_IMPL,
@@ -437,10 +437,10 @@ def run():
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
                       directory=DIR_IMPL,
-                      analyzer='StandardAnalyzer',
+                      analyzer='StandardAnalyzerNoStopWords',
                       commitPoint='multi')
   
-  #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzer', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
+  #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
   if REAL:
     r.compile(c)
@@ -484,7 +484,9 @@ def run():
   comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
   comp.printHeap = True
   if REAL:
-    resultsNow = r.runSimpleSearchBench(id, comp, repeatCount, constants.SEARCH_NUM_THREADS, countPerCat, coldRun, randomSeed, JVM_COUNT, filter=None)  
+    resultsNow = []
+    for iter in xrange(JVM_COUNT):
+      resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, randomSeed, repeatCount, filter=None))
   else:
     resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in xrange(20)]
   message('done search (%s)' % (now()-t0))

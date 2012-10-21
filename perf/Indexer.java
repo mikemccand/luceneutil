@@ -77,6 +77,8 @@ public final class Indexer {
     if (analyzer.equals("EnglishAnalyzer")) {
       a = new EnglishAnalyzer(Version.LUCENE_40);
     } else if (analyzer.equals("StandardAnalyzer")) {
+      a = new StandardAnalyzer(Version.LUCENE_40);
+    } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
       a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
       a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),

@@ -23,6 +23,7 @@ import java.util.Collection;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
@@ -241,7 +242,7 @@ final class SearchTask extends Task {
       }
       //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
     } else {
-      Document doc = searcher.doc(docID);
+      StoredDocument doc = searcher.doc(docID);
       String text = doc.get(indexState.textFieldName);
       // NOTE: passing null for analyzer: TermVectors must
       // be indexed!

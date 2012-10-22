@@ -64,7 +64,7 @@ if 'ANALYZER' in locals():
 
 POSTINGS_FORMAT_DEFAULT='Lucene41'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT='Memory'
-ANALYZER_DEFAULT='StandardAnalyzer'
+ANALYZER_DEFAULT='StandardAnalyzerNoStopWords'
 SIMILARITY_DEFAULT='DefaultSimilarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 

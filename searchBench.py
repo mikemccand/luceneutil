@@ -84,7 +84,10 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     if taskPatterns is not (None, None):
       pos, neg = taskPatterns
       if pos is None:
-        print '    tasks file: NOT %s from %s' % (','.join(neg), tasksFile)
+        if neg is None:
+          print '    tasks file: %s' % tasksFile
+        else:
+          print '    tasks file: NOT %s from %s' % (','.join(neg), tasksFile)
       elif neg is None:
         print '    tasks file: %s from %s' % (','.join(pos), tasksFile)
       else:

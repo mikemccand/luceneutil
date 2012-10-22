@@ -98,7 +98,7 @@ class TaskParser {
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         filter = filters.get(filterPct);
         if (filter == null) {
-          filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()));
+	  filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()), true);
           filters.put(filterPct, filter);
         }
       } else {

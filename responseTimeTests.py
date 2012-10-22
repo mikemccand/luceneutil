@@ -156,7 +156,7 @@ class TopThread(threading.Thread):
         f.write('\n\nTime %.1f s:\n' % (time.time() - startTime))
         #p = os.popen('ps axuw | sed "1 d" | sort -n -r -k3')
         sawHeader = False
-        p = os.popen('top -c -b -n1')
+        p = os.popen('COLUMNS=10000 top -c -b -n1')
         try:
           keep = []
           for l in p.readlines():
@@ -238,6 +238,7 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   if desc.find('CMS') != -1:
     w('-XX:+UseConcMarkSweepGC')
+    #w('-XX:PrintFLSStatistics=1')
     if CMS_NEW_GEN_SIZE is not None:
       w('-XX:NewSize=%s' % CMS_NEW_GEN_SIZE)
   elif desc.find('G1') != -1:
@@ -245,8 +246,9 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene40':
     w('-Xmx4g')
-  else:
-    w('-Xmx%dg' % MAX_HEAP_GB)
+  elif MAX_HEAP_GB is not None:
+    #w('-Xms%sg' % MAX_HEAP_GB)
+    w('-Xmx%sg' % MAX_HEAP_GB)
 
   w('-Xloggc:%s/gc.log' % logsDir)
 
@@ -255,6 +257,7 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   w('-verbose:gc')
   w('-XX:+PrintGCDetails')
+  w('-XX:+PrintGCTimeStamps')
   if desc.startswith('Zing'):
     w('-XX:+PrintCommandLine')
   w('-XX:+PrintCommandLineFlags')
@@ -449,6 +452,8 @@ def run():
 
   startTime = datetime.datetime.now()
 
+  finished = set()
+
   if DO_AUTO_QPS:
     maxQPS = {}
     reQPSOut = re.compile(r'; +([0-9\.]+) qps out')
@@ -456,7 +461,7 @@ def run():
     print 'Find max QPS per job:'
     for job in JOBS:
       desc, dirImpl, postingsFormat = job
-      logsDir, finished = runOne(desc, dirImpl, postingsFormat, 'sweep')
+      logsDir = runOne(desc, dirImpl, postingsFormat, 'sweep')[0]
       qpsOut = []
       with open('%s/client.log' % logsDir) as f:
         for line in f.readlines():
@@ -471,7 +476,6 @@ def run():
         raise RuntimeError('max QPS for job %s (= %s) is < 2*AUTO_QPS_START (= %s)' % \
                            (desc, maxQPS[job], AUTO_QPS_START))
 
-    finished = set()
     for pctPoint in AUTO_QPS_PERCENT_POINTS:
       realJobsLeft = False
       for job in JOBS:

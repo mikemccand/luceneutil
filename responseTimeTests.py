@@ -192,7 +192,7 @@ def system(command):
     print '  %s' % output.replace('\n', '\n  ')
   return p.returncode
 
-def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
+def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   print
   print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s %s' % \
@@ -461,7 +461,7 @@ def run():
     print 'Find max QPS per job:'
     for job in JOBS:
       desc, dirImpl, postingsFormat = job
-      logsDir = runOne(desc, dirImpl, postingsFormat, 'sweep')[0]
+      logsDir, finished = runOne(startTime, desc, dirImpl, postingsFormat, 'sweep')
       qpsOut = []
       with open('%s/client.log' % logsDir) as f:
         for line in f.readlines():
@@ -486,7 +486,7 @@ def run():
 
         targetQPS = AUTO_QPS_START + (pctPoint/100.)*(maxQPS[job] - AUTO_QPS_START)
 
-        if runOne(desc, dirImpl, postingsFormat, targetQPS, ' autoPCT=%s' % pctPoint)[1]:
+        if runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, ' autoPCT=%s' % pctPoint)[1]:
           if desc.lower().find('warmup') == -1:
             finished.add(job)
         elif desc.lower().find('warmup') == -1:
@@ -510,7 +510,7 @@ def run():
 
         desc, dirImpl, postingsFormat = job
 
-        if runOne(desc, dirImpl, postingsFormat, targetQPS)[1]:
+        if runOne(startTime, desc, dirImpl, postingsFormat, targetQPS)[1]:
           if desc.lower().find('warmup') == -1:
             finished.add(job)
         elif desc.lower().find('warmup') == -1:
@@ -578,7 +578,7 @@ def printAvgCPU(topLog):
   pids.sort(reverse=True)
   print '  CPU usage [%d CPU cores]' % cpuCoreCount
   for avgCPU, minCPU, maxCPU, pid in pids:
-    if maxCPU > 10:
+    if maxCPU > 20:
       print '    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid)
 
 def emailResult(body, subject):

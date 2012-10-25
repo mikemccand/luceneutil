@@ -57,7 +57,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   
   for name in names:
 
-    reQPS = re.compile(r'^%s\.qps([\.0-9]+)$' % re.escape(name))
+    reQPS = re.compile(r'^%s\.qps([\.0-9]+)(\.|$)' % re.escape(name))
 
     for f in os.listdir(logsDir):
       m = reQPS.match(f)

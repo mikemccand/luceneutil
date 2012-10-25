@@ -192,13 +192,20 @@ def system(command):
     print '  %s' % output.replace('\n', '\n  ')
   return p.returncode
 
-def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, details=''):
+def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
+
+  if pct is not None:
+    details = ' autoPct=%s' % pct
+  else:
+    details = ''
 
   print
   print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s %s' % \
         (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS, details)
 
   logsDir = '%s/%s.%s.%s.qps%s' % (LOGS_DIR, desc, dirImpl, postingsFormat, targetQPS)
+  if pct is not None:
+    logsDir += '.pct%s' % pct
 
   if postingsFormat == 'Lucene40':
     indexPath = LUCENE40_INDEX_PATH
@@ -394,6 +401,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, details=''):
     print '  test done (%.1f total sec)' % (t1-t0)
 
     if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.30:
+      print '  marking this job finished'
       finished = True
 
   finally:
@@ -457,6 +465,7 @@ def run():
   if DO_AUTO_QPS:
     maxQPS = {}
     reQPSOut = re.compile(r'; +([0-9\.]+) qps out')
+    reQueueSize = re.compile(r'\[(\d+), (\d+)\]$')
     print
     print 'Find max QPS per job:'
     for job in JOBS:
@@ -466,12 +475,13 @@ def run():
       with open('%s/client.log' % logsDir) as f:
         for line in f.readlines():
           m = reQPSOut.search(line)
-          if m is not None:
+          m2 = reQueueSize.search(line)
+          if m is not None and m2 is not None and int(m2.group(2)) > 200:
             qpsOut.append(float(m.group(1)))
       if len(qpsOut) < 10:
         raise RuntimeError("couldn't find enough 'qps out' lines: got %d" % len(qpsOut))
-      maxQPS[job] = max(qpsOut)
-      print '  max QPS=%.1f' % maxQPS[job]
+      maxQPS[job] = sum(qpsOut)/len(qpsOut)
+      print '  QPS throughput=%.1f' % maxQPS[job]
       if maxQPS[job] < 2*AUTO_QPS_START:
         raise RuntimeError('max QPS for job %s (= %s) is < 2*AUTO_QPS_START (= %s)' % \
                            (desc, maxQPS[job], AUTO_QPS_START))
@@ -486,7 +496,7 @@ def run():
 
         targetQPS = AUTO_QPS_START + (pctPoint/100.)*(maxQPS[job] - AUTO_QPS_START)
 
-        if runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, ' autoPCT=%s' % pctPoint)[1]:
+        if runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=pctPoint)[1]:
           if desc.lower().find('warmup') == -1:
             finished.add(job)
         elif desc.lower().find('warmup') == -1:

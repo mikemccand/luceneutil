@@ -77,32 +77,30 @@ class RollingStats:
 
 class Results:
 
-  def __init__(self):
+  def __init__(self, savFile):
     self.buffers = []
     self.current = cStringIO.StringIO()
+    self.fOut = open(savFile, 'wb')
 
   def add(self, taskString, totalHitCount, timestamp, latencyMS, queueTimeMS):
     self.current.write(struct.pack('fffIB', timestamp, latencyMS, queueTimeMS, totalHitCount, len(taskString)))
     self.current.write(taskString)
-    if self.current.tell() >= 256*1024:
-      self.buffers.append(self.current.getvalue())
+    if self.current.tell() >= 64*1024:
+      self.fOut.write(self.current.getvalue())
+      self.fOut.flush()
       self.current = cStringIO.StringIO()
-
-  def finish(self, fileNameOut):
-    self.buffers.append(self.current.getvalue())
-    f = open(fileNameOut, 'wb')
-    for buffer in self.buffers:
-      f.write(buffer)
-    f.close()
+      
+  def finish(self):
+    self.fOut.close()
   
 class SendTasks:
 
-  def __init__(self, serverHost, serverPort, out, runTimeSec):
+  def __init__(self, serverHost, serverPort, out, runTimeSec, savFile):
     self.startTime = time.time()
 
     self.out = out
     self.runTimeSec = runTimeSec
-    self.results = Results()
+    self.results = Results(savFile)
     self.sent = {}
     self.queue = Queue.Queue()
 
@@ -259,7 +257,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   # Shuffle again (pruneTasks collates):
   r.shuffle(taskStrings)
 
-  tasks = SendTasks(serverHost, serverPort, out, runTimeSec)
+  tasks = SendTasks(serverHost, serverPort, out, runTimeSec, savFile)
 
   targetTime = tasks.startTime
 
@@ -341,7 +339,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   out.write('%8.1f sec: Done...\n' % (time.time()-tasks.startTime))
   out.flush()
 
-  tasks.results.finish(savFile)
+  tasks.results.finish()
 
   # printResults(results)
 

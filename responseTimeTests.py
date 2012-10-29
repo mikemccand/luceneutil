@@ -417,9 +417,13 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
 
   finally:
     kill('SearchPerfTest', p)
+    
     kill('vmstat', vmstatProcess)
     if clientProcess is not None:
       kill('sendTasks.py', clientProcess)
+      print '  copy results.bin back...'
+      system('scp %s@%s:results.bin %s > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST, logsDir))
+      
     if DO_ZV_ROBOT and zvRobotProcess is not None:
       kill('ZVRobot', zvRobotProcess)
     if topThread is not None:

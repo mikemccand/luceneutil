@@ -68,7 +68,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
       if m is not None and os.path.exists(resultsFile):
         qps = float(m.group(1))
 
-        if False and qps > 200:
+        if False and qps > 575:
           continue
         
         if maxQPS is not None and qps > maxQPS:
@@ -87,9 +87,9 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         elif rowPoint == 'max':
           t = pctPoints[-1]
         else:
-          if rowPoint >= len(pctPoints):
+          if rowPoint+1 >= len(pctPoints):
             break
-          t = pctPoints[rowPoint]
+          t = pctPoints[1+rowPoint]
 
         if sla is not None and t <= sla:
           passesSLA.add((qps, name))

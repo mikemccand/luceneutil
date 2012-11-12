@@ -131,7 +131,8 @@ def main(maxQPS = None):
               validNames.append(name)
 
           if len(d) == 0:
-            raise RuntimeError('nothing matches qps=%s' % qpsString)
+            #raise RuntimeError('nothing matches qps=%s' % qpsString)
+            continue
 
           print
           print 'Create response-time graph @ qps=%s: d=%s' % (qps, d)
@@ -141,7 +142,7 @@ def main(maxQPS = None):
               html = responseTimeGraph.createGraph(d, warmupSec)
             except IndexError:
               raise
-            open('%s/%sqps.html' % (reportsDir, qps), 'wb').write(html)
+            open('%s/%sqps.html' % (reportsDir, qpsString), 'wb').write(html)
             w('<a href="%sqps.html">%d queries/sec [%s]</a>' % (qpsString, qps, ', '.join(responseTimeGraph.cleanName(x) for x in validNames)))
             w('<br>\n')
 
@@ -207,7 +208,7 @@ def main(maxQPS = None):
     for qps, name in l:
       print '  %s: %s QPS' % (responseTimeGraph.cleanName(name), qps)
 
-    w('<a href="%s">100%%</a>' % fileName)
+    w('<a href="loadmax.html">100%%</a>')
     w('<br>')
 
   finally:

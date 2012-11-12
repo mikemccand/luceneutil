@@ -118,7 +118,6 @@ class Remote(threading.Thread):
         numBytes = int(p.stdout.read(8))
         msg('%s: %s' % (self.hostName, codecs.getdecoder('UTF8')(p.stdout.read(numBytes))[0]))
       elif command == 'READY':
-        # TODO: pull new job here
         job = self.jobs.nextJob()
         bytes = cPickle.dumps(job)
         if job is not None:

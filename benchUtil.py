@@ -577,7 +577,7 @@ def stats(l):
     return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
 
 def run(cmd, logFile=None, indent='    '):
-  print '%s[RUN: %s]' % (indent, cmd)
+  print '%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd())
   if logFile is not None:
     cmd = '%s > "%s" 2>&1' % (cmd, logFile)
   if os.system(cmd):

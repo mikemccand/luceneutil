@@ -47,8 +47,6 @@ except ValueError:
 else:
   configFile = sys.argv[idx+1]
 
-CMS_NEW_GEN_SIZE = None
-
 exec(open(configFile).read())
 
 LOGS_DIR = 'logs'
@@ -254,7 +252,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
   if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene40':
     w('-Xmx4g')
   elif MAX_HEAP_GB is not None:
-    #w('-Xms%sg' % MAX_HEAP_GB)
+    w('-Xms%sg' % MAX_HEAP_GB)
     w('-Xmx%sg' % MAX_HEAP_GB)
 
   w('-Xloggc:%s/gc.log' % logsDir)
@@ -265,12 +263,19 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
   w('-verbose:gc')
   w('-XX:+PrintGCDetails')
   w('-XX:+PrintGCTimeStamps')
+  w('-XX:+PrintHeapAtGC')
+  w('-XX:+PrintTenuringDistribution')
+  w('-XX:+PrintGCApplicationStoppedTime')
+  w('-XX:PrintCMSStatistics=2')
   if desc.startswith('Zing'):
     w('-XX:+PrintCommandLine')
   w('-XX:+PrintCommandLineFlags')
   #w('-XX:+PrintFlagsFinal')
+  cp = '.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/memory/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME)
+  if FRAGGER_JAR is not None:
+    cp = FRAGGER_JAR + ':' + cp
   w('-cp')
-  w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/memory/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
+  w(cp)
   w('perf.SearchPerfTest')
   w('-indexPath %s' % indexPath)
   if dirImpl == 'RAMDirectory' and postingsFormat == 'Direct':
@@ -310,8 +315,14 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
 
   stdLog = '%s/std.log' % logsDir
 
+  if FRAGGER_JAR is not None:
+    idx = command.index('perf.SearchPerfTest')
+    command = '%s org.managedruntime.perftools.Fragger -v -a %s -exec %s' % (' '.join(command[:idx]), FRAGGER_ALLOC_MB_PER_SEC, ' '.join(command[idx:]))
+  else:
+    command = ' '.join(command)
+  
   command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
-            (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), stdLog)
+            (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, command, stdLog)
 
   p = None
   vmstatProcess = None
@@ -406,9 +417,14 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
 
   finally:
     kill('SearchPerfTest', p)
+    
     kill('vmstat', vmstatProcess)
     if clientProcess is not None:
       kill('sendTasks.py', clientProcess)
+      if not os.path.exists('%s/results.bin' % logsDir):
+        print '  copy results.bin back...'
+        system('scp %s@%s:results.bin %s > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST, logsDir))
+      
     if DO_ZV_ROBOT and zvRobotProcess is not None:
       kill('ZVRobot', zvRobotProcess)
     if topThread is not None:
@@ -470,7 +486,7 @@ def run():
     print 'Find max QPS per job:'
     for job in JOBS:
       desc, dirImpl, postingsFormat = job
-      logsDir, finished = runOne(startTime, desc, dirImpl, postingsFormat, 'sweep')
+      logsDir = runOne(startTime, desc, dirImpl, postingsFormat, 'sweep')[0]
       qpsOut = []
       with open('%s/client.log' % logsDir) as f:
         for line in f.readlines():
@@ -480,6 +496,8 @@ def run():
             qpsOut.append(float(m.group(1)))
       if len(qpsOut) < 10:
         raise RuntimeError("couldn't find enough 'qps out' lines: got %d" % len(qpsOut))
+      # QPS out is avg of last 5 seconds ... make sure we only measure actual saturation
+      qpsOut = qpsOut[5:]
       maxQPS[job] = sum(qpsOut)/len(qpsOut)
       print '  QPS throughput=%.1f' % maxQPS[job]
       if maxQPS[job] < 2*AUTO_QPS_START:

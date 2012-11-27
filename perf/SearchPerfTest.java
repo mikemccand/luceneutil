@@ -88,8 +88,8 @@ import org.apache.lucene.util.*;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint -Xlint:deprecation -cp build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomFilter.java
-//   java -cp .:build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf.SearchPerfTest MMapDirectory /indices/fullwiki StandardAnalyzer server:localhost:7777 6 1 body -1 no 0 0 DefaultSimilarity multi
+//   javac -Xlint -Xlint:deprecation -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomFilter.java
+//   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -searchThreadCount 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
 public class SearchPerfTest {
 
@@ -242,6 +242,9 @@ public class SearchPerfTest {
     final String logFile = args.getString("-log");
 
     final long tSearcherStart = System.currentTimeMillis();
+
+    final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
+    final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
 
     if (args.getFlag("-nrt")) {
       // TODO: factor out & share this CL processing w/ Indexer
@@ -416,7 +419,7 @@ public class SearchPerfTest {
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom);
+    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom, recacheFilterDeletes);
 
     final TaskSource tasks;
 
@@ -466,17 +469,19 @@ public class SearchPerfTest {
 
       out.println("\nResults for " + allTasks.size() + " tasks:");
       for(final Task task : allTasks) {
-        final Task other = tasksSeen.get(task);
-        if (other != null) {
-          if (task.checksum() != other.checksum()) {
-            System.out.println("\nTASK:");
-            task.printResults(System.out, indexState);
-            System.out.println("\nOTHER TASK:");
-            other.printResults(System.out, indexState);
-            throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+        if (verifyCheckSum) {
+          final Task other = tasksSeen.get(task);
+          if (other != null) {
+            if (task.checksum() != other.checksum()) {
+              System.out.println("\nTASK:");
+              task.printResults(System.out, indexState);
+              System.out.println("\nOTHER TASK:");
+              other.printResults(System.out, indexState);
+              throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+            }
+          } else {
+            tasksSeen.put(task, task);
           }
-        } else {
-          tasksSeen.put(task, task);
         }
         out.println("\nTASK: " + task);
         out.println("  " + (task.runTimeNanos/1000000.0) + " msec");

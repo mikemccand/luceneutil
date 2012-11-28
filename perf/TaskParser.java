@@ -48,20 +48,18 @@ class TaskParser {
   private final Sort titleDVSort;
   private final int topN;
   private final Random random;
-  private final boolean recacheFilterDeletes;
 
   public TaskParser(QueryParser queryParser,
                     String fieldName,
                     Map<Double,Filter> filters,
                     int topN,
                     Random random,
-                    boolean recacheFilterDeletes) {
+                    boolean ignored /* TODO: remove me */) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.filters = filters;
     this.topN = topN;
     this.random = random;
-    this.recacheFilterDeletes = recacheFilterDeletes;
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
@@ -101,7 +99,7 @@ class TaskParser {
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         filter = filters.get(filterPct);
         if (filter == null) {
-	  filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()), recacheFilterDeletes);
+	  filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()));
           filters.put(filterPct, filter);
         }
       } else {

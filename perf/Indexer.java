@@ -243,7 +243,8 @@ public final class Indexer {
 
     final Map<String,String> commitData = new HashMap<String,String>();
     commitData.put("userData", "multi");
-    w.commit(commitData);
+    w.setCommitData(commitData);
+    w.commit();
     final long t3 = System.currentTimeMillis();
     System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
 
@@ -253,7 +254,8 @@ public final class Indexer {
       System.out.println("\nIndexer: force merge done (took " + (t4-t3) + " msec)");
 
       commitData.put("userData", "single");
-      w.commit(commitData);
+      w.setCommitData(commitData);
+      w.commit();
       final long t5 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit single done (took " + (t5-t4) + " msec)");
     }
@@ -276,7 +278,8 @@ public final class Indexer {
       System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
       commitData.put("userData", doForceMerge ? "delsingle" : "delmulti");
-      w.commit(commitData);
+      w.setCommitData(commitData);
+      w.commit();
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
 

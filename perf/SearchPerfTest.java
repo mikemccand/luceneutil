@@ -1,5 +1,15 @@
 package perf;
 
+/*
+CategoryListCache clCache = new CategoryListCache();
+clCache.loadAndRegister(clp, indexReader, taxoReader, iparams);
+sParams.setClCache(clCache);
+  
+FacetIndexingParams iparams = sParams.getFacetIndexingParams();
+CategoryListParams clp = new CategoryListParams();
+
+*/
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with

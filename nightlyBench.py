@@ -159,6 +159,10 @@ KNOWN_CHANGES = [
    'LUCENE-2858: Split IndexReader in AtomicReader and CompositeReader',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-2858">LUCENE-2858</a>: Split IndexReader in AtomicReader and CompositeReader'),
 
+  ('2012-03-18',
+   'LUCENE-3738: Be consistent about negative vInt/vLong',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-3738">LUCENE-3738</a>: Be consistent about negative vInt/vLong'),
+   
   ('2012-05-25',
    'LUCENE-4062: new aligned packed-bits implementations',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4062">LUCENE-4062</a>: new aligned packed-bits implementations'),
@@ -178,6 +182,22 @@ KNOWN_CHANGES = [
   ('2012-06-02',
    'Re-enable Java\'s compressed OOPS',
    'Re-enable Java\'s compressed OOPS'),
+
+  #('2012-06-06',
+  # 'Switched to Java 1.7.0_04',
+  # 'Switched to Java 1.7.0_04'),
+
+  ('2012-06-26',
+   'Fixed silly performance bug in PKLookupTask.java',
+   'Fixed silly performance bug in PKLookupTask.java'),
+
+  ('2012-10-06',
+   'Stopped overclocking the computer running benchmarks.',
+   'Stopped overclocking the computer running benchmarks.'),
+
+  ('2012-10-15',
+   'LUCENE-4446: switch to BlockPostingsFormat',
+   'LUCENE-4446: switch to BlockPostingsFormat'),
    ]
 
 # TODO

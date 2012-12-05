@@ -48,6 +48,7 @@ class IndexState {
   //public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
   public int[] docIDToID;
+  public final boolean hasDeletions;
 
   public IndexState(ReferenceManager<IndexSearcher> mgr, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
     this.mgr = mgr;
@@ -67,6 +68,12 @@ class IndexState {
       useHighlighter = true;
     } else {
       throw new IllegalArgumentException("unrecognized -hiliteImpl \"" + hiliteImpl + "\"");
+    }
+    IndexSearcher searcher = mgr.acquire();
+    try {
+      hasDeletions = searcher.getIndexReader().hasDeletions();
+    } finally {
+      mgr.release(searcher);
     }
   }
 

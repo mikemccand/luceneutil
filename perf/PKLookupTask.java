@@ -134,7 +134,13 @@ final class PKLookupTask extends Task {
     for(int idx=0;idx<ids.length;idx++) {
 
       if (answers[idx] == -1) {
-        throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
+        if (!state.hasDeletions) {
+          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
+        } else {
+          // TODO: we should verify that these are in fact
+          // the deleted docs...
+          continue;
+        }
       }
 
       final int id = LineFileDocs.idToInt(ids[idx]);

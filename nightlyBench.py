@@ -310,7 +310,7 @@ def checkIndex(r, indexPath, checkLogFileName):
   cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex "%s" > %s 2>&1' % \
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
-         indexPath,
+         indexPath + '/index',
          checkLogFileName)
   runCommand(cmd)
   if open(checkLogFileName, 'rb').read().find('No problems were detected with this index') == -1:
@@ -324,7 +324,7 @@ def runNRTTest(r, indexPath, runLogDir):
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,
-         indexPath,
+         indexPath + '/index',
          MEDIUM_LINE_FILE,
          NRT_DOCS_PER_SECOND,
          NRT_RUN_TIME,
@@ -387,18 +387,21 @@ def run():
   else:
     runCommand('%s cleanup' % constants.SVN_EXE)
     iters = 30
-    for i in range(iters):
-      try:
-        runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
+    # nocommit one time to run same svn rev as last night, having
+    # upgraded luceneutil, so we only change "one thing" at a time
+    if False:
+      for i in range(iters):
+        try:
+          runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
+        except RuntimeError:
+          message('  retry...')
+          time.sleep(60.0)
+        else:
+          svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
+          print 'SVN rev is %s' % svnRev
+          break
       else:
-        svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-        print 'SVN rev is %s' % svnRev
-        break
-    else:
-      raise RuntimeError('failed to run svn update after %d tries' % iters)
+        raise RuntimeError('failed to run svn update after %d tries' % iters)
 
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev

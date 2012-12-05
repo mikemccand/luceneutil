@@ -27,12 +27,17 @@ import java.io.InputStreamReader;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
+import org.apache.lucene.facet.index.CategoryDocumentBuilder;
+import org.apache.lucene.facet.index.params.CategoryListParams;
+import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.FieldInfo;
@@ -50,15 +55,18 @@ public class LineFileDocs implements Closeable {
   private final boolean bodyPostingsOffsets;
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
+  private final TaxonomyWriter facetWriter;
 
-  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone,
+                      TaxonomyWriter facetWriter) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
     this.bodyPostingsOffsets = bodyPostingsOffsets;
     this.doClone = doClone;
-    open();
     this.doRepeat = doRepeat;
+    this.facetWriter = facetWriter;
+    open();
   }
 
   public long getBytesIndexed() {
@@ -159,8 +167,9 @@ public class LineFileDocs implements Closeable {
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
+    final CategoryDocumentBuilder facetBuilder;
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, TaxonomyWriter facetWriter) {
       doc = new Document();
       
       title = new StringField("title", "", Field.Store.NO);
@@ -201,11 +210,17 @@ public class LineFileDocs implements Closeable {
 
       timeSec = new IntField("timesecnum", 0, Field.Store.NO);
       doc.add(timeSec);
+
+      if (facetWriter != null) {
+        facetBuilder = new CategoryDocumentBuilder(facetWriter);
+      } else {
+        facetBuilder = null;
+      }
     }
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, facetWriter);
   }
 
   // TODO: is there a pre-existing way to do this!!!
@@ -282,6 +297,16 @@ public class LineFileDocs implements Closeable {
     doc.dateCal.setTime(date);
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
+
+    if (doc.facetBuilder != null) {
+      // TODO: is there a way to "reuse" a field w/ facets
+      doc.doc.removeField(CategoryListParams.DEFAULT_TERM.field());
+      doc.facetBuilder.setCategoryPaths(Collections.singletonList(new CategoryPath("Date",
+                                                                                   ""+doc.dateCal.get(Calendar.YEAR),
+                                                                                   ""+doc.dateCal.get(Calendar.MONTH),
+                                                                                   ""+doc.dateCal.get(Calendar.DAY_OF_MONTH))));
+      doc.facetBuilder.build(doc.doc);
+    }
 
     if (doClone) {
       return cloneDoc(doc.doc);

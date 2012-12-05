@@ -20,6 +20,7 @@ package perf;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DirectoryReader;
@@ -49,11 +50,13 @@ class IndexState {
   public final String textFieldName;
   public int[] docIDToID;
   public final boolean hasDeletions;
+  public final TaxonomyReader taxoReader;
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
+  public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
+    this.taxoReader = taxoReader;
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
       fastHighlighter = new FastVectorHighlighter(true, true);

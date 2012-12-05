@@ -31,6 +31,8 @@ import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.SortedBytesDocValuesField;
 import org.apache.lucene.document.StringField;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
+import org.apache.lucene.facet.index.CategoryDocumentBuilder;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
@@ -45,12 +47,13 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-  public IndexThreads(Random random, IndexWriter w, String lineFile, boolean storeBody, boolean tvsBody,
+  public IndexThreads(Random random, IndexWriter w, TaxonomyWriter facetWriter, String lineFile, boolean storeBody, boolean tvsBody,
                       boolean bodyPostingsOffsets,
                       int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
                       boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs);
+
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, facetWriter);
 
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
@@ -131,7 +134,8 @@ class IndexThreads {
     private final Random random;
     private final AtomicBoolean failed;
 
-    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w, LineFileDocs docs,
+    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
+                       LineFileDocs docs,
                        int numTotalDocs, AtomicInteger count, boolean doUpdate, AtomicInteger groupBlockIndex,
                        AtomicBoolean stop, float docsPerSec, AtomicBoolean failed) {
       this.startLatch = startLatch;

@@ -106,6 +106,15 @@ class TaskParser {
         filter = null;
       }
 
+      final boolean doDateFacets;
+
+      if (text.indexOf("+dateFacets") != -1) {
+        doDateFacets = true;
+        text = text.replace("+dateFacets", "");
+      } else {
+        doDateFacets = false;
+      }
+
       final Sort sort;
       final Query query;
       final String group;
@@ -200,7 +209,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets);
     }
 
     return task;

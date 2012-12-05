@@ -2,15 +2,18 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-LUCENE_HOME=/l/40.azul.ga/lucene
+LUCENE_HOME=/lucene/clean2.svn/lucene
+
+./compile.sh
+
 LINE_DOCS_FILE=/lucenedata/enwiki/enwiki-20120502-lines-1k.txt
-THREAD_COUNT=6
+THREAD_COUNT=12
 
-#DOC_COUNT_LIMIT=33332620
-#MAX_BUFFERED_DOCS=60058
+DOC_COUNT_LIMIT=33332620
+MAX_BUFFERED_DOCS=60058
 
-DOC_COUNT_LIMIT=1000000
-MAX_BUFFERED_DOCS=2703
+#DOC_COUNT_LIMIT=1000000
+#MAX_BUFFERED_DOCS=2703
 
 #DOC_COUNT_LIMIT=6000000
 #MAX_BUFFERED_DOCS=21622
@@ -18,8 +21,8 @@ MAX_BUFFERED_DOCS=2703
 JAVA=/usr/local/src/jdk1.7.0_07/bin/java
 
 HEAP=-Xmx2g
-PF=Lucene40
-INDEX_PATH=/s2/indices/Lucene40.1M
+PF=Lucene41
+INDEX_PATH=/q/indices/all
 #PF=Direct
 #INDEX_PATH=/l/scratch/indices/Direct.1M
 
@@ -45,7 +48,4 @@ $JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/codecs
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
     -waitForMerges \
-    -mergePolicy LogDocMergePolicy \
-    -verbose \
-    -store \
-    -tvs
+    -mergePolicy LogDocMergePolicy

@@ -2,7 +2,7 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-LUCENE_HOME=/lucene/40.azul.ga/lucene
+LUCENE_HOME=/lucene/clean2.svn/lucene
 #LUCENE_HOME=/l/lucene.trunk/lucene
 #LUCENE_HOME=/localhome/lucene4x/lucene
 

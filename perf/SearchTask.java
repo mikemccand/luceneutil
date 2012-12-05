@@ -20,9 +20,16 @@ package perf;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.facet.search.FacetsCollector;
+import org.apache.lucene.facet.search.params.CountFacetRequest;
+import org.apache.lucene.facet.search.params.FacetSearchParams;
+import org.apache.lucene.facet.search.results.FacetResult;
+import org.apache.lucene.facet.search.results.FacetResultNode;
+import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
@@ -35,6 +42,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
+import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.grouping.BlockGroupingCollector;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
@@ -61,17 +69,20 @@ final class SearchTask extends Task {
   private final boolean singlePassGroup;
   private final boolean doCountGroups;
   private final boolean doHilite;
+  private final boolean doDateFacets;
   private TopDocs hits;
   private TopGroups<?> groupsResultBlock;
   private TopGroups<BytesRef> groupsResultTerms;
   private FieldQuery fieldQuery;
   private Highlighter highlighter;
+  private List<FacetResult> facets;
 
-  public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN, boolean doHilite) {
+  public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN, boolean doHilite, boolean doDateFacets) {
     this.category = category;
     this.q = q;
     this.s = s;
     this.f = f;
+    this.doDateFacets = doDateFacets;
     if (group != null && group.startsWith("groupblock")) {
       this.group = "groupblock";
       this.singlePassGroup = group.equals("groupblock1pass");
@@ -92,9 +103,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doDateFacets);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doDateFacets);
     }
   }
 
@@ -167,6 +178,16 @@ final class SearchTask extends Task {
             }
           }
         }
+      } else if (doDateFacets && state.taxoReader != null) {
+        // TODO: support sort, filter too!!
+        FacetSearchParams fsp = new FacetSearchParams();
+        fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10));
+        FacetsCollector facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        // TODO: determine in order by the query...?
+        TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
+        searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
+        hits = hitsCollector.topDocs();
+        facets = facetsCollector.getFacetResults();
       } else if (s == null && f == null) {
         hits = searcher.search(q, topN);
         if (doHilite) {
@@ -419,6 +440,18 @@ final class SearchTask extends Task {
       for(ScoreDoc hit : hits.scoreDocs) {
         out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
       }
+    }
+
+    if (facets != null) {
+      out.println("  facets for Date:");
+      printFacets(0, out, facets.get(0).getFacetResultNode(), "    ");
+    }
+  }
+
+  private void printFacets(int depth, PrintStream out, FacetResultNode node, String indent) {
+    out.println(indent + " " + node.getLabel().getComponent(depth) + " (" + (int) node.getValue() + ")");
+    for(FacetResultNode childNode : node.getSubResults()) {
+      printFacets(depth+1, out, childNode, indent + "  ");
     }
   }
 }

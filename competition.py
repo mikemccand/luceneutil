@@ -89,6 +89,7 @@ class Index(object):
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
+               doDateFacets = False
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -118,28 +119,31 @@ class Index(object):
     self.bodyTermVectors = bodyTermVectors
     self.bodyStoredFields = bodyStoredFields
     self.bodyPostingsOffsets = bodyPostingsOffsets
+    self.doDateFacets = doDateFacets
 
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
   def getName(self):
+    name = [self.dataSource.name,
+            self.checkout]
+    
     if self.optimize:
-      s = 'opt.'
-    else:
-      s = ''
-    if self.useCFS:
-      s2 = 'cfs.'
-    else:
-      s2 = ''
+      name.append('opt')
 
-    if self.postingsFormat == self.idFieldPostingsFormat:
-      s3 = self.postingsFormat
-    else:
-      s3 = '%s.%s' % (self.postingsFormat, self.idFieldPostingsFormat)
-      
-    return '%s.%s.%s.%s%snd%gM' % (self.dataSource.name, self.checkout,
-                                   s3, s, s2, self.numDocs/1000000.0)
+    if self.useCFS:
+      name.append('cfs')
+
+    if self.doDateFacets:
+      name.append('facets')
+
+    name.append(self.postingsFormat)
+    if self.postingsFormat != self.idFieldPostingsFormat:
+      name.append(self.idFieldPostingsFormat)
+
+    name.append('nd%gM' % (self.numDocs/1000000.0))
+    return '.'.join(name)
 
 class Competitor(object):
 
@@ -155,7 +159,8 @@ class Competitor(object):
                javaCommand = constants.JAVA_COMMAND,
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
-               pk = True):
+               pk = True,
+               doDateFacets = False):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -168,6 +173,7 @@ class Competitor(object):
     self.printHeap = printHeap
     self.hiliteImpl = hiliteImpl
     self.pk = pk
+    self.doDateFacets = doDateFacets
 
   def compile(self, cp):
     files = glob.glob('perf/*.java')

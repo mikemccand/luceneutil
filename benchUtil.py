@@ -90,7 +90,7 @@ def checkoutToBenchPath(checkout):
   raise RuntimeError('could not locate benchmark under %s' % p)
     
 def nameToIndexPath(name):
-  return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
+  return '%s/%s' % (constants.INDEX_DIR_BASE, name)
 
 class SearchTask:
   # TODO: subclass SearchGroupTask
@@ -326,6 +326,8 @@ def parseResults(resultsFiles):
               continue
             if line.find('Zing VM Warning') != -1:
               continue
+            if line.find('facets for Date') != -1:
+              break
             
             if line.startswith('HEAP: '):
               m = reHeap.match(line)
@@ -666,6 +668,9 @@ class RunAlgs:
 
       if index.doUpdate:
         w('-update')
+
+      if index.doDateFacets:
+        w('-dateFacets')
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
@@ -727,6 +732,7 @@ class RunAlgs:
     cp.append('%s/test' % buildPath)
     cp.append('%s/lucene/build/test-framework/classes/java' % path)
     cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
+    cp.append('%s/lucene/build/facet/classes/java' % path)
     common.addJARs(cp, '%s/lucene/test-framework/lib' % path)
     if version == '4.0':
       cp.append('%s/lucene/build/analysis/common/classes/java' % path)
@@ -748,17 +754,21 @@ class RunAlgs:
 
     return tuple(cp)
 
+  compiledCheckouts = set()
+  
   def compile(self, competitor):
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
     try:
-      for module in ('core', 'suggest', 'highlighter',
-                     'analysis/common', 'grouping', 'test-framework',
-                     'codecs'):
-        modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
-        print '  %s...' % modulePath
-        os.chdir(modulePath)
-        run('%s compile' % constants.ANT_EXE, 'compile.log')
+      if competitor.checkout not in self.compiledCheckouts:
+        self.compiledCheckouts.add(competitor.checkout);
+        for module in ('core', 'suggest', 'highlighter',
+                       'analysis/common', 'grouping', 'test-framework',
+                       'codecs', 'facet'):
+          modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
+          print '  %s...' % modulePath
+          os.chdir(modulePath)
+          run('%s compile' % constants.ANT_EXE, 'compile.log')
 
       print '  %s' % path
       os.chdir(path)      
@@ -817,11 +827,16 @@ class RunAlgs:
     else:
       doSort = ''
 
-    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
+    if c.doDateFacets:
+      doDateFacets = '-dateFacets'
+    else:
+      doDateFacets = ''
+
+    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s' % \
         (c.javaCommand, cp, c.directory,
         nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
         c.numThreads, c.competition.taskRepeatCount,
-        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
+        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doDateFacets)
     command += ' -topN 10'
     if filter is not None:
       command += ' %s %.2f' % filter

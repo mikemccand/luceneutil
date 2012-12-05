@@ -63,6 +63,8 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
+import org.apache.lucene.facet.taxonomy.TaxonomyReader;
+import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.AtomicReaderContext;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
@@ -144,17 +146,29 @@ public class SearchPerfTest {
 
     Directory dir0;
     final RAMDirectory ramDir;
-    final String dirPath = args.getString("-indexPath");
+    final boolean dateFacets = args.getFlag("-dateFacets");
+    final String dirPath = args.getString("-indexPath") + "/index";
+    final String facetsDirPath = args.getString("-indexPath") + "/facets";
     final String dirImpl = args.getString("-dirImpl");
+    Directory facetsDir = null;
     if (dirImpl.equals("MMapDirectory")) {
       dir0 = new MMapDirectory(new File(dirPath));
       ramDir = null;
+      if (dateFacets) {
+        facetsDir = new MMapDirectory(new File(facetsDirPath));
+      }
     } else if (dirImpl.equals("NIOFSDirectory")) {
       dir0 = new NIOFSDirectory(new File(dirPath));
       ramDir = null;
+      if (dateFacets) {
+        facetsDir = new NIOFSDirectory(new File(facetsDirPath));
+      }
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
       ramDir = null;
+      if (dateFacets) {
+        facetsDir = new SimpleFSDirectory(new File(facetsDirPath));
+      }
       /*
     } else if (dirImpl.equals("CachingDirWrapper")) {
       dir0 = new CachingRAMDirectory(new MMapDirectory(new File(dirPath)));
@@ -183,10 +197,17 @@ public class SearchPerfTest {
                                      fsDir,
                                      ramDir,
                                      true);
+      if (dateFacets) {
+        facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
+      }
+
     } else if (dirImpl.equals("RAMDirectory")) {
       final long t0 = System.currentTimeMillis();
       dir0 = ramDir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
       System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir0).sizeInBytes());
+      if (dateFacets) {
+        facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
+      }
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
@@ -246,7 +267,10 @@ public class SearchPerfTest {
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
 
+    TaxonomyReader taxoReader = null;
+
     if (args.getFlag("-nrt")) {
+      // TODO: get taxoReader working here too
       // TODO: factor out & share this CL processing w/ Indexer
       final int indexThreadCount = args.getInt("-indexThreadCount");
       final String lineDocsFile = args.getString("-lineDocsFile");
@@ -329,7 +353,7 @@ public class SearchPerfTest {
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
-      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody,
+      IndexThreads threads = new IndexThreads(new Random(17), writer, null, lineDocsFile, storeBody, tvsBody,
                                               false,
                                               indexThreadCount, -1,
                                               false, false, true, docsPerSecPerThread, cloneDocs);
@@ -405,6 +429,9 @@ public class SearchPerfTest {
       s.setSimilarity(sim);
       
       mgr = new SingleIndexSearcher(s);
+      if (facetsDir != null) {
+        taxoReader = new DirectoryTaxonomyReader(facetsDir);
+      }
     }
     System.out.println((System.currentTimeMillis() - tSearcherStart) + " msec to init searcher/NRT");
 
@@ -414,7 +441,7 @@ public class SearchPerfTest {
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, fieldName, spellChecker, hiliteImpl);
+    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);

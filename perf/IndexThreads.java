@@ -284,6 +284,7 @@ class IndexThreads {
                 }
               });
 
+            docState.doc.removeField("groupend");
           }
         } else if (docsPerSec > 0 || doUpdate) {
 

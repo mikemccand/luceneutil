@@ -432,7 +432,7 @@ def run():
                                   ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                   waitForMerges=False,
                                   grouping=False,
-                                  verbose=True,
+                                  verbose=False,
                                   mergePolicy='TieredMergePolicy')
 
   bigSource = competition.Data('wikibig',
@@ -449,7 +449,7 @@ def run():
                                ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                waitForMerges=False,
                                grouping=False,
-                               verbose=True,
+                               verbose=False,
                                mergePolicy='TieredMergePolicy')
 
   # Must use only 1 thread so we get same index structure, always:

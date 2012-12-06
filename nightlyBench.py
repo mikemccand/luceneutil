@@ -28,6 +28,7 @@ import sys
 import shutil
 import smtplib
 import re
+import random
 
 # local imports:
 import benchUtil
@@ -402,7 +403,9 @@ def run():
           break
       else:
         raise RuntimeError('failed to run svn update after %d tries' % iters)
-
+    else:
+      svnRev = 1417276
+      print 'using canned svn rev %s' % svnRev
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
@@ -414,7 +417,8 @@ def run():
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
 
-  comp = competition.Competition()
+  comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
+                                 taskCountPerCat=COUNTS_PER_CAT)
 
   mediumSource = competition.Data('wikimedium',
                                   MEDIUM_LINE_FILE,
@@ -430,6 +434,7 @@ def run():
                                   ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                   waitForMerges=False,
                                   grouping=False,
+                                  verbose=True,
                                   mergePolicy='TieredMergePolicy')
 
   bigSource = competition.Data('wikibig',
@@ -446,6 +451,7 @@ def run():
                                ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                waitForMerges=False,
                                grouping=False,
+                               verbose=True,
                                mergePolicy='TieredMergePolicy')
 
   # Must use only 1 thread so we get same index structure, always:
@@ -493,11 +499,10 @@ def run():
       # raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
       print 'WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow)
 
-  countPerCat = COUNTS_PER_CAT
-  repeatCount = TASK_REPEAT_COUNT
-
   # Search
-  randomSeed = 714
+  rand = random.Random(714)
+  staticSeed = rand.randint(-10000000, 1000000)
+  #staticSeed = -1492352
 
   message('search')
   t0 = now()
@@ -509,7 +514,8 @@ def run():
   if REAL:
     resultsNow = []
     for iter in xrange(JVM_COUNT):
-      resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, randomSeed, repeatCount, filter=None))
+      seed = rand.randint(-10000000, 1000000)      
+      resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
   else:
     resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in xrange(20)]
   message('done search (%s)' % (now()-t0))
@@ -570,6 +576,8 @@ def run():
              searchHeaps)
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
+    if os.path.exists(fname + '.stdout'):
+      shutil.copy(fname + '.stdout', runLogDir)
 
   if REAL:
     for fname in resultsNow:
@@ -693,7 +701,7 @@ def makeGraphs():
 
   if not DEBUG:
     #runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
-    runCommand('rsync -arv -e ssh %s/reports.nightly/* %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    runCommand('rsync -arv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
   
 def header(w, title):
   w('<html>')

@@ -148,8 +148,6 @@ public class SearchPerfTest {
 
   public static void main(String[] clArgs) throws Exception {
 
-    System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
- 
     // args: dirImpl indexPath numThread numIterPerThread
     // eg java SearchPerfTest /path/to/index 4 100
     final Args args = new Args(clArgs);
@@ -247,6 +245,13 @@ public class SearchPerfTest {
       Class.forName("org.apache.lucene.search.similarities." + similarity).asSubclass(Similarity.class);
     final Similarity sim = simClazz.newInstance();
 
+    System.out.println("Using dir impl " + dir.getClass().getName());
+    System.out.println("Analyzer " + analyzer);
+    System.out.println("Similarity " + similarity);
+    System.out.println("Search thread count " + searchThreadCount);
+    System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
+    System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
+ 
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
       a = new EnglishAnalyzer(Version.LUCENE_40);
@@ -476,6 +481,9 @@ public class SearchPerfTest {
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
       tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup);
+      System.out.println("Task repeat count " + taskRepeatCount);
+      System.out.println("Tasks file " + tasksFile);
+      System.out.println("Num task per cat " + numTaskPerCat);
     }
 
     args.check();

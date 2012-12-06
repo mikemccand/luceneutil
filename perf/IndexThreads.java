@@ -54,7 +54,6 @@ class IndexThreads {
     final AtomicInteger groupBlockIndex;
 
     docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, facetWriter);
-
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
@@ -255,7 +254,7 @@ class IndexThreads {
               break;
             }
           }
-        } else {
+        } else if (docsPerSec > 0 || doUpdate) {
 
           final long startNS = System.nanoTime();
           int threadCount = 0;
@@ -293,6 +292,25 @@ class IndexThreads {
               Thread.sleep(sleepMS, sleepNS2);
             }
           }
+        } else {
+
+          // Run until LineFileDocs is exhausted:
+          while (true) {
+            final Document doc = docs.nextDoc(docState);
+            if (doc == null) {
+              break;
+            }
+            final int id = LineFileDocs.idToInt(idField.stringValue());
+            if (numTotalDocs != -1 && id >= numTotalDocs) {
+              break;
+            }
+
+            if (((1+id) % 100000) == 0) {
+              System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            }
+            w.addDocument(doc);
+            count.incrementAndGet();
+          }
         }
       } catch (Exception e) {
         failed.set(true);
@@ -318,18 +336,18 @@ class IndexThreads {
        final long start = time;
        int lastCount = count.get();
        while(!stop.get()) {
-        try {
-         Thread.sleep(200);
-        } catch(Exception ex) {
-        }
-        int numDocs = count.get();
+         try {
+           Thread.sleep(200);
+         } catch(Exception ex) {
+         }
+         int numDocs = count.get();
 
-        double current = (double) (numDocs - lastCount);
-        long now = System.currentTimeMillis();
-        double seconds = (now-time) / 1000.0d;
-        System.out.println("ingest: " + (current / seconds) + " " + (now - start));
-        time = now;
-        lastCount = numDocs;
+         double current = (double) (numDocs - lastCount);
+         long now = System.currentTimeMillis();
+         double seconds = (now-time) / 1000.0d;
+         System.out.println("ingest: " + (current / seconds) + " " + (now - start));
+         time = now;
+         lastCount = numDocs;
        }
     }
   }

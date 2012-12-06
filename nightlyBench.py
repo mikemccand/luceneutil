@@ -388,9 +388,7 @@ def run():
   else:
     runCommand('%s cleanup' % constants.SVN_EXE)
     iters = 30
-    # nocommit one time to run same svn rev as last night, having
-    # upgraded luceneutil, so we only change "one thing" at a time
-    if False:
+    if True:
       for i in range(iters):
         try:
           runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
@@ -973,7 +971,7 @@ def sendEmail(toEmailAddr, subject, messageText):
     msg += 'To: %s\r\n' % toEmailAddr
     msg += 'Subject: %s\r\n' % subject
     msg += '\r\n'
-    smtp.sendmail('mail@mikemccandless.com', toEmailAddress.split(','), msg)
+    smtp.sendmail('mail@mikemccandless.com', toEmailAddr.split(','), msg)
     smtp.quit()
   else:
     from email.mime.text import MIMEText

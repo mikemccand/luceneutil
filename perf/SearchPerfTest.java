@@ -245,7 +245,7 @@ public class SearchPerfTest {
       Class.forName("org.apache.lucene.search.similarities." + similarity).asSubclass(Similarity.class);
     final Similarity sim = simClazz.newInstance();
 
-    System.out.println("Using dir impl " + dir.getClass().getName());
+    System.out.println("Using dir impl " + dir0.getClass().getName());
     System.out.println("Analyzer " + analyzer);
     System.out.println("Similarity " + similarity);
     System.out.println("Search thread count " + searchThreadCount);

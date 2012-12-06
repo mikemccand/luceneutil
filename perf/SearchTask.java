@@ -180,6 +180,10 @@ final class SearchTask extends Task {
         }
       } else if (doDateFacets && state.taxoReader != null) {
         // TODO: support sort, filter too!!
+        /*
+        FacetSearchParams fsp = new FacetSearchParams(state.iParams);
+        fsp.setClCache(state.clCache);
+        */
         FacetSearchParams fsp = new FacetSearchParams();
         fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10));
         FacetsCollector facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);

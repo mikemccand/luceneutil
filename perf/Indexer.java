@@ -222,7 +222,7 @@ public final class Indexer {
     final IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter facetWriter;
     if (dateFacets) {
-      facetWriter = new DirectoryTaxonomyWriter(facetsDir);
+      facetWriter = new DirectoryTaxonomyWriter(facetsDir, IndexWriterConfig.OpenMode.CREATE);
     } else {
       facetWriter = null;
     }

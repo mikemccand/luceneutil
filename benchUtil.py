@@ -749,8 +749,8 @@ class RunAlgs:
       cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
-    # need benchmark path so perf.SearchPerfTest is found:
-    cp.append(checkoutToBenchPath(checkout))
+    # so perf.* is found:
+    cp.append(constants.BENCH_BASE_DIR)
 
     return tuple(cp)
 
@@ -785,11 +785,6 @@ class RunAlgs:
         else:
           subdir = ''
         srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
-        # TODO: change to just compile the code & run directly from util
-        if osName in ('windows', 'cygwin'):
-          run('cp -r %s perf' % srcDir)
-        else:
-          run('ln -sf %s perf' % srcDir)
       competitor.compile(cp)
     finally:
       os.chdir(cwd)

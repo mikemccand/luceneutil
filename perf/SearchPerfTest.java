@@ -23,22 +23,9 @@ package perf;
 //  - switch to named cmd line args
 //  - get pk lookup working w/ remote tasks
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Constructor;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,39 +34,51 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.lucene.analysis.*;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
-import org.apache.lucene.analysis.standard.*;
+import org.apache.lucene.analysis.standard.ClassicAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
-import org.apache.lucene.index.*;
-import org.apache.lucene.index.AtomicReaderContext;
-//import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
-import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.*;
-import org.apache.lucene.search.grouping.*;
-import org.apache.lucene.search.grouping.term.*;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.ReferenceManager;
+import org.apache.lucene.search.SearcherFactory;
+import org.apache.lucene.search.SearcherManager;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.similarities.Similarity;
-import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
-import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestWord;
-import org.apache.lucene.store.*;
-import org.apache.lucene.util.*;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FileSwitchDirectory;
+import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.NRTCachingDirectory;
+import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.util.Constants;
+import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.RamUsageEstimator;
+import org.apache.lucene.util.Version;
 
 // TODO
 //   - post queries on pao
@@ -244,15 +243,15 @@ public class SearchPerfTest {
  
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_40);
+      a = new EnglishAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("ClassicAnalyzer")) {
-      a = new ClassicAnalyzer(Version.LUCENE_40);
+      a = new ClassicAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40);
+      a = new StandardAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
                                      2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -302,7 +301,7 @@ public class SearchPerfTest {
 
       dir = dir0;
 
-      final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
+      final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, a);
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
       iwc.setRAMBufferSizeMB(256.0);
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
@@ -449,7 +448,7 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
-    final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);
+    final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
     TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom, recacheFilterDeletes);
 

@@ -26,10 +26,9 @@ import java.util.Set;
 
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.util.BytesRef;
 
@@ -83,7 +82,6 @@ final class PKLookupTask extends Task {
 
     final IndexSearcher searcher = state.mgr.acquire();
     try {
-      final boolean DO_DOC_LOOKUP = true;
       final List<AtomicReaderContext> subReaders = searcher.getIndexReader().leaves();
       final TermsEnum[] termsEnums = new TermsEnum[subReaders.size()];
       final DocsEnum[] docsEnums = new DocsEnum[subReaders.size()];
@@ -104,7 +102,7 @@ final class PKLookupTask extends Task {
             final DocsEnum docs = docsEnums[subIDX] = termsEnum.docs(sub.getLiveDocs(), docsEnums[subIDX], 0);
             assert docs != null;
             final int docID = docs.nextDoc();
-            if (docID != DocsEnum.NO_MORE_DOCS) {
+            if (docID != DocIdSetIterator.NO_MORE_DOCS) {
               answers[idx] = base + docID;
               break;
             }

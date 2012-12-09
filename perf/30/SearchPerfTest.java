@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Random;
 
 //import org.apache.lucene.analysis.en.EnglishAnalyzer;
-import org.apache.lucene.analysis.standard.*;;
+import org.apache.lucene.analysis.standard.*;
 import org.apache.lucene.index.IndexCommit;
 //import org.apache.lucene.index.codecs.CodecProvider;
 //import org.apache.lucene.index.codecs.mocksep.MockSepCodec;

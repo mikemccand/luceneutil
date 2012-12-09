@@ -81,7 +81,6 @@ public class PKLookupUpdatePerfTest {
   private static final boolean lookupByReader = false;
   private static final boolean useBase36 = true;
 
-  
   private static final String KEY_FIELD_NAME = "id";
   private static final String COUNT_FIELD_NAME = "count";  
   private static IndexWriter writer;
@@ -118,8 +117,8 @@ public class PKLookupUpdatePerfTest {
   
   private static IndexWriter createEmptyIndex(final Directory dir,
       final int docCount, Codec codec) throws IOException {
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
-        new WhitespaceAnalyzer(Version.LUCENE_40));
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50,
+        new WhitespaceAnalyzer(Version.LUCENE_50));
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     
     iwc.setCodec(codec);

@@ -168,7 +168,10 @@ class SearchTask:
               self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
             if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
-          
+
+    if self.facets != other.facets:
+      self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
+    
   def fail(self, message):
     s = 'query=%s filter=%s' % (self.query, self.filter)
     if self.sort is not None:
@@ -269,6 +272,9 @@ def parseResults(resultsFiles):
 
     if not os.path.exists(resultsFile):
       continue
+
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 512:
+      raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
     
     # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
@@ -316,18 +322,25 @@ def parseResults(resultsFiles):
 
           task.hits = []
           task.expandedTermCount = 0
+          task.facets = None
 
           while True:
             line = f.readline().strip()
             if line == '':
               break
+
+            if task.facets is not None:
+              task.facets.append(line)
+              continue
+            
             if line.find('expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
             if line.find('Zing VM Warning') != -1:
               continue
             if line.find('facets for Date') != -1:
-              break
+              task.facets = []
+              continue
             
             if line.startswith('HEAP: '):
               m = reHeap.match(line)

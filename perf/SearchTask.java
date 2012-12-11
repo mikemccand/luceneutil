@@ -245,27 +245,37 @@ final class SearchTask extends Task {
   }
 
   private void hilite(TopDocs hits, IndexState indexState, IndexSearcher searcher, Query query) throws IOException {
-    //System.out.println("hilite: " + q + " sort=" + s + " totalHits=" + hits.totalHits);
     if (indexState.fastHighlighter != null || indexState.useHighlighter) {
       for(ScoreDoc sd : hits.scoreDocs) {
         hilite(sd.doc, indexState, searcher);
       }
     } else {
-      //indexState.postingsHighlighter.highlight(query, searcher, hits);
+      String[] frags = indexState.postingsHighlighter.highlight(query, searcher, hits, 6);
+      for(int hit=0;hit<frags.length;hit++) {
+        String frag = frags[hit];
+        //System.out.println("\nhilite title=" + searcher.doc(hits.scoreDocs[hit].doc).get("titleTokenized") + " query=" + q);
+        //System.out.println("  frag: " + frag);
+        if (frag != null) {
+          // It's fine for frag to be null: it's a
+          // placeholder, meaning this hit had no hilite
+          totHiliteHash += frag.hashCode();
+        }
+      }
     }
   }
 
   public int totHiliteHash;
 
   private void hilite(int docID, IndexState indexState, IndexSearcher searcher) throws IOException {
+    //System.out.println("\nhilite title=" + searcher.doc(docID).get("titleTokenized") + " query=" + q);
     if (indexState.fastHighlighter != null) {
       for(String h : indexState.fastHighlighter.getBestFragments(fieldQuery,
                                                                  searcher.getIndexReader(), docID,
                                                                  indexState.textFieldName,
                                                                  100, 6)) {
         totHiliteHash += h.hashCode();
+        //System.out.println("  frag: " + h);
       }
-      //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
     } else {
       StoredDocument doc = searcher.doc(docID);
       String text = doc.get(indexState.textFieldName);
@@ -282,7 +292,7 @@ final class SearchTask extends Task {
       //int fragCount = 0;
       for (int j = 0; j < frags.length; j++) {
         if (frags[j] != null && frags[j].getScore() > 0) {
-          //System.out.println(frags[j].toString());
+          //System.out.println("  frag " + j + ": " + frags[j].toString());
           totHiliteHash += frags[j].toString().hashCode();
           //fragCount++;
         }

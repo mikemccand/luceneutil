@@ -24,16 +24,30 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.lucene.analysis.core.*;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
-import org.apache.lucene.codecs.*;
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
-import org.apache.lucene.document.*;
-import org.apache.lucene.index.*;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.*;
-import org.apache.lucene.store.*;
-import org.apache.lucene.util.*;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogMergePolicy;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.Version;
 
 // TODO
 //  - also test GUID based IDs
@@ -53,8 +67,8 @@ public class PKLookupPerfTest {
     throws IOException {
     System.out.println("Create index... " + docCount + " docs");
  
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
-                                                        new WhitespaceAnalyzer(Version.LUCENE_40));
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50,
+                                                        new WhitespaceAnalyzer(Version.LUCENE_50));
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
 
     final Codec codec = new Lucene41Codec() {
@@ -136,8 +150,6 @@ public class PKLookupPerfTest {
 
       final AtomicBoolean failed = new AtomicBoolean(false);
 
-      final Term t = new Term("id", "");
-
       final long tStart = System.currentTimeMillis();
       for(int iter=0;iter<numLookups;iter++) {
         //System.out.println("lookup " + lookup[iter].utf8ToString());
@@ -150,14 +162,14 @@ public class PKLookupPerfTest {
             if (DO_DOC_LOOKUP) {
               final DocsEnum docs = docsEnums[subIdx] = termsEnum.docs(null, docsEnums[subIdx], 0);
               final int docID = docs.nextDoc();
-              if (docID == DocsEnum.NO_MORE_DOCS) {
+              if (docID == DocIdSetIterator.NO_MORE_DOCS) {
                 failed.set(true);
               }
               if (docIDs[iter] != -1) {
                 failed.set(true);
               }
               docIDs[iter] = base + docID;
-              if (docs.nextDoc() != DocsEnum.NO_MORE_DOCS) {
+              if (docs.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
                 failed.set(true);
               }
             } else {

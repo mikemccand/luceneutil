@@ -31,7 +31,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
-//import org.apache.lucene.sandbox.postingshighlight.PostingsHighlighter;
+import org.apache.lucene.sandbox.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.Filter;
@@ -51,7 +51,7 @@ class IndexState {
   public final Filter groupEndFilter;
   public final FastVectorHighlighter fastHighlighter;
   public final boolean useHighlighter;
-  //public final PostingsHighlighter postingsHighlighter;
+  public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
   public int[] docIDToID;
   public final boolean hasDeletions;
@@ -76,14 +76,15 @@ class IndexState {
     if (hiliteImpl.equals("FastVectorHighlighter")) {
       fastHighlighter = new FastVectorHighlighter(true, true);
       useHighlighter = false;
-      //postingsHighlighter = null;
+      postingsHighlighter = null;
     } else if (hiliteImpl.equals("PostingsHighlighter")) {
       fastHighlighter = null;
       useHighlighter = false;
-      //postingsHighlighter = new PostingsHighlighter(textFieldName);
+      postingsHighlighter = new PostingsHighlighter(textFieldName);
     } else if (hiliteImpl.equals("Highlighter")) {
       fastHighlighter = null;
       useHighlighter = true;
+      postingsHighlighter = null;
     } else {
       throw new IllegalArgumentException("unrecognized -hiliteImpl \"" + hiliteImpl + "\"");
     }

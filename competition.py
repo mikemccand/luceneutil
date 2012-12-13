@@ -176,10 +176,10 @@ class Competitor(object):
     self.doDateFacets = doDateFacets
 
   def compile(self, cp):
-    files = glob.glob('perf/*.java')
+    files = glob.glob('%s/perf/*.java' % constants.BENCH_BASE_DIR)
     for skip in ('PKLookupPerfTest', 'PKLookupUpdatePerfTest'):
       try:
-        files.remove('perf/%s.java' % skip)
+        files.remove('%s/perf/%s.java' % (constants.BENCH_BASE_DIR, skip))
       except ValueError:
         pass
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')

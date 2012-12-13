@@ -168,7 +168,10 @@ class SearchTask:
               self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
             if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
-          
+
+    if self.facets != other.facets:
+      self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
+    
   def fail(self, message):
     s = 'query=%s filter=%s' % (self.query, self.filter)
     if self.sort is not None:
@@ -269,6 +272,9 @@ def parseResults(resultsFiles):
 
     if not os.path.exists(resultsFile):
       continue
+
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 512:
+      raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
     
     # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
@@ -316,18 +322,25 @@ def parseResults(resultsFiles):
 
           task.hits = []
           task.expandedTermCount = 0
+          task.facets = None
 
           while True:
             line = f.readline().strip()
             if line == '':
               break
+
+            if task.facets is not None:
+              task.facets.append(line)
+              continue
+            
             if line.find('expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
             if line.find('Zing VM Warning') != -1:
               continue
             if line.find('facets for Date') != -1:
-              break
+              task.facets = []
+              continue
             
             if line.startswith('HEAP: '):
               m = reHeap.match(line)
@@ -730,6 +743,7 @@ class RunAlgs:
     buildPath = '%s/lucene/build/core/classes' % path
     cp.append('%s/java' % buildPath)
     cp.append('%s/test' % buildPath)
+    cp.append('%s/lucene/build/sandbox/classes/java' % path)    
     cp.append('%s/lucene/build/test-framework/classes/java' % path)
     cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
     cp.append('%s/lucene/build/facet/classes/java' % path)
@@ -749,8 +763,8 @@ class RunAlgs:
       cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
-    # need benchmark path so perf.SearchPerfTest is found:
-    cp.append(checkoutToBenchPath(checkout))
+    # so perf.* is found:
+    cp.append(constants.BENCH_BASE_DIR)
 
     return tuple(cp)
 
@@ -785,11 +799,6 @@ class RunAlgs:
         else:
           subdir = ''
         srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
-        # TODO: change to just compile the code & run directly from util
-        if osName in ('windows', 'cygwin'):
-          run('cp -r %s perf' % srcDir)
-        else:
-          run('ln -sf %s perf' % srcDir)
       competitor.compile(cp)
     finally:
       os.chdir(cwd)

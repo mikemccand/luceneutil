@@ -18,9 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,15 +26,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.SortedBytesDocValuesField;
 import org.apache.lucene.document.StringField;
-import org.apache.lucene.facet.index.CategoryDocumentBuilder;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util._TestUtil;
 
@@ -309,7 +302,7 @@ class IndexThreads {
               final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
               // NOTE: can't use docState.id in case doClone
               // was true
-              ((Field) doc.getField("id")).setStringValue(updateID);
+              doc.getField("id").setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);
@@ -358,7 +351,8 @@ class IndexThreads {
       this.stop = stop;
     }
     
-    public void run() {
+    @Override
+		public void run() {
        long time = System.currentTimeMillis();
        System.out.println("startIngest: " + time);
        final long start = time;
@@ -370,7 +364,7 @@ class IndexThreads {
          }
          int numDocs = count.get();
 
-         double current = (double) (numDocs - lastCount);
+         double current = numDocs - lastCount;
          long now = System.currentTimeMillis();
          double seconds = (now-time) / 1000.0d;
          System.out.println("ingest: " + (current / seconds) + " " + (now - start));

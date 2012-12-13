@@ -184,8 +184,7 @@ final class SearchTask extends Task {
         FacetSearchParams fsp = new FacetSearchParams(state.iParams);
         fsp.setClCache(state.clCache);
         */
-        FacetSearchParams fsp = new FacetSearchParams();
-        fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10));
+        FacetSearchParams fsp = new FacetSearchParams(new CountFacetRequest(new CategoryPath("Date"), 10));
         FacetsCollector facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);

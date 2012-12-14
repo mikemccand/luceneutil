@@ -190,10 +190,10 @@ class SearchTask:
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter
+      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter and type(self.facets) == type(other.facets)
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter)
+    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
       
   
 class RespellTask:
@@ -292,6 +292,7 @@ def parseResults(resultsFiles):
         task = SearchTask()
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
+        task.facets = None
 
         m = reSearchTask.match(line[6:])
 
@@ -322,7 +323,6 @@ def parseResults(resultsFiles):
 
           task.hits = []
           task.expandedTermCount = 0
-          task.facets = None
 
           while True:
             line = f.readline().strip()

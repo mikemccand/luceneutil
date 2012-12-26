@@ -29,13 +29,16 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.index.CategoryDocumentBuilder;
+import org.apache.lucene.facet.index.categorypolicy.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
+//import org.apache.lucene.facet.index.params.DefaultFacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.DocValues;
@@ -212,7 +215,20 @@ public class LineFileDocs implements Closeable {
       doc.add(timeSec);
 
       if (facetWriter != null) {
-        facetBuilder = new CategoryDocumentBuilder(facetWriter);
+        if (true) {
+          facetBuilder = new CategoryDocumentBuilder(facetWriter);
+        } else {
+          /*
+          facetBuilder = new CategoryDocumentBuilder(facetWriter,
+                                                     new DefaultFacetIndexingParams() {
+                                                       @Override
+                                                       protected OrdinalPolicy fixedOrdinalPolicy() {
+                                                         return OrdinalPolicy.NO_PARENTS;
+                                                       }
+                                                     });
+          */
+          facetBuilder = null;
+        }
       } else {
         facetBuilder = null;
       }
@@ -300,12 +316,14 @@ public class LineFileDocs implements Closeable {
 
     if (doc.facetBuilder != null) {
       // TODO: is there a way to "reuse" a field w/ facets
-      doc.doc.removeField(CategoryListParams.DEFAULT_TERM.field());
-      doc.facetBuilder.setCategoryPaths(Collections.singletonList(new CategoryPath("Date",
-                                                                                   ""+doc.dateCal.get(Calendar.YEAR),
-                                                                                   ""+doc.dateCal.get(Calendar.MONTH),
-                                                                                   ""+doc.dateCal.get(Calendar.DAY_OF_MONTH))));
+      doc.doc.removeFields(CategoryListParams.DEFAULT_TERM.field());
+      List<CategoryPath> paths = Collections.singletonList(new CategoryPath("Date",
+                                                                            ""+doc.dateCal.get(Calendar.YEAR),
+                                                                            ""+doc.dateCal.get(Calendar.MONTH),
+                                                                            ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
+      doc.facetBuilder.setCategoryPaths(paths);
       doc.facetBuilder.build(doc.doc);
+      //doc.doc.add(new DocValuesFacetField(paths, facetWriter));
     }
 
     if (doClone) {

@@ -40,7 +40,8 @@ MEME_ALL = Data('memeall',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 
-WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 3000000, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
+#WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_BIG_TASKS_FILE)
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
@@ -89,7 +90,8 @@ class Index(object):
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
-               doDateFacets = False
+               doDateFacets = False,
+               forcedName = None
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -102,6 +104,7 @@ class Index(object):
     self.grouping = grouping
     self.ramBufferMB = ramBufferMB
     self.numDocs = dataSource.numDocs
+    self.forcedName = forcedName
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
     else:
@@ -126,6 +129,8 @@ class Index(object):
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
   def getName(self):
+    if self.forcedName is not None:
+      return self.forcedName
     name = [self.dataSource.name,
             self.checkout]
     

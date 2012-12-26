@@ -24,12 +24,18 @@ import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.facet.search.FacetArrays;
 import org.apache.lucene.facet.search.FacetsCollector;
+//import org.apache.lucene.facet.search.DocValuesFacetsCollector;
+import org.apache.lucene.facet.search.aggregator.Aggregator;
+//import org.apache.lucene.facet.search.aggregator.NoParentsCountingAggregator;
 import org.apache.lucene.facet.search.params.CountFacetRequest;
 import org.apache.lucene.facet.search.params.FacetSearchParams;
 import org.apache.lucene.facet.search.results.FacetResult;
 import org.apache.lucene.facet.search.results.FacetResultNode;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.taxonomy.TaxonomyReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
@@ -76,6 +82,7 @@ final class SearchTask extends Task {
   private FieldQuery fieldQuery;
   private Highlighter highlighter;
   private List<FacetResult> facets;
+  private double hiliteMsec;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN, boolean doHilite, boolean doDateFacets) {
     this.category = category;
@@ -184,13 +191,43 @@ final class SearchTask extends Task {
         FacetSearchParams fsp = new FacetSearchParams(state.iParams);
         fsp.setClCache(state.clCache);
         */
+        /*
+        FacetSearchParams fsp = new FacetSearchParams();
+        if (false && state.fastHighlighter != null) {
+          fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10) {
+              @Override
+              public Aggregator createAggregator(boolean useComplements,
+                                                 FacetArrays arrays, IndexReader reader,
+                                                 TaxonomyReader taxonomy) {
+                //System.out.println("NO PARENTS AGG");
+                try {
+                  return new NoParentsCountingAggregator(taxonomy, arrays.getIntArray());
+                } catch (IOException ioe) {
+                  throw new RuntimeException(ioe);
+                }
+              }
+            });
+        } else {
+          fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10));
+        }
+        Collector facetsCollector;
+        if (state.fastHighlighter == null) {
+          facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        } else {
+          facetsCollector = new DocValuesFacetsCollector(fsp, state.taxoReader);
+        }
+*/
         FacetSearchParams fsp = new FacetSearchParams(new CountFacetRequest(new CategoryPath("Date"), 10));
         FacetsCollector facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
         searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
         hits = hitsCollector.topDocs();
-        facets = facetsCollector.getFacetResults();
+        if (state.fastHighlighter == null) {
+          facets = ((FacetsCollector) facetsCollector).getFacetResults();
+        } else {
+          //facets = ((DocValuesFacetsCollector) facetsCollector).getFacetResults();
+        }
       } else if (s == null && f == null) {
         hits = searcher.search(q, topN);
         if (doHilite) {
@@ -244,12 +281,15 @@ final class SearchTask extends Task {
   }
 
   private void hilite(TopDocs hits, IndexState indexState, IndexSearcher searcher, Query query) throws IOException {
+    long t0 = System.nanoTime();
     if (indexState.fastHighlighter != null || indexState.useHighlighter) {
       for(ScoreDoc sd : hits.scoreDocs) {
         hilite(sd.doc, indexState, searcher);
       }
+      //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
     } else {
-      String[] frags = indexState.postingsHighlighter.highlight(query, searcher, hits, 6);
+      String[] frags = indexState.postingsHighlighter.highlight(query, searcher, hits, 2);
+      //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
       for(int hit=0;hit<frags.length;hit++) {
         String frag = frags[hit];
         //System.out.println("\nhilite title=" + searcher.doc(hits.scoreDocs[hit].doc).get("titleTokenized") + " query=" + q);
@@ -261,6 +301,8 @@ final class SearchTask extends Task {
         }
       }
     }
+    long t1 = System.nanoTime();
+    hiliteMsec = (t1-t0)/1000000.0;
   }
 
   public int totHiliteHash;
@@ -271,7 +313,7 @@ final class SearchTask extends Task {
       for(String h : indexState.fastHighlighter.getBestFragments(fieldQuery,
                                                                  searcher.getIndexReader(), docID,
                                                                  indexState.textFieldName,
-                                                                 100, 6)) {
+                                                                 100, 2)) {
         totHiliteHash += h.hashCode();
         //System.out.println("  frag: " + h);
       }
@@ -283,7 +325,7 @@ final class SearchTask extends Task {
       TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), docID, indexState.textFieldName, null);
       TextFragment[] frags;
       try {
-        frags = highlighter.getBestTextFragments(tokenStream, text, false, 6);
+        frags = highlighter.getBestTextFragments(tokenStream, text, false, 2);
       } catch (InvalidTokenOffsetsException ioe) {
         throw new RuntimeException(ioe);
       }
@@ -453,6 +495,10 @@ final class SearchTask extends Task {
       for(ScoreDoc hit : hits.scoreDocs) {
         out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
       }
+    }
+
+    if (hiliteMsec > 0) {
+      out.println(String.format("  hilite time %.4f msec", hiliteMsec));
     }
 
     if (facets != null) {

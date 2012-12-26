@@ -341,6 +341,9 @@ def parseResults(resultsFiles):
             if line.find('facets for Date') != -1:
               task.facets = []
               continue
+            if line.find('hilite time') != -1:
+              task.hiliteMsec = float(line.split()[2])
+              continue
             
             if line.startswith('HEAP: '):
               m = reHeap.match(line)
@@ -776,7 +779,7 @@ class RunAlgs:
     try:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
-        for module in ('core', 'suggest', 'highlighter',
+        for module in ('core', 'suggest', 'highlighter', 'sandbox',
                        'analysis/common', 'grouping', 'test-framework',
                        'codecs', 'facet'):
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)

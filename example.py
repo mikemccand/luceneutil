@@ -19,7 +19,7 @@ from competition import Competition
 from competition import WIKI_MEDIUM
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
-# Baseline here is ../trunk versus ../modified_trunk
+# Baseline here is ../trunk versus ../patch
 if __name__ == '__main__':
   # debug=True uses a smaller number of documents and less iterations when searching
   comp =  Competition(debug=True)

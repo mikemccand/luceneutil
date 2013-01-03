@@ -2,13 +2,13 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-LUCENE_HOME=/lucene/clean2.svn/lucene
+LUCENE_HOME=/l/lucene.trunk2/lucene
 
 #./compile.sh
 
 
 
-INDEX_PATH=/q/lucene/indices/all
+INDEX_PATH=/s2/scratch/indices/shingles.1M
 LINE_DOCS_FILE=/lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
 THREAD_COUNT=12
@@ -17,15 +17,16 @@ DOC_COUNT_LIMIT=33332620
 #MAX_BUFFERED_DOCS=60058
 MAX_BUFFERED_DOCS=-1
 
-#DOC_COUNT_LIMIT=1000000
+DOC_COUNT_LIMIT=1000000
 #MAX_BUFFERED_DOCS=2703
+MAX_BUFFERED_DOCS=-1
 
 #DOC_COUNT_LIMIT=6000000
 #MAX_BUFFERED_DOCS=21622
 
 JAVA=/usr/local/src/jdk1.7.0_07/bin/java
 
-HEAP=-Xmx10g
+HEAP=-Xmx2g
 PF=Lucene41
 
 #LUCENE_HOME=/localhome/lucene4x/lucene
@@ -41,7 +42,7 @@ PF=Lucene41
 $JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/facet/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
     -indexPath $INDEX_PATH \
     -dirImpl MMapDirectory \
-    -analyzer StandardAnalyzerNoStopWords \
+    -analyzer ShingleStandardAnalyzer \
     -lineDocsFile $LINE_DOCS_FILE \
     -docCountLimit $DOC_COUNT_LIMIT \
     -threadCount $THREAD_COUNT \
@@ -50,8 +51,9 @@ $JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/facet/
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
     -waitForMerges \
-    -mergePolicy LogDocMergePolicy \
-    -dateFacets
+    -mergePolicy LogDocMergePolicy
+
+    #-dateFacets
 
 
 #rm -rf /q/lucene/indices/test.10M

@@ -288,7 +288,8 @@ final class SearchTask extends Task {
       }
       //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
     } else {
-      String[] frags = indexState.postingsHighlighter.highlight(query, searcher, hits, 2);
+      // TODO: why is this one finding 2 frags when the others find 1?
+      String[] frags = indexState.postingsHighlighter.highlight(indexState.textFieldName, query, searcher, hits, 2);
       //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
       for(int hit=0;hit<frags.length;hit++) {
         String frag = frags[hit];

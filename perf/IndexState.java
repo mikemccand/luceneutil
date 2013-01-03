@@ -79,7 +79,7 @@ class IndexState {
     } else if (hiliteImpl.equals("PostingsHighlighter")) {
       fastHighlighter = null;
       useHighlighter = false;
-      postingsHighlighter = new PostingsHighlighter(textFieldName);
+      postingsHighlighter = new PostingsHighlighter();
     } else if (hiliteImpl.equals("Highlighter")) {
       fastHighlighter = null;
       useHighlighter = true;

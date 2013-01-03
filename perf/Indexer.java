@@ -48,12 +48,6 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doFullMerge:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
-
-// EG:
-//
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no no yes TieredMergePolicy no yes yes no
-
 public final class Indexer {
 
   public static void main(String[] clArgs) throws Exception {
@@ -96,6 +90,9 @@ public final class Indexer {
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
       a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50),
+                                     2, 2);
+    } else if (analyzer.equals("ShingleStandardAnalyzerNoStopWords")) {
       a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
                                      2, 2);
     } else {

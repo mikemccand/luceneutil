@@ -35,7 +35,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
-import org.apache.lucene.facet.index.CategoryDocumentBuilder;
+import org.apache.lucene.facet.index.FacetFields;
 import org.apache.lucene.facet.index.categorypolicy.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
 //import org.apache.lucene.facet.index.params.DefaultFacetIndexingParams;
@@ -170,7 +170,7 @@ public class LineFileDocs implements Closeable {
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
-    final CategoryDocumentBuilder facetBuilder;
+    final FacetFields facetBuilder;
 
     DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, TaxonomyWriter facetWriter) {
       doc = new Document();
@@ -216,7 +216,7 @@ public class LineFileDocs implements Closeable {
 
       if (facetWriter != null) {
         if (true) {
-          facetBuilder = new CategoryDocumentBuilder(facetWriter);
+          facetBuilder = new FacetFields(facetWriter);
         } else {
           /*
           facetBuilder = new CategoryDocumentBuilder(facetWriter,
@@ -321,8 +321,7 @@ public class LineFileDocs implements Closeable {
                                                                             ""+doc.dateCal.get(Calendar.YEAR),
                                                                             ""+doc.dateCal.get(Calendar.MONTH),
                                                                             ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
-      doc.facetBuilder.setCategoryPaths(paths);
-      doc.facetBuilder.build(doc.doc);
+      doc.facetBuilder.addFields(doc.doc, paths);
       //doc.doc.add(new DocValuesFacetField(paths, facetWriter));
     }
 

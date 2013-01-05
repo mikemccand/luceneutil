@@ -30,7 +30,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.sandbox.postingshighlight.PostingsHighlighter;
+import org.apache.lucene.search.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.Filter;

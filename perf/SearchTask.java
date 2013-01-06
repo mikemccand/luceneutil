@@ -509,7 +509,8 @@ final class SearchTask extends Task {
   }
 
   private void printFacets(int depth, PrintStream out, FacetResultNode node, String indent) {
-    out.println(indent + " " + node.getLabel().getComponent(depth) + " (" + (int) node.getValue() + ")");
+    //out.println(indent + " " + node.getLabel().getComponent(depth) + " (" + (int) node.getValue() + ")");
+    out.println(indent + " " + node.getLabel() + " (" + (int) node.getValue() + ")");
     for(FacetResultNode childNode : node.getSubResults()) {
       printFacets(depth+1, out, childNode, indent + "  ");
     }

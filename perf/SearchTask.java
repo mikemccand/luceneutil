@@ -223,7 +223,7 @@ final class SearchTask extends Task {
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
         searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
         hits = hitsCollector.topDocs();
-        if (state.fastHighlighter == null) {
+        if (true || state.fastHighlighter == null) {
           facets = ((FacetsCollector) facetsCollector).getFacetResults();
         } else {
           //facets = ((DocValuesFacetsCollector) facetsCollector).getFacetResults();

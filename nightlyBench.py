@@ -671,6 +671,25 @@ def makeGraphs():
             qpsMult = 4000
           else:
             qpsMult = 1
+
+          date = '%02d/%02d/%04d' % (timeStamp.month, timeStamp.day, timeStamp.year)
+          if cat == 'TermDateFacets':
+            if date in ('01/03/2013', '01/04/2013', '01/05/2013'):
+              # Bug in luceneutil made facets not actually run correclty so QPS was way too high:
+              continue
+          if cat == 'Fuzzy1':
+            if date in ('05/06/2012',
+                        '05/07/2012',
+                        '05/08/2012',
+                        '05/09/2012',
+                        '05/10/2012',
+                        '05/11/2012',
+                        '05/12/2012',
+                        '05/13/2012',
+                        '05/14/2012'):
+              # Bug in FuzzyQuery made Fuzzy1 be exact search
+              continue
+            
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
       for date, desc, fullDesc in KNOWN_CHANGES:

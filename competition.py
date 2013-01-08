@@ -167,7 +167,8 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               doDateFacets = False):
+               doDateFacets = False,
+               loadStoredFields = False):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -181,6 +182,7 @@ class Competitor(object):
     self.hiliteImpl = hiliteImpl
     self.pk = pk
     self.doDateFacets = doDateFacets
+    self.loadStoredFields = loadStoredFields
 
   def compile(self, cp):
     files = glob.glob('%s/perf/*.java' % constants.BENCH_BASE_DIR)

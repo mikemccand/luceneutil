@@ -24,9 +24,9 @@ import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+//import org.apache.lucene.facet.search.DocValuesFacetsCollector;
 import org.apache.lucene.facet.search.FacetArrays;
 import org.apache.lucene.facet.search.FacetsCollector;
-//import org.apache.lucene.facet.search.DocValuesFacetsCollector;
 import org.apache.lucene.facet.search.aggregator.Aggregator;
 //import org.apache.lucene.facet.search.aggregator.NoParentsCountingAggregator;
 import org.apache.lucene.facet.search.params.CountFacetRequest;
@@ -36,6 +36,7 @@ import org.apache.lucene.facet.search.results.FacetResultNode;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.StorableField;
 import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
@@ -76,6 +77,8 @@ final class SearchTask extends Task {
   private final boolean doCountGroups;
   private final boolean doHilite;
   private final boolean doDateFacets;
+  private final boolean doStoredLoads;
+
   private TopDocs hits;
   private TopGroups<?> groupsResultBlock;
   private TopGroups<BytesRef> groupsResultTerms;
@@ -84,7 +87,8 @@ final class SearchTask extends Task {
   private List<FacetResult> facets;
   private double hiliteMsec;
 
-  public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN, boolean doHilite, boolean doDateFacets) {
+    public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
+                    boolean doHilite, boolean doDateFacets, boolean doStoredLoads) {
     this.category = category;
     this.q = q;
     this.s = s;
@@ -101,6 +105,7 @@ final class SearchTask extends Task {
     }
     this.topN = topN;
     this.doHilite = doHilite;
+    this.doStoredLoads = doStoredLoads;
   }
 
   @Override
@@ -110,9 +115,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doDateFacets);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doDateFacets, doStoredLoads);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doDateFacets);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doDateFacets, doStoredLoads);
     }
   }
 
@@ -258,6 +263,17 @@ final class SearchTask extends Task {
       }
       if (hits != null) {
         totalHitCount = hits.totalHits;
+
+        if (doStoredLoads) {
+          for (int i = 0; i < hits.scoreDocs.length; i++) {
+            ScoreDoc scoreDoc = hits.scoreDocs[i];
+            StoredDocument doc = searcher.doc(scoreDoc.doc);
+            for (StorableField field : doc) {
+              field.stringValue();
+            }
+          }
+        }
+
       } else if (groupsResultBlock != null) {
         totalHitCount = groupsResultBlock.totalHitCount;
       }

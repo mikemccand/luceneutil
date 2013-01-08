@@ -218,6 +218,7 @@ public class SearchPerfTest {
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
     final int topN = args.getInt("-topN");
+    final boolean doStoredLoads = args.getFlag("-loadStoredFields");
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
@@ -270,6 +271,10 @@ public class SearchPerfTest {
 
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
+
+    if (recacheFilterDeletes) {
+      throw new UnsupportedOperationException("recacheFilterDeletes was deprecated");
+    }
 
     TaxonomyReader taxoReader = null;
 
@@ -450,7 +455,7 @@ public class SearchPerfTest {
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom, recacheFilterDeletes);
+    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom, doStoredLoads);
 
     final TaskSource tasks;
 

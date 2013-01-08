@@ -48,18 +48,20 @@ class TaskParser {
   private final Sort titleDVSort;
   private final int topN;
   private final Random random;
+  private final boolean doStoredLoads;
 
-  public TaskParser(QueryParser queryParser,
+    public TaskParser(QueryParser queryParser,
                     String fieldName,
                     Map<Double,Filter> filters,
                     int topN,
                     Random random,
-                    boolean ignored /* TODO: remove me */) {
+                    boolean doStoredLoads) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.filters = filters;
     this.topN = topN;
     this.random = random;
+    this.doStoredLoads = doStoredLoads;
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
@@ -120,9 +122,14 @@ class TaskParser {
       final String group;
       final boolean doHilite;
 
+      boolean doStoredLoads = this.doStoredLoads;
+
       if (text.startsWith("hilite//")) {
         doHilite = true;
         text = text.substring(8);
+
+        // Highlighting does its own loading
+        doStoredLoads = false;
       } else {
         doHilite = false;
       }
@@ -209,7 +216,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets, doStoredLoads);
     }
 
     return task;

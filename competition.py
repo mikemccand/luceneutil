@@ -91,7 +91,8 @@ class Index(object):
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
                doDateFacets = False,
-               forcedName = None
+               forcedName = None,
+               maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -113,6 +114,7 @@ class Index(object):
     self.doUpdate = doUpdate
     self.useCFS = useCFS
     self.javaCommand = javaCommand
+    self.maxConcurrentMerges = maxConcurrentMerges
 
     self.lineDocSource = dataSource.lineFile
     self.verbose = verbose

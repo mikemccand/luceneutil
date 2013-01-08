@@ -660,6 +660,7 @@ class RunAlgs:
       w('-lineDocsFile %s' % index.lineDocSource)
       w('-docCountLimit %s' % index.numDocs)
       w('-threadCount %s' % index.numThreads)
+      w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
 
       if index.optimize:
         w('-forceMerge')

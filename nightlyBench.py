@@ -437,7 +437,8 @@ def run():
                                   waitForMerges=False,
                                   grouping=False,
                                   verbose=False,
-                                  mergePolicy='TieredMergePolicy')
+                                  mergePolicy='TieredMergePolicy',
+                                  maxConcurrentMerges=3)
 
   bigSource = competition.Data('wikibig',
                                BIG_LINE_FILE,
@@ -454,7 +455,8 @@ def run():
                                waitForMerges=False,
                                grouping=False,
                                verbose=False,
-                               mergePolicy='TieredMergePolicy')
+                               mergePolicy='TieredMergePolicy',
+                               maxConcurrentMerges=3)
 
   # Must use only 1 thread so we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
@@ -464,7 +466,8 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        doDateFacets=True)
+                        doDateFacets=True,
+                        maxConcurrentMerges=3)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

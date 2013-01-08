@@ -123,6 +123,7 @@ public final class Indexer {
     final boolean storeBody = args.getFlag("-store");
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
+    final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -152,6 +153,7 @@ public final class Indexer {
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
     System.out.println("Date facets: " + (dateFacets ? "yes" : "no"));
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
+    System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
@@ -168,12 +170,11 @@ public final class Indexer {
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
-    /*
+    // Increase number of concurrent merges since we are on SSD:
     ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
     iwc.setMergeScheduler(cms);
-    cms.setMaxThreadCount(1);
-    cms.setMaxMergeCount(2);
-    */
+    cms.setMaxMergeCount(maxConcurrentMerges+2);
+    cms.setMaxThreadCount(maxConcurrentMerges);
 
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {

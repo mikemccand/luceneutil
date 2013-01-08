@@ -8,18 +8,18 @@ LUCENE_HOME=/l/lucene.trunk2/lucene
 
 
 
-INDEX_PATH=/s2/scratch/indices/shingles.1M
+INDEX_PATH=/s2/scratch/indices/test.big
 LINE_DOCS_FILE=/lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
-THREAD_COUNT=12
+THREAD_COUNT=6
 
 DOC_COUNT_LIMIT=33332620
-#MAX_BUFFERED_DOCS=60058
-MAX_BUFFERED_DOCS=-1
+MAX_BUFFERED_DOCS=60058
+#MAX_BUFFERED_DOCS=-1
 
-DOC_COUNT_LIMIT=1000000
+#DOC_COUNT_LIMIT=1000000
 #MAX_BUFFERED_DOCS=2703
-MAX_BUFFERED_DOCS=-1
+#MAX_BUFFERED_DOCS=-1
 
 #DOC_COUNT_LIMIT=6000000
 #MAX_BUFFERED_DOCS=21622
@@ -41,17 +41,19 @@ PF=Lucene41
 
 $JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/facet/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
     -indexPath $INDEX_PATH \
-    -dirImpl MMapDirectory \
-    -analyzer ShingleStandardAnalyzer \
+    -dirImpl NIOFSDirectory \
+    -analyzer StandardAnalyzer \
     -lineDocsFile $LINE_DOCS_FILE \
     -docCountLimit $DOC_COUNT_LIMIT \
     -threadCount $THREAD_COUNT \
-    -ramBufferMB 350 \
+    -ramBufferMB 1800 \
     -maxBufferedDocs $MAX_BUFFERED_DOCS \
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
     -waitForMerges \
-    -mergePolicy LogDocMergePolicy
+    -mergePolicy LogDocMergePolicy \
+    -tvs \
+    -verbose
 
     #-dateFacets
 

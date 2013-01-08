@@ -661,6 +661,7 @@ def makeGraphs():
                          timeStamp.hour,
                          timeStamp.minute,
                          int(timeStamp.second))
+      date = '%02d/%02d/%04d' % (timeStamp.month, timeStamp.day, timeStamp.year)
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       mean, stdDev = nrtResults
@@ -675,7 +676,6 @@ def makeGraphs():
           else:
             qpsMult = 1
 
-          date = '%02d/%02d/%04d' % (timeStamp.month, timeStamp.day, timeStamp.year)
           if cat == 'TermDateFacets':
             if date in ('01/03/2013', '01/04/2013', '01/05/2013'):
               # Bug in luceneutil made facets not actually run correclty so QPS was way too high:

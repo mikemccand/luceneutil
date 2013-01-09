@@ -3331,13 +3331,13 @@ AndHighLow: +county +perrow # freq=521126 freq=3665
 AndHighLow: +war +hauser # freq=547417 freq=1375
 AndHighLow: +30 +everglades # freq=488930 freq=1184
 AndHighLow: +university +chand # freq=636959 freq=1372
-AndHighLow: +may +ru:категория:появились # freq=1071932 freq=803
+#AndHighLow: +may +ru:категория:появились # freq=1071932 freq=803
 AndHighLow: +de +fujian # freq=652242 freq=2057
 AndHighLow: +5 +ludlow # freq=891361 freq=2296
 AndHighLow: +up +siglo # freq=818546 freq=835
 AndHighLow: +july +user:arpingstone # freq=529655 freq=1600
 AndHighLow: +based +oldies # freq=398415 freq=3160
-AndHighLow: +war +la:categoria:nati # freq=547417 freq=1083
+#AndHighLow: +war +la:categoria:nati # freq=547417 freq=1083
 AndHighLow: +cite +hectare # freq=1741194 freq=2582
 AndHighLow: +march +user:angela # freq=620393 freq=1332
 AndHighLow: +should +implication # freq=401379 freq=3157
@@ -3356,7 +3356,7 @@ AndHighLow: +march +werke # freq=620393 freq=1186
 AndHighLow: +year +affirmative # freq=1235231 freq=2351
 AndHighLow: +second +munroe # freq=505575 freq=915
 AndHighLow: +28 +mummy # freq=389552 freq=2759
-AndHighLow: +10 +region:gb_source:enwiki # freq=918339 freq=1248
+#AndHighLow: +10 +region:gb_source:enwiki # freq=918339 freq=1248
 AndHighLow: +de +vaulted # freq=652242 freq=1190
 AndHighLow: +two +boyce # freq=1104053 freq=2221
 AndHighLow: +film +disarmed # freq=432758 freq=968
@@ -5079,7 +5079,7 @@ OrHighLow: name iw # freq=2827713 freq=884
 OrHighLow: june millionaires # freq=522519 freq=1105
 OrHighLow: october pussycat # freq=566229 freq=1218
 OrHighLow: him basu # freq=507350 freq=1186
-OrHighLow: from ru:список # freq=3224339 freq=2555
+#OrHighLow: from ru:список # freq=3224339 freq=2555
 OrHighLow: made seriousness # freq=742313 freq=1452
 OrHighLow: his 45.4 # freq=1777780 freq=941
 OrHighLow: 2005 offending # freq=835460 freq=2122

@@ -749,7 +749,7 @@ class RunAlgs:
     cp.append('%s/test' % buildPath)
     cp.append('%s/lucene/build/sandbox/classes/java' % path)
     cp.append('%s/lucene/build/test-framework/classes/java' % path)
-    cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
+    cp.append('%s/lucene/build/misc/classes/java' % path)
     cp.append('%s/lucene/build/facet/classes/java' % path)
     common.addJARs(cp, '%s/lucene/test-framework/lib' % path)
     if version == '4.0':

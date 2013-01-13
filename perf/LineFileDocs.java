@@ -16,7 +16,6 @@ package perf;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -26,6 +25,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -59,6 +60,7 @@ public class LineFileDocs implements Closeable {
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
   private final TaxonomyWriter facetWriter;
+  private String[] extraFacetFields;
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone,
                       TaxonomyWriter facetWriter) throws IOException {
@@ -81,8 +83,13 @@ public class LineFileDocs implements Closeable {
     reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
     String firstLine = reader.readLine();
     if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-      if (!firstLine.trim().equals("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body")) {
+      if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body") &&
+          !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
         throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+      }
+      if (facetWriter != null) {
+        String[] fields = firstLine.split("\t");
+        extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
       }
       // Skip header
     } else {
@@ -283,8 +290,6 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    bytesIndexed.addAndGet(line.length());
-
     int spot = line.indexOf(SEP);
     if (spot == -1) {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
@@ -293,8 +298,13 @@ public class LineFileDocs implements Closeable {
     if (spot2 == -1) {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
     }
+    int spot3 = line.indexOf(SEP, 1 + spot2);
+    if (spot3 == -1) {
+      spot3 = line.length();
+    }
+    bytesIndexed.addAndGet(spot3);
 
-    doc.body.setStringValue(line.substring(1+spot2, line.length()));
+    doc.body.setStringValue(line.substring(1+spot2, spot3));
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
     doc.titleDV.setBytesValue(new BytesRef(title));
@@ -317,12 +327,53 @@ public class LineFileDocs implements Closeable {
     if (doc.facetBuilder != null) {
       // TODO: is there a way to "reuse" a field w/ facets
       doc.doc.removeFields(CategoryListParams.DEFAULT_TERM.field());
-      List<CategoryPath> paths = Collections.singletonList(new CategoryPath("Date",
-                                                                            ""+doc.dateCal.get(Calendar.YEAR),
-                                                                            ""+doc.dateCal.get(Calendar.MONTH),
-                                                                            ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
-      doc.facetBuilder.addFields(doc.doc, paths);
+      List<CategoryPath> paths;
+
+      CategoryPath dateCP = new CategoryPath("Date",
+                                             ""+doc.dateCal.get(Calendar.YEAR),
+                                             ""+doc.dateCal.get(Calendar.MONTH),
+                                             ""+doc.dateCal.get(Calendar.DAY_OF_MONTH));
+      
       //doc.doc.add(new DocValuesFacetField(paths, facetWriter));
+      if (extraFacetFields != null) {
+        paths = new ArrayList<CategoryPath>();
+        paths.add(dateCP);
+        String[] values = line.substring(spot3+1, line.length()).split("\t");
+        for(int i=0;i<extraFacetFields.length;i++) {
+          String fieldName = extraFacetFields[i];
+          if (fieldName.equals("categories")) {
+            for(String cat : values[i].split("\\|")) {
+              paths.add(new CategoryPath("categories", cat));
+            }
+          } else if (fieldName.equals("characterCount")) {
+
+            // Make number drilldown hierarchy, so eg 1877
+            // characters is under
+            // 0-1M/0-100K/0-10K/1-2K/1800-1900:
+            List<String> nodes = new ArrayList<String>();
+            nodes.add(fieldName);
+            int value = Integer.parseInt(values[i]);
+            int accum = 0;
+            int base = 1000000;
+            while(base > 100) {
+              int factor = (value-accum) / base;
+              nodes.add(String.format("%d - %d", accum+factor*base, accum+(factor+1)*base));
+              accum += factor * base;
+              base /= 10;
+            }
+            //System.out.println("value=" + values[i] + "; node=" + nodes);
+            paths.add(new CategoryPath(nodes.toArray(new String[nodes.size()])));
+          } else {
+            paths.add(new CategoryPath(fieldName, values[i]));
+          }
+        }
+      } else {
+        // Just date facet field:
+        paths = Collections.singletonList(dateCP);
+      }
+      //System.out.println("add " + paths.size() + " facets: " + paths);
+
+      doc.facetBuilder.addFields(doc.doc, paths);
     }
 
     if (doClone) {

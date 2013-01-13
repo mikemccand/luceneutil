@@ -109,12 +109,19 @@ class TaskParser {
       }
 
       final boolean doDateFacets;
+      final boolean doAllFacets;
 
       if (text.indexOf("+dateFacets") != -1) {
         doDateFacets = true;
+        doAllFacets = false;
         text = text.replace("+dateFacets", "");
+      } else if (text.indexOf("+allFacets") != -1) {
+        doDateFacets = false;
+        doAllFacets = true;
+        text = text.replace("+allFacets", "");
       } else {
         doDateFacets = false;
+        doAllFacets = false;
       }
 
       final Sort sort;
@@ -216,7 +223,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets, doStoredLoads);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
     }
 
     return task;

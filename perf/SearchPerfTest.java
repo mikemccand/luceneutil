@@ -70,6 +70,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FileSwitchDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.MMapDirectory;
+//import org.apache.lucene.store.NativePosixMMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.NRTCachingDirectory;
 import org.apache.lucene.store.RAMDirectory;
@@ -143,7 +144,7 @@ public class SearchPerfTest {
 
     Directory dir0;
     final RAMDirectory ramDir;
-    final boolean dateFacets = args.getFlag("-dateFacets");
+    final boolean doFacets = args.getFlag("-facets");
     final String dirPath = args.getString("-indexPath") + "/index";
     final String facetsDirPath = args.getString("-indexPath") + "/facets";
     final String dirImpl = args.getString("-dirImpl");
@@ -151,19 +152,27 @@ public class SearchPerfTest {
     if (dirImpl.equals("MMapDirectory")) {
       dir0 = new MMapDirectory(new File(dirPath));
       ramDir = null;
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new MMapDirectory(new File(facetsDirPath));
       }
+    /*
+    } else if (dirImpl.equals("NativePosixMMapDirectory")) {
+      dir0 = new NativePosixMMapDirectory(new File(dirPath));
+      ramDir = null;
+      if (doFacets) {
+        facetsDir = new NativePosixMMapDirectory(new File(facetsDirPath));
+      }
+    */
     } else if (dirImpl.equals("NIOFSDirectory")) {
       dir0 = new NIOFSDirectory(new File(dirPath));
       ramDir = null;
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new NIOFSDirectory(new File(facetsDirPath));
       }
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
       ramDir = null;
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new SimpleFSDirectory(new File(facetsDirPath));
       }
       /*
@@ -194,7 +203,7 @@ public class SearchPerfTest {
                                      fsDir,
                                      ramDir,
                                      true);
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
       }
 
@@ -202,7 +211,7 @@ public class SearchPerfTest {
       final long t0 = System.currentTimeMillis();
       dir0 = ramDir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
       System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir0).sizeInBytes());
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
       }
     } else {

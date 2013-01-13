@@ -54,7 +54,7 @@ public final class Indexer {
 
     Args args = new Args(clArgs);
 
-    final boolean dateFacets = args.getFlag("-dateFacets");
+    final boolean doFacets = args.getFlag("-facets");
 
     final String dirImpl = args.getString("-dirImpl");
     final String dirPath = args.getString("-indexPath") + "/index";
@@ -64,17 +64,17 @@ public final class Indexer {
     Directory facetsDir = null;
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new MMapDirectory(new File(facetsDirPath));
       }
     } else if (dirImpl.equals("NIOFSDirectory")) {
       dir = new NIOFSDirectory(new File(dirPath));
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new NIOFSDirectory(new File(facetsDirPath));
       }
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir = new SimpleFSDirectory(new File(dirPath));
-      if (dateFacets) {
+      if (doFacets) {
         facetsDir = new SimpleFSDirectory(new File(facetsDirPath));
       }
     } else {
@@ -151,7 +151,7 @@ public final class Indexer {
     System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
-    System.out.println("Date facets: " + (dateFacets ? "yes" : "no"));
+    System.out.println("Facets: " + (doFacets ? "yes" : "no"));
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     
@@ -219,7 +219,7 @@ public final class Indexer {
 
     final IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter facetWriter;
-    if (dateFacets) {
+    if (doFacets) {
       facetWriter = new DirectoryTaxonomyWriter(facetsDir, IndexWriterConfig.OpenMode.CREATE);
     } else {
       facetWriter = null;
@@ -311,6 +311,7 @@ public final class Indexer {
     }
 
     if (facetWriter != null) {
+      System.out.println("Taxonomy has " + facetWriter.getSize() + " ords");
       facetWriter.commit();
       facetWriter.close();
     }

@@ -43,6 +43,7 @@ import org.apache.lucene.util.Version;
 //   - char filter to remove ', -, /
 
 // javac -cp /l/lucene.trunk2/lucene/build/core/classes/java:/l/lucene.trunk2/lucene/build/suggest/classes/java:/l/lucene.trunk2/lucene/build/analysis/common/classes/java:/l/lucene.trunk2/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
+
 // java -Xmx14g -cp .:/l/lucene.trunk2/lucene/build/core/classes/java:/l/lucene.trunk2/lucene/build/suggest/classes/java:/l/lucene.trunk2/lucene/build/analysis/common/classes/java:/l/lucene.trunk2/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../lucene.trunk2/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
 public class FreeDBSuggest {

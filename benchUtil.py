@@ -338,7 +338,7 @@ def parseResults(resultsFiles):
               continue
             if line.find('Zing VM Warning') != -1:
               continue
-            if line.find('facets for Date') != -1:
+            if line.find('facets') != -1:
               task.facets = []
               continue
             if line.find('hilite time') != -1:
@@ -686,8 +686,8 @@ class RunAlgs:
       if index.doUpdate:
         w('-update')
 
-      if index.doDateFacets:
-        w('-dateFacets')
+      if index.doFacets:
+        w('-facets')
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
@@ -840,16 +840,16 @@ class RunAlgs:
     else:
       doSort = ''
 
-    if c.doDateFacets:
-      doDateFacets = '-dateFacets'
+    if c.doFacets:
+      doFacets = '-facets'
     else:
-      doDateFacets = ''
+      doFacets = ''
 
     command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s' % \
         (c.javaCommand, cp, c.directory,
         nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
         c.numThreads, c.competition.taskRepeatCount,
-        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doDateFacets)
+        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets)
     command += ' -topN 10'
     if filter is not None:
       command += ' %s %.2f' % filter

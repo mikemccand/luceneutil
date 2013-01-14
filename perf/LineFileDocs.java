@@ -89,7 +89,10 @@ public class LineFileDocs implements Closeable {
       }
       if (facetWriter != null) {
         String[] fields = firstLine.split("\t");
-        extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
+        if (fields.length > 4) {
+          extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
+          System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
+        }
       }
       // Skip header
     } else {

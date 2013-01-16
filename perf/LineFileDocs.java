@@ -329,7 +329,7 @@ public class LineFileDocs implements Closeable {
 
     if (doc.facetBuilder != null) {
       // TODO: is there a way to "reuse" a field w/ facets
-      doc.doc.removeFields(CategoryListParams.DEFAULT_TERM.field());
+      doc.doc.removeFields(CategoryListParams.DEFAULT_FIELD);
       List<CategoryPath> paths;
 
       CategoryPath dateCP = new CategoryPath("Date",

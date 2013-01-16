@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.lucene.facet.index.params.CategoryListParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
-import org.apache.lucene.facet.search.cache.CategoryListCache;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
@@ -56,7 +55,6 @@ class IndexState {
   public final boolean hasDeletions;
   public final TaxonomyReader taxoReader;
   public final FacetIndexingParams iParams;
-  public final CategoryListCache clCache;
 
   public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
     this.mgr = mgr;
@@ -69,7 +67,6 @@ class IndexState {
     clCache = new CategoryListCache();
     */
     iParams = null;
-    clCache = null;
     
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {

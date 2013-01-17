@@ -466,7 +466,7 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        doDateFacets=True,
+                        doFacets=True,
                         maxConcurrentMerges=3)
 
   c = comp.competitor(id, NIGHTLY_DIR,
@@ -474,7 +474,7 @@ def run():
                       directory=DIR_IMPL,
                       analyzer='StandardAnalyzerNoStopWords',
                       commitPoint='multi',
-                      doDateFacets=True)
+                      doFacets=True)
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 

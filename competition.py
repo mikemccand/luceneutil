@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-import glob
+import os
 import searchBench
 import benchUtil
 import constants
@@ -39,10 +39,8 @@ MEME_ALL = Data('memeall',
                 '/x/lucene/data/memetracker/lines.txt',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
-
-# nocommit
-#WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
-WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG_1M = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
@@ -52,6 +50,7 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium2m' : WIKI_MEDIUM_2M,
         'memeall': MEME_ALL,
         'wikibig' : WIKI_BIG,
+        'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM }
 
 # for multi-segment index:
@@ -186,12 +185,10 @@ class Competitor(object):
     self.loadStoredFields = loadStoredFields
 
   def compile(self, cp):
-    files = glob.glob('%s/perf/*.java' % constants.BENCH_BASE_DIR)
-    for skip in ('PKLookupPerfTest', 'PKLookupUpdatePerfTest'):
-      try:
-        files.remove('%s/perf/%s.java' % (constants.BENCH_BASE_DIR, skip))
-      except ValueError:
-        pass
+    files = []
+    for f in os.listdir('%s/perf' % constants.BENCH_BASE_DIR):
+      if f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
+        files.append('%s/perf/%s' % (constants.BENCH_BASE_DIR, f))
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):

@@ -242,7 +242,7 @@ final class SearchTask extends Task {
         }
 
         FacetSearchParams fsp = new FacetSearchParams(facetRequests);
-        FacetsCollector facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), state.taxoReader);
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
         searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
@@ -546,9 +546,8 @@ final class SearchTask extends Task {
   }
 
   private void printFacets(int depth, PrintStream out, FacetResultNode node, String indent) {
-    //out.println(indent + " " + node.getLabel().getComponent(depth) + " (" + (int) node.getValue() + ")");
-    out.println(indent + " " + node.getLabel() + " (" + (int) node.getValue() + ")");
-    for(FacetResultNode childNode : node.getSubResults()) {
+    out.println(indent + " " + node.label + " (" + (int) node.value + ")");
+    for(FacetResultNode childNode : node.subResults) {
       printFacets(depth+1, out, childNode, indent + "  ");
     }
   }

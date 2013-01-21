@@ -170,7 +170,12 @@ class SearchTask:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
 
     if self.facets != other.facets:
-      self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
+      if False:
+        print
+        print '***WARNING*** facet diffs'
+        print
+      else:
+        self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
     
   def fail(self, message):
     s = 'query=%s filter=%s' % (self.query, self.filter)
@@ -343,6 +348,9 @@ def parseResults(resultsFiles):
               continue
             if line.find('hilite time') != -1:
               task.hiliteMsec = float(line.split()[2])
+              continue
+            if line.find('getFacetResults time') != -1:
+              task.getFacetResultsMsec = float(line.split()[2])
               continue
             
             if line.startswith('HEAP: '):

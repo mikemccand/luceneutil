@@ -91,7 +91,7 @@ class Index(object):
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
                doFacets = False,
-               forcedName = None,
+               extraNamePart = None,
                maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
                ):
     self.checkout = checkout
@@ -105,7 +105,7 @@ class Index(object):
     self.grouping = grouping
     self.ramBufferMB = ramBufferMB
     self.numDocs = dataSource.numDocs
-    self.forcedName = forcedName
+    self.extraNamePart = extraNamePart
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
     else:
@@ -131,11 +131,12 @@ class Index(object):
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
   def getName(self):
-    if self.forcedName is not None:
-      return self.forcedName
     name = [self.dataSource.name,
             self.checkout]
-    
+
+    if self.extraNamePart is not None:
+      name.append(self.extraNamePart)
+      
     if self.optimize:
       name.append('opt')
 
@@ -187,7 +188,7 @@ class Competitor(object):
   def compile(self, cp):
     files = []
     for f in os.listdir('%s/perf' % constants.BENCH_BASE_DIR):
-      if f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
+      if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
         files.append('%s/perf/%s' % (constants.BENCH_BASE_DIR, f))
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
 

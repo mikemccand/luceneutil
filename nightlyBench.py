@@ -203,6 +203,10 @@ KNOWN_CHANGES = [
   ('2012-12-10',
    'LUCENE-4598: small optimizations to facet aggregation',
    'LUCENE-4598: small optimizations to facet aggregation'),
+
+  ('2013-01-17',
+   'Facet performance improvements',
+   'Facet performance improvements: LUCENE-4686, LUCENE-4620, LUCENE-4602')
    ]
 
 # TODO

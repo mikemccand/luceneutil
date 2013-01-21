@@ -203,6 +203,10 @@ KNOWN_CHANGES = [
   ('2012-12-10',
    'LUCENE-4598: small optimizations to facet aggregation',
    'LUCENE-4598: small optimizations to facet aggregation'),
+
+  ('2013-01-17',
+   'Facet performance improvements',
+   'Facet performance improvements: LUCENE-4686, LUCENE-4620, LUCENE-4602')
    ]
 
 # TODO
@@ -466,7 +470,7 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        doDateFacets=True,
+                        doFacets=True,
                         maxConcurrentMerges=3)
 
   c = comp.competitor(id, NIGHTLY_DIR,
@@ -474,7 +478,7 @@ def run():
                       directory=DIR_IMPL,
                       analyzer='StandardAnalyzerNoStopWords',
                       commitPoint='multi',
-                      doDateFacets=True)
+                      doFacets=True)
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 

@@ -20,6 +20,7 @@ package perf;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.lucene.facet.index.categorypolicy.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
@@ -29,7 +30,6 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.search.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.Filter;
@@ -38,6 +38,7 @@ import org.apache.lucene.search.QueryWrapperFilter;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.BytesRef;
@@ -62,11 +63,24 @@ class IndexState {
     this.textFieldName = textFieldName;
     this.taxoReader = taxoReader;
     /*
-    CategoryListParams clp = new CategoryListParams();
-    iParams = new DefaultFacetIndexingParams(clp);
-    clCache = new CategoryListCache();
+    CategoryListParams clp = new CategoryListParams() {
+        @Override
+        public IntEncoder createEncoder() {
+          return new SortingIntEncoder(new UniqueValuesIntEncoder(new DGapIntEncoder(new PackedIntEncoder())));
+        }
+      };
+    iParams = new FacetIndexingParams(clp);
     */
-    iParams = null;
+    iParams = new FacetIndexingParams();
+    /*
+      iParams = new FacetIndexingParams() {
+          // nocommit
+          @Override
+          public OrdinalPolicy getOrdinalPolicy() {
+            return OrdinalPolicy.NO_PARENTS;
+          }
+        };
+    */
     
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {

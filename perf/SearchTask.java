@@ -25,11 +25,11 @@ import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
-//import org.apache.lucene.facet.search.DocValuesFacetsCollector;
+import org.apache.lucene.facet.search.CountingFacetsCollector;
 import org.apache.lucene.facet.search.FacetArrays;
 import org.apache.lucene.facet.search.FacetsCollector;
+import org.apache.lucene.facet.search.StandardFacetsCollector;
 import org.apache.lucene.facet.search.aggregator.Aggregator;
-//import org.apache.lucene.facet.search.aggregator.NoParentsCountingAggregator;
 import org.apache.lucene.facet.search.params.CountFacetRequest;
 import org.apache.lucene.facet.search.params.FacetRequest;
 import org.apache.lucene.facet.search.params.FacetSearchParams;
@@ -89,6 +89,7 @@ final class SearchTask extends Task {
   private Highlighter highlighter;
   private List<FacetResult> facets;
   private double hiliteMsec;
+  private double getFacetResultsMsec;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
                     boolean doHilite, boolean doDateFacets, boolean doAllFacets, boolean doStoredLoads) {
@@ -241,17 +242,30 @@ final class SearchTask extends Task {
           facetRequests.add(new CountFacetRequest(new CategoryPath("refCount"), 10));
         }
 
-        FacetSearchParams fsp = new FacetSearchParams(facetRequests);
-        FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), state.taxoReader);
+        FacetSearchParams fsp = new FacetSearchParams(facetRequests, state.iParams);
+        FacetsCollector facetsCollector;
+        if (true || state.fastHighlighter != null) {
+          //facetsCollector = new DecoderCountingFacetsCollector(fsp, state.taxoReader);
+          //facetsCollector = new PostCollectionCountingFacetsCollector(fsp, state.taxoReader);
+          facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
+        } else {
+          //facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
+          facetsCollector = new StandardFacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        }
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
         searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
         hits = hitsCollector.topDocs();
-        if (true || state.fastHighlighter == null) {
-          facets = facetsCollector.getFacetResults();
+        long t0 = System.nanoTime();
+        /*
+        if (state.fastHighlighter != null) {
+          facets = ((DecoderCountingFacetsCollector) facetsCollector).getFacetResults();
         } else {
-          //facets = ((DocValuesFacetsCollector) facetsCollector).getFacetResults();
+          facets = ((FacetsCollector) facetsCollector).getFacetResults();
         }
+        */
+        facets = facetsCollector.getFacetResults();
+        getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
       } else if (s == null && f == null) {
         hits = searcher.search(q, topN);
         if (doHilite) {
@@ -535,6 +549,9 @@ final class SearchTask extends Task {
 
     if (hiliteMsec > 0) {
       out.println(String.format("  hilite time %.4f msec", hiliteMsec));
+    }
+    if (getFacetResultsMsec > 0) {
+      out.println(String.format("  getFacetResults time %.4f msec", getFacetResultsMsec));
     }
 
     if (facets != null) {

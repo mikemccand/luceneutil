@@ -148,7 +148,7 @@ class TaskParser {
         }
         query = new SpanNearQuery(
                                   new SpanQuery[] {new SpanTermQuery(new Term(fieldName, text.substring(6, spot3))),
-                                                   new SpanTermQuery(new Term(fieldName, text.substring(1+spot3)))},
+                                                   new SpanTermQuery(new Term(fieldName, text.substring(spot3+1).trim()))},
                                   10,
                                   true);
         sort = null;

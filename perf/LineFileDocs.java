@@ -40,6 +40,7 @@ import org.apache.lucene.facet.index.FacetFields;
 import org.apache.lucene.facet.index.categorypolicy.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
 //import org.apache.lucene.facet.index.params.DefaultFacetIndexingParams;
+import org.apache.lucene.facet.index.params.FacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.DocValues;
@@ -226,7 +227,25 @@ public class LineFileDocs implements Closeable {
 
       if (facetWriter != null) {
         if (true) {
-          facetBuilder = new FacetFields(facetWriter);
+          /*
+          CategoryListParams clp = new CategoryListParams() {
+              @Override
+              public IntEncoder createEncoder() {
+                return new SortingIntEncoder(new UniqueValuesIntEncoder(new DGapIntEncoder(new PackedIntEncoder())));
+              }
+            };
+          FacetIndexingParams iParams = new FacetIndexingParams(clp);
+          */
+          FacetIndexingParams iParams = new FacetIndexingParams();
+          /*
+          FacetIndexingParams iParams = new FacetIndexingParams() {
+              @Override
+              public OrdinalPolicy getOrdinalPolicy() {
+                return OrdinalPolicy.NO_PARENTS;
+              }
+            };
+          */
+          facetBuilder = new FacetFields(facetWriter, iParams);
         } else {
           /*
           facetBuilder = new CategoryDocumentBuilder(facetWriter,
@@ -377,6 +396,7 @@ public class LineFileDocs implements Closeable {
       //System.out.println("add " + paths.size() + " facets: " + paths);
 
       doc.facetBuilder.addFields(doc.doc, paths);
+      //System.out.println("after build: " + doc.doc);
     }
 
     if (doClone) {

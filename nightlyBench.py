@@ -168,9 +168,9 @@ KNOWN_CHANGES = [
    'LUCENE-4062: new aligned packed-bits implementations',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4062">LUCENE-4062</a>: new aligned packed-bits implementations'),
 
-  #('2012-05-28',
-  # 'Disable Java\'s compressed OOPS, and LUCENE-4055: refactor SegmentInfos/FieldInfos',
-  # 'Disable Java\'s compressed OOPS (-XX:-UseCompressedOops), and <a href="https://issues.apache.org/jira/browse/LUCENE-4055">LUCENE-4055</a>: refactor SegmentInfos/FieldInfos'),
+  ('2012-05-28',
+   'Disable Java\'s compressed OOPS, and LUCENE-4055: refactor SegmentInfos/FieldInfos',
+   'Disable Java\'s compressed OOPS (-XX:-UseCompressedOops), and <a href="https://issues.apache.org/jira/browse/LUCENE-4055">LUCENE-4055</a>: refactor SegmentInfos/FieldInfos'),
 
   ('2012-05-06',
    'LUCENE-4024: FuzzyQuery never does edit distance > 2',
@@ -180,13 +180,13 @@ KNOWN_CHANGES = [
    'LUCENE-4024: (rev 1338668) fixed ob1 bug causing FuzzyQ(1) to be TermQuery',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4024">LUCENE-4024</a>: (rev <a href="http://svn.apache.org/viewvc?view=revision&revision=1338668">1338668</a>) fixed ob1 bug causing FuzzyQ(1) to be TermQuery'),
 
-  #('2012-06-02',
-  # 'Re-enable Java\'s compressed OOPS',
-  # 'Re-enable Java\'s compressed OOPS'),
+  ('2012-06-02',
+   'Re-enable Java\'s compressed OOPS',
+   'Re-enable Java\'s compressed OOPS'),
 
-  #('2012-06-06',
-  # 'Switched to Java 1.7.0_04',
-  # 'Switched to Java 1.7.0_04'),
+  ('2012-06-06',
+   'Switched to Java 1.7.0_04',
+   'Switched to Java 1.7.0_04'),
 
   ('2012-06-26',
    'Fixed silly performance bug in PKLookupTask.java',
@@ -206,7 +206,11 @@ KNOWN_CHANGES = [
 
   ('2013-01-17',
    'Facet performance improvements',
-   'Facet performance improvements: LUCENE-4686, LUCENE-4620, LUCENE-4602')
+   'Facet performance improvements: LUCENE-4686, LUCENE-4620, LUCENE-4602'),
+
+  ('2013-01-21',
+   'Facet performance improvements',
+   'Facet performance improvements: LUCENE-4600'),
    ]
 
 # TODO
@@ -730,7 +734,6 @@ def makeGraphs():
   #runCommand('rsync -arv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
   if not DEBUG:
-    #runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
     runCommand('rsync -arv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
   
 def header(w, title):
@@ -839,10 +842,10 @@ def writeKnownChanges(w):
   w('<br>')
   w('<b>Known changes:</b>')
   w('<ul>')
-  label = 'A'
+  label = 0
   for date, timestamp, desc, fullDesc in annotations:
-    w('<li><p><b>%s</b> (%s): %s</p>' % (label, date, fullDesc))
-    label = chr(ord(label)+1)
+    w('<li><p><b>%s</b> (%s): %s</p>' % (getLabel(label), date, fullDesc))
+    label += 1
   w('</ul>')
 
 def writeIndexingHTML(medChartData, bigChartData):
@@ -965,13 +968,14 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
       w('    {valueRange:[0,%.3f], title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY*1.25, title, yLabel))
   w('  );')
   w('  g_%s.setAnnotations([' % id)
-  label = 'A'
+  label = 0
   for date, timestamp, desc, fullDesc in annotations:
     w('    {')
     w('      series: "%s",' % series)
     w('      x: "%s",' % timestamp)
-    w('      shortText: "%s",' % label)
-    label = chr(ord(label)+1)
+    w('      shortText: "%s",' % getLabel(label))
+    w('      width: 20,')
+    label += 1
     w('      text: "%s",' % desc)
     w('    },')
   w('  ]);')
@@ -983,6 +987,13 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
       f.write('%s\n' % s)
     f.close()
   return '\n'.join(l)
+
+def getLabel(label):
+  if label < 26:
+    s = chr(65+label)
+  else:
+    s = '%s%s' % (chr(65+(label/26 - 1)), chr(65 + (label%26)))
+  return s
 
 def sendEmail(toEmailAddr, subject, messageText):
   try:

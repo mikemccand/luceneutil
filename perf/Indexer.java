@@ -203,7 +203,9 @@ public final class Indexer {
     }
 
     // Keep all commit points:
-    iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    if (doDeletions || doForceMerge) {
+      iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    }
 
     final Codec codec = new Lucene41Codec() {
       @Override

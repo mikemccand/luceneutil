@@ -20,7 +20,6 @@ package perf;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.lucene.facet.index.categorypolicy.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;

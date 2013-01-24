@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.index.FacetFields;
+import org.apache.lucene.facet.index.params.CategoryListParams.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
 //import org.apache.lucene.facet.index.params.DefaultFacetIndexingParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
@@ -226,16 +227,20 @@ public class LineFileDocs implements Closeable {
 
       if (facetWriter != null) {
         if (true) {
-          /*
           CategoryListParams clp = new CategoryListParams() {
+              /*
               @Override
               public IntEncoder createEncoder() {
                 return new SortingIntEncoder(new UniqueValuesIntEncoder(new DGapIntEncoder(new PackedIntEncoder())));
               }
+              */
+              @Override
+              public OrdinalPolicy getOrdinalPolicy() {
+                return OrdinalPolicy.NO_PARENTS;
+              }
             };
           FacetIndexingParams iParams = new FacetIndexingParams(clp);
-          */
-          FacetIndexingParams iParams = new FacetIndexingParams();
+          //FacetIndexingParams iParams = new FacetIndexingParams();
           /*
           FacetIndexingParams iParams = new FacetIndexingParams() {
               @Override

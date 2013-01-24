@@ -20,6 +20,7 @@ package perf;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.lucene.facet.index.params.CategoryListParams.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
@@ -61,16 +62,21 @@ class IndexState {
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
     this.taxoReader = taxoReader;
-    /*
     CategoryListParams clp = new CategoryListParams() {
+        /*
         @Override
         public IntEncoder createEncoder() {
           return new SortingIntEncoder(new UniqueValuesIntEncoder(new DGapIntEncoder(new PackedIntEncoder())));
         }
+        */
+
+        @Override
+        public OrdinalPolicy getOrdinalPolicy() {
+          return OrdinalPolicy.NO_PARENTS;
+        }
       };
     iParams = new FacetIndexingParams(clp);
-    */
-    iParams = new FacetIndexingParams();
+    //iParams = new FacetIndexingParams();
     /*
       iParams = new FacetIndexingParams() {
           // nocommit

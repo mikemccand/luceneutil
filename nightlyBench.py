@@ -211,6 +211,10 @@ KNOWN_CHANGES = [
   ('2013-01-21',
    'Facet performance improvements',
    'Facet performance improvements: LUCENE-4600'),
+
+  ('2013-01-24',
+   'Switched to NO_PARENTS faceting',
+   'Switched to NO_PARENTS faceting'),
    ]
 
 # TODO

@@ -204,6 +204,10 @@ KNOWN_CHANGES = [
    'LUCENE-4598: small optimizations to facet aggregation',
    'LUCENE-4598: small optimizations to facet aggregation'),
 
+  ('2013-01-11',
+   'LUCENE-4620: IntEncoder/Decoder bulk API',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4620">LUCENE-4620</a>: IntEncoder/Decoder bulk API'),
+
   ('2013-01-17',
    'Facet performance improvements',
    'Facet performance improvements: LUCENE-4686, LUCENE-4620, LUCENE-4602'),

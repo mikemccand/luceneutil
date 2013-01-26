@@ -126,6 +126,7 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/join/classes/java')
   CP.append(ROOT + '/lucene/build/facet/classes/test')
   CP.append(ROOT + '/lucene/build/facet/classes/java')
+  CP.append(ROOT + '/lucene/build/facet/classes/examples')
   CP.append(ROOT + '/lucene/build/suggest/classes/test')
   CP.append(ROOT + '/lucene/build/suggest/classes/java')
   CP.append(ROOT + '/lucene/build/sandbox/classes/test')

@@ -28,6 +28,7 @@ import sys
 import shutil
 import smtplib
 import re
+import random
 
 # local imports:
 import benchUtil
@@ -159,6 +160,10 @@ KNOWN_CHANGES = [
    'LUCENE-2858: Split IndexReader in AtomicReader and CompositeReader',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-2858">LUCENE-2858</a>: Split IndexReader in AtomicReader and CompositeReader'),
 
+  ('2012-03-18',
+   'LUCENE-3738: Be consistent about negative vInt/vLong',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-3738">LUCENE-3738</a>: Be consistent about negative vInt/vLong'),
+   
   ('2012-05-25',
    'LUCENE-4062: new aligned packed-bits implementations',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4062">LUCENE-4062</a>: new aligned packed-bits implementations'),
@@ -178,6 +183,34 @@ KNOWN_CHANGES = [
   ('2012-06-02',
    'Re-enable Java\'s compressed OOPS',
    'Re-enable Java\'s compressed OOPS'),
+
+  ('2012-06-06',
+   'Switched to Java 1.7.0_04',
+   'Switched to Java 1.7.0_04'),
+
+  ('2012-06-26',
+   'Fixed silly performance bug in PKLookupTask.java',
+   'Fixed silly performance bug in PKLookupTask.java'),
+
+  ('2012-10-06',
+   'Stopped overclocking the computer running benchmarks.',
+   'Stopped overclocking the computer running benchmarks.'),
+
+  ('2012-10-15',
+   'LUCENE-4446: switch to BlockPostingsFormat',
+   'LUCENE-4446: switch to BlockPostingsFormat'),
+
+  ('2012-12-10',
+   'LUCENE-4598: small optimizations to facet aggregation',
+   'LUCENE-4598: small optimizations to facet aggregation'),
+
+  ('2013-01-17',
+   'Facet performance improvements',
+   'Facet performance improvements: LUCENE-4686, LUCENE-4620, LUCENE-4602'),
+
+  ('2013-01-21',
+   'Facet performance improvements',
+   'Facet performance improvements: LUCENE-4600'),
    ]
 
 # TODO
@@ -290,7 +323,7 @@ def checkIndex(r, indexPath, checkLogFileName):
   cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex "%s" > %s 2>&1' % \
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
-         indexPath,
+         indexPath + '/index',
          checkLogFileName)
   runCommand(cmd)
   if open(checkLogFileName, 'rb').read().find('No problems were detected with this index') == -1:
@@ -304,7 +337,7 @@ def runNRTTest(r, indexPath, runLogDir):
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,
-         indexPath,
+         indexPath + '/index',
          MEDIUM_LINE_FILE,
          NRT_DOCS_PER_SECOND,
          NRT_RUN_TIME,
@@ -367,19 +400,22 @@ def run():
   else:
     runCommand('%s cleanup' % constants.SVN_EXE)
     iters = 30
-    for i in range(iters):
-      try:
-        runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
+    if True:
+      for i in range(iters):
+        try:
+          runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
+        except RuntimeError:
+          message('  retry...')
+          time.sleep(60.0)
+        else:
+          svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
+          print 'SVN rev is %s' % svnRev
+          break
       else:
-        svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-        print 'SVN rev is %s' % svnRev
-        break
+        raise RuntimeError('failed to run svn update after %d tries' % iters)
     else:
-      raise RuntimeError('failed to run svn update after %d tries' % iters)
-
+      svnRev = 1417276
+      print 'using canned svn rev %s' % svnRev
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
@@ -391,7 +427,8 @@ def run():
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
 
-  comp = competition.Competition()
+  comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
+                                 taskCountPerCat=COUNTS_PER_CAT)
 
   mediumSource = competition.Data('wikimedium',
                                   MEDIUM_LINE_FILE,
@@ -407,7 +444,9 @@ def run():
                                   ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                   waitForMerges=False,
                                   grouping=False,
-                                  mergePolicy='TieredMergePolicy')
+                                  verbose=False,
+                                  mergePolicy='TieredMergePolicy',
+                                  maxConcurrentMerges=3)
 
   bigSource = competition.Data('wikibig',
                                BIG_LINE_FILE,
@@ -423,7 +462,9 @@ def run():
                                ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                waitForMerges=False,
                                grouping=False,
-                               mergePolicy='TieredMergePolicy')
+                               verbose=False,
+                               mergePolicy='TieredMergePolicy',
+                               maxConcurrentMerges=3)
 
   # Must use only 1 thread so we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
@@ -432,13 +473,16 @@ def run():
                         numThreads=1,
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
-                        mergePolicy='LogDocMergePolicy')
+                        mergePolicy='LogDocMergePolicy',
+                        doFacets=True,
+                        maxConcurrentMerges=3)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
                       directory=DIR_IMPL,
                       analyzer='StandardAnalyzerNoStopWords',
-                      commitPoint='multi')
+                      commitPoint='multi',
+                      doFacets=True)
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
@@ -470,11 +514,10 @@ def run():
       # raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
       print 'WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow)
 
-  countPerCat = COUNTS_PER_CAT
-  repeatCount = TASK_REPEAT_COUNT
-
   # Search
-  randomSeed = 714
+  rand = random.Random(714)
+  staticSeed = rand.randint(-10000000, 1000000)
+  #staticSeed = -1492352
 
   message('search')
   t0 = now()
@@ -486,7 +529,8 @@ def run():
   if REAL:
     resultsNow = []
     for iter in xrange(JVM_COUNT):
-      resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, randomSeed, repeatCount, filter=None))
+      seed = rand.randint(-10000000, 1000000)      
+      resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
   else:
     resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in xrange(20)]
   message('done search (%s)' % (now()-t0))
@@ -547,6 +591,8 @@ def run():
              searchHeaps)
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
+    if os.path.exists(fname + '.stdout'):
+      shutil.copy(fname + '.stdout', runLogDir)
 
   if REAL:
     for fname in resultsNow:
@@ -623,6 +669,7 @@ def makeGraphs():
                          timeStamp.hour,
                          timeStamp.minute,
                          int(timeStamp.second))
+      date = '%02d/%02d/%04d' % (timeStamp.month, timeStamp.day, timeStamp.year)
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       mean, stdDev = nrtResults
@@ -636,6 +683,24 @@ def makeGraphs():
             qpsMult = 4000
           else:
             qpsMult = 1
+
+          if cat == 'TermDateFacets':
+            if date in ('01/03/2013', '01/04/2013', '01/05/2013'):
+              # Bug in luceneutil made facets not actually run correclty so QPS was way too high:
+              continue
+          if cat == 'Fuzzy1':
+            if date in ('05/06/2012',
+                        '05/07/2012',
+                        '05/08/2012',
+                        '05/09/2012',
+                        '05/10/2012',
+                        '05/11/2012',
+                        '05/12/2012',
+                        '05/13/2012',
+                        '05/14/2012'):
+              # Bug in FuzzyQuery made Fuzzy1 be exact search
+              continue
+            
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
       for date, desc, fullDesc in KNOWN_CHANGES:
@@ -669,8 +734,7 @@ def makeGraphs():
   #runCommand('rsync -arv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
   if not DEBUG:
-    #runCommand('rsync -arv -e ssh /lucene/reports.nightly/* mikemccand@people.apache.org:public_html/lucenebench')
-    runCommand('rsync -arv -e ssh %s/reports.nightly/* %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    runCommand('rsync -arv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
   
 def header(w, title):
   w('<html>')
@@ -778,10 +842,10 @@ def writeKnownChanges(w):
   w('<br>')
   w('<b>Known changes:</b>')
   w('<ul>')
-  label = 'A'
+  label = 0
   for date, timestamp, desc, fullDesc in annotations:
-    w('<li><p><b>%s</b> (%s): %s</p>' % (label, date, fullDesc))
-    label = chr(ord(label)+1)
+    w('<li><p><b>%s</b> (%s): %s</p>' % (getLabel(label), date, fullDesc))
+    label += 1
   w('</ul>')
 
 def writeIndexingHTML(medChartData, bigChartData):
@@ -904,13 +968,14 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
       w('    {valueRange:[0,%.3f], title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY*1.25, title, yLabel))
   w('  );')
   w('  g_%s.setAnnotations([' % id)
-  label = 'A'
+  label = 0
   for date, timestamp, desc, fullDesc in annotations:
     w('    {')
     w('      series: "%s",' % series)
     w('      x: "%s",' % timestamp)
-    w('      shortText: "%s",' % label)
-    label = chr(ord(label)+1)
+    w('      shortText: "%s",' % getLabel(label))
+    w('      width: 20,')
+    label += 1
     w('      text: "%s",' % desc)
     w('    },')
   w('  ]);')
@@ -922,6 +987,13 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
       f.write('%s\n' % s)
     f.close()
   return '\n'.join(l)
+
+def getLabel(label):
+  if label < 26:
+    s = chr(65+label)
+  else:
+    s = '%s%s' % (chr(65+(label/26 - 1)), chr(65 + (label%26)))
+  return s
 
 def sendEmail(toEmailAddr, subject, messageText):
   try:
@@ -942,7 +1014,7 @@ def sendEmail(toEmailAddr, subject, messageText):
     msg += 'To: %s\r\n' % toEmailAddr
     msg += 'Subject: %s\r\n' % subject
     msg += '\r\n'
-    smtp.sendmail('mail@mikemccandless.com', toEmailAddress.split(','), msg)
+    smtp.sendmail('mail@mikemccandless.com', toEmailAddr.split(','), msg)
     smtp.quit()
   else:
     from email.mime.text import MIMEText

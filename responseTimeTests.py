@@ -205,8 +205,8 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
   if pct is not None:
     logsDir += '.pct%s' % pct
 
-  if postingsFormat == 'Lucene40':
-    indexPath = LUCENE40_INDEX_PATH
+  if postingsFormat == 'Lucene41':
+    indexPath = LUCENE41_INDEX_PATH
   else:
     indexPath = DIRECT_INDEX_PATH
 
@@ -249,7 +249,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
   elif desc.find('G1') != -1:
     w('-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC')
 
-  if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene40':
+  if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene41':
     w('-Xmx4g')
   elif MAX_HEAP_GB is not None:
     w('-Xms%sg' % MAX_HEAP_GB)

@@ -30,12 +30,24 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
-import org.apache.lucene.document.*;
-import org.apache.lucene.index.*;
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.*;
-import org.apache.lucene.store.*;
-import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.NRTCachingDirectory;
+import org.apache.lucene.store.SimpleFSDirectory;
 import org.apache.lucene.util.Version;
 
 // cd /a/lucene/trunk/checkout
@@ -95,7 +107,7 @@ public class NRTPerfTest {
         final long startNS = System.nanoTime();
         final long stopNS = startNS + (long) (runTimeSec * 1000000000);
         //System.out.println("IW.maxDoc=" + maxDoc);
-        int count = 0;;
+        int count = 0;
         while(true) {
           count++;
           int maxDoc = w.maxDoc();
@@ -244,7 +256,7 @@ public class NRTPerfTest {
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {
@@ -277,7 +289,7 @@ public class NRTPerfTest {
 
     // Open an IW on the requested commit point, but, don't
     // delete other (past or future) commit points:
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, new StandardAnalyzer(Version.LUCENE_40))
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, new StandardAnalyzer(Version.LUCENE_50))
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
     //iwc.setMergeScheduler(ms);
 

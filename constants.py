@@ -26,17 +26,25 @@ BENCH_BASE_DIR = '%s/util' % BASE_DIR
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 #WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
 
-# wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k.txt.bz2
-WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k.txt' % BASE_DIR
-WIKI_MEDIUM_DOCS_COUNT = 24900504
+# wget http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
+WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
+WIKI_MEDIUM_DOCS_COUNT = 33332621
 
-WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/wikimedium.1M.tasks' % BENCH_BASE_DIR
+#WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
+#WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/wikimedium.1M.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_ALL_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR
+#WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
 WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
+
+# enwiki-20120502-lines-1k.txt has 33332620 docs
+# enwiki-20120502-lines.txt has 6726515 docs
+# enwiki-20130102-lines.txt has 6647577 docs
+WIKI_BIG_DOCS_COUNT = 6726515
 
 #WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
 
@@ -64,7 +72,7 @@ if 'ANALYZER' in locals():
 
 POSTINGS_FORMAT_DEFAULT='Lucene41'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT='Memory'
-ANALYZER_DEFAULT='StandardAnalyzerNoStopWords'
+ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='DefaultSimilarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 

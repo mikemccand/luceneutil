@@ -16,7 +16,6 @@ package perf;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -26,13 +25,23 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
+import org.apache.lucene.facet.index.FacetFields;
+import org.apache.lucene.facet.index.params.CategoryListParams;
+//import org.apache.lucene.facet.index.params.DefaultFacetIndexingParams;
+import org.apache.lucene.facet.index.params.FacetIndexingParams;
+import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.FieldInfo;
@@ -50,15 +59,19 @@ public class LineFileDocs implements Closeable {
   private final boolean bodyPostingsOffsets;
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
+  private final TaxonomyWriter facetWriter;
+  private String[] extraFacetFields;
 
-  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone,
+                      TaxonomyWriter facetWriter) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
     this.bodyPostingsOffsets = bodyPostingsOffsets;
     this.doClone = doClone;
-    open();
     this.doRepeat = doRepeat;
+    this.facetWriter = facetWriter;
+    open();
   }
 
   public long getBytesIndexed() {
@@ -70,8 +83,16 @@ public class LineFileDocs implements Closeable {
     reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
     String firstLine = reader.readLine();
     if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-      if (!firstLine.trim().equals("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body")) {
+      if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body") &&
+          !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
         throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+      }
+      if (facetWriter != null) {
+        String[] fields = firstLine.split("\t");
+        if (fields.length > 4) {
+          extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
+          System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
+        }
       }
       // Skip header
     } else {
@@ -159,8 +180,9 @@ public class LineFileDocs implements Closeable {
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
+    final FacetFields facetBuilder;
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, TaxonomyWriter facetWriter) {
       doc = new Document();
       
       title = new StringField("title", "", Field.Store.NO);
@@ -201,11 +223,48 @@ public class LineFileDocs implements Closeable {
 
       timeSec = new IntField("timesecnum", 0, Field.Store.NO);
       doc.add(timeSec);
+
+      if (facetWriter != null) {
+        if (true) {
+          /*
+          CategoryListParams clp = new CategoryListParams() {
+              @Override
+              public IntEncoder createEncoder() {
+                return new SortingIntEncoder(new UniqueValuesIntEncoder(new DGapIntEncoder(new PackedIntEncoder())));
+              }
+            };
+          FacetIndexingParams iParams = new FacetIndexingParams(clp);
+          */
+          FacetIndexingParams iParams = new FacetIndexingParams();
+          /*
+          FacetIndexingParams iParams = new FacetIndexingParams() {
+              @Override
+              public OrdinalPolicy getOrdinalPolicy() {
+                return OrdinalPolicy.NO_PARENTS;
+              }
+            };
+          */
+          facetBuilder = new FacetFields(facetWriter, iParams);
+        } else {
+          /*
+          facetBuilder = new CategoryDocumentBuilder(facetWriter,
+                                                     new DefaultFacetIndexingParams() {
+                                                       @Override
+                                                       protected OrdinalPolicy fixedOrdinalPolicy() {
+                                                         return OrdinalPolicy.NO_PARENTS;
+                                                       }
+                                                     });
+          */
+          facetBuilder = null;
+        }
+      } else {
+        facetBuilder = null;
+      }
     }
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, facetWriter);
   }
 
   // TODO: is there a pre-existing way to do this!!!
@@ -252,8 +311,6 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    bytesIndexed.addAndGet(line.length());
-
     int spot = line.indexOf(SEP);
     if (spot == -1) {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
@@ -262,8 +319,13 @@ public class LineFileDocs implements Closeable {
     if (spot2 == -1) {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
     }
+    int spot3 = line.indexOf(SEP, 1 + spot2);
+    if (spot3 == -1) {
+      spot3 = line.length();
+    }
+    bytesIndexed.addAndGet(spot3);
 
-    doc.body.setStringValue(line.substring(1+spot2, line.length()));
+    doc.body.setStringValue(line.substring(1+spot2, spot3));
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
     doc.titleDV.setBytesValue(new BytesRef(title));
@@ -282,6 +344,59 @@ public class LineFileDocs implements Closeable {
     doc.dateCal.setTime(date);
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
+
+    if (doc.facetBuilder != null) {
+      // TODO: is there a way to "reuse" a field w/ facets
+      doc.doc.removeFields(CategoryListParams.DEFAULT_FIELD);
+      List<CategoryPath> paths;
+
+      CategoryPath dateCP = new CategoryPath("Date",
+                                             ""+doc.dateCal.get(Calendar.YEAR),
+                                             ""+doc.dateCal.get(Calendar.MONTH),
+                                             ""+doc.dateCal.get(Calendar.DAY_OF_MONTH));
+      
+      //doc.doc.add(new DocValuesFacetField(paths, facetWriter));
+      if (extraFacetFields != null) {
+        paths = new ArrayList<CategoryPath>();
+        paths.add(dateCP);
+        String[] values = line.substring(spot3+1, line.length()).split("\t");
+        for(int i=0;i<extraFacetFields.length;i++) {
+          String fieldName = extraFacetFields[i];
+          if (fieldName.equals("categories")) {
+            for(String cat : values[i].split("\\|")) {
+              paths.add(new CategoryPath("categories", cat));
+            }
+          } else if (fieldName.equals("characterCount")) {
+
+            // Make number drilldown hierarchy, so eg 1877
+            // characters is under
+            // 0-1M/0-100K/0-10K/1-2K/1800-1900:
+            List<String> nodes = new ArrayList<String>();
+            nodes.add(fieldName);
+            int value = Integer.parseInt(values[i]);
+            int accum = 0;
+            int base = 1000000;
+            while(base > 100) {
+              int factor = (value-accum) / base;
+              nodes.add(String.format("%d - %d", accum+factor*base, accum+(factor+1)*base));
+              accum += factor * base;
+              base /= 10;
+            }
+            //System.out.println("value=" + values[i] + "; node=" + nodes);
+            paths.add(new CategoryPath(nodes.toArray(new String[nodes.size()])));
+          } else {
+            paths.add(new CategoryPath(fieldName, values[i]));
+          }
+        }
+      } else {
+        // Just date facet field:
+        paths = Collections.singletonList(dateCP);
+      }
+      //System.out.println("add " + paths.size() + " facets: " + paths);
+
+      doc.facetBuilder.addFields(doc.doc, paths);
+      //System.out.println("after build: " + doc.doc);
+    }
 
     if (doClone) {
       return cloneDoc(doc.doc);

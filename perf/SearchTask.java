@@ -19,10 +19,26 @@ package perf;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.facet.search.CountingFacetsCollector;
+import org.apache.lucene.facet.search.FacetArrays;
+import org.apache.lucene.facet.search.FacetsCollector;
+import org.apache.lucene.facet.search.StandardFacetsCollector;
+import org.apache.lucene.facet.search.aggregator.Aggregator;
+import org.apache.lucene.facet.search.params.CountFacetRequest;
+import org.apache.lucene.facet.search.params.FacetRequest;
+import org.apache.lucene.facet.search.params.FacetSearchParams;
+import org.apache.lucene.facet.search.results.FacetResult;
+import org.apache.lucene.facet.search.results.FacetResultNode;
+import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.taxonomy.TaxonomyReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.StorableField;
 import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
@@ -35,6 +51,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
+import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.grouping.BlockGroupingCollector;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
@@ -61,17 +78,27 @@ final class SearchTask extends Task {
   private final boolean singlePassGroup;
   private final boolean doCountGroups;
   private final boolean doHilite;
+  private final boolean doDateFacets;
+  private final boolean doAllFacets;
+  private final boolean doStoredLoads;
+
   private TopDocs hits;
   private TopGroups<?> groupsResultBlock;
   private TopGroups<BytesRef> groupsResultTerms;
   private FieldQuery fieldQuery;
   private Highlighter highlighter;
+  private List<FacetResult> facets;
+  private double hiliteMsec;
+  private double getFacetResultsMsec;
 
-  public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN, boolean doHilite) {
+  public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
+                    boolean doHilite, boolean doDateFacets, boolean doAllFacets, boolean doStoredLoads) {
     this.category = category;
     this.q = q;
     this.s = s;
     this.f = f;
+    this.doDateFacets = doDateFacets;
+    this.doAllFacets = doAllFacets;
     if (group != null && group.startsWith("groupblock")) {
       this.group = "groupblock";
       this.singlePassGroup = group.equals("groupblock1pass");
@@ -83,6 +110,7 @@ final class SearchTask extends Task {
     }
     this.topN = topN;
     this.doHilite = doHilite;
+    this.doStoredLoads = doStoredLoads;
   }
 
   @Override
@@ -92,9 +120,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
     }
   }
 
@@ -167,6 +195,77 @@ final class SearchTask extends Task {
             }
           }
         }
+      } else if ((doDateFacets || doAllFacets) && state.taxoReader != null) {
+        // TODO: support sort, filter too!!
+        /*
+        FacetSearchParams fsp = new FacetSearchParams(state.iParams);
+        fsp.setClCache(state.clCache);
+        */
+        /*
+        FacetSearchParams fsp = new FacetSearchParams();
+        if (false && state.fastHighlighter != null) {
+          fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10) {
+              @Override
+              public Aggregator createAggregator(boolean useComplements,
+                                                 FacetArrays arrays, IndexReader reader,
+                                                 TaxonomyReader taxonomy) {
+                //System.out.println("NO PARENTS AGG");
+                try {
+                  return new NoParentsCountingAggregator(taxonomy, arrays.getIntArray());
+                } catch (IOException ioe) {
+                  throw new RuntimeException(ioe);
+                }
+              }
+            });
+        } else {
+          fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10));
+        }
+        Collector facetsCollector;
+        if (state.fastHighlighter == null) {
+          facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        } else {
+          facetsCollector = new DocValuesFacetsCollector(fsp, state.taxoReader);
+        }
+        */
+
+        List<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
+        facetRequests.add(new CountFacetRequest(new CategoryPath("Date"), 10));
+        // TODO: parse these fields names from the task instead...
+        if (doAllFacets) {
+          facetRequests.add(new CountFacetRequest(new CategoryPath("categories"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("username"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("characterCount"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("imageCount"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("sectionCount"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("subSectionCount"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("subSubSectionCount"), 10));
+          facetRequests.add(new CountFacetRequest(new CategoryPath("refCount"), 10));
+        }
+
+        FacetSearchParams fsp = new FacetSearchParams(facetRequests, state.iParams);
+        FacetsCollector facetsCollector;
+        if (true || state.fastHighlighter != null) {
+          //facetsCollector = new DecoderCountingFacetsCollector(fsp, state.taxoReader);
+          //facetsCollector = new PostCollectionCountingFacetsCollector(fsp, state.taxoReader);
+          facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
+        } else {
+          //facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
+          facetsCollector = new StandardFacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        }
+        // TODO: determine in order by the query...?
+        TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
+        searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
+        hits = hitsCollector.topDocs();
+        long t0 = System.nanoTime();
+        /*
+        if (state.fastHighlighter != null) {
+          facets = ((DecoderCountingFacetsCollector) facetsCollector).getFacetResults();
+        } else {
+          facets = ((FacetsCollector) facetsCollector).getFacetResults();
+        }
+        */
+        facets = facetsCollector.getFacetResults();
+        getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
       } else if (s == null && f == null) {
         hits = searcher.search(q, topN);
         if (doHilite) {
@@ -197,6 +296,17 @@ final class SearchTask extends Task {
       }
       if (hits != null) {
         totalHitCount = hits.totalHits;
+
+        if (doStoredLoads) {
+          for (int i = 0; i < hits.scoreDocs.length; i++) {
+            ScoreDoc scoreDoc = hits.scoreDocs[i];
+            StoredDocument doc = searcher.doc(scoreDoc.doc);
+            for (StorableField field : doc) {
+              field.stringValue();
+            }
+          }
+        }
+
       } else if (groupsResultBlock != null) {
         totalHitCount = groupsResultBlock.totalHitCount;
       }
@@ -220,27 +330,43 @@ final class SearchTask extends Task {
   }
 
   private void hilite(TopDocs hits, IndexState indexState, IndexSearcher searcher, Query query) throws IOException {
-    //System.out.println("hilite: " + q + " sort=" + s + " totalHits=" + hits.totalHits);
+    long t0 = System.nanoTime();
     if (indexState.fastHighlighter != null || indexState.useHighlighter) {
       for(ScoreDoc sd : hits.scoreDocs) {
         hilite(sd.doc, indexState, searcher);
       }
+      //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
     } else {
-      //indexState.postingsHighlighter.highlight(query, searcher, hits);
+      // TODO: why is this one finding 2 frags when the others find 1?
+      String[] frags = indexState.postingsHighlighter.highlight(indexState.textFieldName, query, searcher, hits, 2);
+      //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
+      for(int hit=0;hit<frags.length;hit++) {
+        String frag = frags[hit];
+        //System.out.println("\nhilite title=" + searcher.doc(hits.scoreDocs[hit].doc).get("titleTokenized") + " query=" + q);
+        //System.out.println("  frag: " + frag);
+        if (frag != null) {
+          // It's fine for frag to be null: it's a
+          // placeholder, meaning this hit had no hilite
+          totHiliteHash += frag.hashCode();
+        }
+      }
     }
+    long t1 = System.nanoTime();
+    hiliteMsec = (t1-t0)/1000000.0;
   }
 
   public int totHiliteHash;
 
   private void hilite(int docID, IndexState indexState, IndexSearcher searcher) throws IOException {
+    //System.out.println("\nhilite title=" + searcher.doc(docID).get("titleTokenized") + " query=" + q);
     if (indexState.fastHighlighter != null) {
       for(String h : indexState.fastHighlighter.getBestFragments(fieldQuery,
                                                                  searcher.getIndexReader(), docID,
                                                                  indexState.textFieldName,
-                                                                 100, 6)) {
+                                                                 100, 2)) {
         totHiliteHash += h.hashCode();
+        //System.out.println("  frag: " + h);
       }
-      //System.out.println("h=" + h + " q=" + q + " doc=" + docID + " title=" + searcher.doc(docID).get("title"));
     } else {
       StoredDocument doc = searcher.doc(docID);
       String text = doc.get(indexState.textFieldName);
@@ -249,7 +375,7 @@ final class SearchTask extends Task {
       TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), docID, indexState.textFieldName, null);
       TextFragment[] frags;
       try {
-        frags = highlighter.getBestTextFragments(tokenStream, text, false, 6);
+        frags = highlighter.getBestTextFragments(tokenStream, text, false, 2);
       } catch (InvalidTokenOffsetsException ioe) {
         throw new RuntimeException(ioe);
       }
@@ -257,7 +383,7 @@ final class SearchTask extends Task {
       //int fragCount = 0;
       for (int j = 0; j < frags.length; j++) {
         if (frags[j] != null && frags[j].getScore() > 0) {
-          //System.out.println(frags[j].toString());
+          //System.out.println("  frag " + j + ": " + frags[j].toString());
           totHiliteHash += frags[j].toString().hashCode();
           //fragCount++;
         }
@@ -419,6 +545,27 @@ final class SearchTask extends Task {
       for(ScoreDoc hit : hits.scoreDocs) {
         out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
       }
+    }
+
+    if (hiliteMsec > 0) {
+      out.println(String.format("  hilite time %.4f msec", hiliteMsec));
+    }
+    if (getFacetResultsMsec > 0) {
+      out.println(String.format("  getFacetResults time %.4f msec", getFacetResultsMsec));
+    }
+
+    if (facets != null) {
+      out.println("  facets:");
+      for(FacetResult fr : facets) {
+        printFacets(0, out, fr.getFacetResultNode(), "    ");
+      }
+    }
+  }
+
+  private void printFacets(int depth, PrintStream out, FacetResultNode node, String indent) {
+    out.println(indent + " " + node.label + " (" + (int) node.value + ")");
+    for(FacetResultNode childNode : node.subResults) {
+      printFacets(depth+1, out, childNode, indent + "  ");
     }
   }
 }

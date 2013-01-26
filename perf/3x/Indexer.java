@@ -19,7 +19,6 @@ package perf;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,12 +33,26 @@ import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.CharArraySet;
-import org.apache.lucene.document.*;
-import org.apache.lucene.index.*;
-import org.apache.lucene.search.*;
-import org.apache.lucene.store.*;
-import org.apache.lucene.util.*;
+import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogByteSizeMergePolicy;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.LogMergePolicy;
+import org.apache.lucene.index.MergePolicy;
+import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.util.LineFileDocs;
+import org.apache.lucene.util.Version;
+import org.apache.lucene.util._TestUtil;
 
 // javac -Xlint:deprecation -cp build/core/classes/java:build/test-framework/classes/java:build/core/classes/test:build/contrib/analyzers/common/classes/java:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
@@ -372,7 +385,7 @@ public final class Indexer {
         }
         int numDocs = count.get();
 
-        double current = (double) (numDocs - lastCount);
+        double current = numDocs - lastCount;
         long now = System.currentTimeMillis();
         double seconds = (now-time) / 1000.0d;
         System.out.println("ingest: " + (current / seconds) + " " + (now - start));

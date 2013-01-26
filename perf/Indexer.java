@@ -38,6 +38,8 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
 import org.apache.lucene.document.*;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
+import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.*;
@@ -46,28 +48,35 @@ import org.apache.lucene.util.*;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
-// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doFullMerge:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
-
-// EG:
-//
-//  java -cp .:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf.Indexer NIOFSDirectory /lucene/indices/test ShingleStandardAnalyzer /p/lucene/data/enwiki-20110115-lines.txt 1000000 6 no yes 256.0 -1 Standard no no yes TieredMergePolicy no yes yes no
-
 public final class Indexer {
 
   public static void main(String[] clArgs) throws Exception {
 
     Args args = new Args(clArgs);
 
+    final boolean doFacets = args.getFlag("-facets");
+
     final String dirImpl = args.getString("-dirImpl");
-    final String dirPath = args.getString("-indexPath");
+    final String dirPath = args.getString("-indexPath") + "/index";
+    final String facetsDirPath = args.getString("-indexPath") + "/facets";
 
     final Directory dir;
+    Directory facetsDir = null;
     if (dirImpl.equals("MMapDirectory")) {
       dir = new MMapDirectory(new File(dirPath));
+      if (doFacets) {
+        facetsDir = new MMapDirectory(new File(facetsDirPath));
+      }
     } else if (dirImpl.equals("NIOFSDirectory")) {
       dir = new NIOFSDirectory(new File(dirPath));
+      if (doFacets) {
+        facetsDir = new NIOFSDirectory(new File(facetsDirPath));
+      }
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir = new SimpleFSDirectory(new File(dirPath));
+      if (doFacets) {
+        facetsDir = new SimpleFSDirectory(new File(facetsDirPath));
+      }
     } else {
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
@@ -75,13 +84,16 @@ public final class Indexer {
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_40);
+      a = new EnglishAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40);
+      a = new StandardAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50),
+                                     2, 2);
+    } else if (analyzer.equals("ShingleStandardAnalyzerNoStopWords")) {
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
                                      2, 2);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -111,6 +123,7 @@ public final class Indexer {
     final boolean storeBody = args.getFlag("-store");
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
+    final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -138,12 +151,15 @@ public final class Indexer {
     System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
+    System.out.println("Facets: " + (doFacets ? "yes" : "no"));
+    System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
+    System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, a);
 
     if (doUpdate) {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
@@ -154,10 +170,11 @@ public final class Indexer {
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
 
+    // Increase number of concurrent merges since we are on SSD:
     ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
     iwc.setMergeScheduler(cms);
-    cms.setMaxThreadCount(1);
-    cms.setMaxMergeCount(2);
+    cms.setMaxMergeCount(maxConcurrentMerges+2);
+    cms.setMaxThreadCount(maxConcurrentMerges);
 
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
@@ -174,7 +191,6 @@ public final class Indexer {
       tmp.setMaxMergedSegmentMB(1000000.0);
       tmp.setUseCompoundFile(useCFS);
       tmp.setNoCFSRatio(1.0);
-      System.out.println("CFS=" + useCFS);
       mp = null;
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
@@ -187,7 +203,9 @@ public final class Indexer {
     }
 
     // Keep all commit points:
-    iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    if (doDeletions || doForceMerge) {
+      iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    }
 
     final Codec codec = new Lucene41Codec() {
       @Override
@@ -202,11 +220,17 @@ public final class Indexer {
     System.out.println("IW config=" + iwc);
 
     final IndexWriter w = new IndexWriter(dir, iwc);
+    final TaxonomyWriter facetWriter;
+    if (doFacets) {
+      facetWriter = new DirectoryTaxonomyWriter(facetsDir, IndexWriterConfig.OpenMode.CREATE);
+    } else {
+      facetWriter = null;
+    }
 
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    IndexThreads threads = new IndexThreads(random, w, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
+    IndexThreads threads = new IndexThreads(random, w, facetWriter, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
                                             numThreads, docCountLimit, addGroupingFields, printDPS,
                                             doUpdate, -1.0f, false);
 
@@ -243,7 +267,8 @@ public final class Indexer {
 
     final Map<String,String> commitData = new HashMap<String,String>();
     commitData.put("userData", "multi");
-    w.commit(commitData);
+    w.setCommitData(commitData);
+    w.commit();
     final long t3 = System.currentTimeMillis();
     System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
 
@@ -253,7 +278,8 @@ public final class Indexer {
       System.out.println("\nIndexer: force merge done (took " + (t4-t3) + " msec)");
 
       commitData.put("userData", "single");
-      w.commit(commitData);
+      w.setCommitData(commitData);
+      w.commit();
       final long t5 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit single done (took " + (t5-t4) + " msec)");
     }
@@ -276,13 +302,20 @@ public final class Indexer {
       System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
       commitData.put("userData", doForceMerge ? "delsingle" : "delmulti");
-      w.commit(commitData);
+      w.setCommitData(commitData);
+      w.commit();
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
 
       if (doUpdate || w.numDocs() != maxDoc - toDeleteCount) {
         throw new RuntimeException("count mismatch: w.numDocs()=" + w.numDocs() + " but expected " + (maxDoc - toDeleteCount));
       }
+    }
+
+    if (facetWriter != null) {
+      System.out.println("Taxonomy has " + facetWriter.getSize() + " ords");
+      facetWriter.commit();
+      facetWriter.close();
     }
 
     System.out.println("\nIndexer: at close: " + w.segString());

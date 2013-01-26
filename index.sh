@@ -2,15 +2,24 @@
 
 # You must set $LUCENE_HOME to /path/to/checkout/lucene:
 
-LUCENE_HOME=/l/40.azul.ga/lucene
+LUCENE_HOME=/l/lucene.trunk2/lucene
+
+#./compile.sh
+
+
+
+INDEX_PATH=/s2/scratch/indices/test.big
 LINE_DOCS_FILE=/lucenedata/enwiki/enwiki-20120502-lines-1k.txt
+
 THREAD_COUNT=6
 
-#DOC_COUNT_LIMIT=33332620
-#MAX_BUFFERED_DOCS=60058
+DOC_COUNT_LIMIT=33332620
+MAX_BUFFERED_DOCS=60058
+#MAX_BUFFERED_DOCS=-1
 
-DOC_COUNT_LIMIT=1000000
-MAX_BUFFERED_DOCS=2703
+#DOC_COUNT_LIMIT=1000000
+#MAX_BUFFERED_DOCS=2703
+#MAX_BUFFERED_DOCS=-1
 
 #DOC_COUNT_LIMIT=6000000
 #MAX_BUFFERED_DOCS=21622
@@ -18,10 +27,7 @@ MAX_BUFFERED_DOCS=2703
 JAVA=/usr/local/src/jdk1.7.0_07/bin/java
 
 HEAP=-Xmx2g
-PF=Lucene40
-INDEX_PATH=/s2/indices/Lucene40.1M
-#PF=Direct
-#INDEX_PATH=/l/scratch/indices/Direct.1M
+PF=Lucene41
 
 #LUCENE_HOME=/localhome/lucene4x/lucene
 #INDEX_PATH=/localhome/indices/direct.1M
@@ -33,19 +39,25 @@ INDEX_PATH=/s2/indices/Lucene40.1M
 #HEAP=-Xmx400g
 #PF=Lucene40
 
-$JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
+$JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/facet/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.Indexer \
     -indexPath $INDEX_PATH \
-    -dirImpl MMapDirectory \
-    -analyzer EnglishAnalyzer \
+    -dirImpl NIOFSDirectory \
+    -analyzer StandardAnalyzer \
     -lineDocsFile $LINE_DOCS_FILE \
     -docCountLimit $DOC_COUNT_LIMIT \
     -threadCount $THREAD_COUNT \
-    -ramBufferMB 1024 \
+    -ramBufferMB 1800 \
     -maxBufferedDocs $MAX_BUFFERED_DOCS \
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
     -waitForMerges \
     -mergePolicy LogDocMergePolicy \
-    -verbose \
-    -store \
-    -tvs
+    -tvs \
+    -verbose
+
+    #-dateFacets
+
+
+#rm -rf /q/lucene/indices/test.10M
+
+#java -Xms10g -Xmx10g -server -classpath "$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/core/classes/test:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/contrib/misc/classes/java:$LUCENE_HOME/build/facet/classes/java:$LUCENE_HOME/test-framework/lib/ant-1.8.2.jar:$LUCENE_HOME/test-framework/lib/junit-4.10.jar:$LUCENE_HOME/test-framework/lib/randomizedtesting-runner-2.0.4.jar:$LUCENE_HOME/test-framework/lib/junit4-ant-2.0.4.jar:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/analysis/icu/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/grouping/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:/lucene/util.trunk" perf.Indexer -dirImpl MMapDirectory -indexPath "/q/lucene/indices/wikimedium10m.clean2.svn.facets.Lucene41.nd10M" -analyzer StandardAnalyzerNoStopWords -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt -docCountLimit 10000000 -threadCount 12 -ramBufferMB 350 -maxBufferedDocs -1 -postingsFormat Lucene41 -waitForMerges -mergePolicy LogDocMergePolicy -dateFacets -idFieldPostingsFormat Lucene41

@@ -48,17 +48,20 @@ class TaskParser {
   private final Sort titleDVSort;
   private final int topN;
   private final Random random;
+  private final boolean doStoredLoads;
 
-  public TaskParser(QueryParser queryParser,
+    public TaskParser(QueryParser queryParser,
                     String fieldName,
                     Map<Double,Filter> filters,
                     int topN,
-                    Random random) {
+                    Random random,
+                    boolean doStoredLoads) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.filters = filters;
     this.topN = topN;
     this.random = random;
+    this.doStoredLoads = doStoredLoads;
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
@@ -98,11 +101,27 @@ class TaskParser {
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         filter = filters.get(filterPct);
         if (filter == null) {
-	  filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()), true);
+	  filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()));
           filters.put(filterPct, filter);
         }
       } else {
         filter = null;
+      }
+
+      final boolean doDateFacets;
+      final boolean doAllFacets;
+
+      if (text.indexOf("+dateFacets") != -1) {
+        doDateFacets = true;
+        doAllFacets = false;
+        text = text.replace("+dateFacets", "");
+      } else if (text.indexOf("+allFacets") != -1) {
+        doDateFacets = false;
+        doAllFacets = true;
+        text = text.replace("+allFacets", "");
+      } else {
+        doDateFacets = false;
+        doAllFacets = false;
       }
 
       final Sort sort;
@@ -110,9 +129,14 @@ class TaskParser {
       final String group;
       final boolean doHilite;
 
+      boolean doStoredLoads = this.doStoredLoads;
+
       if (text.startsWith("hilite//")) {
         doHilite = true;
         text = text.substring(8);
+
+        // Highlighting does its own loading
+        doStoredLoads = false;
       } else {
         doHilite = false;
       }
@@ -124,7 +148,7 @@ class TaskParser {
         }
         query = new SpanNearQuery(
                                   new SpanQuery[] {new SpanTermQuery(new Term(fieldName, text.substring(6, spot3))),
-                                                   new SpanTermQuery(new Term(fieldName, text.substring(1+spot3)))},
+                                                   new SpanTermQuery(new Term(fieldName, text.substring(spot3+1).trim()))},
                                   10,
                                   true);
         sort = null;
@@ -199,7 +223,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
     }
 
     return task;

@@ -46,6 +46,8 @@ final class RespellTask extends Task {
     } finally {
       state.mgr.release(searcher);
     }
+    //System.out.println("term=" + term); 
+    //printResults(System.out, state);
   }
 
   @Override

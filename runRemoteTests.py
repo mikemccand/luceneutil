@@ -127,7 +127,11 @@ class Remote(threading.Thread):
       elif command == 'RESUL':
         numBytes = int(p.stdout.read(8))
         job, msec, errors = cPickle.loads(p.stdout.read(numBytes))
-        self.runningJobs.remove(job)
+        try:
+          self.runningJobs.remove(job)
+        except KeyError:
+          # TODO: fix this correctly!
+          pass
         if len(errors) != 0:
 
           s = '\n\nFAILURE: %s on host %s' % (job, self.hostName)
@@ -214,6 +218,8 @@ FLAKY_TESTS = set([
   'org.apache.solr.update.SolrCmdDistributorTest',
   ])
 
+DO_REPEAT = '-repeat' in sys.argv
+
 class Jobs:
 
   def __init__(self, tests):
@@ -223,6 +229,10 @@ class Jobs:
 
   def nextJob(self):
     with self.lock:
+      if DO_REPEAT and self.upto == len(self.tests):
+        sys.stdout.write('X')
+        self.upto = 0
+
       if self.upto == len(self.tests):
         #msg('no more tests')
         test = None

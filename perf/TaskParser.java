@@ -108,21 +108,25 @@ class TaskParser {
         filter = null;
       }
 
-      final boolean doDateFacets;
-      final boolean doAllFacets;
-
-      if (text.indexOf("+dateFacets") != -1) {
-        doDateFacets = true;
-        doAllFacets = false;
-        text = text.replace("+dateFacets", "");
-      } else if (text.indexOf("+allFacets") != -1) {
-        doDateFacets = false;
-        doAllFacets = true;
-        text = text.replace("+allFacets", "");
-      } else {
-        doDateFacets = false;
-        doAllFacets = false;
+      /*
+      final List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+      while (true) {
+        int i = text.indexOf("+facets:");
+        if (i == -1) {
+          break;
+        }
+        int j = text.indexOf(" ");
+        if (j == -1) {
+          j = text.size();
+        }
+        facetGroups.add(LineFileDocs.parseFacetGroup(text.substring(i, j)));
+        text = text.substring(0, i) + text.substring(j);
       }
+
+      if (facetGroups.size() > 1) {
+        throw new IllegalArgumentException("can only run one facet CLP per query for now");
+      }
+      */
 
       final Sort sort;
       final Query query;
@@ -223,7 +227,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doStoredLoads);
     }
 
     return task;

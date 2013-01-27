@@ -25,6 +25,7 @@ import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.facet.index.params.FacetIndexingParams;
 import org.apache.lucene.facet.search.CountingFacetsCollector;
 import org.apache.lucene.facet.search.FacetArrays;
 import org.apache.lucene.facet.search.FacetsCollector;
@@ -78,8 +79,6 @@ final class SearchTask extends Task {
   private final boolean singlePassGroup;
   private final boolean doCountGroups;
   private final boolean doHilite;
-  private final boolean doDateFacets;
-  private final boolean doAllFacets;
   private final boolean doStoredLoads;
 
   private TopDocs hits;
@@ -92,13 +91,11 @@ final class SearchTask extends Task {
   private double getFacetResultsMsec;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
-                    boolean doHilite, boolean doDateFacets, boolean doAllFacets, boolean doStoredLoads) {
+                    boolean doHilite, boolean doStoredLoads) {
     this.category = category;
     this.q = q;
     this.s = s;
     this.f = f;
-    this.doDateFacets = doDateFacets;
-    this.doAllFacets = doAllFacets;
     if (group != null && group.startsWith("groupblock")) {
       this.group = "groupblock";
       this.singlePassGroup = group.equals("groupblock1pass");
@@ -120,9 +117,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads);
     }
   }
 
@@ -195,7 +192,7 @@ final class SearchTask extends Task {
             }
           }
         }
-      } else if ((doDateFacets || doAllFacets) && state.taxoReader != null) {
+      } else if (!state.facetGroups.isEmpty() && state.taxoReader != null) {
         // TODO: support sort, filter too!!
         /*
         FacetSearchParams fsp = new FacetSearchParams(state.iParams);
@@ -228,42 +225,24 @@ final class SearchTask extends Task {
         }
         */
 
-        List<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
-        facetRequests.add(new CountFacetRequest(new CategoryPath("Date"), 10));
-        // TODO: parse these fields names from the task instead...
-        if (doAllFacets) {
-          facetRequests.add(new CountFacetRequest(new CategoryPath("categories"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("username"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("characterCount"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("imageCount"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("sectionCount"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("subSectionCount"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("subSubSectionCount"), 10));
-          facetRequests.add(new CountFacetRequest(new CategoryPath("refCount"), 10));
-        }
+        // TODO: allow more than once facet group per query?
+        // how (while still using CountingFacetCollector)!?
+        assert state.facetGroups.size() == 1;
+        FacetGroup fg = state.facetGroups.get(0);
 
-        FacetSearchParams fsp = new FacetSearchParams(facetRequests, state.iParams);
-        FacetsCollector facetsCollector;
-        if (true || state.fastHighlighter != null) {
-          //facetsCollector = new DecoderCountingFacetsCollector(fsp, state.taxoReader);
-          //facetsCollector = new PostCollectionCountingFacetsCollector(fsp, state.taxoReader);
-          facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
-        } else {
-          //facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
-          facetsCollector = new StandardFacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
+        List<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
+        FacetIndexingParams fip = new FacetIndexingParams(fg.clp);
+        for(String field : fg.fields) {
+          facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
         }
+        FacetSearchParams fsp = new FacetSearchParams(facetRequests, fip);
+        FacetsCollector facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
+
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
         searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
         hits = hitsCollector.topDocs();
         long t0 = System.nanoTime();
-        /*
-        if (state.fastHighlighter != null) {
-          facets = ((DecoderCountingFacetsCollector) facetsCollector).getFacetResults();
-        } else {
-          facets = ((FacetsCollector) facetsCollector).getFacetResults();
-        }
-        */
         facets = facetsCollector.getFacetResults();
         getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
       } else if (s == null && f == null) {

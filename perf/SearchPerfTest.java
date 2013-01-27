@@ -26,6 +26,7 @@ package perf;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,9 +71,9 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FileSwitchDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.MMapDirectory;
-//import org.apache.lucene.store.NativePosixMMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.NRTCachingDirectory;
+//import org.apache.lucene.store.NativePosixMMapDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SimpleFSDirectory;
 import org.apache.lucene.util.Constants;
@@ -371,7 +372,7 @@ public class SearchPerfTest {
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
-      IndexThreads threads = new IndexThreads(new Random(17), writer, null, lineDocsFile, storeBody, tvsBody,
+      IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, lineDocsFile, storeBody, tvsBody,
                                               false,
                                               indexThreadCount, -1,
                                               false, false, true, docsPerSecPerThread, cloneDocs);
@@ -455,11 +456,24 @@ public class SearchPerfTest {
 
     //System.out.println("searcher=" + searcher);
 
+    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+    if (doFacets) {
+      // EG: -facetGroup onlyDate:noparents:Date -facetGroup hierarchies:allparents:Date,characterCount ...
+      for(String arg: args.getStrings("-facetGroup")) {
+        facetGroups.add(new FacetGroup(arg));
+      }
+
+      if (facetGroups.size() != 1) {
+        // TODO: fix this limitation!
+        throw new IllegalArgumentException("can only run with one facet group now");
+      }
+    }
+
     final Random staticRandom = new Random(staticRandomSeed);
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl);
+    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetGroups);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);

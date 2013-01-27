@@ -17,7 +17,9 @@ package perf;
  * limitations under the License.
  */
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Args {
@@ -40,6 +42,23 @@ public class Args {
     }
 
     throw new RuntimeException("missing required argument: " + argName);
+  }
+
+  public List<String> getStrings(String argName) {
+    List<String> values = new ArrayList<String>();
+    for(int upto=0;upto<args.length;upto++) {
+      if (args[upto].equals(argName)) {
+        if (upto == args.length-1) {
+          throw new RuntimeException("missing value for argument " + argName);
+        }
+        used.put(argName, true);
+        values.add(args[1+upto]);
+      }
+    }
+    if (values.size() == 0) {
+      throw new RuntimeException("missing required argument: " + argName);
+    }
+    return values;
   }
 
   public String getString(String argName, String defaultValue) {

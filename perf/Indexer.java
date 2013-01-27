@@ -129,6 +129,16 @@ public final class Indexer {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
     }
 
+    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+    if (doFacets) {
+      // EG: -facetGroup onlyDate:Date -facetGroup hierarchies:Date,characterCount ...
+      for(String arg : args.getStrings("-facetGroup")) {
+        facetGroups.add(new FacetGroup(arg));
+      }
+    } else {
+      facetGroups = null;
+    }
+
     args.check();
 
     System.out.println("Dir: " + dirImpl);
@@ -152,6 +162,9 @@ public final class Indexer {
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
     System.out.println("Facets: " + (doFacets ? "yes" : "no"));
+    if (doFacets) {
+      System.out.println("Facet groups: " + facetGroups);
+    }
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     
@@ -230,7 +243,7 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    IndexThreads threads = new IndexThreads(random, w, facetWriter, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
+    IndexThreads threads = new IndexThreads(random, w, facetWriter, facetGroups, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
                                             numThreads, docCountLimit, addGroupingFields, printDPS,
                                             doUpdate, -1.0f, false);
 

@@ -696,6 +696,8 @@ class RunAlgs:
 
       if index.doFacets:
         w('-facets')
+        for fg in index.facetGroups:
+          w('-facetGroup %s' % fg)
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
@@ -848,16 +850,17 @@ class RunAlgs:
     else:
       doSort = ''
 
-    if c.doFacets:
+    if c.facetGroups is not None:
       doFacets = '-facets'
+      facetGroups = '-facetGroup %s' % c.facetGroups[0]
     else:
       doFacets = ''
 
-    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s' % \
+    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s %s' % \
         (c.javaCommand, cp, c.directory,
         nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
         c.numThreads, c.competition.taskRepeatCount,
-        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets)
+        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets, facetGroups)
     command += ' -topN 10'
     if filter is not None:
       command += ' %s %.2f' % filter

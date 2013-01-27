@@ -40,6 +40,7 @@ MEME_ALL = Data('memeall',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_BIG_TASKS_FILE)
 WIKI_BIG_1M = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
@@ -50,6 +51,7 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium2m' : WIKI_MEDIUM_2M,
         'memeall': MEME_ALL,
         'wikibig' : WIKI_BIG,
+        'wikibig100k' : WIKI_BIG_100K,
         'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM }
 
@@ -91,6 +93,7 @@ class Index(object):
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
                doFacets = False,
+               facetGroups = None,
                extraNamePart = None,
                maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
                ):
@@ -106,6 +109,7 @@ class Index(object):
     self.ramBufferMB = ramBufferMB
     self.numDocs = dataSource.numDocs
     self.extraNamePart = extraNamePart
+    self.facetGroups = facetGroups
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
     else:
@@ -145,6 +149,12 @@ class Index(object):
 
     if self.doFacets:
       name.append('facets')
+      for arg in self.facetGroups:
+        idx = arg.find(':')
+        if idx == -1:
+          raise RuntimeError('could not parse groupName from facetGrup "%s"' % arg)
+        groupName = arg[:idx]
+        name.append(groupName)
 
     name.append(self.postingsFormat)
     if self.postingsFormat != self.idFieldPostingsFormat:
@@ -168,7 +178,7 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               doFacets = False,
+               facetGroups = None,
                loadStoredFields = False):
     self.name = name
     self.checkout = checkout
@@ -182,7 +192,9 @@ class Competitor(object):
     self.printHeap = printHeap
     self.hiliteImpl = hiliteImpl
     self.pk = pk
-    self.doFacets = doFacets
+    self.facetGroups = facetGroups
+    if facetGroups is not None and len(facetGroups) != 1:
+      raise RuntimeError('can only handle single facetGroup today')
     self.loadStoredFields = loadStoredFields
 
   def compile(self, cp):

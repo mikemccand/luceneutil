@@ -62,5 +62,10 @@ class FacetGroup {
         }
       };
   }
+
+  @Override
+  public String toString() {
+    return "FacetGroup<" + groupName + ":" + fields + ">";
+  }
 }
 

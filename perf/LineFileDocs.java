@@ -403,6 +403,7 @@ public class LineFileDocs implements Closeable {
         //System.out.println("FG: " + fg.groupName + " add paths=" + paths);
 
         fg.builder.addFields(doc.doc, paths);
+        //System.out.println("  doc=" + doc.doc);
       }
     }
 

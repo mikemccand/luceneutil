@@ -89,9 +89,10 @@ final class SearchTask extends Task {
   private List<FacetResult> facets;
   private double hiliteMsec;
   private double getFacetResultsMsec;
+  private List<FacetGroup> facetGroups;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
-                    boolean doHilite, boolean doStoredLoads) {
+                    boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups) {
     this.category = category;
     this.q = q;
     this.s = s;
@@ -108,6 +109,7 @@ final class SearchTask extends Task {
     this.topN = topN;
     this.doHilite = doHilite;
     this.doStoredLoads = doStoredLoads;
+    this.facetGroups = facetGroups;
   }
 
   @Override
@@ -117,9 +119,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetGroups);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetGroups);
     }
   }
 
@@ -192,7 +194,7 @@ final class SearchTask extends Task {
             }
           }
         }
-      } else if (!state.facetGroups.isEmpty() && state.taxoReaders != null) {
+      } else if ((!facetGroups.isEmpty() || !state.facetGroups.isEmpty()) && state.taxoReaders != null) {
         // TODO: support sort, filter too!!
         /*
         FacetSearchParams fsp = new FacetSearchParams(state.iParams);
@@ -227,11 +229,18 @@ final class SearchTask extends Task {
 
         // TODO: allow more than once facet group per query?
         // how (while still using CountingFacetCollector)!?
-        assert state.facetGroups.size() == 1;
+
         FacetGroup fg = state.facetGroups.get(0);
+        if (!facetGroups.isEmpty()) {
+          // This search has its own facet request
+          fg = facetGroups.get(0);
+        } else {
+          fg = state.facetGroups.get(0);
+        }
 
         List<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
         FacetIndexingParams fip = new FacetIndexingParams(fg.clp);
+        //System.out.println("fip: " + fg.clp);
         for(String field : fg.fields) {
           facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
         }

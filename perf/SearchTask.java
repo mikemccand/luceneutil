@@ -192,7 +192,7 @@ final class SearchTask extends Task {
             }
           }
         }
-      } else if (!state.facetGroups.isEmpty() && state.taxoReader != null) {
+      } else if (!state.facetGroups.isEmpty() && state.taxoReaders != null) {
         // TODO: support sort, filter too!!
         /*
         FacetSearchParams fsp = new FacetSearchParams(state.iParams);
@@ -236,7 +236,7 @@ final class SearchTask extends Task {
           facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
         }
         FacetSearchParams fsp = new FacetSearchParams(facetRequests, fip);
-        FacetsCollector facetsCollector = new CountingFacetsCollector(fsp, state.taxoReader);
+        FacetsCollector facetsCollector = new CountingFacetsCollector(fsp, state.taxoReaders.get(fg.groupName));
 
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);

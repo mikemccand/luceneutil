@@ -698,6 +698,8 @@ class RunAlgs:
         w('-facets')
         for fg in index.facetGroups:
           w('-facetGroup %s' % fg)
+        if index.facetsPrivateOrdsPerGroup:
+          w('-facetsPrivateOrdsPerGroup')
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 

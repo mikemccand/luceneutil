@@ -19,6 +19,7 @@ package perf;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.lucene.facet.index.params.CategoryListParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
@@ -53,15 +54,15 @@ class IndexState {
   public final String textFieldName;
   public int[] docIDToID;
   public final boolean hasDeletions;
-  public final TaxonomyReader taxoReader;
+  public final Map<String,TaxonomyReader> taxoReaders;
   public final List<FacetGroup> facetGroups;
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker,
+  public IndexState(ReferenceManager<IndexSearcher> mgr, Map<String,TaxonomyReader> taxoReaders, String textFieldName, DirectSpellChecker spellChecker,
                     String hiliteImpl, List<FacetGroup> facetGroups) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
-    this.taxoReader = taxoReader;
+    this.taxoReaders = taxoReaders;
     this.facetGroups = facetGroups;
     
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));

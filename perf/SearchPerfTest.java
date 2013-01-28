@@ -145,18 +145,12 @@ public class SearchPerfTest {
     final Args args = new Args(clArgs);
 
     Directory dir0;
-    final RAMDirectory ramDir;
     final boolean doFacets = args.getFlag("-facets");
     final String dirPath = args.getString("-indexPath") + "/index";
-    final String facetsDirPath = args.getString("-indexPath") + "/facets";
     final String dirImpl = args.getString("-dirImpl");
-    Directory facetsDir = null;
-    if (dirImpl.equals("MMapDirectory")) {
-      dir0 = new MMapDirectory(new File(dirPath));
-      ramDir = null;
-      if (doFacets) {
-        facetsDir = new MMapDirectory(new File(facetsDirPath));
-      }
+
+    OpenDirectory od = OpenDirectory.get(dirImpl);
+
     /*
     } else if (dirImpl.equals("NativePosixMMapDirectory")) {
       dir0 = new NativePosixMMapDirectory(new File(dirPath));
@@ -164,24 +158,9 @@ public class SearchPerfTest {
       if (doFacets) {
         facetsDir = new NativePosixMMapDirectory(new File(facetsDirPath));
       }
-    */
-    } else if (dirImpl.equals("NIOFSDirectory")) {
-      dir0 = new NIOFSDirectory(new File(dirPath));
-      ramDir = null;
-      if (doFacets) {
-        facetsDir = new NIOFSDirectory(new File(facetsDirPath));
-      }
-    } else if (dirImpl.equals("SimpleFSDirectory")) {
-      dir0 = new SimpleFSDirectory(new File(dirPath));
-      ramDir = null;
-      if (doFacets) {
-        facetsDir = new SimpleFSDirectory(new File(facetsDirPath));
-      }
-      /*
     } else if (dirImpl.equals("CachingDirWrapper")) {
       dir0 = new CachingRAMDirectory(new MMapDirectory(new File(dirPath)));
       ramDir = null;
-      */
     } else if (dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
       // Load only non-postings files into RAMDir (assumes
       // Lucene40PF is the wrapped PF):
@@ -208,16 +187,14 @@ public class SearchPerfTest {
       if (doFacets) {
         facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
       }
+      */
 
-    } else if (dirImpl.equals("RAMDirectory")) {
-      final long t0 = System.currentTimeMillis();
-      dir0 = ramDir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
-      System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir0).sizeInBytes());
-      if (doFacets) {
-        facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
-      }
+    final RAMDirectory ramDir;
+    dir0 = od.open(new File(dirPath));
+    if (dir0 instanceof RAMDirectory) {
+      ramDir = (RAMDirectory) dir0;
     } else {
-      throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
+      ramDir = null;
     }
 
     // TODO: NativeUnixDir?
@@ -286,8 +263,6 @@ public class SearchPerfTest {
     if (recacheFilterDeletes) {
       throw new UnsupportedOperationException("recacheFilterDeletes was deprecated");
     }
-
-    TaxonomyReader taxoReader = null;
 
     if (args.getFlag("-nrt")) {
       // TODO: get taxoReader working here too
@@ -449,13 +424,12 @@ public class SearchPerfTest {
       s.setSimilarity(sim);
       
       mgr = new SingleIndexSearcher(s);
-      if (facetsDir != null) {
-        taxoReader = new DirectoryTaxonomyReader(facetsDir);
-      }
     }
     System.out.println((System.currentTimeMillis() - tSearcherStart) + " msec to init searcher/NRT");
 
     //System.out.println("searcher=" + searcher);
+
+    Map<String,TaxonomyReader> taxoReaders = null;
 
     List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
     if (doFacets) {
@@ -478,13 +452,37 @@ public class SearchPerfTest {
       } finally {
         mgr.release(s);
       }
+
+      // TODO: need to fix this to handle NRT:
+      File f = new File(args.getString("-indexPath"), "facets");
+      if (!f.exists()) {
+        // Private taxo reader per group:
+        taxoReaders = new HashMap<String,TaxonomyReader>();
+        for(String sub : new File(args.getString("-indexPath")).list()) {
+          if (sub.startsWith("facets.")) {
+            String groupName = sub.substring(7);
+            Directory taxoDir = od.open(new File(args.getString("-indexPath"), sub));
+            TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
+            System.out.println("Taxonomy for facet group \"" + groupName + "\" has " + tr.getSize() + " ords");
+            taxoReaders.put(groupName, tr);
+          }
+        }
+      } else {
+        // Global taxo reader:
+        Directory taxoDir = od.open(f);
+        TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
+        System.out.println("Taxonomy has " + tr.getSize() + " ords");
+        for(FacetGroup fg : facetGroups) {
+          taxoReaders.put(fg.groupName, tr);
+        }
+      }
     }
 
     final Random staticRandom = new Random(staticRandomSeed);
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetGroups);
+    final IndexState indexState = new IndexState(mgr, taxoReaders, fieldName, spellChecker, hiliteImpl, facetGroups);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);
@@ -566,6 +564,10 @@ public class SearchPerfTest {
     }
 
     mgr.close();
+
+    for(TaxonomyReader tr : taxoReaders.values()) {
+      tr.close();
+    }
 
     if (writer != null) {
       // Don't actually commit any index changes:

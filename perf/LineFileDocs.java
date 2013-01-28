@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -60,22 +61,22 @@ public class LineFileDocs implements Closeable {
   private final boolean bodyPostingsOffsets;
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
-  private final TaxonomyWriter taxoWriter;
+  private final Map<String,TaxonomyWriter> taxoWriters;
   private final List<FacetGroup> facetGroups;
   private String[] extraFacetFields;
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone,
-                      TaxonomyWriter taxoWriter, List<FacetGroup> facetGroups) throws IOException {
+                      Map<String,TaxonomyWriter> taxoWriters, List<FacetGroup> facetGroups) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
     this.bodyPostingsOffsets = bodyPostingsOffsets;
     this.doClone = doClone;
     this.doRepeat = doRepeat;
-    this.taxoWriter = taxoWriter;
+    this.taxoWriters = taxoWriters;
     this.facetGroups = facetGroups;
     for(FacetGroup fg : facetGroups) {
-      fg.builder = new FacetFields(taxoWriter, new FacetIndexingParams(fg.clp));
+      fg.builder = new FacetFields(taxoWriters.get(fg.groupName), new FacetIndexingParams(fg.clp));
     }
     open();
   }
@@ -93,7 +94,7 @@ public class LineFileDocs implements Closeable {
           !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
         throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
       }
-      if (taxoWriter != null) {
+      if (taxoWriters != null) {
         String[] fields = firstLine.split("\t");
         if (fields.length > 4) {
           extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
@@ -334,7 +335,7 @@ public class LineFileDocs implements Closeable {
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
 
-    if (taxoWriter != null) {
+    if (taxoWriters != null) {
 
       CategoryPath dateCP = new CategoryPath("Date",
                                              ""+doc.dateCal.get(Calendar.YEAR),

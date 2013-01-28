@@ -93,6 +93,7 @@ class Index(object):
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
                doFacets = False,
+               facetsPrivateOrdsPerGroup = False,
                facetGroups = None,
                extraNamePart = None,
                maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
@@ -110,6 +111,7 @@ class Index(object):
     self.numDocs = dataSource.numDocs
     self.extraNamePart = extraNamePart
     self.facetGroups = facetGroups
+    self.facetsPrivateOrdsPerGroup = facetsPrivateOrdsPerGroup
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
     else:
@@ -155,6 +157,8 @@ class Index(object):
           raise RuntimeError('could not parse groupName from facetGrup "%s"' % arg)
         groupName = arg[:idx]
         name.append(groupName)
+      if self.facetsPrivateOrdsPerGroup:
+        name.append('po')
 
     name.append(self.postingsFormat)
     if self.postingsFormat != self.idFieldPostingsFormat:

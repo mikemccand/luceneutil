@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,32 +56,32 @@ public final class Indexer {
     Args args = new Args(clArgs);
 
     final boolean doFacets = args.getFlag("-facets");
+    final boolean facetPrivateOrdsPerGroup = args.getFlag("-facetsPrivateOrdsPerGroup");
+
+    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+    if (doFacets) {
+      // EG: -facetGroup onlyDate:Date -facetGroup hierarchies:Date,characterCount ...
+      Set<String> seen = new HashSet<String>();
+      for(String arg : args.getStrings("-facetGroup")) {
+        FacetGroup fg = new FacetGroup(arg);
+        if (seen.contains(fg.groupName)) {
+          throw new IllegalArgumentException("facetGroup \"" + fg.groupName + "\" appears more than once");
+        }
+        facetGroups.add(fg);
+      }
+    } else {
+      facetGroups = null;
+    }
 
     final String dirImpl = args.getString("-dirImpl");
     final String dirPath = args.getString("-indexPath") + "/index";
-    final String facetsDirPath = args.getString("-indexPath") + "/facets";
 
     final Directory dir;
-    Directory facetsDir = null;
-    if (dirImpl.equals("MMapDirectory")) {
-      dir = new MMapDirectory(new File(dirPath));
-      if (doFacets) {
-        facetsDir = new MMapDirectory(new File(facetsDirPath));
-      }
-    } else if (dirImpl.equals("NIOFSDirectory")) {
-      dir = new NIOFSDirectory(new File(dirPath));
-      if (doFacets) {
-        facetsDir = new NIOFSDirectory(new File(facetsDirPath));
-      }
-    } else if (dirImpl.equals("SimpleFSDirectory")) {
-      dir = new SimpleFSDirectory(new File(dirPath));
-      if (doFacets) {
-        facetsDir = new SimpleFSDirectory(new File(facetsDirPath));
-      }
-    } else {
-      throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
-    }
-      
+    Map<String,Directory> facetsDirs;
+    OpenDirectory od = OpenDirectory.get(dirImpl);
+
+    dir = od.open(new File(dirPath));
+
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
@@ -127,16 +128,6 @@ public final class Indexer {
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
-    }
-
-    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
-    if (doFacets) {
-      // EG: -facetGroup onlyDate:Date -facetGroup hierarchies:Date,characterCount ...
-      for(String arg : args.getStrings("-facetGroup")) {
-        facetGroups.add(new FacetGroup(arg));
-      }
-    } else {
-      facetGroups = null;
     }
 
     args.check();
@@ -233,17 +224,32 @@ public final class Indexer {
     System.out.println("IW config=" + iwc);
 
     final IndexWriter w = new IndexWriter(dir, iwc);
-    final TaxonomyWriter facetWriter;
+    final Map<String,TaxonomyWriter> facetWriters;
     if (doFacets) {
-      facetWriter = new DirectoryTaxonomyWriter(facetsDir, IndexWriterConfig.OpenMode.CREATE);
+      facetWriters = new HashMap<String,TaxonomyWriter>();
+      if (facetPrivateOrdsPerGroup) {
+        // One TaxoWriter per facet group:
+        for(FacetGroup fg : facetGroups) {
+          TaxonomyWriter tw = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets." + fg.groupName)),
+                                                          IndexWriterConfig.OpenMode.CREATE);
+          facetWriters.put(fg.groupName, tw);
+        }
+      } else {
+        // One TaxoWriter for all groups:
+        TaxonomyWriter tw = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
+                                                        IndexWriterConfig.OpenMode.CREATE);
+        for(FacetGroup fg : facetGroups) {
+          facetWriters.put(fg.groupName, tw);
+        }
+      }
     } else {
-      facetWriter = null;
+      facetWriters = null;
     }
 
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    IndexThreads threads = new IndexThreads(random, w, facetWriter, facetGroups, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
+    IndexThreads threads = new IndexThreads(random, w, facetWriters, facetGroups, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
                                             numThreads, docCountLimit, addGroupingFields, printDPS,
                                             doUpdate, -1.0f, false);
 
@@ -325,10 +331,20 @@ public final class Indexer {
       }
     }
 
-    if (facetWriter != null) {
-      System.out.println("Taxonomy has " + facetWriter.getSize() + " ords");
-      facetWriter.commit();
-      facetWriter.close();
+    if (facetWriters != null) {
+      for(Map.Entry<String,TaxonomyWriter> ent : facetWriters.entrySet()) {
+        TaxonomyWriter tw = ent.getValue();
+        if (facetPrivateOrdsPerGroup) {
+          System.out.println("Taxonomy for facet group \"" + ent.getKey() + "\" has " + tw.getSize() + " ords");
+        } else {
+          System.out.println("Taxonomy has " + tw.getSize() + " ords");
+        }
+        tw.commit();
+        tw.close();
+        if (!facetPrivateOrdsPerGroup) {
+          break;
+        }
+      }
     }
 
     System.out.println("\nIndexer: at close: " + w.segString());

@@ -55,6 +55,7 @@ import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
@@ -458,14 +459,24 @@ public class SearchPerfTest {
 
     List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
     if (doFacets) {
-      // EG: -facetGroup onlyDate:noparents:Date -facetGroup hierarchies:allparents:Date,characterCount ...
-      for(String arg: args.getStrings("-facetGroup")) {
-        facetGroups.add(new FacetGroup(arg));
-      }
+      IndexSearcher s = mgr.acquire();
+      try {
+        // EG: -facetGroup onlyDate:noparents:Date -facetGroup hierarchies:allparents:Date,characterCount ...
+        for(String arg: args.getStrings("-facetGroup")) {
+          FacetGroup fg = new FacetGroup(arg);
+          facetGroups.add(fg);
+          if (MultiFields.getTerms(s.getIndexReader(), "$"+fg.groupName) == null) {
+            throw new IllegalArgumentException("this index doesn't have facet group named \"" + fg.groupName + "\"");
+          }
+        }
 
-      if (facetGroups.size() != 1) {
-        // TODO: fix this limitation!
-        throw new IllegalArgumentException("can only run with one facet group now");
+        if (facetGroups.size() != 1) {
+          // TODO: fix this limitation!
+          throw new IllegalArgumentException("can only run with one facet group now");
+        }
+
+      } finally {
+        mgr.release(s);
       }
     }
 

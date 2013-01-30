@@ -71,7 +71,7 @@ class IndexState {
         */
 
         @Override
-        public OrdinalPolicy getOrdinalPolicy() {
+        public OrdinalPolicy getOrdinalPolicy(String field) {
           return OrdinalPolicy.NO_PARENTS;
         }
       };

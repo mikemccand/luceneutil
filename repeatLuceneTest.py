@@ -228,6 +228,7 @@ def run(threadID):
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'
+      command += ' -Dtests.timeoutSuite=2147483647'
       command += ' -Dtests.verbose=%s' % str(verbose).lower()
       command += ' -Dtests.infostream=%s' % str(verbose).lower()
       command += ' -Dtests.multiplier=%s' % mult
@@ -262,7 +263,7 @@ def run(threadID):
           shutil.rmtree(TEST_TEMP_DIR)
         except OSError:
           pass
-      #print '  RUN: %s' % command
+      print '  RUN: %s' % command
       res = os.system(command)
 
       if res:

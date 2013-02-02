@@ -19,6 +19,8 @@ package perf;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,13 +44,15 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-  public IndexThreads(Random random, IndexWriter w, TaxonomyWriter facetWriter, String lineFile, boolean storeBody, boolean tvsBody,
+  public IndexThreads(Random random, IndexWriter w, Map<String,TaxonomyWriter> facetWriters,
+                      List<FacetGroup> facetGroups,
+                      String lineFile, boolean storeBody, boolean tvsBody,
                       boolean bodyPostingsOffsets,
                       int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
                       boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
 
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, facetWriter);
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, facetWriters, facetGroups);
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);

@@ -19,6 +19,7 @@ package perf;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.lucene.facet.index.params.CategoryListParams.OrdinalPolicy;
 import org.apache.lucene.facet.index.params.CategoryListParams;
@@ -54,38 +55,16 @@ class IndexState {
   public final String textFieldName;
   public int[] docIDToID;
   public final boolean hasDeletions;
-  public final TaxonomyReader taxoReader;
-  public final FacetIndexingParams iParams;
+  public final Map<String,TaxonomyReader> taxoReaders;
+  public final List<FacetGroup> facetGroups;
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
+  public IndexState(ReferenceManager<IndexSearcher> mgr, Map<String,TaxonomyReader> taxoReaders, String textFieldName, DirectSpellChecker spellChecker,
+                    String hiliteImpl, List<FacetGroup> facetGroups) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
-    this.taxoReader = taxoReader;
-    CategoryListParams clp = new CategoryListParams() {
-        /*
-        @Override
-        public IntEncoder createEncoder() {
-          return new SortingIntEncoder(new UniqueValuesIntEncoder(new DGapIntEncoder(new PackedIntEncoder())));
-        }
-        */
-
-        @Override
-        public OrdinalPolicy getOrdinalPolicy(String field) {
-          return OrdinalPolicy.NO_PARENTS;
-        }
-      };
-    iParams = new FacetIndexingParams(clp);
-    //iParams = new FacetIndexingParams();
-    /*
-      iParams = new FacetIndexingParams() {
-          // nocommit
-          @Override
-          public OrdinalPolicy getOrdinalPolicy() {
-            return OrdinalPolicy.NO_PARENTS;
-          }
-        };
-    */
+    this.taxoReaders = taxoReaders;
+    this.facetGroups = facetGroups;
     
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
@@ -106,13 +85,6 @@ class IndexState {
     IndexSearcher searcher = mgr.acquire();
     try {
       hasDeletions = searcher.getIndexReader().hasDeletions();
-      /*
-      if (taxoReader != null) {
-        // nocommit doesn't work w/ NRT?
-        clCache.loadAndRegister(clp, searcher.getIndexReader(), taxoReader, iParams);
-        System.out.println("FACETS CACHE SIZE: " + RamUsageEstimator.sizeOf(clCache));
-      }
-      */
     } finally {
       mgr.release(searcher);
     }

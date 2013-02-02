@@ -17,6 +17,8 @@ package perf;
  * limitations under the License.
  */
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -108,20 +110,22 @@ class TaskParser {
         filter = null;
       }
 
-      final boolean doDateFacets;
-      final boolean doAllFacets;
+      final List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+      while (true) {
+        int i = text.indexOf("+facets:");
+        if (i == -1) {
+          break;
+        }
+        int j = text.indexOf(" ", i);
+        if (j == -1) {
+          j = text.length();
+        }
+        facetGroups.add(new FacetGroup(text.substring(i+8, j)));
+        text = text.substring(0, i) + text.substring(j);
+      }
 
-      if (text.indexOf("+dateFacets") != -1) {
-        doDateFacets = true;
-        doAllFacets = false;
-        text = text.replace("+dateFacets", "");
-      } else if (text.indexOf("+allFacets") != -1) {
-        doDateFacets = false;
-        doAllFacets = true;
-        text = text.replace("+allFacets", "");
-      } else {
-        doDateFacets = false;
-        doAllFacets = false;
+      if (facetGroups.size() > 1) {
+        throw new IllegalArgumentException("can only run one facet CLP per query for now");
       }
 
       final Sort sort;
@@ -223,7 +227,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doDateFacets, doAllFacets, doStoredLoads);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups);
     }
 
     return task;

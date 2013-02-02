@@ -483,6 +483,7 @@ def run():
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
                         doFacets=True,
+                        facetGroups = ('date:noparents:Date',),
                         maxConcurrentMerges=3)
 
   c = comp.competitor(id, NIGHTLY_DIR,

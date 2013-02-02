@@ -37,7 +37,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene41.Lucene41Codec;
+import org.apache.lucene.codecs.lucene42.Lucene42Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -69,8 +69,6 @@ public final class Indexer {
         }
         facetGroups.add(fg);
       }
-    } else {
-      facetGroups = null;
     }
 
     final String dirImpl = args.getString("-dirImpl");
@@ -211,7 +209,7 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
 
-    final Codec codec = new Lucene41Codec() {
+    final Codec codec = new Lucene42Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
         return PostingsFormat.forName(field.equals("id") ?

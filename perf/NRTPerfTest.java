@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene41.Lucene41Codec;
+import org.apache.lucene.codecs.lucene42.Lucene42Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
@@ -293,7 +293,7 @@ public class NRTPerfTest {
       .setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE).setRAMBufferSizeMB(256.0);
     //iwc.setMergeScheduler(ms);
 
-    final Codec codec = new Lucene41Codec() {
+    final Codec codec = new Lucene42Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
         if (field.equals("id")) {

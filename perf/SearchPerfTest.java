@@ -45,7 +45,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene41.Lucene41Codec;
+import org.apache.lucene.codecs.lucene42.Lucene42Codec;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
@@ -314,7 +314,7 @@ public class SearchPerfTest {
       //((TieredMergePolicy) iwc.getMergePolicy()).setReclaimDeletesWeight(3.0);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergeAtOnce(4);
 
-      final Codec codec = new Lucene41Codec() {
+      final Codec codec = new Lucene42Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return PostingsFormat.forName(field.equals("id") ?
@@ -455,9 +455,9 @@ public class SearchPerfTest {
 
       // TODO: need to fix this to handle NRT:
       File f = new File(args.getString("-indexPath"), "facets");
+      taxoReaders = new HashMap<String,TaxonomyReader>();
       if (!f.exists()) {
         // Private taxo reader per group:
-        taxoReaders = new HashMap<String,TaxonomyReader>();
         for(String sub : new File(args.getString("-indexPath")).list()) {
           if (sub.startsWith("facets.")) {
             String groupName = sub.substring(7);
@@ -565,8 +565,10 @@ public class SearchPerfTest {
 
     mgr.close();
 
-    for(TaxonomyReader tr : taxoReaders.values()) {
-      tr.close();
+    if (taxoReaders != null) {
+      for(TaxonomyReader tr : taxoReaders.values()) {
+        tr.close();
+      }
     }
 
     if (writer != null) {

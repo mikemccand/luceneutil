@@ -75,8 +75,10 @@ public class LineFileDocs implements Closeable {
     this.doRepeat = doRepeat;
     this.taxoWriters = taxoWriters;
     this.facetGroups = facetGroups;
-    for(FacetGroup fg : facetGroups) {
-      fg.builder = new FacetFields(taxoWriters.get(fg.groupName), new FacetIndexingParams(fg.clp));
+    if (facetGroups != null) {
+      for(FacetGroup fg : facetGroups) {
+        fg.builder = new FacetFields(taxoWriters.get(fg.groupName), new FacetIndexingParams(fg.clp));
+      }
     }
     open();
   }

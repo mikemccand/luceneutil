@@ -184,6 +184,7 @@ class Competitor(object):
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
                facetGroups = None,
+               doFacets = False,
                loadStoredFields = False):
     self.name = name
     self.checkout = checkout
@@ -201,6 +202,7 @@ class Competitor(object):
     if facetGroups is not None and len(facetGroups) != 1:
       raise RuntimeError('can only handle single facetGroup today')
     self.loadStoredFields = loadStoredFields
+    self.doFacets = doFacets or facetGroups is not None
 
   def compile(self, cp):
     files = []

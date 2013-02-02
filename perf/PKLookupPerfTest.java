@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene41.Lucene41Codec;
+import org.apache.lucene.codecs.lucene42.Lucene42Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -71,7 +71,7 @@ public class PKLookupPerfTest {
                                                         new WhitespaceAnalyzer(Version.LUCENE_50));
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
 
-    final Codec codec = new Lucene41Codec() {
+    final Codec codec = new Lucene42Codec() {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
         return PostingsFormat.forName("Pulsing40");

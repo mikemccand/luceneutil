@@ -57,7 +57,7 @@ class FacetGroup {
     fields = Arrays.asList(arg.substring(j+1).split(","));
     clp = new CategoryListParams("$" + groupName) {
         @Override
-        public OrdinalPolicy getOrdinalPolicy() {
+        public OrdinalPolicy getOrdinalPolicy(String fieldName) {
           return ordPolicy;
         }
       };

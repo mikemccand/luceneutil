@@ -794,7 +794,7 @@ class RunAlgs:
         self.compiledCheckouts.add(competitor.checkout);
         for module in ('core', 'suggest', 'highlighter', 'sandbox',
                        'analysis/common', 'grouping', 'test-framework',
-                       'codecs', 'facet'):
+                       'codecs', 'facet', 'sandbox'):
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
           print '  %s...' % modulePath
           os.chdir(modulePath)
@@ -1133,6 +1133,8 @@ def tasksToMap(taskIters, verifyScores):
   return d
     
 def compareHits(r1, r2, verifyScores):
+
+  # TODO: must also compare facet results
 
   # Carefully compare, allowing for the addition of new tasks:
   d1 = tasksToMap(r1, verifyScores)

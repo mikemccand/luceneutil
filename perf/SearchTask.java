@@ -22,6 +22,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
@@ -36,6 +37,11 @@ import org.apache.lucene.facet.search.params.FacetRequest;
 import org.apache.lucene.facet.search.params.FacetSearchParams;
 import org.apache.lucene.facet.search.results.FacetResult;
 import org.apache.lucene.facet.search.results.FacetResultNode;
+import org.apache.lucene.facet.search.sampling.RandomSampler;
+import org.apache.lucene.facet.search.sampling.SampleFixer;
+import org.apache.lucene.facet.search.sampling.Sampler;
+import org.apache.lucene.facet.search.sampling.SamplingAccumulator;
+import org.apache.lucene.facet.search.sampling.SamplingParams;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.IndexReader;
@@ -330,8 +336,8 @@ final class SearchTask extends Task {
       //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
       for(int hit=0;hit<frags.length;hit++) {
         String frag = frags[hit];
-        //System.out.println("\nhilite title=" + searcher.doc(hits.scoreDocs[hit].doc).get("titleTokenized") + " query=" + q);
-        //System.out.println("  frag: " + frag);
+        //System.out.println("  title=" + searcher.doc(hits.scoreDocs[hit].doc).get("titleTokenized"));
+        //System.out.println("    frags: " + frag);
         if (frag != null) {
           // It's fine for frag to be null: it's a
           // placeholder, meaning this hit had no hilite
@@ -346,14 +352,14 @@ final class SearchTask extends Task {
   public int totHiliteHash;
 
   private void hilite(int docID, IndexState indexState, IndexSearcher searcher) throws IOException {
-    //System.out.println("\nhilite title=" + searcher.doc(docID).get("titleTokenized") + " query=" + q);
+    //System.out.println("  title=" + searcher.doc(docID).get("titleTokenized"));
     if (indexState.fastHighlighter != null) {
       for(String h : indexState.fastHighlighter.getBestFragments(fieldQuery,
                                                                  searcher.getIndexReader(), docID,
                                                                  indexState.textFieldName,
                                                                  100, 2)) {
         totHiliteHash += h.hashCode();
-        //System.out.println("  frag: " + h);
+        //System.out.println("    frag: " + h);
       }
     } else {
       StoredDocument doc = searcher.doc(docID);
@@ -368,15 +374,12 @@ final class SearchTask extends Task {
         throw new RuntimeException(ioe);
       }
 
-      //int fragCount = 0;
       for (int j = 0; j < frags.length; j++) {
         if (frags[j] != null && frags[j].getScore() > 0) {
-          //System.out.println("  frag " + j + ": " + frags[j].toString());
+          //System.out.println("    frag " + j + ": " + frags[j].toString());
           totHiliteHash += frags[j].toString().hashCode();
-          //fragCount++;
         }
       }
-      //System.out.println("  " + docID + ": " + fragCount + " frags");
     }
   }
 

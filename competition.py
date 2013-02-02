@@ -39,10 +39,11 @@ MEME_ALL = Data('memeall',
                 '/x/lucene/data/memetracker/lines.txt',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+
 WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
-# nocommit
-WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_BIG_TASKS_FILE)
 WIKI_BIG_1M = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
+
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
@@ -160,6 +161,15 @@ class Index(object):
         name.append(groupName)
       if self.facetsPrivateOrdsPerGroup:
         name.append('po')
+
+    if self.bodyTermVectors:
+      name.append('tv')
+
+    if self.bodyStoredFields:
+      name.append('stored')
+
+    if self.bodyPostingsOffsets:
+      name.append('offsets')
 
     name.append(self.postingsFormat)
     if self.postingsFormat != self.idFieldPostingsFormat:

@@ -47,8 +47,6 @@ except ValueError:
 else:
   configFile = sys.argv[idx+1]
 
-CMS_NEW_GEN_SIZE = None
-
 exec(open(configFile).read())
 
 LOGS_DIR = 'logs'
@@ -156,7 +154,7 @@ class TopThread(threading.Thread):
         f.write('\n\nTime %.1f s:\n' % (time.time() - startTime))
         #p = os.popen('ps axuw | sed "1 d" | sort -n -r -k3')
         sawHeader = False
-        p = os.popen('top -c -b -n1')
+        p = os.popen('COLUMNS=10000 top -c -b -n1')
         try:
           keep = []
           for l in p.readlines():
@@ -192,16 +190,23 @@ def system(command):
     print '  %s' % output.replace('\n', '\n  ')
   return p.returncode
 
-def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
+def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
+
+  if pct is not None:
+    details = ' autoPct=%s' % pct
+  else:
+    details = ''
 
   print
   print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s %s' % \
         (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS, details)
 
   logsDir = '%s/%s.%s.%s.qps%s' % (LOGS_DIR, desc, dirImpl, postingsFormat, targetQPS)
+  if pct is not None:
+    logsDir += '.pct%s' % pct
 
-  if postingsFormat == 'Lucene40':
-    indexPath = LUCENE40_INDEX_PATH
+  if postingsFormat == 'Lucene41':
+    indexPath = LUCENE41_INDEX_PATH
   else:
     indexPath = DIRECT_INDEX_PATH
 
@@ -238,15 +243,17 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   if desc.find('CMS') != -1:
     w('-XX:+UseConcMarkSweepGC')
+    #w('-XX:PrintFLSStatistics=1')
     if CMS_NEW_GEN_SIZE is not None:
       w('-XX:NewSize=%s' % CMS_NEW_GEN_SIZE)
   elif desc.find('G1') != -1:
     w('-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC')
 
-  if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene40':
+  if dirImpl == 'MMapDirectory' and postingsFormat == 'Lucene41':
     w('-Xmx4g')
-  else:
-    w('-Xmx%dg' % MAX_HEAP_GB)
+  elif MAX_HEAP_GB is not None:
+    w('-Xms%sg' % MAX_HEAP_GB)
+    w('-Xmx%sg' % MAX_HEAP_GB)
 
   w('-Xloggc:%s/gc.log' % logsDir)
 
@@ -255,12 +262,20 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   w('-verbose:gc')
   w('-XX:+PrintGCDetails')
+  w('-XX:+PrintGCTimeStamps')
+  w('-XX:+PrintHeapAtGC')
+  w('-XX:+PrintTenuringDistribution')
+  w('-XX:+PrintGCApplicationStoppedTime')
+  w('-XX:PrintCMSStatistics=2')
   if desc.startswith('Zing'):
     w('-XX:+PrintCommandLine')
   w('-XX:+PrintCommandLineFlags')
   #w('-XX:+PrintFlagsFinal')
+  cp = '.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/memory/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME)
+  if FRAGGER_JAR is not None:
+    cp = FRAGGER_JAR + ':' + cp
   w('-cp')
-  w('.:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/memory/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java'.replace('$LUCENE_HOME', LUCENE_HOME))
+  w(cp)
   w('perf.SearchPerfTest')
   w('-indexPath %s' % indexPath)
   if dirImpl == 'RAMDirectory' and postingsFormat == 'Direct':
@@ -300,8 +315,14 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
 
   stdLog = '%s/std.log' % logsDir
 
+  if FRAGGER_JAR is not None:
+    idx = command.index('perf.SearchPerfTest')
+    command = '%s org.managedruntime.perftools.Fragger -v -a %s -exec %s' % (' '.join(command[:idx]), FRAGGER_ALLOC_MB_PER_SEC, ' '.join(command[idx:]))
+  else:
+    command = ' '.join(command)
+  
   command = '%s -d %s -l %s/hiccups %s > %s 2>&1' % \
-            (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, ' '.join(command), stdLog)
+            (JHICCUP_PATH, WARMUP_SEC*1000, logsDir, command, stdLog)
 
   p = None
   vmstatProcess = None
@@ -391,13 +412,19 @@ def runOne(desc, dirImpl, postingsFormat, targetQPS, details=''):
     print '  test done (%.1f total sec)' % (t1-t0)
 
     if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.30:
+      print '  marking this job finished'
       finished = True
 
   finally:
     kill('SearchPerfTest', p)
+    
     kill('vmstat', vmstatProcess)
     if clientProcess is not None:
       kill('sendTasks.py', clientProcess)
+      if not os.path.exists('%s/results.bin' % logsDir):
+        print '  copy results.bin back...'
+        system('scp %s@%s:results.bin %s > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST, logsDir))
+      
     if DO_ZV_ROBOT and zvRobotProcess is not None:
       kill('ZVRobot', zvRobotProcess)
     if topThread is not None:
@@ -449,29 +476,34 @@ def run():
 
   startTime = datetime.datetime.now()
 
+  finished = set()
+
   if DO_AUTO_QPS:
     maxQPS = {}
     reQPSOut = re.compile(r'; +([0-9\.]+) qps out')
+    reQueueSize = re.compile(r'\[(\d+), (\d+)\]$')
     print
     print 'Find max QPS per job:'
     for job in JOBS:
       desc, dirImpl, postingsFormat = job
-      logsDir, finished = runOne(desc, dirImpl, postingsFormat, 'sweep')
+      logsDir = runOne(startTime, desc, dirImpl, postingsFormat, 'sweep')[0]
       qpsOut = []
       with open('%s/client.log' % logsDir) as f:
         for line in f.readlines():
           m = reQPSOut.search(line)
-          if m is not None:
+          m2 = reQueueSize.search(line)
+          if m is not None and m2 is not None and int(m2.group(2)) > 200:
             qpsOut.append(float(m.group(1)))
       if len(qpsOut) < 10:
         raise RuntimeError("couldn't find enough 'qps out' lines: got %d" % len(qpsOut))
-      maxQPS[job] = max(qpsOut)
-      print '  max QPS=%.1f' % maxQPS[job]
+      # QPS out is avg of last 5 seconds ... make sure we only measure actual saturation
+      qpsOut = qpsOut[5:]
+      maxQPS[job] = sum(qpsOut)/len(qpsOut)
+      print '  QPS throughput=%.1f' % maxQPS[job]
       if maxQPS[job] < 2*AUTO_QPS_START:
         raise RuntimeError('max QPS for job %s (= %s) is < 2*AUTO_QPS_START (= %s)' % \
                            (desc, maxQPS[job], AUTO_QPS_START))
 
-    finished = set()
     for pctPoint in AUTO_QPS_PERCENT_POINTS:
       realJobsLeft = False
       for job in JOBS:
@@ -482,7 +514,7 @@ def run():
 
         targetQPS = AUTO_QPS_START + (pctPoint/100.)*(maxQPS[job] - AUTO_QPS_START)
 
-        if runOne(desc, dirImpl, postingsFormat, targetQPS, ' autoPCT=%s' % pctPoint)[1]:
+        if runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=pctPoint)[1]:
           if desc.lower().find('warmup') == -1:
             finished.add(job)
         elif desc.lower().find('warmup') == -1:
@@ -506,7 +538,7 @@ def run():
 
         desc, dirImpl, postingsFormat = job
 
-        if runOne(desc, dirImpl, postingsFormat, targetQPS)[1]:
+        if runOne(startTime, desc, dirImpl, postingsFormat, targetQPS)[1]:
           if desc.lower().find('warmup') == -1:
             finished.add(job)
         elif desc.lower().find('warmup') == -1:
@@ -574,7 +606,7 @@ def printAvgCPU(topLog):
   pids.sort(reverse=True)
   print '  CPU usage [%d CPU cores]' % cpuCoreCount
   for avgCPU, minCPU, maxCPU, pid in pids:
-    if maxCPU > 10:
+    if maxCPU > 20:
       print '    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid)
 
 def emailResult(body, subject):

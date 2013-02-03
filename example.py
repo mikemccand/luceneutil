@@ -16,15 +16,15 @@
 # limitations under the License.
 
 from competition import Competition
-from competition import WIKI_MEDIUM
+from competition import WIKI_MEDIUM_10M
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
-# Baseline here is ../trunk versus ../modified_trunk
+# Baseline here is ../trunk versus ../patch
 if __name__ == '__main__':
   # debug=True uses a smaller number of documents and less iterations when searching
   comp =  Competition(debug=True)
 
-  index = comp.newIndex('trunk', WIKI_MEDIUM)
+  index = comp.newIndex('trunk', WIKI_MEDIUM_10M)
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'trunk',
                   index = index)

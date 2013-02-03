@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-import glob
+import os
 import searchBench
 import benchUtil
 import constants
@@ -39,8 +39,10 @@ MEME_ALL = Data('memeall',
                 '/x/lucene/data/memetracker/lines.txt',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
-
-WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 3000000, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
+# nocommit
+WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG_1M = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
@@ -50,6 +52,8 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium2m' : WIKI_MEDIUM_2M,
         'memeall': MEME_ALL,
         'wikibig' : WIKI_BIG,
+        'wikibig100k' : WIKI_BIG_100K,
+        'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM }
 
 # for multi-segment index:
@@ -89,6 +93,11 @@ class Index(object):
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
+               doFacets = False,
+               facetsPrivateOrdsPerGroup = False,
+               facetGroups = None,
+               extraNamePart = None,
+               maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -101,6 +110,9 @@ class Index(object):
     self.grouping = grouping
     self.ramBufferMB = ramBufferMB
     self.numDocs = dataSource.numDocs
+    self.extraNamePart = extraNamePart
+    self.facetGroups = facetGroups
+    self.facetsPrivateOrdsPerGroup = facetsPrivateOrdsPerGroup
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
     else:
@@ -109,6 +121,7 @@ class Index(object):
     self.doUpdate = doUpdate
     self.useCFS = useCFS
     self.javaCommand = javaCommand
+    self.maxConcurrentMerges = maxConcurrentMerges
 
     self.lineDocSource = dataSource.lineFile
     self.verbose = verbose
@@ -118,28 +131,42 @@ class Index(object):
     self.bodyTermVectors = bodyTermVectors
     self.bodyStoredFields = bodyStoredFields
     self.bodyPostingsOffsets = bodyPostingsOffsets
+    self.doFacets = doFacets
 
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
 
   def getName(self):
-    if self.optimize:
-      s = 'opt.'
-    else:
-      s = ''
-    if self.useCFS:
-      s2 = 'cfs.'
-    else:
-      s2 = ''
+    name = [self.dataSource.name,
+            self.checkout]
 
-    if self.postingsFormat == self.idFieldPostingsFormat:
-      s3 = self.postingsFormat
-    else:
-      s3 = '%s.%s' % (self.postingsFormat, self.idFieldPostingsFormat)
+    if self.extraNamePart is not None:
+      name.append(self.extraNamePart)
       
-    return '%s.%s.%s.%s%snd%gM' % (self.dataSource.name, self.checkout,
-                                   s3, s, s2, self.numDocs/1000000.0)
+    if self.optimize:
+      name.append('opt')
+
+    if self.useCFS:
+      name.append('cfs')
+
+    if self.doFacets:
+      name.append('facets')
+      for arg in self.facetGroups:
+        idx = arg.find(':')
+        if idx == -1:
+          raise RuntimeError('could not parse groupName from facetGrup "%s"' % arg)
+        groupName = arg[:idx]
+        name.append(groupName)
+      if self.facetsPrivateOrdsPerGroup:
+        name.append('po')
+
+    name.append(self.postingsFormat)
+    if self.postingsFormat != self.idFieldPostingsFormat:
+      name.append(self.idFieldPostingsFormat)
+
+    name.append('nd%gM' % (self.numDocs/1000000.0))
+    return '.'.join(name)
 
 class Competitor(object):
 
@@ -155,7 +182,9 @@ class Competitor(object):
                javaCommand = constants.JAVA_COMMAND,
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
-               pk = True):
+               pk = True,
+               facetGroups = None,
+               loadStoredFields = False):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -168,14 +197,16 @@ class Competitor(object):
     self.printHeap = printHeap
     self.hiliteImpl = hiliteImpl
     self.pk = pk
+    self.facetGroups = facetGroups
+    if facetGroups is not None and len(facetGroups) != 1:
+      raise RuntimeError('can only handle single facetGroup today')
+    self.loadStoredFields = loadStoredFields
 
   def compile(self, cp):
-    files = glob.glob('perf/*.java')
-    for skip in ('PKLookupPerfTest', 'PKLookupUpdatePerfTest'):
-      try:
-        files.remove('perf/%s.java' % skip)
-      except ValueError:
-        pass
+    files = []
+    for f in os.listdir('%s/perf' % constants.BENCH_BASE_DIR):
+      if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
+        files.append('%s/perf/%s' % (constants.BENCH_BASE_DIR, f))
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):

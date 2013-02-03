@@ -4,7 +4,8 @@ import sys
 import re
 import os
 
-reQPS = re.compile(r'\.qps([\.0-9]+)$')
+reQPS = re.compile(r'\.qps([\.0-9]+)(\.|$)')
+rePCT = re.compile(r'\.pct([\.0-9]+)$')
 
 def main(maxQPS = None):
   logsDir = sys.argv[1]
@@ -16,10 +17,14 @@ def main(maxQPS = None):
       print 'ERROR: please move existing reportsDir (%s) out of the way' % reportsDir
       sys.exit(1)
 
+      print 'getInterpValue: list=%s interpDate=%s' % (valueList, interpDate)
+
     os.makedirs(reportsDir)
 
   qps = set()
   names = set()
+  byName = {}
+  byPCT = {}
   
   for f in os.listdir(logsDir):
     m = reQPS.search(f)
@@ -33,14 +38,35 @@ def main(maxQPS = None):
         
       qps.add((qpsValue, qpsString))
       name = f[:f.find('.qps')]
+
+      # nocommit
+      if name.find('G1') != -1:
+        continue
+      
       if name.lower().find('warmup') == -1:
         names.add(name)
+        if not name in byName:
+          byName[name] = []
+        byName[name].append((qpsValue, qpsString, f))
+
+        m = rePCT.search(f)
+        if m is not None:
+          pct = int(m.group(1))
+          if pct not in byPCT:
+            byPCT[pct] = []
+          byPCT[pct].append((name, qpsValue, qpsString, f))
 
   if len(names) == 0:
     raise RuntimeError('no logs found @ %s' % logsDir)
 
-  l = list(qps)
-  l.sort()
+  if False:
+    for name, l in byName.items():
+      l.sort()
+      for idx, (qpsS, qps, dirName) in enumerate(l):
+        if dirName.find('.pct') == -1:
+          os.rename('%s/%s' % (logsDir, dirName),
+                    '%s/%s.pct%s' % (logsDir, dirName, pcts[idx]))
+      print '%s -> %s' % (name, l)
 
   if maxQPS is None:
     indexOut = open('%s/index.html' % reportsDir, 'wb')
@@ -55,33 +81,70 @@ def main(maxQPS = None):
   
   try:
     if maxQPS is None:
+
       w('<h2>By QPS:</h2>')
 
-      for idx, (qps, qpsString) in enumerate(l):
-        # python -u /l/util.azul/responseTimeGraph.py /x/azul/0712.phase3.test1/logs 300 /x/tmp4/phase3/graph.html Zing.qps350 OracleCMS.qps350
+      if len(byPCT) != 0:
+        l = list(byPCT.keys())
+        l.sort()
+        
+        # Collate by PCT:
+        for idx, pct in enumerate(l):
 
-        d = []
-        validNames = []
-        for name in names:
-          resultsFile = '%s/%s.qps%s/results.bin' % (logsDir, name, qpsString)
-          if os.path.exists(resultsFile):
-            d.append(('%s.qps%s' % (name, qpsString), resultsFile))
-            validNames.append(name)
+          # Sort by name so we get consistent colors:
+          l2 = byPCT[pct]
+          l2.sort()
+          
+          d = []
+          for name, qpsValue, qpsString, resultsFile in l2:
+            d.append(('%s.qps%s' % (name, qpsString), '%s/%s/results.bin' % (logsDir, resultsFile)))
 
-        if len(d) == 0:
-          raise RuntimeError('nothing matches qps=%s' % qpsString)
+          if len(d) == 0:
+            raise RuntimeError('nothing matches pct=%d' % pct)
 
-        print
-        print 'Create response-time graph @ qps=%s: d=%s' % (qps, d)
+          print
+          print 'Create response-time graph @ pct=%d: d=%s' % (pct, d)
 
-        if len(d) != 0:
-          try:
-            html = responseTimeGraph.createGraph(d, warmupSec)
-          except IndexError:
-            raise
-          open('%s/%sqps.html' % (reportsDir, qps), 'wb').write(html)
-          w('<a href="%sqps.html">%d queries/sec [%s]</a>' % (qpsString, qps, ', '.join(responseTimeGraph.cleanName(x) for x in validNames)))
-          w('<br>\n')
+          if len(d) != 0:
+            try:
+              html = responseTimeGraph.createGraph(d, warmupSec, title='Query time at %d%% load' % pct)
+            except IndexError:
+              raise
+            fileName = '%s/responseTime%sPCT.html' % (reportsDir, pct)
+            open(fileName, 'wb').write(html)
+            w('<a href="%s">at %d%% load</a>' % (fileName, pct))
+            w('<br>\n')
+        
+      else:
+        # Collate by QPS:
+        l = list(qps)
+        l.sort()
+
+        for idx, (qps, qpsString) in enumerate(l):
+
+          d = []
+          validNames = []
+          for name in names:
+            resultsFile = '%s/%s.qps%s/results.bin' % (logsDir, name, qpsString)
+            if os.path.exists(resultsFile):
+              d.append(('%s.qps%s' % (name, qpsString), resultsFile))
+              validNames.append(name)
+
+          if len(d) == 0:
+            #raise RuntimeError('nothing matches qps=%s' % qpsString)
+            continue
+
+          print
+          print 'Create response-time graph @ qps=%s: d=%s' % (qps, d)
+
+          if len(d) != 0:
+            try:
+              html = responseTimeGraph.createGraph(d, warmupSec)
+            except IndexError:
+              raise
+            open('%s/%sqps.html' % (reportsDir, qpsString), 'wb').write(html)
+            w('<a href="%sqps.html">%d queries/sec [%s]</a>' % (qpsString, qps, ', '.join(responseTimeGraph.cleanName(x) for x in validNames)))
+            w('<br>\n')
 
     if maxQPS is None:
       w('<h2>By percentile:</h2>')
@@ -145,7 +208,7 @@ def main(maxQPS = None):
     for qps, name in l:
       print '  %s: %s QPS' % (responseTimeGraph.cleanName(name), qps)
 
-    w('<a href="%s">100%%</a>' % fileName)
+    w('<a href="loadmax.html">100%%</a>')
     w('<br>')
 
   finally:

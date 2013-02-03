@@ -90,7 +90,7 @@ def checkoutToBenchPath(checkout):
   raise RuntimeError('could not locate benchmark under %s' % p)
     
 def nameToIndexPath(name):
-  return '%s/%s/index' % (constants.INDEX_DIR_BASE, name)
+  return '%s/%s' % (constants.INDEX_DIR_BASE, name)
 
 class SearchTask:
   # TODO: subclass SearchGroupTask
@@ -168,7 +168,15 @@ class SearchTask:
               self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
             if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
-          
+
+    if self.facets != other.facets:
+      if False:
+        print
+        print '***WARNING*** facet diffs'
+        print
+      else:
+        self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
+    
   def fail(self, message):
     s = 'query=%s filter=%s' % (self.query, self.filter)
     if self.sort is not None:
@@ -187,10 +195,10 @@ class SearchTask:
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter
+      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter and type(self.facets) == type(other.facets)
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter)
+    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
       
   
 class RespellTask:
@@ -269,6 +277,9 @@ def parseResults(resultsFiles):
 
     if not os.path.exists(resultsFile):
       continue
+
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 512:
+      raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
     
     # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
@@ -286,6 +297,7 @@ def parseResults(resultsFiles):
         task = SearchTask()
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
+        task.facets = None
 
         m = reSearchTask.match(line[6:])
 
@@ -321,10 +333,24 @@ def parseResults(resultsFiles):
             line = f.readline().strip()
             if line == '':
               break
+
+            if task.facets is not None:
+              task.facets.append(line)
+              continue
+            
             if line.find('expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
             if line.find('Zing VM Warning') != -1:
+              continue
+            if line.find('facets') != -1:
+              task.facets = []
+              continue
+            if line.find('hilite time') != -1:
+              task.hiliteMsec = float(line.split()[2])
+              continue
+            if line.find('getFacetResults time') != -1:
+              task.getFacetResultsMsec = float(line.split()[2])
               continue
             
             if line.startswith('HEAP: '):
@@ -577,7 +603,7 @@ def stats(l):
     return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
 
 def run(cmd, logFile=None, indent='    '):
-  print '%s[RUN: %s]' % (indent, cmd)
+  print '%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd())
   if logFile is not None:
     cmd = '%s > "%s" 2>&1' % (cmd, logFile)
   if os.system(cmd):
@@ -642,6 +668,7 @@ class RunAlgs:
       w('-lineDocsFile %s' % index.lineDocSource)
       w('-docCountLimit %s' % index.numDocs)
       w('-threadCount %s' % index.numThreads)
+      w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
 
       if index.optimize:
         w('-forceMerge')
@@ -666,6 +693,13 @@ class RunAlgs:
 
       if index.doUpdate:
         w('-update')
+
+      if index.doFacets:
+        w('-facets')
+        for fg in index.facetGroups:
+          w('-facetGroup %s' % fg)
+        if index.facetsPrivateOrdsPerGroup:
+          w('-facetsPrivateOrdsPerGroup')
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
@@ -725,8 +759,10 @@ class RunAlgs:
     buildPath = '%s/lucene/build/core/classes' % path
     cp.append('%s/java' % buildPath)
     cp.append('%s/test' % buildPath)
+    cp.append('%s/lucene/build/sandbox/classes/java' % path)
     cp.append('%s/lucene/build/test-framework/classes/java' % path)
-    cp.append('%s/lucene/build/contrib/misc/classes/java' % path)
+    cp.append('%s/lucene/build/misc/classes/java' % path)
+    cp.append('%s/lucene/build/facet/classes/java' % path)
     common.addJARs(cp, '%s/lucene/test-framework/lib' % path)
     if version == '4.0':
       cp.append('%s/lucene/build/analysis/common/classes/java' % path)
@@ -743,22 +779,26 @@ class RunAlgs:
       cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
-    # need benchmark path so perf.SearchPerfTest is found:
-    cp.append(checkoutToBenchPath(checkout))
+    # so perf.* is found:
+    cp.append(constants.BENCH_BASE_DIR)
 
     return tuple(cp)
 
+  compiledCheckouts = set()
+  
   def compile(self, competitor):
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
     try:
-      for module in ('core', 'suggest', 'highlighter',
-                     'analysis/common', 'grouping', 'test-framework',
-                     'codecs'):
-        modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
-        print '  %s...' % modulePath
-        os.chdir(modulePath)
-        run('%s compile' % constants.ANT_EXE, 'compile.log')
+      if competitor.checkout not in self.compiledCheckouts:
+        self.compiledCheckouts.add(competitor.checkout);
+        for module in ('core', 'suggest', 'highlighter', 'sandbox',
+                       'analysis/common', 'grouping', 'test-framework',
+                       'codecs', 'facet'):
+          modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
+          print '  %s...' % modulePath
+          os.chdir(modulePath)
+          run('%s compile' % constants.ANT_EXE, 'compile.log')
 
       print '  %s' % path
       os.chdir(path)      
@@ -775,11 +815,6 @@ class RunAlgs:
         else:
           subdir = ''
         srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
-        # TODO: change to just compile the code & run directly from util
-        if osName in ('windows', 'cygwin'):
-          run('cp -r %s perf' % srcDir)
-        else:
-          run('ln -sf %s perf' % srcDir)
       competitor.compile(cp)
     finally:
       os.chdir(cwd)
@@ -817,11 +852,17 @@ class RunAlgs:
     else:
       doSort = ''
 
-    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
+    if c.facetGroups is not None:
+      doFacets = '-facets'
+      facetGroups = '-facetGroup %s' % c.facetGroups[0]
+    else:
+      doFacets = ''
+
+    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s %s' % \
         (c.javaCommand, cp, c.directory,
         nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
         c.numThreads, c.competition.taskRepeatCount,
-        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
+        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets, facetGroups)
     command += ' -topN 10'
     if filter is not None:
       command += ' %s %.2f' % filter
@@ -829,6 +870,9 @@ class RunAlgs:
       command += ' -printHeap'
     if c.pk:
       command += ' -pk'
+    if c.loadStoredFields:
+      command += ' -loadStoredFields'
+
     print '      log: %s + stdout' % logFile
     t0 = time.time()
     run(command, logFile + '.stdout', indent='      ')

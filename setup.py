@@ -82,7 +82,7 @@ def runSetup(download):
         print 'download ', url, ' - time might take a long time!'
         urllib.urlretrieve(url, filename=target_file)
         print 'downloading %s to  %s done ' % (url, target_file)
-      if target_file.endswith('.bz2') or target.endswith('.lzma'):
+      if target_file.endswith('.bz2') or target_file.endswith('.lzma'):
         print 'NOTE: make sure you decompress %s' % (target_file)
 
   print 'setup successful'

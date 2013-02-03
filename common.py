@@ -89,7 +89,6 @@ def getLuceneTestClassPath(ROOT):
     else:
       JUNIT_JAR = 'junit-3.8.2.jar'
     CP.append(ROOT + '/lucene/test-framework/lib/' + JUNIT_JAR)
-    CP.append(ROOT + '/lucene/test-framework/lib/randomizedtesting-runner-1.4.0.jar')
 
   if os.path.exists(ROOT + '/lucene/build/classes/demo'):
     CP.append(ROOT + '/lucene/build/classes/demo')
@@ -98,8 +97,6 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/queries/classes/test')
   CP.append(ROOT + '/lucene/build/codecs/classes/java')
   CP.append(ROOT + '/lucene/build/codecs/classes/test')
-  CP.append(ROOT + '/lucene/build/spec/classes/java')
-  CP.append(ROOT + '/lucene/build/spec/classes/test')
   CP.append(ROOT + '/lucene/build/benchmark/classes/java')
   CP.append(ROOT + '/lucene/build/benchmark/classes/test')
   addJARs(CP, ROOT + '/lucene/benchmark/lib')
@@ -126,8 +123,11 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/join/classes/java')
   CP.append(ROOT + '/lucene/build/facet/classes/test')
   CP.append(ROOT + '/lucene/build/facet/classes/java')
+  CP.append(ROOT + '/lucene/build/facet/classes/examples')
   CP.append(ROOT + '/lucene/build/suggest/classes/test')
   CP.append(ROOT + '/lucene/build/suggest/classes/java')
+  CP.append(ROOT + '/lucene/build/sandbox/classes/test')
+  CP.append(ROOT + '/lucene/build/sandbox/classes/java')
 
   # return filterCWD(CP)
   return CP

@@ -52,7 +52,7 @@ import java.util.HashSet;
 
 // javac -cp build/classes/java:build/contrib/spellchecker/classes/java perf/CreateQueries.java
 
-// java -cp build/classes/java:build/contrib/spellchecker/classes/java:. perf.CreateQueries /p/lucene/indices/wikimedium.clean.svn.Standard.nd10M/index body queries.txt
+// java -cp .:/l/nativemmap/lucene/build/core/classes/java:/l/nativemmap/lucene/build/suggest/classes/java perf.CreateQueries /s2/scratch/indices/shingles.1M/index body queries.txt
 public class CreateQueries {
 
   private static class TermFreq {
@@ -398,7 +398,17 @@ public class CreateQueries {
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator(null);
       while (termsEnum.next() != null) {
-        final boolean isShingle = termsEnum.term().utf8ToString().indexOf(' ') != -1;
+        String term = termsEnum.term().utf8ToString();
+        if (term.indexOf(':') != -1) {
+          continue;
+        }
+        final boolean isShingle = term.indexOf(' ') != -1;
+
+        if (isShingle && (term.startsWith("_ ") || term.endsWith(" _"))) {
+          // A hole!
+          continue;
+        }
+
         if (isShingle == doShingles) {
           pq.insertWithOverflow(new TermFreq(termsEnum.term(), termsEnum.docFreq()));
         }

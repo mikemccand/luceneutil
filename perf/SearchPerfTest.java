@@ -23,22 +23,10 @@ package perf;
 //  - switch to named cmd line args
 //  - get pk lookup working w/ remote tasks
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Constructor;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,37 +35,53 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.lucene.analysis.*;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
-import org.apache.lucene.analysis.standard.*;
+import org.apache.lucene.analysis.standard.ClassicAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene41.Lucene41Codec;
-import org.apache.lucene.index.*;
-import org.apache.lucene.index.AtomicReaderContext;
-//import org.apache.lucene.index.codecs.mocksep.MockSepCodec;
-import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.facet.taxonomy.TaxonomyReader;
+import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
+import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.*;
-import org.apache.lucene.search.grouping.*;
-import org.apache.lucene.search.grouping.term.*;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.ReferenceManager;
+import org.apache.lucene.search.SearcherFactory;
+import org.apache.lucene.search.SearcherManager;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.similarities.Similarity;
-import org.apache.lucene.search.spans.*;
 import org.apache.lucene.search.spell.DirectSpellChecker;
-import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.lucene.search.spell.SuggestWord;
-import org.apache.lucene.store.*;
-import org.apache.lucene.util.*;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FileSwitchDirectory;
+import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.NRTCachingDirectory;
+//import org.apache.lucene.store.NativePosixMMapDirectory;
+import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.util.Constants;
+import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.RamUsageEstimator;
+import org.apache.lucene.util.Version;
 
 // TODO
 //   - post queries on pao
@@ -88,8 +92,8 @@ import org.apache.lucene.util.*;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint -Xlint:deprecation -cp build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomFilter.java
-//   java -cp .:build/core/classes/java:build/test-framework/classes/java:build/queryparser/classes/java:build/suggest/classes/java:build/analysis/common/classes/java:build/grouping/classes/java perf.SearchPerfTest MMapDirectory /indices/fullwiki StandardAnalyzer server:localhost:7777 6 1 body -1 no 0 0 DefaultSimilarity multi
+//   javac -Xlint -Xlint:deprecation -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomFilter.java
+//   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -searchThreadCount 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
 public class SearchPerfTest {
 
@@ -136,30 +140,27 @@ public class SearchPerfTest {
 
   public static void main(String[] clArgs) throws Exception {
 
-    System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
- 
     // args: dirImpl indexPath numThread numIterPerThread
     // eg java SearchPerfTest /path/to/index 4 100
     final Args args = new Args(clArgs);
 
     Directory dir0;
-    final RAMDirectory ramDir;
-    final String dirPath = args.getString("-indexPath");
+    final boolean doFacets = args.getFlag("-facets");
+    final String dirPath = args.getString("-indexPath") + "/index";
     final String dirImpl = args.getString("-dirImpl");
-    if (dirImpl.equals("MMapDirectory")) {
-      dir0 = new MMapDirectory(new File(dirPath));
+
+    OpenDirectory od = OpenDirectory.get(dirImpl);
+
+    /*
+    } else if (dirImpl.equals("NativePosixMMapDirectory")) {
+      dir0 = new NativePosixMMapDirectory(new File(dirPath));
       ramDir = null;
-    } else if (dirImpl.equals("NIOFSDirectory")) {
-      dir0 = new NIOFSDirectory(new File(dirPath));
-      ramDir = null;
-    } else if (dirImpl.equals("SimpleFSDirectory")) {
-      dir0 = new SimpleFSDirectory(new File(dirPath));
-      ramDir = null;
-      /*
+      if (doFacets) {
+        facetsDir = new NativePosixMMapDirectory(new File(facetsDirPath));
+      }
     } else if (dirImpl.equals("CachingDirWrapper")) {
       dir0 = new CachingRAMDirectory(new MMapDirectory(new File(dirPath)));
       ramDir = null;
-      */
     } else if (dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
       // Load only non-postings files into RAMDir (assumes
       // Lucene40PF is the wrapped PF):
@@ -183,12 +184,17 @@ public class SearchPerfTest {
                                      fsDir,
                                      ramDir,
                                      true);
-    } else if (dirImpl.equals("RAMDirectory")) {
-      final long t0 = System.currentTimeMillis();
-      dir0 = ramDir = new RAMDirectory(new SimpleFSDirectory(new File(dirPath)), IOContext.READ);
-      System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir0).sizeInBytes());
+      if (doFacets) {
+        facetsDir = new RAMDirectory(new SimpleFSDirectory(new File(facetsDirPath)), IOContext.READ);
+      }
+      */
+
+    final RAMDirectory ramDir;
+    dir0 = od.open(new File(dirPath));
+    if (dir0 instanceof RAMDirectory) {
+      ramDir = (RAMDirectory) dir0;
     } else {
-      throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
+      ramDir = null;
     }
 
     // TODO: NativeUnixDir?
@@ -200,6 +206,7 @@ public class SearchPerfTest {
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
     final int topN = args.getInt("-topN");
+    final boolean doStoredLoads = args.getFlag("-loadStoredFields");
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
@@ -216,17 +223,24 @@ public class SearchPerfTest {
       Class.forName("org.apache.lucene.search.similarities." + similarity).asSubclass(Similarity.class);
     final Similarity sim = simClazz.newInstance();
 
+    System.out.println("Using dir impl " + dir0.getClass().getName());
+    System.out.println("Analyzer " + analyzer);
+    System.out.println("Similarity " + similarity);
+    System.out.println("Search thread count " + searchThreadCount);
+    System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
+    System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
+ 
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_40);
+      a = new EnglishAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("ClassicAnalyzer")) {
-      a = new ClassicAnalyzer(Version.LUCENE_40);
+      a = new ClassicAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_40);
+      a = new StandardAnalyzer(Version.LUCENE_50);
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
                                      2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -243,7 +257,15 @@ public class SearchPerfTest {
 
     final long tSearcherStart = System.currentTimeMillis();
 
+    final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
+    final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
+
+    if (recacheFilterDeletes) {
+      throw new UnsupportedOperationException("recacheFilterDeletes was deprecated");
+    }
+
     if (args.getFlag("-nrt")) {
+      // TODO: get taxoReader working here too
       // TODO: factor out & share this CL processing w/ Indexer
       final int indexThreadCount = args.getInt("-indexThreadCount");
       final String lineDocsFile = args.getString("-lineDocsFile");
@@ -270,7 +292,7 @@ public class SearchPerfTest {
 
       dir = dir0;
 
-      final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, a);
+      final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, a);
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
       iwc.setRAMBufferSizeMB(256.0);
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
@@ -326,7 +348,7 @@ public class SearchPerfTest {
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
-      IndexThreads threads = new IndexThreads(new Random(17), writer, lineDocsFile, storeBody, tvsBody,
+      IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, lineDocsFile, storeBody, tvsBody,
                                               false,
                                               indexThreadCount, -1,
                                               false, false, true, docsPerSecPerThread, cloneDocs);
@@ -407,16 +429,65 @@ public class SearchPerfTest {
 
     //System.out.println("searcher=" + searcher);
 
+    Map<String,TaxonomyReader> taxoReaders = null;
+
+    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+    if (doFacets) {
+      IndexSearcher s = mgr.acquire();
+      try {
+        // EG: -facetGroup onlyDate:noparents:Date -facetGroup hierarchies:allparents:Date,characterCount ...
+        for(String arg: args.getStrings("-facetGroup")) {
+          FacetGroup fg = new FacetGroup(arg);
+          facetGroups.add(fg);
+          if (MultiFields.getTerms(s.getIndexReader(), "$"+fg.groupName) == null) {
+            throw new IllegalArgumentException("this index doesn't have facet group named \"" + fg.groupName + "\"");
+          }
+        }
+
+        if (facetGroups.size() != 1) {
+          // TODO: fix this limitation!
+          throw new IllegalArgumentException("can only run with one facet group now");
+        }
+
+      } finally {
+        mgr.release(s);
+      }
+
+      // TODO: need to fix this to handle NRT:
+      File f = new File(args.getString("-indexPath"), "facets");
+      if (!f.exists()) {
+        // Private taxo reader per group:
+        taxoReaders = new HashMap<String,TaxonomyReader>();
+        for(String sub : new File(args.getString("-indexPath")).list()) {
+          if (sub.startsWith("facets.")) {
+            String groupName = sub.substring(7);
+            Directory taxoDir = od.open(new File(args.getString("-indexPath"), sub));
+            TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
+            System.out.println("Taxonomy for facet group \"" + groupName + "\" has " + tr.getSize() + " ords");
+            taxoReaders.put(groupName, tr);
+          }
+        }
+      } else {
+        // Global taxo reader:
+        Directory taxoDir = od.open(f);
+        TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
+        System.out.println("Taxonomy has " + tr.getSize() + " ords");
+        for(FacetGroup fg : facetGroups) {
+          taxoReaders.put(fg.groupName, tr);
+        }
+      }
+    }
+
     final Random staticRandom = new Random(staticRandomSeed);
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, fieldName, spellChecker, hiliteImpl);
+    final IndexState indexState = new IndexState(mgr, taxoReaders, fieldName, spellChecker, hiliteImpl, facetGroups);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
-    final QueryParser queryParser = new QueryParser(Version.LUCENE_40, "body", a);
+    final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom);
+    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom, doStoredLoads);
 
     final TaskSource tasks;
 
@@ -436,6 +507,9 @@ public class SearchPerfTest {
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
       tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup);
+      System.out.println("Task repeat count " + taskRepeatCount);
+      System.out.println("Tasks file " + tasksFile);
+      System.out.println("Num task per cat " + numTaskPerCat);
     }
 
     args.check();
@@ -466,17 +540,19 @@ public class SearchPerfTest {
 
       out.println("\nResults for " + allTasks.size() + " tasks:");
       for(final Task task : allTasks) {
-        final Task other = tasksSeen.get(task);
-        if (other != null) {
-          if (task.checksum() != other.checksum()) {
-            System.out.println("\nTASK:");
-            task.printResults(System.out, indexState);
-            System.out.println("\nOTHER TASK:");
-            other.printResults(System.out, indexState);
-            throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+        if (verifyCheckSum) {
+          final Task other = tasksSeen.get(task);
+          if (other != null) {
+            if (task.checksum() != other.checksum()) {
+              System.out.println("\nTASK:");
+              task.printResults(System.out, indexState);
+              System.out.println("\nOTHER TASK:");
+              other.printResults(System.out, indexState);
+              throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+            }
+          } else {
+            tasksSeen.put(task, task);
           }
-        } else {
-          tasksSeen.put(task, task);
         }
         out.println("\nTASK: " + task);
         out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
@@ -488,6 +564,10 @@ public class SearchPerfTest {
     }
 
     mgr.close();
+
+    for(TaxonomyReader tr : taxoReaders.values()) {
+      tr.close();
+    }
 
     if (writer != null) {
       // Don't actually commit any index changes:

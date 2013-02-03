@@ -26,13 +26,24 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
+import org.apache.lucene.facet.index.FacetFields;
+import org.apache.lucene.facet.index.params.CategoryListParams.OrdinalPolicy;
+import org.apache.lucene.facet.index.params.CategoryListParams;
+import org.apache.lucene.facet.index.params.FacetIndexingParams;
+import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.FieldInfo;
@@ -50,15 +61,24 @@ public class LineFileDocs implements Closeable {
   private final boolean bodyPostingsOffsets;
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
+  private final Map<String,TaxonomyWriter> taxoWriters;
+  private final List<FacetGroup> facetGroups;
+  private String[] extraFacetFields;
 
-  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone,
+                      Map<String,TaxonomyWriter> taxoWriters, List<FacetGroup> facetGroups) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
     this.bodyPostingsOffsets = bodyPostingsOffsets;
     this.doClone = doClone;
-    open();
     this.doRepeat = doRepeat;
+    this.taxoWriters = taxoWriters;
+    this.facetGroups = facetGroups;
+    for(FacetGroup fg : facetGroups) {
+      fg.builder = new FacetFields(taxoWriters.get(fg.groupName), new FacetIndexingParams(fg.clp));
+    }
+    open();
   }
 
   public long getBytesIndexed() {
@@ -70,8 +90,36 @@ public class LineFileDocs implements Closeable {
     reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
     String firstLine = reader.readLine();
     if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-      if (!firstLine.trim().equals("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body")) {
+      if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body") &&
+          !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
         throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+      }
+      if (taxoWriters != null) {
+        String[] fields = firstLine.split("\t");
+        if (fields.length > 4) {
+          extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
+          System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
+
+          List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
+
+          // Verify facet groups now:
+          for(FacetGroup fg : facetGroups) {
+            for(String field : fg.fields) {
+              if (!field.equals("Date") && !extraFacetFieldsList.contains(field)) {
+                throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
+              }
+            }
+          }
+        } else {
+          // Verify facet groups now:
+          for(FacetGroup fg : facetGroups) {
+            for(String field : fg.fields) {
+              if (!field.equals("Date")) {
+                throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
+              }
+            }
+          }
+        }
       }
       // Skip header
     } else {
@@ -235,6 +283,7 @@ public class LineFileDocs implements Closeable {
 
   private int readCount;
 
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public Document nextDoc(DocState doc) throws IOException {
     String line;
     final int myID;
@@ -252,8 +301,6 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    bytesIndexed.addAndGet(line.length());
-
     int spot = line.indexOf(SEP);
     if (spot == -1) {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
@@ -262,8 +309,13 @@ public class LineFileDocs implements Closeable {
     if (spot2 == -1) {
       throw new RuntimeException("line: [" + line + "] is in an invalid format !");
     }
+    int spot3 = line.indexOf(SEP, 1 + spot2);
+    if (spot3 == -1) {
+      spot3 = line.length();
+    }
+    bytesIndexed.addAndGet(spot3);
 
-    doc.body.setStringValue(line.substring(1+spot2, line.length()));
+    doc.body.setStringValue(line.substring(1+spot2, spot3));
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
     doc.titleDV.setBytesValue(new BytesRef(title));
@@ -282,6 +334,78 @@ public class LineFileDocs implements Closeable {
     doc.dateCal.setTime(date);
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
+
+    if (taxoWriters != null) {
+
+      CategoryPath dateCP = new CategoryPath("Date",
+                                             ""+doc.dateCal.get(Calendar.YEAR),
+                                             ""+doc.dateCal.get(Calendar.MONTH),
+                                             ""+doc.dateCal.get(Calendar.DAY_OF_MONTH));
+
+      for(FacetGroup fg : facetGroups) {
+        // TODO: is there a way to "reuse" a field w/ facets
+        doc.doc.removeFields("$" + fg.groupName);
+      
+        List<CategoryPath> paths = new ArrayList<CategoryPath>();
+
+        if (fg.fields.contains("Date")) {
+          paths.add(dateCP);
+        }
+
+        if (extraFacetFields != null) {
+          List<CategoryPath>[] cpValues = new List[extraFacetFields.length];
+          String[] extraValues = line.substring(spot3+1, line.length()).split("\t");
+        
+          for(int i=0;i<extraFacetFields.length;i++) {
+            String extraFieldName = extraFacetFields[i];
+            if (fg.fields.contains(extraFieldName)) {
+              if (cpValues[i] == null) {
+                List<CategoryPath> cps;
+                if (extraFieldName.equals("categories")) {
+                  cps = new ArrayList<CategoryPath>();
+                  for (String cat : extraValues[i].split("\\|")) {
+                    // TODO: scary how taxo writer writes a
+                    // second /categories ord for this case ...
+                    if (cat.length() == 0) {
+                      continue;
+                    }
+                    cps.add(new CategoryPath("categories", cat));
+                  }
+                } else if (extraFieldName.equals("characterCount")) {
+
+                  // Make number drilldown hierarchy, so eg 1877
+                  // characters is under
+                  // 0-1M/0-100K/0-10K/1-2K/1800-1900:
+                  List<String> nodes = new ArrayList<String>();
+                  nodes.add(extraFieldName);
+                  int value = Integer.parseInt(extraValues[i]);
+                  int accum = 0;
+                  int base = 1000000;
+                  while(base > 100) {
+                    int factor = (value-accum) / base;
+                    nodes.add(String.format("%d - %d", accum+factor*base, accum+(factor+1)*base));
+                    accum += factor * base;
+                    base /= 10;
+                  }
+                  //System.out.println("value=" + values[i]
+                  //+ "; node=" + nodes);
+                  cps = Collections.singletonList(new CategoryPath(nodes.toArray(new String[nodes.size()])));
+                } else {
+                  cps = Collections.singletonList(new CategoryPath(extraFieldName, extraValues[i]));
+                }
+                cpValues[i] = cps;
+              }
+              paths.addAll(cpValues[i]);
+            }
+          }
+        }
+
+        //System.out.println("FG: " + fg.groupName + " add paths=" + paths);
+
+        fg.builder.addFields(doc.doc, paths);
+        //System.out.println("  doc=" + doc.doc);
+      }
+    }
 
     if (doClone) {
       return cloneDoc(doc.doc);

@@ -126,15 +126,16 @@ def getPctPoints(fileName, name, warmupSec):
     
   return pctPointsCache[fileName]
   
-def createGraph(fileNames, warmupSec):
+def createGraph(fileNames, warmupSec, title=None):
   cols = []
   names = []
   maxRows = 0
 
-  reQPS = re.compile(r'\.qps([\.0-9]+)$')
-
-  qps = float(reQPS.search(fileNames[0][0]).group(1))
-
+  if title is None:
+    reQPS = re.compile(r'\.qps([\.0-9]+)$')
+    qps = float(reQPS.search(fileNames[0][0]).group(1))
+    title = 'Query Time @ %s qps' % qps
+    
   for name, file in fileNames:
 
     col = getPctPoints(file, name, warmupSec)[0]
@@ -148,7 +149,7 @@ def createGraph(fileNames, warmupSec):
     maxRows = max(maxRows, len(col))
 
     i = name.find('.qps')
-    if i != -1:
+    if title is None and i != -1:
       name = name[:i]
     names.append(name)
     
@@ -182,7 +183,7 @@ def createGraph(fileNames, warmupSec):
     if rowID == maxRows:
       break
         
-  w(chartFooter.replace('$QPS$', str(qps)))
+  w(chartFooter.replace('$TITLE$', title))
   
   return ''.join(chart)
   
@@ -200,7 +201,7 @@ chartHeader = '''
 chartFooter = '''        ]);
 
         var options = {
-          title: 'Query Time @ $QPS$ qps',
+          title: '$TITLE$',
           pointSize: 5,
           //legend: {position: 'none'},
           hAxis: {title: 'Percentile', format: '# %'},

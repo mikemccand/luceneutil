@@ -18,8 +18,9 @@ package perf;
  */
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,12 +28,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.SortedBytesDocValuesField;
 import org.apache.lucene.document.StringField;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
+import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util._TestUtil;
 
@@ -45,13 +44,15 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-  public IndexThreads(Random random, IndexWriter w, String lineFile, boolean storeBody, boolean tvsBody,
+  public IndexThreads(Random random, IndexWriter w, Map<String,TaxonomyWriter> facetWriters,
+                      List<FacetGroup> facetGroups,
+                      String lineFile, boolean storeBody, boolean tvsBody,
                       boolean bodyPostingsOffsets,
                       int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
                       boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs);
 
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, facetWriters, facetGroups);
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
@@ -131,7 +132,8 @@ class IndexThreads {
     private final Random random;
     private final AtomicBoolean failed;
 
-    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w, LineFileDocs docs,
+    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
+                       LineFileDocs docs,
                        int numTotalDocs, AtomicInteger count, boolean doUpdate, AtomicInteger groupBlockIndex,
                        AtomicBoolean stop, float docsPerSec, AtomicBoolean failed) {
       this.startLatch = startLatch;
@@ -192,6 +194,10 @@ class IndexThreads {
 
         if (group100 != null) {
 
+          if (numTotalDocs == -1) {
+            throw new IllegalStateException("must specify numTotalDocs when indexing doc blocks for grouping");
+          }
+
           // Add docs in blocks:
           
           final String[] groupBlocks;
@@ -204,54 +210,80 @@ class IndexThreads {
           }
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
-          final List<Document> docsGroup = new ArrayList<Document>();
-
           while (!stop.get()) {
             final int groupCounter = groupBlockIndex.getAndIncrement();
             if (groupCounter >= groupBlocks.length) {
               break;
             }
             final int numDocs;
+            // This will toggle between X and X+1 docs,
+            // converging over time on average to the
+            // floating point docsPerGroupBlock:
             if (groupCounter == groupBlocks.length-1) {
-              // Put all remaining docs in this group
-              numDocs = 10000;
+              numDocs = numTotalDocs - ((int) (groupCounter*docsPerGroupBlock));
             } else {
-              // This will toggle between X and X+1 docs,
-              // converging over time on average to the
-              // floating point docsPerGroupBlock:
               numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
             }
             groupBlockField.setStringValue(groupBlocks[groupCounter]);
-            for(int docCount=0;docCount<numDocs;docCount++) {
-              final Document doc = docs.nextDoc(docState);
-              if (doc == null) {
-                break;
-              }
-              final int id = LineFileDocs.idToInt(idField.stringValue());
-              if (id >= numTotalDocs) {
-                break;
-              }
-              if (((1+id) % 100000) == 0) {
-                System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
-              }
-              group100Field.setStringValue(group100[id%100]);
-              group10KField.setStringValue(group10K[id%10000]);
-              group100KField.setStringValue(group100K[id%100000]);
-              group1MField.setStringValue(group1M[id%1000000]);
-              docsGroup.add(LineFileDocs.cloneDoc(doc));
-            }
-            final int docCount = docsGroup.size();
-            docsGroup.get(docCount-1).add(groupEndField);
-            //System.out.println("nd=" + docCount);
-            if (docCount > 0) {
-              w.addDocuments(docsGroup);
-              count.addAndGet(docCount);
-              docsGroup.clear();
-            } else {
-              break;
-            }
+
+            w.addDocuments(new Iterable<IndexDocument>() {
+                @Override
+                public Iterator<IndexDocument> iterator() {
+                  return new Iterator<IndexDocument>() {
+                    int upto;
+                    Document doc;
+
+                    @Override
+                    public boolean hasNext() {
+                      if (upto < numDocs) {
+                        try {
+                          doc = docs.nextDoc(docState);
+                        } catch (IOException ioe) {
+                          throw new RuntimeException(ioe);
+                        }
+                        if (doc == null) {
+                          return false;
+                        }
+
+                        final int id = LineFileDocs.idToInt(idField.stringValue());
+                        if (id >= numTotalDocs) {
+                          throw new IllegalStateException();
+                        }
+                        if (((1+id) % 100000) == 0) {
+                          System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+                        }
+                        group100Field.setStringValue(group100[id%100]);
+                        group10KField.setStringValue(group10K[id%10000]);
+                        group100KField.setStringValue(group100K[id%100000]);
+                        group1MField.setStringValue(group1M[id%1000000]);
+                        upto++;
+                        if (upto == numDocs) {
+                          doc.add(groupEndField);
+                        }
+                        count.incrementAndGet();
+                        return true;
+                      } else {
+                        doc = null;
+                        return false;
+                      }
+                    }
+
+                    @Override
+                    public IndexDocument next() {
+                      return doc;
+                    }
+
+                    @Override
+                    public void remove() {
+                      throw new UnsupportedOperationException();
+                    }
+                  };
+                }
+              });
+
+            docState.doc.removeField("groupend");
           }
-        } else {
+        } else if (docsPerSec > 0 || doUpdate) {
 
           final long startNS = System.nanoTime();
           int threadCount = 0;
@@ -274,7 +306,7 @@ class IndexThreads {
               final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
               // NOTE: can't use docState.id in case doClone
               // was true
-              ((Field) doc.getField("id")).setStringValue(updateID);
+              doc.getField("id").setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);
@@ -288,6 +320,21 @@ class IndexThreads {
               final int sleepNS2 = (int) (sleepNS - sleepMS*1000000);
               Thread.sleep(sleepMS, sleepNS2);
             }
+          }
+        } else {
+          while (true) {
+            final Document doc = docs.nextDoc(docState);
+            if (doc == null) {
+              break;
+            }
+            int docCount = count.incrementAndGet();
+            if (numTotalDocs != -1 && docCount > numTotalDocs) {
+              break;
+            }
+            if ((docCount % 100000) == 0) {
+              System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            }
+            w.addDocument(doc);
           }
         }
       } catch (Exception e) {
@@ -308,24 +355,25 @@ class IndexThreads {
       this.stop = stop;
     }
     
-    public void run() {
+    @Override
+		public void run() {
        long time = System.currentTimeMillis();
        System.out.println("startIngest: " + time);
        final long start = time;
        int lastCount = count.get();
        while(!stop.get()) {
-        try {
-         Thread.sleep(200);
-        } catch(Exception ex) {
-        }
-        int numDocs = count.get();
+         try {
+           Thread.sleep(200);
+         } catch(Exception ex) {
+         }
+         int numDocs = count.get();
 
-        double current = (double) (numDocs - lastCount);
-        long now = System.currentTimeMillis();
-        double seconds = (now-time) / 1000.0d;
-        System.out.println("ingest: " + (current / seconds) + " " + (now - start));
-        time = now;
-        lastCount = numDocs;
+         double current = numDocs - lastCount;
+         long now = System.currentTimeMillis();
+         double seconds = (now-time) / 1000.0d;
+         System.out.println("ingest: " + (current / seconds) + " " + (now - start));
+         time = now;
+         lastCount = numDocs;
        }
     }
   }

@@ -19,14 +19,17 @@ package perf;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.lucene.facet.index.params.CategoryListParams;
+import org.apache.lucene.facet.index.params.FacetIndexingParams;
+import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
-//import org.apache.lucene.sandbox.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.Filter;
@@ -35,9 +38,11 @@ import org.apache.lucene.search.QueryWrapperFilter;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.RamUsageEstimator;
 
 class IndexState {
   public final ReferenceManager<IndexSearcher> mgr;
@@ -45,28 +50,42 @@ class IndexState {
   public final Filter groupEndFilter;
   public final FastVectorHighlighter fastHighlighter;
   public final boolean useHighlighter;
-  //public final PostingsHighlighter postingsHighlighter;
+  public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
   public int[] docIDToID;
+  public final boolean hasDeletions;
+  public final Map<String,TaxonomyReader> taxoReaders;
+  public final List<FacetGroup> facetGroups;
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, String textFieldName, DirectSpellChecker spellChecker, String hiliteImpl) throws IOException {
+  public IndexState(ReferenceManager<IndexSearcher> mgr, Map<String,TaxonomyReader> taxoReaders, String textFieldName, DirectSpellChecker spellChecker,
+                    String hiliteImpl, List<FacetGroup> facetGroups) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
+    this.taxoReaders = taxoReaders;
+    this.facetGroups = facetGroups;
+    
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
       fastHighlighter = new FastVectorHighlighter(true, true);
       useHighlighter = false;
-      //postingsHighlighter = null;
+      postingsHighlighter = null;
     } else if (hiliteImpl.equals("PostingsHighlighter")) {
       fastHighlighter = null;
       useHighlighter = false;
-      //postingsHighlighter = new PostingsHighlighter(textFieldName);
+      postingsHighlighter = new PostingsHighlighter();
     } else if (hiliteImpl.equals("Highlighter")) {
       fastHighlighter = null;
       useHighlighter = true;
+      postingsHighlighter = null;
     } else {
       throw new IllegalArgumentException("unrecognized -hiliteImpl \"" + hiliteImpl + "\"");
+    }
+    IndexSearcher searcher = mgr.acquire();
+    try {
+      hasDeletions = searcher.getIndexReader().hasDeletions();
+    } finally {
+      mgr.release(searcher);
     }
   }
 

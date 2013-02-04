@@ -213,10 +213,12 @@ class Competitor(object):
     self.loadStoredFields = loadStoredFields
 
   def compile(self, cp):
+
+    path = benchUtil.checkoutToUtilPath(self.checkout) + '/perf'
     files = []
-    for f in os.listdir('%s/perf' % constants.BENCH_BASE_DIR):
+    for f in os.listdir(path):
       if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
-        files.append('%s/perf/%s' % (constants.BENCH_BASE_DIR, f))
+        files.append('%s/%s' % (path, f))
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):

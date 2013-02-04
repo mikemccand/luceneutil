@@ -39,10 +39,11 @@ MEME_ALL = Data('memeall',
                 '/x/lucene/data/memetracker/lines.txt',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+
 WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
-# nocommit
-WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_BIG_TASKS_FILE)
 WIKI_BIG_1M = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
+
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
@@ -161,6 +162,15 @@ class Index(object):
       if self.facetsPrivateOrdsPerGroup:
         name.append('po')
 
+    if self.bodyTermVectors:
+      name.append('tv')
+
+    if self.bodyStoredFields:
+      name.append('stored')
+
+    if self.bodyPostingsOffsets:
+      name.append('offsets')
+
     name.append(self.postingsFormat)
     if self.postingsFormat != self.idFieldPostingsFormat:
       name.append(self.idFieldPostingsFormat)
@@ -205,10 +215,12 @@ class Competitor(object):
     self.doFacets = doFacets or facetGroups is not None
 
   def compile(self, cp):
+
+    path = benchUtil.checkoutToUtilPath(self.checkout) + '/perf'
     files = []
-    for f in os.listdir('%s/perf' % constants.BENCH_BASE_DIR):
+    for f in os.listdir(path):
       if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
-        files.append('%s/perf/%s' % (constants.BENCH_BASE_DIR, f))
+        files.append('%s/%s' % (path, f))
     benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):

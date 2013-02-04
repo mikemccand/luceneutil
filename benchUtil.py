@@ -88,7 +88,16 @@ def checkoutToBenchPath(checkout):
     if os.path.exists(fullPath):
       return fullPath
   raise RuntimeError('could not locate benchmark under %s' % p)
-    
+
+def checkoutToUtilPath(checkout):
+  p = checkoutToPath(checkout)
+  if os.path.exists('%s/luceneutil' % p):
+    # This checkout has a 'private' luceneutil:
+    compPath = '%s/luceneutil' % p
+  else:
+    compPath = constants.BENCH_BASE_DIR
+  return compPath
+
 def nameToIndexPath(name):
   return '%s/%s' % (constants.INDEX_DIR_BASE, name)
 
@@ -170,7 +179,7 @@ class SearchTask:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, group1[docIDX][0], group2[docIDX][0]))
 
     if self.facets != other.facets:
-      if False:
+      if True:
         print
         print '***WARNING*** facet diffs'
         print
@@ -278,7 +287,7 @@ def parseResults(resultsFiles):
     if not os.path.exists(resultsFile):
       continue
 
-    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 512:
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 1024:
       raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
     
     # print 'parse %s' % resultsFile
@@ -780,7 +789,7 @@ class RunAlgs:
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
     # so perf.* is found:
-    cp.append(constants.BENCH_BASE_DIR)
+    cp.append(checkoutToUtilPath(checkout))
 
     return tuple(cp)
 
@@ -794,7 +803,7 @@ class RunAlgs:
         self.compiledCheckouts.add(competitor.checkout);
         for module in ('core', 'suggest', 'highlighter', 'sandbox',
                        'analysis/common', 'grouping', 'test-framework',
-                       'codecs', 'facet'):
+                       'codecs', 'facet', 'sandbox'):
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
           print '  %s...' % modulePath
           os.chdir(modulePath)
@@ -1136,6 +1145,8 @@ def tasksToMap(taskIters, verifyScores):
   return d
     
 def compareHits(r1, r2, verifyScores):
+
+  # TODO: must also compare facet results
 
   # Carefully compare, allowing for the addition of new tasks:
   d1 = tasksToMap(r1, verifyScores)

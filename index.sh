@@ -50,13 +50,13 @@ $JAVA $HEAP -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/facet/
     -maxBufferedDocs $MAX_BUFFERED_DOCS \
     -postingsFormat $PF \
     -idFieldPostingsFormat $PF \
-    -waitForMerges \
     -mergePolicy LogDocMergePolicy \
     -tvs \
     -verbose
 
     #-dateFacets
 
+#    -waitForMerges
 
 #rm -rf /q/lucene/indices/test.10M
 

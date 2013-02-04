@@ -48,10 +48,12 @@ class FacetGroup {
     final OrdinalPolicy ordPolicy;
     if (s.equals("noparents")) {
       ordPolicy = OrdinalPolicy.NO_PARENTS;
-    } else if (s.equals("parents")) {
+    } else if (s.equals("allparents")) {
       ordPolicy = OrdinalPolicy.ALL_PARENTS;
+    } else if (s.equals("allbutdim")) {
+      ordPolicy = OrdinalPolicy.ALL_BUT_DIMENSION;
     } else {
-      throw new IllegalArgumentException("ordPolicy must be \"noparents\" or \"allparents\"; got \"" + s + "\"");
+      throw new IllegalArgumentException("ordPolicy must be \"noparents\" or \"allparents\" or \"allbutdim\"; got \"" + s + "\"");
     }
     System.out.println("OrdPolicy=" + ordPolicy);
     fields = Arrays.asList(arg.substring(j+1).split(","));

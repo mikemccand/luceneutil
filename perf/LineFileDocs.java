@@ -17,6 +17,8 @@ package perf;
  * limitations under the License.
  */
 
+// FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;

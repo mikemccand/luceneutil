@@ -153,8 +153,10 @@ dir = getArg('-dir', 'random')
 verbose = getArg('-verbose', False, False)
 iters = int(getArg('-iters', 1))
 seed = getArg('-seed', None)
+dvFormat = getArg('-dvFormat', None)
 nightly = getArg('-nightly', None, False)
 keepLogs = getArg('-keeplogs', False, False)
+# -Dtests.heapsize=XXX if running ant
 heap = getArg('-heap', None, True)
 if heap is not None:
   JAVA_ARGS = JAVA_ARGS.replace('512m', heap)
@@ -237,6 +239,8 @@ def run(threadID):
       command += ' -Dtests.codec=%s' % codec
       command += ' -Dtests.similarity=%s' % sim
       command += ' -Dtests.directory=%s' % dir
+      if dvFormat is not None:
+        command += ' -Dtests.docvaluesformat=%s' % dvFormat
       command += ' -Dtests.luceneMatchVersion=4.0'
       if constants.TESTS_LINE_FILE is not None:
         command += ' -Dtests.linedocsfile=%s' % constants.TESTS_LINE_FILE

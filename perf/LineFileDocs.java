@@ -17,6 +17,8 @@ package perf;
  * limitations under the License.
  */
 
+// FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -75,8 +77,10 @@ public class LineFileDocs implements Closeable {
     this.doRepeat = doRepeat;
     this.taxoWriters = taxoWriters;
     this.facetGroups = facetGroups;
-    for(FacetGroup fg : facetGroups) {
-      fg.builder = new FacetFields(taxoWriters.get(fg.groupName), new FacetIndexingParams(fg.clp));
+    if (facetGroups != null) {
+      for(FacetGroup fg : facetGroups) {
+        fg.builder = new FacetFields(taxoWriters.get(fg.groupName), new FacetIndexingParams(fg.clp));
+      }
     }
     open();
   }

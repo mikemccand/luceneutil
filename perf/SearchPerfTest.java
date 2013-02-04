@@ -425,11 +425,21 @@ public class SearchPerfTest {
       
       mgr = new SingleIndexSearcher(s);
     }
+
     System.out.println((System.currentTimeMillis() - tSearcherStart) + " msec to init searcher/NRT");
+
+    {
+      IndexSearcher s = mgr.acquire();
+      try {
+        System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc() + ": " + s);
+      } finally {
+        mgr.release(s);
+      }
+    }
 
     //System.out.println("searcher=" + searcher);
 
-    Map<String,TaxonomyReader> taxoReaders = null;
+    Map<String,TaxonomyReader> taxoReaders = new HashMap<String,TaxonomyReader>();
 
     List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
     if (doFacets) {
@@ -457,7 +467,6 @@ public class SearchPerfTest {
       File f = new File(args.getString("-indexPath"), "facets");
       if (!f.exists()) {
         // Private taxo reader per group:
-        taxoReaders = new HashMap<String,TaxonomyReader>();
         for(String sub : new File(args.getString("-indexPath")).list()) {
           if (sub.startsWith("facets.")) {
             String groupName = sub.substring(7);

@@ -769,10 +769,8 @@ class RunAlgs:
     cp.append('%s/java' % buildPath)
     cp.append('%s/test' % buildPath)
     cp.append('%s/lucene/build/sandbox/classes/java' % path)
-    cp.append('%s/lucene/build/test-framework/classes/java' % path)
     cp.append('%s/lucene/build/misc/classes/java' % path)
     cp.append('%s/lucene/build/facet/classes/java' % path)
-    common.addJARs(cp, '%s/lucene/test-framework/lib' % path)
     if version == '4.0':
       cp.append('%s/lucene/build/analysis/common/classes/java' % path)
       cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
@@ -802,7 +800,7 @@ class RunAlgs:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
         for module in ('core', 'suggest', 'highlighter', 'sandbox',
-                       'analysis/common', 'grouping', 'test-framework',
+                       'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
           print '  %s...' % modulePath

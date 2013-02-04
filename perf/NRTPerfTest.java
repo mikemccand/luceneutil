@@ -299,7 +299,7 @@ public class NRTPerfTest {
         if (field.equals("id")) {
           return PostingsFormat.forName("Memory");
         } else {
-          return PostingsFormat.forName("Lucene42");
+          return PostingsFormat.forName("Lucene41");
         }
       }
     };

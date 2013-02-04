@@ -444,23 +444,24 @@ public class SearchPerfTest {
     List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
     if (doFacets) {
       IndexSearcher s = mgr.acquire();
-      try {
+      if (args.hasArg("-facetGroup")) {
         // EG: -facetGroup onlyDate:noparents:Date -facetGroup hierarchies:allparents:Date,characterCount ...
-        for(String arg: args.getStrings("-facetGroup")) {
-          FacetGroup fg = new FacetGroup(arg);
-          facetGroups.add(fg);
-          if (MultiFields.getTerms(s.getIndexReader(), "$"+fg.groupName) == null) {
-            throw new IllegalArgumentException("this index doesn't have facet group named \"" + fg.groupName + "\"");
+        try {
+          for(String arg: args.getStrings("-facetGroup")) {
+            FacetGroup fg = new FacetGroup(arg);
+            facetGroups.add(fg);
+            if (MultiFields.getTerms(s.getIndexReader(), "$"+fg.groupName) == null) {
+              throw new IllegalArgumentException("this index doesn't have facet group named \"" + fg.groupName + "\"");
+            }
           }
-        }
 
-        if (facetGroups.size() != 1) {
-          // TODO: fix this limitation!
-          throw new IllegalArgumentException("can only run with one facet group now");
+          if (facetGroups.size() != 1) {
+            // TODO: fix this limitation!
+            throw new IllegalArgumentException("can only run with one facet group now");
+          }
+        } finally {
+          mgr.release(s);
         }
-
-      } finally {
-        mgr.release(s);
       }
 
       // TODO: need to fix this to handle NRT:
@@ -482,9 +483,7 @@ public class SearchPerfTest {
         Directory taxoDir = od.open(f);
         TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
         System.out.println("Taxonomy has " + tr.getSize() + " ords");
-        for(FacetGroup fg : facetGroups) {
-          taxoReaders.put(fg.groupName, tr);
-        }
+        taxoReaders.put("*", tr);
       }
     }
 

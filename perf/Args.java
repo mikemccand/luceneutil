@@ -102,6 +102,16 @@ public class Args {
     return false;
   }
 
+  public boolean hasArg(String argName) {
+    for(int upto=0;upto<args.length;upto++) {
+      if (args[upto].equals(argName)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   public void check() {
     for(int upto=0;upto<args.length;upto++) {
       Boolean v = used.get(args[upto]);

@@ -709,7 +709,11 @@ def makeGraphs():
                         '05/14/2012'):
               # Bug in FuzzyQuery made Fuzzy1 be exact search
               continue
-            
+          if cat == 'TermDateFacets':
+            if date in ('02/02/2013',
+                        '02/03/2013'):
+              # Bug in luceneutil (didn't actually run faceting on these days)
+              continue
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
       for date, desc, fullDesc in KNOWN_CHANGES:

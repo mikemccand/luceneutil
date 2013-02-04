@@ -867,7 +867,6 @@ class RunAlgs:
     if c.facetGroups is not None:
       facetGroups = '-facetGroup %s' % c.facetGroups[0]
     else:
-      doFacets = ''
       facetGroups = ''
 
     command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s %s' % \

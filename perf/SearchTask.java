@@ -236,7 +236,7 @@ final class SearchTask extends Task {
         // TODO: allow more than once facet group per query?
         // how (while still using CountingFacetCollector)!?
 
-        FacetGroup fg = state.facetGroups.get(0);
+        FacetGroup fg;
         if (!facetGroups.isEmpty()) {
           // This search has its own facet request
           fg = facetGroups.get(0);
@@ -251,7 +251,11 @@ final class SearchTask extends Task {
           facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
         }
         FacetSearchParams fsp = new FacetSearchParams(facetRequests, fip);
-        FacetsCollector facetsCollector = new CountingFacetsCollector(fsp, state.taxoReaders.get(fg.groupName));
+        TaxonomyReader taxoReader = state.taxoReaders.get(fg.groupName);
+        if (taxoReader == null) {
+          taxoReader = state.taxoReaders.get("*");
+        }
+        FacetsCollector facetsCollector = new CountingFacetsCollector(fsp, taxoReader);
 
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);

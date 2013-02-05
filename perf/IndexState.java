@@ -30,6 +30,7 @@ import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.FieldCache;
@@ -101,6 +102,12 @@ class IndexState {
             public int parseInt(BytesRef term) {
               return LineFileDocs.idToInt(term);
             }
+
+            @Override
+            public TermsEnum termsEnum(Terms terms) throws IOException {
+              return terms.iterator(null);
+            }
+
           }, false);
         System.arraycopy(ids, 0, docIDToID, base, ids.length);
         base += ids.length;

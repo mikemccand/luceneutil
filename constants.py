@@ -83,24 +83,32 @@ TESTS_LINE_FILE = None
 
 ANT_EXE = 'ant'
 
-# Set to true to run Linux's "perf stat" tool, but sudo must work w/o a password!
+# Set to True to run Linux's "perf stat" tool, but sudo must work w/o a password!
 DO_PERF = False
 
 PERF_STATS = (
   'task-clock',
   'cycles',
   'instructions',
-  'LLC-loads',
-  'LLC-load-misses',
   'cache-references',
   'cache-misses',
   'L1-dcache-loads',
   'L1-dcache-load-misses',
   'L1-icache-loads',
   'L1-icache-load-misses',
+  'LLC-loads',
+  'LLC-load-misses',
+  'LLC-stores',
+  'LLC-store-misses',
+  'LLC-prefetches',
+  'LLC-prefetch-misses',
   'faults',
   'minor-faults',
   'major-faults',
+  'branches',
+  'branch-misses',
+  'stalled-cycles-frontend',
+  'stalled-cycles-backend',
 )
 
 

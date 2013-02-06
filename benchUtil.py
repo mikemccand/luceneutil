@@ -952,6 +952,7 @@ class RunAlgs:
       perfCommand.append('sudo')
       perfCommand.append('perf')
       perfCommand.append('stat')
+      #perfCommand.append('-v')
       perfCommand.append('-e')
       perfCommand.append(','.join(PERF_STATS))
       perfCommand.append('--pid')

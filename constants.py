@@ -83,6 +83,27 @@ TESTS_LINE_FILE = None
 
 ANT_EXE = 'ant'
 
+# Set to true to run Linux's "perf stat" tool, but sudo must work w/o a password!
+DO_PERF = False
+
+PERF_STATS = (
+  'task-clock',
+  'cycles',
+  'instructions',
+  'LLC-loads',
+  'LLC-load-misses',
+  'cache-references',
+  'cache-misses',
+  'L1-dcache-loads',
+  'L1-dcache-load-misses',
+  'L1-icache-loads',
+  'L1-icache-load-misses',
+  'faults',
+  'minor-faults',
+  'major-faults',
+)
+
+
 # import again in case you want to override any of the vars set above
 from localconstants import *
 

@@ -27,8 +27,10 @@ import datetime
 import constants
 import common
 import random
+import signal
 import QPSChart
 import IndexChart
+import subprocess
   
 # Skip the first N runs of a given category (cold) or particular task (hot):
 WARM_SKIP = 3
@@ -48,6 +50,10 @@ SELECT = 'median'
 MAX_SCORE_DIFF = .00001
 
 VERBOSE = False
+
+DO_PERF = constants.DO_PERF
+
+PERF_STATS = constants.PERF_STATS
 
 osName = common.osName
 
@@ -867,24 +873,100 @@ class RunAlgs:
     else:
       facetGroups = ''
 
-    command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s %s' % \
-        (c.javaCommand, cp, c.directory,
-        nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
-        c.numThreads, c.competition.taskRepeatCount,
-        c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets, facetGroups)
-    command += ' -topN 10'
+    command = []
+    command.extend(c.javaCommand.split())
+    command.append('-classpath')
+    command.append(cp)
+    command.append('perf.SearchPerfTest')
+    command.append('-dirImpl')
+    command.append(c.directory)
+    command.append('-indexPath')
+    command.append(nameToIndexPath(c.index.getName()))
+    command.append('-analyzer')
+    command.append(c.analyzer)
+    command.append('-taskSource')
+    command.append(c.tasksFile)
+    command.append('-searchThreadCount')
+    command.append(str(c.numThreads))
+    command.append('-taskRepeatCount')
+    command.append(str(c.competition.taskRepeatCount))
+    command.append('-field')
+    command.append('body')
+    command.append('-tasksPerCat')
+    command.append(str(c.competition.taskCountPerCat))
+    if c.doSort:
+      command.append('-sort')
+    command.append('-staticSeed')
+    command.append(str(staticSeed))
+    command.append('-seed')
+    command.append(str(seed))
+    command.append('-similarity')
+    command.append(c.similarity)
+    command.append('-commit')
+    command.append(c.commitPoint)
+    command.append('-hiliteImpl')
+    command.append(c.hiliteImpl)
+    command.append('-log')
+    command.append(logFile)
+    if c.doFacets is not None:
+      command.append('-facets')
+    if c.facetGroups is not None:
+      command.append('-facetGroup')
+      command.append(c.facetGroups[0])
+    command.append('-topN')
+    command.append('10')
     if filter is not None:
-      command += ' %s %.2f' % filter
+      command.append('-filter')
+      command.append('%.2f' % filter)
     if c.printHeap:
-      command += ' -printHeap'
+      command.append('-printHeap')
     if c.pk:
-      command += ' -pk'
+      command.append('-pk')
     if c.loadStoredFields:
-      command += ' -loadStoredFields'
+      command.append('-loadStoredFields')
+    
+    if False:
+      command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s %s' % \
+          (c.javaCommand, cp, c.directory,
+          nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
+          c.numThreads, c.competition.taskRepeatCount,
+          c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets, facetGroups)
+      command += ' -topN 10'
+      if filter is not None:
+        command += ' %s %.2f' % filter
+      if c.printHeap:
+        command += ' -printHeap'
+      if c.pk:
+        command += ' -pk'
+      if c.loadStoredFields:
+        command += ' -loadStoredFields'
 
     print '      log: %s + stdout' % logFile
     t0 = time.time()
-    run(command, logFile + '.stdout', indent='      ')
+    #p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)    
+    #print 'command %s' % command
+    p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)    
+
+    if DO_PERF:
+      perfCommand = []
+      perfCommand.append('sudo')
+      perfCommand.append('perf')
+      perfCommand.append('stat')
+      perfCommand.append('-e')
+      perfCommand.append(','.join(PERF_STATS))
+      perfCommand.append('--pid')
+      perfCommand.append(str(p.pid))
+      #print 'COMMAND: %s' % perfCommand
+      p2 = subprocess.Popen(perfCommand, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+      p.wait()
+      run('sudo kill -INT %s' % p2.pid)
+      #os.kill(p2.pid, signal.SIGINT)
+      stdout, stderr = p2.communicate()
+      print 'PERF: %s' % fixupPerfOutput(stderr)
+    else:
+      p.wait()
+
+    #run(command, logFile + '.stdout', indent='      ')
     print '      %.1f s' % (time.time()-t0)
 
     return logFile
@@ -1186,3 +1268,14 @@ def getSegmentCount(indexPath):
     if fileName.endswith('.fdx') or fileName.endswith('.cfs'):
       segCount += 1
   return segCount
+
+reBrokenLine = re.compile('^\ +#')
+def fixupPerfOutput(s):
+  lines = s.split('\n')
+  linesOut = []
+  for line in lines:
+    if reBrokenLine.match(line) is not None:
+      linesOut[-1] += ' ' + line.rstrip()
+    else:
+      linesOut.append(line.rstrip())
+  return '\n'.join(linesOut)

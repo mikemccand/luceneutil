@@ -27,10 +27,9 @@ import java.util.Random;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
-import org.apache.lucene.facet.search.CountingFacetsCollector;
+//import org.apache.lucene.facet.search.CountingFacetsCollector;
 import org.apache.lucene.facet.search.FacetArrays;
 import org.apache.lucene.facet.search.FacetsCollector;
-import org.apache.lucene.facet.search.StandardFacetsCollector;
 import org.apache.lucene.facet.search.aggregator.Aggregator;
 import org.apache.lucene.facet.search.params.CountFacetRequest;
 import org.apache.lucene.facet.search.params.FacetRequest;
@@ -255,7 +254,7 @@ final class SearchTask extends Task {
         if (taxoReader == null) {
           taxoReader = state.taxoReaders.get("*");
         }
-        FacetsCollector facetsCollector = new CountingFacetsCollector(fsp, taxoReader);
+        FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), taxoReader);
 
         // TODO: determine in order by the query...?
         TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);

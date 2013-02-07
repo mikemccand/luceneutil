@@ -249,7 +249,7 @@ final class SearchTask extends Task {
         for(String field : fg.fields) {
           facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
         }
-        FacetSearchParams fsp = new FacetSearchParams(facetRequests, fip);
+        FacetSearchParams fsp = new FacetSearchParams(fip, facetRequests);
         TaxonomyReader taxoReader = state.taxoReaders.get(fg.groupName);
         if (taxoReader == null) {
           taxoReader = state.taxoReaders.get("*");

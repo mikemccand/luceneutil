@@ -97,7 +97,7 @@ class IndexState {
       docIDToID = new int[searcher.getIndexReader().maxDoc()];
       int base = 0;
       for(AtomicReaderContext sub : searcher.getIndexReader().leaves()) {
-        final int[] ids = FieldCache.DEFAULT.getInts(sub.reader(), "id", new FieldCache.IntParser() {
+        final FieldCache.Ints ids = FieldCache.DEFAULT.getInts(sub.reader(), "id", new FieldCache.IntParser() {
             @Override
             public int parseInt(BytesRef term) {
               return LineFileDocs.idToInt(term);
@@ -109,8 +109,11 @@ class IndexState {
             }
 
           }, false);
-        System.arraycopy(ids, 0, docIDToID, base, ids.length);
-        base += ids.length;
+        int maxDoc = sub.reader().maxDoc();
+        for(int i=0;i<maxDoc;i++) {
+          docIDToID[base+i] = ids.get(i);
+        }
+        base += maxDoc;
       }
     } finally {
       mgr.release(searcher);

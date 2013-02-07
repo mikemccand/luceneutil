@@ -46,7 +46,6 @@ import org.apache.lucene.facet.index.params.CategoryListParams;
 import org.apache.lucene.facet.index.params.FacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
-import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexableField;
@@ -218,7 +217,7 @@ public class LineFileDocs implements Closeable {
       title = new StringField("title", "", Field.Store.NO);
       doc.add(title);
 
-      titleDV = new SortedBytesDocValuesField("titleDV", new BytesRef(""));
+      titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
       doc.add(titleDV);
 
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
@@ -269,8 +268,8 @@ public class LineFileDocs implements Closeable {
         doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue(), Field.Store.NO));
       } else if (f instanceof IntField) {
         doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
-      } else if (f instanceof SortedBytesDocValuesField) {
-        doc2.add(new SortedBytesDocValuesField(f.name(), f.binaryValue()));
+      } else if (f instanceof SortedDocValuesField) {
+        doc2.add(new SortedDocValuesField(f.name(), f.binaryValue()));
       } else {
         Field field1 = f;
         Field field2 = new Field(field1.name(),

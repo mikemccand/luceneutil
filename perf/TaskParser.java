@@ -67,7 +67,6 @@ class TaskParser {
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
-    titleDVSort.getSort()[0].setUseIndexValues(true);
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");

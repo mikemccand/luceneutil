@@ -41,9 +41,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.index.FacetFields;
-import org.apache.lucene.facet.index.params.CategoryListParams.OrdinalPolicy;
-import org.apache.lucene.facet.index.params.CategoryListParams;
-import org.apache.lucene.facet.index.params.FacetIndexingParams;
+import org.apache.lucene.facet.params.CategoryListParams.OrdinalPolicy;
+import org.apache.lucene.facet.params.CategoryListParams;
+import org.apache.lucene.facet.params.FacetIndexingParams;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.FieldInfo.IndexOptions;

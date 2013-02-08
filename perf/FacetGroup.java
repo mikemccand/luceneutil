@@ -22,8 +22,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.lucene.facet.index.FacetFields;
-import org.apache.lucene.facet.index.params.CategoryListParams.OrdinalPolicy;
-import org.apache.lucene.facet.index.params.CategoryListParams;
+import org.apache.lucene.facet.params.CategoryListParams.OrdinalPolicy;
+import org.apache.lucene.facet.params.CategoryListParams;
 
 class FacetGroup {
   final String groupName;

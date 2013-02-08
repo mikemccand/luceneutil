@@ -219,6 +219,10 @@ KNOWN_CHANGES = [
   ('2013-01-24',
    'Switched to NO_PARENTS faceting',
    'Switched to NO_PARENTS faceting'),
+
+  ('2013-02-07',
+   'DocValues improvements (LUCENE-4547) and facets API improvements (LUCENE-4557)',
+   'DocValues improvements (LUCENE-4547) and facets API improvements (LUCENE-4557)'),
    ]
 
 # TODO

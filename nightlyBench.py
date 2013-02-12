@@ -488,7 +488,8 @@ def run():
                         mergePolicy='LogDocMergePolicy',
                         doFacets=True,
                         facetGroups = ('date:noparents:Date',),
-                        maxConcurrentMerges=3)
+                        maxConcurrentMerges=3,
+                        facetDVFormat=True)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

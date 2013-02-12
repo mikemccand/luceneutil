@@ -98,6 +98,7 @@ class Index(object):
                facetsPrivateOrdsPerGroup = False,
                facetGroups = None,
                extraNamePart = None,
+               facetDVFormat = False,
                maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
                ):
     self.checkout = checkout
@@ -133,7 +134,8 @@ class Index(object):
     self.bodyStoredFields = bodyStoredFields
     self.bodyPostingsOffsets = bodyPostingsOffsets
     self.doFacets = doFacets
-
+    self.facetDVFormat = facetDVFormat
+    
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))

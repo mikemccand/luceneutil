@@ -685,6 +685,9 @@ class RunAlgs:
       w('-threadCount %s' % index.numThreads)
       w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
 
+      if index.facetDVFormat:
+        w('-facetDVFormat')
+
       if index.optimize:
         w('-forceMerge')
 

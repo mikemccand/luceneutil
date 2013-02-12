@@ -37,6 +37,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.lucene42.Lucene42Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
@@ -126,6 +127,7 @@ public final class Indexer {
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
+    final boolean doFacetDVFormat = args.getFlag("-facetDVFormat");
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -154,6 +156,7 @@ public final class Indexer {
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
     System.out.println("Facets: " + (doFacets ? "yes" : "no"));
+    System.out.println("Facet DV Format?: " + (doFacetDVFormat ? "yes" : "no"));
     if (doFacets) {
       System.out.println("Facet groups: " + facetGroups);
     }
@@ -211,14 +214,33 @@ public final class Indexer {
     if (doDeletions || doForceMerge) {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
+    
+    final Set<String> facetFields = new HashSet<String>();
+    if (doFacetDVFormat) {
+      for (FacetGroup fg : facetGroups) {
+        facetFields.add(fg.clp.field);
+      }
+    }
 
     final Codec codec = new Lucene42Codec() {
-      @Override
-      public PostingsFormat getPostingsFormatForField(String field) {
-        return PostingsFormat.forName(field.equals("id") ?
-                                      idFieldPostingsFormat : defaultPostingsFormat);
-      }
-    };
+        @Override
+        public PostingsFormat getPostingsFormatForField(String field) {
+          return PostingsFormat.forName(field.equals("id") ?
+                                        idFieldPostingsFormat : defaultPostingsFormat);
+        }
+
+        private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName("Facet42");
+        private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
+
+        @Override
+        public DocValuesFormat getDocValuesFormatForField(String field) {
+          if (facetFields.contains(field)) {
+            return facetsDVFormat;
+          } else {
+            return lucene42DVFormat;
+          }
+        }
+      };
 
     iwc.setCodec(codec);
 

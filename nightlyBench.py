@@ -749,10 +749,10 @@ def makeGraphs():
   writeIndexHTML(searchChartData, days)
 
   # publish
-  #runCommand('rsync -arv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
+  #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
   if not DEBUG:
-    runCommand('rsync -arv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    runCommand('rsync -rv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
   
 def header(w, title):
   w('<html>')

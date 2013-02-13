@@ -223,6 +223,10 @@ KNOWN_CHANGES = [
   ('2013-02-07',
    'DocValues improvements (LUCENE-4547) and facets API improvements (LUCENE-4757)',
    'DocValues improvements (LUCENE-4547) and facets API improvements (LUCENE-4757)'),
+
+  ('2013-02-12',
+   'LUCENE-4764: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues',
+   'LUCENE-4764: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues'),
    ]
 
 # TODO

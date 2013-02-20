@@ -2,6 +2,8 @@ import sys
 import random
 
 # TODO
+#   - use heuristics based on known stats about the field/shards?  or
+#     ... use "history" of past experience for that field ...
 #   - only pass necessary values out to each shard on re-iter
 #   - don't increase topN unless we have to
 #   - try different facet cases
@@ -9,18 +11,11 @@ import random
 #     - draws-from-same-model
 #     - fully orthogonal
 
+EASY = False
+
 class FacetShard:
 
-  def __init__(self, r, facetValues):
-    numResults = r.randint(0, len(facetValues))
-    #numResults = r.randint(0, 20)
-    numResults = min(numResults, len(facetValues))
-    r.shuffle(facetValues)
-    results = {}
-    for value in facetValues[:numResults]:
-      results[value] = r.randint(1, 1000)
-    results = results.items()
-    results.sort(cmpByCountThenLabel)
+  def __init__(self, results):
     self.results = results
 
   def getHits(self, topN=None, specificValues=None):
@@ -99,7 +94,7 @@ def merge(shards, topN):
 
         if shardValues is None:
           shardValues = {}
-            
+
         for value, count in hits:
           # nocommit re-enable:
           #assert value not in shardValues
@@ -203,13 +198,26 @@ def merge(shards, topN):
     else:
       break
 
-  print '    %d iters' % iterCount
-
   # l is list of (value, ([shardSeenCount, totalCount])), sorted by totalCount descending
-  return [(x[0], x[1][0]) for x in l[:topN]]
+  return [(x[0], x[1][0]) for x in l[:topN]], iterCount
 
-def test(seedIn):
+def test(staticSeedIn, seedIn):
+  # key = topN, value = how many "retries" until the merging converged
+  iterCounts = {}
 
+  if staticSeedIn is None:
+    staticSeed = random.randint(-sys.maxint-1, sys.maxint)
+  else:
+    staticSeed = staticSeedIn
+    
+  sr = random.Random(staticSeed)
+  
+  if EASY:
+    numFacetValues = 10
+  else:
+    numFacetValues = sr.randint(10, 100)
+
+  cycles = 0
   while True:
     if VERBOSE:
       print
@@ -223,24 +231,30 @@ def test(seedIn):
     r = random.Random(seed)
 
     facetValues = set()
-    numFacetValues = r.randint(10, 100)
-    #numFacetValues = 10
     while len(facetValues) < numFacetValues:
       facetValues.add(randomString(r))
     facetValues = list(facetValues)
 
-    # nocommit
-    numShards = r.randint(1, 100)
-    #numShards = r.randint(1, 10)
+    if EASY:
+      numShards = r.randint(1, 10)
+    else:
+      numShards = r.randint(1, 100)
+      
     if True or VERBOSE:
-      print '  seed %s, %d shards, %d values' % (seed, numShards, numFacetValues)
+      print '  seed %s:%s, %d shards, %d values' % (staticSeed, seed, numShards, numFacetValues)
       
     shards = []
+
+    #model = RandomModel(r, facetValues)
+    model = SameDistrModel(r, facetValues)
+    
     for i in range(numShards):
-      shard = FacetShard(r, facetValues)
+      shard = FacetShard(model.getShardValues(i))
+
       if VERBOSE:
         print '  shard %d: %d values' % (i, len(shard.results))
         for value, count in shard.results:
+
           print '    %s: count=%d' % (value, count)
       shards.append(shard)
 
@@ -255,26 +269,40 @@ def test(seedIn):
     allResults = allResults.items()
 
     allResults.sort(cmpByCountThenLabel)
-    
+
     for topN in xrange(1, numFacetValues+3):
       # nocommit
       #topN = r.randint(1, 1000)
       #topN = 2
-      if True or VERBOSE:
+      if VERBOSE:
         print '  iter: topN=%d' % topN
 
       expected = allResults[:topN]
-      actual = merge(shards, topN)
+      actual, iterCount = merge(shards, topN)
+      assert iterCount > 0
+      
       if VERBOSE:
         print '    expected'
         for value, count in expected:
           print '      %s: count=%d' % (value, count)
-        print '    actual'
+        print '    actual [%d iters]' % iterCount
         for value, count in actual:
           print '      %s: count=%d' % (value, count)
 
+      iterCounts[topN] = iterCounts.get(topN, 0) + iterCount
+
       if actual != expected:
         raise RuntimeError('FAIL: seed=%s' % seed)
+
+    if seedIn is not None:
+      break
+
+    if cycles > 0 and cycles % 10 == 0:
+      print '  iterCounts:'
+      for topN in xrange(1, numFacetValues+3):
+        print '    %d: %.1f' % (topN, float(iterCounts[topN])/cycles)
+
+    cycles += 1
 
 def cmpByCountThenLabel(a, b):
   c = cmp(b[1], a[1])
@@ -288,14 +316,65 @@ def cmpByCountThenLabel2(a, b):
     return c
   return cmp(a[0], b[0])
 
+class RandomModel:
+
+  """
+  Each shard gets random count for each facet label.
+  """
+
+  def __init__(self, r, labels):
+    self.r = r
+    self.labels = labels
+
+  def getShardValues(self, shard):
+
+    if EASY:
+      numResults = min(self.r.randint(0, 20), len(self.labels))
+    else:
+      numResults = self.r.randint(0, len(self.labels))
+
+    results = {}
+    for value in self.labels[:numResults]:
+      results[value] = self.r.randint(1, 1000)
+    results = results.items()
+    results.sort(cmpByCountThenLabel)
+    return results  
+
+class SameDistrModel:
+
+  """
+  Each shard draws according to the same freq/pct for each label.
+  """
+
+  def __init__(self, r, labels):
+    self.r = r
+    self.freqs = {}
+    for label in labels:
+      self.freqs[label] = r.random()
+
+  def getShardValues(self, shard):
+
+    docCount = self.r.randint(1, 100000)
+
+    results = {}
+    for value, freq in self.freqs.items():
+      count = int(docCount*self.r.gauss(freq, .1))
+      if count > 0:
+        results[value] = count
+    results = results.items()
+    results.sort(cmpByCountThenLabel)
+    return results  
+
 if __name__ == '__main__':
   if not __debug__:
     raise RuntimeError('please run python without -O')
   VERBOSE = '-verbose' in sys.argv
-  seed = None
+  staticSeed = seed = None
   print 'argv %s' % sys.argv
   for i in xrange(len(sys.argv)):
     if sys.argv[i] == '-seed':
-      seed = int(sys.argv[i+1])
+      staticSeed, seed = sys.argv[1+1].split(':')
+      seed = int(seed)
+      staticSeed = int(staticSeed)
       break
-  test(seed)
+  test(staticSeed, seed)

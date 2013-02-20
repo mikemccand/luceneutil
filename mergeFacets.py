@@ -4,7 +4,7 @@ import random
 class FacetShard:
 
   def __init__(self, r, facetValues):
-    numResults = r.randint(0, 1000)
+    numResults = r.randint(0, len(facetValues))
     #numResults = r.randint(0, 20)
     numResults = min(numResults, len(facetValues))
     r.shuffle(facetValues)
@@ -17,13 +17,20 @@ class FacetShard:
 
   def getHits(self, topN=None, specificValues=None):
     if topN is None:
-      return self.results
+      assert specificValues is None
+      return self.results, None
     else:
       l = self.results[:topN]
       if specificValues is not None:
+        seen = set()
         for value, count in self.results[topN:]:
           if value in specificValues:
+            seen.add(value)
             l.append((value, count))
+        for value in specificValues:
+          if value not in seen:
+            l.append((value, 0))
+          
       return l, len(self.results)
 
 def randomString(r):
@@ -32,6 +39,10 @@ def randomString(r):
   for i in xrange(len):
     l.append(chr(97 + r.randint(0, 25)))
   return ''.join(l)
+
+# TODO: we could in theory "know" ahead of time, given a field's facet
+# distribution, what a reasonable starting mult factor is.  Eg a big
+# flat field (username) likely needs higher mult?
     
 def merge(shards, topN):
   if VERBOSE:
@@ -58,6 +69,8 @@ def merge(shards, topN):
     for i in xrange(len(shards)):
       exhausted, shardValues, lowestCount = shardHits[i]
       if not exhausted:
+        # nocommit make this a searchAfter ... ie if we already got the
+        # first 10, then don't get them again
         hits, totalHitCount = shards[i].getHits(mult*topN, specificValues)
         exhausted = totalHitCount <= mult*topN
         shardValues = {}
@@ -121,7 +134,10 @@ def merge(shards, topN):
     
     if VERBOSE:
       print '    merged:'
+    sawNone = False
     for value, (count, someMissing) in lTopN:
+      if value is None:
+        sawNone = True
       if VERBOSE:
         print '      %s: count=%d, someMissing=%s' % (value, count, someMissing)
       if someMissing:
@@ -136,7 +152,9 @@ def merge(shards, topN):
     if retry:
       # nocommit sometimes ... we don't need to increase mult, ie, we
       # only need to request certain values
-      mult *= 2
+      # nocommit why True or needed...
+      if True or sawNone:
+        mult *= 2
       if VERBOSE:
         print '  run again with mult=%s' % mult
       continue
@@ -184,7 +202,7 @@ def test(seedIn):
     # Get correct fully merged result:
     allResults = {}
     for shard in shards:
-      for value, count in shard.getHits():
+      for value, count in shard.getHits()[0]:
         if value not in allResults:
           allResults[value] = 0
         allResults[value] += count
@@ -226,6 +244,8 @@ def cmpByCountThenLabel2(a, b):
   return cmp(a[0], b[0])
 
 if __name__ == '__main__':
+  if not __debug__:
+    raise RuntimeError('please run python without -O')
   VERBOSE = '-verbose' in sys.argv
   seed = None
   print 'argv %s' % sys.argv

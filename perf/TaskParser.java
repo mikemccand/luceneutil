@@ -70,6 +70,7 @@ class TaskParser {
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
+  private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
 
   public Task parseOneTask(String line) throws ParseException {
 
@@ -85,6 +86,8 @@ class TaskParser {
     }
       
     String text = line.substring(spot+1, spot2).trim();
+    String origText = text;
+
     final Task task;
     if (category.equals("Respell")) {
       task = new RespellTask(new Term(fieldName, text));
@@ -107,6 +110,16 @@ class TaskParser {
         }
       } else {
         filter = null;
+      }
+
+      final Matcher m2 = minShouldMatchPattern.matcher(text);
+      final int minShouldMatch;
+      if (m2.find()) {
+        minShouldMatch = Integer.parseInt(m2.group(1));
+        // Splice out the minShouldMatch string:
+        text = (text.substring(0, m2.start(0)) + text.substring(m2.end(0), text.length())).trim();
+      } else {
+        minShouldMatch = 0;
       }
 
       final List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
@@ -225,6 +238,13 @@ class TaskParser {
         }
       }
       */
+
+      if (minShouldMatch != 0) {
+        if (!(query instanceof BooleanQuery)) {
+          throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
+        }
+        ((BooleanQuery) query).setMinimumNumberShouldMatch(minShouldMatch);
+      }
 
       task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups);
     }

@@ -187,7 +187,7 @@ class SearchTask:
     if self.facets != other.facets:
       if True:
         print
-        print '***WARNING*** facet diffs'
+        print '***WARNING*** facet diffs: %s: %s vs %s'% (self, self.facets, other.facets)
         print
       else:
         self.fail('facets differ: %s vs %s' % (self.facets, other.facets))

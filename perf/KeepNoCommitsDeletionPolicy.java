@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexDeletionPolicy;
 
-public final class KeepNoCommitsDeletionPolicy implements IndexDeletionPolicy {
+public final class KeepNoCommitsDeletionPolicy extends IndexDeletionPolicy {
 
   /** Sole constructor. */
   public KeepNoCommitsDeletionPolicy() {

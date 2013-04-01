@@ -808,7 +808,7 @@ class RunAlgs:
     try:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
-        for module in ('core', 'suggest', 'highlighter', 'sandbox',
+        for module in ('core', 'suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)

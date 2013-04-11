@@ -31,6 +31,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.CachingWrapperFilter;
+import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
@@ -167,6 +168,17 @@ class TaskParser {
                                                    new SpanTermQuery(new Term(fieldName, text.substring(spot3+1).trim()))},
                                   10,
                                   true);
+        sort = null;
+        group = null;
+      } else if (text.startsWith("disjunctionMax//")) {
+        final int spot3 = text.indexOf(' ');
+        if (spot3 == -1) {
+          throw new RuntimeException("failed to parse query=" + text);
+        }
+        DisjunctionMaxQuery dismax = new DisjunctionMaxQuery(1f);
+        dismax.add(new TermQuery(new Term(fieldName, text.substring(16, spot3))));
+        dismax.add(new TermQuery(new Term(fieldName, text.substring(spot3+1).trim())));
+        query = dismax;
         sort = null;
         group = null;
       } else if (text.startsWith("nrq//")) {

@@ -28,7 +28,7 @@ BENCH_BASE_DIR = '%s/util' % BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
-WIKI_MEDIUM_DOCS_COUNT = 33332621
+WIKI_MEDIUM_DOCS_COUNT = 33332620
 
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR

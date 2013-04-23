@@ -24,11 +24,13 @@ import java.util.List;
 import org.apache.lucene.facet.index.FacetFields;
 import org.apache.lucene.facet.params.CategoryListParams.OrdinalPolicy;
 import org.apache.lucene.facet.params.CategoryListParams;
+import org.apache.lucene.facet.params.FacetIndexingParams;
 
 class FacetGroup {
   final String groupName;
   final List<String> fields;
   final CategoryListParams clp;
+  final FacetIndexingParams fip;
 
   // Used only during indexing:
   FacetFields builder;
@@ -63,6 +65,7 @@ class FacetGroup {
           return ordPolicy;
         }
       };
+    fip = new FacetIndexingParams(clp);
   }
 
   @Override

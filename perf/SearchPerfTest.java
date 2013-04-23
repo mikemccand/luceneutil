@@ -499,7 +499,7 @@ public class SearchPerfTest {
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(queryParser, fieldName, filters, topN, staticRandom, doStoredLoads);
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, filters, topN, staticRandom, doStoredLoads);
 
     final TaskSource tasks;
 

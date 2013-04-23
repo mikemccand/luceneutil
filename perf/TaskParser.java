@@ -24,6 +24,9 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.lucene.facet.params.FacetIndexingParams;
+import org.apache.lucene.facet.search.DrillDownQuery;
+import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -52,8 +55,10 @@ class TaskParser {
   private final int topN;
   private final Random random;
   private final boolean doStoredLoads;
+  private final IndexState state;
 
-    public TaskParser(QueryParser queryParser,
+  public TaskParser(IndexState state,
+                    QueryParser queryParser,
                     String fieldName,
                     Map<Double,Filter> filters,
                     int topN,
@@ -65,6 +70,7 @@ class TaskParser {
     this.topN = topN;
     this.random = random;
     this.doStoredLoads = doStoredLoads;
+    this.state = state;
     dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
     titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
@@ -135,6 +141,31 @@ class TaskParser {
         }
         facetGroups.add(new FacetGroup(text.substring(i+8, j)));
         text = text.substring(0, i) + text.substring(j);
+      }
+
+      final List<String> drillDowns = new ArrayList<String>();
+      while (true) {
+        int i = text.indexOf("+drillDown:");
+        if (i == -1) {
+          break;
+        }
+        int j = text.indexOf(" ", i);
+        if (j == -1) {
+          j = text.length();
+        }
+        drillDowns.add(text.substring(i+11, j));
+        text = text.substring(0, i) + text.substring(j);
+      }
+
+      boolean doDrillSideways;
+      if (text.indexOf("+drillSideways") != -1) {
+        text = text.replace("+drillSideways", "");
+        doDrillSideways = true;
+        if (drillDowns.size() == 0) {
+          throw new RuntimeException("cannot +drillSideways unless at least one +drillDown is defined");
+        }
+      } else {
+        doDrillSideways = false;
       }
 
       if (facetGroups.size() > 1) {
@@ -243,6 +274,37 @@ class TaskParser {
         throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
       }
 
+      if (minShouldMatch != 0) {
+        if (!(query instanceof BooleanQuery)) {
+          throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
+        }
+        ((BooleanQuery) query).setMinimumNumberShouldMatch(minShouldMatch);
+      }
+
+      Query query2;
+
+      if (!drillDowns.isEmpty()) {
+        FacetGroup fg;
+        if (!facetGroups.isEmpty()) {
+          // This search has its own facet request
+          fg = facetGroups.get(0);
+        } else {
+          fg = state.facetGroups.get(0);
+        }
+        DrillDownQuery q = new DrillDownQuery(fg.fip, query);
+        for(String s : drillDowns) {
+          List<CategoryPath> ors = new ArrayList<CategoryPath>();
+          for(String ss : s.split(",")) {
+            String[] kv = ss.split("/");
+            ors.add(new CategoryPath(kv));
+          }
+          q.add(ors.toArray(new CategoryPath[ors.size()]));
+        }
+        query2 = q;
+      } else {
+        query2 = query;
+      }
+
       /*
       if (category.startsWith("Or")) {
         for(BooleanClause clause : ((BooleanQuery) query).clauses()) {
@@ -251,14 +313,7 @@ class TaskParser {
       }
       */
 
-      if (minShouldMatch != 0) {
-        if (!(query instanceof BooleanQuery)) {
-          throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
-        }
-        ((BooleanQuery) query).setMinimumNumberShouldMatch(minShouldMatch);
-      }
-
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups);
+      task = new SearchTask(category, query2, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups, doDrillSideways);
     }
 
     return task;

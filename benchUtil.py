@@ -187,7 +187,7 @@ class SearchTask:
     if self.facets != other.facets:
       if True:
         print
-        print '***WARNING*** facet diffs'
+        print '***WARNING*** facet diffs: %s: %s vs %s'% (self, self.facets, other.facets)
         print
       else:
         self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
@@ -808,7 +808,7 @@ class RunAlgs:
     try:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
-        for module in ('core', 'suggest', 'highlighter', 'sandbox',
+        for module in ('core', 'suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
@@ -946,9 +946,10 @@ class RunAlgs:
 
     print '      log: %s + stdout' % logFile
     t0 = time.time()
+    print '      run: %s' % ' '.join(command)
     #p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)    
     #print 'command %s' % command
-    p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)    
+    p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     if DO_PERF:
       perfCommand = []
@@ -961,13 +962,27 @@ class RunAlgs:
       perfCommand.append('--pid')
       perfCommand.append(str(p.pid))
       #print 'COMMAND: %s' % perfCommand
-      p2 = subprocess.Popen(perfCommand, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+      p2 = subprocess.Popen(perfCommand, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+      f = open(logFile + '.stdout', 'wb')
+      while True:
+        s = p.stdout.read(1024)
+        if s == '':
+          break
+        f.write(s)
+      f.close()
       p.wait()
       run('sudo kill -INT %s' % p2.pid)
       #os.kill(p2.pid, signal.SIGINT)
       stdout, stderr = p2.communicate()
       print 'PERF: %s' % fixupPerfOutput(stderr)
     else:
+      f = open(logFile + '.stdout', 'wb')
+      while True:
+        s = p.stdout.read(1024)
+        if s == '':
+          break
+        f.write(s)
+      f.close()
       p.wait()
 
     #run(command, logFile + '.stdout', indent='      ')

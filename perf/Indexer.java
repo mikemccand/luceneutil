@@ -230,12 +230,15 @@ public final class Indexer {
         }
 
         private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName("Facet42");
+        //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
         private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
           if (facetFields.contains(field)) {
             return facetsDVFormat;
+            //} else if (field.startsWith("$sortedsetdvfacets")) {
+            //return diskDVFormat;
           } else {
             return lucene42DVFormat;
           }

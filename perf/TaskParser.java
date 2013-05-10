@@ -139,6 +139,44 @@ class TaskParser {
       if (facetGroups.size() > 1) {
         throw new IllegalArgumentException("can only run one facet CLP per query for now");
       }
+      
+      // Eg: +drillDown:Date=2001,2004
+      final List<CategoryPath[]> drilldowns = new ArrayList<CategoryPath>();
+      while (true) {
+        int i = text.indexOf("+drillDown:");
+        if (i == -1) {
+          break;
+        }
+        int j = text.indexOf(" ", i);
+        if (j == -1) {
+          j = text.length();
+        }
+
+        String s = text.substring(i+11, j);
+        text = text.substring(0, i) + text.substring(j);
+
+        i = s.indexOf('=');
+        if (i == -1) {
+          throw new IllegalArgumentException("drilldown is missing =");
+        }
+        String dim = s.substring(0, i);
+        String values = s.substring(i+1);
+        List<CategoryPath> dimPaths = new ArrayList<CategoryPath>();
+        while (true) {
+          i = values.indexOf(',');
+          if (i == -1) {
+            dimPaths.append(new CateogryPath(dim, values));
+            break;
+          }
+          dimPaths.append(new CateogryPath(dim, values.substring(0, i)));
+          values = values.substring(i+1);
+        }
+        drillDowns.append(dimPaths.toArray(new CategoryPath[dimPaths.size()]));
+      }
+
+      if (facetGroups.size() > 1) {
+        throw new IllegalArgumentException("can only run one facet CLP per query for now");
+      }
 
       final Sort sort;
       final Query query;
@@ -246,7 +284,7 @@ class TaskParser {
         ((BooleanQuery) query).setMinimumNumberShouldMatch(minShouldMatch);
       }
 
-      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups);
+      task = new SearchTask(category, query, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups, drillDowns);
     }
 
     return task;

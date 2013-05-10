@@ -76,6 +76,7 @@ import org.apache.lucene.util.BytesRef;
 
 final class SearchTask extends Task {
   private final String category;
+  private final Query qOrig;
   private final Query q;
   private final Sort s;
   private final Filter f;
@@ -95,11 +96,12 @@ final class SearchTask extends Task {
   private double hiliteMsec;
   private double getFacetResultsMsec;
   private List<FacetGroup> facetGroups;
+  private List<CategoryPath[]> drillDowns;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
-                    boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups) {
+                    boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups,
+                    List<CategoryPath> drillDowns) {
     this.category = category;
-    this.q = q;
     this.s = s;
     this.f = f;
     if (group != null && group.startsWith("groupblock")) {
@@ -115,18 +117,29 @@ final class SearchTask extends Task {
     this.doHilite = doHilite;
     this.doStoredLoads = doStoredLoads;
     this.facetGroups = facetGroups;
+    this.drillDowns = drillDowns;
+    this.qOrig = q;
+    if (!drillDowns.isEmpty()) {
+      DrillDownQuery ddq = new DrillDownQuery(q);
+      this.q = ddq;
+      for(CategoryPath[] dimPaths : drillDowns) {
+        ddq.add(dimPaths);
+      }
+    } else {
+      this.q = q;
+    }
   }
 
   @Override
   public Task clone() {
-    Query q2 = q.clone();
+    Query q2 = qOrig.clone();
     if (q2 == null) {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetGroups);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetGroups, drillDowns);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetGroups);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetGroups, drillDowns);
     }
   }
 

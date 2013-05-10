@@ -199,7 +199,7 @@ def run(threadID):
 
   global failed
 
-  TEST_TEMP_DIR = 'build/core/test/reruns.%s.%s.t%d' % (tests[0][0].split('.')[-1], tests[0][1], threadID)
+  TEST_TEMP_DIR = '%s/lucene/build/core/test/reruns.%s.%s.t%d' % (ROOT, tests[0][0].split('.')[-1], tests[0][1], threadID)
 
   upto = 0
   while not failed:

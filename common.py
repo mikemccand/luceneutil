@@ -95,6 +95,11 @@ def getLuceneTestClassPath(ROOT):
 
   CP.append(ROOT + '/lucene/build/queries/classes/java')
   CP.append(ROOT + '/lucene/build/queries/classes/test')
+  CP.append(ROOT + '/lucene/build/replicator/classes/java')
+  CP.append(ROOT + '/lucene/build/replicator/classes/test')
+  addJARs(CP, ROOT + '/lucene/replicator/lib')
+  CP.append(ROOT + '/lucene/build/demo/classes/java')
+  CP.append(ROOT + '/lucene/build/demo/classes/test')
   CP.append(ROOT + '/lucene/build/codecs/classes/java')
   CP.append(ROOT + '/lucene/build/codecs/classes/test')
   CP.append(ROOT + '/lucene/build/benchmark/classes/java')

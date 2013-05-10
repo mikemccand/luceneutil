@@ -54,7 +54,7 @@ def merge(shards, topN):
   if VERBOSE:
     print '  merge topN=%s' % topN
 
-  mult = 2
+  mult = 3
   values = None
   lTopN = None
   
@@ -215,7 +215,7 @@ def test(staticSeedIn, seedIn):
   if EASY:
     numFacetValues = 10
   else:
-    numFacetValues = sr.randint(10, 100)
+    numFacetValues = sr.randint(10, 10000)
 
   cycles = 0
   while True:
@@ -270,7 +270,8 @@ def test(staticSeedIn, seedIn):
 
     allResults.sort(cmpByCountThenLabel)
 
-    for topN in xrange(1, numFacetValues+3):
+    #for topN in xrange(1, numFacetValues+3):
+    for topN in xrange(1, 20):
       # nocommit
       #topN = r.randint(1, 1000)
       #topN = 2

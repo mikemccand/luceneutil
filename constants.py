@@ -21,14 +21,15 @@
 # BASE_DIR/aaa BASE_DIR/bbb etc.
 from localconstants import *
 
-BENCH_BASE_DIR = '%s/util' % BASE_DIR
+if 'BENCH_BASE_DIR' not in globals():
+  BENCH_BASE_DIR = '%s/util' % BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 #WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
-WIKI_MEDIUM_DOCS_COUNT = 33332621
+WIKI_MEDIUM_DOCS_COUNT = 33332620
 
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR

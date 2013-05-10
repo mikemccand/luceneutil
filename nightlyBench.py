@@ -227,6 +227,14 @@ KNOWN_CHANGES = [
   ('2013-02-12',
    'LUCENE-4764: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues',
    'LUCENE-4764: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues'),
+
+  ('2013-02-22',
+   'LUCENE-4791: optimize ConjunctionTermScorer to use skipping on first term',
+   'LUCENE-4791: optimize ConjunctionTermScorer to use skipping on first term'),
+
+  ('2013-03-14',
+   'LUCENE-4607: add DISI/Spans.cost',
+   'LUCENE-4607: add DISI/Spans.cost'),
    ]
 
 # TODO

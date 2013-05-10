@@ -36,6 +36,9 @@ import org.apache.lucene.facet.sampling.SamplingParams;
 import org.apache.lucene.facet.search.Aggregator;
 import org.apache.lucene.facet.search.CountFacetRequest;
 //import org.apache.lucene.facet.search.CountingFacetsCollector;
+import org.apache.lucene.facet.search.DrillDownQuery;
+import org.apache.lucene.facet.search.DrillSideways.DrillSidewaysResult;
+import org.apache.lucene.facet.search.DrillSideways;
 import org.apache.lucene.facet.search.FacetArrays;
 import org.apache.lucene.facet.search.FacetRequest;
 import org.apache.lucene.facet.search.FacetResult;
@@ -76,7 +79,6 @@ import org.apache.lucene.util.BytesRef;
 
 final class SearchTask extends Task {
   private final String category;
-  private final Query qOrig;
   private final Query q;
   private final Sort s;
   private final Filter f;
@@ -86,6 +88,7 @@ final class SearchTask extends Task {
   private final boolean doCountGroups;
   private final boolean doHilite;
   private final boolean doStoredLoads;
+  private final boolean doDrillSideways;
 
   private TopDocs hits;
   private TopGroups<?> groupsResultBlock;
@@ -100,7 +103,7 @@ final class SearchTask extends Task {
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
                     boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups,
-                    List<CategoryPath> drillDowns) {
+                    boolean doDrillSideways) {
     this.category = category;
     this.s = s;
     this.f = f;
@@ -117,29 +120,19 @@ final class SearchTask extends Task {
     this.doHilite = doHilite;
     this.doStoredLoads = doStoredLoads;
     this.facetGroups = facetGroups;
-    this.drillDowns = drillDowns;
-    this.qOrig = q;
-    if (!drillDowns.isEmpty()) {
-      DrillDownQuery ddq = new DrillDownQuery(q);
-      this.q = ddq;
-      for(CategoryPath[] dimPaths : drillDowns) {
-        ddq.add(dimPaths);
-      }
-    } else {
-      this.q = q;
-    }
+    this.doDrillSideways = doDrillSideways;
   }
 
   @Override
   public Task clone() {
-    Query q2 = qOrig.clone();
+    Query q2 = q.clone();
     if (q2 == null) {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetGroups, drillDowns);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetGroups, doDrillSideways);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetGroups, drillDowns);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetGroups, doDrillSideways);
     }
   }
 
@@ -257,25 +250,30 @@ final class SearchTask extends Task {
         }
 
         List<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
-        FacetIndexingParams fip = new FacetIndexingParams(fg.clp);
-        //System.out.println("fip: " + fg.clp);
         for(String field : fg.fields) {
           facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
         }
-        FacetSearchParams fsp = new FacetSearchParams(fip, facetRequests);
+        FacetSearchParams fsp = new FacetSearchParams(fg.fip, facetRequests);
         TaxonomyReader taxoReader = state.taxoReaders.get(fg.groupName);
         if (taxoReader == null) {
           taxoReader = state.taxoReaders.get("*");
         }
-        FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), taxoReader);
 
-        // TODO: determine in order by the query...?
-        TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
-        searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
-        hits = hitsCollector.topDocs();
-        long t0 = System.nanoTime();
-        facets = facetsCollector.getFacetResults();
-        getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
+        if (doDrillSideways) {
+          DrillSideways ds = new DrillSideways(searcher, taxoReader);
+          DrillSidewaysResult res = ds.search(null, (DrillDownQuery) q, 10, fsp);
+          hits = res.hits;
+          facets = res.facetResults;
+        } else {
+          FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), taxoReader);
+          // TODO: determine in order by the query...?
+          TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
+          searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
+          hits = hitsCollector.topDocs();
+          long t0 = System.nanoTime();
+          facets = facetsCollector.getFacetResults();
+          getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
+        }
       } else if (s == null && f == null) {
         hits = searcher.search(q, topN);
         if (doHilite) {

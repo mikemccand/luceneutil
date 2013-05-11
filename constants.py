@@ -58,6 +58,8 @@ EUROPARL_MEDIUM_TASKS_FILE = '%s/data/europarlmedium.tasks' % BASE_DIR
 
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 JAVA_COMMAND = 'java -server -Xms2g -Xmx2g'
+
+JAVA_EXE = 'java'
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 2
 SEARCH_NUM_THREADS = 2

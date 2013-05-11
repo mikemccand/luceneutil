@@ -222,7 +222,7 @@ def run(threadID):
         else:
           print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
 
-      command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
+      command = '%s %s -DtempDir=%s -ea' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
       if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
         command += ' -server'
       if False and random.randint(0, 1) == 1 and not onlyOnce:

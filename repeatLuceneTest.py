@@ -202,6 +202,7 @@ def run(threadID):
   TEST_TEMP_DIR = '%s/lucene/build/core/test/reruns.%s.%s.t%d' % (ROOT, tests[0][0].split('.')[-1], tests[0][1], threadID)
 
   upto = 0
+  first = True
   while not failed:
     for testClass, testMethod in tests:
       if testMethod is not None:
@@ -267,7 +268,11 @@ def run(threadID):
           shutil.rmtree(TEST_TEMP_DIR)
         except OSError:
           pass
-      print '  RUN: %s' % command
+
+      if first:
+        print '  RUN: %s' % command
+        first = False
+        
       res = os.system(command)
 
       if res:

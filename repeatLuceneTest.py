@@ -31,11 +31,11 @@ import threading
 ROOT = common.findRootDir(os.getcwd())
 
 try:
-  idx = sys.argv.index('-threads')
+  idx = sys.argv.index('-jvms')
 except ValueError:
-  threadCount = 1
+  jvmCount = 1
 else:
-  threadCount = int(sys.argv[1+idx])
+  jvmCount = int(sys.argv[1+idx])
   del sys.argv[idx:idx+2]
 
 osName = common.osName
@@ -294,9 +294,9 @@ def run(threadID):
     if onlyOnce:
       break
 
-if threadCount > 1:
+if jvmCount > 1:
   threads = []
-  for threadID in xrange(threadCount):
+  for threadID in xrange(jvmCount):
     t = threading.Thread(target=run, args=(threadID,))
     t.start()
     threads.append(t)

@@ -10,7 +10,7 @@ public class LDDetectEmbedded {
 
     public static void main(String[] args) throws Exception {
 
-        DetectorFactory.loadProfile("/home/mike/src/langdetect/profiles");
+        DetectorFactory.loadProfile("/usr/local/src/langdetect-09-13-2011/profiles");
         DetectorFactory.setSeed(0);
 
         final InputStream is = new BufferedInputStream(System.in);

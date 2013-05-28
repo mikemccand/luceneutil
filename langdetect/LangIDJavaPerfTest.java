@@ -1,14 +1,12 @@
 import java.io.*;
-import com.cybozu.labs.langdetect.DetectorFactory;
-import com.cybozu.labs.langdetect.Detector;
-import com.cybozu.labs.langdetect.Language;
 import java.util.*;
+import com.carrotsearch.labs.langid.LangIdV3;
 
-// javac -cp /usr/local/src/langdetect-09-13-2011/lib/langdetect.jar LDDetectLanguagePerfTest.java 
+// javac -cp dawid LangIDJavaPerfTest.java
 
-// java -cp /usr/local/src/langdetect-09-13-2011/lib/langdetect.jar:/usr/local/src/langdetect-09-13-2011/lib/jsonic-1.2.0.jar:. LDDetectLanguagePerfTest europarl.21.test 
+// java -cp .:dawid LangIDJavaPerfTest europarl.21.test 
 
-public class LDDetectLanguagePerfTest {
+public class LangIDJavaPerfTest {
     private static final double DEFAULT_ALPHA = 0.5;
 
     public static void main(String[] args) throws Exception {
@@ -29,8 +27,7 @@ public class LDDetectLanguagePerfTest {
         }
         is.close();
 
-        DetectorFactory.loadProfile("/usr/local/src/langdetect-09-13-2011/profiles");
-        DetectorFactory.setSeed(0);
+        LangIdV3 langid = new LangIdV3();
 
         long best = -1;
         for(int iter=0;iter<10;iter++) {
@@ -38,10 +35,7 @@ public class LDDetectLanguagePerfTest {
             List<String> answers = new ArrayList<String>();
             long t0 = System.currentTimeMillis();
             for(String test : testData) {
-                final Detector d = DetectorFactory.create(DEFAULT_ALPHA);
-                d.append(test);
-                String answer = d.detect();
-                answers.add(d.detect());
+              answers.add(langid.classify(test, true).getLangCode());
             }
             long t = System.currentTimeMillis() - t0;
             System.out.println("  " + t + " msec");

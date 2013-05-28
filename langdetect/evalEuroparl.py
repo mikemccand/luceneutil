@@ -14,9 +14,9 @@ import cPickle
 # Cool Python language detection lib: https://github.com/saffsd/langid.py
 import langid
 
-ROOT = '/lucene/util/langdetect'
-TIKA_ROOT = '/lucene/tika.clean'
-LD_ROOT = '/home/mike/src/langdetect'
+ROOT = '/l/util/langdetect'
+TIKA_ROOT = '/l/tika.trunk'
+LD_ROOT = '/usr/local/src/langdetect-09-13-2011'
 
 # TODO
 #   - maybe also eval https://github.com/vcl/cue.language
@@ -26,10 +26,10 @@ LD_ROOT = '/home/mike/src/langdetect'
 # For a description of the corpus see http://shuyo.wordpress.com/2011/09/29/langdetect-is-updatedadded-profiles-of-estonian-lithuanian-latvian-slovene-and-so-on/
 
 class DetectTika:
-  TIKA_COMMAND = 'java -cp %s:%s/tika-app/target/tika-app-1.0-SNAPSHOT.jar TikaDetectLanguageEmbedded' % (ROOT, TIKA_ROOT)
+  TIKA_COMMAND = 'java -cp %s:%s/tika-app/target/tika-app-1.4-SNAPSHOT.jar TikaDetectLanguageEmbedded' % (ROOT, TIKA_ROOT)
   name = 'Tika'
   def __init__(self):
-    if os.system('javac -cp %s/tika-app/target/tika-app-1.0-SNAPSHOT.jar %s/TikaDetectLanguageEmbedded.java' % (TIKA_ROOT, ROOT)):
+    if os.system('javac -cp %s/tika-app/target/tika-app-1.4-SNAPSHOT.jar %s/TikaDetectLanguageEmbedded.java' % (TIKA_ROOT, ROOT)):
       raise RuntimeError('compile failed')
 
     # talk to Tika via pipes
@@ -66,6 +66,29 @@ class DetectPyLangID:
     # nocommit conf to bool
     return lang, conf
 
+class DetectPyLangIDJava:
+  """ Dawid's port to Java """
+  name = 'PyLangIDJava'
+
+  COMMAND = 'java -cp dawid:%s LangIDJavaDetectEmbedded' % ROOT
+
+  def __init__(self):
+    if os.system('javac -cp %s/dawid %s/LangIDJavaDetectEmbedded.java' % (ROOT, ROOT)):
+      raise RuntimeError('compile failed')
+
+    self.ld = subprocess.Popen(self.COMMAND,
+                               shell=True,
+                               stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE)
+
+  def detect(self, utf8):
+    self.ld.stdin.write('%7d' % len(utf8))
+    self.ld.stdin.write(utf8)
+    size = int(self.ld.stdout.read(7).strip())
+    lang = self.ld.stdout.read(size)
+    reliable = True
+    return lang, reliable
+
 class DetectLD:
   name = 'LangDetect'
   
@@ -74,7 +97,6 @@ class DetectLD:
     if os.system('javac -cp %s/lib/langdetect.jar %s/LDDetectEmbedded.java' % (LD_ROOT, ROOT)):
       raise RuntimeError('compile failed')
 
-    # talk to Tika via pipes
     self.ld = subprocess.Popen(self.LD_COMMAND,
                                shell=True,
                                stdin=subprocess.PIPE,
@@ -132,10 +154,10 @@ def accTest():
     cld = DetectCLD()
     ld = DetectLD()
     pylid = DetectPyLangID()
+    pylidjava = DetectPyLangIDJava()
 
     allResults = {}
-    for detector in (pylid, cld, ld, tika):
-    # for detector in (cld, ld):
+    for detector in (pylidjava, pylid, cld, ld, tika):
       print '  run %s...' % detector.name
       results = allResults[detector.name] = []
       startTime = time.time()

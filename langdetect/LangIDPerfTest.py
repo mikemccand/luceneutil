@@ -13,9 +13,11 @@ while True:
   idx = line.find('\t')
   if idx == -1:
     continue
-  test = line[idx+1:].encode('utf-8').strip()
-  testData.append(test)
+  test = line[idx+1:].strip()
   totBytes += len(test)
+  testData.append(test.encode('utf-8'))
+
+print 'Tot bytes %s' % totBytes
 
 best = -1
 for i in range(10):

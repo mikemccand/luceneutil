@@ -143,37 +143,9 @@ class TaskParser {
         text = text.substring(0, i) + text.substring(j);
       }
 
-      final List<String> drillDowns = new ArrayList<String>();
-      while (true) {
-        int i = text.indexOf("+drillDown:");
-        if (i == -1) {
-          break;
-        }
-        int j = text.indexOf(" ", i);
-        if (j == -1) {
-          j = text.length();
-        }
-        drillDowns.add(text.substring(i+11, j));
-        text = text.substring(0, i) + text.substring(j);
-      }
+      final List<CategoryPath[]> drillDowns = new ArrayList<CategoryPath[]>();
 
-      boolean doDrillSideways;
-      if (text.indexOf("+drillSideways") != -1) {
-        text = text.replace("+drillSideways", "");
-        doDrillSideways = true;
-        if (drillDowns.size() == 0) {
-          throw new RuntimeException("cannot +drillSideways unless at least one +drillDown is defined");
-        }
-      } else {
-        doDrillSideways = false;
-      }
-
-      if (facetGroups.size() > 1) {
-        throw new IllegalArgumentException("can only run one facet CLP per query for now");
-      }
-      
       // Eg: +drillDown:Date=2001,2004
-      final List<CategoryPath[]> drilldowns = new ArrayList<CategoryPath>();
       while (true) {
         int i = text.indexOf("+drillDown:");
         if (i == -1) {
@@ -197,19 +169,30 @@ class TaskParser {
         while (true) {
           i = values.indexOf(',');
           if (i == -1) {
-            dimPaths.append(new CateogryPath(dim, values));
+            dimPaths.add(new CategoryPath(dim, values));
             break;
           }
-          dimPaths.append(new CateogryPath(dim, values.substring(0, i)));
+          dimPaths.add(new CategoryPath(dim, values.substring(0, i)));
           values = values.substring(i+1);
         }
-        drillDowns.append(dimPaths.toArray(new CategoryPath[dimPaths.size()]));
+        drillDowns.add(dimPaths.toArray(new CategoryPath[dimPaths.size()]));
+      }
+
+      boolean doDrillSideways;
+      if (text.indexOf("+drillSideways") != -1) {
+        text = text.replace("+drillSideways", "");
+        doDrillSideways = true;
+        if (drillDowns.size() == 0) {
+          throw new RuntimeException("cannot +drillSideways unless at least one +drillDown is defined");
+        }
+      } else {
+        doDrillSideways = false;
       }
 
       if (facetGroups.size() > 1) {
         throw new IllegalArgumentException("can only run one facet CLP per query for now");
       }
-
+      
       final Sort sort;
       final Query query;
       final String group;
@@ -330,13 +313,8 @@ class TaskParser {
           fg = state.facetGroups.get(0);
         }
         DrillDownQuery q = new DrillDownQuery(fg.fip, query);
-        for(String s : drillDowns) {
-          List<CategoryPath> ors = new ArrayList<CategoryPath>();
-          for(String ss : s.split(",")) {
-            String[] kv = ss.split("/");
-            ors.add(new CategoryPath(kv));
-          }
-          q.add(ors.toArray(new CategoryPath[ors.size()]));
+        for(CategoryPath[] cp : drillDowns) {
+          q.add(cp);
         }
         query2 = q;
       } else {

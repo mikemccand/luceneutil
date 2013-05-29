@@ -105,6 +105,7 @@ final class SearchTask extends Task {
                     boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups,
                     boolean doDrillSideways) {
     this.category = category;
+    this.q = q;
     this.s = s;
     this.f = f;
     if (group != null && group.startsWith("groupblock")) {

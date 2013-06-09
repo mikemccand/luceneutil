@@ -28,10 +28,6 @@ import org.apache.lucene.util.fst.Outputs;
 import org.apache.lucene.util.fst.PositiveIntOutputs;
 import org.apache.lucene.util.fst.Util;
 
-// TODO
-//  - test 0 inputs
-//  - blog post: FSA, numeric, non-numeric, with generics violations
-
 // pushd ../buildfst/lucene/core; ant jar; popd; javac -cp /l/buildfst/lucene/build/core/lucene-core-4.4-SNAPSHOT.jar BuildFST.java; java -cp .:/l/buildfst/lucene/build/core/lucene-core-4.4-SNAPSHOT.jar BuildFST foo/bar feo/baz > /x/tmp/out.dot; dot -Tpng /x/tmp/out.dot > /x/tmp/out.png
 
 // javac -cp /l/buildfst/lucene/build/core/lucene-core-4.4-SNAPSHOT.jar BuildFST.java 

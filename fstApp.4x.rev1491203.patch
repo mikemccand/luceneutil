@@ -1,0 +1,54 @@
+Index: lucene/core/src/java/org/apache/lucene/util/fst/ByteSequenceOutputs.java
+===================================================================
+--- lucene/core/src/java/org/apache/lucene/util/fst/ByteSequenceOutputs.java	(revision 1491203)
++++ lucene/core/src/java/org/apache/lucene/util/fst/ByteSequenceOutputs.java	(working copy)
+@@ -135,6 +135,6 @@
+ 
+   @Override
+   public String outputToString(BytesRef output) {
+-    return output.toString();
++    return output.utf8ToString();
+   }
+ }
+Index: lucene/core/src/java/org/apache/lucene/util/fst/Util.java
+===================================================================
+--- lucene/core/src/java/org/apache/lucene/util/fst/Util.java	(revision 1491203)
++++ lucene/core/src/java/org/apache/lucene/util/fst/Util.java	(working copy)
+@@ -590,10 +590,12 @@
+ 
+     // Emit DOT prologue.
+     out.write("digraph FST {\n");
+-    out.write("  rankdir = LR; splines=true; concentrate=true; ordering=out; ranksep=2.5; \n");
++    out.write("  rankdir = LR; splines=true; concentrate=true\n");
+ 
+     if (!labelStates) {
+-      out.write("  node [shape=circle, width=.2, height=.2, style=filled]\n");      
++      out.write("  node [shape=circle, width=.1, height=.1, style=filled]\n");
++    } else {
++      out.write("  node [shape=circle, width=.4, height=.4]\n");
+     }
+ 
+     emitDotState(out, "initial", "point", "white", "");
+@@ -726,6 +728,7 @@
+       }
+ 
+       // Emit state ranking information.
++      /*
+       if (sameRank && sameLevelStates.size() > 1) {
+         out.write("  {rank=same; ");
+         for (int state : sameLevelStates) {
+@@ -733,12 +736,13 @@
+         }
+         out.write(" }\n");
+       }
++      */
+       sameLevelStates.clear();                
+     }
+ 
+     // Emit terminating state (always there anyway).
+     out.write("  -1 [style=filled, color=black, shape=doublecircle, label=\"\"]\n\n");
+-    out.write("  {rank=sink; -1 }\n");
++    //out.write("  {rank=sink; -1 }\n");
+     
+     out.write("}\n");
+     out.flush();

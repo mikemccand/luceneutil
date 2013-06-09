@@ -91,8 +91,10 @@ public class BuildFST {
       Object output;
       if (pair.length == 1) {
         output = outputs.getNoOutput();
-      } else {
+      } else if (numeric) {
         output = Long.parseLong(pair[1]);
+      } else {
+        output = new BytesRef(pair[1]);
       }
       inputs[i] = new Pair(new BytesRef(pair[0]), output);
     }

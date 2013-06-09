@@ -50,7 +50,7 @@ top/5
   w('<li> If all outputs are ints >= 0 then outputs are numeric (sum as you traverse); otherwise outputs are strings (concatenate as you traverse).')
   w('<li> NEXT-optimized arcs (whose target is the next node) are <font color=red>red</font>.')
   w('<li> A bolded arc means the next node is final.')
-  w('<li> See <a href="http://blog.mikemccandless.com">this blog post</a> for details and examples.')
+  w('<li> See <a href="http://blog.mikemccandless.com/2013/06/build-your-own-finite-state-transducer.html">this blog post</a> for details and examples.')
   w('</ul>')
   w('</tr>')
   w('</table>')

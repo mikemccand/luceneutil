@@ -315,7 +315,7 @@ public class NRTPerfTest {
     */
     
     TieredMergePolicy tmp = new TieredMergePolicy();
-    tmp.setUseCompoundFile(false);
+    tmp.setNoCFSRatio(0.0);
     tmp.setMaxMergedSegmentMB(1000000.0);
     //tmp.setReclaimDeletesWeight(3.0);
     //tmp.setMaxMergedSegmentMB(7000.0);

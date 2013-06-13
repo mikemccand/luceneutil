@@ -312,7 +312,7 @@ public class SearchPerfTest {
         iwc.setIndexCommit(findCommitPoint(commit, dir));
       }
 
-      ((TieredMergePolicy) iwc.getMergePolicy()).setUseCompoundFile(useCFS);
+      ((TieredMergePolicy) iwc.getMergePolicy()).setNoCFSRatio(useCFS ? 1.0 : 0.0);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(1024);
       //((TieredMergePolicy) iwc.getMergePolicy()).setReclaimDeletesWeight(3.0);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergeAtOnce(4);

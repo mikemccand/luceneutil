@@ -31,10 +31,13 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardFilter;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
 import org.apache.lucene.search.spell.TermFreqIterator;
+import org.apache.lucene.search.spell.TermFreqPayloadIterator;
 import org.apache.lucene.search.suggest.Lookup.LookupResult;
 import org.apache.lucene.search.suggest.Lookup;
+//import org.apache.lucene.search.suggest.analyzing.AnalyzingInfixSuggester;
 import org.apache.lucene.search.suggest.analyzing.AnalyzingSuggester;
 import org.apache.lucene.search.suggest.analyzing.FuzzySuggester;
+import org.apache.lucene.search.suggest.analyzing.InfixingSuggester;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
@@ -42,9 +45,15 @@ import org.apache.lucene.util.Version;
 // TODO
 //   - char filter to remove ', -, /
 
-// javac -cp /l/lucene.trunk2/lucene/build/core/classes/java:/l/lucene.trunk2/lucene/build/suggest/classes/java:/l/lucene.trunk2/lucene/build/analysis/common/classes/java:/l/lucene.trunk2/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
+// java -cp ../build/core/classes/java:../build/misc/lucene-misc-5.0-SNAPSHOT.jar org.apache.lucene.misc.HighFreqTerms /l/util/freedb/infixsuggest.tmp -t 1000 
 
-// java -Xmx14g -cp .:/l/lucene.trunk2/lucene/build/core/classes/java:/l/lucene.trunk2/lucene/build/suggest/classes/java:/l/lucene.trunk2/lucene/build/analysis/common/classes/java:/l/lucene.trunk2/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../lucene.trunk2/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
+// javac -cp /l/infixsuggest/lucene/build/core/classes/java:/l/infixsuggest/lucene/build/suggest/classes/java:/l/infixsuggest/lucene/build/analysis/common/classes/java:/l/infixsuggest/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
+
+// java -Xmx14g -cp .:/l/infixsuggest/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/infixsuggest/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/infixsuggest/lucene/build/core/classes/java:/l/infixsuggest/lucene/build/suggest/classes/java:/l/infixsuggest/lucene/build/analysis/common/classes/java:/l/infixsuggest/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../infixsuggest/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
+
+// javac -cp /l/robinfix/lucene/build/core/classes/java:/l/robinfix/lucene/build/suggest/classes/java:/l/robinfix/lucene/build/analysis/common/classes/java:/l/robinfix/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
+
+// java -Xmx14g -cp .:/l/robinfix/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/robinfix/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/robinfix/lucene/build/core/classes/java:/l/robinfix/lucene/build/suggest/classes/java:/l/robinfix/lucene/build/analysis/common/classes/java:/l/robinfix/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../robinfix/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
 public class FreeDBSuggest {
   public static void main(String[] args) throws Exception {
@@ -71,7 +80,7 @@ public class FreeDBSuggest {
           TokenStream tok = src;
           //TokenStream tok = new StandardFilter(matchVersion, tok);
           tok = new LowerCaseFilter(matchVersion, tok);
-          //tok = new StopFilter(matchVersion, tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
+          tok = new StopFilter(matchVersion, tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
           tok = new ICUFoldingFilter(tok);
           return new TokenStreamComponents(src, tok) {
             @Override
@@ -83,7 +92,9 @@ public class FreeDBSuggest {
         }
       };
 
-    Lookup suggester = new AnalyzingSuggester(a, a, AnalyzingSuggester.PRESERVE_SEP, 256, -1);
+    //Lookup suggester = new AnalyzingSuggester(a, a, AnalyzingSuggester.PRESERVE_SEP, 256, -1);
+    //Lookup suggester = new AnalyzingInfixSuggester(Version.LUCENE_50, new File("infixsuggest"), a);
+    Lookup suggester = new InfixingSuggester(a, a);
     //Lookup suggester = new FuzzySuggester(a, a, AnalyzingSuggester.PRESERVE_SEP, 256, -1, 1, true, 1, 3);
 
     boolean doCreate = false;
@@ -110,7 +121,7 @@ public class FreeDBSuggest {
       final AtomicInteger albumCount = new AtomicInteger();
       final Random random = new Random(17);
 
-      TermFreqIterator terms = new TermFreqIterator() {
+      TermFreqPayloadIterator terms = new TermFreqPayloadIterator() {
 
           String[] current;
           String title;
@@ -139,6 +150,9 @@ public class FreeDBSuggest {
               count++;
               if (count % 100000 == 0) {
                 System.out.println(count + "...");
+                //if (count == 1000000) {
+                //return null;
+                //}
               }
             }
             songCount.incrementAndGet();
@@ -146,6 +160,11 @@ public class FreeDBSuggest {
             // OOME @ 12G heap:
             //return new BytesRef(current[currentUpto++] + " [" + title + "]");
             return new BytesRef(current[currentUpto++]);
+          }
+
+          @Override
+          public BytesRef payload() {
+            return new BytesRef(title);
           }
 
           @Override
@@ -168,7 +187,8 @@ public class FreeDBSuggest {
       FileOutputStream os = new FileOutputStream(new File(suggestFileName));
       suggester.store(os);
       os.close();
-      System.out.println("Saved to " + suggestFileName + ": " + ((AnalyzingSuggester) suggester).sizeInBytes() + " bytes");
+      //System.out.println("Saved to " + suggestFileName + ": " + ((AnalyzingSuggester) suggester).sizeInBytes() + " bytes");
+      System.out.println("Saved to " + suggestFileName);
     } else {
       long t0 = System.nanoTime();
       FileInputStream is = new FileInputStream(new File(suggestFileName));
@@ -216,7 +236,7 @@ public class FreeDBSuggest {
     } else {
 
       int TOP_N = 7;
-      int ITERS = 10;
+      int ITERS = 1;
 
       for(int prefixLen=2;prefixLen<12;prefixLen+=2) {
         CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
@@ -250,7 +270,7 @@ public class FreeDBSuggest {
 
         System.out.println("\nprefixLen=" + prefixLen);
         double bestSec = 0;
-        for(int cycle=0;cycle<1;cycle++) {
+        for(int cycle=0;cycle<10;cycle++) {
           long hash = 0;
           long t0 = System.nanoTime();
           for(int iter=0;iter<ITERS;iter++) {

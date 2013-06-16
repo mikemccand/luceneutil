@@ -143,7 +143,9 @@ class TaskParser {
         text = text.substring(0, i) + text.substring(j);
       }
 
-      final List<String> drillDowns = new ArrayList<String>();
+      final List<CategoryPath[]> drillDowns = new ArrayList<CategoryPath[]>();
+
+      // Eg: +drillDown:Date=2001,2004
       while (true) {
         int i = text.indexOf("+drillDown:");
         if (i == -1) {
@@ -153,8 +155,27 @@ class TaskParser {
         if (j == -1) {
           j = text.length();
         }
-        drillDowns.add(text.substring(i+11, j));
+
+        String s = text.substring(i+11, j);
         text = text.substring(0, i) + text.substring(j);
+
+        i = s.indexOf('=');
+        if (i == -1) {
+          throw new IllegalArgumentException("drilldown is missing =");
+        }
+        String dim = s.substring(0, i);
+        String values = s.substring(i+1);
+        List<CategoryPath> dimPaths = new ArrayList<CategoryPath>();
+        while (true) {
+          i = values.indexOf(',');
+          if (i == -1) {
+            dimPaths.add(new CategoryPath(dim, values));
+            break;
+          }
+          dimPaths.add(new CategoryPath(dim, values.substring(0, i)));
+          values = values.substring(i+1);
+        }
+        drillDowns.add(dimPaths.toArray(new CategoryPath[dimPaths.size()]));
       }
 
       boolean doDrillSideways;
@@ -171,7 +192,7 @@ class TaskParser {
       if (facetGroups.size() > 1) {
         throw new IllegalArgumentException("can only run one facet CLP per query for now");
       }
-
+      
       final Sort sort;
       final Query query;
       final String group;
@@ -292,13 +313,8 @@ class TaskParser {
           fg = state.facetGroups.get(0);
         }
         DrillDownQuery q = new DrillDownQuery(fg.fip, query);
-        for(String s : drillDowns) {
-          List<CategoryPath> ors = new ArrayList<CategoryPath>();
-          for(String ss : s.split(",")) {
-            String[] kv = ss.split("/");
-            ors.add(new CategoryPath(kv));
-          }
-          q.add(ors.toArray(new CategoryPath[ors.size()]));
+        for(CategoryPath[] cp : drillDowns) {
+          q.add(cp);
         }
         query2 = q;
       } else {

@@ -407,6 +407,14 @@ public class LineFileDocs implements Closeable {
 
         fg.builder.addFields(doc.doc, paths);
         //System.out.println("  doc=" + doc.doc);
+
+        // nocommit
+        String dvFieldName = "$sortedsetdvfacets" + fg.groupName;
+        doc.doc.removeFields(dvFieldName);
+        for(CategoryPath path : paths) {
+          //System.out.println("ADD: " + path.toString());
+          doc.doc.add(new SortedSetDocValuesField(dvFieldName, new BytesRef(path.toString())));
+        }
       }
     }
 

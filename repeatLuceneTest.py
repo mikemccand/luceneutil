@@ -31,11 +31,11 @@ import threading
 ROOT = common.findRootDir(os.getcwd())
 
 try:
-  idx = sys.argv.index('-threads')
+  idx = sys.argv.index('-jvms')
 except ValueError:
-  threadCount = 1
+  jvmCount = 1
 else:
-  threadCount = int(sys.argv[1+idx])
+  jvmCount = int(sys.argv[1+idx])
   del sys.argv[idx:idx+2]
 
 osName = common.osName
@@ -199,9 +199,10 @@ def run(threadID):
 
   global failed
 
-  TEST_TEMP_DIR = 'build/core/test/reruns.%s.%s.t%d' % (tests[0][0].split('.')[-1], tests[0][1], threadID)
+  TEST_TEMP_DIR = '%s/lucene/build/core/test/reruns.%s.%s.t%d' % (ROOT, tests[0][0].split('.')[-1], tests[0][1], threadID)
 
   upto = 0
+  first = True
   while not failed:
     for testClass, testMethod in tests:
       if testMethod is not None:
@@ -222,7 +223,7 @@ def run(threadID):
         else:
           print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
 
-      command = 'java %s -DtempDir=%s -ea' % (JAVA_ARGS, TEST_TEMP_DIR)
+      command = '%s %s -DtempDir=%s -ea' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
       if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
         command += ' -server'
       if False and random.randint(0, 1) == 1 and not onlyOnce:
@@ -267,7 +268,11 @@ def run(threadID):
           shutil.rmtree(TEST_TEMP_DIR)
         except OSError:
           pass
-      print '  RUN: %s' % command
+
+      if first:
+        print '  RUN: %s' % command
+        first = False
+        
       res = os.system(command)
 
       if res:
@@ -289,9 +294,9 @@ def run(threadID):
     if onlyOnce:
       break
 
-if threadCount > 1:
+if jvmCount > 1:
   threads = []
-  for threadID in xrange(threadCount):
+  for threadID in xrange(jvmCount):
     t = threading.Thread(target=run, args=(threadID,))
     t.start()
     threads.append(t)

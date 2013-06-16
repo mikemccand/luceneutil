@@ -99,6 +99,7 @@ final class SearchTask extends Task {
   private double hiliteMsec;
   private double getFacetResultsMsec;
   private List<FacetGroup> facetGroups;
+  private List<CategoryPath[]> drillDowns;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
                     boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups,

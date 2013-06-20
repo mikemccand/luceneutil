@@ -230,6 +230,7 @@ public class SearchPerfTest {
     System.out.println("Analyzer " + analyzer);
     System.out.println("Similarity " + similarity);
     System.out.println("Search thread count " + searchThreadCount);
+    System.out.println("topN " + topN);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
  
@@ -552,6 +553,8 @@ public class SearchPerfTest {
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 
       out.println("\nResults for " + allTasks.size() + " tasks:");
+
+      boolean fail = false;
       for(final Task task : allTasks) {
         if (verifyCheckSum) {
           final Task other = tasksSeen.get(task);
@@ -561,7 +564,8 @@ public class SearchPerfTest {
               task.printResults(System.out, indexState);
               System.out.println("\nOTHER TASK:");
               other.printResults(System.out, indexState);
-              throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
+              fail = true;
+              //throw new RuntimeException("task " + task + " hit different checksums: " + task.checksum() + " vs " + other.checksum() + " other=" + other);
             }
           } else {
             tasksSeen.put(task, task);
@@ -571,6 +575,9 @@ public class SearchPerfTest {
         out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
         out.println("  thread " + task.threadID);
         task.printResults(out, indexState);
+      }
+      if (fail) {
+        throw new RuntimeException("some tasks got different results across different threads");
       }
 
       allTasks.clear();

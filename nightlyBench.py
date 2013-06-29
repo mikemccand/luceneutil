@@ -222,19 +222,23 @@ KNOWN_CHANGES = [
 
   ('2013-02-07',
    'DocValues improvements (LUCENE-4547) and facets API improvements (LUCENE-4757)',
-   'DocValues improvements (LUCENE-4547) and facets API improvements (LUCENE-4757)'),
+   'DocValues improvements (<a href="https://issues.apache.org/jira/browse/LUCENE-4547">LUCENE-4547</a>) and facets API improvements (<a href="https://issues.apache.org/jira/browse/LUCENE-4757">LUCENE-4757</a>)'),
 
   ('2013-02-12',
    'LUCENE-4764: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues',
-   'LUCENE-4764: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4764">LUCENE-4764</a>: new Facet42DocValuesFormat for faster but more RAM-consuming DocValues'),
 
   ('2013-02-22',
    'LUCENE-4791: optimize ConjunctionTermScorer to use skipping on first term',
-   'LUCENE-4791: optimize ConjunctionTermScorer to use skipping on first term'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4971">LUCENE-4791</a>: optimize ConjunctionTermScorer to use skipping on first term'),
 
   ('2013-03-14',
    'LUCENE-4607: add DISI/Spans.cost',
-   'LUCENE-4607: add DISI/Spans.cost'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4607">LUCENE-4607</a>: add DISI/Spans.cost'),
+
+  ('2013-06-20',
+   'LUCENE-5063: compress int and long FieldCache entries',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5063">LUCENE-5063</a>: compress int and long FieldCache entries'),
    ]
 
 # TODO

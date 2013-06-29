@@ -328,8 +328,7 @@ public class NRTPerfTest {
     // Make sure merges run @ higher prio than indexing:
     final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
     cms.setMergeThreadPriority(Thread.currentThread().getPriority()+2);
-    cms.setMaxThreadCount(1);
-    cms.setMaxMergeCount(4);
+    cms.setMaxMergesAndThreads(4, 1);
 
     iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
         @Override

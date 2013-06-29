@@ -330,9 +330,8 @@ public class SearchPerfTest {
       // Make sure merges run @ higher prio than indexing:
       cms.setMergeThreadPriority(Thread.currentThread().getPriority()+2);
       // Only let one merge run at a time...
-      cms.setMaxThreadCount(1);
       // ... but queue up up to 4, before index thread is stalled:
-      cms.setMaxMergeCount(4);
+      cms.setMaxMergesAndThreads(4, 1);
 
       iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
           @Override

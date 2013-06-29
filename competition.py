@@ -33,6 +33,7 @@ WIKI_MEDIUM_ALL = Data('wikimediumall', constants.WIKI_MEDIUM_DOCS_LINE_FILE, co
 WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_5M = Data('wikimedium5m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 5000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
+WIKI_MEDIUM_10K = Data('wikimedium10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_2M = Data('wikimedium2m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 2000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
 MEME_ALL = Data('memeall',
@@ -49,6 +50,7 @@ EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 50000
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
+        'wikimedium10k' : WIKI_MEDIUM_10K,
         'wikimedium5m' : WIKI_MEDIUM_5M,
         'wikimedium2m' : WIKI_MEDIUM_2M,
         'memeall': MEME_ALL,

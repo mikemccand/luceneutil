@@ -60,10 +60,7 @@ top/5
     l = terms.split()
     error = None
     for x in l:
-      tup = x.split('/')
-      if len(tup) > 2:
-        error = 'Each item should be input or input/output string; got invalid item: %s' % x
-        break
+      tup = x.split('/', 1)
       
     if error is not None:
       w('<font color=red>%s</font>' % error)

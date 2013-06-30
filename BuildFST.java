@@ -54,10 +54,7 @@ public class BuildFST {
     boolean numeric = true;
     boolean negative = false;
     for(int i=0;i<args.length;i++) {
-      String[] pair = args[i].split("/");
-      if (pair.length > 2) {
-        throw new RuntimeException("each arg should be input or input/output pair");
-      }
+      String[] pair = args[i].split("/", 2);
       if (pair.length == 2) {
         try {
           negative |= Long.parseLong(pair[1]) < 0;
@@ -80,10 +77,7 @@ public class BuildFST {
     
     Pair<?>[] inputs = new Pair[args.length];
     for(int i=0;i<args.length;i++) {
-      String[] pair = args[i].split("/");
-      if (pair.length > 2) {
-        throw new RuntimeException("each arg should be input/output pair");
-      }
+      String[] pair = args[i].split("/", 2);
       Object output;
       if (pair.length == 1) {
         output = outputs.getNoOutput();

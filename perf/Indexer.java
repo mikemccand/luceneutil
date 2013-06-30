@@ -181,8 +181,7 @@ public final class Indexer {
     // Increase number of concurrent merges since we are on SSD:
     ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
     iwc.setMergeScheduler(cms);
-    cms.setMaxMergeCount(maxConcurrentMerges+2);
-    cms.setMaxThreadCount(maxConcurrentMerges);
+    cms.setMaxMergesAndThreads(maxConcurrentMerges, maxConcurrentMerges+2);
 
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {

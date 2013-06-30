@@ -436,13 +436,14 @@ def main():
 
   # TODO: solr has tests.cleanthreads=perClass but lucene has
   # perMethod... maybe I need dedicated solr vs lucene jvms
-  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=5.0 -Dtests.cleanthreads=perClass -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory' % rootDir
+  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=5.0 -Dtests.cleanthreads=perMethod -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory' % rootDir
 
   if os.popen('svn info').read().find('/branch_4x/') != -1:
     version = '4.0'
   else:
     version = '5.0'
   command += ' -Dlucene.version=%s-SNAPSHOT' % version
+  command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % rootDir
   command += ' -Dtests.codec=%s' % CODEC
   command += ' -Dtests.seed=%s' % SEED
 

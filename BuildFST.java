@@ -54,10 +54,10 @@ public class BuildFST {
     boolean numeric = true;
     boolean negative = false;
     for(int i=0;i<args.length;i++) {
-      String[] pair = args[i].split("/", 2);
-      if (pair.length == 2) {
+      int j = args[i].lastIndexOf('/');
+      if (j != -1) {
         try {
-          negative |= Long.parseLong(pair[1]) < 0;
+          negative |= Long.parseLong(args[i].substring(j+1)) < 0;
         } catch (NumberFormatException nfe) {
           numeric = false;
           break;
@@ -77,16 +77,22 @@ public class BuildFST {
     
     Pair<?>[] inputs = new Pair[args.length];
     for(int i=0;i<args.length;i++) {
-      String[] pair = args[i].split("/", 2);
+      int j = args[i].lastIndexOf('/');
+      String input;
       Object output;
-      if (pair.length == 1) {
+      if (j == -1) {
         output = outputs.getNoOutput();
-      } else if (numeric) {
-        output = Long.parseLong(pair[1]);
+        input = args[i];
       } else {
-        output = new BytesRef(pair[1]);
+        input = args[i].substring(0, j);
+        String outputString = args[i].substring(j+1);
+        if (numeric) {
+          output = Long.parseLong(outputString);
+        } else {
+          output = new BytesRef(outputString);
+        }
       }
-      inputs[i] = new Pair(new BytesRef(pair[0]), output);
+      inputs[i] = new Pair(new BytesRef(input), output);
     }
     Arrays.sort(inputs);
 

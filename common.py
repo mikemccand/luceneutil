@@ -93,6 +93,7 @@ def getLuceneTestClassPath(ROOT):
   if os.path.exists(ROOT + '/lucene/build/classes/demo'):
     CP.append(ROOT + '/lucene/build/classes/demo')
 
+  CP.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
   CP.append(ROOT + '/lucene/build/queries/classes/java')
   CP.append(ROOT + '/lucene/build/queries/classes/test')
   CP.append(ROOT + '/lucene/build/replicator/classes/java')

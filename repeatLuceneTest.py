@@ -231,6 +231,8 @@ def run(threadID):
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'
+      command += ' -Dtests.cleanthreads=perMethod'
+      command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % ROOT
       command += ' -Dtests.timeoutSuite=2147483647'
       command += ' -Dtests.verbose=%s' % str(verbose).lower()
       command += ' -Dtests.infostream=%s' % str(verbose).lower()
@@ -251,6 +253,12 @@ def run(threadID):
         command += ' -Dtests.seed=%s' % seed
       if testMethod is not None:
         command += ' -Dtests.method=%s*' % testMethod
+
+      command += ' -Djetty.testMode=1'
+      command += ' -Djetty.insecurerandom=1'
+      command += ' -Dtests.asserts.gracious=false'
+      #command += ' -Djava.security.manager=org.apache.lucene.util.TestSecurityManager'
+      command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
 
       if OLD_JUNIT:
         command += ' junit.textui.TestRunner'

@@ -34,7 +34,7 @@ top/5
   w('<table>')
   w('<tr>')
   w('<td valign=top>')
-  w('<form method=GET action="/fst">')
+  w('<form method=GET action="/fst.py">')
   w('<textarea name="terms" cols=50 rows=10>')
   if terms is not None:
     w(terms)
@@ -58,15 +58,6 @@ top/5
   if terms is not None:
 
     l = terms.split()
-    error = None
-    for x in l:
-      tup = x.split('/')
-      if len(tup) > 2:
-        error = 'Each item should be input or input/output string; got invalid item: %s' % x
-        break
-      
-    if error is not None:
-      w('<font color=red>%s</font>' % error)
       
     p = subprocess.Popen(['java', '-cp', '%s:%s' % (localconstants.BUILD_FST_PATH, localconstants.LUCENE_JAR), 'BuildFST'] + l, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     dotString, err = p.communicate()

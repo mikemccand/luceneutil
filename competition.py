@@ -165,6 +165,8 @@ class Index(object):
         name.append(groupName)
       if self.facetsPrivateOrdsPerGroup:
         name.append('po')
+      if self.facetDVFormat:
+        name.append('fdv')
 
     if self.bodyTermVectors:
       name.append('tv')

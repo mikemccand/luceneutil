@@ -63,6 +63,12 @@ def htmlColor(v):
   else:
     return '<font color="green">%d%%</font>' % v
 
+def htmlColor2(v):
+  if v < 1.0:
+    return '<font color="red">%.1f X</font>' % v
+  else:
+    return '<font color="green">%.1f X</font>' % v
+
 def jiraColor(v):
   if v < 0:
     return '{color:red}%d%%{color}' % (-v)
@@ -780,6 +786,7 @@ class RunAlgs:
     cp.append('%s/lucene/build/sandbox/classes/java' % path)
     cp.append('%s/lucene/build/misc/classes/java' % path)
     cp.append('%s/lucene/build/facet/classes/java' % path)
+    cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
     if version == '4.0':
       cp.append('%s/lucene/build/analysis/common/classes/java' % path)
       cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
@@ -1091,8 +1098,10 @@ class RunAlgs:
         w('|%.2f|%.2f|%.2f|%.2f' %
           (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
       elif html:
-        w('<td>%.2f</td><td>%.2f</td><td>%.2f</td><td>%.2f</td>' %
-          (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
+        p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
+        p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
+        w('<td>%.1f</td><td>%s</td><td>%.1f</td><td>%s</td>' %
+          (qpsBase, p1, qpsCmp, p2))
       else:
         p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
         p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
@@ -1118,7 +1127,8 @@ class RunAlgs:
       if jira:
         w('|%s-%s' % (jiraColor(psWorst), jiraColor(psBest)))
       elif html:
-        w('<td>%s-%s</td>' % (htmlColor(psWorst), htmlColor(psBest)))
+        #w('<td>%s (%s - %s)</td>' % (htmlColor(psAvg), htmlColor(psWorst), htmlColor(psBest)))
+        w('<td>%s</td>' % htmlColor2(1+psAvg/100.))
       else:
         w('%16s' % ('%7.1f%% (%4d%% - %4d%%)' % (psAvg, psWorst, psBest)))
 
@@ -1165,7 +1175,7 @@ class RunAlgs:
       w('<th>StdDev %s</th>' % baseDesc)
       w('<th>QPS %s</th>' % cmpDesc)
       w('<th>StdDev %s</th>' % cmpDesc)
-      w('<th>%% change</th>')
+      w('<th>% change</th>')
       w('</tr>')
     else:
       w('%24s' % 'Task')

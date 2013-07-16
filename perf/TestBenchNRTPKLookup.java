@@ -90,7 +90,7 @@ public class TestBenchNRTPKLookup {
           }
           // MKM
           //System.out.println("\nlookup seg=: " + reader + " term=" + t);
-          if (termsEnum.seekExact(t.bytes(), false)) {
+          if (termsEnum.seekExact(t.bytes())) {
             DocsEnum termDocsEnum = termsEnum.docs(reader.getLiveDocs(), null);
             if (termDocsEnum != null) {
               break;

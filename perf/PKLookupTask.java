@@ -97,7 +97,7 @@ final class PKLookupTask extends Task {
           final TermsEnum termsEnum = termsEnums[subIDX];
           //System.out.println("\nTASK: sub=" + sub);
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
-          if (termsEnum.seekExact(id, false)) { 
+          if (termsEnum.seekExact(id)) { 
             //System.out.println("  found!");
             final DocsEnum docs = docsEnums[subIDX] = termsEnum.docs(sub.getLiveDocs(), docsEnums[subIDX], 0);
             assert docs != null;

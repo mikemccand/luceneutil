@@ -236,6 +236,10 @@ KNOWN_CHANGES = [
    'LUCENE-4607: add DISI/Spans.cost',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-4607">LUCENE-4607</a>: add DISI/Spans.cost'),
 
+  ('2013-05-03',
+   'LUCENE-4946: SorterTemplate',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4946">LUCENE-4946</a>: SorterTemplate'),
+   
   ('2013-06-20',
    'LUCENE-5063: compress int and long FieldCache entries',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5063">LUCENE-5063</a>: compress int and long FieldCache entries'),

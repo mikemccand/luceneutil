@@ -33,7 +33,7 @@ import org.apache.lucene.facet.sampling.SampleFixer;
 import org.apache.lucene.facet.sampling.Sampler;
 import org.apache.lucene.facet.sampling.SamplingAccumulator;
 import org.apache.lucene.facet.sampling.SamplingParams;
-import org.apache.lucene.facet.search.Aggregator;
+//import org.apache.lucene.facet.search.Aggregator;
 import org.apache.lucene.facet.search.CountFacetRequest;
 //import org.apache.lucene.facet.search.CountingFacetsCollector;
 import org.apache.lucene.facet.search.DrillDownQuery;

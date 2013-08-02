@@ -230,7 +230,7 @@ KNOWN_CHANGES = [
 
   ('2013-02-22',
    'LUCENE-4791: optimize ConjunctionTermScorer to use skipping on first term',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-4971">LUCENE-4791</a>: optimize ConjunctionTermScorer to use skipping on first term'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-4791">LUCENE-4791</a>: optimize ConjunctionTermScorer to use skipping on first term'),
 
   ('2013-03-14',
    'LUCENE-4607: add DISI/Spans.cost',
@@ -243,6 +243,10 @@ KNOWN_CHANGES = [
   ('2013-06-20',
    'LUCENE-5063: compress int and long FieldCache entries',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5063">LUCENE-5063</a>: compress int and long FieldCache entries'),
+
+  ('2013-07-31',
+   'LUCENE-5140: recover slowdown in span queries and exact phrase query',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5140">LUCENE-5140</a>: recover slowdown in span queries and exact phrase query'),
    ]
 
 # TODO

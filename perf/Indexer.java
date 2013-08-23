@@ -38,7 +38,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.lucene42.Lucene42Codec;
+import org.apache.lucene.codecs.lucene45.Lucene45Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -222,7 +222,7 @@ public final class Indexer {
       }
     }
 
-    final Codec codec = new Lucene42Codec() {
+    final Codec codec = new Lucene45Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
@@ -231,7 +231,7 @@ public final class Indexer {
 
         private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName("Facet42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
-        private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
+        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
@@ -240,7 +240,7 @@ public final class Indexer {
             //} else if (field.startsWith("$sortedsetdvfacets")) {
             //return diskDVFormat;
           } else {
-            return lucene42DVFormat;
+            return lucene45DVFormat;
           }
         }
       };

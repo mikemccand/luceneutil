@@ -247,6 +247,10 @@ KNOWN_CHANGES = [
   ('2013-07-31',
    'LUCENE-5140: recover slowdown in span queries and exact phrase query',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5140">LUCENE-5140</a>: recover slowdown in span queries and exact phrase query'),
+
+  ('2013-09-10',
+   'Switched to Java 1.7.0_40',
+   'Switched to Java 1.7.0_40'),
    ]
 
 # TODO

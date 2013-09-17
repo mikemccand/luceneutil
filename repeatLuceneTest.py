@@ -189,9 +189,9 @@ def nextIter(threadID, logFileName):
   with iterLock:
     print
     if logFileName is None:
-      print '%s [%d, thread %d]:' % (datetime.datetime.now(), iter, threadID)
+      print '%s [%d, jvm %d]:' % (datetime.datetime.now(), iter, threadID)
     else:
-      print '%s [%d, thread %d]: %s' % (datetime.datetime.now(), iter, threadID, logFileName)
+      print '%s [%d, jvm %d]: %s' % (datetime.datetime.now(), iter, threadID, logFileName)
     iter += 1
     return iter
   

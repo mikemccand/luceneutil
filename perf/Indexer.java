@@ -38,7 +38,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.lucene45.Lucene45Codec;
+import org.apache.lucene.codecs.lucene46.Lucene46Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -222,7 +222,7 @@ public final class Indexer {
       }
     }
 
-    final Codec codec = new Lucene45Codec() {
+    final Codec codec = new Lucene46Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?

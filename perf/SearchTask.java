@@ -44,6 +44,7 @@ import org.apache.lucene.facet.search.FacetRequest;
 import org.apache.lucene.facet.search.FacetResult;
 import org.apache.lucene.facet.search.FacetResultNode;
 import org.apache.lucene.facet.search.FacetsCollector;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesAccumulator;
 import org.apache.lucene.facet.taxonomy.CategoryPath;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.IndexReader;
@@ -267,6 +268,7 @@ final class SearchTask extends Task {
           facets = res.facetResults;
         } else {
           FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), taxoReader);
+          //FacetsCollector facetsCollector = FacetsCollector.create(new SortedSetDocValuesAccumulator(state.sortedSetState, fsp));
           // TODO: determine in order by the query...?
           TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
           searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
@@ -575,4 +577,3 @@ final class SearchTask extends Task {
     }
   }
 }
-

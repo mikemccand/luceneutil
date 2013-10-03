@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.lucene.facet.params.CategoryListParams.OrdinalPolicy;
 import org.apache.lucene.facet.params.CategoryListParams;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
@@ -57,6 +58,7 @@ class IndexState {
   public final boolean hasDeletions;
   public final Map<String,TaxonomyReader> taxoReaders;
   public final List<FacetGroup> facetGroups;
+  //public final SortedSetDocValuesReaderState sortedSetState;
 
   public IndexState(ReferenceManager<IndexSearcher> mgr, Map<String,TaxonomyReader> taxoReaders, String textFieldName, DirectSpellChecker spellChecker,
                     String hiliteImpl, List<FacetGroup> facetGroups) throws IOException {
@@ -88,6 +90,7 @@ class IndexState {
     } finally {
       mgr.release(searcher);
     }
+    //sortedSetState = new SortedSetDocValuesReaderState(searcher.getIndexReader());
   }
 
   public void setDocIDToID() throws IOException {

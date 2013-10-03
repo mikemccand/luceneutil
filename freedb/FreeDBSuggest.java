@@ -26,6 +26,7 @@ import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.core.WhitespaceTokenizer;
+import org.apache.lucene.analysis.en.EnglishMinimalStemFilter;
 import org.apache.lucene.analysis.icu.ICUFoldingFilter;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardFilter;
@@ -37,7 +38,8 @@ import org.apache.lucene.search.suggest.Lookup;
 //import org.apache.lucene.search.suggest.analyzing.AnalyzingInfixSuggester;
 import org.apache.lucene.search.suggest.analyzing.AnalyzingSuggester;
 import org.apache.lucene.search.suggest.analyzing.FuzzySuggester;
-import org.apache.lucene.search.suggest.analyzing.InfixingSuggester;
+import org.apache.lucene.search.suggest.analyzing.FreeTextSuggester;
+import org.apache.lucene.search.suggest.analyzing.SuggestStopFilter;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
@@ -45,15 +47,13 @@ import org.apache.lucene.util.Version;
 // TODO
 //   - char filter to remove ', -, /
 
-// java -cp ../build/core/classes/java:../build/misc/lucene-misc-5.0-SNAPSHOT.jar org.apache.lucene.misc.HighFreqTerms /l/util/freedb/infixsuggest.tmp -t 1000 
+// javac -cp /l/predictivesuggest2/lucene/build/core/classes/java:/l/predictivesuggest2/lucene/build/suggest/classes/java:/l/predictivesuggest2/lucene/build/analysis/common/classes/java:/l/predictivesuggest2/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
 
-// javac -cp /l/infixsuggest/lucene/build/core/classes/java:/l/infixsuggest/lucene/build/suggest/classes/java:/l/infixsuggest/lucene/build/analysis/common/classes/java:/l/infixsuggest/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
+// java -Xmx14g -cp .:/l/predictivesuggest2/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/core/classes/java:/l/predictivesuggest2/lucene/build/suggest/classes/java:/l/predictivesuggest2/lucene/build/analysis/common/classes/java:/l/predictivesuggest2/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../predictivesuggest2/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
-// java -Xmx14g -cp .:/l/infixsuggest/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/infixsuggest/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/infixsuggest/lucene/build/core/classes/java:/l/infixsuggest/lucene/build/suggest/classes/java:/l/infixsuggest/lucene/build/analysis/common/classes/java:/l/infixsuggest/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../infixsuggest/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
-// javac -cp /l/robinfix/lucene/build/core/classes/java:/l/robinfix/lucene/build/suggest/classes/java:/l/robinfix/lucene/build/analysis/common/classes/java:/l/robinfix/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
-
-// java -Xmx14g -cp .:/l/robinfix/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/robinfix/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/robinfix/lucene/build/core/classes/java:/l/robinfix/lucene/build/suggest/classes/java:/l/robinfix/lucene/build/analysis/common/classes/java:/l/robinfix/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../robinfix/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
+// NGram:
+// java -Xmx1g -cp .:/l/predictivesuggest2/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/core/classes/java:/l/predictivesuggest2/lucene/build/suggest/classes/java:/l/predictivesuggest2/lucene/build/analysis/common/classes/java:/l/predictivesuggest2/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../predictivesuggest2/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
 public class FreeDBSuggest {
   public static void main(String[] args) throws Exception {
@@ -80,8 +80,43 @@ public class FreeDBSuggest {
           TokenStream tok = src;
           //TokenStream tok = new StandardFilter(matchVersion, tok);
           tok = new LowerCaseFilter(matchVersion, tok);
-          tok = new StopFilter(matchVersion, tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
-          tok = new ICUFoldingFilter(tok);
+          //tok = new StopFilter(matchVersion, tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
+          //tok = new ICUFoldingFilter(tok);
+          //tok = new EnglishMinimalStemFilter(tok);
+          return new TokenStreamComponents(src, tok) {
+            @Override
+            protected void setReader(final Reader reader) throws IOException {
+              src.setMaxTokenLength(maxTokenLength);
+              super.setReader(reader);
+            }
+          };
+        }
+      };
+
+    Analyzer qa = new Analyzer() {
+        @Override 
+        protected TokenStreamComponents createComponents(final String fieldName,
+                                                         final Reader reader) {
+
+          /*
+          Tokenizer t = new WhitespaceTokenizer(Version.LUCENE_50, reader);
+          TokenStream tf = t;
+          //TokenStream tf = new LowerCaseFilter(Version.LUCENE_50, tf);
+          return new TokenStreamComponents(t, tf);
+          */
+
+          // StandardAnalyzer + ICUFoldingFilter:
+          Version matchVersion = Version.LUCENE_50;
+          final int maxTokenLength = 255;
+
+          final StandardTokenizer src = new StandardTokenizer(matchVersion, reader);
+          src.setMaxTokenLength(maxTokenLength);
+          TokenStream tok = src;
+          //TokenStream tok = new StandardFilter(matchVersion, tok);
+          tok = new LowerCaseFilter(matchVersion, tok);
+          //tok = new SuggestStopFilter(tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
+          //tok = new ICUFoldingFilter(tok);
+          //tok = new EnglishMinimalStemFilter(tok);
           return new TokenStreamComponents(src, tok) {
             @Override
             protected void setReader(final Reader reader) throws IOException {
@@ -94,8 +129,9 @@ public class FreeDBSuggest {
 
     //Lookup suggester = new AnalyzingSuggester(a, a, AnalyzingSuggester.PRESERVE_SEP, 256, -1);
     //Lookup suggester = new AnalyzingInfixSuggester(Version.LUCENE_50, new File("infixsuggest"), a);
-    Lookup suggester = new InfixingSuggester(a, a);
+    //Lookup suggester = new InfixingSuggester(a, a);
     //Lookup suggester = new FuzzySuggester(a, a, AnalyzingSuggester.PRESERVE_SEP, 256, -1, 1, true, 1, 3);
+    Lookup suggester = new FreeTextSuggester(a, qa, 3, (byte) 0x20);
 
     boolean doCreate = false;
     boolean doServer = false;
@@ -114,14 +150,18 @@ public class FreeDBSuggest {
       CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT);
-      InputStream is = new FileInputStream("/lucenedata/freedb/all.txt");
+      // ~ 3.2M albums:
+      //InputStream is = new FileInputStream("/lucenedata/freedb/all.txt");
+      //String source = "/lucenedata/enwiki/enwiki-20120502-lines-1k.txt";
+      String source = "/lucenedata/aolqueries/AOL-user-ct-collection/justQueriesSorted.txt";
+      InputStream is = new FileInputStream(source);
       final BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), 1<<16);
       //final Set<String> seen = new HashSet<String>();
       final AtomicInteger songCount = new AtomicInteger();
       final AtomicInteger albumCount = new AtomicInteger();
       final Random random = new Random(17);
 
-      TermFreqPayloadIterator terms = new TermFreqPayloadIterator() {
+      TermFreqIterator terms = new TermFreqIterator() {
 
           String[] current;
           String title;
@@ -131,6 +171,8 @@ public class FreeDBSuggest {
 
           @Override
           public BytesRef next() throws IOException {
+
+            /*
 
             if (current == null || currentUpto == current.length) {
               String line = reader.readLine();
@@ -160,12 +202,23 @@ public class FreeDBSuggest {
             // OOME @ 12G heap:
             //return new BytesRef(current[currentUpto++] + " [" + title + "]");
             return new BytesRef(current[currentUpto++]);
+            */
+            
+            String line = reader.readLine();
+            //if (line == null || count++ == 100000) {
+            if (line == null) {
+              System.out.println("Done reading!");
+              return null;
+            }
+            return new BytesRef(line);
           }
 
+          /*
           @Override
           public BytesRef payload() {
             return new BytesRef(title);
           }
+          */
 
           @Override
           public long weight() {

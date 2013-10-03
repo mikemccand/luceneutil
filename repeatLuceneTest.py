@@ -135,14 +135,14 @@ if doCompile:
   try:
     if os.getcwd().endswith('lucene'):
       #res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
-      res = os.system('%s compile-core compile-test > compile.log 2>&1' % constants.ANT_EXE)
+      res = os.system('%s compile-core compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
     else:
-      res = os.system('%s compile-test > compile.log 2>&1' % constants.ANT_EXE)
+      res = os.system('%s compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
     if res:
-      print open('compile.log', 'rb').read()
+      print open('%s/compile.log' % logDirName, 'rb').read()
       sys.exit(1)
   finally:
-    os.remove('compile.log')
+    os.remove('%s/compile.log' % logDirName)
 
 onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))

@@ -437,9 +437,31 @@ def main():
   #tests = [(1.0, 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest')]
   #tests = [(1.0, 'org.apache.lucene.TestDemo')]
 
-  # TODO: solr has tests.cleanthreads=perClass but lucene has
-  # perMethod... maybe I need dedicated solr vs lucene jvms
-  command = 'java -Dtests.prefix=tests -Xmx512M -Dtests.iters= -Dtests.verbose=false -Dtests.infostream=false -Dtests.lockdir=%s/lucene/build -Dtests.postingsformat=random -Dtests.locale=random -Dtests.timezone=random -Dtests.directory=random -Dtests.linedocsfile=europarl.lines.txt.gz -Dtests.luceneMatchVersion=5.0 -Dtests.cleanthreads=perMethod -Djava.util.logging.config.file=solr/testlogging.properties -Dtests.nightly=false -Dtests.weekly=false -Dtests.slow=false -Dtests.asserts.gracious=false -Dtests.multiplier=1 -DtempDir=. -Djetty.testMode=1 -Djetty.insecurerandom=1 -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory' % rootDir
+  # TODO: solr has tests.cleanthreads=perClass but lucene has perMethod... maybe I need dedicated solr vs lucene jvms
+  command = 'java'
+  command += ' -Dtests.prefix=tests'
+  command += ' -Xmx512M'
+  command += ' -Dtests.iters='
+  command += ' -Dtests.verbose=false'
+  command += ' -Dtests.infostream=false'
+  command += ' -Dtests.lockdir=%s/lucene/build' % rootDir
+  command += ' -Dtests.postingsformat=random'
+  #command += ' -Dtests.locale=random'
+  #command += ' -Dtests.timezone=random'
+  command += ' -Dtests.directory=random'
+  command += ' -Dtests.linedocsfile=europarl.lines.txt.gz'
+  command += ' -Dtests.luceneMatchVersion=5.0'
+  command += ' -Dtests.cleanthreads=perMethod'
+  command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
+  command += ' -Dtests.nightly=false'
+  command += ' -Dtests.weekly=false'
+  command += ' -Dtests.slow=false'
+  command += ' -Dtests.asserts.gracious=false'
+  command += ' -Dtests.multiplier=1'
+  command += ' -DtempDir=.'
+  command += ' -Djetty.testMode=1'
+  command += ' -Djetty.insecurerandom=1'
+  command += ' -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory'
 
   if os.popen('svn info').read().find('/branch_4x/') != -1:
     version = '4.0'

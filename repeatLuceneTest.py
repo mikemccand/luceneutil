@@ -284,6 +284,7 @@ def run(threadID):
         if doLog:
           printReproLines(logFileName)
         failed = True
+        print '\a\a\a'
         raise RuntimeError('hit fail')
       elif doLog:
         if not keepLogs:

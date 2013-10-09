@@ -220,6 +220,10 @@ def run(threadID):
           print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
 
       command = '%s %s -DtempDir=%s -ea' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
+      if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
+        command += ' -server'
+      if False and random.randint(0, 1) == 1 and not onlyOnce:
+        command += ' -Xbatch'
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'

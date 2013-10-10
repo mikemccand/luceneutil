@@ -1,3 +1,4 @@
+import re
 import sys
 import os
 import constants
@@ -67,6 +68,9 @@ def addJARs(cp, path):
     for f in os.listdir(path):
       if f.endswith('.jar') and jarOK(f):
         cp.append('%s/%s' % (path, f))
+
+def getLuceneVersion(ROOT):
+  return re.search('tests.luceneMatchVersion" value="(.*?)"', open('%s/lucene/common-build.xml' % ROOT).read()).group(1)
 
 def getLuceneTestClassPath(ROOT):
   CP = []

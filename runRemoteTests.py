@@ -450,7 +450,7 @@ def main():
   #command += ' -Dtests.timezone=random'
   command += ' -Dtests.directory=random'
   command += ' -Dtests.linedocsfile=europarl.lines.txt.gz'
-  command += ' -Dtests.luceneMatchVersion=5.0'
+  command += ' -Dtests.luceneMatchVersion=%s' % common.getLuceneVersion(rootDir)
   command += ' -Dtests.cleanthreads=perMethod'
   command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
   command += ' -Dtests.nightly=false'

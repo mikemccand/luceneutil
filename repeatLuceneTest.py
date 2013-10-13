@@ -152,11 +152,14 @@ seed = getArg('-seed', None)
 dvFormat = getArg('-dvFormat', None)
 nightly = getArg('-nightly', None, False)
 keepLogs = getArg('-keeplogs', False, False)
+slow = getArg('-slow', False, False)
 # -Dtests.heapsize=XXX if running ant
 heap = getArg('-heap', None, True)
 if heap is not None:
   JAVA_ARGS = JAVA_ARGS.replace('512m', heap)
 
+# sys.argv also contains the name of the script, so if it's 
+# length is 1, it means no test was specified
 if len(sys.argv) == 1:
   print '\nERROR: no test specified\n'
   sys.exit(1)
@@ -250,6 +253,7 @@ def run(threadID):
       if testMethod is not None:
         command += ' -Dtests.method=%s*' % testMethod
 
+      command += ' -Dtests.slow=%s' % str(slow).lower()
       command += ' -Djetty.testMode=1'
       command += ' -Djetty.insecurerandom=1'
       command += ' -Dtests.asserts.gracious=false'

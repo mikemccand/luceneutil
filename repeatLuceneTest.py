@@ -284,22 +284,27 @@ def run(threadID):
         print '  RUN: %s' % command
         first = False
 
-      p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+      if doLog:
+        res = os.system(command)
+        noTestsRun = open(logFileName).read().find('OK (0 tests)') != -1
+      else:
 
-      noTestsRun = False
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
-      while True:
-        line = p.stdout.read()
-        if line == '':
-          break
-        if line.find('OK (0 tests)') != -1:
-          noTestsRun = True
-          break
-        print line.rstrip()
-        if p.returncode is not None:
-          break
-      
-      res = p.returncode
+        noTestsRun = False
+
+        while True:
+          line = p.stdout.read()
+          if line == '':
+            break
+          if line.find('OK (0 tests)') != -1:
+            noTestsRun = True
+            break
+          print line.rstrip()
+          if p.returncode is not None:
+            break
+
+        res = p.returncode
 
       if res:
         if logFileName is None:

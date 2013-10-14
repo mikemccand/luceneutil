@@ -450,7 +450,7 @@ def main():
   #command += ' -Dtests.timezone=random'
   command += ' -Dtests.directory=random'
   command += ' -Dtests.linedocsfile=europarl.lines.txt.gz'
-  command += ' -Dtests.luceneMatchVersion=%s' % common.getLuceneVersion(rootDir)
+  command += ' -Dtests.luceneMatchVersion=%s' % common.getLuceneMatchVersion(rootDir)
   command += ' -Dtests.cleanthreads=perMethod'
   command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
   command += ' -Dtests.nightly=false'
@@ -463,11 +463,7 @@ def main():
   command += ' -Djetty.insecurerandom=1'
   command += ' -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory'
 
-  if os.popen('svn info').read().find('/branch_4x/') != -1:
-    version = '4.0'
-  else:
-    version = '5.0'
-  command += ' -Dlucene.version=%s-SNAPSHOT' % version
+  command += ' -Dlucene.version=%s' % common.getLuceneDevVersion(rootDir)
   command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % rootDir
   command += ' -Dtests.codec=%s' % CODEC
   command += ' -Dtests.seed=%s' % SEED

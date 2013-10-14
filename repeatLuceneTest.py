@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import shutil
+import time
 import datetime
 import os
 import sys
@@ -24,6 +25,7 @@ import common
 import constants
 import re
 import threading
+import subprocess
 
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
@@ -41,6 +43,7 @@ else:
 osName = common.osName
 
 JAVA_ARGS = '-Xmx512m -Xms512m'
+#JAVA_ARGS = '-Xmx512m -Xms512m -client -XX:+UseParallelGC'
 # print
 # print 'WARNING: *** running java w/ 8 GB heap ***'
 # print
@@ -280,8 +283,23 @@ def run(threadID):
       if first:
         print '  RUN: %s' % command
         first = False
-        
-      res = os.system(command)
+
+      p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+
+      noTestsRun = False
+
+      while True:
+        line = p.stdout.read()
+        if line == '':
+          break
+        if line.find('OK (0 tests)') != -1:
+          noTestsRun = True
+          break
+        print line.rstrip()
+        if p.returncode is not None:
+          break
+      
+      res = p.returncode
 
       if res:
         if logFileName is None:
@@ -294,6 +312,9 @@ def run(threadID):
         failed = True
         print '\a\a\a'
         raise RuntimeError('hit fail')
+      elif noTestsRun:
+        failed = True
+        raise RuntimeError('no tests matched test case "%s" and test method "%s"' % (testClass, testMethod))
       elif doLog:
         if not keepLogs:
           os.remove(logFileName)
@@ -309,5 +330,11 @@ if jvmCount > 1:
     t = threading.Thread(target=run, args=(threadID,))
     t.start()
     threads.append(t)
+  while True:
+    try:
+      time.sleep(.1)
+    except KeyboardInterrupt:
+      failed = True
+      raise
 else:
   run(0)

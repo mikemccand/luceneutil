@@ -30,6 +30,11 @@ import subprocess
 # NOTE
 #   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
 
+# TODO
+#   - we currently cannot detect if a test did not in fact run because
+#     it was @Ignore, @Nightly, or hit an AssumptionViolatedExc ... we
+#     should fail in that case, if nothing actually ran
+
 ROOT = common.findRootDir(os.getcwd())
 
 try:
@@ -304,7 +309,7 @@ def run(threadID):
           if p.returncode is not None:
             break
 
-        res = p.returncode
+        res = p.wait()
 
       if res:
         if logFileName is None:
@@ -335,7 +340,7 @@ if jvmCount > 1:
     t = threading.Thread(target=run, args=(threadID,))
     t.start()
     threads.append(t)
-  while True:
+  while not failed:
     try:
       time.sleep(.1)
     except KeyboardInterrupt:

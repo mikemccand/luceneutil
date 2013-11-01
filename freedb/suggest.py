@@ -4,8 +4,8 @@ import sys
 import subprocess
 import getch
 
-#LUCENE_HOME = '/l/lucene.trunk2'
-LUCENE_HOME = '/l/predictivesuggest2'
+LUCENE_HOME = '/l/trunk'
+#LUCENE_HOME = '/l/predictivesuggest2'
 
 cp = []
 cp.append('.')

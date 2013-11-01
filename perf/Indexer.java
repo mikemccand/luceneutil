@@ -127,7 +127,7 @@ public final class Indexer {
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
-    final boolean doFacetDVFormat = args.getFlag("-facetDVFormat");
+    final String facetDVFormatName = args.getString("-facetDVFormat");
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -156,7 +156,7 @@ public final class Indexer {
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
     System.out.println("Facets: " + (doFacets ? "yes" : "no"));
-    System.out.println("Facet DV Format?: " + (doFacetDVFormat ? "yes" : "no"));
+    System.out.println("Facet DV Format: " + facetDVFormatName);
     if (doFacets) {
       System.out.println("Facet groups: " + facetGroups);
     }
@@ -216,10 +216,8 @@ public final class Indexer {
     }
     
     final Set<String> facetFields = new HashSet<String>();
-    if (doFacetDVFormat) {
-      for (FacetGroup fg : facetGroups) {
-        facetFields.add(fg.clp.field);
-      }
+    for (FacetGroup fg : facetGroups) {
+      facetFields.add(fg.clp.field);
     }
 
     final Codec codec = new Lucene46Codec() {
@@ -229,8 +227,8 @@ public final class Indexer {
                                         idFieldPostingsFormat : defaultPostingsFormat);
         }
 
-        private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName("Facet42");
-        private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
+        private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName(facetDVFormatName);
+        //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
         private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
 

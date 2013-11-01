@@ -691,9 +691,6 @@ class RunAlgs:
       w('-threadCount %s' % index.numThreads)
       w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
 
-      if index.facetDVFormat:
-        w('-facetDVFormat')
-
       if index.optimize:
         w('-forceMerge')
 
@@ -724,6 +721,7 @@ class RunAlgs:
           w('-facetGroup %s' % fg)
         if index.facetsPrivateOrdsPerGroup:
           w('-facetsPrivateOrdsPerGroup')
+        w('-facetDVFormat %s' % index.facetDVFormat)
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 

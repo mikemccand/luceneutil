@@ -100,7 +100,7 @@ class Index(object):
                facetsPrivateOrdsPerGroup = False,
                facetGroups = None,
                extraNamePart = None,
-               facetDVFormat = False,
+               facetDVFormat = constants.FACET_FIELD_DV_FORMAT_DEFAULT,
                maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
                ):
     self.checkout = checkout
@@ -172,8 +172,7 @@ class Index(object):
         
       if self.facetsPrivateOrdsPerGroup:
         name.append('po')
-      if self.facetDVFormat:
-        name.append('fdv')
+      name.append(self.facetDVFormat)
 
     if self.bodyTermVectors:
       name.append('tv')

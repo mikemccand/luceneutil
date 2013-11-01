@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import shutil
+import signal
 import time
 import datetime
 import os
@@ -26,9 +27,11 @@ import constants
 import re
 import threading
 import subprocess
+import json
 
 # NOTE
-#   - only works in the lucene subdir, ie this runs equivalent of "ant test-core"
+#   - only works in the module's working directory,
+#     e.g. "lucene/core", or "lucene/analyzers/common"
 
 # TODO
 #   - we currently cannot detect if a test did not in fact run because
@@ -37,13 +40,9 @@ import subprocess
 
 ROOT = common.findRootDir(os.getcwd())
 
-try:
-  idx = sys.argv.index('-jvms')
-except ValueError:
-  jvmCount = 1
-else:
-  jvmCount = int(sys.argv[1+idx])
-  del sys.argv[idx:idx+2]
+# True to use simple JUnit test runner; False to use
+# randomizedtesting's runner:
+USE_JUNIT = True
 
 osName = common.osName
 
@@ -53,6 +52,15 @@ JAVA_ARGS = '-Xmx512m -Xms512m'
 # print 'WARNING: *** running java w/ 8 GB heap ***'
 # print
 # JAVA_ARGS = '-Xmx8g -Xms8g'
+
+def error(message):
+  beep()
+  print('ERROR: %s' % message)
+  print
+  sys.exit(1)
+
+def beep():
+  print '\a\a\a'  
 
 def getArg(argName, default, hasArg=True):
   try:
@@ -71,82 +79,70 @@ def getArg(argName, default, hasArg=True):
 reRepro = re.compile('NOTE: reproduce with(.*?)$', re.MULTILINE)
 reDefines = re.compile('-D(.*?)=(.*?)(?: |$)')
 def printReproLines(logFileName):
-  f = open(logFileName, 'rb')
-  print
-  while True:
-    line = f.readline()
-    if line == '':
-      break
-    m = reRepro.search(line)
-    codec = None
-    mult = 1
-    if m is not None:
-      for x in reDefines.findall(line):
-        k, v = x
-        if k == 'testcase':
-          testCase = v
-        elif k == 'testmethod':
-          testCase += '.%s' % v
-        elif k == 'tests.seed':
-          seed = v
-        elif k == 'tests.codec':
-          codec = v
-        elif k == 'tests.multiplier':
-          mult = v
-        else:
-          print 'WARNING: don\'t know how to repro k/v=%s' % str(x)
+  with open(logFileName, 'rb') as f:
+    print
+    while True:
+      line = f.readline()
+      if line == '':
+        break
+      m = reRepro.search(line)
+      if m is not None:
+        parseReproLine(line)
+        break
 
-      if codec is not None:
-        extra = '-codec %s' % codec
-      else:
-        extra = ''
-      if extra != '':
-        extra = ' ' + extra
+def parseReproLine(line):
 
-      if mult != 1:
-        if extra == '':
-          extra = '-mult %s' % mult
-        else:
-          extra += ' -mult %s' % mult
+  codec = None
+  mult = 1
+  
+  for x in reDefines.findall(line):
+    k, v = x
+    if k == 'testcase':
+      testCase = v
+    elif k == 'testmethod':
+      testCase += '.%s' % v
+    elif k == 'tests.method':
+      testCase += '.%s' % v
+    elif k == 'tests.seed':
+      seed = v
+    elif k == 'tests.codec':
+      codec = v
+    elif k == 'tests.multiplier':
+      mult = v
+    else:
+      print 'WARNING: don\'t know how to repro k/v=%s' % str(x)
 
-      s = 'REPRO: %s %s -seed %s %s'%  (constants.REPRO_COMMAND_START, testCase, seed, extra)
-      if constants.REPRO_COMMAND_END != '':
-        s += ' %s' % constants.REPRO_COMMAND_END
-      print s
+  extra = []
+  if codec is not None:
+    extra.append('-codec %s' % codec)
+
+  if mult != 1:
+    extra.append('-mult %s' % mult)
+
+  s = 'REPRO: %s %s -seed %s %s'%  (constants.REPRO_COMMAND_START, testCase, seed, ' '.join(extra))
+  if constants.REPRO_COMMAND_END != '':
+    s += ' %s' % constants.REPRO_COMMAND_END
+  print('\n%s\n' % s)
 
 tup = os.path.split(os.getcwd())
 
 sub = os.path.split(tup[0])[0]
 sub = os.path.split(sub)[1]
 
-if os.path.exists('/dev/shm'):
-  logDirName = '/dev/shm/logs/%s' % sub
-else:
-  logDirName = '/tmp/logs/%s' % sub
-  if osName == 'windows':
-    logDirName = 'c:' + logDirName
+logDirName = '%s/lucene/build' % ROOT
 
-doLog = not getArg('-nolog', False, False)
 doCompile = not getArg('-noc', False, False)
+doLog = not getArg('-nolog', False, False)
+jvmCount = int(getArg('-jvms', 1))
 
-print 'Logging to dir %s' % logDirName
+if jvmCount != 1:
+  doLog = True
+  
+if doLog:
+  print '\nLogging to dir %s' % logDirName
 
 if not os.path.exists(logDirName):      
   os.makedirs(logDirName)
-
-if doCompile:
-  print 'Compile...'
-  try:
-    if os.getcwd().endswith('lucene'):
-      #res = os.system('ant compile-core compile-test common.compile-test > compile.log 2>&1')
-      res = os.system('%s compile-core compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
-    else:
-      res = os.system('%s compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
-    if res:
-      print open('%s/compile.log' % logDirName, 'rb').read()
-      sys.exit(1)
-  finally:
-    os.remove('%s/compile.log' % logDirName)
 
 onlyOnce = getArg('-once', False, False)
 mult = int(getArg('-mult', 1))
@@ -177,13 +173,27 @@ for test in sys.argv[1:]:
   if not test.startswith('org.'):
     tup = common.locateTest(test)
     if tup is None:
-      print '\nERROR: cannot find test %s\n' % test
+      print '\nERROR: cannot find test class %s.java\n' % test
       sys.exit(1)
     testClass, testMethod = tup
     tests.append((testClass, testMethod))
 
 JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
+
+if doCompile:
+  # Compile, but only send output to stdout if it fails:
+  print 'Compile...'
+  try:
+    if os.getcwd().endswith('lucene'):
+      res = os.system('%s compile-core compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
+    else:
+      res = os.system('%s compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
+    if res:
+      print open('%s/compile.log' % logDirName, 'rb').read()
+      sys.exit(1)
+  finally:
+    os.remove('%s/compile.log' % logDirName)
 
 failed = False
 
@@ -201,9 +211,39 @@ def nextIter(threadID, logFileName):
       print '%s [%d, jvm %d]: %s' % (datetime.datetime.now(), iter, threadID, logFileName)
     iter += 1
     return iter
+
+def eventToLog(eventsFileIn, fileOut):
+
+  """
+  Appends all stdout/stderr from the events file, to human readable form.
+  """
+
+  r = re.compile('^    "chunk": "(.*?)"$')
+  with open(eventsFileIn, 'rb') as f:
+    with open(fileOut, 'wb') as fOut:
+      while True:
+        line = f.readline()
+        if line == '':
+          break
+        m = r.match(line)
+        if m is not None:
+          s = m.group(1)
+          s = s.replace('\\"', '"')
+          s = s.replace('%0A', '\n')
+          s = s.replace('%09', '\t')
+          fOut.write(s)
   
 def run(threadID):
+  global failed
+  success = False
+  try:
+    _run(threadID)
+    success = True
+  finally:
+    if not success:
+      failed = True
 
+def _run(threadID):
   global failed
 
   TEST_TEMP_DIR = '%s/lucene/build/core/test/reruns.%s.%s.t%d' % (ROOT, tests[0][0].split('.')[-1], tests[0][1], threadID)
@@ -217,24 +257,18 @@ def run(threadID):
       else:
         s = testClass
 
+      if not USE_JUNIT:
+        eventsFile = '%s/lucene/build/C%d.events' % (ROOT, threadID)
+
       if doLog:
         logFileName = '%s/%s.%s.%d.t%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto, threadID)
       else:
         logFileName = None
 
-      iter = nextIter(threadID, logFileName)
+      if not onlyOnce:
+        iter = nextIter(threadID, logFileName)
 
-      if False:
-        if doLog:
-          print 'iter %s %s TEST: %s -> %s' % (iter, datetime.datetime.now(), s, logFileName)
-        else:
-          print 'iter %s %s TEST: %s' % (iter, datetime.datetime.now(), s)
-
-      command = '%s %s -DtempDir=%s -ea' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
-      if False and constants.JRE_SUPPORTS_SERVER_MODE and random.randint(0, 1) == 1:
-        command += ' -server'
-      if False and random.randint(0, 1) == 1 and not onlyOnce:
-        command += ' -Xbatch'
+      command = '%s %s -DtempDir=%s -ea:org.apache.lucene... -ea:org.apache.solr...' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'
@@ -265,18 +299,20 @@ def run(threadID):
       command += ' -Djetty.testMode=1'
       command += ' -Djetty.insecurerandom=1'
       command += ' -Dtests.asserts.gracious=false'
-      #command += ' -Djava.security.manager=org.apache.lucene.util.TestSecurityManager'
       command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
 
-      if OLD_JUNIT:
-        command += ' junit.textui.TestRunner'
-      else:
+      if USE_JUNIT:
         command += ' org.junit.runner.JUnitCore'
+      else:
+        command += ' com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush'
+        command += ' -eventsfile %s' % eventsFile
 
       command += ' %s' % testClass
 
       if doLog:
         command += ' > %s 2>&1' % logFileName
+
+      #print('command: %s' % command)
 
       if os.path.exists(TEST_TEMP_DIR):
         #print '  remove %s' % TEST_TEMP_DIR
@@ -285,13 +321,14 @@ def run(threadID):
         except OSError:
           pass
 
-      if first:
+      if False and first:
         print '  RUN: %s' % command
         first = False
 
       if doLog:
         res = os.system(command)
-        noTestsRun = open(logFileName).read().find('OK (0 tests)') != -1
+        if USE_JUNIT:
+          noTestsRun = open(logFileName).read().find('OK (0 tests)') != -1
       else:
 
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
@@ -311,6 +348,68 @@ def run(threadID):
 
         res = p.wait()
 
+      if res == signal.SIGINT:
+        # Ctrl+C
+        failed = True
+        break
+
+      if not USE_JUNIT:
+        # Parse the events file:
+        decoder = json.JSONDecoder()
+        s = open(eventsFile).read()
+        idx = 0
+        testCount = 0
+        failCount = 0
+        sawTest = False
+        ignored = True
+        ignoreCount = 0
+        while True:
+          obj, idx = decoder.raw_decode(s, json.decoder.WHITESPACE.match(s, idx).end())
+          # print 'obj %s' % obj
+          if obj[0] == 'TEST_STARTED':
+            testName = obj[1]['description']
+            ignored = False
+            sawTest = True
+          elif obj[0] == 'TEST_IGNORED':
+            ignoreCount += 1
+            ignored = True
+          elif obj[0] == 'TEST_IGNORED_ASSUMPTION':
+            if not onlyOnce:
+              print('\n  TEST SKIPPED: %s' % obj[1]['failure']['message'])
+            else:
+              print('\n  TEST SKIPPED: %s' % obj[1]['failure']['trace'])
+            ignored = True
+          elif obj[0] == 'TEST_FINISHED':
+            testName = None
+            if not ignored:
+              testCount += 1
+          elif obj[0] == 'TEST_FAILURE':
+            if doLog:
+              print '\nERROR: test %s failed; see %s' % (testName, logFileName)
+            else:
+              print '\nERROR: test %s failed' % testName
+              print obj[1]['failure']['trace']
+            failCount += 1
+            failed = True
+          elif obj[0] == 'APPEND_STDERR':
+            if obj[1]['chunk'].startswith('NOTE: reproduce with'):
+              parseReproLine(obj[1]['chunk'])
+            else:
+              #print(obj[1]['chunk'])
+              pass
+          elif obj[0] == 'QUIT':
+            break
+
+        if not sawTest:
+          # No tests matched:
+          print
+          if ignoreCount != 0:
+            error('all test cases were marked @Ignore')
+          else:
+            error('no test matches method "%s" in class %s' % (testMethod, testClass))
+
+        noTestsRun = testCount == 0
+
       if res:
         if logFileName is None:
           print '  FAILED'
@@ -320,20 +419,30 @@ def run(threadID):
         if doLog:
           printReproLines(logFileName)
         failed = True
-        print '\a\a\a'
-        raise RuntimeError('hit fail')
+        beep()
+        break
       elif noTestsRun:
-        failed = True
-        raise RuntimeError('no tests matched test case "%s" and test method "%s"' % (testClass, testMethod))
-      elif doLog:
-        if not keepLogs:
-          os.remove(logFileName)
+        if onlyOnce:
+          failed = True
+          error('no test actually ran, due to an Assume or @Ignore/@Nightly/@Slow/etc.')
         else:
-          upto += 1
+          if USE_JUNIT:
+            print('  WARNING: no test actually ran, due to typo or an Assume or @Ignore/@Nightly/@Slow/etc.')
+          else:
+            print('  WARNING: no test actually ran, due to an Assume or @Ignore/@Nightly/@Slow/etc.')
+      else:
+        if onlyOnce and not USE_JUNIT and not failed:
+          print('  OK [%d tests]\n' % testCount)
+        if doLog and USE_JUNIT:
+          if not keepLogs:
+            os.remove(logFileName)
+          else:
+            upto += 1
 
     if onlyOnce:
       break
 
+print('\nRun test(s)...')
 if jvmCount > 1:
   threads = []
   for threadID in xrange(jvmCount):
@@ -348,3 +457,8 @@ if jvmCount > 1:
       raise
 else:
   run(0)
+
+if failed:
+  sys.exit(1)
+else:
+  sys.exit(0)

@@ -163,6 +163,13 @@ class Index(object):
           raise RuntimeError('could not parse groupName from facetGrup "%s"' % arg)
         groupName = arg[:idx]
         name.append(groupName)
+
+        idx2 = arg.find(':', idx+1)
+        if idx2 == -1:
+          raise RuntimeError('could not parse ordPolicy from facetGrup "%s"' % arg)
+        ordPolicy = arg[idx+1:idx2]
+        name.append(ordPolicy)
+        
       if self.facetsPrivateOrdsPerGroup:
         name.append('po')
       if self.facetDVFormat:

@@ -517,7 +517,7 @@ def run():
                         doFacets=True,
                         facetGroups = ('date:noparents:Date',),
                         maxConcurrentMerges=3,
-                        facetDVFormat=True)
+                        facetDVFormat='Direct')
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
@@ -728,7 +728,7 @@ def makeGraphs():
 
           if cat == 'TermDateFacets':
             if date in ('01/03/2013', '01/04/2013', '01/05/2013'):
-              # Bug in luceneutil made facets not actually run correclty so QPS was way too high:
+              # Bug in luceneutil made facets not actually run correctly so QPS was way too high:
               continue
           if cat == 'Fuzzy1':
             if date in ('05/06/2012',

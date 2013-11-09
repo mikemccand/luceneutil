@@ -127,7 +127,12 @@ public final class Indexer {
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
-    final String facetDVFormatName = args.getString("-facetDVFormat");
+    final String facetDVFormatName;
+    if (doFacets) {
+      facetDVFormatName = args.getString("-facetDVFormat");
+    } else {
+      facetDVFormatName = "Lucene45";
+    }
 
     if (addGroupingFields && docCountLimit == -1) {
       throw new RuntimeException("cannot add grouping fields unless docCount is set");

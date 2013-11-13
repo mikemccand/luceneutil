@@ -251,6 +251,10 @@ KNOWN_CHANGES = [
   ('2013-09-10',
    'Switched to Java 1.7.0_40',
    'Switched to Java 1.7.0_40'),
+
+  ('2013-11-09',
+   'Switched to DirectDocValuesFormat for the Date facets field.',
+   'Switched to DirectDocValuesFormat for the Date facets field.',)
    ]
 
 # TODO

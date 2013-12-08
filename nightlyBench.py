@@ -626,6 +626,7 @@ def run():
         raise RuntimeError('search result differences: %s' % str(errors))
   else:
     cmpDiffs = None
+    searchHeaps = None
 
   results = (start,
              MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,

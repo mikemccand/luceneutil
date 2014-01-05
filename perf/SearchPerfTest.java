@@ -46,6 +46,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene42.Lucene42Codec;
+import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
@@ -148,7 +149,6 @@ public class SearchPerfTest {
     final Args args = new Args(clArgs);
 
     Directory dir0;
-    final boolean doFacets = args.getFlag("-facets");
     final String dirPath = args.getString("-indexPath") + "/index";
     final String dirImpl = args.getString("-dirImpl");
 
@@ -351,7 +351,8 @@ public class SearchPerfTest {
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
-      IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, lineDocsFile, storeBody, tvsBody,
+      IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, null,
+                                              lineDocsFile, storeBody, tvsBody,
                                               false,
                                               indexThreadCount, -1,
                                               false, false, true, docsPerSecPerThread, cloneDocs);
@@ -442,59 +443,23 @@ public class SearchPerfTest {
 
     //System.out.println("searcher=" + searcher);
 
-    Map<String,TaxonomyReader> taxoReaders = new HashMap<String,TaxonomyReader>();
+    FacetsConfig facetsConfig = new FacetsConfig();
 
-    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
-    if (doFacets) {
-      IndexSearcher s = mgr.acquire();
-      if (args.hasArg("-facetGroup")) {
-        // EG: -facetGroup onlyDate:noparents:Date -facetGroup hierarchies:allparents:Date,characterCount ...
-        try {
-          for(String arg: args.getStrings("-facetGroup")) {
-            FacetGroup fg = new FacetGroup(arg);
-            facetGroups.add(fg);
-            if (MultiFields.getTerms(s.getIndexReader(), "$"+fg.groupName) == null) {
-              throw new IllegalArgumentException("this index doesn't have facet group named \"" + fg.groupName + "\"");
-            }
-          }
-
-          if (facetGroups.size() != 1) {
-            // TODO: fix this limitation!
-            throw new IllegalArgumentException("can only run with one facet group now");
-          }
-        } finally {
-          mgr.release(s);
-        }
-      }
-
-      // TODO: need to fix this to handle NRT:
-      File f = new File(args.getString("-indexPath"), "facets");
-      taxoReaders = new HashMap<String,TaxonomyReader>();
-      if (!f.exists()) {
-        // Private taxo reader per group:
-        for(String sub : new File(args.getString("-indexPath")).list()) {
-          if (sub.startsWith("facets.")) {
-            String groupName = sub.substring(7);
-            Directory taxoDir = od.open(new File(args.getString("-indexPath"), sub));
-            TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
-            System.out.println("Taxonomy for facet group \"" + groupName + "\" has " + tr.getSize() + " ords");
-            taxoReaders.put(groupName, tr);
-          }
-        }
-      } else {
-        // Global taxo reader:
-        Directory taxoDir = od.open(f);
-        TaxonomyReader tr = new DirectoryTaxonomyReader(taxoDir);
-        System.out.println("Taxonomy has " + tr.getSize() + " ords");
-        taxoReaders.put("*", tr);
-      }
+    TaxonomyReader taxoReader;
+    File taxoPath = new File(args.getString("-indexPath"), "facets");
+    Directory taxoDir = od.open(taxoPath);
+    if (DirectoryReader.indexExists(taxoDir)) {
+      taxoReader = new DirectoryTaxonomyReader(taxoDir);
+      System.out.println("Taxonomy has " + taxoReader.getSize() + " ords");
+    } else {
+      taxoReader = null;
     }
 
     final Random staticRandom = new Random(staticRandomSeed);
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, taxoReaders, fieldName, spellChecker, hiliteImpl, facetGroups);
+    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser(Version.LUCENE_50, "body", a);
@@ -584,10 +549,8 @@ public class SearchPerfTest {
 
     mgr.close();
 
-    if (taxoReaders != null) {
-      for(TaxonomyReader tr : taxoReaders.values()) {
-        tr.close();
-      }
+    if (taxoReader != null) {
+      taxoReader.close();
     }
 
     if (writer != null) {

@@ -96,9 +96,7 @@ class Index(object):
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
-               doFacets = False,
-               facetsPrivateOrdsPerGroup = False,
-               facetGroups = None,
+               facets = None,
                extraNamePart = None,
                facetDVFormat = constants.FACET_FIELD_DV_FORMAT_DEFAULT,
                maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
@@ -115,8 +113,6 @@ class Index(object):
     self.ramBufferMB = ramBufferMB
     self.numDocs = dataSource.numDocs
     self.extraNamePart = extraNamePart
-    self.facetGroups = facetGroups
-    self.facetsPrivateOrdsPerGroup = facetsPrivateOrdsPerGroup
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
     else:
@@ -135,7 +131,7 @@ class Index(object):
     self.bodyTermVectors = bodyTermVectors
     self.bodyStoredFields = bodyStoredFields
     self.bodyPostingsOffsets = bodyPostingsOffsets
-    self.doFacets = doFacets
+    self.facets = facets
     self.facetDVFormat = facetDVFormat
     
     self.mergeFactor = 10
@@ -155,23 +151,10 @@ class Index(object):
     if self.useCFS:
       name.append('cfs')
 
-    if self.doFacets:
+    if self.facets is not None:
       name.append('facets')
-      for arg in self.facetGroups:
-        idx = arg.find(':')
-        if idx == -1:
-          raise RuntimeError('could not parse groupName from facetGrup "%s"' % arg)
-        groupName = arg[:idx]
-        name.append(groupName)
-
-        idx2 = arg.find(':', idx+1)
-        if idx2 == -1:
-          raise RuntimeError('could not parse ordPolicy from facetGrup "%s"' % arg)
-        ordPolicy = arg[idx+1:idx2]
-        name.append(ordPolicy)
-        
-      if self.facetsPrivateOrdsPerGroup:
-        name.append('po')
+      for arg in self.facets:
+        name.append(arg[0])
       name.append(self.facetDVFormat)
 
     if self.bodyTermVectors:
@@ -205,8 +188,6 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               facetGroups = None,
-               doFacets = False,
                loadStoredFields = False):
     self.name = name
     self.checkout = checkout
@@ -220,11 +201,7 @@ class Competitor(object):
     self.printHeap = printHeap
     self.hiliteImpl = hiliteImpl
     self.pk = pk
-    self.facetGroups = facetGroups
-    if facetGroups is not None and len(facetGroups) != 1:
-      raise RuntimeError('can only handle single facetGroup today')
     self.loadStoredFields = loadStoredFields
-    self.doFacets = doFacets or facetGroups is not None
 
   def compile(self, cp):
 
@@ -239,7 +216,6 @@ class Competition(object):
 
   def __init__(self, cold=False,
                printCharts=False,
-               debug=False,
                verifyScores=True,
                remoteHost=None,
                # Pass fixed randomSeed so separate runs are comparable (pick the same tasks):
@@ -252,7 +228,6 @@ class Competition(object):
     self.competitors = []
     self.indices = []
     self.printCharts = printCharts 
-    self.debug = debug
     self.benchSearch = benchSearch
     self.benchIndex = True
     self.verifyScores = verifyScores
@@ -338,7 +313,7 @@ class Competition(object):
     challenger.tasksFile = challenger.index.dataSource.tasksFile
 
     searchBench.run(id, base, challenger, coldRun = self.cold, doCharts = self.printCharts,
-                    search = self.benchSearch, index = self.benchIndex, debugs = self.debug, debug = self.debug,
+                    search = self.benchSearch, index = self.benchIndex,
                     verifyScores = self.verifyScores, taskPatterns = (self.onlyTaskPatterns, self.notTaskPatterns), randomSeed = self.randomSeed)
     return self
 

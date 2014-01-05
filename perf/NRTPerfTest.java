@@ -35,6 +35,7 @@ import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.NoDeletionPolicy;
@@ -111,7 +112,7 @@ public class NRTPerfTest {
         while(true) {
           count++;
           int maxDoc = w.maxDoc();
-          final Document doc = docs.nextDoc(docState);
+          final IndexDocument doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
           if (doUpdate && (!NEW_INDEX || (maxDoc > 0 && random.nextInt(4) != 2))) {
             final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
@@ -256,7 +257,7 @@ public class NRTPerfTest {
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, null);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, null, null);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {

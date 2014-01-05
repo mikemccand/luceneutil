@@ -31,7 +31,7 @@ if '-ea' in sys.argv:
 
 osName = common.osName
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, debug=False, debugs=False, verifyScores=True, taskPatterns=None, randomSeed=None):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, taskPatterns=None, randomSeed=None):
   competitors = [challenger, base]
 
   if randomSeed is None:

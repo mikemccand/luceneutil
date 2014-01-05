@@ -36,10 +36,11 @@ import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene46.Lucene46Codec;
 import org.apache.lucene.document.*;
+import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
 import org.apache.lucene.index.*;
@@ -59,19 +60,12 @@ public final class Indexer {
 
     Args args = new Args(clArgs);
 
-    final boolean doFacets = args.getFlag("-facets");
-    final boolean facetPrivateOrdsPerGroup = args.getFlag("-facetsPrivateOrdsPerGroup");
-
-    List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
-    if (doFacets) {
-      // EG: -facetGroup onlyDate:Date -facetGroup hierarchies:Date,characterCount ...
-      Set<String> seen = new HashSet<String>();
-      for(String arg : args.getStrings("-facetGroup")) {
-        FacetGroup fg = new FacetGroup(arg);
-        if (seen.contains(fg.groupName)) {
-          throw new IllegalArgumentException("facetGroup \"" + fg.groupName + "\" appears more than once");
-        }
-        facetGroups.add(fg);
+    // EG: -facets Date -facets characterCount ...
+    FacetsConfig facetsConfig = new FacetsConfig();
+    final Set<String> facetFields = new HashSet<String>();
+    if (args.hasArg("-facets")) {
+      for(String arg : args.getStrings("-facets")) {
+        facetFields.add(arg);
       }
     }
 
@@ -79,7 +73,6 @@ public final class Indexer {
     final String dirPath = args.getString("-indexPath") + "/index";
 
     final Directory dir;
-    Map<String,Directory> facetsDirs;
     OpenDirectory od = OpenDirectory.get(dirImpl);
 
     dir = od.open(new File(dirPath));
@@ -127,11 +120,12 @@ public final class Indexer {
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
+
     final String facetDVFormatName;
-    if (doFacets) {
-      facetDVFormatName = args.getString("-facetDVFormat");
-    } else {
+    if (facetFields.isEmpty()) {
       facetDVFormatName = "Lucene45";
+    } else {
+      facetDVFormatName = args.getString("-facetDVFormat");
     }
 
     if (addGroupingFields && docCountLimit == -1) {
@@ -160,11 +154,8 @@ public final class Indexer {
     System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
-    System.out.println("Facets: " + (doFacets ? "yes" : "no"));
     System.out.println("Facet DV Format: " + facetDVFormatName);
-    if (doFacets) {
-      System.out.println("Facet groups: " + facetGroups);
-    }
+    System.out.println("Facet fields: " + facetFields);
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     
@@ -189,7 +180,7 @@ public final class Indexer {
     // Increase number of concurrent merges since we are on SSD:
     ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
     iwc.setMergeScheduler(cms);
-    cms.setMaxMergesAndThreads(maxConcurrentMerges+2, maxConcurrentMerges);
+    cms.setMaxMergesAndThreads(maxConcurrentMerges, maxConcurrentMerges);
 
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
@@ -220,11 +211,6 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Set<String> facetFields = new HashSet<String>();
-    for (FacetGroup fg : facetGroups) {
-      facetFields.add(fg.clp.field);
-    }
-
     final Codec codec = new Lucene46Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
@@ -236,6 +222,7 @@ public final class Indexer {
         //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
         private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
+        private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
@@ -244,7 +231,7 @@ public final class Indexer {
             //} else if (field.equals("$facets_sorted_doc_values")) {
             //return diskDVFormat;
           } else {
-            return lucene45DVFormat;
+            return directDVFormat;
           }
         }
       };
@@ -254,32 +241,18 @@ public final class Indexer {
     System.out.println("IW config=" + iwc);
 
     final IndexWriter w = new IndexWriter(dir, iwc);
-    final Map<String,TaxonomyWriter> facetWriters;
-    if (doFacets) {
-      facetWriters = new HashMap<String,TaxonomyWriter>();
-      if (facetPrivateOrdsPerGroup) {
-        // One TaxoWriter per facet group:
-        for(FacetGroup fg : facetGroups) {
-          TaxonomyWriter tw = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets." + fg.groupName)),
-                                                          IndexWriterConfig.OpenMode.CREATE);
-          facetWriters.put(fg.groupName, tw);
-        }
-      } else {
-        // One TaxoWriter for all groups:
-        TaxonomyWriter tw = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
-                                                        IndexWriterConfig.OpenMode.CREATE);
-        for(FacetGroup fg : facetGroups) {
-          facetWriters.put(fg.groupName, tw);
-        }
-      }
+    final TaxonomyWriter taxoWriter;
+    if (!facetFields.isEmpty()) {
+      taxoWriter = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
+                                                      IndexWriterConfig.OpenMode.CREATE);
     } else {
-      facetWriters = null;
+      taxoWriter = null;
     }
 
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    IndexThreads threads = new IndexThreads(random, w, facetWriters, facetGroups, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
+    IndexThreads threads = new IndexThreads(random, w, taxoWriter, facetFields, facetsConfig, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
                                             numThreads, docCountLimit, addGroupingFields, printDPS,
                                             doUpdate, -1.0f, false);
 
@@ -361,20 +334,10 @@ public final class Indexer {
       }
     }
 
-    if (facetWriters != null) {
-      for(Map.Entry<String,TaxonomyWriter> ent : facetWriters.entrySet()) {
-        TaxonomyWriter tw = ent.getValue();
-        if (facetPrivateOrdsPerGroup) {
-          System.out.println("Taxonomy for facet group \"" + ent.getKey() + "\" has " + tw.getSize() + " ords");
-        } else {
-          System.out.println("Taxonomy has " + tw.getSize() + " ords");
-        }
-        tw.commit();
-        tw.close();
-        if (!facetPrivateOrdsPerGroup) {
-          break;
-        }
-      }
+    if (taxoWriter != null) {
+      System.out.println("Taxonomy has " + taxoWriter.getSize() + " ords");
+      taxoWriter.commit();
+      taxoWriter.close();
     }
 
     System.out.println("\nIndexer: at close: " + w.segString());

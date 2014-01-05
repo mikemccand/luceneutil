@@ -169,8 +169,12 @@ if len(sys.argv) == 1:
   sys.exit(1)
 
 tests = []
+testLogFile = None
+
 for test in sys.argv[1:]:
-  if not test.startswith('org.'):
+  if test.startswith('/dev/shm/'):
+    testLogFile = test
+  elif not test.startswith('org.'):
     tup = common.locateTest(test)
     if tup is None:
       print '\nERROR: cannot find test class %s.java\n' % test
@@ -260,7 +264,9 @@ def _run(threadID):
       if not USE_JUNIT:
         eventsFile = '%s/lucene/build/C%d.events' % (ROOT, threadID)
 
-      if doLog:
+      if testLogFile is not None:
+        logFileName = testLogFile
+      elif doLog:
         logFileName = '%s/%s.%s.%d.t%d.log' % (logDirName, tests[0][0].split('.')[-1], tests[0][1], upto, threadID)
       else:
         logFileName = None

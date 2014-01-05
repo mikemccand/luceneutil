@@ -84,8 +84,9 @@ ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='DefaultSimilarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 
-#TESTS_LINE_FILE = '/lucene/clean2.svn/lucene/test-framework/src/resources/org/apache/lucene/util/europarl.lines.txt'
-TESTS_LINE_FILE = None
+TESTS_LINE_FILE = '/lucene/clean2.svn/lucene/test-framework/src/resources/org/apache/lucene/util/europarl.lines.txt'
+TESTS_LINE_FILE = '/lucenedata/from_hudson/hudson.enwiki.random.lines.txt'
+#TESTS_LINE_FILE = None
 
 ANT_EXE = 'ant'
 

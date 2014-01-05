@@ -26,26 +26,14 @@ import java.util.Random;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.facet.params.FacetIndexingParams;
-import org.apache.lucene.facet.params.FacetSearchParams;
-import org.apache.lucene.facet.sampling.RandomSampler;
-import org.apache.lucene.facet.sampling.SampleFixer;
-import org.apache.lucene.facet.sampling.Sampler;
-import org.apache.lucene.facet.sampling.SamplingAccumulator;
-import org.apache.lucene.facet.sampling.SamplingParams;
-//import org.apache.lucene.facet.search.Aggregator;
-import org.apache.lucene.facet.search.CountFacetRequest;
-//import org.apache.lucene.facet.search.CountingFacetsCollector;
-import org.apache.lucene.facet.search.DrillDownQuery;
-import org.apache.lucene.facet.search.DrillSideways.DrillSidewaysResult;
-import org.apache.lucene.facet.search.DrillSideways;
-import org.apache.lucene.facet.search.FacetArrays;
-import org.apache.lucene.facet.search.FacetRequest;
-import org.apache.lucene.facet.search.FacetResult;
-import org.apache.lucene.facet.search.FacetResultNode;
-import org.apache.lucene.facet.search.FacetsCollector;
-import org.apache.lucene.facet.sortedset.SortedSetDocValuesAccumulator;
-import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.DrillDownQuery;
+import org.apache.lucene.facet.DrillSideways.DrillSidewaysResult;
+import org.apache.lucene.facet.DrillSideways;
+import org.apache.lucene.facet.FacetResult;
+import org.apache.lucene.facet.Facets;
+import org.apache.lucene.facet.FacetsCollector;
+import org.apache.lucene.facet.range.LongRange;
+import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.StorableField;
@@ -96,14 +84,13 @@ final class SearchTask extends Task {
   private TopGroups<BytesRef> groupsResultTerms;
   private FieldQuery fieldQuery;
   private Highlighter highlighter;
-  private List<FacetResult> facets;
+  private List<FacetResult> facetResults;
   private double hiliteMsec;
   private double getFacetResultsMsec;
-  private List<FacetGroup> facetGroups;
-  private List<CategoryPath[]> drillDowns;
+  private List<String> facetRequests;
 
   public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
-                    boolean doHilite, boolean doStoredLoads, List<FacetGroup> facetGroups,
+                    boolean doHilite, boolean doStoredLoads, List<String> facetRequests,
                     boolean doDrillSideways) {
     this.category = category;
     this.q = q;
@@ -121,7 +108,7 @@ final class SearchTask extends Task {
     this.topN = topN;
     this.doHilite = doHilite;
     this.doStoredLoads = doStoredLoads;
-    this.facetGroups = facetGroups;
+    this.facetRequests = facetRequests;
     this.doDrillSideways = doDrillSideways;
   }
 
@@ -132,9 +119,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetGroups, doDrillSideways);
+      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetGroups, doDrillSideways);
+      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
     }
   }
 
@@ -207,74 +194,45 @@ final class SearchTask extends Task {
             }
           }
         }
-      } else if ((!facetGroups.isEmpty() || !state.facetGroups.isEmpty()) && state.taxoReaders != null) {
+      } else if (!facetRequests.isEmpty()) {
         // TODO: support sort, filter too!!
-        /*
-        FacetSearchParams fsp = new FacetSearchParams(state.iParams);
-        fsp.setClCache(state.clCache);
-        */
-        /*
-        FacetSearchParams fsp = new FacetSearchParams();
-        if (false && state.fastHighlighter != null) {
-          fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10) {
-              @Override
-              public Aggregator createAggregator(boolean useComplements,
-                                                 FacetArrays arrays, IndexReader reader,
-                                                 TaxonomyReader taxonomy) {
-                //System.out.println("NO PARENTS AGG");
-                try {
-                  return new NoParentsCountingAggregator(taxonomy, arrays.getIntArray());
-                } catch (IOException ioe) {
-                  throw new RuntimeException(ioe);
-                }
-              }
-            });
-        } else {
-          fsp.addFacetRequest(new CountFacetRequest(new CategoryPath("Date"), 10));
-        }
-        Collector facetsCollector;
-        if (state.fastHighlighter == null) {
-          facetsCollector = new FacetsCollector(fsp, searcher.getIndexReader(), state.taxoReader);
-        } else {
-          facetsCollector = new DocValuesFacetsCollector(fsp, state.taxoReader);
-        }
-        */
-
-        // TODO: allow more than once facet group per query?
-        // how (while still using CountingFacetCollector)!?
-
-        FacetGroup fg;
-        if (!facetGroups.isEmpty()) {
-          // This search has its own facet request
-          fg = facetGroups.get(0);
-        } else {
-          fg = state.facetGroups.get(0);
-        }
-
-        List<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
-        for(String field : fg.fields) {
-          facetRequests.add(new CountFacetRequest(new CategoryPath(field), 10));
-        }
-        FacetSearchParams fsp = new FacetSearchParams(fg.fip, facetRequests);
-        TaxonomyReader taxoReader = state.taxoReaders.get(fg.groupName);
-        if (taxoReader == null) {
-          taxoReader = state.taxoReaders.get("*");
-        }
-
+        // TODO: support other facet methods
         if (doDrillSideways) {
-          DrillSideways ds = new DrillSideways(searcher, taxoReader);
-          DrillSidewaysResult res = ds.search(null, (DrillDownQuery) q, 10, fsp);
-          hits = res.hits;
-          facets = res.facetResults;
+          // nocommit todo
+          hits = null;
+          facetResults = null;
         } else {
-          FacetsCollector facetsCollector = FacetsCollector.create(fsp, searcher.getIndexReader(), taxoReader);
-          //FacetsCollector facetsCollector = FacetsCollector.create(new SortedSetDocValuesAccumulator(state.sortedSetState, fsp));
-          // TODO: determine in order by the query...?
-          TopScoreDocCollector hitsCollector = TopScoreDocCollector.create(10, false);
-          searcher.search(q, MultiCollector.wrap(hitsCollector, facetsCollector));
-          hits = hitsCollector.topDocs();
+          facetResults = new ArrayList<FacetResult>();
+          FacetsCollector fc = new FacetsCollector();
+          hits = FacetsCollector.search(searcher, q, 10, fc);
           long t0 = System.nanoTime();
-          facets = facetsCollector.getFacetResults();
+
+          Facets mainFacets = null;
+          for(String request : facetRequests) {
+            if (request.startsWith("range:")) {
+              int i = request.indexOf(':', 6);
+              if (i == -1) {
+                throw new IllegalArgumentException("range facets request \"" + request + "\" is missing field; should be range:field:0-10,10-20");
+              }
+              String field = request.substring(6, i);
+              String[] rangeStrings = request.substring(i+1, request.length()).split(",");
+              LongRange[] ranges = new LongRange[rangeStrings.length];
+              for(int rangeIDX=0;rangeIDX<ranges.length;rangeIDX++) {
+                String rangeString = rangeStrings[rangeIDX];
+                int j = rangeString.indexOf('-');
+                if (j == -1) {
+                  throw new IllegalArgumentException("range facets request should be X-Y; got: " + rangeString);
+                }
+                long start = Long.parseLong(rangeString.substring(0, j));
+                long end = Long.parseLong(rangeString.substring(j+1));
+                ranges[rangeIDX] = new LongRange(rangeString, start, true, end, true);
+              }
+              LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
+              facetResults.add(facets.getTopChildren(ranges.length, field));
+            } else {
+              // nocommit todo ordinary facets
+            }
+          }
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         }
       } else if (s == null && f == null) {
@@ -562,18 +520,11 @@ final class SearchTask extends Task {
       out.println(String.format("  getFacetResults time %.4f msec", getFacetResultsMsec));
     }
 
-    if (facets != null) {
+    if (facetResults != null) {
       out.println("  facets:");
-      for(FacetResult fr : facets) {
-        printFacets(0, out, fr.getFacetResultNode(), "    ");
+      for(FacetResult fr : facetResults) {
+        out.println("    " + fr);
       }
-    }
-  }
-
-  private void printFacets(int depth, PrintStream out, FacetResultNode node, String indent) {
-    out.println(indent + " " + node.label + " (" + (int) node.value + ")");
-    for(FacetResultNode childNode : node.subResults) {
-      printFacets(depth+1, out, childNode, indent + "  ");
     }
   }
 }

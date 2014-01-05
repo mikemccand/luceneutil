@@ -21,9 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.lucene.facet.params.CategoryListParams.OrdinalPolicy;
-import org.apache.lucene.facet.params.CategoryListParams;
-import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
+import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
@@ -56,17 +54,16 @@ class IndexState {
   public final String textFieldName;
   public int[] docIDToID;
   public final boolean hasDeletions;
-  public final Map<String,TaxonomyReader> taxoReaders;
-  public final List<FacetGroup> facetGroups;
-  //public final SortedSetDocValuesReaderState sortedSetState;
+  public final TaxonomyReader taxoReader;
+  public final FacetsConfig facetsConfig;
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, Map<String,TaxonomyReader> taxoReaders, String textFieldName, DirectSpellChecker spellChecker,
-                    String hiliteImpl, List<FacetGroup> facetGroups) throws IOException {
+  public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker,
+                    String hiliteImpl, FacetsConfig facetsConfig) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
-    this.taxoReaders = taxoReaders;
-    this.facetGroups = facetGroups;
+    this.taxoReader = taxoReader;
+    this.facetsConfig = facetsConfig;
     
     groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
@@ -90,7 +87,6 @@ class IndexState {
     } finally {
       mgr.release(searcher);
     }
-    //sortedSetState = new SortedSetDocValuesReaderState(searcher.getIndexReader());
   }
 
   public void setDocIDToID() throws IOException {

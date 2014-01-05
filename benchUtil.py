@@ -715,12 +715,10 @@ class RunAlgs:
       if index.doUpdate:
         w('-update')
 
-      if index.doFacets:
-        w('-facets')
-        for fg in index.facetGroups:
-          w('-facetGroup %s' % fg)
-        if index.facetsPrivateOrdsPerGroup:
-          w('-facetsPrivateOrdsPerGroup')
+      if index.facets is not None:
+        for tup in index.facets:
+          w('-facets')
+          w(tup[0])
         w('-facetDVFormat %s' % index.facetDVFormat)
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
@@ -774,6 +772,12 @@ class RunAlgs:
 
     return fullIndexPath, fullLogFile
 
+  def addJars(self, cp, path):
+    if os.path.exists(path):
+      for f in os.listdir(path):
+        if f.endswith('.jar'):
+          cp.append('%s/%s' % (path, f))
+
   def getClassPath(self, checkout):
     path = checkoutToPath(checkout)
     cp = []
@@ -793,6 +797,8 @@ class RunAlgs:
       cp.append('%s/lucene/build/suggest/classes/java' % path)
       cp.append('%s/lucene/build/highlighter/classes/java' % path)
       cp.append('%s/lucene/build/codecs/classes/java' % path)
+      cp.append('%s/lucene/build/queries/classes/java' % path)
+      self.addJars(cp, '%s/lucene/facet/lib' % path)
     elif version == '3.x':
       cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
       cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
@@ -873,14 +879,6 @@ class RunAlgs:
     else:
       doSort = ''
 
-    if c.doFacets is not None:
-      doFacets = '-facets'
-
-    if c.facetGroups is not None:
-      facetGroups = '-facetGroup %s' % c.facetGroups[0]
-    else:
-      facetGroups = ''
-
     command = []
     command.extend(c.javaCommand.split())
     command.append('-classpath')
@@ -916,11 +914,6 @@ class RunAlgs:
     command.append(c.hiliteImpl)
     command.append('-log')
     command.append(logFile)
-    if c.doFacets is not None:
-      command.append('-facets')
-    if c.facetGroups is not None:
-      command.append('-facetGroup')
-      command.append(c.facetGroups[0])
     command.append('-topN')
     command.append('10')
     if filter is not None:
@@ -934,11 +927,11 @@ class RunAlgs:
       command.append('-loadStoredFields')
     
     if False:
-      command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s %s %s' % \
+      command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
           (c.javaCommand, cp, c.directory,
           nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
           c.numThreads, c.competition.taskRepeatCount,
-          c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile, doFacets, facetGroups)
+          c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
       command += ' -topN 10'
       if filter is not None:
         command += ' %s %.2f' % filter

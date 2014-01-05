@@ -24,9 +24,7 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.lucene.facet.params.FacetIndexingParams;
-import org.apache.lucene.facet.search.DrillDownQuery;
-import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -129,7 +127,7 @@ class TaskParser {
         minShouldMatch = 0;
       }
 
-      final List<FacetGroup> facetGroups = new ArrayList<FacetGroup>();
+      final List<String> facets = new ArrayList<String>();
       while (true) {
         int i = text.indexOf("+facets:");
         if (i == -1) {
@@ -139,11 +137,11 @@ class TaskParser {
         if (j == -1) {
           j = text.length();
         }
-        facetGroups.add(new FacetGroup(text.substring(i+8, j)));
+        facets.add(text.substring(i+8, j));
         text = text.substring(0, i) + text.substring(j);
       }
 
-      final List<CategoryPath[]> drillDowns = new ArrayList<CategoryPath[]>();
+      final List<String> drillDowns = new ArrayList<String>();
 
       // Eg: +drillDown:Date=2001,2004
       while (true) {
@@ -159,23 +157,7 @@ class TaskParser {
         String s = text.substring(i+11, j);
         text = text.substring(0, i) + text.substring(j);
 
-        i = s.indexOf('=');
-        if (i == -1) {
-          throw new IllegalArgumentException("drilldown is missing =");
-        }
-        String dim = s.substring(0, i);
-        String values = s.substring(i+1);
-        List<CategoryPath> dimPaths = new ArrayList<CategoryPath>();
-        while (true) {
-          i = values.indexOf(',');
-          if (i == -1) {
-            dimPaths.add(new CategoryPath(dim, values));
-            break;
-          }
-          dimPaths.add(new CategoryPath(dim, values.substring(0, i)));
-          values = values.substring(i+1);
-        }
-        drillDowns.add(dimPaths.toArray(new CategoryPath[dimPaths.size()]));
+        drillDowns.add(s);
       }
 
       boolean doDrillSideways;
@@ -189,10 +171,6 @@ class TaskParser {
         doDrillSideways = false;
       }
 
-      if (facetGroups.size() > 1) {
-        throw new IllegalArgumentException("can only run one facet CLP per query for now");
-      }
-      
       final Sort sort;
       final Query query;
       final String group;
@@ -305,16 +283,24 @@ class TaskParser {
       Query query2;
 
       if (!drillDowns.isEmpty()) {
-        FacetGroup fg;
-        if (!facetGroups.isEmpty()) {
-          // This search has its own facet request
-          fg = facetGroups.get(0);
-        } else {
-          fg = state.facetGroups.get(0);
-        }
-        DrillDownQuery q = new DrillDownQuery(fg.fip, query);
-        for(CategoryPath[] cp : drillDowns) {
-          q.add(cp);
+        DrillDownQuery q = new DrillDownQuery(state.facetsConfig, query);
+        for(String s : drillDowns) {
+          int i = s.indexOf('=');
+          if (i == -1) {
+            throw new IllegalArgumentException("drilldown is missing =");
+          }
+          String dim = s.substring(0, i);
+          String values = s.substring(i+1);
+
+          while (true) {
+            i = values.indexOf(',');
+            if (i == -1) {
+              q.add(dim, values);
+              break;
+            }
+            q.add(dim, values.substring(0, i));
+            values = values.substring(i+1);
+          }
         }
         query2 = q;
       } else {
@@ -329,7 +315,7 @@ class TaskParser {
       }
       */
 
-      task = new SearchTask(category, query2, sort, group, filter, topN, doHilite, doStoredLoads, facetGroups, doDrillSideways);
+      task = new SearchTask(category, query2, sort, group, filter, topN, doHilite, doStoredLoads, facets, doDrillSideways);
     }
 
     return task;

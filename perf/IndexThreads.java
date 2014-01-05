@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
+import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
@@ -43,15 +45,15 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-  public IndexThreads(Random random, IndexWriter w, Map<String,TaxonomyWriter> facetWriters,
-                      List<FacetGroup> facetGroups,
+  public IndexThreads(Random random, IndexWriter w, TaxonomyWriter taxoWriter,
+                      Set<String> facetFields, FacetsConfig facetsConfig,
                       String lineFile, boolean storeBody, boolean tvsBody,
                       boolean bodyPostingsOffsets,
                       int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
                       boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
 
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, facetWriters, facetGroups);
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, taxoWriter, facetFields, facetsConfig);
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
@@ -230,7 +232,7 @@ class IndexThreads {
                 public Iterator<IndexDocument> iterator() {
                   return new Iterator<IndexDocument>() {
                     int upto;
-                    Document doc;
+                    IndexDocument doc;
 
                     @Override
                     public boolean hasNext() {
@@ -257,7 +259,7 @@ class IndexThreads {
                         group1MField.setStringValue(group1M[id%1000000]);
                         upto++;
                         if (upto == numDocs) {
-                          doc.add(groupEndField);
+                          ((Document) doc).add(groupEndField);
                         }
                         count.incrementAndGet();
                         return true;
@@ -287,7 +289,7 @@ class IndexThreads {
           final long startNS = System.nanoTime();
           int threadCount = 0;
           while (!stop.get()) {
-            final Document doc = docs.nextDoc(docState);
+            final IndexDocument doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
             }
@@ -305,7 +307,7 @@ class IndexThreads {
               final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
               // NOTE: can't use docState.id in case doClone
               // was true
-              doc.getField("id").setStringValue(updateID);
+              ((Document) doc).getField("id").setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);
@@ -322,7 +324,7 @@ class IndexThreads {
           }
         } else {
           while (true) {
-            final Document doc = docs.nextDoc(docState);
+            final IndexDocument doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
             }

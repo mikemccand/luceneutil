@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -257,7 +258,7 @@ public class NRTPerfTest {
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, null, null);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, new HashSet<String>(), null);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {

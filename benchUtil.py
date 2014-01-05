@@ -716,6 +716,7 @@ class RunAlgs:
         w('-update')
 
       if index.facets is not None:
+        print 'index.facets is %s' % str(index.facets)
         for tup in index.facets:
           w('-facets')
           w(tup[0])

@@ -237,8 +237,15 @@ class IndexThreads {
                     @Override
                     public boolean hasNext() {
                       if (upto < numDocs) {
+                        upto++;
+                        Field extraField;
+                        if (upto == numDocs) {
+                          extraField = groupEndField;
+                        } else {
+                          extraField = null;
+                        }
                         try {
-                          doc = docs.nextDoc(docState);
+                          doc = docs.nextDoc(docState, extraField);
                         } catch (IOException ioe) {
                           throw new RuntimeException(ioe);
                         }
@@ -257,10 +264,6 @@ class IndexThreads {
                         group10KField.setStringValue(group10K[id%10000]);
                         group100KField.setStringValue(group100K[id%100000]);
                         group1MField.setStringValue(group1M[id%1000000]);
-                        upto++;
-                        if (upto == numDocs) {
-                          ((Document) doc).add(groupEndField);
-                        }
                         count.incrementAndGet();
                         return true;
                       } else {

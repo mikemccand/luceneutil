@@ -518,8 +518,7 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        doFacets=True,
-                        facetGroups = ('date:noparents:Date',),
+                        facets = (('Date',)),
                         maxConcurrentMerges=3,
                         facetDVFormat='Direct')
 
@@ -527,8 +526,7 @@ def run():
                       index=index,
                       directory=DIR_IMPL,
                       analyzer='StandardAnalyzerNoStopWords',
-                      commitPoint='multi',
-                      doFacets=True)
+                      commitPoint='multi')
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 

@@ -62,6 +62,7 @@ public final class Indexer {
 
     // EG: -facets Date -facets characterCount ...
     FacetsConfig facetsConfig = new FacetsConfig();
+    facetsConfig.setHierarchical("Date", true);
     final Set<String> facetFields = new HashSet<String>();
     if (args.hasArg("-facets")) {
       for(String arg : args.getStrings("-facets")) {

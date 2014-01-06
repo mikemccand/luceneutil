@@ -444,6 +444,7 @@ public class SearchPerfTest {
     //System.out.println("searcher=" + searcher);
 
     FacetsConfig facetsConfig = new FacetsConfig();
+    facetsConfig.setHierarchical("Date", true);
 
     TaxonomyReader taxoReader;
     File taxoPath = new File(args.getString("-indexPath"), "facets");

@@ -34,6 +34,7 @@ import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
+import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.StorableField;
@@ -195,6 +196,7 @@ final class SearchTask extends Task {
           }
         }
       } else if (!facetRequests.isEmpty()) {
+        System.out.println("do facets: " + facetRequests);
         // TODO: support sort, filter too!!
         // TODO: support other facet methods
         if (doDrillSideways) {
@@ -230,7 +232,8 @@ final class SearchTask extends Task {
               LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
               facetResults.add(facets.getTopChildren(ranges.length, field));
             } else {
-              // nocommit todo ordinary facets
+              Facets facets = new FastTaxonomyFacetCounts(state.taxoReader, state.facetsConfig, fc);
+              facetResults.add(facets.getTopChildren(10, request));
             }
           }
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;

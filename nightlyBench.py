@@ -518,7 +518,7 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        facets = (('Date',)),
+                        facets = (('Date',),),
                         maxConcurrentMerges=3,
                         facetDVFormat='Direct')
 

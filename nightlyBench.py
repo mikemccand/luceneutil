@@ -730,7 +730,7 @@ def makeGraphs():
             qpsMult = 1
 
           if cat == 'TermDateFacets':
-            if date in ('01/03/2013', '01/04/2013', '01/05/2013'):
+            if date in ('01/03/2013', '01/04/2013', '01/05/2013', '01/05/2014'):
               # Bug in luceneutil made facets not actually run correctly so QPS was way too high:
               continue
           if cat == 'Fuzzy1':

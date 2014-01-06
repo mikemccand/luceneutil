@@ -196,7 +196,6 @@ final class SearchTask extends Task {
           }
         }
       } else if (!facetRequests.isEmpty()) {
-        System.out.println("do facets: " + facetRequests);
         // TODO: support sort, filter too!!
         // TODO: support other facet methods
         if (doDrillSideways) {

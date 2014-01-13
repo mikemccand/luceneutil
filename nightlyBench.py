@@ -518,8 +518,7 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        doFacets=True,
-                        facetGroups = ('date:noparents:Date',),
+                        facets = (('Date',),),
                         maxConcurrentMerges=3,
                         facetDVFormat='Direct')
 
@@ -527,8 +526,7 @@ def run():
                       index=index,
                       directory=DIR_IMPL,
                       analyzer='StandardAnalyzerNoStopWords',
-                      commitPoint='multi',
-                      doFacets=True)
+                      commitPoint='multi')
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
@@ -626,6 +624,7 @@ def run():
         raise RuntimeError('search result differences: %s' % str(errors))
   else:
     cmpDiffs = None
+    searchHeaps = None
 
   results = (start,
              MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,
@@ -731,7 +730,7 @@ def makeGraphs():
             qpsMult = 1
 
           if cat == 'TermDateFacets':
-            if date in ('01/03/2013', '01/04/2013', '01/05/2013'):
+            if date in ('01/03/2013', '01/04/2013', '01/05/2013', '01/05/2014'):
               # Bug in luceneutil made facets not actually run correctly so QPS was way too high:
               continue
           if cat == 'Fuzzy1':

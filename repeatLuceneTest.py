@@ -342,7 +342,7 @@ def _run(threadID):
         noTestsRun = False
 
         while True:
-          line = p.stdout.read()
+          line = p.stdout.readline()
           if line == '':
             break
           if line.find('OK (0 tests)') != -1:

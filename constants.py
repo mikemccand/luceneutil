@@ -56,6 +56,8 @@ WIKI_BIG_DOCS_COUNT = 6726515
 EUROPARL_MEDIUM_DOCS_LINE_FILE = '%s/data/europarl.para.lines.txt' % BASE_DIR
 EUROPARL_MEDIUM_TASKS_FILE = '%s/data/europarlmedium.tasks' % BASE_DIR
 
+LOGS_DIR = '%s/logs' % BASE_DIR
+  
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 
 if 'JAVA_EXE' not in globals():

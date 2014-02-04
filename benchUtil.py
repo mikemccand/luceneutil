@@ -38,8 +38,6 @@ WARM_SKIP = 3
 # Skip this pctg of the slowest runs:
 SLOW_SKIP_PCT = 10
 
-LOG_SUB_DIR = 'logs'
-
 # From the N times we run each task in a single JVM, how do we pick
 # the single QPS to represent those results:
 
@@ -640,6 +638,11 @@ class RunAlgs:
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
+      
+    if not os.path.exists(constants.LOGS_DIR):
+      os.makedirs(constants.LOGS_DIR)
+    print 'LOGS: %s' % constants.LOGS_DIR
+
     
   def printEnv(self):
     print
@@ -732,10 +735,7 @@ class RunAlgs:
 
       cmd = ' '.join(cmd)
 
-      logDir = '%s/%s' % (constants.BASE_DIR, LOGS_SUB_DIR)
-      if not os.path.exists(logDir):
-        os.makedirs(logDir)
-      fullLogFile = '%s/%s.%s.log' % (logDir, id, index.getName())
+      fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
       
       print '    log %s' % fullLogFile
 
@@ -817,7 +817,7 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
           print '  %s...' % modulePath
           os.chdir(modulePath)
-          run('%s compile' % constants.ANT_EXE, 'compile.log')
+          run('%s compile' % constants.ANT_EXE, '%s/%s.compile.log' % (constants.LOGS_DIR, module))
 
       print '  %s' % path
       os.chdir(path)      
@@ -861,10 +861,9 @@ class RunAlgs:
 
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
-    logsDir = '%s/%s' % (constants.BASE_DIR, LOGS_SUB_DIR)
 
     cp = self.classPathToString(self.getClassPath(c.checkout))
-    logFile = '%s/%s.%s.%d' % (logsDir, id, c.name, iter)
+    logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
 
     if c.doSort:
       doSort = '-sort'
@@ -982,9 +981,8 @@ class RunAlgs:
 
   def getSearchLogFiles(self, id, c):
     logFiles = []
-    logsDir = '%s/%s' % (constants.BASE_DIR, LOGS_SUB_DIR)
     for iter in xrange(c.competition.jvmCount):
-      logFile = '%s/%s.%s.%d' % (logsDir, id, c.name, iter)
+      logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
       logFiles.append(logFile)
     return logFiles
 

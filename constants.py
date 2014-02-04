@@ -60,6 +60,8 @@ INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 
 if 'JAVA_EXE' not in globals():
   JAVA_EXE = 'java'
+if 'JAVAC_EXE' not in globals():
+  JAVAC_EXE = 'javac'
 if 'JAVA_COMMAND' not in globals():
   JAVA_COMMAND = '%s -server -Xms2g -Xmx2g' % JAVA_EXE
 

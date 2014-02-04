@@ -641,7 +641,7 @@ class RunAlgs:
     self.javaCommand = javaCommand
     self.verifyScores = verifyScores
     print
-    print 'JAVA:\n%s' % os.popen('java -version 2>&1').read()
+    print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % javaCommand).read()
     
     print
     if osName not in ('windows', 'cygwin'):

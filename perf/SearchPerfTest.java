@@ -245,7 +245,7 @@ public class SearchPerfTest {
       a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
       a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
-                                     2, 2, ShingleFilter.TOKEN_SEPARATOR, true, true);
+                                     2, 2, ShingleFilter.DEFAULT_TOKEN_SEPARATOR, true, true, ShingleFilter.DEFAULT_FILLER_TOKEN);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
     } 

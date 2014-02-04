@@ -91,15 +91,7 @@ def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
-  p = checkoutToPath(checkout)
-  for subDir in ('contrib/benchmark', # pre-3.1
-                 'lucene/contrib/benchmark', # 3.1
-                 'lucene/benchmark', # 4.0
-                 ):
-    fullPath = '%s/%s' % (p, subDir)
-    if os.path.exists(fullPath):
-      return fullPath
-  raise RuntimeError('could not locate benchmark under %s' % p)
+  return '%s/lucene/benchmark' % checkoutToPath(checkout)
 
 def checkoutToUtilPath(checkout):
   p = checkoutToPath(checkout)
@@ -740,7 +732,7 @@ class RunAlgs:
 
       cmd = ' '.join(cmd)
 
-      logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
+      logDir = '%s/%s' % (constants.BASE_DIR, LOGS_SUB_DIR)
       if not os.path.exists(logDir):
         os.makedirs(logDir)
       fullLogFile = '%s/%s.%s.log' % (logDir, id, index.getName())
@@ -869,10 +861,10 @@ class RunAlgs:
 
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
-    benchDir = checkoutToBenchPath(c.checkout)
+    logsDir = '%s/%s' % (constants.BASE_DIR, LOGS_SUB_DIR)
 
     cp = self.classPathToString(self.getClassPath(c.checkout))
-    logFile = '%s/%s.%s.%d' % (benchDir, id, c.name, iter)
+    logFile = '%s/%s.%s.%d' % (logsDir, id, c.name, iter)
 
     if c.doSort:
       doSort = '-sort'
@@ -990,9 +982,9 @@ class RunAlgs:
 
   def getSearchLogFiles(self, id, c):
     logFiles = []
-    benchDir = checkoutToBenchPath(c.checkout)
+    logsDir = '%s/%s' % (constants.BASE_DIR, LOGS_SUB_DIR)
     for iter in xrange(c.competition.jvmCount):
-      logFile = '%s/%s.%s.%d' % (benchDir, id, c.name, iter)
+      logFile = '%s/%s.%s.%d' % (logsDir, id, c.name, iter)
       logFiles.append(logFile)
     return logFiles
 

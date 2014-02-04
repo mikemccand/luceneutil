@@ -212,7 +212,7 @@ class Competitor(object):
     for f in os.listdir(path):
       if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
         files.append('%s/%s' % (path, f))
-    benchUtil.run('%s -classpath "%s" %s >> compile.log 2>&1' % self.javacCommand, (cp, ' '.join(files)), 'compile.log')
+    benchUtil.run('%s -classpath "%s" %s >> compile.log 2>&1' % (self.javacCommand, cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):
 

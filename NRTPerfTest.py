@@ -25,7 +25,7 @@ def main():
     os.makedirs(LOG_DIR)
     
   run('ant compile >> compile.log 2>&1')
-  run('javac -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java')
+  run('%s -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java' % constants.JAVAC_EXE)
 
   # fix reopen rate, vary indexing rate
   #for indexRate in (100, 200, 500, 1000, 2000, 5000, 10000):

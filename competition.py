@@ -188,7 +188,8 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               loadStoredFields = False):
+               loadStoredFields = False,
+               javacCommand = constants.JAVAC_EXE):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -202,6 +203,7 @@ class Competitor(object):
     self.hiliteImpl = hiliteImpl
     self.pk = pk
     self.loadStoredFields = loadStoredFields
+    self.javacCommand = javacCommand
 
   def compile(self, cp):
 
@@ -210,7 +212,7 @@ class Competitor(object):
     for f in os.listdir(path):
       if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
         files.append('%s/%s' % (path, f))
-    benchUtil.run('javac -classpath "%s" %s >> compile.log 2>&1' % (cp, ' '.join(files)), 'compile.log')
+    benchUtil.run('%s -classpath "%s" %s >> compile.log 2>&1' % (self.javacCommand, cp, ' '.join(files)), 'compile.log')
 
 class Competition(object):
 

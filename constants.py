@@ -24,8 +24,6 @@ from localconstants import *
 if 'BENCH_BASE_DIR' not in globals():
   BENCH_BASE_DIR = '%s/util' % BASE_DIR
 
-JAVA_EXE = 'java'
-
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 #WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
 
@@ -59,9 +57,12 @@ EUROPARL_MEDIUM_DOCS_LINE_FILE = '%s/data/europarl.para.lines.txt' % BASE_DIR
 EUROPARL_MEDIUM_TASKS_FILE = '%s/data/europarlmedium.tasks' % BASE_DIR
 
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
-JAVA_COMMAND = 'java -server -Xms2g -Xmx2g'
 
-JAVA_EXE = 'java'
+if 'JAVA_EXE' not in globals():
+  JAVA_EXE = 'java'
+if 'JAVA_COMMAND' not in globals():
+  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g' % JAVA_EXE
+
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 2
 SEARCH_NUM_THREADS = 2

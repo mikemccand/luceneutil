@@ -51,6 +51,5 @@ some code difference but not a file format change.
 
 To run the benchmark you first test like this:
 
-  python localrun.py -source wikimedium10m
+  python localrun.py -source wikimedium10k
 
-Note: the default localrun.py has debug mode enabled, with debug mode on results are probably not reliable!

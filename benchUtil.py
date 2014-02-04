@@ -817,7 +817,7 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
           print '  %s...' % modulePath
           os.chdir(modulePath)
-          run('%s compile' % constants.ANT_EXE, '%s/%s.compile.log' % (constants.LOGS_DIR, module))
+          run('%s compile' % constants.ANT_EXE, '%s/%s.compile.log' % (constants.LOGS_DIR, module.replace('/', '.')))
 
       print '  %s' % path
       os.chdir(path)      

@@ -57,6 +57,14 @@ public final class Indexer {
 
     StatisticsHelper stats = new StatisticsHelper();
     stats.startStatistics();
+    try {
+      _main(clArgs);
+    } finally {
+      stats.stopStatistics();
+    }
+  }
+
+  private static void _main(String[] clArgs) throws Exception {
 
     Args args = new Args(clArgs);
 
@@ -245,7 +253,7 @@ public final class Indexer {
     final TaxonomyWriter taxoWriter;
     if (!facetFields.isEmpty()) {
       taxoWriter = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
-                                                      IndexWriterConfig.OpenMode.CREATE);
+                                               IndexWriterConfig.OpenMode.CREATE);
     } else {
       taxoWriter = null;
     }
@@ -350,7 +358,5 @@ public final class Indexer {
     System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
     System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
     System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./((tFinal-t0)/3600000.)) + " GB/hour plain text");
-
-    stats.stopStatistics();
   }
 }

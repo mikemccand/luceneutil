@@ -15,15 +15,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from competition import Competition
-from competition import WIKI_MEDIUM_10M
+import competition
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
 # Baseline here is ../trunk versus ../patch
 if __name__ == '__main__':
-  comp =  Competition()
+  sourceData = competition.sourceData()
+  comp =  competition.Competition()
 
-  index = comp.newIndex('trunk', WIKI_MEDIUM_10M)
+  index = comp.newIndex('trunk', sourceData)
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'trunk',
                   index = index)

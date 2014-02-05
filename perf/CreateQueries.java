@@ -187,7 +187,6 @@ public class CreateQueries {
     final Set<String> seen = new HashSet<String>();
 
     int idx = 0;
-    int lastCount = 0;
     while(seen.size() < NUM_QUERIES) {
       if (idx == terms.length) {
         throw new RuntimeException("not enough unique prefixes");
@@ -209,7 +208,6 @@ public class CreateQueries {
     final Set<String> seen = new HashSet<String>();
 
     int idx = 0;
-    int lastCount = 0;
     while(seen.size() < NUM_QUERIES) {
       if (idx == terms.length) {
         throw new RuntimeException("not enough unique prefixes");
@@ -268,7 +266,7 @@ public class CreateQueries {
       throw new RuntimeException("index is too small: only " + pq.size() + " top fuzzy terms");
     }
 
-    int downTo = NUM_QUERIES;
+//    int downTo = NUM_QUERIES;
     while (pq.size()>0) {
       TermFreq tdf = pq.pop();
       System.out.println("  " + tdf.term.utf8ToString() + " freq=" + tdf.df);

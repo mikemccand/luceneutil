@@ -44,12 +44,13 @@ public class BuildFST {
     }
 
     @Override
-    public int compareTo(Pair other) {
+    public int compareTo(Pair<T> other) {
       return input.compareTo(other.input);
     }
   }
 
-  public static void main(String[] args) throws IOException {
+  @SuppressWarnings({ "rawtypes", "unchecked" })
+	public static void main(String[] args) throws IOException {
 
     boolean numeric = true;
     boolean negative = false;

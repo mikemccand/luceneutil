@@ -1,13 +1,12 @@
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.lucene.facet.taxonomy.CategoryPath;
+import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -26,7 +25,7 @@ public class DumpFacets {
     TaxonomyReader tr = new DirectoryTaxonomyReader(tdir);
     System.out.println("ords");
     for(int ord=0;ord<tr.getSize();ord++) {
-      System.out.println("  " + ord + " " + tr.getPath(ord).toString('\u001f'));
+      System.out.println("  " + ord + " " + FacetsConfig.pathToString(tr.getPath(ord).components));
     }
     BinaryDocValues bdv = r.getBinaryDocValues(args[2]);
     System.out.println("maxDoc=" + r.maxDoc() + " r=" + r);

@@ -19,7 +19,6 @@ package perf;
 
 // FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -31,21 +30,24 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.lucene.document.*;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.IntField;
+import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.TextField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
-import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
@@ -125,7 +127,8 @@ public class LineFileDocs implements Closeable {
     }
   }
 
-  public synchronized void close() throws IOException {
+  @Override
+	public synchronized void close() throws IOException {
     if (reader != null) {
       reader.close();
       reader = null;
@@ -279,8 +282,6 @@ public class LineFileDocs implements Closeable {
 
     return doc2;
   }
-
-  private final ThreadLocal<DocState> threadDocs = new ThreadLocal<DocState>();
 
   private int readCount;
 

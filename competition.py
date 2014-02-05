@@ -67,12 +67,9 @@ def sourceData(key=None):
     import sys
     if '-source' in sys.argv:
       key = sys.argv[1+sys.argv.index('-source')]
-    else:
-      raise RuntimeError('please specify -source (wikimedium10m, wikimedium1m, wikibig, euromedium)')
   if key in DATA:
     return DATA[key]
-  else:
-    raise RuntimeError('unknown data source (valid keys: %s)' % DATA.keys())
+  raise RuntimeError('unknown data source (valid keys: %s)' % DATA.keys())
 
 class Index(object):
 

@@ -1,3 +1,4 @@
+local
 localconstants.py
 localrun.py
 syntax: glob

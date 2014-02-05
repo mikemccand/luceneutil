@@ -38,8 +38,6 @@ WARM_SKIP = 3
 # Skip this pctg of the slowest runs:
 SLOW_SKIP_PCT = 10
 
-LOG_SUB_DIR = 'logs'
-
 # From the N times we run each task in a single JVM, how do we pick
 # the single QPS to represent those results:
 
@@ -91,15 +89,7 @@ def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
-  p = checkoutToPath(checkout)
-  for subDir in ('contrib/benchmark', # pre-3.1
-                 'lucene/contrib/benchmark', # 3.1
-                 'lucene/benchmark', # 4.0
-                 ):
-    fullPath = '%s/%s' % (p, subDir)
-    if os.path.exists(fullPath):
-      return fullPath
-  raise RuntimeError('could not locate benchmark under %s' % p)
+  return '%s/lucene/benchmark' % checkoutToPath(checkout)
 
 def checkoutToUtilPath(checkout):
   p = checkoutToPath(checkout)
@@ -648,6 +638,11 @@ class RunAlgs:
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
+      
+    if not os.path.exists(constants.LOGS_DIR):
+      os.makedirs(constants.LOGS_DIR)
+    print 'LOGS: %s' % constants.LOGS_DIR
+
     
   def printEnv(self):
     print
@@ -740,10 +735,7 @@ class RunAlgs:
 
       cmd = ' '.join(cmd)
 
-      logDir = '%s/%s' % (checkoutToBenchPath(index.checkout), LOG_SUB_DIR)
-      if not os.path.exists(logDir):
-        os.makedirs(logDir)
-      fullLogFile = '%s/%s.%s.log' % (logDir, id, index.getName())
+      fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
       
       print '    log %s' % fullLogFile
 
@@ -825,7 +817,7 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
           print '  %s...' % modulePath
           os.chdir(modulePath)
-          run('%s compile' % constants.ANT_EXE, 'compile.log')
+          run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
 
       print '  %s' % path
       os.chdir(path)      
@@ -869,10 +861,9 @@ class RunAlgs:
 
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
-    benchDir = checkoutToBenchPath(c.checkout)
 
     cp = self.classPathToString(self.getClassPath(c.checkout))
-    logFile = '%s/%s.%s.%d' % (benchDir, id, c.name, iter)
+    logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
 
     if c.doSort:
       doSort = '-sort'
@@ -990,9 +981,8 @@ class RunAlgs:
 
   def getSearchLogFiles(self, id, c):
     logFiles = []
-    benchDir = checkoutToBenchPath(c.checkout)
     for iter in xrange(c.competition.jvmCount):
-      logFile = '%s/%s.%s.%d' % (benchDir, id, c.name, iter)
+      logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
       logFiles.append(logFile)
     return logFiles
 

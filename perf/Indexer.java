@@ -177,6 +177,8 @@ public final class Indexer {
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, a);
 
+    iwc.setMaxThreadStates(numThreads);
+
     if (doUpdate) {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     } else {

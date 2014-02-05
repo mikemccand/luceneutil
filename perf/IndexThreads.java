@@ -19,8 +19,6 @@ package perf;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -234,7 +232,8 @@ class IndexThreads {
                     int upto;
                     IndexDocument doc;
 
-                    @Override
+                    @SuppressWarnings("synthetic-access")
+										@Override
                     public boolean hasNext() {
                       if (upto < numDocs) {
                         upto++;

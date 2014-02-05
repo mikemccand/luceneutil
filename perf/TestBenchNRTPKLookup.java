@@ -1,3 +1,4 @@
+package perf;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -21,11 +22,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.codecs.BlockTreeTermsReader;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
@@ -42,7 +40,6 @@ import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MMapDirectory;
-import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.util.Version;
 
 // javac -cp ../build/core/classes/java:../build/analysis/common/classes/java /l/util.trunk/perf/TestBenchNRTPKLookup.java 

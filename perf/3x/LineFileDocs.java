@@ -17,7 +17,6 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -29,11 +28,10 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.lucene.document.*;
-import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
 import org.apache.lucene.util.BytesRef;
 
 public class LineFileDocs implements Closeable {
@@ -103,7 +101,7 @@ public class LineFileDocs implements Closeable {
     int downTo = id.length() - 1;
     int multiplier = 1;
     while(downTo >= 0) {
-      final char ch = (char) id.charAt(downTo--);
+      final char ch = id.charAt(downTo--);
       final int digit;
       if (ch >= '0' && ch <= '9') {
         digit = ch - '0';

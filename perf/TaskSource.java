@@ -24,5 +24,5 @@ interface TaskSource {
   public Task nextTask() throws InterruptedException;
   public void taskDone(Task task, long queueTimeNS, int totalHitCount) throws IOException;
   public List<Task> getAllTasks();
-};
+}
 

@@ -31,7 +31,6 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene46.Lucene46Codec;
-import org.apache.lucene.document.Document;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
@@ -65,7 +64,7 @@ import org.apache.lucene.util.Version;
 
 public class NRTPerfTest {
 
-  private static boolean NEW_INDEX = false;
+  static final boolean NEW_INDEX = false;
 
   // TODO: share w/ SearchPerfTest
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {

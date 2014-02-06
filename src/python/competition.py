@@ -206,7 +206,7 @@ class Competitor(object):
     root = benchUtil.checkoutToUtilPath(self.checkout)
     perfSrc = os.path.join(root, "src/main/perf")
     buildDir = os.path.join(root, "build")
-    if not os.path.exists(constants.LOGS_DIR):
+    if not os.path.exists(buildDir):
       os.makedirs(buildDir)
     files = []
     for f in os.listdir(perfSrc):

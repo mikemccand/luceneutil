@@ -1235,1006 +1235,1006 @@ LowTerm: ron +facets:Date # freq=31548
 LowTerm: designs +facets:Date # freq=31544
 LowTerm: dublin +facets:Date # freq=31523
 LowTerm: attorney +facets:Date # freq=31483
-Prefix3: tea*
-Prefix3: hou*
-Prefix3: pop*
-Prefix3: pub*
-Prefix3: hom*
-Prefix3: top*
-Prefix3: eas*
-Prefix3: tal*
-Prefix3: ord*
-Prefix3: lin*
-Prefix3: cou*
-Prefix3: 201*
-Prefix3: des*
-Prefix3: ver*
-Prefix3: eac*
-Prefix3: inf*
-Prefix3: ano*
-Prefix3: bor*
-Prefix3: bac*
-Prefix3: lon*
-Prefix3: jus*
-Prefix3: tow*
-Prefix3: jou*
-Prefix3: non*
-Prefix3: col*
-Prefix3: gre*
-Prefix3: alt*
-Prefix3: boo*
-Prefix3: maj*
-Prefix3: fur*
-Prefix3: 199*
-Prefix3: aro*
-Prefix3: bes*
-Prefix3: for*
-Prefix3: sti*
-Prefix3: alb*
-Prefix3: stu*
-Prefix3: did*
-Prefix3: eve*
-Prefix3: off*
-Prefix3: ori*
-Prefix3: use*
-Prefix3: rel*
-Prefix3: jpg*
-Prefix3: iss*
-Prefix3: own*
-Prefix3: sea*
-Prefix3: tho*
-Prefix3: way*
-Prefix3: typ*
-Prefix3: eng*
-Prefix3: muc*
-Prefix3: gam*
-Prefix3: fou*
-Prefix3: vol*
-Prefix3: nam*
-Prefix3: ser*
-Prefix3: lar*
-Prefix3: oft*
-Prefix3: ali*
-Prefix3: kin*
-Prefix3: usi*
-Prefix3: whi*
-Prefix3: dis*
-Prefix3: loc*
-Prefix3: met*
-Prefix3: set*
-Prefix3: sho*
-Prefix3: dav*
-Prefix3: mak*
-Prefix3: sto*
-Prefix3: cit*
-Prefix3: wit*
-Prefix3: due*
-Prefix3: mem*
-Prefix3: wil*
-Prefix3: alo*
-Prefix3: sin*
-Prefix3: per*
-Prefix3: est*
-Prefix3: jam*
-Prefix3: nee*
-Prefix3: dow*
-Prefix3: pre*
-Prefix3: man*
-Prefix3: sit*
-Prefix3: foo*
-Prefix3: res*
-Prefix3: inc*
-Prefix3: beg*
-Prefix3: cen*
-Prefix3: ban*
-Prefix3: tel*
-Prefix3: lea*
-Prefix3: fre*
-Prefix3: pol*
-Prefix3: fon*
-Prefix3: 100*
-Prefix3: con*
-Prefix3: red*
-Prefix3: fiv*
-Prefix3: pow*
-Prefix3: riv*
-Prefix3: son*
-Prefix3: nex*
-Prefix3: art*
-Prefix3: poi*
-Prefix3: tex*
-Prefix3: acc*
-Prefix3: bla*
-Prefix3: geo*
-Prefix3: dif*
-Prefix3: nda*
-Prefix3: thi*
-Prefix3: law*
-Prefix3: can*
-Prefix3: nea*
-Prefix3: bui*
-Prefix3: how*
-Prefix3: rec*
-Prefix3: air*
-Prefix3: pla*
-Prefix3: par*
-Prefix3: too*
-Prefix3: ass*
-Prefix3: mil*
-Prefix3: rob*
-Prefix3: abo*
-Prefix3: car*
-Prefix3: aga*
-Prefix3: lat*
-Prefix3: liv*
-Prefix3: goo*
-Prefix3: oth*
-Prefix3: ame*
-Prefix3: rev*
-Prefix3: sta*
-Prefix3: amo*
-Prefix3: sec*
-Prefix3: you*
-Prefix3: siz*
-Prefix3: bir*
-Prefix3: sup*
-Prefix3: ger*
-Prefix3: cal*
-Prefix3: giv*
-Prefix3: com*
-Prefix3: sai*
-Prefix3: wes*
-Prefix3: won*
-Prefix3: hel*
-Prefix3: chi*
-Prefix3: doe*
-Prefix3: clu*
-Prefix3: sou*
-Prefix3: chu*
-Prefix3: exa*
-Prefix3: dev*
-Prefix3: lan*
-Prefix3: tot*
-Prefix3: fin*
-Prefix3: ple*
-Prefix3: reg*
-Prefix3: her*
-Prefix3: cap*
-Prefix3: mus*
-Prefix3: arm*
-Prefix3: sid*
-Prefix3: soc*
-Prefix3: ful*
-Prefix3: few*
-Prefix3: bel*
-Prefix3: roa*
-Prefix3: var*
-Prefix3: tak*
-Prefix3: cre*
-Prefix3: fra*
-Prefix3: sci*
-Prefix3: bec*
-Prefix3: mod*
-Prefix3: pos*
-Prefix3: mic*
-Prefix3: cur*
-Prefix3: mag*
-Prefix3: aus*
-Prefix3: arc*
-Prefix3: uni*
-Prefix3: hav*
-Prefix3: roy*
-Prefix3: lit*
-Prefix3: wik*
-Prefix3: roc*
-Prefix3: led*
-Prefix3: not*
-Prefix3: wat*
-Prefix3: bus*
-Prefix3: edu*
-Prefix3: rol*
-Prefix3: cas*
-Prefix3: pau*
-Prefix3: med*
-Prefix3: div*
-Prefix3: cha*
-Prefix3: wri*
-Prefix3: isl*
-Prefix3: nev*
-Prefix3: ter*
-Prefix3: vid*
-Prefix3: die*
-Prefix3: vie*
-Prefix3: str*
-Prefix3: awa*
-Prefix3: wor*
-Prefix3: spe*
-Prefix3: six*
-Prefix3: cam*
-Prefix3: tog*
-Prefix3: imp*
-Prefix3: sim*
-Prefix3: hea*
-Prefix3: nor*
-Prefix3: ele*
-Prefix3: eur*
-Prefix3: fie*
-Prefix3: ope*
-Prefix3: onc*
-Prefix3: bat*
-Prefix3: box*
-Prefix3: del*
-Prefix3: pro*
-Prefix3: htm*
-Prefix3: usa*
-Prefix3: pdf*
-Prefix3: yes*
-Prefix3: day*
-Prefix3: edi*
-Prefix3: 198*
-Prefix3: san*
-Prefix3: get*
-Prefix3: ret*
-Prefix3: dep*
-Prefix3: was*
-Prefix3: rad*
-Prefix3: run*
-Prefix3: ric*
-Prefix3: los*
-Prefix3: dir*
-Prefix3: hum*
-Prefix3: men*
-Prefix3: coo*
-Prefix3: bot*
-Prefix3: spo*
-Prefix3: kee*
-Prefix3: deb*
-Prefix3: hal*
-Prefix3: lov*
-Prefix3: usu*
-Prefix3: ava*
-Prefix3: fat*
-Prefix3: lev*
-Prefix3: mov*
-Prefix3: rat*
-Prefix3: pet*
-Prefix3: see*
-Prefix3: cov*
-Prefix3: sum*
-Prefix3: wen*
-Prefix3: wid*
-Prefix3: dea*
-Prefix3: act*
-Prefix3: him*
-Prefix3: vil*
-Prefix3: les*
-Prefix3: cod*
-Prefix3: doi*
-Prefix3: are*
-Prefix3: upo*
-Prefix3: tod*
-Prefix3: it'*
-Prefix3: 2nd*
-Prefix3: eit*
-Prefix3: fed*
-Prefix3: rep*
-Prefix3: net*
-Prefix3: ind*
-Prefix3: spa*
-Prefix3: big*
-Prefix3: jap*
-Prefix3: fac*
-Prefix3: mon*
-Prefix3: lig*
-Prefix3: sub*
-Prefix3: mar*
-Prefix3: dat*
-Prefix3: his*
-Prefix3: bio*
-Prefix3: lab*
-Prefix3: low*
-Prefix3: cul*
-Prefix3: fea*
-Prefix3: mid*
-Prefix3: blu*
-Prefix3: ave*
-Prefix3: thu*
-Prefix3: bod*
-Prefix3: nig*
-Prefix3: hen*
-Prefix3: epi*
-Prefix3: rom*
-Prefix3: rea*
-Prefix3: ins*
-Prefix3: ran*
-Prefix3: tra*
-Prefix3: rac*
-Prefix3: civ*
-Prefix3: add*
-Prefix3: fam*
-Prefix3: don*
-Prefix3: gro*
-Prefix3: len*
-Prefix3: 197*
-Prefix3: wro*
-Prefix3: boa*
-Prefix3: som*
-Prefix3: app*
-Prefix3: far*
-Prefix3: thr*
-Prefix3: map*
-Prefix3: emp*
-Prefix3: onl*
-Prefix3: 1st*
-Prefix3: sol*
-Prefix3: cup*
-Prefix3: sch*
-Prefix3: chr*
-Prefix3: alm*
-Prefix3: put*
-Prefix3: fro*
-Prefix3: tec*
-Prefix3: gra*
-Prefix3: min*
-Prefix3: bbc*
-Prefix3: new*
-Prefix3: lib*
-Prefix3: its*
-Prefix3: clo*
-Prefix3: fut*
-Prefix3: sel*
-Prefix3: acr*
-Prefix3: sys*
-Prefix3: sev*
-Prefix3: hil*
-Prefix3: fir*
-Prefix3: gol*
-Prefix3: our*
-Prefix3: lak*
-Prefix3: abl*
-Prefix3: att*
-Prefix3: wif*
-Prefix3: tru*
-Prefix3: esp*
-Prefix3: kno*
-Prefix3: mea*
-Prefix3: rou*
-Prefix3: nat*
-Prefix3: wom*
-Prefix3: afr*
-Prefix3: gen*
-Prefix3: fem*
-Prefix3: pri*
-Prefix3: cro*
-Prefix3: alr*
-Prefix3: rig*
-Prefix3: smi*
-Prefix3: pas*
-Prefix3: bet*
-Prefix3: bil*
-Prefix3: lim*
-Prefix3: rai*
-Prefix3: out*
-Prefix3: who*
-Prefix3: ima*
-Prefix3: ire*
-Prefix3: row*
-Prefix3: dem*
-Prefix3: bgc*
-Prefix3: soo*
-Prefix3: 196*
-Prefix3: iii*
-Prefix3: squ*
-Prefix3: mot*
-Prefix3: fol*
-Prefix3: jos*
-Prefix3: win*
-Prefix3: the*
-Prefix3: joi*
-Prefix3: han*
-Prefix3: ang*
-Prefix3: org*
-Prefix3: val*
-Prefix3: aca*
-Prefix3: coa*
-Prefix3: eno*
-Prefix3: int*
-Prefix3: bay*
-Prefix3: ent*
-Prefix3: van*
-Prefix3: kil*
-Prefix3: ann*
-Prefix3: bas*
-Prefix3: bro*
-Prefix3: nav*
-Prefix3: aut*
-Prefix3: inv*
-Prefix3: ita*
-Prefix3: ten*
-Prefix3: fil*
-Prefix3: mig*
-Prefix3: nov*
-Prefix3: anc*
-Prefix3: shi*
-Prefix3: alw*
-Prefix3: suc*
-Prefix3: 250*
-Prefix3: beh*
-Prefix3: edw*
-Prefix3: dai*
-Prefix3: mda*
-Prefix3: sig*
-Prefix3: ref*
-Prefix3: hig*
-Prefix3: gav*
-Prefix3: hit*
-Prefix3: goi*
-Prefix3: say*
-Prefix3: 1px*
-Prefix3: ear*
-Prefix3: cle*
-Prefix3: cat*
-Prefix3: 200*
-Prefix3: via*
-Prefix3: old*
-Prefix3: eco*
-Prefix3: gui*
-Prefix3: lou*
-Prefix3: why*
-Prefix3: unr*
-Prefix3: tou*
-Prefix3: rem*
-Prefix3: sir*
-Prefix3: pac*
-Prefix3: fla*
-Prefix3: cor*
-Prefix3: 194*
-Prefix3: lor*
-Prefix3: eig*
-Prefix3: cer*
-Prefix3: saw*
-Prefix3: dau*
-Prefix3: evi*
-Prefix3: sen*
-Prefix3: wal*
-Prefix3: rus*
-Prefix3: fal*
-Prefix3: i'm*
-Prefix3: gov*
-Prefix3: 978*
-Prefix3: bri*
-Prefix3: iri*
-Prefix3: yet*
-Prefix3: nic*
-Prefix3: req*
-Prefix3: tes*
-Prefix3: ant*
-Prefix3: oxf*
-Prefix3: wee*
-Prefix3: tab*
-Prefix3: mat*
-Prefix3: all*
-Prefix3: etc*
-Prefix3: pad*
-Prefix3: god*
-Prefix3: pur*
-Prefix3: pen*
-Prefix3: vot*
-Prefix3: key*
-Prefix3: abb*
-Prefix3: era*
-Prefix3: mou*
-Prefix3: web*
-Prefix3: vfd*
-Prefix3: dec*
-Prefix3: cop*
-Prefix3: lis*
-Prefix3: tom*
-Prefix3: whe*
-Prefix3: eff*
-Prefix3: enc*
-Prefix3: ico*
-Prefix3: vir*
-IntNRQ: nrq//timesecnum 6207 55832
-IntNRQ: nrq//timesecnum 53 85622
-IntNRQ: nrq//timesecnum 2669 66142
-IntNRQ: nrq//timesecnum 9936 85687
-IntNRQ: nrq//timesecnum 23189 61377
-IntNRQ: nrq//timesecnum 7624 69351
-IntNRQ: nrq//timesecnum 15733 85583
-IntNRQ: nrq//timesecnum 8791 69420
-IntNRQ: nrq//timesecnum 6125 46693
-IntNRQ: nrq//timesecnum 8006 80120
-IntNRQ: nrq//timesecnum 11514 45063
-IntNRQ: nrq//timesecnum 6342 72089
-IntNRQ: nrq//timesecnum 10670 66864
-IntNRQ: nrq//timesecnum 2896 83864
-IntNRQ: nrq//timesecnum 8947 64612
-IntNRQ: nrq//timesecnum 2808 75217
-IntNRQ: nrq//timesecnum 388 84762
-IntNRQ: nrq//timesecnum 8254 83057
-IntNRQ: nrq//timesecnum 27230 76577
-IntNRQ: nrq//timesecnum 16581 79061
-IntNRQ: nrq//timesecnum 7468 61404
-IntNRQ: nrq//timesecnum 502 85963
-IntNRQ: nrq//timesecnum 20747 70538
-IntNRQ: nrq//timesecnum 41490 84518
-IntNRQ: nrq//timesecnum 15665 80191
-IntNRQ: nrq//timesecnum 4849 80915
-IntNRQ: nrq//timesecnum 4591 84612
-IntNRQ: nrq//timesecnum 3672 86331
-IntNRQ: nrq//timesecnum 1588 84947
-IntNRQ: nrq//timesecnum 18031 80800
-IntNRQ: nrq//timesecnum 4349 54130
-IntNRQ: nrq//timesecnum 24997 83169
-IntNRQ: nrq//timesecnum 34029 78739
-IntNRQ: nrq//timesecnum 1412 84543
-IntNRQ: nrq//timesecnum 571 37070
-IntNRQ: nrq//timesecnum 12 85292
-IntNRQ: nrq//timesecnum 25755 81329
-IntNRQ: nrq//timesecnum 3 86013
-IntNRQ: nrq//timesecnum 14278 79657
-IntNRQ: nrq//timesecnum 17134 78322
-IntNRQ: nrq//timesecnum 1435 80402
-IntNRQ: nrq//timesecnum 6629 75744
-IntNRQ: nrq//timesecnum 4870 43395
-IntNRQ: nrq//timesecnum 478 71579
-IntNRQ: nrq//timesecnum 28042 76889
-IntNRQ: nrq//timesecnum 24310 56642
-IntNRQ: nrq//timesecnum 18753 66427
-IntNRQ: nrq//timesecnum 39579 75724
-IntNRQ: nrq//timesecnum 42625 86203
-IntNRQ: nrq//timesecnum 6090 73896
-IntNRQ: nrq//timesecnum 2995 82375
-IntNRQ: nrq//timesecnum 12154 80870
-IntNRQ: nrq//timesecnum 9760 70755
-IntNRQ: nrq//timesecnum 583 85130
-IntNRQ: nrq//timesecnum 29576 69633
-IntNRQ: nrq//timesecnum 39062 84782
-IntNRQ: nrq//timesecnum 2122 83281
-IntNRQ: nrq//timesecnum 3715 76179
-IntNRQ: nrq//timesecnum 3083 85700
-IntNRQ: nrq//timesecnum 21242 73085
-IntNRQ: nrq//timesecnum 3294 47878
-IntNRQ: nrq//timesecnum 23368 59844
-IntNRQ: nrq//timesecnum 8418 78101
-IntNRQ: nrq//timesecnum 23440 60221
-IntNRQ: nrq//timesecnum 9247 48103
-IntNRQ: nrq//timesecnum 18797 83836
-IntNRQ: nrq//timesecnum 15634 56061
-IntNRQ: nrq//timesecnum 712 41502
-IntNRQ: nrq//timesecnum 632 64609
-IntNRQ: nrq//timesecnum 34783 82818
-IntNRQ: nrq//timesecnum 11629 72484
-IntNRQ: nrq//timesecnum 10785 47845
-IntNRQ: nrq//timesecnum 10127 84546
-IntNRQ: nrq//timesecnum 35738 86080
-IntNRQ: nrq//timesecnum 29973 65313
-IntNRQ: nrq//timesecnum 4945 74507
-IntNRQ: nrq//timesecnum 20573 80939
-IntNRQ: nrq//timesecnum 7554 62440
-IntNRQ: nrq//timesecnum 9488 61989
-IntNRQ: nrq//timesecnum 2173 43039
-IntNRQ: nrq//timesecnum 9687 44538
-IntNRQ: nrq//timesecnum 7843 69029
-IntNRQ: nrq//timesecnum 19439 79883
-IntNRQ: nrq//timesecnum 4141 81745
-IntNRQ: nrq//timesecnum 12518 81940
-IntNRQ: nrq//timesecnum 32446 68189
-IntNRQ: nrq//timesecnum 1069 86092
-IntNRQ: nrq//timesecnum 43771 81815
-IntNRQ: nrq//timesecnum 24004 66754
-IntNRQ: nrq//timesecnum 10574 67726
-IntNRQ: nrq//timesecnum 33981 85977
-IntNRQ: nrq//timesecnum 45347 78890
-IntNRQ: nrq//timesecnum 7788 73247
-IntNRQ: nrq//timesecnum 11724 72009
-IntNRQ: nrq//timesecnum 18942 69986
-IntNRQ: nrq//timesecnum 16706 60711
-IntNRQ: nrq//timesecnum 16318 69581
-IntNRQ: nrq//timesecnum 11364 54785
-IntNRQ: nrq//timesecnum 6216 86083
-IntNRQ: nrq//timesecnum 8210 85786
-IntNRQ: nrq//timesecnum 3110 51452
-IntNRQ: nrq//timesecnum 1534 63545
-IntNRQ: nrq//timesecnum 14601 55087
-IntNRQ: nrq//timesecnum 8797 86225
-IntNRQ: nrq//timesecnum 34356 72513
-IntNRQ: nrq//timesecnum 19669 64488
-IntNRQ: nrq//timesecnum 36463 75930
-IntNRQ: nrq//timesecnum 3943 80372
-IntNRQ: nrq//timesecnum 9680 72605
-IntNRQ: nrq//timesecnum 10160 80837
-IntNRQ: nrq//timesecnum 2436 83448
-IntNRQ: nrq//timesecnum 4871 63874
-IntNRQ: nrq//timesecnum 15123 82708
-IntNRQ: nrq//timesecnum 21077 74886
-IntNRQ: nrq//timesecnum 3642 84549
-IntNRQ: nrq//timesecnum 278 86334
-IntNRQ: nrq//timesecnum 698 84285
-IntNRQ: nrq//timesecnum 6002 73308
-IntNRQ: nrq//timesecnum 13575 76454
-IntNRQ: nrq//timesecnum 6862 77166
-IntNRQ: nrq//timesecnum 28020 81271
-IntNRQ: nrq//timesecnum 14368 82019
-IntNRQ: nrq//timesecnum 19070 55532
-IntNRQ: nrq//timesecnum 7752 71431
-IntNRQ: nrq//timesecnum 60 71307
-IntNRQ: nrq//timesecnum 25167 63363
-IntNRQ: nrq//timesecnum 8667 42723
-IntNRQ: nrq//timesecnum 34868 68986
-IntNRQ: nrq//timesecnum 14581 57184
-IntNRQ: nrq//timesecnum 3365 57578
-IntNRQ: nrq//timesecnum 22435 55045
-IntNRQ: nrq//timesecnum 38580 71259
-IntNRQ: nrq//timesecnum 15140 85951
-IntNRQ: nrq//timesecnum 2714 51194
-IntNRQ: nrq//timesecnum 43102 82781
-IntNRQ: nrq//timesecnum 13589 48872
-IntNRQ: nrq//timesecnum 49736 81036
-IntNRQ: nrq//timesecnum 9144 83627
-IntNRQ: nrq//timesecnum 16368 85384
-IntNRQ: nrq//timesecnum 26712 72859
-IntNRQ: nrq//timesecnum 25314 84736
-IntNRQ: nrq//timesecnum 9689 83604
-IntNRQ: nrq//timesecnum 15074 69943
-IntNRQ: nrq//timesecnum 7096 51972
-IntNRQ: nrq//timesecnum 3474 39862
-IntNRQ: nrq//timesecnum 35 84877
-IntNRQ: nrq//timesecnum 1491 53429
-IntNRQ: nrq//timesecnum 3676 81940
-IntNRQ: nrq//timesecnum 16780 56125
-IntNRQ: nrq//timesecnum 1215 49553
-IntNRQ: nrq//timesecnum 42626 81869
-IntNRQ: nrq//timesecnum 41681 85604
-IntNRQ: nrq//timesecnum 2003 54231
-IntNRQ: nrq//timesecnum 2138 77105
-IntNRQ: nrq//timesecnum 1347 76866
-IntNRQ: nrq//timesecnum 5635 86334
-IntNRQ: nrq//timesecnum 1959 80948
-IntNRQ: nrq//timesecnum 1271 56600
-IntNRQ: nrq//timesecnum 667 57514
-IntNRQ: nrq//timesecnum 404 85763
-IntNRQ: nrq//timesecnum 13449 56294
-IntNRQ: nrq//timesecnum 53046 83101
-IntNRQ: nrq//timesecnum 750 78702
-IntNRQ: nrq//timesecnum 16084 60405
-IntNRQ: nrq//timesecnum 1772 83733
-IntNRQ: nrq//timesecnum 14721 60501
-IntNRQ: nrq//timesecnum 7762 79462
-IntNRQ: nrq//timesecnum 31778 79974
-IntNRQ: nrq//timesecnum 26915 66714
-IntNRQ: nrq//timesecnum 1055 84020
-IntNRQ: nrq//timesecnum 7232 70805
-IntNRQ: nrq//timesecnum 10485 48402
-IntNRQ: nrq//timesecnum 150 34646
-IntNRQ: nrq//timesecnum 16060 79684
-IntNRQ: nrq//timesecnum 11343 75545
-IntNRQ: nrq//timesecnum 1510 47899
-IntNRQ: nrq//timesecnum 28097 80301
-IntNRQ: nrq//timesecnum 27493 83586
-IntNRQ: nrq//timesecnum 28025 76152
-IntNRQ: nrq//timesecnum 15076 84808
-IntNRQ: nrq//timesecnum 20552 55728
-IntNRQ: nrq//timesecnum 12240 69657
-IntNRQ: nrq//timesecnum 6413 56126
-IntNRQ: nrq//timesecnum 5445 50925
-IntNRQ: nrq//timesecnum 719 82913
-IntNRQ: nrq//timesecnum 22437 78227
-IntNRQ: nrq//timesecnum 9591 43350
-IntNRQ: nrq//timesecnum 31395 76159
-IntNRQ: nrq//timesecnum 49023 83722
-IntNRQ: nrq//timesecnum 29601 86037
-IntNRQ: nrq//timesecnum 2179 74509
-IntNRQ: nrq//timesecnum 18802 61698
-IntNRQ: nrq//timesecnum 13948 75104
-IntNRQ: nrq//timesecnum 908 84719
-IntNRQ: nrq//timesecnum 3172 80665
-IntNRQ: nrq//timesecnum 13516 73315
-IntNRQ: nrq//timesecnum 13112 82857
-IntNRQ: nrq//timesecnum 6049 41270
-IntNRQ: nrq//timesecnum 5802 51183
-IntNRQ: nrq//timesecnum 28464 63396
-IntNRQ: nrq//timesecnum 1451 64739
-IntNRQ: nrq//timesecnum 6733 85013
-IntNRQ: nrq//timesecnum 1041 71618
-IntNRQ: nrq//timesecnum 20624 79339
-IntNRQ: nrq//timesecnum 12876 49806
-IntNRQ: nrq//timesecnum 651 69797
-IntNRQ: nrq//timesecnum 17262 47568
-IntNRQ: nrq//timesecnum 1987 33273
-IntNRQ: nrq//timesecnum 50448 83129
-IntNRQ: nrq//timesecnum 11971 74622
-IntNRQ: nrq//timesecnum 30909 79953
-IntNRQ: nrq//timesecnum 34047 71868
-IntNRQ: nrq//timesecnum 13097 81889
-IntNRQ: nrq//timesecnum 2456 63382
-IntNRQ: nrq//timesecnum 13702 75657
-IntNRQ: nrq//timesecnum 653 41033
-IntNRQ: nrq//timesecnum 1265 79183
-IntNRQ: nrq//timesecnum 25613 78596
-IntNRQ: nrq//timesecnum 22591 79805
-IntNRQ: nrq//timesecnum 5424 63024
-IntNRQ: nrq//timesecnum 6920 85986
-IntNRQ: nrq//timesecnum 19194 79399
-IntNRQ: nrq//timesecnum 16325 82908
-IntNRQ: nrq//timesecnum 26310 67792
-IntNRQ: nrq//timesecnum 34857 85256
-IntNRQ: nrq//timesecnum 4710 60159
-IntNRQ: nrq//timesecnum 15249 73730
-IntNRQ: nrq//timesecnum 1485 77367
-IntNRQ: nrq//timesecnum 12759 62312
-IntNRQ: nrq//timesecnum 17330 53911
-IntNRQ: nrq//timesecnum 10279 47335
-IntNRQ: nrq//timesecnum 5822 54226
-IntNRQ: nrq//timesecnum 8779 85457
-IntNRQ: nrq//timesecnum 14583 80325
-IntNRQ: nrq//timesecnum 9436 64920
-IntNRQ: nrq//timesecnum 6633 75959
-IntNRQ: nrq//timesecnum 30639 80165
-IntNRQ: nrq//timesecnum 25451 84861
-IntNRQ: nrq//timesecnum 6286 83771
-IntNRQ: nrq//timesecnum 24241 75360
-IntNRQ: nrq//timesecnum 1001 46676
-IntNRQ: nrq//timesecnum 2287 63441
-IntNRQ: nrq//timesecnum 7552 63184
-IntNRQ: nrq//timesecnum 46904 81466
-IntNRQ: nrq//timesecnum 20437 72742
-IntNRQ: nrq//timesecnum 22689 56338
-IntNRQ: nrq//timesecnum 7125 80389
-IntNRQ: nrq//timesecnum 38627 77699
-IntNRQ: nrq//timesecnum 34842 79184
-IntNRQ: nrq//timesecnum 13409 85107
-IntNRQ: nrq//timesecnum 19135 72844
-IntNRQ: nrq//timesecnum 3933 72934
-IntNRQ: nrq//timesecnum 8082 52957
-IntNRQ: nrq//timesecnum 32177 85918
-IntNRQ: nrq//timesecnum 429 42165
-IntNRQ: nrq//timesecnum 6633 86260
-IntNRQ: nrq//timesecnum 3713 83377
-IntNRQ: nrq//timesecnum 17081 71251
-IntNRQ: nrq//timesecnum 36026 69454
-IntNRQ: nrq//timesecnum 14989 60613
-IntNRQ: nrq//timesecnum 5095 36674
-IntNRQ: nrq//timesecnum 1622 46329
-IntNRQ: nrq//timesecnum 2149 82491
-IntNRQ: nrq//timesecnum 15019 84447
-IntNRQ: nrq//timesecnum 3629 78623
-IntNRQ: nrq//timesecnum 122 84848
-IntNRQ: nrq//timesecnum 8718 47348
-IntNRQ: nrq//timesecnum 22843 55168
-IntNRQ: nrq//timesecnum 9734 57841
-IntNRQ: nrq//timesecnum 46202 80667
-IntNRQ: nrq//timesecnum 7507 57454
-IntNRQ: nrq//timesecnum 5192 82329
-IntNRQ: nrq//timesecnum 21441 64116
-IntNRQ: nrq//timesecnum 8101 80601
-IntNRQ: nrq//timesecnum 30045 86031
-IntNRQ: nrq//timesecnum 16399 70321
-IntNRQ: nrq//timesecnum 25006 55298
-IntNRQ: nrq//timesecnum 12610 54148
-IntNRQ: nrq//timesecnum 33965 65349
-IntNRQ: nrq//timesecnum 4915 65256
-IntNRQ: nrq//timesecnum 29010 74366
-IntNRQ: nrq//timesecnum 49486 80685
-IntNRQ: nrq//timesecnum 9433 44468
-IntNRQ: nrq//timesecnum 2999 79469
-IntNRQ: nrq//timesecnum 385 71117
-IntNRQ: nrq//timesecnum 8285 52831
-IntNRQ: nrq//timesecnum 1697 81021
-IntNRQ: nrq//timesecnum 6343 61644
-IntNRQ: nrq//timesecnum 25423 61813
-IntNRQ: nrq//timesecnum 2199 84523
-IntNRQ: nrq//timesecnum 30544 69679
-IntNRQ: nrq//timesecnum 4813 85072
-IntNRQ: nrq//timesecnum 4070 80980
-IntNRQ: nrq//timesecnum 15130 82361
-IntNRQ: nrq//timesecnum 34319 84471
-IntNRQ: nrq//timesecnum 4198 66731
-IntNRQ: nrq//timesecnum 2556 41654
-IntNRQ: nrq//timesecnum 16930 81474
-IntNRQ: nrq//timesecnum 10022 83237
-IntNRQ: nrq//timesecnum 14446 60493
-IntNRQ: nrq//timesecnum 16142 66368
-IntNRQ: nrq//timesecnum 11427 68600
-IntNRQ: nrq//timesecnum 1396 84497
-IntNRQ: nrq//timesecnum 1454 54280
-IntNRQ: nrq//timesecnum 13695 61934
-IntNRQ: nrq//timesecnum 901 80740
-IntNRQ: nrq//timesecnum 45440 84028
-IntNRQ: nrq//timesecnum 10792 43991
-IntNRQ: nrq//timesecnum 32438 67829
-IntNRQ: nrq//timesecnum 816 79745
-IntNRQ: nrq//timesecnum 13634 51629
-IntNRQ: nrq//timesecnum 3819 79860
-IntNRQ: nrq//timesecnum 6754 51441
-IntNRQ: nrq//timesecnum 11479 71381
-IntNRQ: nrq//timesecnum 10597 76988
-IntNRQ: nrq//timesecnum 2053 57995
-IntNRQ: nrq//timesecnum 272 86383
-IntNRQ: nrq//timesecnum 10754 85440
-IntNRQ: nrq//timesecnum 39356 73647
-IntNRQ: nrq//timesecnum 8593 77767
-IntNRQ: nrq//timesecnum 10829 74590
-IntNRQ: nrq//timesecnum 21991 85056
-IntNRQ: nrq//timesecnum 10091 83323
-IntNRQ: nrq//timesecnum 20030 73400
-IntNRQ: nrq//timesecnum 30172 68086
-IntNRQ: nrq//timesecnum 6596 74654
-IntNRQ: nrq//timesecnum 3768 83517
-IntNRQ: nrq//timesecnum 14030 72628
-IntNRQ: nrq//timesecnum 15669 51220
-IntNRQ: nrq//timesecnum 28430 71226
-IntNRQ: nrq//timesecnum 21879 61518
-IntNRQ: nrq//timesecnum 21754 82808
-IntNRQ: nrq//timesecnum 9610 66851
-IntNRQ: nrq//timesecnum 11323 67195
-IntNRQ: nrq//timesecnum 1658 80843
-IntNRQ: nrq//timesecnum 19964 78536
-IntNRQ: nrq//timesecnum 6004 81013
-IntNRQ: nrq//timesecnum 21643 82352
-IntNRQ: nrq//timesecnum 3866 62360
-IntNRQ: nrq//timesecnum 21795 81851
-IntNRQ: nrq//timesecnum 5994 48254
-IntNRQ: nrq//timesecnum 31598 65980
-IntNRQ: nrq//timesecnum 34705 80010
-IntNRQ: nrq//timesecnum 2159 48093
-IntNRQ: nrq//timesecnum 1781 86292
-IntNRQ: nrq//timesecnum 30667 70682
-IntNRQ: nrq//timesecnum 29688 67371
-IntNRQ: nrq//timesecnum 39219 72718
-IntNRQ: nrq//timesecnum 30846 70753
-IntNRQ: nrq//timesecnum 36449 68481
-IntNRQ: nrq//timesecnum 26514 66431
-IntNRQ: nrq//timesecnum 892 54028
-IntNRQ: nrq//timesecnum 12991 62609
-IntNRQ: nrq//timesecnum 16019 85547
-IntNRQ: nrq//timesecnum 9822 79751
-IntNRQ: nrq//timesecnum 3838 84491
-IntNRQ: nrq//timesecnum 3764 65171
-IntNRQ: nrq//timesecnum 10413 59503
-IntNRQ: nrq//timesecnum 17750 60834
-IntNRQ: nrq//timesecnum 20012 57346
-IntNRQ: nrq//timesecnum 10714 76124
-IntNRQ: nrq//timesecnum 4333 35208
-IntNRQ: nrq//timesecnum 2265 75576
-IntNRQ: nrq//timesecnum 21108 70965
-IntNRQ: nrq//timesecnum 9356 57357
-IntNRQ: nrq//timesecnum 3773 78558
-IntNRQ: nrq//timesecnum 30951 77040
-IntNRQ: nrq//timesecnum 3335 81405
-IntNRQ: nrq//timesecnum 2763 66915
-IntNRQ: nrq//timesecnum 11155 77768
-IntNRQ: nrq//timesecnum 3222 85964
-IntNRQ: nrq//timesecnum 23349 57490
-IntNRQ: nrq//timesecnum 1058 82835
-IntNRQ: nrq//timesecnum 23917 66294
-IntNRQ: nrq//timesecnum 15201 81620
-IntNRQ: nrq//timesecnum 2228 72359
-IntNRQ: nrq//timesecnum 19980 74792
-IntNRQ: nrq//timesecnum 19062 49577
-IntNRQ: nrq//timesecnum 19774 77052
-IntNRQ: nrq//timesecnum 9641 80750
-IntNRQ: nrq//timesecnum 12731 79139
-IntNRQ: nrq//timesecnum 10053 81661
-IntNRQ: nrq//timesecnum 14591 78857
-IntNRQ: nrq//timesecnum 2456 82874
-IntNRQ: nrq//timesecnum 21251 80970
-IntNRQ: nrq//timesecnum 20128 68609
-IntNRQ: nrq//timesecnum 26950 84975
-IntNRQ: nrq//timesecnum 5581 40265
-IntNRQ: nrq//timesecnum 10044 66714
-IntNRQ: nrq//timesecnum 16327 62319
-IntNRQ: nrq//timesecnum 334 86365
-IntNRQ: nrq//timesecnum 5208 78415
-IntNRQ: nrq//timesecnum 37213 84367
-IntNRQ: nrq//timesecnum 43061 85536
-IntNRQ: nrq//timesecnum 2967 84076
-IntNRQ: nrq//timesecnum 697 83122
-IntNRQ: nrq//timesecnum 31768 72371
-IntNRQ: nrq//timesecnum 14508 47172
-IntNRQ: nrq//timesecnum 8936 85388
-IntNRQ: nrq//timesecnum 2188 75764
-IntNRQ: nrq//timesecnum 37772 70624
-IntNRQ: nrq//timesecnum 569 68632
-IntNRQ: nrq//timesecnum 3279 66708
-IntNRQ: nrq//timesecnum 40832 82782
-IntNRQ: nrq//timesecnum 52 86380
-IntNRQ: nrq//timesecnum 19858 64581
-IntNRQ: nrq//timesecnum 3221 82860
-IntNRQ: nrq//timesecnum 26599 59855
-IntNRQ: nrq//timesecnum 14664 51726
-IntNRQ: nrq//timesecnum 14014 44518
-IntNRQ: nrq//timesecnum 26493 76469
-IntNRQ: nrq//timesecnum 1648 81378
-IntNRQ: nrq//timesecnum 5443 83761
-IntNRQ: nrq//timesecnum 33891 70057
-IntNRQ: nrq//timesecnum 17942 65760
-IntNRQ: nrq//timesecnum 4698 62086
-IntNRQ: nrq//timesecnum 32248 77626
-IntNRQ: nrq//timesecnum 1373 81137
-IntNRQ: nrq//timesecnum 4726 51973
-IntNRQ: nrq//timesecnum 2745 71441
-IntNRQ: nrq//timesecnum 107 70784
-IntNRQ: nrq//timesecnum 5478 77843
-IntNRQ: nrq//timesecnum 12296 63237
-IntNRQ: nrq//timesecnum 27401 74737
-IntNRQ: nrq//timesecnum 10024 85446
-IntNRQ: nrq//timesecnum 23460 54098
-IntNRQ: nrq//timesecnum 6604 61623
-IntNRQ: nrq//timesecnum 2611 85831
-IntNRQ: nrq//timesecnum 12198 77628
-IntNRQ: nrq//timesecnum 27 79152
-IntNRQ: nrq//timesecnum 4220 85437
-IntNRQ: nrq//timesecnum 15875 85957
-IntNRQ: nrq//timesecnum 1075 84616
-IntNRQ: nrq//timesecnum 4000 42291
-IntNRQ: nrq//timesecnum 10739 74479
-IntNRQ: nrq//timesecnum 321 82045
-IntNRQ: nrq//timesecnum 7591 80383
-IntNRQ: nrq//timesecnum 8536 44867
-IntNRQ: nrq//timesecnum 23831 63214
-IntNRQ: nrq//timesecnum 15422 61195
-IntNRQ: nrq//timesecnum 129 83343
-IntNRQ: nrq//timesecnum 13061 75477
-IntNRQ: nrq//timesecnum 33599 83953
-IntNRQ: nrq//timesecnum 2967 77642
-IntNRQ: nrq//timesecnum 478 50131
-IntNRQ: nrq//timesecnum 403 82893
-IntNRQ: nrq//timesecnum 37073 67871
-IntNRQ: nrq//timesecnum 4076 84522
-IntNRQ: nrq//timesecnum 13689 82698
-IntNRQ: nrq//timesecnum 2671 36576
-IntNRQ: nrq//timesecnum 36875 81449
-IntNRQ: nrq//timesecnum 11916 82731
-IntNRQ: nrq//timesecnum 16994 67496
-IntNRQ: nrq//timesecnum 1115 84971
-IntNRQ: nrq//timesecnum 13309 84468
-IntNRQ: nrq//timesecnum 21493 81775
-IntNRQ: nrq//timesecnum 14058 58962
-IntNRQ: nrq//timesecnum 3188 84519
-IntNRQ: nrq//timesecnum 2026 45946
-IntNRQ: nrq//timesecnum 2439 34330
-IntNRQ: nrq//timesecnum 41340 71549
-IntNRQ: nrq//timesecnum 4835 71995
-IntNRQ: nrq//timesecnum 38854 77208
-IntNRQ: nrq//timesecnum 5832 68572
-IntNRQ: nrq//timesecnum 348 85399
-IntNRQ: nrq//timesecnum 2741 41766
-IntNRQ: nrq//timesecnum 15252 60141
-IntNRQ: nrq//timesecnum 40922 77551
-IntNRQ: nrq//timesecnum 9049 51898
-IntNRQ: nrq//timesecnum 5060 84260
-IntNRQ: nrq//timesecnum 36754 78595
-IntNRQ: nrq//timesecnum 4579 85845
-IntNRQ: nrq//timesecnum 7108 57510
-IntNRQ: nrq//timesecnum 13064 62610
-IntNRQ: nrq//timesecnum 5092 38302
-IntNRQ: nrq//timesecnum 2706 86331
-IntNRQ: nrq//timesecnum 5814 78164
-IntNRQ: nrq//timesecnum 1872 62580
-IntNRQ: nrq//timesecnum 2367 74451
-IntNRQ: nrq//timesecnum 2455 80751
-IntNRQ: nrq//timesecnum 30331 86113
-IntNRQ: nrq//timesecnum 36085 71245
-IntNRQ: nrq//timesecnum 697 60940
-IntNRQ: nrq//timesecnum 538 76956
-IntNRQ: nrq//timesecnum 35935 78398
-IntNRQ: nrq//timesecnum 47492 84005
-IntNRQ: nrq//timesecnum 18321 57916
-IntNRQ: nrq//timesecnum 26891 84182
-IntNRQ: nrq//timesecnum 35676 75435
-IntNRQ: nrq//timesecnum 22481 81339
-IntNRQ: nrq//timesecnum 3201 71493
-IntNRQ: nrq//timesecnum 17134 71717
-IntNRQ: nrq//timesecnum 4145 68607
-IntNRQ: nrq//timesecnum 29670 61576
-IntNRQ: nrq//timesecnum 3953 67383
-IntNRQ: nrq//timesecnum 21372 78394
-IntNRQ: nrq//timesecnum 396 33026
-IntNRQ: nrq//timesecnum 20122 80836
-IntNRQ: nrq//timesecnum 38738 85920
-IntNRQ: nrq//timesecnum 10621 80200
+Prefix3: tea* +facets:Date +facets:Date
+Prefix3: hou* +facets:Date +facets:Date
+Prefix3: pop* +facets:Date +facets:Date
+Prefix3: pub* +facets:Date +facets:Date
+Prefix3: hom* +facets:Date +facets:Date
+Prefix3: top* +facets:Date +facets:Date
+Prefix3: eas* +facets:Date +facets:Date
+Prefix3: tal* +facets:Date +facets:Date
+Prefix3: ord* +facets:Date +facets:Date
+Prefix3: lin* +facets:Date +facets:Date
+Prefix3: cou* +facets:Date +facets:Date
+Prefix3: 201* +facets:Date +facets:Date
+Prefix3: des* +facets:Date +facets:Date
+Prefix3: ver* +facets:Date +facets:Date
+Prefix3: eac* +facets:Date +facets:Date
+Prefix3: inf* +facets:Date +facets:Date
+Prefix3: ano* +facets:Date +facets:Date
+Prefix3: bor* +facets:Date +facets:Date
+Prefix3: bac* +facets:Date +facets:Date
+Prefix3: lon* +facets:Date +facets:Date
+Prefix3: jus* +facets:Date +facets:Date
+Prefix3: tow* +facets:Date +facets:Date
+Prefix3: jou* +facets:Date +facets:Date
+Prefix3: non* +facets:Date +facets:Date
+Prefix3: col* +facets:Date +facets:Date
+Prefix3: gre* +facets:Date +facets:Date
+Prefix3: alt* +facets:Date +facets:Date
+Prefix3: boo* +facets:Date +facets:Date
+Prefix3: maj* +facets:Date +facets:Date
+Prefix3: fur* +facets:Date +facets:Date
+Prefix3: 199* +facets:Date +facets:Date
+Prefix3: aro* +facets:Date +facets:Date
+Prefix3: bes* +facets:Date +facets:Date
+Prefix3: for* +facets:Date +facets:Date
+Prefix3: sti* +facets:Date +facets:Date
+Prefix3: alb* +facets:Date +facets:Date
+Prefix3: stu* +facets:Date +facets:Date
+Prefix3: did* +facets:Date +facets:Date
+Prefix3: eve* +facets:Date +facets:Date
+Prefix3: off* +facets:Date +facets:Date
+Prefix3: ori* +facets:Date +facets:Date
+Prefix3: use* +facets:Date +facets:Date
+Prefix3: rel* +facets:Date +facets:Date
+Prefix3: jpg* +facets:Date +facets:Date
+Prefix3: iss* +facets:Date +facets:Date
+Prefix3: own* +facets:Date +facets:Date
+Prefix3: sea* +facets:Date +facets:Date
+Prefix3: tho* +facets:Date +facets:Date
+Prefix3: way* +facets:Date +facets:Date
+Prefix3: typ* +facets:Date +facets:Date
+Prefix3: eng* +facets:Date +facets:Date
+Prefix3: muc* +facets:Date +facets:Date
+Prefix3: gam* +facets:Date +facets:Date
+Prefix3: fou* +facets:Date +facets:Date
+Prefix3: vol* +facets:Date +facets:Date
+Prefix3: nam* +facets:Date +facets:Date
+Prefix3: ser* +facets:Date +facets:Date
+Prefix3: lar* +facets:Date +facets:Date
+Prefix3: oft* +facets:Date +facets:Date
+Prefix3: ali* +facets:Date +facets:Date
+Prefix3: kin* +facets:Date +facets:Date
+Prefix3: usi* +facets:Date +facets:Date
+Prefix3: whi* +facets:Date +facets:Date
+Prefix3: dis* +facets:Date +facets:Date
+Prefix3: loc* +facets:Date +facets:Date
+Prefix3: met* +facets:Date +facets:Date
+Prefix3: set* +facets:Date +facets:Date
+Prefix3: sho* +facets:Date +facets:Date
+Prefix3: dav* +facets:Date +facets:Date
+Prefix3: mak* +facets:Date +facets:Date
+Prefix3: sto* +facets:Date +facets:Date
+Prefix3: cit* +facets:Date +facets:Date
+Prefix3: wit* +facets:Date +facets:Date
+Prefix3: due* +facets:Date +facets:Date
+Prefix3: mem* +facets:Date +facets:Date
+Prefix3: wil* +facets:Date +facets:Date
+Prefix3: alo* +facets:Date +facets:Date
+Prefix3: sin* +facets:Date +facets:Date
+Prefix3: per* +facets:Date +facets:Date
+Prefix3: est* +facets:Date +facets:Date
+Prefix3: jam* +facets:Date +facets:Date
+Prefix3: nee* +facets:Date +facets:Date
+Prefix3: dow* +facets:Date +facets:Date
+Prefix3: pre* +facets:Date +facets:Date
+Prefix3: man* +facets:Date +facets:Date
+Prefix3: sit* +facets:Date +facets:Date
+Prefix3: foo* +facets:Date +facets:Date
+Prefix3: res* +facets:Date +facets:Date
+Prefix3: inc* +facets:Date +facets:Date
+Prefix3: beg* +facets:Date +facets:Date
+Prefix3: cen* +facets:Date +facets:Date
+Prefix3: ban* +facets:Date +facets:Date
+Prefix3: tel* +facets:Date +facets:Date
+Prefix3: lea* +facets:Date +facets:Date
+Prefix3: fre* +facets:Date +facets:Date
+Prefix3: pol* +facets:Date +facets:Date
+Prefix3: fon* +facets:Date +facets:Date
+Prefix3: 100* +facets:Date +facets:Date
+Prefix3: con* +facets:Date +facets:Date
+Prefix3: red* +facets:Date +facets:Date
+Prefix3: fiv* +facets:Date +facets:Date
+Prefix3: pow* +facets:Date +facets:Date
+Prefix3: riv* +facets:Date +facets:Date
+Prefix3: son* +facets:Date +facets:Date
+Prefix3: nex* +facets:Date +facets:Date
+Prefix3: art* +facets:Date +facets:Date
+Prefix3: poi* +facets:Date +facets:Date
+Prefix3: tex* +facets:Date +facets:Date
+Prefix3: acc* +facets:Date +facets:Date
+Prefix3: bla* +facets:Date +facets:Date
+Prefix3: geo* +facets:Date +facets:Date
+Prefix3: dif* +facets:Date +facets:Date
+Prefix3: nda* +facets:Date +facets:Date
+Prefix3: thi* +facets:Date +facets:Date
+Prefix3: law* +facets:Date +facets:Date
+Prefix3: can* +facets:Date +facets:Date
+Prefix3: nea* +facets:Date +facets:Date
+Prefix3: bui* +facets:Date +facets:Date
+Prefix3: how* +facets:Date +facets:Date
+Prefix3: rec* +facets:Date +facets:Date
+Prefix3: air* +facets:Date +facets:Date
+Prefix3: pla* +facets:Date +facets:Date
+Prefix3: par* +facets:Date +facets:Date
+Prefix3: too* +facets:Date +facets:Date
+Prefix3: ass* +facets:Date +facets:Date
+Prefix3: mil* +facets:Date +facets:Date
+Prefix3: rob* +facets:Date +facets:Date
+Prefix3: abo* +facets:Date +facets:Date
+Prefix3: car* +facets:Date +facets:Date
+Prefix3: aga* +facets:Date +facets:Date
+Prefix3: lat* +facets:Date +facets:Date
+Prefix3: liv* +facets:Date +facets:Date
+Prefix3: goo* +facets:Date +facets:Date
+Prefix3: oth* +facets:Date +facets:Date
+Prefix3: ame* +facets:Date +facets:Date
+Prefix3: rev* +facets:Date +facets:Date
+Prefix3: sta* +facets:Date +facets:Date
+Prefix3: amo* +facets:Date +facets:Date
+Prefix3: sec* +facets:Date +facets:Date
+Prefix3: you* +facets:Date +facets:Date
+Prefix3: siz* +facets:Date +facets:Date
+Prefix3: bir* +facets:Date +facets:Date
+Prefix3: sup* +facets:Date +facets:Date
+Prefix3: ger* +facets:Date +facets:Date
+Prefix3: cal* +facets:Date +facets:Date
+Prefix3: giv* +facets:Date +facets:Date
+Prefix3: com* +facets:Date +facets:Date
+Prefix3: sai* +facets:Date +facets:Date
+Prefix3: wes* +facets:Date +facets:Date
+Prefix3: won* +facets:Date +facets:Date
+Prefix3: hel* +facets:Date +facets:Date
+Prefix3: chi* +facets:Date +facets:Date
+Prefix3: doe* +facets:Date +facets:Date
+Prefix3: clu* +facets:Date +facets:Date
+Prefix3: sou* +facets:Date +facets:Date
+Prefix3: chu* +facets:Date +facets:Date
+Prefix3: exa* +facets:Date +facets:Date
+Prefix3: dev* +facets:Date +facets:Date
+Prefix3: lan* +facets:Date +facets:Date
+Prefix3: tot* +facets:Date +facets:Date
+Prefix3: fin* +facets:Date +facets:Date
+Prefix3: ple* +facets:Date +facets:Date
+Prefix3: reg* +facets:Date +facets:Date
+Prefix3: her* +facets:Date +facets:Date
+Prefix3: cap* +facets:Date +facets:Date
+Prefix3: mus* +facets:Date +facets:Date
+Prefix3: arm* +facets:Date +facets:Date
+Prefix3: sid* +facets:Date +facets:Date
+Prefix3: soc* +facets:Date +facets:Date
+Prefix3: ful* +facets:Date +facets:Date
+Prefix3: few* +facets:Date +facets:Date
+Prefix3: bel* +facets:Date +facets:Date
+Prefix3: roa* +facets:Date +facets:Date
+Prefix3: var* +facets:Date +facets:Date
+Prefix3: tak* +facets:Date +facets:Date
+Prefix3: cre* +facets:Date +facets:Date
+Prefix3: fra* +facets:Date +facets:Date
+Prefix3: sci* +facets:Date +facets:Date
+Prefix3: bec* +facets:Date +facets:Date
+Prefix3: mod* +facets:Date +facets:Date
+Prefix3: pos* +facets:Date +facets:Date
+Prefix3: mic* +facets:Date +facets:Date
+Prefix3: cur* +facets:Date +facets:Date
+Prefix3: mag* +facets:Date +facets:Date
+Prefix3: aus* +facets:Date +facets:Date
+Prefix3: arc* +facets:Date +facets:Date
+Prefix3: uni* +facets:Date +facets:Date
+Prefix3: hav* +facets:Date +facets:Date
+Prefix3: roy* +facets:Date +facets:Date
+Prefix3: lit* +facets:Date +facets:Date
+Prefix3: wik* +facets:Date +facets:Date
+Prefix3: roc* +facets:Date +facets:Date
+Prefix3: led* +facets:Date +facets:Date
+Prefix3: not* +facets:Date +facets:Date
+Prefix3: wat* +facets:Date +facets:Date
+Prefix3: bus* +facets:Date +facets:Date
+Prefix3: edu* +facets:Date +facets:Date
+Prefix3: rol* +facets:Date +facets:Date
+Prefix3: cas* +facets:Date +facets:Date
+Prefix3: pau* +facets:Date +facets:Date
+Prefix3: med* +facets:Date +facets:Date
+Prefix3: div* +facets:Date +facets:Date
+Prefix3: cha* +facets:Date +facets:Date
+Prefix3: wri* +facets:Date +facets:Date
+Prefix3: isl* +facets:Date +facets:Date
+Prefix3: nev* +facets:Date +facets:Date
+Prefix3: ter* +facets:Date +facets:Date
+Prefix3: vid* +facets:Date +facets:Date
+Prefix3: die* +facets:Date +facets:Date
+Prefix3: vie* +facets:Date +facets:Date
+Prefix3: str* +facets:Date +facets:Date
+Prefix3: awa* +facets:Date +facets:Date
+Prefix3: wor* +facets:Date +facets:Date
+Prefix3: spe* +facets:Date +facets:Date
+Prefix3: six* +facets:Date +facets:Date
+Prefix3: cam* +facets:Date +facets:Date
+Prefix3: tog* +facets:Date +facets:Date
+Prefix3: imp* +facets:Date +facets:Date
+Prefix3: sim* +facets:Date +facets:Date
+Prefix3: hea* +facets:Date +facets:Date
+Prefix3: nor* +facets:Date +facets:Date
+Prefix3: ele* +facets:Date +facets:Date
+Prefix3: eur* +facets:Date +facets:Date
+Prefix3: fie* +facets:Date +facets:Date
+Prefix3: ope* +facets:Date +facets:Date
+Prefix3: onc* +facets:Date +facets:Date
+Prefix3: bat* +facets:Date +facets:Date
+Prefix3: box* +facets:Date +facets:Date
+Prefix3: del* +facets:Date +facets:Date
+Prefix3: pro* +facets:Date +facets:Date
+Prefix3: htm* +facets:Date +facets:Date
+Prefix3: usa* +facets:Date +facets:Date
+Prefix3: pdf* +facets:Date +facets:Date
+Prefix3: yes* +facets:Date +facets:Date
+Prefix3: day* +facets:Date +facets:Date
+Prefix3: edi* +facets:Date +facets:Date
+Prefix3: 198* +facets:Date +facets:Date
+Prefix3: san* +facets:Date +facets:Date
+Prefix3: get* +facets:Date +facets:Date
+Prefix3: ret* +facets:Date +facets:Date
+Prefix3: dep* +facets:Date +facets:Date
+Prefix3: was* +facets:Date +facets:Date
+Prefix3: rad* +facets:Date +facets:Date
+Prefix3: run* +facets:Date +facets:Date
+Prefix3: ric* +facets:Date +facets:Date
+Prefix3: los* +facets:Date +facets:Date
+Prefix3: dir* +facets:Date +facets:Date
+Prefix3: hum* +facets:Date +facets:Date
+Prefix3: men* +facets:Date +facets:Date
+Prefix3: coo* +facets:Date +facets:Date
+Prefix3: bot* +facets:Date +facets:Date
+Prefix3: spo* +facets:Date +facets:Date
+Prefix3: kee* +facets:Date +facets:Date
+Prefix3: deb* +facets:Date +facets:Date
+Prefix3: hal* +facets:Date +facets:Date
+Prefix3: lov* +facets:Date +facets:Date
+Prefix3: usu* +facets:Date +facets:Date
+Prefix3: ava* +facets:Date +facets:Date
+Prefix3: fat* +facets:Date +facets:Date
+Prefix3: lev* +facets:Date +facets:Date
+Prefix3: mov* +facets:Date +facets:Date
+Prefix3: rat* +facets:Date +facets:Date
+Prefix3: pet* +facets:Date +facets:Date
+Prefix3: see* +facets:Date +facets:Date
+Prefix3: cov* +facets:Date +facets:Date
+Prefix3: sum* +facets:Date +facets:Date
+Prefix3: wen* +facets:Date +facets:Date
+Prefix3: wid* +facets:Date +facets:Date
+Prefix3: dea* +facets:Date +facets:Date
+Prefix3: act* +facets:Date +facets:Date
+Prefix3: him* +facets:Date +facets:Date
+Prefix3: vil* +facets:Date +facets:Date
+Prefix3: les* +facets:Date +facets:Date
+Prefix3: cod* +facets:Date +facets:Date
+Prefix3: doi* +facets:Date +facets:Date
+Prefix3: are* +facets:Date +facets:Date
+Prefix3: upo* +facets:Date +facets:Date
+Prefix3: tod* +facets:Date +facets:Date
+Prefix3: it'* +facets:Date +facets:Date
+Prefix3: 2nd* +facets:Date +facets:Date
+Prefix3: eit* +facets:Date +facets:Date
+Prefix3: fed* +facets:Date +facets:Date
+Prefix3: rep* +facets:Date +facets:Date
+Prefix3: net* +facets:Date +facets:Date
+Prefix3: ind* +facets:Date +facets:Date
+Prefix3: spa* +facets:Date +facets:Date
+Prefix3: big* +facets:Date +facets:Date
+Prefix3: jap* +facets:Date +facets:Date
+Prefix3: fac* +facets:Date +facets:Date
+Prefix3: mon* +facets:Date +facets:Date
+Prefix3: lig* +facets:Date +facets:Date
+Prefix3: sub* +facets:Date +facets:Date
+Prefix3: mar* +facets:Date +facets:Date
+Prefix3: dat* +facets:Date +facets:Date
+Prefix3: his* +facets:Date +facets:Date
+Prefix3: bio* +facets:Date +facets:Date
+Prefix3: lab* +facets:Date +facets:Date
+Prefix3: low* +facets:Date +facets:Date
+Prefix3: cul* +facets:Date +facets:Date
+Prefix3: fea* +facets:Date +facets:Date
+Prefix3: mid* +facets:Date +facets:Date
+Prefix3: blu* +facets:Date +facets:Date
+Prefix3: ave* +facets:Date +facets:Date
+Prefix3: thu* +facets:Date +facets:Date
+Prefix3: bod* +facets:Date +facets:Date
+Prefix3: nig* +facets:Date +facets:Date
+Prefix3: hen* +facets:Date +facets:Date
+Prefix3: epi* +facets:Date +facets:Date
+Prefix3: rom* +facets:Date +facets:Date
+Prefix3: rea* +facets:Date +facets:Date
+Prefix3: ins* +facets:Date +facets:Date
+Prefix3: ran* +facets:Date +facets:Date
+Prefix3: tra* +facets:Date +facets:Date
+Prefix3: rac* +facets:Date +facets:Date
+Prefix3: civ* +facets:Date +facets:Date
+Prefix3: add* +facets:Date +facets:Date
+Prefix3: fam* +facets:Date +facets:Date
+Prefix3: don* +facets:Date +facets:Date
+Prefix3: gro* +facets:Date +facets:Date
+Prefix3: len* +facets:Date +facets:Date
+Prefix3: 197* +facets:Date +facets:Date
+Prefix3: wro* +facets:Date +facets:Date
+Prefix3: boa* +facets:Date +facets:Date
+Prefix3: som* +facets:Date +facets:Date
+Prefix3: app* +facets:Date +facets:Date
+Prefix3: far* +facets:Date +facets:Date
+Prefix3: thr* +facets:Date +facets:Date
+Prefix3: map* +facets:Date +facets:Date
+Prefix3: emp* +facets:Date +facets:Date
+Prefix3: onl* +facets:Date +facets:Date
+Prefix3: 1st* +facets:Date +facets:Date
+Prefix3: sol* +facets:Date +facets:Date
+Prefix3: cup* +facets:Date +facets:Date
+Prefix3: sch* +facets:Date +facets:Date
+Prefix3: chr* +facets:Date +facets:Date
+Prefix3: alm* +facets:Date +facets:Date
+Prefix3: put* +facets:Date +facets:Date
+Prefix3: fro* +facets:Date +facets:Date
+Prefix3: tec* +facets:Date +facets:Date
+Prefix3: gra* +facets:Date +facets:Date
+Prefix3: min* +facets:Date +facets:Date
+Prefix3: bbc* +facets:Date +facets:Date
+Prefix3: new* +facets:Date +facets:Date
+Prefix3: lib* +facets:Date +facets:Date
+Prefix3: its* +facets:Date +facets:Date
+Prefix3: clo* +facets:Date +facets:Date
+Prefix3: fut* +facets:Date +facets:Date
+Prefix3: sel* +facets:Date +facets:Date
+Prefix3: acr* +facets:Date +facets:Date
+Prefix3: sys* +facets:Date +facets:Date
+Prefix3: sev* +facets:Date +facets:Date
+Prefix3: hil* +facets:Date +facets:Date
+Prefix3: fir* +facets:Date +facets:Date
+Prefix3: gol* +facets:Date +facets:Date
+Prefix3: our* +facets:Date +facets:Date
+Prefix3: lak* +facets:Date +facets:Date
+Prefix3: abl* +facets:Date +facets:Date
+Prefix3: att* +facets:Date +facets:Date
+Prefix3: wif* +facets:Date +facets:Date
+Prefix3: tru* +facets:Date +facets:Date
+Prefix3: esp* +facets:Date +facets:Date
+Prefix3: kno* +facets:Date +facets:Date
+Prefix3: mea* +facets:Date +facets:Date
+Prefix3: rou* +facets:Date +facets:Date
+Prefix3: nat* +facets:Date +facets:Date
+Prefix3: wom* +facets:Date +facets:Date
+Prefix3: afr* +facets:Date +facets:Date
+Prefix3: gen* +facets:Date +facets:Date
+Prefix3: fem* +facets:Date +facets:Date
+Prefix3: pri* +facets:Date +facets:Date
+Prefix3: cro* +facets:Date +facets:Date
+Prefix3: alr* +facets:Date +facets:Date
+Prefix3: rig* +facets:Date +facets:Date
+Prefix3: smi* +facets:Date +facets:Date
+Prefix3: pas* +facets:Date +facets:Date
+Prefix3: bet* +facets:Date +facets:Date
+Prefix3: bil* +facets:Date +facets:Date
+Prefix3: lim* +facets:Date +facets:Date
+Prefix3: rai* +facets:Date +facets:Date
+Prefix3: out* +facets:Date +facets:Date
+Prefix3: who* +facets:Date +facets:Date
+Prefix3: ima* +facets:Date +facets:Date
+Prefix3: ire* +facets:Date +facets:Date
+Prefix3: row* +facets:Date +facets:Date
+Prefix3: dem* +facets:Date +facets:Date
+Prefix3: bgc* +facets:Date +facets:Date
+Prefix3: soo* +facets:Date +facets:Date
+Prefix3: 196* +facets:Date +facets:Date
+Prefix3: iii* +facets:Date +facets:Date
+Prefix3: squ* +facets:Date +facets:Date
+Prefix3: mot* +facets:Date +facets:Date
+Prefix3: fol* +facets:Date +facets:Date
+Prefix3: jos* +facets:Date +facets:Date
+Prefix3: win* +facets:Date +facets:Date
+Prefix3: the* +facets:Date +facets:Date
+Prefix3: joi* +facets:Date +facets:Date
+Prefix3: han* +facets:Date +facets:Date
+Prefix3: ang* +facets:Date +facets:Date
+Prefix3: org* +facets:Date +facets:Date
+Prefix3: val* +facets:Date +facets:Date
+Prefix3: aca* +facets:Date +facets:Date
+Prefix3: coa* +facets:Date +facets:Date
+Prefix3: eno* +facets:Date +facets:Date
+Prefix3: int* +facets:Date +facets:Date
+Prefix3: bay* +facets:Date +facets:Date
+Prefix3: ent* +facets:Date +facets:Date
+Prefix3: van* +facets:Date +facets:Date
+Prefix3: kil* +facets:Date +facets:Date
+Prefix3: ann* +facets:Date +facets:Date
+Prefix3: bas* +facets:Date +facets:Date
+Prefix3: bro* +facets:Date +facets:Date
+Prefix3: nav* +facets:Date +facets:Date
+Prefix3: aut* +facets:Date +facets:Date
+Prefix3: inv* +facets:Date +facets:Date
+Prefix3: ita* +facets:Date +facets:Date
+Prefix3: ten* +facets:Date +facets:Date
+Prefix3: fil* +facets:Date +facets:Date
+Prefix3: mig* +facets:Date +facets:Date
+Prefix3: nov* +facets:Date +facets:Date
+Prefix3: anc* +facets:Date +facets:Date
+Prefix3: shi* +facets:Date +facets:Date
+Prefix3: alw* +facets:Date +facets:Date
+Prefix3: suc* +facets:Date +facets:Date
+Prefix3: 250* +facets:Date +facets:Date
+Prefix3: beh* +facets:Date +facets:Date
+Prefix3: edw* +facets:Date +facets:Date
+Prefix3: dai* +facets:Date +facets:Date
+Prefix3: mda* +facets:Date +facets:Date
+Prefix3: sig* +facets:Date +facets:Date
+Prefix3: ref* +facets:Date +facets:Date
+Prefix3: hig* +facets:Date +facets:Date
+Prefix3: gav* +facets:Date +facets:Date
+Prefix3: hit* +facets:Date +facets:Date
+Prefix3: goi* +facets:Date +facets:Date
+Prefix3: say* +facets:Date +facets:Date
+Prefix3: 1px* +facets:Date +facets:Date
+Prefix3: ear* +facets:Date +facets:Date
+Prefix3: cle* +facets:Date +facets:Date
+Prefix3: cat* +facets:Date +facets:Date
+Prefix3: 200* +facets:Date +facets:Date
+Prefix3: via* +facets:Date +facets:Date
+Prefix3: old* +facets:Date +facets:Date
+Prefix3: eco* +facets:Date +facets:Date
+Prefix3: gui* +facets:Date +facets:Date
+Prefix3: lou* +facets:Date +facets:Date
+Prefix3: why* +facets:Date +facets:Date
+Prefix3: unr* +facets:Date +facets:Date
+Prefix3: tou* +facets:Date +facets:Date
+Prefix3: rem* +facets:Date +facets:Date
+Prefix3: sir* +facets:Date +facets:Date
+Prefix3: pac* +facets:Date +facets:Date
+Prefix3: fla* +facets:Date +facets:Date
+Prefix3: cor* +facets:Date +facets:Date
+Prefix3: 194* +facets:Date +facets:Date
+Prefix3: lor* +facets:Date +facets:Date
+Prefix3: eig* +facets:Date +facets:Date
+Prefix3: cer* +facets:Date +facets:Date
+Prefix3: saw* +facets:Date +facets:Date
+Prefix3: dau* +facets:Date +facets:Date
+Prefix3: evi* +facets:Date +facets:Date
+Prefix3: sen* +facets:Date +facets:Date
+Prefix3: wal* +facets:Date +facets:Date
+Prefix3: rus* +facets:Date +facets:Date
+Prefix3: fal* +facets:Date +facets:Date
+Prefix3: i'm* +facets:Date +facets:Date
+Prefix3: gov* +facets:Date +facets:Date
+Prefix3: 978* +facets:Date +facets:Date
+Prefix3: bri* +facets:Date +facets:Date
+Prefix3: iri* +facets:Date +facets:Date
+Prefix3: yet* +facets:Date +facets:Date
+Prefix3: nic* +facets:Date +facets:Date
+Prefix3: req* +facets:Date +facets:Date
+Prefix3: tes* +facets:Date +facets:Date
+Prefix3: ant* +facets:Date +facets:Date
+Prefix3: oxf* +facets:Date +facets:Date
+Prefix3: wee* +facets:Date +facets:Date
+Prefix3: tab* +facets:Date +facets:Date
+Prefix3: mat* +facets:Date +facets:Date
+Prefix3: all* +facets:Date +facets:Date
+Prefix3: etc* +facets:Date +facets:Date
+Prefix3: pad* +facets:Date +facets:Date
+Prefix3: god* +facets:Date +facets:Date
+Prefix3: pur* +facets:Date +facets:Date
+Prefix3: pen* +facets:Date +facets:Date
+Prefix3: vot* +facets:Date +facets:Date
+Prefix3: key* +facets:Date +facets:Date
+Prefix3: abb* +facets:Date +facets:Date
+Prefix3: era* +facets:Date +facets:Date
+Prefix3: mou* +facets:Date +facets:Date
+Prefix3: web* +facets:Date +facets:Date
+Prefix3: vfd* +facets:Date +facets:Date
+Prefix3: dec* +facets:Date +facets:Date
+Prefix3: cop* +facets:Date +facets:Date
+Prefix3: lis* +facets:Date +facets:Date
+Prefix3: tom* +facets:Date +facets:Date
+Prefix3: whe* +facets:Date +facets:Date
+Prefix3: eff* +facets:Date +facets:Date
+Prefix3: enc* +facets:Date +facets:Date
+Prefix3: ico* +facets:Date +facets:Date
+Prefix3: vir* +facets:Date +facets:Date
+IntNRQ: nrq//timesecnum 6207 55832 +facets:Date
+IntNRQ: nrq//timesecnum 53 85622 +facets:Date
+IntNRQ: nrq//timesecnum 2669 66142 +facets:Date
+IntNRQ: nrq//timesecnum 9936 85687 +facets:Date
+IntNRQ: nrq//timesecnum 23189 61377 +facets:Date
+IntNRQ: nrq//timesecnum 7624 69351 +facets:Date
+IntNRQ: nrq//timesecnum 15733 85583 +facets:Date
+IntNRQ: nrq//timesecnum 8791 69420 +facets:Date
+IntNRQ: nrq//timesecnum 6125 46693 +facets:Date
+IntNRQ: nrq//timesecnum 8006 80120 +facets:Date
+IntNRQ: nrq//timesecnum 11514 45063 +facets:Date
+IntNRQ: nrq//timesecnum 6342 72089 +facets:Date
+IntNRQ: nrq//timesecnum 10670 66864 +facets:Date
+IntNRQ: nrq//timesecnum 2896 83864 +facets:Date
+IntNRQ: nrq//timesecnum 8947 64612 +facets:Date
+IntNRQ: nrq//timesecnum 2808 75217 +facets:Date
+IntNRQ: nrq//timesecnum 388 84762 +facets:Date
+IntNRQ: nrq//timesecnum 8254 83057 +facets:Date
+IntNRQ: nrq//timesecnum 27230 76577 +facets:Date
+IntNRQ: nrq//timesecnum 16581 79061 +facets:Date
+IntNRQ: nrq//timesecnum 7468 61404 +facets:Date
+IntNRQ: nrq//timesecnum 502 85963 +facets:Date
+IntNRQ: nrq//timesecnum 20747 70538 +facets:Date
+IntNRQ: nrq//timesecnum 41490 84518 +facets:Date
+IntNRQ: nrq//timesecnum 15665 80191 +facets:Date
+IntNRQ: nrq//timesecnum 4849 80915 +facets:Date
+IntNRQ: nrq//timesecnum 4591 84612 +facets:Date
+IntNRQ: nrq//timesecnum 3672 86331 +facets:Date
+IntNRQ: nrq//timesecnum 1588 84947 +facets:Date
+IntNRQ: nrq//timesecnum 18031 80800 +facets:Date
+IntNRQ: nrq//timesecnum 4349 54130 +facets:Date
+IntNRQ: nrq//timesecnum 24997 83169 +facets:Date
+IntNRQ: nrq//timesecnum 34029 78739 +facets:Date
+IntNRQ: nrq//timesecnum 1412 84543 +facets:Date
+IntNRQ: nrq//timesecnum 571 37070 +facets:Date
+IntNRQ: nrq//timesecnum 12 85292 +facets:Date
+IntNRQ: nrq//timesecnum 25755 81329 +facets:Date
+IntNRQ: nrq//timesecnum 3 86013 +facets:Date
+IntNRQ: nrq//timesecnum 14278 79657 +facets:Date
+IntNRQ: nrq//timesecnum 17134 78322 +facets:Date
+IntNRQ: nrq//timesecnum 1435 80402 +facets:Date
+IntNRQ: nrq//timesecnum 6629 75744 +facets:Date
+IntNRQ: nrq//timesecnum 4870 43395 +facets:Date
+IntNRQ: nrq//timesecnum 478 71579 +facets:Date
+IntNRQ: nrq//timesecnum 28042 76889 +facets:Date
+IntNRQ: nrq//timesecnum 24310 56642 +facets:Date
+IntNRQ: nrq//timesecnum 18753 66427 +facets:Date
+IntNRQ: nrq//timesecnum 39579 75724 +facets:Date
+IntNRQ: nrq//timesecnum 42625 86203 +facets:Date
+IntNRQ: nrq//timesecnum 6090 73896 +facets:Date
+IntNRQ: nrq//timesecnum 2995 82375 +facets:Date
+IntNRQ: nrq//timesecnum 12154 80870 +facets:Date
+IntNRQ: nrq//timesecnum 9760 70755 +facets:Date
+IntNRQ: nrq//timesecnum 583 85130 +facets:Date
+IntNRQ: nrq//timesecnum 29576 69633 +facets:Date
+IntNRQ: nrq//timesecnum 39062 84782 +facets:Date
+IntNRQ: nrq//timesecnum 2122 83281 +facets:Date
+IntNRQ: nrq//timesecnum 3715 76179 +facets:Date
+IntNRQ: nrq//timesecnum 3083 85700 +facets:Date
+IntNRQ: nrq//timesecnum 21242 73085 +facets:Date
+IntNRQ: nrq//timesecnum 3294 47878 +facets:Date
+IntNRQ: nrq//timesecnum 23368 59844 +facets:Date
+IntNRQ: nrq//timesecnum 8418 78101 +facets:Date
+IntNRQ: nrq//timesecnum 23440 60221 +facets:Date
+IntNRQ: nrq//timesecnum 9247 48103 +facets:Date
+IntNRQ: nrq//timesecnum 18797 83836 +facets:Date
+IntNRQ: nrq//timesecnum 15634 56061 +facets:Date
+IntNRQ: nrq//timesecnum 712 41502 +facets:Date
+IntNRQ: nrq//timesecnum 632 64609 +facets:Date
+IntNRQ: nrq//timesecnum 34783 82818 +facets:Date
+IntNRQ: nrq//timesecnum 11629 72484 +facets:Date
+IntNRQ: nrq//timesecnum 10785 47845 +facets:Date
+IntNRQ: nrq//timesecnum 10127 84546 +facets:Date
+IntNRQ: nrq//timesecnum 35738 86080 +facets:Date
+IntNRQ: nrq//timesecnum 29973 65313 +facets:Date
+IntNRQ: nrq//timesecnum 4945 74507 +facets:Date
+IntNRQ: nrq//timesecnum 20573 80939 +facets:Date
+IntNRQ: nrq//timesecnum 7554 62440 +facets:Date
+IntNRQ: nrq//timesecnum 9488 61989 +facets:Date
+IntNRQ: nrq//timesecnum 2173 43039 +facets:Date
+IntNRQ: nrq//timesecnum 9687 44538 +facets:Date
+IntNRQ: nrq//timesecnum 7843 69029 +facets:Date
+IntNRQ: nrq//timesecnum 19439 79883 +facets:Date
+IntNRQ: nrq//timesecnum 4141 81745 +facets:Date
+IntNRQ: nrq//timesecnum 12518 81940 +facets:Date
+IntNRQ: nrq//timesecnum 32446 68189 +facets:Date
+IntNRQ: nrq//timesecnum 1069 86092 +facets:Date
+IntNRQ: nrq//timesecnum 43771 81815 +facets:Date
+IntNRQ: nrq//timesecnum 24004 66754 +facets:Date
+IntNRQ: nrq//timesecnum 10574 67726 +facets:Date
+IntNRQ: nrq//timesecnum 33981 85977 +facets:Date
+IntNRQ: nrq//timesecnum 45347 78890 +facets:Date
+IntNRQ: nrq//timesecnum 7788 73247 +facets:Date
+IntNRQ: nrq//timesecnum 11724 72009 +facets:Date
+IntNRQ: nrq//timesecnum 18942 69986 +facets:Date
+IntNRQ: nrq//timesecnum 16706 60711 +facets:Date
+IntNRQ: nrq//timesecnum 16318 69581 +facets:Date
+IntNRQ: nrq//timesecnum 11364 54785 +facets:Date
+IntNRQ: nrq//timesecnum 6216 86083 +facets:Date
+IntNRQ: nrq//timesecnum 8210 85786 +facets:Date
+IntNRQ: nrq//timesecnum 3110 51452 +facets:Date
+IntNRQ: nrq//timesecnum 1534 63545 +facets:Date
+IntNRQ: nrq//timesecnum 14601 55087 +facets:Date
+IntNRQ: nrq//timesecnum 8797 86225 +facets:Date
+IntNRQ: nrq//timesecnum 34356 72513 +facets:Date
+IntNRQ: nrq//timesecnum 19669 64488 +facets:Date
+IntNRQ: nrq//timesecnum 36463 75930 +facets:Date
+IntNRQ: nrq//timesecnum 3943 80372 +facets:Date
+IntNRQ: nrq//timesecnum 9680 72605 +facets:Date
+IntNRQ: nrq//timesecnum 10160 80837 +facets:Date
+IntNRQ: nrq//timesecnum 2436 83448 +facets:Date
+IntNRQ: nrq//timesecnum 4871 63874 +facets:Date
+IntNRQ: nrq//timesecnum 15123 82708 +facets:Date
+IntNRQ: nrq//timesecnum 21077 74886 +facets:Date
+IntNRQ: nrq//timesecnum 3642 84549 +facets:Date
+IntNRQ: nrq//timesecnum 278 86334 +facets:Date
+IntNRQ: nrq//timesecnum 698 84285 +facets:Date
+IntNRQ: nrq//timesecnum 6002 73308 +facets:Date
+IntNRQ: nrq//timesecnum 13575 76454 +facets:Date
+IntNRQ: nrq//timesecnum 6862 77166 +facets:Date
+IntNRQ: nrq//timesecnum 28020 81271 +facets:Date
+IntNRQ: nrq//timesecnum 14368 82019 +facets:Date
+IntNRQ: nrq//timesecnum 19070 55532 +facets:Date
+IntNRQ: nrq//timesecnum 7752 71431 +facets:Date
+IntNRQ: nrq//timesecnum 60 71307 +facets:Date
+IntNRQ: nrq//timesecnum 25167 63363 +facets:Date
+IntNRQ: nrq//timesecnum 8667 42723 +facets:Date
+IntNRQ: nrq//timesecnum 34868 68986 +facets:Date
+IntNRQ: nrq//timesecnum 14581 57184 +facets:Date
+IntNRQ: nrq//timesecnum 3365 57578 +facets:Date
+IntNRQ: nrq//timesecnum 22435 55045 +facets:Date
+IntNRQ: nrq//timesecnum 38580 71259 +facets:Date
+IntNRQ: nrq//timesecnum 15140 85951 +facets:Date
+IntNRQ: nrq//timesecnum 2714 51194 +facets:Date
+IntNRQ: nrq//timesecnum 43102 82781 +facets:Date
+IntNRQ: nrq//timesecnum 13589 48872 +facets:Date
+IntNRQ: nrq//timesecnum 49736 81036 +facets:Date
+IntNRQ: nrq//timesecnum 9144 83627 +facets:Date
+IntNRQ: nrq//timesecnum 16368 85384 +facets:Date
+IntNRQ: nrq//timesecnum 26712 72859 +facets:Date
+IntNRQ: nrq//timesecnum 25314 84736 +facets:Date
+IntNRQ: nrq//timesecnum 9689 83604 +facets:Date
+IntNRQ: nrq//timesecnum 15074 69943 +facets:Date
+IntNRQ: nrq//timesecnum 7096 51972 +facets:Date
+IntNRQ: nrq//timesecnum 3474 39862 +facets:Date
+IntNRQ: nrq//timesecnum 35 84877 +facets:Date
+IntNRQ: nrq//timesecnum 1491 53429 +facets:Date
+IntNRQ: nrq//timesecnum 3676 81940 +facets:Date
+IntNRQ: nrq//timesecnum 16780 56125 +facets:Date
+IntNRQ: nrq//timesecnum 1215 49553 +facets:Date
+IntNRQ: nrq//timesecnum 42626 81869 +facets:Date
+IntNRQ: nrq//timesecnum 41681 85604 +facets:Date
+IntNRQ: nrq//timesecnum 2003 54231 +facets:Date
+IntNRQ: nrq//timesecnum 2138 77105 +facets:Date
+IntNRQ: nrq//timesecnum 1347 76866 +facets:Date
+IntNRQ: nrq//timesecnum 5635 86334 +facets:Date
+IntNRQ: nrq//timesecnum 1959 80948 +facets:Date
+IntNRQ: nrq//timesecnum 1271 56600 +facets:Date
+IntNRQ: nrq//timesecnum 667 57514 +facets:Date
+IntNRQ: nrq//timesecnum 404 85763 +facets:Date
+IntNRQ: nrq//timesecnum 13449 56294 +facets:Date
+IntNRQ: nrq//timesecnum 53046 83101 +facets:Date
+IntNRQ: nrq//timesecnum 750 78702 +facets:Date
+IntNRQ: nrq//timesecnum 16084 60405 +facets:Date
+IntNRQ: nrq//timesecnum 1772 83733 +facets:Date
+IntNRQ: nrq//timesecnum 14721 60501 +facets:Date
+IntNRQ: nrq//timesecnum 7762 79462 +facets:Date
+IntNRQ: nrq//timesecnum 31778 79974 +facets:Date
+IntNRQ: nrq//timesecnum 26915 66714 +facets:Date
+IntNRQ: nrq//timesecnum 1055 84020 +facets:Date
+IntNRQ: nrq//timesecnum 7232 70805 +facets:Date
+IntNRQ: nrq//timesecnum 10485 48402 +facets:Date
+IntNRQ: nrq//timesecnum 150 34646 +facets:Date
+IntNRQ: nrq//timesecnum 16060 79684 +facets:Date
+IntNRQ: nrq//timesecnum 11343 75545 +facets:Date
+IntNRQ: nrq//timesecnum 1510 47899 +facets:Date
+IntNRQ: nrq//timesecnum 28097 80301 +facets:Date
+IntNRQ: nrq//timesecnum 27493 83586 +facets:Date
+IntNRQ: nrq//timesecnum 28025 76152 +facets:Date
+IntNRQ: nrq//timesecnum 15076 84808 +facets:Date
+IntNRQ: nrq//timesecnum 20552 55728 +facets:Date
+IntNRQ: nrq//timesecnum 12240 69657 +facets:Date
+IntNRQ: nrq//timesecnum 6413 56126 +facets:Date
+IntNRQ: nrq//timesecnum 5445 50925 +facets:Date
+IntNRQ: nrq//timesecnum 719 82913 +facets:Date
+IntNRQ: nrq//timesecnum 22437 78227 +facets:Date
+IntNRQ: nrq//timesecnum 9591 43350 +facets:Date
+IntNRQ: nrq//timesecnum 31395 76159 +facets:Date
+IntNRQ: nrq//timesecnum 49023 83722 +facets:Date
+IntNRQ: nrq//timesecnum 29601 86037 +facets:Date
+IntNRQ: nrq//timesecnum 2179 74509 +facets:Date
+IntNRQ: nrq//timesecnum 18802 61698 +facets:Date
+IntNRQ: nrq//timesecnum 13948 75104 +facets:Date
+IntNRQ: nrq//timesecnum 908 84719 +facets:Date
+IntNRQ: nrq//timesecnum 3172 80665 +facets:Date
+IntNRQ: nrq//timesecnum 13516 73315 +facets:Date
+IntNRQ: nrq//timesecnum 13112 82857 +facets:Date
+IntNRQ: nrq//timesecnum 6049 41270 +facets:Date
+IntNRQ: nrq//timesecnum 5802 51183 +facets:Date
+IntNRQ: nrq//timesecnum 28464 63396 +facets:Date
+IntNRQ: nrq//timesecnum 1451 64739 +facets:Date
+IntNRQ: nrq//timesecnum 6733 85013 +facets:Date
+IntNRQ: nrq//timesecnum 1041 71618 +facets:Date
+IntNRQ: nrq//timesecnum 20624 79339 +facets:Date
+IntNRQ: nrq//timesecnum 12876 49806 +facets:Date
+IntNRQ: nrq//timesecnum 651 69797 +facets:Date
+IntNRQ: nrq//timesecnum 17262 47568 +facets:Date
+IntNRQ: nrq//timesecnum 1987 33273 +facets:Date
+IntNRQ: nrq//timesecnum 50448 83129 +facets:Date
+IntNRQ: nrq//timesecnum 11971 74622 +facets:Date
+IntNRQ: nrq//timesecnum 30909 79953 +facets:Date
+IntNRQ: nrq//timesecnum 34047 71868 +facets:Date
+IntNRQ: nrq//timesecnum 13097 81889 +facets:Date
+IntNRQ: nrq//timesecnum 2456 63382 +facets:Date
+IntNRQ: nrq//timesecnum 13702 75657 +facets:Date
+IntNRQ: nrq//timesecnum 653 41033 +facets:Date
+IntNRQ: nrq//timesecnum 1265 79183 +facets:Date
+IntNRQ: nrq//timesecnum 25613 78596 +facets:Date
+IntNRQ: nrq//timesecnum 22591 79805 +facets:Date
+IntNRQ: nrq//timesecnum 5424 63024 +facets:Date
+IntNRQ: nrq//timesecnum 6920 85986 +facets:Date
+IntNRQ: nrq//timesecnum 19194 79399 +facets:Date
+IntNRQ: nrq//timesecnum 16325 82908 +facets:Date
+IntNRQ: nrq//timesecnum 26310 67792 +facets:Date
+IntNRQ: nrq//timesecnum 34857 85256 +facets:Date
+IntNRQ: nrq//timesecnum 4710 60159 +facets:Date
+IntNRQ: nrq//timesecnum 15249 73730 +facets:Date
+IntNRQ: nrq//timesecnum 1485 77367 +facets:Date
+IntNRQ: nrq//timesecnum 12759 62312 +facets:Date
+IntNRQ: nrq//timesecnum 17330 53911 +facets:Date
+IntNRQ: nrq//timesecnum 10279 47335 +facets:Date
+IntNRQ: nrq//timesecnum 5822 54226 +facets:Date
+IntNRQ: nrq//timesecnum 8779 85457 +facets:Date
+IntNRQ: nrq//timesecnum 14583 80325 +facets:Date
+IntNRQ: nrq//timesecnum 9436 64920 +facets:Date
+IntNRQ: nrq//timesecnum 6633 75959 +facets:Date
+IntNRQ: nrq//timesecnum 30639 80165 +facets:Date
+IntNRQ: nrq//timesecnum 25451 84861 +facets:Date
+IntNRQ: nrq//timesecnum 6286 83771 +facets:Date
+IntNRQ: nrq//timesecnum 24241 75360 +facets:Date
+IntNRQ: nrq//timesecnum 1001 46676 +facets:Date
+IntNRQ: nrq//timesecnum 2287 63441 +facets:Date
+IntNRQ: nrq//timesecnum 7552 63184 +facets:Date
+IntNRQ: nrq//timesecnum 46904 81466 +facets:Date
+IntNRQ: nrq//timesecnum 20437 72742 +facets:Date
+IntNRQ: nrq//timesecnum 22689 56338 +facets:Date
+IntNRQ: nrq//timesecnum 7125 80389 +facets:Date
+IntNRQ: nrq//timesecnum 38627 77699 +facets:Date
+IntNRQ: nrq//timesecnum 34842 79184 +facets:Date
+IntNRQ: nrq//timesecnum 13409 85107 +facets:Date
+IntNRQ: nrq//timesecnum 19135 72844 +facets:Date
+IntNRQ: nrq//timesecnum 3933 72934 +facets:Date
+IntNRQ: nrq//timesecnum 8082 52957 +facets:Date
+IntNRQ: nrq//timesecnum 32177 85918 +facets:Date
+IntNRQ: nrq//timesecnum 429 42165 +facets:Date
+IntNRQ: nrq//timesecnum 6633 86260 +facets:Date
+IntNRQ: nrq//timesecnum 3713 83377 +facets:Date
+IntNRQ: nrq//timesecnum 17081 71251 +facets:Date
+IntNRQ: nrq//timesecnum 36026 69454 +facets:Date
+IntNRQ: nrq//timesecnum 14989 60613 +facets:Date
+IntNRQ: nrq//timesecnum 5095 36674 +facets:Date
+IntNRQ: nrq//timesecnum 1622 46329 +facets:Date
+IntNRQ: nrq//timesecnum 2149 82491 +facets:Date
+IntNRQ: nrq//timesecnum 15019 84447 +facets:Date
+IntNRQ: nrq//timesecnum 3629 78623 +facets:Date
+IntNRQ: nrq//timesecnum 122 84848 +facets:Date
+IntNRQ: nrq//timesecnum 8718 47348 +facets:Date
+IntNRQ: nrq//timesecnum 22843 55168 +facets:Date
+IntNRQ: nrq//timesecnum 9734 57841 +facets:Date
+IntNRQ: nrq//timesecnum 46202 80667 +facets:Date
+IntNRQ: nrq//timesecnum 7507 57454 +facets:Date
+IntNRQ: nrq//timesecnum 5192 82329 +facets:Date
+IntNRQ: nrq//timesecnum 21441 64116 +facets:Date
+IntNRQ: nrq//timesecnum 8101 80601 +facets:Date
+IntNRQ: nrq//timesecnum 30045 86031 +facets:Date
+IntNRQ: nrq//timesecnum 16399 70321 +facets:Date
+IntNRQ: nrq//timesecnum 25006 55298 +facets:Date
+IntNRQ: nrq//timesecnum 12610 54148 +facets:Date
+IntNRQ: nrq//timesecnum 33965 65349 +facets:Date
+IntNRQ: nrq//timesecnum 4915 65256 +facets:Date
+IntNRQ: nrq//timesecnum 29010 74366 +facets:Date
+IntNRQ: nrq//timesecnum 49486 80685 +facets:Date
+IntNRQ: nrq//timesecnum 9433 44468 +facets:Date
+IntNRQ: nrq//timesecnum 2999 79469 +facets:Date
+IntNRQ: nrq//timesecnum 385 71117 +facets:Date
+IntNRQ: nrq//timesecnum 8285 52831 +facets:Date
+IntNRQ: nrq//timesecnum 1697 81021 +facets:Date
+IntNRQ: nrq//timesecnum 6343 61644 +facets:Date
+IntNRQ: nrq//timesecnum 25423 61813 +facets:Date
+IntNRQ: nrq//timesecnum 2199 84523 +facets:Date
+IntNRQ: nrq//timesecnum 30544 69679 +facets:Date
+IntNRQ: nrq//timesecnum 4813 85072 +facets:Date
+IntNRQ: nrq//timesecnum 4070 80980 +facets:Date
+IntNRQ: nrq//timesecnum 15130 82361 +facets:Date
+IntNRQ: nrq//timesecnum 34319 84471 +facets:Date
+IntNRQ: nrq//timesecnum 4198 66731 +facets:Date
+IntNRQ: nrq//timesecnum 2556 41654 +facets:Date
+IntNRQ: nrq//timesecnum 16930 81474 +facets:Date
+IntNRQ: nrq//timesecnum 10022 83237 +facets:Date
+IntNRQ: nrq//timesecnum 14446 60493 +facets:Date
+IntNRQ: nrq//timesecnum 16142 66368 +facets:Date
+IntNRQ: nrq//timesecnum 11427 68600 +facets:Date
+IntNRQ: nrq//timesecnum 1396 84497 +facets:Date
+IntNRQ: nrq//timesecnum 1454 54280 +facets:Date
+IntNRQ: nrq//timesecnum 13695 61934 +facets:Date
+IntNRQ: nrq//timesecnum 901 80740 +facets:Date
+IntNRQ: nrq//timesecnum 45440 84028 +facets:Date
+IntNRQ: nrq//timesecnum 10792 43991 +facets:Date
+IntNRQ: nrq//timesecnum 32438 67829 +facets:Date
+IntNRQ: nrq//timesecnum 816 79745 +facets:Date
+IntNRQ: nrq//timesecnum 13634 51629 +facets:Date
+IntNRQ: nrq//timesecnum 3819 79860 +facets:Date
+IntNRQ: nrq//timesecnum 6754 51441 +facets:Date
+IntNRQ: nrq//timesecnum 11479 71381 +facets:Date
+IntNRQ: nrq//timesecnum 10597 76988 +facets:Date
+IntNRQ: nrq//timesecnum 2053 57995 +facets:Date
+IntNRQ: nrq//timesecnum 272 86383 +facets:Date
+IntNRQ: nrq//timesecnum 10754 85440 +facets:Date
+IntNRQ: nrq//timesecnum 39356 73647 +facets:Date
+IntNRQ: nrq//timesecnum 8593 77767 +facets:Date
+IntNRQ: nrq//timesecnum 10829 74590 +facets:Date
+IntNRQ: nrq//timesecnum 21991 85056 +facets:Date
+IntNRQ: nrq//timesecnum 10091 83323 +facets:Date
+IntNRQ: nrq//timesecnum 20030 73400 +facets:Date
+IntNRQ: nrq//timesecnum 30172 68086 +facets:Date
+IntNRQ: nrq//timesecnum 6596 74654 +facets:Date
+IntNRQ: nrq//timesecnum 3768 83517 +facets:Date
+IntNRQ: nrq//timesecnum 14030 72628 +facets:Date
+IntNRQ: nrq//timesecnum 15669 51220 +facets:Date
+IntNRQ: nrq//timesecnum 28430 71226 +facets:Date
+IntNRQ: nrq//timesecnum 21879 61518 +facets:Date
+IntNRQ: nrq//timesecnum 21754 82808 +facets:Date
+IntNRQ: nrq//timesecnum 9610 66851 +facets:Date
+IntNRQ: nrq//timesecnum 11323 67195 +facets:Date
+IntNRQ: nrq//timesecnum 1658 80843 +facets:Date
+IntNRQ: nrq//timesecnum 19964 78536 +facets:Date
+IntNRQ: nrq//timesecnum 6004 81013 +facets:Date
+IntNRQ: nrq//timesecnum 21643 82352 +facets:Date
+IntNRQ: nrq//timesecnum 3866 62360 +facets:Date
+IntNRQ: nrq//timesecnum 21795 81851 +facets:Date
+IntNRQ: nrq//timesecnum 5994 48254 +facets:Date
+IntNRQ: nrq//timesecnum 31598 65980 +facets:Date
+IntNRQ: nrq//timesecnum 34705 80010 +facets:Date
+IntNRQ: nrq//timesecnum 2159 48093 +facets:Date
+IntNRQ: nrq//timesecnum 1781 86292 +facets:Date
+IntNRQ: nrq//timesecnum 30667 70682 +facets:Date
+IntNRQ: nrq//timesecnum 29688 67371 +facets:Date
+IntNRQ: nrq//timesecnum 39219 72718 +facets:Date
+IntNRQ: nrq//timesecnum 30846 70753 +facets:Date
+IntNRQ: nrq//timesecnum 36449 68481 +facets:Date
+IntNRQ: nrq//timesecnum 26514 66431 +facets:Date
+IntNRQ: nrq//timesecnum 892 54028 +facets:Date
+IntNRQ: nrq//timesecnum 12991 62609 +facets:Date
+IntNRQ: nrq//timesecnum 16019 85547 +facets:Date
+IntNRQ: nrq//timesecnum 9822 79751 +facets:Date
+IntNRQ: nrq//timesecnum 3838 84491 +facets:Date
+IntNRQ: nrq//timesecnum 3764 65171 +facets:Date
+IntNRQ: nrq//timesecnum 10413 59503 +facets:Date
+IntNRQ: nrq//timesecnum 17750 60834 +facets:Date
+IntNRQ: nrq//timesecnum 20012 57346 +facets:Date
+IntNRQ: nrq//timesecnum 10714 76124 +facets:Date
+IntNRQ: nrq//timesecnum 4333 35208 +facets:Date
+IntNRQ: nrq//timesecnum 2265 75576 +facets:Date
+IntNRQ: nrq//timesecnum 21108 70965 +facets:Date
+IntNRQ: nrq//timesecnum 9356 57357 +facets:Date
+IntNRQ: nrq//timesecnum 3773 78558 +facets:Date
+IntNRQ: nrq//timesecnum 30951 77040 +facets:Date
+IntNRQ: nrq//timesecnum 3335 81405 +facets:Date
+IntNRQ: nrq//timesecnum 2763 66915 +facets:Date
+IntNRQ: nrq//timesecnum 11155 77768 +facets:Date
+IntNRQ: nrq//timesecnum 3222 85964 +facets:Date
+IntNRQ: nrq//timesecnum 23349 57490 +facets:Date
+IntNRQ: nrq//timesecnum 1058 82835 +facets:Date
+IntNRQ: nrq//timesecnum 23917 66294 +facets:Date
+IntNRQ: nrq//timesecnum 15201 81620 +facets:Date
+IntNRQ: nrq//timesecnum 2228 72359 +facets:Date
+IntNRQ: nrq//timesecnum 19980 74792 +facets:Date
+IntNRQ: nrq//timesecnum 19062 49577 +facets:Date
+IntNRQ: nrq//timesecnum 19774 77052 +facets:Date
+IntNRQ: nrq//timesecnum 9641 80750 +facets:Date
+IntNRQ: nrq//timesecnum 12731 79139 +facets:Date
+IntNRQ: nrq//timesecnum 10053 81661 +facets:Date
+IntNRQ: nrq//timesecnum 14591 78857 +facets:Date
+IntNRQ: nrq//timesecnum 2456 82874 +facets:Date
+IntNRQ: nrq//timesecnum 21251 80970 +facets:Date
+IntNRQ: nrq//timesecnum 20128 68609 +facets:Date
+IntNRQ: nrq//timesecnum 26950 84975 +facets:Date
+IntNRQ: nrq//timesecnum 5581 40265 +facets:Date
+IntNRQ: nrq//timesecnum 10044 66714 +facets:Date
+IntNRQ: nrq//timesecnum 16327 62319 +facets:Date
+IntNRQ: nrq//timesecnum 334 86365 +facets:Date
+IntNRQ: nrq//timesecnum 5208 78415 +facets:Date
+IntNRQ: nrq//timesecnum 37213 84367 +facets:Date
+IntNRQ: nrq//timesecnum 43061 85536 +facets:Date
+IntNRQ: nrq//timesecnum 2967 84076 +facets:Date
+IntNRQ: nrq//timesecnum 697 83122 +facets:Date
+IntNRQ: nrq//timesecnum 31768 72371 +facets:Date
+IntNRQ: nrq//timesecnum 14508 47172 +facets:Date
+IntNRQ: nrq//timesecnum 8936 85388 +facets:Date
+IntNRQ: nrq//timesecnum 2188 75764 +facets:Date
+IntNRQ: nrq//timesecnum 37772 70624 +facets:Date
+IntNRQ: nrq//timesecnum 569 68632 +facets:Date
+IntNRQ: nrq//timesecnum 3279 66708 +facets:Date
+IntNRQ: nrq//timesecnum 40832 82782 +facets:Date
+IntNRQ: nrq//timesecnum 52 86380 +facets:Date
+IntNRQ: nrq//timesecnum 19858 64581 +facets:Date
+IntNRQ: nrq//timesecnum 3221 82860 +facets:Date
+IntNRQ: nrq//timesecnum 26599 59855 +facets:Date
+IntNRQ: nrq//timesecnum 14664 51726 +facets:Date
+IntNRQ: nrq//timesecnum 14014 44518 +facets:Date
+IntNRQ: nrq//timesecnum 26493 76469 +facets:Date
+IntNRQ: nrq//timesecnum 1648 81378 +facets:Date
+IntNRQ: nrq//timesecnum 5443 83761 +facets:Date
+IntNRQ: nrq//timesecnum 33891 70057 +facets:Date
+IntNRQ: nrq//timesecnum 17942 65760 +facets:Date
+IntNRQ: nrq//timesecnum 4698 62086 +facets:Date
+IntNRQ: nrq//timesecnum 32248 77626 +facets:Date
+IntNRQ: nrq//timesecnum 1373 81137 +facets:Date
+IntNRQ: nrq//timesecnum 4726 51973 +facets:Date
+IntNRQ: nrq//timesecnum 2745 71441 +facets:Date
+IntNRQ: nrq//timesecnum 107 70784 +facets:Date
+IntNRQ: nrq//timesecnum 5478 77843 +facets:Date
+IntNRQ: nrq//timesecnum 12296 63237 +facets:Date
+IntNRQ: nrq//timesecnum 27401 74737 +facets:Date
+IntNRQ: nrq//timesecnum 10024 85446 +facets:Date
+IntNRQ: nrq//timesecnum 23460 54098 +facets:Date
+IntNRQ: nrq//timesecnum 6604 61623 +facets:Date
+IntNRQ: nrq//timesecnum 2611 85831 +facets:Date
+IntNRQ: nrq//timesecnum 12198 77628 +facets:Date
+IntNRQ: nrq//timesecnum 27 79152 +facets:Date
+IntNRQ: nrq//timesecnum 4220 85437 +facets:Date
+IntNRQ: nrq//timesecnum 15875 85957 +facets:Date
+IntNRQ: nrq//timesecnum 1075 84616 +facets:Date
+IntNRQ: nrq//timesecnum 4000 42291 +facets:Date
+IntNRQ: nrq//timesecnum 10739 74479 +facets:Date
+IntNRQ: nrq//timesecnum 321 82045 +facets:Date
+IntNRQ: nrq//timesecnum 7591 80383 +facets:Date
+IntNRQ: nrq//timesecnum 8536 44867 +facets:Date
+IntNRQ: nrq//timesecnum 23831 63214 +facets:Date
+IntNRQ: nrq//timesecnum 15422 61195 +facets:Date
+IntNRQ: nrq//timesecnum 129 83343 +facets:Date
+IntNRQ: nrq//timesecnum 13061 75477 +facets:Date
+IntNRQ: nrq//timesecnum 33599 83953 +facets:Date
+IntNRQ: nrq//timesecnum 2967 77642 +facets:Date
+IntNRQ: nrq//timesecnum 478 50131 +facets:Date
+IntNRQ: nrq//timesecnum 403 82893 +facets:Date
+IntNRQ: nrq//timesecnum 37073 67871 +facets:Date
+IntNRQ: nrq//timesecnum 4076 84522 +facets:Date
+IntNRQ: nrq//timesecnum 13689 82698 +facets:Date
+IntNRQ: nrq//timesecnum 2671 36576 +facets:Date
+IntNRQ: nrq//timesecnum 36875 81449 +facets:Date
+IntNRQ: nrq//timesecnum 11916 82731 +facets:Date
+IntNRQ: nrq//timesecnum 16994 67496 +facets:Date
+IntNRQ: nrq//timesecnum 1115 84971 +facets:Date
+IntNRQ: nrq//timesecnum 13309 84468 +facets:Date
+IntNRQ: nrq//timesecnum 21493 81775 +facets:Date
+IntNRQ: nrq//timesecnum 14058 58962 +facets:Date
+IntNRQ: nrq//timesecnum 3188 84519 +facets:Date
+IntNRQ: nrq//timesecnum 2026 45946 +facets:Date
+IntNRQ: nrq//timesecnum 2439 34330 +facets:Date
+IntNRQ: nrq//timesecnum 41340 71549 +facets:Date
+IntNRQ: nrq//timesecnum 4835 71995 +facets:Date
+IntNRQ: nrq//timesecnum 38854 77208 +facets:Date
+IntNRQ: nrq//timesecnum 5832 68572 +facets:Date
+IntNRQ: nrq//timesecnum 348 85399 +facets:Date
+IntNRQ: nrq//timesecnum 2741 41766 +facets:Date
+IntNRQ: nrq//timesecnum 15252 60141 +facets:Date
+IntNRQ: nrq//timesecnum 40922 77551 +facets:Date
+IntNRQ: nrq//timesecnum 9049 51898 +facets:Date
+IntNRQ: nrq//timesecnum 5060 84260 +facets:Date
+IntNRQ: nrq//timesecnum 36754 78595 +facets:Date
+IntNRQ: nrq//timesecnum 4579 85845 +facets:Date
+IntNRQ: nrq//timesecnum 7108 57510 +facets:Date
+IntNRQ: nrq//timesecnum 13064 62610 +facets:Date
+IntNRQ: nrq//timesecnum 5092 38302 +facets:Date
+IntNRQ: nrq//timesecnum 2706 86331 +facets:Date
+IntNRQ: nrq//timesecnum 5814 78164 +facets:Date
+IntNRQ: nrq//timesecnum 1872 62580 +facets:Date
+IntNRQ: nrq//timesecnum 2367 74451 +facets:Date
+IntNRQ: nrq//timesecnum 2455 80751 +facets:Date
+IntNRQ: nrq//timesecnum 30331 86113 +facets:Date
+IntNRQ: nrq//timesecnum 36085 71245 +facets:Date
+IntNRQ: nrq//timesecnum 697 60940 +facets:Date
+IntNRQ: nrq//timesecnum 538 76956 +facets:Date
+IntNRQ: nrq//timesecnum 35935 78398 +facets:Date
+IntNRQ: nrq//timesecnum 47492 84005 +facets:Date
+IntNRQ: nrq//timesecnum 18321 57916 +facets:Date
+IntNRQ: nrq//timesecnum 26891 84182 +facets:Date
+IntNRQ: nrq//timesecnum 35676 75435 +facets:Date
+IntNRQ: nrq//timesecnum 22481 81339 +facets:Date
+IntNRQ: nrq//timesecnum 3201 71493 +facets:Date
+IntNRQ: nrq//timesecnum 17134 71717 +facets:Date
+IntNRQ: nrq//timesecnum 4145 68607 +facets:Date
+IntNRQ: nrq//timesecnum 29670 61576 +facets:Date
+IntNRQ: nrq//timesecnum 3953 67383 +facets:Date
+IntNRQ: nrq//timesecnum 21372 78394 +facets:Date
+IntNRQ: nrq//timesecnum 396 33026 +facets:Date
+IntNRQ: nrq//timesecnum 20122 80836 +facets:Date
+IntNRQ: nrq//timesecnum 38738 85920 +facets:Date
+IntNRQ: nrq//timesecnum 10621 80200 +facets:Date
 AndHighHigh: +class +june +facets:Date # freq=556838 freq=522519 1.1
 AndHighHigh: +during +p +facets:Date # freq=798114 freq=616159 1.3
 AndHighHigh: +united +long +facets:Date # freq=1196944 freq=385787 3.1
@@ -5235,506 +5235,506 @@ OrHighLow: location cloverleaf +facets:Date # freq=489791 freq=1097
 OrHighLow: three geronimo +facets:Date # freq=598349 freq=1158
 OrHighLow: do necessities +facets:Date # freq=511178 freq=1195
 OrHighLow: had halfback +facets:Date # freq=1246743 freq=1205
-Wildcard: re*f
-Wildcard: ht*p
-Wildcard: fr*m
-Wildcard: na*e
-Wildcard: ti*e
-Wildcard: da*e
-Wildcard: wh*h
-Wildcard: al*o
-Wildcard: fi*t
-Wildcard: hi*s
-Wildcard: ci*e
-Wildcard: ne*w
-Wildcard: on*e
-Wildcard: we*e
-Wildcard: ur*l
-Wildcard: ha*s
-Wildcard: ha*e
-Wildcard: pu*r
-Wildcard: ot*r
-Wildcard: af*r
-Wildcard: ha*d
-Wildcard: ye*r
-Wildcard: ac*e
-Wildcard: al*l
-Wildcard: un*d
-Wildcard: wh*o
-Wildcard: it*s
-Wildcard: we*b
-Wildcard: tw*o
-Wildcard: ma*y
-Wildcard: se*e
-Wildcard: be*n
-Wildcard: st*s
-Wildcard: wh*n
-Wildcard: mo*e
-Wildcard: la*t
-Wildcard: 20*0
-Wildcard: 20*6
-Wildcard: 20*9
-Wildcard: on*y
-Wildcard: 20*1
-Wildcard: wo*k
-Wildcard: ab*t
-Wildcard: so*e
-Wildcard: 20*5
-Wildcard: 20*8
-Wildcard: mo*t
-Wildcard: wo*d
-Wildcard: 20*7
-Wildcard: du*g
-Wildcard: pe*e
-Wildcard: ye*s
-Wildcard: ov*r
-Wildcard: ca*n
-Wildcard: re*s
-Wildcard: ci*y
-Wildcard: am*n
-Wildcard: ne*s
-Wildcard: hi*y
-Wildcard: ma*e
-Wildcard: ou*t
-Wildcard: us*d
-Wildcard: li*s
-Wildcard: st*e
-Wildcard: pa*e
-Wildcard: na*l
-Wildcard: th*n
-Wildcard: th*b
-Wildcard: pl*e
-Wildcard: un*y
-Wildcard: ex*l
-Wildcard: wh*e
-Wildcard: ri*t
-Wildcard: un*r
-Wildcard: ma*h
-Wildcard: bo*k
-Wildcard: ar*e
-Wildcard: kn*n
-Wildcard: la*r
-Wildcard: th*e
-Wildcard: us*e
-Wildcard: ca*y
-Wildcard: jo*n
-Wildcard: pa*t
-Wildcard: le*t
-Wildcard: 20*4
-Wildcard: de*r
-Wildcard: ap*l
-Wildcard: li*t
-Wildcard: sm*l
-Wildcard: ja*y
-Wildcard: be*e
-Wildcard: be*g
-Wildcard: we*l
-Wildcard: de*h
-Wildcard: au*r
-Wildcard: ho*r
-Wildcard: oc*r
-Wildcard: no*h
-Wildcard: re*t
-Wildcard: so*h
-Wildcard: ar*a
-Wildcard: cl*s
-Wildcard: se*r
-Wildcard: wa*r
-Wildcard: im*e
-Wildcard: bo*h
-Wildcard: ju*y
-Wildcard: au*t
-Wildcard: no*r
-Wildcard: en*d
-Wildcard: fe*y
-Wildcard: in*x
-Wildcard: ju*e
-Wildcard: se*s
-Wildcard: yo*k
-Wildcard: in*g
-Wildcard: co*y
-Wildcard: th*m
-Wildcard: he*r
-Wildcard: th*h
-Wildcard: hi*m
-Wildcard: nb*p
-Wildcard: se*d
-Wildcard: ht*l
-Wildcard: lo*n
-Wildcard: ce*r
-Wildcard: si*e
-Wildcard: no*w
-Wildcard: an*y
-Wildcard: ea*y
-Wildcard: hi*h
-Wildcard: li*e
-Wildcard: ge*l
-Wildcard: mu*c
-Wildcard: nu*r
-Wildcard: ma*n
-Wildcard: is*n
-Wildcard: pa*s
-Wildcard: sh*t
-Wildcard: sc*l
-Wildcard: yo*u
-Wildcard: 20*3
-Wildcard: ca*d
-Wildcard: ut*c
-Wildcard: gr*p
-Wildcard: se*l
-Wildcard: fi*m
-Wildcard: we*t
-Wildcard: u.*s
-Wildcard: sh*e
-Wildcard: un*l
-Wildcard: bi*h
-Wildcard: sa*e
-Wildcard: in*l
-Wildcard: br*h
-Wildcard: la*e
-Wildcard: fo*g
-Wildcard: sy*m
-Wildcard: en*h
-Wildcard: ti*s
-Wildcard: 20*2
-Wildcard: na*s
-Wildcard: da*y
-Wildcard: sh*d
-Wildcard: ag*t
-Wildcard: pr*s
-Wildcard: ba*d
-Wildcard: ag*e
-Wildcard: wh*t
-Wildcard: pa*y
-Wildcard: fo*r
-Wildcard: fa*y
-Wildcard: lo*g
-Wildcard: ce*y
-Wildcard: go*t
-Wildcard: ol*d
-Wildcard: te*m
-Wildcard: ho*e
-Wildcard: po*n
-Wildcard: pu*c
-Wildcard: to*p
-Wildcard: ea*t
-Wildcard: ta*k
-Wildcard: or*r
-Wildcard: co*d
-Wildcard: de*n
-Wildcard: ve*y
-Wildcard: ea*h
-Wildcard: in*n
-Wildcard: an*r
-Wildcard: bo*n
-Wildcard: ba*k
-Wildcard: ju*t
-Wildcard: to*n
-Wildcard: jo*l
-Wildcard: no*n
-Wildcard: co*r
-Wildcard: gr*t
-Wildcard: al*h
-Wildcard: bo*s
-Wildcard: ma*r
-Wildcard: fu*r
-Wildcard: 19*9
-Wildcard: ar*d
-Wildcard: be*t
-Wildcard: st*l
-Wildcard: al*m
-Wildcard: st*b
-Wildcard: di*d
-Wildcard: ev*n
-Wildcard: of*l
-Wildcard: or*l
-Wildcard: us*r
-Wildcard: al*e
-Wildcard: re*d
-Wildcard: jp*g
-Wildcard: is*e
-Wildcard: ow*n
-Wildcard: se*n
-Wildcard: wa*y
-Wildcard: ty*e
-Wildcard: mu*h
-Wildcard: of*f
-Wildcard: ga*e
-Wildcard: fo*d
-Wildcard: vo*e
-Wildcard: na*d
-Wildcard: of*n
-Wildcard: 19*8
-Wildcard: al*n
-Wildcard: ki*m
-Wildcard: us*g
-Wildcard: di*t
-Wildcard: lo*l
-Wildcard: me*a
-Wildcard: se*t
-Wildcard: sh*w
-Wildcard: da*d
-Wildcard: st*y
-Wildcard: ci*n
-Wildcard: wi*n
-Wildcard: du*e
-Wildcard: li*k
-Wildcard: 19*7
-Wildcard: me*s
-Wildcard: wi*m
-Wildcard: al*g
-Wildcard: lo*d
-Wildcard: pe*r
-Wildcard: es*d
-Wildcard: ja*s
-Wildcard: ne*d
-Wildcard: do*n
-Wildcard: pr*t
-Wildcard: co*e
-Wildcard: fo*l
-Wildcard: in*e
-Wildcard: ce*l
-Wildcard: 19*6
-Wildcard: fo*m
-Wildcard: me*r
-Wildcard: te*n
-Wildcard: le*e
-Wildcard: fr*e
-Wildcard: po*l
-Wildcard: fo*t
-Wildcard: 10*0
-Wildcard: co*t
-Wildcard: fi*e
-Wildcard: po*r
-Wildcard: ri*r
-Wildcard: so*g
-Wildcard: ne*t
-Wildcard: ar*s
-Wildcard: po*t
-Wildcard: te*t
-Wildcard: ac*g
-Wildcard: bl*k
-Wildcard: ge*e
-Wildcard: nd*h
-Wildcard: th*d
-Wildcard: la*w
-Wildcard: ca*a
-Wildcard: ne*r
-Wildcard: bu*t
-Wildcard: 19*5
-Wildcard: ho*w
-Wildcard: fr*h
-Wildcard: ai*r
-Wildcard: ki*g
-Wildcard: wi*t
-Wildcard: pl*d
-Wildcard: pa*k
-Wildcard: to*k
-Wildcard: as*n
-Wildcard: mi*y
-Wildcard: ro*t
-Wildcard: ab*e
-Wildcard: pe*a
-Wildcard: ca*r
-Wildcard: ve*n
-Wildcard: ag*n
-Wildcard: pu*d
-Wildcard: go*d
-Wildcard: pl*r
-Wildcard: ot*s
-Wildcard: am*a
-Wildcard: re*w
-Wildcard: st*n
-Wildcard: am*g
-Wildcard: bo*r
-Wildcard: yo*r
-Wildcard: bi*s
-Wildcard: su*t
-Wildcard: ge*n
-Wildcard: gi*n
-Wildcard: co*s
-Wildcard: 19*4
-Wildcard: st*t
-Wildcard: sa*d
-Wildcard: we*n
-Wildcard: wo*n
-Wildcard: he*d
-Wildcard: ch*n
-Wildcard: do*s
-Wildcard: cl*b
-Wildcard: ch*h
-Wildcard: ex*e
-Wildcard: de*t
-Wildcard: la*d
-Wildcard: to*l
-Wildcard: fi*l
-Wildcard: re*n
-Wildcard: he*e
-Wildcard: mu*t
-Wildcard: ar*y
-Wildcard: so*y
-Wildcard: fu*l
-Wildcard: fe*w
-Wildcard: be*w
-Wildcard: of*e
-Wildcard: 19*2
-Wildcard: ro*d
-Wildcard: re*h
-Wildcard: va*s
-Wildcard: ta*e
-Wildcard: 19*0
-Wildcard: cr*d
-Wildcard: 19*3
-Wildcard: sc*e
-Wildcard: ev*y
-Wildcard: mo*n
-Wildcard: ga*s
-Wildcard: mi*l
-Wildcard: cu*t
-Wildcard: in*d
-Wildcard: au*a
-Wildcard: un*n
-Wildcard: ha*g
-Wildcard: ro*l
-Wildcard: pe*d
-Wildcard: wi*e
-Wildcard: ro*k
-Wildcard: ar*t
-Wildcard: pl*y
-Wildcard: le*d
-Wildcard: no*s
-Wildcard: bu*s
-Wildcard: co*n
-Wildcard: ed*n
-Wildcard: ro*e
-Wildcard: 19*1
-Wildcard: ca*e
-Wildcard: pa*l
-Wildcard: di*v
-Wildcard: ce*s
-Wildcard: ch*s
-Wildcard: wr*n
-Wildcard: gr*n
-Wildcard: is*d
-Wildcard: ma*g
-Wildcard: vi*o
-Wildcard: so*n
-Wildcard: di*n
-Wildcard: vi*w
-Wildcard: co*l
-Wildcard: aw*d
-Wildcard: wo*s
-Wildcard: sp*l
-Wildcard: fo*e
-Wildcard: si*x
-Wildcard: bu*g
-Wildcard: yo*g
-Wildcard: to*r
-Wildcard: im*t
-Wildcard: st*r
-Wildcard: si*r
-Wildcard: su*p
-Wildcard: no*e
-Wildcard: el*n
-Wildcard: eu*n
-Wildcard: fi*d
-Wildcard: op*n
-Wildcard: ba*e
-Wildcard: bo*x
-Wildcard: de*e
-Wildcard: th*s
-Wildcard: pr*n
-Wildcard: ht*m
-Wildcard: us*a
-Wildcard: pd*f
-Wildcard: ge*y
-Wildcard: da*s
-Wildcard: re*e
-Wildcard: eu*e
-Wildcard: sa*n
-Wildcard: ge*t
-Wildcard: pr*d
-Wildcard: st*d
-Wildcard: wa*n
-Wildcard: ra*o
-Wildcard: ru*n
-Wildcard: ri*d
-Wildcard: lo*t
-Wildcard: di*r
-Wildcard: hu*n
-Wildcard: me*n
-Wildcard: ch*e
-Wildcard: li*g
-Wildcard: di*y
-Wildcard: bo*t
-Wildcard: sp*s
-Wildcard: ke*p
-Wildcard: ha*l
-Wildcard: lo*e
-Wildcard: ea*n
-Wildcard: ch*r
-Wildcard: pl*s
-Wildcard: us*y
-Wildcard: mi*n
-Wildcard: av*e
-Wildcard: fa*r
-Wildcard: le*l
-Wildcard: mo*d
-Wildcard: so*l
-Wildcard: ra*r
-Wildcard: pr*m
-Wildcard: su*r
-Wildcard: wi*h
-Wildcard: de*d
-Wildcard: ac*n
-Wildcard: pe*n
-Wildcard: hi*f
-Wildcard: vi*e
-Wildcard: le*s
-Wildcard: do*i
-Wildcard: up*n
-Wildcard: to*y
-Wildcard: ac*t
-Wildcard: or*y
-Wildcard: 2n*d
-Wildcard: ei*r
-Wildcard: fe*l
-Wildcard: ta*n
-Wildcard: re*c
-Wildcard: au*n
-Wildcard: ne*k
-Wildcard: in*a
-Wildcard: in*t
-Wildcard: sp*e
-Wildcard: bi*g
-Wildcard: ja*n
-Wildcard: fa*t
-Wildcard: mo*h
-Wildcard: pr*e
-Wildcard: to*o
-Wildcard: cu*y
-Wildcard: ma*k
-Wildcard: aw*s
-Wildcard: da*a
-Wildcard: hi*l
-Wildcard: ce*e
-Wildcard: bi*y
-Wildcard: la*l
-Wildcard: ev*s
-Wildcard: lo*w
-Wildcard: cu*e
-Wildcard: fe*s
-Wildcard: ma*d
-Wildcard: mi*e
-Wildcard: bl*e
-Wildcard: ha*f
-Wildcard: he*p
-Wildcard: bo*y
-Wildcard: de*s
-Wildcard: ni*t
-Wildcard: he*y
-Wildcard: fo*s
-Wildcard: ep*e
+Wildcard: re*f +facets:Date
+Wildcard: ht*p +facets:Date
+Wildcard: fr*m +facets:Date
+Wildcard: na*e +facets:Date
+Wildcard: ti*e +facets:Date
+Wildcard: da*e +facets:Date
+Wildcard: wh*h +facets:Date
+Wildcard: al*o +facets:Date
+Wildcard: fi*t +facets:Date
+Wildcard: hi*s +facets:Date
+Wildcard: ci*e +facets:Date
+Wildcard: ne*w +facets:Date
+Wildcard: on*e +facets:Date
+Wildcard: we*e +facets:Date
+Wildcard: ur*l +facets:Date
+Wildcard: ha*s +facets:Date
+Wildcard: ha*e +facets:Date
+Wildcard: pu*r +facets:Date
+Wildcard: ot*r +facets:Date
+Wildcard: af*r +facets:Date
+Wildcard: ha*d +facets:Date
+Wildcard: ye*r +facets:Date
+Wildcard: ac*e +facets:Date
+Wildcard: al*l +facets:Date
+Wildcard: un*d +facets:Date
+Wildcard: wh*o +facets:Date
+Wildcard: it*s +facets:Date
+Wildcard: we*b +facets:Date
+Wildcard: tw*o +facets:Date
+Wildcard: ma*y +facets:Date
+Wildcard: se*e +facets:Date
+Wildcard: be*n +facets:Date
+Wildcard: st*s +facets:Date
+Wildcard: wh*n +facets:Date
+Wildcard: mo*e +facets:Date
+Wildcard: la*t +facets:Date
+Wildcard: 20*0 +facets:Date
+Wildcard: 20*6 +facets:Date
+Wildcard: 20*9 +facets:Date
+Wildcard: on*y +facets:Date
+Wildcard: 20*1 +facets:Date
+Wildcard: wo*k +facets:Date
+Wildcard: ab*t +facets:Date
+Wildcard: so*e +facets:Date
+Wildcard: 20*5 +facets:Date
+Wildcard: 20*8 +facets:Date
+Wildcard: mo*t +facets:Date
+Wildcard: wo*d +facets:Date
+Wildcard: 20*7 +facets:Date
+Wildcard: du*g +facets:Date
+Wildcard: pe*e +facets:Date
+Wildcard: ye*s +facets:Date
+Wildcard: ov*r +facets:Date
+Wildcard: ca*n +facets:Date
+Wildcard: re*s +facets:Date
+Wildcard: ci*y +facets:Date
+Wildcard: am*n +facets:Date
+Wildcard: ne*s +facets:Date
+Wildcard: hi*y +facets:Date
+Wildcard: ma*e +facets:Date
+Wildcard: ou*t +facets:Date
+Wildcard: us*d +facets:Date
+Wildcard: li*s +facets:Date
+Wildcard: st*e +facets:Date
+Wildcard: pa*e +facets:Date
+Wildcard: na*l +facets:Date
+Wildcard: th*n +facets:Date
+Wildcard: th*b +facets:Date
+Wildcard: pl*e +facets:Date
+Wildcard: un*y +facets:Date
+Wildcard: ex*l +facets:Date
+Wildcard: wh*e +facets:Date
+Wildcard: ri*t +facets:Date
+Wildcard: un*r +facets:Date
+Wildcard: ma*h +facets:Date
+Wildcard: bo*k +facets:Date
+Wildcard: ar*e +facets:Date
+Wildcard: kn*n +facets:Date
+Wildcard: la*r +facets:Date
+Wildcard: th*e +facets:Date
+Wildcard: us*e +facets:Date
+Wildcard: ca*y +facets:Date
+Wildcard: jo*n +facets:Date
+Wildcard: pa*t +facets:Date
+Wildcard: le*t +facets:Date
+Wildcard: 20*4 +facets:Date
+Wildcard: de*r +facets:Date
+Wildcard: ap*l +facets:Date
+Wildcard: li*t +facets:Date
+Wildcard: sm*l +facets:Date
+Wildcard: ja*y +facets:Date
+Wildcard: be*e +facets:Date
+Wildcard: be*g +facets:Date
+Wildcard: we*l +facets:Date
+Wildcard: de*h +facets:Date
+Wildcard: au*r +facets:Date
+Wildcard: ho*r +facets:Date
+Wildcard: oc*r +facets:Date
+Wildcard: no*h +facets:Date
+Wildcard: re*t +facets:Date
+Wildcard: so*h +facets:Date
+Wildcard: ar*a +facets:Date
+Wildcard: cl*s +facets:Date
+Wildcard: se*r +facets:Date
+Wildcard: wa*r +facets:Date
+Wildcard: im*e +facets:Date
+Wildcard: bo*h +facets:Date
+Wildcard: ju*y +facets:Date
+Wildcard: au*t +facets:Date
+Wildcard: no*r +facets:Date
+Wildcard: en*d +facets:Date
+Wildcard: fe*y +facets:Date
+Wildcard: in*x +facets:Date
+Wildcard: ju*e +facets:Date
+Wildcard: se*s +facets:Date
+Wildcard: yo*k +facets:Date
+Wildcard: in*g +facets:Date
+Wildcard: co*y +facets:Date
+Wildcard: th*m +facets:Date
+Wildcard: he*r +facets:Date
+Wildcard: th*h +facets:Date
+Wildcard: hi*m +facets:Date
+Wildcard: nb*p +facets:Date
+Wildcard: se*d +facets:Date
+Wildcard: ht*l +facets:Date
+Wildcard: lo*n +facets:Date
+Wildcard: ce*r +facets:Date
+Wildcard: si*e +facets:Date
+Wildcard: no*w +facets:Date
+Wildcard: an*y +facets:Date
+Wildcard: ea*y +facets:Date
+Wildcard: hi*h +facets:Date
+Wildcard: li*e +facets:Date
+Wildcard: ge*l +facets:Date
+Wildcard: mu*c +facets:Date
+Wildcard: nu*r +facets:Date
+Wildcard: ma*n +facets:Date
+Wildcard: is*n +facets:Date
+Wildcard: pa*s +facets:Date
+Wildcard: sh*t +facets:Date
+Wildcard: sc*l +facets:Date
+Wildcard: yo*u +facets:Date
+Wildcard: 20*3 +facets:Date
+Wildcard: ca*d +facets:Date
+Wildcard: ut*c +facets:Date
+Wildcard: gr*p +facets:Date
+Wildcard: se*l +facets:Date
+Wildcard: fi*m +facets:Date
+Wildcard: we*t +facets:Date
+Wildcard: u.*s +facets:Date
+Wildcard: sh*e +facets:Date
+Wildcard: un*l +facets:Date
+Wildcard: bi*h +facets:Date
+Wildcard: sa*e +facets:Date
+Wildcard: in*l +facets:Date
+Wildcard: br*h +facets:Date
+Wildcard: la*e +facets:Date
+Wildcard: fo*g +facets:Date
+Wildcard: sy*m +facets:Date
+Wildcard: en*h +facets:Date
+Wildcard: ti*s +facets:Date
+Wildcard: 20*2 +facets:Date
+Wildcard: na*s +facets:Date
+Wildcard: da*y +facets:Date
+Wildcard: sh*d +facets:Date
+Wildcard: ag*t +facets:Date
+Wildcard: pr*s +facets:Date
+Wildcard: ba*d +facets:Date
+Wildcard: ag*e +facets:Date
+Wildcard: wh*t +facets:Date
+Wildcard: pa*y +facets:Date
+Wildcard: fo*r +facets:Date
+Wildcard: fa*y +facets:Date
+Wildcard: lo*g +facets:Date
+Wildcard: ce*y +facets:Date
+Wildcard: go*t +facets:Date
+Wildcard: ol*d +facets:Date
+Wildcard: te*m +facets:Date
+Wildcard: ho*e +facets:Date
+Wildcard: po*n +facets:Date
+Wildcard: pu*c +facets:Date
+Wildcard: to*p +facets:Date
+Wildcard: ea*t +facets:Date
+Wildcard: ta*k +facets:Date
+Wildcard: or*r +facets:Date
+Wildcard: co*d +facets:Date
+Wildcard: de*n +facets:Date
+Wildcard: ve*y +facets:Date
+Wildcard: ea*h +facets:Date
+Wildcard: in*n +facets:Date
+Wildcard: an*r +facets:Date
+Wildcard: bo*n +facets:Date
+Wildcard: ba*k +facets:Date
+Wildcard: ju*t +facets:Date
+Wildcard: to*n +facets:Date
+Wildcard: jo*l +facets:Date
+Wildcard: no*n +facets:Date
+Wildcard: co*r +facets:Date
+Wildcard: gr*t +facets:Date
+Wildcard: al*h +facets:Date
+Wildcard: bo*s +facets:Date
+Wildcard: ma*r +facets:Date
+Wildcard: fu*r +facets:Date
+Wildcard: 19*9 +facets:Date
+Wildcard: ar*d +facets:Date
+Wildcard: be*t +facets:Date
+Wildcard: st*l +facets:Date
+Wildcard: al*m +facets:Date
+Wildcard: st*b +facets:Date
+Wildcard: di*d +facets:Date
+Wildcard: ev*n +facets:Date
+Wildcard: of*l +facets:Date
+Wildcard: or*l +facets:Date
+Wildcard: us*r +facets:Date
+Wildcard: al*e +facets:Date
+Wildcard: re*d +facets:Date
+Wildcard: jp*g +facets:Date
+Wildcard: is*e +facets:Date
+Wildcard: ow*n +facets:Date
+Wildcard: se*n +facets:Date
+Wildcard: wa*y +facets:Date
+Wildcard: ty*e +facets:Date
+Wildcard: mu*h +facets:Date
+Wildcard: of*f +facets:Date
+Wildcard: ga*e +facets:Date
+Wildcard: fo*d +facets:Date
+Wildcard: vo*e +facets:Date
+Wildcard: na*d +facets:Date
+Wildcard: of*n +facets:Date
+Wildcard: 19*8 +facets:Date
+Wildcard: al*n +facets:Date
+Wildcard: ki*m +facets:Date
+Wildcard: us*g +facets:Date
+Wildcard: di*t +facets:Date
+Wildcard: lo*l +facets:Date
+Wildcard: me*a +facets:Date
+Wildcard: se*t +facets:Date
+Wildcard: sh*w +facets:Date
+Wildcard: da*d +facets:Date
+Wildcard: st*y +facets:Date
+Wildcard: ci*n +facets:Date
+Wildcard: wi*n +facets:Date
+Wildcard: du*e +facets:Date
+Wildcard: li*k +facets:Date
+Wildcard: 19*7 +facets:Date
+Wildcard: me*s +facets:Date
+Wildcard: wi*m +facets:Date
+Wildcard: al*g +facets:Date
+Wildcard: lo*d +facets:Date
+Wildcard: pe*r +facets:Date
+Wildcard: es*d +facets:Date
+Wildcard: ja*s +facets:Date
+Wildcard: ne*d +facets:Date
+Wildcard: do*n +facets:Date
+Wildcard: pr*t +facets:Date
+Wildcard: co*e +facets:Date
+Wildcard: fo*l +facets:Date
+Wildcard: in*e +facets:Date
+Wildcard: ce*l +facets:Date
+Wildcard: 19*6 +facets:Date
+Wildcard: fo*m +facets:Date
+Wildcard: me*r +facets:Date
+Wildcard: te*n +facets:Date
+Wildcard: le*e +facets:Date
+Wildcard: fr*e +facets:Date
+Wildcard: po*l +facets:Date
+Wildcard: fo*t +facets:Date
+Wildcard: 10*0 +facets:Date
+Wildcard: co*t +facets:Date
+Wildcard: fi*e +facets:Date
+Wildcard: po*r +facets:Date
+Wildcard: ri*r +facets:Date
+Wildcard: so*g +facets:Date
+Wildcard: ne*t +facets:Date
+Wildcard: ar*s +facets:Date
+Wildcard: po*t +facets:Date
+Wildcard: te*t +facets:Date
+Wildcard: ac*g +facets:Date
+Wildcard: bl*k +facets:Date
+Wildcard: ge*e +facets:Date
+Wildcard: nd*h +facets:Date
+Wildcard: th*d +facets:Date
+Wildcard: la*w +facets:Date
+Wildcard: ca*a +facets:Date
+Wildcard: ne*r +facets:Date
+Wildcard: bu*t +facets:Date
+Wildcard: 19*5 +facets:Date
+Wildcard: ho*w +facets:Date
+Wildcard: fr*h +facets:Date
+Wildcard: ai*r +facets:Date
+Wildcard: ki*g +facets:Date
+Wildcard: wi*t +facets:Date
+Wildcard: pl*d +facets:Date
+Wildcard: pa*k +facets:Date
+Wildcard: to*k +facets:Date
+Wildcard: as*n +facets:Date
+Wildcard: mi*y +facets:Date
+Wildcard: ro*t +facets:Date
+Wildcard: ab*e +facets:Date
+Wildcard: pe*a +facets:Date
+Wildcard: ca*r +facets:Date
+Wildcard: ve*n +facets:Date
+Wildcard: ag*n +facets:Date
+Wildcard: pu*d +facets:Date
+Wildcard: go*d +facets:Date
+Wildcard: pl*r +facets:Date
+Wildcard: ot*s +facets:Date
+Wildcard: am*a +facets:Date
+Wildcard: re*w +facets:Date
+Wildcard: st*n +facets:Date
+Wildcard: am*g +facets:Date
+Wildcard: bo*r +facets:Date
+Wildcard: yo*r +facets:Date
+Wildcard: bi*s +facets:Date
+Wildcard: su*t +facets:Date
+Wildcard: ge*n +facets:Date
+Wildcard: gi*n +facets:Date
+Wildcard: co*s +facets:Date
+Wildcard: 19*4 +facets:Date
+Wildcard: st*t +facets:Date
+Wildcard: sa*d +facets:Date
+Wildcard: we*n +facets:Date
+Wildcard: wo*n +facets:Date
+Wildcard: he*d +facets:Date
+Wildcard: ch*n +facets:Date
+Wildcard: do*s +facets:Date
+Wildcard: cl*b +facets:Date
+Wildcard: ch*h +facets:Date
+Wildcard: ex*e +facets:Date
+Wildcard: de*t +facets:Date
+Wildcard: la*d +facets:Date
+Wildcard: to*l +facets:Date
+Wildcard: fi*l +facets:Date
+Wildcard: re*n +facets:Date
+Wildcard: he*e +facets:Date
+Wildcard: mu*t +facets:Date
+Wildcard: ar*y +facets:Date
+Wildcard: so*y +facets:Date
+Wildcard: fu*l +facets:Date
+Wildcard: fe*w +facets:Date
+Wildcard: be*w +facets:Date
+Wildcard: of*e +facets:Date
+Wildcard: 19*2 +facets:Date
+Wildcard: ro*d +facets:Date
+Wildcard: re*h +facets:Date
+Wildcard: va*s +facets:Date
+Wildcard: ta*e +facets:Date
+Wildcard: 19*0 +facets:Date
+Wildcard: cr*d +facets:Date
+Wildcard: 19*3 +facets:Date
+Wildcard: sc*e +facets:Date
+Wildcard: ev*y +facets:Date
+Wildcard: mo*n +facets:Date
+Wildcard: ga*s +facets:Date
+Wildcard: mi*l +facets:Date
+Wildcard: cu*t +facets:Date
+Wildcard: in*d +facets:Date
+Wildcard: au*a +facets:Date
+Wildcard: un*n +facets:Date
+Wildcard: ha*g +facets:Date
+Wildcard: ro*l +facets:Date
+Wildcard: pe*d +facets:Date
+Wildcard: wi*e +facets:Date
+Wildcard: ro*k +facets:Date
+Wildcard: ar*t +facets:Date
+Wildcard: pl*y +facets:Date
+Wildcard: le*d +facets:Date
+Wildcard: no*s +facets:Date
+Wildcard: bu*s +facets:Date
+Wildcard: co*n +facets:Date
+Wildcard: ed*n +facets:Date
+Wildcard: ro*e +facets:Date
+Wildcard: 19*1 +facets:Date
+Wildcard: ca*e +facets:Date
+Wildcard: pa*l +facets:Date
+Wildcard: di*v +facets:Date
+Wildcard: ce*s +facets:Date
+Wildcard: ch*s +facets:Date
+Wildcard: wr*n +facets:Date
+Wildcard: gr*n +facets:Date
+Wildcard: is*d +facets:Date
+Wildcard: ma*g +facets:Date
+Wildcard: vi*o +facets:Date
+Wildcard: so*n +facets:Date
+Wildcard: di*n +facets:Date
+Wildcard: vi*w +facets:Date
+Wildcard: co*l +facets:Date
+Wildcard: aw*d +facets:Date
+Wildcard: wo*s +facets:Date
+Wildcard: sp*l +facets:Date
+Wildcard: fo*e +facets:Date
+Wildcard: si*x +facets:Date
+Wildcard: bu*g +facets:Date
+Wildcard: yo*g +facets:Date
+Wildcard: to*r +facets:Date
+Wildcard: im*t +facets:Date
+Wildcard: st*r +facets:Date
+Wildcard: si*r +facets:Date
+Wildcard: su*p +facets:Date
+Wildcard: no*e +facets:Date
+Wildcard: el*n +facets:Date
+Wildcard: eu*n +facets:Date
+Wildcard: fi*d +facets:Date
+Wildcard: op*n +facets:Date
+Wildcard: ba*e +facets:Date
+Wildcard: bo*x +facets:Date
+Wildcard: de*e +facets:Date
+Wildcard: th*s +facets:Date
+Wildcard: pr*n +facets:Date
+Wildcard: ht*m +facets:Date
+Wildcard: us*a +facets:Date
+Wildcard: pd*f +facets:Date
+Wildcard: ge*y +facets:Date
+Wildcard: da*s +facets:Date
+Wildcard: re*e +facets:Date
+Wildcard: eu*e +facets:Date
+Wildcard: sa*n +facets:Date
+Wildcard: ge*t +facets:Date
+Wildcard: pr*d +facets:Date
+Wildcard: st*d +facets:Date
+Wildcard: wa*n +facets:Date
+Wildcard: ra*o +facets:Date
+Wildcard: ru*n +facets:Date
+Wildcard: ri*d +facets:Date
+Wildcard: lo*t +facets:Date
+Wildcard: di*r +facets:Date
+Wildcard: hu*n +facets:Date
+Wildcard: me*n +facets:Date
+Wildcard: ch*e +facets:Date
+Wildcard: li*g +facets:Date
+Wildcard: di*y +facets:Date
+Wildcard: bo*t +facets:Date
+Wildcard: sp*s +facets:Date
+Wildcard: ke*p +facets:Date
+Wildcard: ha*l +facets:Date
+Wildcard: lo*e +facets:Date
+Wildcard: ea*n +facets:Date
+Wildcard: ch*r +facets:Date
+Wildcard: pl*s +facets:Date
+Wildcard: us*y +facets:Date
+Wildcard: mi*n +facets:Date
+Wildcard: av*e +facets:Date
+Wildcard: fa*r +facets:Date
+Wildcard: le*l +facets:Date
+Wildcard: mo*d +facets:Date
+Wildcard: so*l +facets:Date
+Wildcard: ra*r +facets:Date
+Wildcard: pr*m +facets:Date
+Wildcard: su*r +facets:Date
+Wildcard: wi*h +facets:Date
+Wildcard: de*d +facets:Date
+Wildcard: ac*n +facets:Date
+Wildcard: pe*n +facets:Date
+Wildcard: hi*f +facets:Date
+Wildcard: vi*e +facets:Date
+Wildcard: le*s +facets:Date
+Wildcard: do*i +facets:Date
+Wildcard: up*n +facets:Date
+Wildcard: to*y +facets:Date
+Wildcard: ac*t +facets:Date
+Wildcard: or*y +facets:Date
+Wildcard: 2n*d +facets:Date
+Wildcard: ei*r +facets:Date
+Wildcard: fe*l +facets:Date
+Wildcard: ta*n +facets:Date
+Wildcard: re*c +facets:Date
+Wildcard: au*n +facets:Date
+Wildcard: ne*k +facets:Date
+Wildcard: in*a +facets:Date
+Wildcard: in*t +facets:Date
+Wildcard: sp*e +facets:Date
+Wildcard: bi*g +facets:Date
+Wildcard: ja*n +facets:Date
+Wildcard: fa*t +facets:Date
+Wildcard: mo*h +facets:Date
+Wildcard: pr*e +facets:Date
+Wildcard: to*o +facets:Date
+Wildcard: cu*y +facets:Date
+Wildcard: ma*k +facets:Date
+Wildcard: aw*s +facets:Date
+Wildcard: da*a +facets:Date
+Wildcard: hi*l +facets:Date
+Wildcard: ce*e +facets:Date
+Wildcard: bi*y +facets:Date
+Wildcard: la*l +facets:Date
+Wildcard: ev*s +facets:Date
+Wildcard: lo*w +facets:Date
+Wildcard: cu*e +facets:Date
+Wildcard: fe*s +facets:Date
+Wildcard: ma*d +facets:Date
+Wildcard: mi*e +facets:Date
+Wildcard: bl*e +facets:Date
+Wildcard: ha*f +facets:Date
+Wildcard: he*p +facets:Date
+Wildcard: bo*y +facets:Date
+Wildcard: de*s +facets:Date
+Wildcard: ni*t +facets:Date
+Wildcard: he*y +facets:Date
+Wildcard: fo*s +facets:Date
+Wildcard: ep*e +facets:Date
 HighPhrase: "ref name" +facets:Date # freq=1687994|3793973|2827713
 HighSloppyPhrase: "ref name"~4 +facets:Date # freq=1687994|3793973|2827713
 HighSpanNear: near//ref name +facets:Date # freq=1687994|3793973|2827713
@@ -8861,1505 +8861,1505 @@ LowSpanNear: near//premier league +facets:Date # freq=20654|53607|270223
 LowPhrase: "so far" +facets:Date # freq=20645|562598|143873
 LowSloppyPhrase: "so far"~4 +facets:Date # freq=20645|562598|143873
 LowSpanNear: near//so far +facets:Date # freq=20645|562598|143873
-Fuzzy1: chien~1
-Fuzzy2: chien~2
+Fuzzy1: chien~1 +facets:Date
+Fuzzy2: chien~2 +facets:Date
 Respell: chien
-Fuzzy1: fades~1
-Fuzzy2: fades~2
+Fuzzy1: fades~1 +facets:Date
+Fuzzy2: fades~2 +facets:Date
 Respell: fades
-Fuzzy1: patio~1
-Fuzzy2: patio~2
+Fuzzy1: patio~1 +facets:Date
+Fuzzy2: patio~2 +facets:Date
 Respell: patio
-Fuzzy1: sinus~1
-Fuzzy2: sinus~2
+Fuzzy1: sinus~1 +facets:Date
+Fuzzy2: sinus~2 +facets:Date
 Respell: sinus
-Fuzzy1: sagar~1
-Fuzzy2: sagar~2
+Fuzzy1: sagar~1 +facets:Date
+Fuzzy2: sagar~2 +facets:Date
 Respell: sagar
-Fuzzy1: team6~1
-Fuzzy2: team6~2
+Fuzzy1: team6~1 +facets:Date
+Fuzzy2: team6~2 +facets:Date
 Respell: team6
-Fuzzy1: slade~1
-Fuzzy2: slade~2
+Fuzzy1: slade~1 +facets:Date
+Fuzzy2: slade~2 +facets:Date
 Respell: slade
-Fuzzy1: 0.002~1
-Fuzzy2: 0.002~2
+Fuzzy1: 0.002~1 +facets:Date
+Fuzzy2: 0.002~2 +facets:Date
 Respell: 0.002
-Fuzzy1: liber~1
-Fuzzy2: liber~2
+Fuzzy1: liber~1 +facets:Date
+Fuzzy2: liber~2 +facets:Date
 Respell: liber
-Fuzzy1: seán~1
-Fuzzy2: seán~2
+Fuzzy1: seán~1 +facets:Date
+Fuzzy2: seán~2 +facets:Date
 Respell: seán
-Fuzzy1: runes~1
-Fuzzy2: runes~2
+Fuzzy1: runes~1 +facets:Date
+Fuzzy2: runes~2 +facets:Date
 Respell: runes
-Fuzzy1: ponte~1
-Fuzzy2: ponte~2
+Fuzzy1: ponte~1 +facets:Date
+Fuzzy2: ponte~2 +facets:Date
 Respell: ponte
-Fuzzy1: haber~1
-Fuzzy2: haber~2
+Fuzzy1: haber~1 +facets:Date
+Fuzzy2: haber~2 +facets:Date
 Respell: haber
-Fuzzy1: laing~1
-Fuzzy2: laing~2
+Fuzzy1: laing~1 +facets:Date
+Fuzzy2: laing~2 +facets:Date
 Respell: laing
-Fuzzy1: spines~1
-Fuzzy2: spines~2
+Fuzzy1: spines~1 +facets:Date
+Fuzzy2: spines~2 +facets:Date
 Respell: spines
-Fuzzy1: bengt~1
-Fuzzy2: bengt~2
+Fuzzy1: bengt~1 +facets:Date
+Fuzzy2: bengt~2 +facets:Date
 Respell: bengt
-Fuzzy1: liter~1
-Fuzzy2: liter~2
+Fuzzy1: liter~1 +facets:Date
+Fuzzy2: liter~2 +facets:Date
 Respell: liter
-Fuzzy1: toned~1
-Fuzzy2: toned~2
+Fuzzy1: toned~1 +facets:Date
+Fuzzy2: toned~2 +facets:Date
 Respell: toned
-Fuzzy1: leven~1
-Fuzzy2: leven~2
+Fuzzy1: leven~1 +facets:Date
+Fuzzy2: leven~2 +facets:Date
 Respell: leven
-Fuzzy1: breen~1
-Fuzzy2: breen~2
+Fuzzy1: breen~1 +facets:Date
+Fuzzy2: breen~2 +facets:Date
 Respell: breen
-Fuzzy1: samar~1
-Fuzzy2: samar~2
+Fuzzy1: samar~1 +facets:Date
+Fuzzy2: samar~2 +facets:Date
 Respell: samar
-Fuzzy1: ronde~1
-Fuzzy2: ronde~2
+Fuzzy1: ronde~1 +facets:Date
+Fuzzy2: ronde~2 +facets:Date
 Respell: ronde
-Fuzzy1: harms~1
-Fuzzy2: harms~2
+Fuzzy1: harms~1 +facets:Date
+Fuzzy2: harms~2 +facets:Date
 Respell: harms
-Fuzzy1: beads~1
-Fuzzy2: beads~2
+Fuzzy1: beads~1 +facets:Date
+Fuzzy2: beads~2 +facets:Date
 Respell: beads
-Fuzzy1: boyne~1
-Fuzzy2: boyne~2
+Fuzzy1: boyne~1 +facets:Date
+Fuzzy2: boyne~2 +facets:Date
 Respell: boyne
-Fuzzy1: shiro~1
-Fuzzy2: shiro~2
+Fuzzy1: shiro~1 +facets:Date
+Fuzzy2: shiro~2 +facets:Date
 Respell: shiro
-Fuzzy1: patil~1
-Fuzzy2: patil~2
+Fuzzy1: patil~1 +facets:Date
+Fuzzy2: patil~2 +facets:Date
 Respell: patil
-Fuzzy1: sheds~1
-Fuzzy2: sheds~2
+Fuzzy1: sheds~1 +facets:Date
+Fuzzy2: sheds~2 +facets:Date
 Respell: sheds
-Fuzzy1: paget~1
-Fuzzy2: paget~2
+Fuzzy1: paget~1 +facets:Date
+Fuzzy2: paget~2 +facets:Date
 Respell: paget
-Fuzzy1: binge~1
-Fuzzy2: binge~2
+Fuzzy1: binge~1 +facets:Date
+Fuzzy2: binge~2 +facets:Date
 Respell: binge
-Fuzzy1: locos~1
-Fuzzy2: locos~2
+Fuzzy1: locos~1 +facets:Date
+Fuzzy2: locos~2 +facets:Date
 Respell: locos
-Fuzzy1: doña~1
-Fuzzy2: doña~2
+Fuzzy1: doña~1 +facets:Date
+Fuzzy2: doña~2 +facets:Date
 Respell: doña
-Fuzzy1: faire~1
-Fuzzy2: faire~2
+Fuzzy1: faire~1 +facets:Date
+Fuzzy2: faire~2 +facets:Date
 Respell: faire
-Fuzzy1: sacra~1
-Fuzzy2: sacra~2
+Fuzzy1: sacra~1 +facets:Date
+Fuzzy2: sacra~2 +facets:Date
 Respell: sacra
-Fuzzy1: sheen~1
-Fuzzy2: sheen~2
+Fuzzy1: sheen~1 +facets:Date
+Fuzzy2: sheen~2 +facets:Date
 Respell: sheen
-Fuzzy1: pikes~1
-Fuzzy2: pikes~2
+Fuzzy1: pikes~1 +facets:Date
+Fuzzy2: pikes~2 +facets:Date
 Respell: pikes
-Fuzzy1: rants~1
-Fuzzy2: rants~2
+Fuzzy1: rants~1 +facets:Date
+Fuzzy2: rants~2 +facets:Date
 Respell: rants
-Fuzzy1: sheaf~1
-Fuzzy2: sheaf~2
+Fuzzy1: sheaf~1 +facets:Date
+Fuzzy2: sheaf~2 +facets:Date
 Respell: sheaf
-Fuzzy1: seed4~1
-Fuzzy2: seed4~2
+Fuzzy1: seed4~1 +facets:Date
+Fuzzy2: seed4~2 +facets:Date
 Respell: seed4
-Fuzzy1: leaps~1
-Fuzzy2: leaps~2
+Fuzzy1: leaps~1 +facets:Date
+Fuzzy2: leaps~2 +facets:Date
 Respell: leaps
-Fuzzy1: sears~1
-Fuzzy2: sears~2
+Fuzzy1: sears~1 +facets:Date
+Fuzzy2: sears~2 +facets:Date
 Respell: sears
-Fuzzy1: shakes~1
-Fuzzy2: shakes~2
+Fuzzy1: shakes~1 +facets:Date
+Fuzzy2: shakes~2 +facets:Date
 Respell: shakes
-Fuzzy1: coyle~1
-Fuzzy2: coyle~2
+Fuzzy1: coyle~1 +facets:Date
+Fuzzy2: coyle~2 +facets:Date
 Respell: coyle
-Fuzzy1: fille~1
-Fuzzy2: fille~2
+Fuzzy1: fille~1 +facets:Date
+Fuzzy2: fille~2 +facets:Date
 Respell: fille
-Fuzzy1: moser~1
-Fuzzy2: moser~2
+Fuzzy1: moser~1 +facets:Date
+Fuzzy2: moser~2 +facets:Date
 Respell: moser
-Fuzzy1: sadat~1
-Fuzzy2: sadat~2
+Fuzzy1: sadat~1 +facets:Date
+Fuzzy2: sadat~2 +facets:Date
 Respell: sadat
-Fuzzy1: freer~1
-Fuzzy2: freer~2
+Fuzzy1: freer~1 +facets:Date
+Fuzzy2: freer~2 +facets:Date
 Respell: freer
-Fuzzy1: laois~1
-Fuzzy2: laois~2
+Fuzzy1: laois~1 +facets:Date
+Fuzzy2: laois~2 +facets:Date
 Respell: laois
-Fuzzy1: 202008~1
-Fuzzy2: 202008~2
+Fuzzy1: 202008~1 +facets:Date
+Fuzzy2: 202008~2 +facets:Date
 Respell: 202008
-Fuzzy1: sitar~1
-Fuzzy2: sitar~2
+Fuzzy1: sitar~1 +facets:Date
+Fuzzy2: sitar~2 +facets:Date
 Respell: sitar
-Fuzzy1: condo~1
-Fuzzy2: condo~2
+Fuzzy1: condo~1 +facets:Date
+Fuzzy2: condo~2 +facets:Date
 Respell: condo
-Fuzzy1: comme~1
-Fuzzy2: comme~2
+Fuzzy1: comme~1 +facets:Date
+Fuzzy2: comme~2 +facets:Date
 Respell: comme
-Fuzzy1: leger~1
-Fuzzy2: leger~2
+Fuzzy1: leger~1 +facets:Date
+Fuzzy2: leger~2 +facets:Date
 Respell: leger
-Fuzzy1: chases~1
-Fuzzy2: chases~2
+Fuzzy1: chases~1 +facets:Date
+Fuzzy2: chases~2 +facets:Date
 Respell: chases
-Fuzzy1: shuts~1
-Fuzzy2: shuts~2
+Fuzzy1: shuts~1 +facets:Date
+Fuzzy2: shuts~2 +facets:Date
 Respell: shuts
-Fuzzy1: 202000~1
-Fuzzy2: 202000~2
+Fuzzy1: 202000~1 +facets:Date
+Fuzzy2: 202000~2 +facets:Date
 Respell: 202000
-Fuzzy1: 1870s~1
-Fuzzy2: 1870s~2
+Fuzzy1: 1870s~1 +facets:Date
+Fuzzy2: 1870s~2 +facets:Date
 Respell: 1870s
-Fuzzy1: scorn~1
-Fuzzy2: scorn~2
+Fuzzy1: scorn~1 +facets:Date
+Fuzzy2: scorn~2 +facets:Date
 Respell: scorn
-Fuzzy1: warne~1
-Fuzzy2: warne~2
+Fuzzy1: warne~1 +facets:Date
+Fuzzy2: warne~2 +facets:Date
 Respell: warne
-Fuzzy1: shoal~1
-Fuzzy2: shoal~2
+Fuzzy1: shoal~1 +facets:Date
+Fuzzy2: shoal~2 +facets:Date
 Respell: shoal
-Fuzzy1: armia~1
-Fuzzy2: armia~2
+Fuzzy1: armia~1 +facets:Date
+Fuzzy2: armia~2 +facets:Date
 Respell: armia
-Fuzzy1: cline~1
-Fuzzy2: cline~2
+Fuzzy1: cline~1 +facets:Date
+Fuzzy2: cline~2 +facets:Date
 Respell: cline
-Fuzzy1: combe~1
-Fuzzy2: combe~2
+Fuzzy1: combe~1 +facets:Date
+Fuzzy2: combe~2 +facets:Date
 Respell: combe
-Fuzzy1: cadre~1
-Fuzzy2: cadre~2
+Fuzzy1: cadre~1 +facets:Date
+Fuzzy2: cadre~2 +facets:Date
 Respell: cadre
-Fuzzy1: 102.3~1
-Fuzzy2: 102.3~2
+Fuzzy1: 102.3~1 +facets:Date
+Fuzzy2: 102.3~2 +facets:Date
 Respell: 102.3
-Fuzzy1: marin~1
-Fuzzy2: marin~2
+Fuzzy1: marin~1 +facets:Date
+Fuzzy2: marin~2 +facets:Date
 Respell: marin
-Fuzzy1: reiss~1
-Fuzzy2: reiss~2
+Fuzzy1: reiss~1 +facets:Date
+Fuzzy2: reiss~2 +facets:Date
 Respell: reiss
-Fuzzy1: stiles~1
-Fuzzy2: stiles~2
+Fuzzy1: stiles~1 +facets:Date
+Fuzzy2: stiles~2 +facets:Date
 Respell: stiles
-Fuzzy1: sparing~1
-Fuzzy2: sparing~2
+Fuzzy1: sparing~1 +facets:Date
+Fuzzy2: sparing~2 +facets:Date
 Respell: sparing
-Fuzzy1: bends~1
-Fuzzy2: bends~2
+Fuzzy1: bends~1 +facets:Date
+Fuzzy2: bends~2 +facets:Date
 Respell: bends
-Fuzzy1: 103.1~1
-Fuzzy2: 103.1~2
+Fuzzy1: 103.1~1 +facets:Date
+Fuzzy2: 103.1~2 +facets:Date
 Respell: 103.1
-Fuzzy1: 101.5~1
-Fuzzy2: 101.5~2
+Fuzzy1: 101.5~1 +facets:Date
+Fuzzy2: 101.5~2 +facets:Date
 Respell: 101.5
-Fuzzy1: conor~1
-Fuzzy2: conor~2
+Fuzzy1: conor~1 +facets:Date
+Fuzzy2: conor~2 +facets:Date
 Respell: conor
-Fuzzy1: 103.5~1
-Fuzzy2: 103.5~2
+Fuzzy1: 103.5~1 +facets:Date
+Fuzzy2: 103.5~2 +facets:Date
 Respell: 103.5
-Fuzzy1: seed3~1
-Fuzzy2: seed3~2
+Fuzzy1: seed3~1 +facets:Date
+Fuzzy2: seed3~2 +facets:Date
 Respell: seed3
-Fuzzy1: lisle~1
-Fuzzy2: lisle~2
+Fuzzy1: lisle~1 +facets:Date
+Fuzzy2: lisle~2 +facets:Date
 Respell: lisle
-Fuzzy1: 102.5~1
-Fuzzy2: 102.5~2
+Fuzzy1: 102.5~1 +facets:Date
+Fuzzy2: 102.5~2 +facets:Date
 Respell: 102.5
-Fuzzy1: rouse~1
-Fuzzy2: rouse~2
+Fuzzy1: rouse~1 +facets:Date
+Fuzzy2: rouse~2 +facets:Date
 Respell: rouse
-Fuzzy1: haile~1
-Fuzzy2: haile~2
+Fuzzy1: haile~1 +facets:Date
+Fuzzy2: haile~2 +facets:Date
 Respell: haile
-Fuzzy1: aloan~1
-Fuzzy2: aloan~2
+Fuzzy1: aloan~1 +facets:Date
+Fuzzy2: aloan~2 +facets:Date
 Respell: aloan
-Fuzzy1: havel~1
-Fuzzy2: havel~2
+Fuzzy1: havel~1 +facets:Date
+Fuzzy2: havel~2 +facets:Date
 Respell: havel
-Fuzzy1: darin~1
-Fuzzy2: darin~2
+Fuzzy1: darin~1 +facets:Date
+Fuzzy2: darin~2 +facets:Date
 Respell: darin
-Fuzzy1: 202010~1
-Fuzzy2: 202010~2
+Fuzzy1: 202010~1 +facets:Date
+Fuzzy2: 202010~2 +facets:Date
 Respell: 202010
-Fuzzy1: cocos~1
-Fuzzy2: cocos~2
+Fuzzy1: cocos~1 +facets:Date
+Fuzzy2: cocos~2 +facets:Date
 Respell: cocos
-Fuzzy1: dives~1
-Fuzzy2: dives~2
+Fuzzy1: dives~1 +facets:Date
+Fuzzy2: dives~2 +facets:Date
 Respell: dives
-Fuzzy1: frome~1
-Fuzzy2: frome~2
+Fuzzy1: frome~1 +facets:Date
+Fuzzy2: frome~2 +facets:Date
 Respell: frome
-Fuzzy1: team7~1
-Fuzzy2: team7~2
+Fuzzy1: team7~1 +facets:Date
+Fuzzy2: team7~2 +facets:Date
 Respell: team7
-Fuzzy1: semen~1
-Fuzzy2: semen~2
+Fuzzy1: semen~1 +facets:Date
+Fuzzy2: semen~2 +facets:Date
 Respell: semen
-Fuzzy1: greys~1
-Fuzzy2: greys~2
+Fuzzy1: greys~1 +facets:Date
+Fuzzy2: greys~2 +facets:Date
 Respell: greys
-Fuzzy1: 101.1~1
-Fuzzy2: 101.1~2
+Fuzzy1: 101.1~1 +facets:Date
+Fuzzy2: 101.1~2 +facets:Date
 Respell: 101.1
-Fuzzy1: reins~1
-Fuzzy2: reins~2
+Fuzzy1: reins~1 +facets:Date
+Fuzzy2: reins~2 +facets:Date
 Respell: reins
-Fuzzy1: shame~1
-Fuzzy2: shame~2
+Fuzzy1: shame~1 +facets:Date
+Fuzzy2: shame~2 +facets:Date
 Respell: shame
-Fuzzy1: haden~1
-Fuzzy2: haden~2
+Fuzzy1: haden~1 +facets:Date
+Fuzzy2: haden~2 +facets:Date
 Respell: haden
-Fuzzy1: tomé~1
-Fuzzy2: tomé~2
+Fuzzy1: tomé~1 +facets:Date
+Fuzzy2: tomé~2 +facets:Date
 Respell: tomé
-Fuzzy1: solis~1
-Fuzzy2: solis~2
+Fuzzy1: solis~1 +facets:Date
+Fuzzy2: solis~2 +facets:Date
 Respell: solis
-Fuzzy1: salam~1
-Fuzzy2: salam~2
+Fuzzy1: salam~1 +facets:Date
+Fuzzy2: salam~2 +facets:Date
 Respell: salam
-Fuzzy1: matti~1
-Fuzzy2: matti~2
+Fuzzy1: matti~1 +facets:Date
+Fuzzy2: matti~2 +facets:Date
 Respell: matti
-Fuzzy1: 1860s~1
-Fuzzy2: 1860s~2
+Fuzzy1: 1860s~1 +facets:Date
+Fuzzy2: 1860s~2 +facets:Date
 Respell: 1860s
-Fuzzy1: aster~1
-Fuzzy2: aster~2
+Fuzzy1: aster~1 +facets:Date
+Fuzzy2: aster~2 +facets:Date
 Respell: aster
-Fuzzy1: lager~1
-Fuzzy2: lager~2
+Fuzzy1: lager~1 +facets:Date
+Fuzzy2: lager~2 +facets:Date
 Respell: lager
-Fuzzy1: salas~1
-Fuzzy2: salas~2
+Fuzzy1: salas~1 +facets:Date
+Fuzzy2: salas~2 +facets:Date
 Respell: salas
-Fuzzy1: soups~1
-Fuzzy2: soups~2
+Fuzzy1: soups~1 +facets:Date
+Fuzzy2: soups~2 +facets:Date
 Respell: soups
-Fuzzy1: 11000~1
-Fuzzy2: 11000~2
+Fuzzy1: 11000~1 +facets:Date
+Fuzzy2: 11000~2 +facets:Date
 Respell: 11000
-Fuzzy1: 15000~1
-Fuzzy2: 15000~2
+Fuzzy1: 15000~1 +facets:Date
+Fuzzy2: 15000~2 +facets:Date
 Respell: 15000
-Fuzzy1: 100.3~1
-Fuzzy2: 100.3~2
+Fuzzy1: 100.3~1 +facets:Date
+Fuzzy2: 100.3~2 +facets:Date
 Respell: 100.3
-Fuzzy1: 106.7~1
-Fuzzy2: 106.7~2
+Fuzzy1: 106.7~1 +facets:Date
+Fuzzy2: 106.7~2 +facets:Date
 Respell: 106.7
-Fuzzy1: 100.7~1
-Fuzzy2: 100.7~2
+Fuzzy1: 100.7~1 +facets:Date
+Fuzzy2: 100.7~2 +facets:Date
 Respell: 100.7
-Fuzzy1: sucre~1
-Fuzzy2: sucre~2
+Fuzzy1: sucre~1 +facets:Date
+Fuzzy2: sucre~2 +facets:Date
 Respell: sucre
-Fuzzy1: mindy~1
-Fuzzy2: mindy~2
+Fuzzy1: mindy~1 +facets:Date
+Fuzzy2: mindy~2 +facets:Date
 Respell: mindy
-Fuzzy1: salih~1
-Fuzzy2: salih~2
+Fuzzy1: salih~1 +facets:Date
+Fuzzy2: salih~2 +facets:Date
 Respell: salih
-Fuzzy1: pelé~1
-Fuzzy2: pelé~2
+Fuzzy1: pelé~1 +facets:Date
+Fuzzy2: pelé~2 +facets:Date
 Respell: pelé
-Fuzzy1: serine~1
-Fuzzy2: serine~2
+Fuzzy1: serine~1 +facets:Date
+Fuzzy2: serine~2 +facets:Date
 Respell: serine
-Fuzzy1: reine~1
-Fuzzy2: reine~2
+Fuzzy1: reine~1 +facets:Date
+Fuzzy2: reine~2 +facets:Date
 Respell: reine
-Fuzzy1: grays~1
-Fuzzy2: grays~2
+Fuzzy1: grays~1 +facets:Date
+Fuzzy2: grays~2 +facets:Date
 Respell: grays
-Fuzzy1: state1~1
-Fuzzy2: state1~2
+Fuzzy1: state1~1 +facets:Date
+Fuzzy2: state1~2 +facets:Date
 Respell: state1
-Fuzzy1: corry~1
-Fuzzy2: corry~2
+Fuzzy1: corry~1 +facets:Date
+Fuzzy2: corry~2 +facets:Date
 Respell: corry
-Fuzzy1: staring~1
-Fuzzy2: staring~2
+Fuzzy1: staring~1 +facets:Date
+Fuzzy2: staring~2 +facets:Date
 Respell: staring
-Fuzzy1: shang~1
-Fuzzy2: shang~2
+Fuzzy1: shang~1 +facets:Date
+Fuzzy2: shang~2 +facets:Date
 Respell: shang
-Fuzzy1: baring~1
-Fuzzy2: baring~2
+Fuzzy1: baring~1 +facets:Date
+Fuzzy2: baring~2 +facets:Date
 Respell: baring
-Fuzzy1: harem~1
-Fuzzy2: harem~2
+Fuzzy1: harem~1 +facets:Date
+Fuzzy2: harem~2 +facets:Date
 Respell: harem
-Fuzzy1: corso~1
-Fuzzy2: corso~2
+Fuzzy1: corso~1 +facets:Date
+Fuzzy2: corso~2 +facets:Date
 Respell: corso
-Fuzzy1: bento~1
-Fuzzy2: bento~2
+Fuzzy1: bento~1 +facets:Date
+Fuzzy2: bento~2 +facets:Date
 Respell: bento
-Fuzzy1: leaks~1
-Fuzzy2: leaks~2
+Fuzzy1: leaks~1 +facets:Date
+Fuzzy2: leaks~2 +facets:Date
 Respell: leaks
-Fuzzy1: stahl~1
-Fuzzy2: stahl~2
+Fuzzy1: stahl~1 +facets:Date
+Fuzzy2: stahl~2 +facets:Date
 Respell: stahl
-Fuzzy1: 107.9~1
-Fuzzy2: 107.9~2
+Fuzzy1: 107.9~1 +facets:Date
+Fuzzy2: 107.9~2 +facets:Date
 Respell: 107.9
-Fuzzy1: 107.5~1
-Fuzzy2: 107.5~2
+Fuzzy1: 107.5~1 +facets:Date
+Fuzzy2: 107.5~2 +facets:Date
 Respell: 107.5
-Fuzzy1: 1,600~1
-Fuzzy2: 1,600~2
+Fuzzy1: 1,600~1 +facets:Date
+Fuzzy2: 1,600~2 +facets:Date
 Respell: 1,600
-Fuzzy1: 12148~1
-Fuzzy2: 12148~2
+Fuzzy1: 12148~1 +facets:Date
+Fuzzy2: 12148~2 +facets:Date
 Respell: 12148
-Fuzzy1: betts~1
-Fuzzy2: betts~2
+Fuzzy1: betts~1 +facets:Date
+Fuzzy2: betts~2 +facets:Date
 Respell: betts
-Fuzzy1: 1.000~1
-Fuzzy2: 1.000~2
+Fuzzy1: 1.000~1 +facets:Date
+Fuzzy2: 1.000~2 +facets:Date
 Respell: 1.000
-Fuzzy1: 10149~1
-Fuzzy2: 10149~2
+Fuzzy1: 10149~1 +facets:Date
+Fuzzy2: 10149~2 +facets:Date
 Respell: 10149
-Fuzzy1: hells~1
-Fuzzy2: hells~2
+Fuzzy1: hells~1 +facets:Date
+Fuzzy2: hells~2 +facets:Date
 Respell: hells
-Fuzzy1: stole~1
-Fuzzy2: stole~2
+Fuzzy1: stole~1 +facets:Date
+Fuzzy2: stole~2 +facets:Date
 Respell: stole
-Fuzzy1: 12000~1
-Fuzzy2: 12000~2
+Fuzzy1: 12000~1 +facets:Date
+Fuzzy2: 12000~2 +facets:Date
 Respell: 12000
-Fuzzy1: 1850s~1
-Fuzzy2: 1850s~2
+Fuzzy1: 1850s~1 +facets:Date
+Fuzzy2: 1850s~2 +facets:Date
 Respell: 1850s
-Fuzzy1: barter~1
-Fuzzy2: barter~2
+Fuzzy1: barter~1 +facets:Date
+Fuzzy2: barter~2 +facets:Date
 Respell: barter
-Fuzzy1: doves~1
-Fuzzy2: doves~2
+Fuzzy1: doves~1 +facets:Date
+Fuzzy2: doves~2 +facets:Date
 Respell: doves
-Fuzzy1: braid~1
-Fuzzy2: braid~2
+Fuzzy1: braid~1 +facets:Date
+Fuzzy2: braid~2 +facets:Date
 Respell: braid
-Fuzzy1: 10.00~1
-Fuzzy2: 10.00~2
+Fuzzy1: 10.00~1 +facets:Date
+Fuzzy2: 10.00~2 +facets:Date
 Respell: 10.00
-Fuzzy1: crates~1
-Fuzzy2: crates~2
+Fuzzy1: crates~1 +facets:Date
+Fuzzy2: crates~2 +facets:Date
 Respell: crates
-Fuzzy1: dares~1
-Fuzzy2: dares~2
+Fuzzy1: dares~1 +facets:Date
+Fuzzy2: dares~2 +facets:Date
 Respell: dares
-Fuzzy1: 202006~1
-Fuzzy2: 202006~2
+Fuzzy1: 202006~1 +facets:Date
+Fuzzy2: 202006~2 +facets:Date
 Respell: 202006
-Fuzzy1: danes~1
-Fuzzy2: danes~2
+Fuzzy1: danes~1 +facets:Date
+Fuzzy2: danes~2 +facets:Date
 Respell: danes
-Fuzzy1: page1~1
-Fuzzy2: page1~2
+Fuzzy1: page1~1 +facets:Date
+Fuzzy2: page1~2 +facets:Date
 Respell: page1
-Fuzzy1: shank~1
-Fuzzy2: shank~2
+Fuzzy1: shank~1 +facets:Date
+Fuzzy2: shank~2 +facets:Date
 Respell: shank
-Fuzzy1: linen~1
-Fuzzy2: linen~2
+Fuzzy1: linen~1 +facets:Date
+Fuzzy2: linen~2 +facets:Date
 Respell: linen
-Fuzzy1: capel~1
-Fuzzy2: capel~2
+Fuzzy1: capel~1 +facets:Date
+Fuzzy2: capel~2 +facets:Date
 Respell: capel
-Fuzzy1: 1,250~1
-Fuzzy2: 1,250~2
+Fuzzy1: 1,250~1 +facets:Date
+Fuzzy2: 1,250~2 +facets:Date
 Respell: 1,250
-Fuzzy1: tiber~1
-Fuzzy2: tiber~2
+Fuzzy1: tiber~1 +facets:Date
+Fuzzy2: tiber~2 +facets:Date
 Respell: tiber
-Fuzzy1: polen~1
-Fuzzy2: polen~2
+Fuzzy1: polen~1 +facets:Date
+Fuzzy2: polen~2 +facets:Date
 Respell: polen
-Fuzzy1: magus~1
-Fuzzy2: magus~2
+Fuzzy1: magus~1 +facets:Date
+Fuzzy2: magus~2 +facets:Date
 Respell: magus
-Fuzzy1: stove~1
-Fuzzy2: stove~2
+Fuzzy1: stove~1 +facets:Date
+Fuzzy2: stove~2 +facets:Date
 Respell: stove
-Fuzzy1: deane~1
-Fuzzy2: deane~2
+Fuzzy1: deane~1 +facets:Date
+Fuzzy2: deane~2 +facets:Date
 Respell: deane
-Fuzzy1: faris~1
-Fuzzy2: faris~2
+Fuzzy1: faris~1 +facets:Date
+Fuzzy2: faris~2 +facets:Date
 Respell: faris
-Fuzzy1: scams~1
-Fuzzy2: scams~2
+Fuzzy1: scams~1 +facets:Date
+Fuzzy2: scams~2 +facets:Date
 Respell: scams
-Fuzzy1: skink~1
-Fuzzy2: skink~2
+Fuzzy1: skink~1 +facets:Date
+Fuzzy2: skink~2 +facets:Date
 Respell: skink
-Fuzzy1: croce~1
-Fuzzy2: croce~2
+Fuzzy1: croce~1 +facets:Date
+Fuzzy2: croce~2 +facets:Date
 Respell: croce
-Fuzzy1: manna~1
-Fuzzy2: manna~2
+Fuzzy1: manna~1 +facets:Date
+Fuzzy2: manna~2 +facets:Date
 Respell: manna
-Fuzzy1: bangs~1
-Fuzzy2: bangs~2
+Fuzzy1: bangs~1 +facets:Date
+Fuzzy2: bangs~2 +facets:Date
 Respell: bangs
-Fuzzy1: busts~1
-Fuzzy2: busts~2
+Fuzzy1: busts~1 +facets:Date
+Fuzzy2: busts~2 +facets:Date
 Respell: busts
-Fuzzy1: laced~1
-Fuzzy2: laced~2
+Fuzzy1: laced~1 +facets:Date
+Fuzzy2: laced~2 +facets:Date
 Respell: laced
-Fuzzy1: hales~1
-Fuzzy2: hales~2
+Fuzzy1: hales~1 +facets:Date
+Fuzzy2: hales~2 +facets:Date
 Respell: hales
-Fuzzy1: hauts~1
-Fuzzy2: hauts~2
+Fuzzy1: hauts~1 +facets:Date
+Fuzzy2: hauts~2 +facets:Date
 Respell: hauts
-Fuzzy1: state2~1
-Fuzzy2: state2~2
+Fuzzy1: state2~1 +facets:Date
+Fuzzy2: state2~2 +facets:Date
 Respell: state2
-Fuzzy1: samos~1
-Fuzzy2: samos~2
+Fuzzy1: samos~1 +facets:Date
+Fuzzy2: samos~2 +facets:Date
 Respell: samos
-Fuzzy1: loại~1
-Fuzzy2: loại~2
+Fuzzy1: loại~1 +facets:Date
+Fuzzy2: loại~2 +facets:Date
 Respell: loại
-Fuzzy1: he’s~1
-Fuzzy2: he’s~2
+Fuzzy1: he’s~1 +facets:Date
+Fuzzy2: he’s~2 +facets:Date
 Respell: he’s
-Fuzzy1: barca~1
-Fuzzy2: barca~2
+Fuzzy1: barca~1 +facets:Date
+Fuzzy2: barca~2 +facets:Date
 Respell: barca
-Fuzzy1: paley~1
-Fuzzy2: paley~2
+Fuzzy1: paley~1 +facets:Date
+Fuzzy2: paley~2 +facets:Date
 Respell: paley
-Fuzzy1: chino~1
-Fuzzy2: chino~2
+Fuzzy1: chino~1 +facets:Date
+Fuzzy2: chino~2 +facets:Date
 Respell: chino
-Fuzzy1: dared~1
-Fuzzy2: dared~2
+Fuzzy1: dared~1 +facets:Date
+Fuzzy2: dared~2 +facets:Date
 Respell: dared
-Fuzzy1: deans~1
-Fuzzy2: deans~2
+Fuzzy1: deans~1 +facets:Date
+Fuzzy2: deans~2 +facets:Date
 Respell: deans
-Fuzzy1: sauna~1
-Fuzzy2: sauna~2
+Fuzzy1: sauna~1 +facets:Date
+Fuzzy2: sauna~2 +facets:Date
 Respell: sauna
-Fuzzy1: halts~1
-Fuzzy2: halts~2
+Fuzzy1: halts~1 +facets:Date
+Fuzzy2: halts~2 +facets:Date
 Respell: halts
-Fuzzy1: hants~1
-Fuzzy2: hants~2
+Fuzzy1: hants~1 +facets:Date
+Fuzzy2: hants~2 +facets:Date
 Respell: hants
-Fuzzy1: borel~1
-Fuzzy2: borel~2
+Fuzzy1: borel~1 +facets:Date
+Fuzzy2: borel~2 +facets:Date
 Respell: borel
-Fuzzy1: monti~1
-Fuzzy2: monti~2
+Fuzzy1: monti~1 +facets:Date
+Fuzzy2: monti~2 +facets:Date
 Respell: monti
-Fuzzy1: rapes~1
-Fuzzy2: rapes~2
+Fuzzy1: rapes~1 +facets:Date
+Fuzzy2: rapes~2 +facets:Date
 Respell: rapes
-Fuzzy1: seams~1
-Fuzzy2: seams~2
+Fuzzy1: seams~1 +facets:Date
+Fuzzy2: seams~2 +facets:Date
 Respell: seams
-Fuzzy1: haney~1
-Fuzzy2: haney~2
+Fuzzy1: haney~1 +facets:Date
+Fuzzy2: haney~2 +facets:Date
 Respell: haney
-Fuzzy1: ligne~1
-Fuzzy2: ligne~2
+Fuzzy1: ligne~1 +facets:Date
+Fuzzy2: ligne~2 +facets:Date
 Respell: ligne
-Fuzzy1: maura~1
-Fuzzy2: maura~2
+Fuzzy1: maura~1 +facets:Date
+Fuzzy2: maura~2 +facets:Date
 Respell: maura
-Fuzzy1: pardo~1
-Fuzzy2: pardo~2
+Fuzzy1: pardo~1 +facets:Date
+Fuzzy2: pardo~2 +facets:Date
 Respell: pardo
-Fuzzy1: spine~1
-Fuzzy2: spine~2
+Fuzzy1: spine~1 +facets:Date
+Fuzzy2: spine~2 +facets:Date
 Respell: spine
-Fuzzy1: marko~1
-Fuzzy2: marko~2
+Fuzzy1: marko~1 +facets:Date
+Fuzzy2: marko~2 +facets:Date
 Respell: marko
-Fuzzy1: rowed~1
-Fuzzy2: rowed~2
+Fuzzy1: rowed~1 +facets:Date
+Fuzzy2: rowed~2 +facets:Date
 Respell: rowed
-Fuzzy1: mao's~1
-Fuzzy2: mao's~2
+Fuzzy1: mao's~1 +facets:Date
+Fuzzy2: mao's~2 +facets:Date
 Respell: mao's
-Fuzzy1: cling~1
-Fuzzy2: cling~2
+Fuzzy1: cling~1 +facets:Date
+Fuzzy2: cling~2 +facets:Date
 Respell: cling
-Fuzzy1: carton~1
-Fuzzy2: carton~2
+Fuzzy1: carton~1 +facets:Date
+Fuzzy2: carton~2 +facets:Date
 Respell: carton
-Fuzzy1: scans~1
-Fuzzy2: scans~2
+Fuzzy1: scans~1 +facets:Date
+Fuzzy2: scans~2 +facets:Date
 Respell: scans
-Fuzzy1: memes~1
-Fuzzy2: memes~2
+Fuzzy1: memes~1 +facets:Date
+Fuzzy2: memes~2 +facets:Date
 Respell: memes
-Fuzzy1: rosas~1
-Fuzzy2: rosas~2
+Fuzzy1: rosas~1 +facets:Date
+Fuzzy2: rosas~2 +facets:Date
 Respell: rosas
-Fuzzy1: 1080i~1
-Fuzzy2: 1080i~2
+Fuzzy1: 1080i~1 +facets:Date
+Fuzzy2: 1080i~2 +facets:Date
 Respell: 1080i
-Fuzzy1: swaps~1
-Fuzzy2: swaps~2
+Fuzzy1: swaps~1 +facets:Date
+Fuzzy2: swaps~2 +facets:Date
 Respell: swaps
-Fuzzy1: petre~1
-Fuzzy2: petre~2
+Fuzzy1: petre~1 +facets:Date
+Fuzzy2: petre~2 +facets:Date
 Respell: petre
-Fuzzy1: turan~1
-Fuzzy2: turan~2
+Fuzzy1: turan~1 +facets:Date
+Fuzzy2: turan~2 +facets:Date
 Respell: turan
-Fuzzy1: 1830s~1
-Fuzzy2: 1830s~2
+Fuzzy1: 1830s~1 +facets:Date
+Fuzzy2: 1830s~2 +facets:Date
 Respell: 1830s
-Fuzzy1: manta~1
-Fuzzy2: manta~2
+Fuzzy1: manta~1 +facets:Date
+Fuzzy2: manta~2 +facets:Date
 Respell: manta
-Fuzzy1: taras~1
-Fuzzy2: taras~2
+Fuzzy1: taras~1 +facets:Date
+Fuzzy2: taras~2 +facets:Date
 Respell: taras
-Fuzzy1: caius~1
-Fuzzy2: caius~2
+Fuzzy1: caius~1 +facets:Date
+Fuzzy2: caius~2 +facets:Date
 Respell: caius
-Fuzzy1: 1840s~1
-Fuzzy2: 1840s~2
+Fuzzy1: 1840s~1 +facets:Date
+Fuzzy2: 1840s~2 +facets:Date
 Respell: 1840s
-Fuzzy1: starve~1
-Fuzzy2: starve~2
+Fuzzy1: starve~1 +facets:Date
+Fuzzy2: starve~2 +facets:Date
 Respell: starve
-Fuzzy1: mists~1
-Fuzzy2: mists~2
+Fuzzy1: mists~1 +facets:Date
+Fuzzy2: mists~2 +facets:Date
 Respell: mists
-Fuzzy1: 1,700~1
-Fuzzy2: 1,700~2
+Fuzzy1: 1,700~1 +facets:Date
+Fuzzy2: 1,700~2 +facets:Date
 Respell: 1,700
-Fuzzy1: 202007~1
-Fuzzy2: 202007~2
+Fuzzy1: 202007~1 +facets:Date
+Fuzzy2: 202007~2 +facets:Date
 Respell: 202007
-Fuzzy1: corea~1
-Fuzzy2: corea~2
+Fuzzy1: corea~1 +facets:Date
+Fuzzy2: corea~2 +facets:Date
 Respell: corea
-Fuzzy1: corte~1
-Fuzzy2: corte~2
+Fuzzy1: corte~1 +facets:Date
+Fuzzy2: corte~2 +facets:Date
 Respell: corte
-Fuzzy1: sling~1
-Fuzzy2: sling~2
+Fuzzy1: sling~1 +facets:Date
+Fuzzy2: sling~2 +facets:Date
 Respell: sling
-Fuzzy1: slits~1
-Fuzzy2: slits~2
+Fuzzy1: slits~1 +facets:Date
+Fuzzy2: slits~2 +facets:Date
 Respell: slits
-Fuzzy1: ceres~1
-Fuzzy2: ceres~2
+Fuzzy1: ceres~1 +facets:Date
+Fuzzy2: ceres~2 +facets:Date
 Respell: ceres
-Fuzzy1: leans~1
-Fuzzy2: leans~2
+Fuzzy1: leans~1 +facets:Date
+Fuzzy2: leans~2 +facets:Date
 Respell: leans
-Fuzzy1: conde~1
-Fuzzy2: conde~2
+Fuzzy1: conde~1 +facets:Date
+Fuzzy2: conde~2 +facets:Date
 Respell: conde
-Fuzzy1: beale~1
-Fuzzy2: beale~2
+Fuzzy1: beale~1 +facets:Date
+Fuzzy2: beale~2 +facets:Date
 Respell: beale
-Fuzzy1: torus~1
-Fuzzy2: torus~2
+Fuzzy1: torus~1 +facets:Date
+Fuzzy2: torus~2 +facets:Date
 Respell: torus
-Fuzzy1: minto~1
-Fuzzy2: minto~2
+Fuzzy1: minto~1 +facets:Date
+Fuzzy2: minto~2 +facets:Date
 Respell: minto
-Fuzzy1: moyer~1
-Fuzzy2: moyer~2
+Fuzzy1: moyer~1 +facets:Date
+Fuzzy2: moyer~2 +facets:Date
 Respell: moyer
-Fuzzy1: bonne~1
-Fuzzy2: bonne~2
+Fuzzy1: bonne~1 +facets:Date
+Fuzzy2: bonne~2 +facets:Date
 Respell: bonne
-Fuzzy1: mises~1
-Fuzzy2: mises~2
+Fuzzy1: mises~1 +facets:Date
+Fuzzy2: mises~2 +facets:Date
 Respell: mises
-Fuzzy1: polis~1
-Fuzzy2: polis~2
+Fuzzy1: polis~1 +facets:Date
+Fuzzy2: polis~2 +facets:Date
 Respell: polis
-Fuzzy1: fakes~1
-Fuzzy2: fakes~2
+Fuzzy1: fakes~1 +facets:Date
+Fuzzy2: fakes~2 +facets:Date
 Respell: fakes
-Fuzzy1: miley~1
-Fuzzy2: miley~2
+Fuzzy1: miley~1 +facets:Date
+Fuzzy2: miley~2 +facets:Date
 Respell: miley
-Fuzzy1: parra~1
-Fuzzy2: parra~2
+Fuzzy1: parra~1 +facets:Date
+Fuzzy2: parra~2 +facets:Date
 Respell: parra
-Fuzzy1: 1700s~1
-Fuzzy2: 1700s~2
+Fuzzy1: 1700s~1 +facets:Date
+Fuzzy2: 1700s~2 +facets:Date
 Respell: 1700s
-Fuzzy1: caron~1
-Fuzzy2: caron~2
+Fuzzy1: caron~1 +facets:Date
+Fuzzy2: caron~2 +facets:Date
 Respell: caron
-Fuzzy1: crate~1
-Fuzzy2: crate~2
+Fuzzy1: crate~1 +facets:Date
+Fuzzy2: crate~2 +facets:Date
 Respell: crate
-Fuzzy1: clann~1
-Fuzzy2: clann~2
+Fuzzy1: clann~1 +facets:Date
+Fuzzy2: clann~2 +facets:Date
 Respell: clann
-Fuzzy1: mather~1
-Fuzzy2: mather~2
+Fuzzy1: mather~1 +facets:Date
+Fuzzy2: mather~2 +facets:Date
 Respell: mather
-Fuzzy1: herat~1
-Fuzzy2: herat~2
+Fuzzy1: herat~1 +facets:Date
+Fuzzy2: herat~2 +facets:Date
 Respell: herat
-Fuzzy1: 1750s~1
-Fuzzy2: 1750s~2
+Fuzzy1: 1750s~1 +facets:Date
+Fuzzy2: 1750s~2 +facets:Date
 Respell: 1750s
-Fuzzy1: steak~1
-Fuzzy2: steak~2
+Fuzzy1: steak~1 +facets:Date
+Fuzzy2: steak~2 +facets:Date
 Respell: steak
-Fuzzy1: spade~1
-Fuzzy2: spade~2
+Fuzzy1: spade~1 +facets:Date
+Fuzzy2: spade~2 +facets:Date
 Respell: spade
-Fuzzy1: liars~1
-Fuzzy2: liars~2
+Fuzzy1: liars~1 +facets:Date
+Fuzzy2: liars~2 +facets:Date
 Respell: liars
-Fuzzy1: swore~1
-Fuzzy2: swore~2
+Fuzzy1: swore~1 +facets:Date
+Fuzzy2: swore~2 +facets:Date
 Respell: swore
-Fuzzy1: 1760s~1
-Fuzzy2: 1760s~2
+Fuzzy1: 1760s~1 +facets:Date
+Fuzzy2: 1760s~2 +facets:Date
 Respell: 1760s
-Fuzzy1: matra~1
-Fuzzy2: matra~2
+Fuzzy1: matra~1 +facets:Date
+Fuzzy2: matra~2 +facets:Date
 Respell: matra
-Fuzzy1: sills~1
-Fuzzy2: sills~2
+Fuzzy1: sills~1 +facets:Date
+Fuzzy2: sills~2 +facets:Date
 Respell: sills
-Fuzzy1: carat~1
-Fuzzy2: carat~2
+Fuzzy1: carat~1 +facets:Date
+Fuzzy2: carat~2 +facets:Date
 Respell: carat
-Fuzzy1: proms~1
-Fuzzy2: proms~2
+Fuzzy1: proms~1 +facets:Date
+Fuzzy2: proms~2 +facets:Date
 Respell: proms
-Fuzzy1: paine~1
-Fuzzy2: paine~2
+Fuzzy1: paine~1 +facets:Date
+Fuzzy2: paine~2 +facets:Date
 Respell: paine
-Fuzzy1: stall~1
-Fuzzy2: stall~2
+Fuzzy1: stall~1 +facets:Date
+Fuzzy2: stall~2 +facets:Date
 Respell: stall
-Fuzzy1: marten~1
-Fuzzy2: marten~2
+Fuzzy1: marten~1 +facets:Date
+Fuzzy2: marten~2 +facets:Date
 Respell: marten
-Fuzzy1: soles~1
-Fuzzy2: soles~2
+Fuzzy1: soles~1 +facets:Date
+Fuzzy2: soles~2 +facets:Date
 Respell: soles
-Fuzzy1: shing~1
-Fuzzy2: shing~2
+Fuzzy1: shing~1 +facets:Date
+Fuzzy2: shing~2 +facets:Date
 Respell: shing
-Fuzzy1: shree~1
-Fuzzy2: shree~2
+Fuzzy1: shree~1 +facets:Date
+Fuzzy2: shree~2 +facets:Date
 Respell: shree
-Fuzzy1: seger~1
-Fuzzy2: seger~2
+Fuzzy1: seger~1 +facets:Date
+Fuzzy2: seger~2 +facets:Date
 Respell: seger
-Fuzzy1: herne~1
-Fuzzy2: herne~2
+Fuzzy1: herne~1 +facets:Date
+Fuzzy2: herne~2 +facets:Date
 Respell: herne
-Fuzzy1: cures~1
-Fuzzy2: cures~2
+Fuzzy1: cures~1 +facets:Date
+Fuzzy2: cures~2 +facets:Date
 Respell: cures
-Fuzzy1: toros~1
-Fuzzy2: toros~2
+Fuzzy1: toros~1 +facets:Date
+Fuzzy2: toros~2 +facets:Date
 Respell: toros
-Fuzzy1: capes~1
-Fuzzy2: capes~2
+Fuzzy1: capes~1 +facets:Date
+Fuzzy2: capes~2 +facets:Date
 Respell: capes
-Fuzzy1: 1770s~1
-Fuzzy2: 1770s~2
+Fuzzy1: 1770s~1 +facets:Date
+Fuzzy2: 1770s~2 +facets:Date
 Respell: 1770s
-Fuzzy1: alles~1
-Fuzzy2: alles~2
+Fuzzy1: alles~1 +facets:Date
+Fuzzy2: alles~2 +facets:Date
 Respell: alles
-Fuzzy1: spiny~1
-Fuzzy2: spiny~2
+Fuzzy1: spiny~1 +facets:Date
+Fuzzy2: spiny~2 +facets:Date
 Respell: spiny
-Fuzzy1: bowes~1
-Fuzzy2: bowes~2
+Fuzzy1: bowes~1 +facets:Date
+Fuzzy2: bowes~2 +facets:Date
 Respell: bowes
-Fuzzy1: camus~1
-Fuzzy2: camus~2
+Fuzzy1: camus~1 +facets:Date
+Fuzzy2: camus~2 +facets:Date
 Respell: camus
-Fuzzy1: mails~1
-Fuzzy2: mails~2
+Fuzzy1: mails~1 +facets:Date
+Fuzzy2: mails~2 +facets:Date
 Respell: mails
-Fuzzy1: porte~1
-Fuzzy2: porte~2
+Fuzzy1: porte~1 +facets:Date
+Fuzzy2: porte~2 +facets:Date
 Respell: porte
-Fuzzy1: bests~1
-Fuzzy2: bests~2
+Fuzzy1: bests~1 +facets:Date
+Fuzzy2: bests~2 +facets:Date
 Respell: bests
-Fuzzy1: shams~1
-Fuzzy2: shams~2
+Fuzzy1: shams~1 +facets:Date
+Fuzzy2: shams~2 +facets:Date
 Respell: shams
-Fuzzy1: colne~1
-Fuzzy2: colne~2
+Fuzzy1: colne~1 +facets:Date
+Fuzzy2: colne~2 +facets:Date
 Respell: colne
-Fuzzy1: taper~1
-Fuzzy2: taper~2
+Fuzzy1: taper~1 +facets:Date
+Fuzzy2: taper~2 +facets:Date
 Respell: taper
-Fuzzy1: mints~1
-Fuzzy2: mints~2
+Fuzzy1: mints~1 +facets:Date
+Fuzzy2: mints~2 +facets:Date
 Respell: mints
-Fuzzy1: bernd~1
-Fuzzy2: bernd~2
+Fuzzy1: bernd~1 +facets:Date
+Fuzzy2: bernd~2 +facets:Date
 Respell: bernd
-Fuzzy1: lopes~1
-Fuzzy2: lopes~2
+Fuzzy1: lopes~1 +facets:Date
+Fuzzy2: lopes~2 +facets:Date
 Respell: lopes
-Fuzzy1: const~1
-Fuzzy2: const~2
+Fuzzy1: const~1 +facets:Date
+Fuzzy2: const~2 +facets:Date
 Respell: const
-Fuzzy1: 1,800~1
-Fuzzy2: 1,800~2
+Fuzzy1: 1,800~1 +facets:Date
+Fuzzy2: 1,800~2 +facets:Date
 Respell: 1,800
-Fuzzy1: donne~1
-Fuzzy2: donne~2
+Fuzzy1: donne~1 +facets:Date
+Fuzzy2: donne~2 +facets:Date
 Respell: donne
-Fuzzy1: spire~1
-Fuzzy2: spire~2
+Fuzzy1: spire~1 +facets:Date
+Fuzzy2: spire~2 +facets:Date
 Respell: spire
-Fuzzy1: carts~1
-Fuzzy2: carts~2
+Fuzzy1: carts~1 +facets:Date
+Fuzzy2: carts~2 +facets:Date
 Respell: carts
-Fuzzy1: parva~1
-Fuzzy2: parva~2
+Fuzzy1: parva~1 +facets:Date
+Fuzzy2: parva~2 +facets:Date
 Respell: parva
-Fuzzy1: carve~1
-Fuzzy2: carve~2
+Fuzzy1: carve~1 +facets:Date
+Fuzzy2: carve~2 +facets:Date
 Respell: carve
-Fuzzy1: prays~1
-Fuzzy2: prays~2
+Fuzzy1: prays~1 +facets:Date
+Fuzzy2: prays~2 +facets:Date
 Respell: prays
-Fuzzy1: carne~1
-Fuzzy2: carne~2
+Fuzzy1: carne~1 +facets:Date
+Fuzzy2: carne~2 +facets:Date
 Respell: carne
-Fuzzy1: sixes~1
-Fuzzy2: sixes~2
+Fuzzy1: sixes~1 +facets:Date
+Fuzzy2: sixes~2 +facets:Date
 Respell: sixes
-Fuzzy1: cakes~1
-Fuzzy2: cakes~2
+Fuzzy1: cakes~1 +facets:Date
+Fuzzy2: cakes~2 +facets:Date
 Respell: cakes
-Fuzzy1: 1780s~1
-Fuzzy2: 1780s~2
+Fuzzy1: 1780s~1 +facets:Date
+Fuzzy2: 1780s~2 +facets:Date
 Respell: 1780s
-Fuzzy1: matos~1
-Fuzzy2: matos~2
+Fuzzy1: matos~1 +facets:Date
+Fuzzy2: matos~2 +facets:Date
 Respell: matos
-Fuzzy1: basie~1
-Fuzzy2: basie~2
+Fuzzy1: basie~1 +facets:Date
+Fuzzy2: basie~2 +facets:Date
 Respell: basie
-Fuzzy1: fates~1
-Fuzzy2: fates~2
+Fuzzy1: fates~1 +facets:Date
+Fuzzy2: fates~2 +facets:Date
 Respell: fates
-Fuzzy1: coker~1
-Fuzzy2: coker~2
+Fuzzy1: coker~1 +facets:Date
+Fuzzy2: coker~2 +facets:Date
 Respell: coker
-Fuzzy1: bales~1
-Fuzzy2: bales~2
+Fuzzy1: bales~1 +facets:Date
+Fuzzy2: bales~2 +facets:Date
 Respell: bales
-Fuzzy1: comin~1
-Fuzzy2: comin~2
+Fuzzy1: comin~1 +facets:Date
+Fuzzy2: comin~2 +facets:Date
 Respell: comin
-Fuzzy1: fares~1
-Fuzzy2: fares~2
+Fuzzy1: fares~1 +facets:Date
+Fuzzy2: fares~2 +facets:Date
 Respell: fares
-Fuzzy1: sauer~1
-Fuzzy2: sauer~2
+Fuzzy1: sauer~1 +facets:Date
+Fuzzy2: sauer~2 +facets:Date
 Respell: sauer
-Fuzzy1: corus~1
-Fuzzy2: corus~2
+Fuzzy1: corus~1 +facets:Date
+Fuzzy2: corus~2 +facets:Date
 Respell: corus
-Fuzzy1: canis~1
-Fuzzy2: canis~2
+Fuzzy1: canis~1 +facets:Date
+Fuzzy2: canis~2 +facets:Date
 Respell: canis
-Fuzzy1: soares~1
-Fuzzy2: soares~2
+Fuzzy1: soares~1 +facets:Date
+Fuzzy2: soares~2 +facets:Date
 Respell: soares
-Fuzzy1: maths~1
-Fuzzy2: maths~2
+Fuzzy1: maths~1 +facets:Date
+Fuzzy2: maths~2 +facets:Date
 Respell: maths
-Fuzzy1: cowen~1
-Fuzzy2: cowen~2
+Fuzzy1: cowen~1 +facets:Date
+Fuzzy2: cowen~2 +facets:Date
 Respell: cowen
-Fuzzy1: gales~1
-Fuzzy2: gales~2
+Fuzzy1: gales~1 +facets:Date
+Fuzzy2: gales~2 +facets:Date
 Respell: gales
-Fuzzy1: spins~1
-Fuzzy2: spins~2
+Fuzzy1: spins~1 +facets:Date
+Fuzzy2: spins~2 +facets:Date
 Respell: spins
-Fuzzy1: robes~1
-Fuzzy2: robes~2
+Fuzzy1: robes~1 +facets:Date
+Fuzzy2: robes~2 +facets:Date
 Respell: robes
-Fuzzy1: caper~1
-Fuzzy2: caper~2
+Fuzzy1: caper~1 +facets:Date
+Fuzzy2: caper~2 +facets:Date
 Respell: caper
-Fuzzy1: chand~1
-Fuzzy2: chand~2
+Fuzzy1: chand~1 +facets:Date
+Fuzzy2: chand~2 +facets:Date
 Respell: chand
-Fuzzy1: spores~1
-Fuzzy2: spores~2
+Fuzzy1: spores~1 +facets:Date
+Fuzzy2: spores~2 +facets:Date
 Respell: spores
-Fuzzy1: moles~1
-Fuzzy2: moles~2
+Fuzzy1: moles~1 +facets:Date
+Fuzzy2: moles~2 +facets:Date
 Respell: moles
-Fuzzy1: marla~1
-Fuzzy2: marla~2
+Fuzzy1: marla~1 +facets:Date
+Fuzzy2: marla~2 +facets:Date
 Respell: marla
-Fuzzy1: speer~1
-Fuzzy2: speer~2
+Fuzzy1: speer~1 +facets:Date
+Fuzzy2: speer~2 +facets:Date
 Respell: speer
-Fuzzy1: brann~1
-Fuzzy2: brann~2
+Fuzzy1: brann~1 +facets:Date
+Fuzzy2: brann~2 +facets:Date
 Respell: brann
-Fuzzy1: welle~1
-Fuzzy2: welle~2
+Fuzzy1: welle~1 +facets:Date
+Fuzzy2: welle~2 +facets:Date
 Respell: welle
-Fuzzy1: slams~1
-Fuzzy2: slams~2
+Fuzzy1: slams~1 +facets:Date
+Fuzzy2: slams~2 +facets:Date
 Respell: slams
-Fuzzy1: baile~1
-Fuzzy2: baile~2
+Fuzzy1: baile~1 +facets:Date
+Fuzzy2: baile~2 +facets:Date
 Respell: baile
-Fuzzy1: croke~1
-Fuzzy2: croke~2
+Fuzzy1: croke~1 +facets:Date
+Fuzzy2: croke~2 +facets:Date
 Respell: croke
-Fuzzy1: skits~1
-Fuzzy2: skits~2
+Fuzzy1: skits~1 +facets:Date
+Fuzzy2: skits~2 +facets:Date
 Respell: skits
-Fuzzy1: brant~1
-Fuzzy2: brant~2
+Fuzzy1: brant~1 +facets:Date
+Fuzzy2: brant~2 +facets:Date
 Respell: brant
-Fuzzy1: bandy~1
-Fuzzy2: bandy~2
+Fuzzy1: bandy~1 +facets:Date
+Fuzzy2: bandy~2 +facets:Date
 Respell: bandy
-Fuzzy1: 1820s~1
-Fuzzy2: 1820s~2
+Fuzzy1: 1820s~1 +facets:Date
+Fuzzy2: 1820s~2 +facets:Date
 Respell: 1820s
-Fuzzy1: carew~1
-Fuzzy2: carew~2
+Fuzzy1: carew~1 +facets:Date
+Fuzzy2: carew~2 +facets:Date
 Respell: carew
-Fuzzy1: sarge~1
-Fuzzy2: sarge~2
+Fuzzy1: sarge~1 +facets:Date
+Fuzzy2: sarge~2 +facets:Date
 Respell: sarge
-Fuzzy1: bader~1
-Fuzzy2: bader~2
+Fuzzy1: bader~1 +facets:Date
+Fuzzy2: bader~2 +facets:Date
 Respell: bader
-Fuzzy1: fives~1
-Fuzzy2: fives~2
+Fuzzy1: fives~1 +facets:Date
+Fuzzy2: fives~2 +facets:Date
 Respell: fives
-Fuzzy1: 1800s~1
-Fuzzy2: 1800s~2
+Fuzzy1: 1800s~1 +facets:Date
+Fuzzy2: 1800s~2 +facets:Date
 Respell: 1800s
-Fuzzy1: faure~1
-Fuzzy2: faure~2
+Fuzzy1: faure~1 +facets:Date
+Fuzzy2: faure~2 +facets:Date
 Respell: faure
-Fuzzy1: suing~1
-Fuzzy2: suing~2
+Fuzzy1: suing~1 +facets:Date
+Fuzzy2: suing~2 +facets:Date
 Respell: suing
-Fuzzy1: chine~1
-Fuzzy2: chine~2
+Fuzzy1: chine~1 +facets:Date
+Fuzzy2: chine~2 +facets:Date
 Respell: chine
-Fuzzy1: mears~1
-Fuzzy2: mears~2
+Fuzzy1: mears~1 +facets:Date
+Fuzzy2: mears~2 +facets:Date
 Respell: mears
-Fuzzy1: babes~1
-Fuzzy2: babes~2
+Fuzzy1: babes~1 +facets:Date
+Fuzzy2: babes~2 +facets:Date
 Respell: babes
-Fuzzy1: dries~1
-Fuzzy2: dries~2
+Fuzzy1: dries~1 +facets:Date
+Fuzzy2: dries~2 +facets:Date
 Respell: dries
-Fuzzy1: barno~1
-Fuzzy2: barno~2
+Fuzzy1: barno~1 +facets:Date
+Fuzzy2: barno~2 +facets:Date
 Respell: barno
-Fuzzy1: palos~1
-Fuzzy2: palos~2
+Fuzzy1: palos~1 +facets:Date
+Fuzzy2: palos~2 +facets:Date
 Respell: palos
-Fuzzy1: carte~1
-Fuzzy2: carte~2
+Fuzzy1: carte~1 +facets:Date
+Fuzzy2: carte~2 +facets:Date
 Respell: carte
-Fuzzy1: studs~1
-Fuzzy2: studs~2
+Fuzzy1: studs~1 +facets:Date
+Fuzzy2: studs~2 +facets:Date
 Respell: studs
-Fuzzy1: bande~1
-Fuzzy2: bande~2
+Fuzzy1: bande~1 +facets:Date
+Fuzzy2: bande~2 +facets:Date
 Respell: bande
-Fuzzy1: spires~1
-Fuzzy2: spires~2
+Fuzzy1: spires~1 +facets:Date
+Fuzzy2: spires~2 +facets:Date
 Respell: spires
-Fuzzy1: perce~1
-Fuzzy2: perce~2
+Fuzzy1: perce~1 +facets:Date
+Fuzzy2: perce~2 +facets:Date
 Respell: perce
-Fuzzy1: scars~1
-Fuzzy2: scars~2
+Fuzzy1: scars~1 +facets:Date
+Fuzzy2: scars~2 +facets:Date
 Respell: scars
-Fuzzy1: groß~1
-Fuzzy2: groß~2
+Fuzzy1: groß~1 +facets:Date
+Fuzzy2: groß~2 +facets:Date
 Respell: groß
-Fuzzy1: steed~1
-Fuzzy2: steed~2
+Fuzzy1: steed~1 +facets:Date
+Fuzzy2: steed~2 +facets:Date
 Respell: steed
-Fuzzy1: arian~1
-Fuzzy2: arian~2
+Fuzzy1: arian~1 +facets:Date
+Fuzzy2: arian~2 +facets:Date
 Respell: arian
-Fuzzy1: chats~1
-Fuzzy2: chats~2
+Fuzzy1: chats~1 +facets:Date
+Fuzzy2: chats~2 +facets:Date
 Respell: chats
-Fuzzy1: perú~1
-Fuzzy2: perú~2
+Fuzzy1: perú~1 +facets:Date
+Fuzzy2: perú~2 +facets:Date
 Respell: perú
-Fuzzy1: stead~1
-Fuzzy2: stead~2
+Fuzzy1: stead~1 +facets:Date
+Fuzzy2: stead~2 +facets:Date
 Respell: stead
-Fuzzy1: cafes~1
-Fuzzy2: cafes~2
+Fuzzy1: cafes~1 +facets:Date
+Fuzzy2: cafes~2 +facets:Date
 Respell: cafes
-Fuzzy1: marat~1
-Fuzzy2: marat~2
+Fuzzy1: marat~1 +facets:Date
+Fuzzy2: marat~2 +facets:Date
 Respell: marat
-Fuzzy1: cords~1
-Fuzzy2: cords~2
+Fuzzy1: cords~1 +facets:Date
+Fuzzy2: cords~2 +facets:Date
 Respell: cords
-Fuzzy1: boers~1
-Fuzzy2: boers~2
+Fuzzy1: boers~1 +facets:Date
+Fuzzy2: boers~2 +facets:Date
 Respell: boers
-Fuzzy1: shari~1
-Fuzzy2: shari~2
+Fuzzy1: shari~1 +facets:Date
+Fuzzy2: shari~2 +facets:Date
 Respell: shari
-Fuzzy1: pease~1
-Fuzzy2: pease~2
+Fuzzy1: pease~1 +facets:Date
+Fuzzy2: pease~2 +facets:Date
 Respell: pease
-Fuzzy1: crore~1
-Fuzzy2: crore~2
+Fuzzy1: crore~1 +facets:Date
+Fuzzy2: crore~2 +facets:Date
 Respell: crore
-Fuzzy1: cones~1
-Fuzzy2: cones~2
+Fuzzy1: cones~1 +facets:Date
+Fuzzy2: cones~2 +facets:Date
 Respell: cones
-Fuzzy1: brine~1
-Fuzzy2: brine~2
+Fuzzy1: brine~1 +facets:Date
+Fuzzy2: brine~2 +facets:Date
 Respell: brine
-Fuzzy1: cages~1
-Fuzzy2: cages~2
+Fuzzy1: cages~1 +facets:Date
+Fuzzy2: cages~2 +facets:Date
 Respell: cages
-Fuzzy1: sumer~1
-Fuzzy2: sumer~2
+Fuzzy1: sumer~1 +facets:Date
+Fuzzy2: sumer~2 +facets:Date
 Respell: sumer
-Fuzzy1: meine~1
-Fuzzy2: meine~2
+Fuzzy1: meine~1 +facets:Date
+Fuzzy2: meine~2 +facets:Date
 Respell: meine
-Fuzzy1: marti~1
-Fuzzy2: marti~2
+Fuzzy1: marti~1 +facets:Date
+Fuzzy2: marti~2 +facets:Date
 Respell: marti
-Fuzzy1: matty~1
-Fuzzy2: matty~2
+Fuzzy1: matty~1 +facets:Date
+Fuzzy2: matty~2 +facets:Date
 Respell: matty
-Fuzzy1: lobes~1
-Fuzzy2: lobes~2
+Fuzzy1: lobes~1 +facets:Date
+Fuzzy2: lobes~2 +facets:Date
 Respell: lobes
-Fuzzy1: cores~1
-Fuzzy2: cores~2
+Fuzzy1: cores~1 +facets:Date
+Fuzzy2: cores~2 +facets:Date
 Respell: cores
-Fuzzy1: maior~1
-Fuzzy2: maior~2
+Fuzzy1: maior~1 +facets:Date
+Fuzzy2: maior~2 +facets:Date
 Respell: maior
-Fuzzy1: pauls~1
-Fuzzy2: pauls~2
+Fuzzy1: pauls~1 +facets:Date
+Fuzzy2: pauls~2 +facets:Date
 Respell: pauls
-Fuzzy1: booms~1
-Fuzzy2: booms~2
+Fuzzy1: booms~1 +facets:Date
+Fuzzy2: booms~2 +facets:Date
 Respell: booms
-Fuzzy1: casas~1
-Fuzzy2: casas~2
+Fuzzy1: casas~1 +facets:Date
+Fuzzy2: casas~2 +facets:Date
 Respell: casas
-Fuzzy1: mavis~1
-Fuzzy2: mavis~2
+Fuzzy1: mavis~1 +facets:Date
+Fuzzy2: mavis~2 +facets:Date
 Respell: mavis
-Fuzzy1: sayed~1
-Fuzzy2: sayed~2
+Fuzzy1: sayed~1 +facets:Date
+Fuzzy2: sayed~2 +facets:Date
 Respell: sayed
-Fuzzy1: barns~1
-Fuzzy2: barns~2
+Fuzzy1: barns~1 +facets:Date
+Fuzzy2: barns~2 +facets:Date
 Respell: barns
-Fuzzy1: malin~1
-Fuzzy2: malin~2
+Fuzzy1: malin~1 +facets:Date
+Fuzzy2: malin~2 +facets:Date
 Respell: malin
-Fuzzy1: scant~1
-Fuzzy2: scant~2
+Fuzzy1: scant~1 +facets:Date
+Fuzzy2: scant~2 +facets:Date
 Respell: scant
-Fuzzy1: morro~1
-Fuzzy2: morro~2
+Fuzzy1: morro~1 +facets:Date
+Fuzzy2: morro~2 +facets:Date
 Respell: morro
-Fuzzy1: coups~1
-Fuzzy2: coups~2
+Fuzzy1: coups~1 +facets:Date
+Fuzzy2: coups~2 +facets:Date
 Respell: coups
-Fuzzy1: margo~1
-Fuzzy2: margo~2
+Fuzzy1: margo~1 +facets:Date
+Fuzzy2: margo~2 +facets:Date
 Respell: margo
-Fuzzy1: pires~1
-Fuzzy2: pires~2
+Fuzzy1: pires~1 +facets:Date
+Fuzzy2: pires~2 +facets:Date
 Respell: pires
-Fuzzy1: shone~1
-Fuzzy2: shone~2
+Fuzzy1: shone~1 +facets:Date
+Fuzzy2: shone~2 +facets:Date
 Respell: shone
-Fuzzy1: martí~1
-Fuzzy2: martí~2
+Fuzzy1: martí~1 +facets:Date
+Fuzzy2: martí~2 +facets:Date
 Respell: martí
-Fuzzy1: aries~1
-Fuzzy2: aries~2
+Fuzzy1: aries~1 +facets:Date
+Fuzzy2: aries~2 +facets:Date
 Respell: aries
-Fuzzy1: fared~1
-Fuzzy2: fared~2
+Fuzzy1: fared~1 +facets:Date
+Fuzzy2: fared~2 +facets:Date
 Respell: fared
-Fuzzy1: 1,900~1
-Fuzzy2: 1,900~2
+Fuzzy1: 1,900~1 +facets:Date
+Fuzzy2: 1,900~2 +facets:Date
 Respell: 1,900
-Fuzzy1: coles~1
-Fuzzy2: coles~2
+Fuzzy1: coles~1 +facets:Date
+Fuzzy2: coles~2 +facets:Date
 Respell: coles
-Fuzzy1: barks~1
-Fuzzy2: barks~2
+Fuzzy1: barks~1 +facets:Date
+Fuzzy2: barks~2 +facets:Date
 Respell: barks
-Fuzzy1: 1790s~1
-Fuzzy2: 1790s~2
+Fuzzy1: 1790s~1 +facets:Date
+Fuzzy2: 1790s~2 +facets:Date
 Respell: 1790s
-Fuzzy1: manon~1
-Fuzzy2: manon~2
+Fuzzy1: manon~1 +facets:Date
+Fuzzy2: manon~2 +facets:Date
 Respell: manon
-Fuzzy1: sorel~1
-Fuzzy2: sorel~2
+Fuzzy1: sorel~1 +facets:Date
+Fuzzy2: sorel~2 +facets:Date
 Respell: sorel
-Fuzzy1: madre~1
-Fuzzy2: madre~2
+Fuzzy1: madre~1 +facets:Date
+Fuzzy2: madre~2 +facets:Date
 Respell: madre
-Fuzzy1: manus~1
-Fuzzy2: manus~2
+Fuzzy1: manus~1 +facets:Date
+Fuzzy2: manus~2 +facets:Date
 Respell: manus
-Fuzzy1: armas~1
-Fuzzy2: armas~2
+Fuzzy1: armas~1 +facets:Date
+Fuzzy2: armas~2 +facets:Date
 Respell: armas
-Fuzzy1: arles~1
-Fuzzy2: arles~2
+Fuzzy1: arles~1 +facets:Date
+Fuzzy2: arles~2 +facets:Date
 Respell: arles
-Fuzzy1: peres~1
-Fuzzy2: peres~2
+Fuzzy1: peres~1 +facets:Date
+Fuzzy2: peres~2 +facets:Date
 Respell: peres
-Fuzzy1: spage~1
-Fuzzy2: spage~2
+Fuzzy1: spage~1 +facets:Date
+Fuzzy2: spage~2 +facets:Date
 Respell: spage
-Fuzzy1: stela~1
-Fuzzy2: stela~2
+Fuzzy1: stela~1 +facets:Date
+Fuzzy2: stela~2 +facets:Date
 Respell: stela
-Fuzzy1: caged~1
-Fuzzy2: caged~2
+Fuzzy1: caged~1 +facets:Date
+Fuzzy2: caged~2 +facets:Date
 Respell: caged
-Fuzzy1: claes~1
-Fuzzy2: claes~2
+Fuzzy1: claes~1 +facets:Date
+Fuzzy2: claes~2 +facets:Date
 Respell: claes
-Fuzzy1: stirs~1
-Fuzzy2: stirs~2
+Fuzzy1: stirs~1 +facets:Date
+Fuzzy2: stirs~2 +facets:Date
 Respell: stirs
-Fuzzy1: cours~1
-Fuzzy2: cours~2
+Fuzzy1: cours~1 +facets:Date
+Fuzzy2: cours~2 +facets:Date
 Respell: cours
-Fuzzy1: marta~1
-Fuzzy2: marta~2
+Fuzzy1: marta~1 +facets:Date
+Fuzzy2: marta~2 +facets:Date
 Respell: marta
-Fuzzy1: man’s~1
-Fuzzy2: man’s~2
+Fuzzy1: man’s~1 +facets:Date
+Fuzzy2: man’s~2 +facets:Date
 Respell: man’s
-Fuzzy1: madan~1
-Fuzzy2: madan~2
+Fuzzy1: madan~1 +facets:Date
+Fuzzy2: madan~2 +facets:Date
 Respell: madan
-Fuzzy1: bains~1
-Fuzzy2: bains~2
+Fuzzy1: bains~1 +facets:Date
+Fuzzy2: bains~2 +facets:Date
 Respell: bains
-Fuzzy1: coney~1
-Fuzzy2: coney~2
+Fuzzy1: coney~1 +facets:Date
+Fuzzy2: coney~2 +facets:Date
 Respell: coney
-Fuzzy1: caine~1
-Fuzzy2: caine~2
+Fuzzy1: caine~1 +facets:Date
+Fuzzy2: caine~2 +facets:Date
 Respell: caine
-Fuzzy1: 202009~1
-Fuzzy2: 202009~2
+Fuzzy1: 202009~1 +facets:Date
+Fuzzy2: 202009~2 +facets:Date
 Respell: 202009
-Fuzzy1: mares~1
-Fuzzy2: mares~2
+Fuzzy1: mares~1 +facets:Date
+Fuzzy2: mares~2 +facets:Date
 Respell: mares
-Fuzzy1: casus~1
-Fuzzy2: casus~2
+Fuzzy1: casus~1 +facets:Date
+Fuzzy2: casus~2 +facets:Date
 Respell: casus
-Fuzzy1: maida~1
-Fuzzy2: maida~2
+Fuzzy1: maida~1 +facets:Date
+Fuzzy2: maida~2 +facets:Date
 Respell: maida
-Fuzzy1: steen~1
-Fuzzy2: steen~2
+Fuzzy1: steen~1 +facets:Date
+Fuzzy2: steen~2 +facets:Date
 Respell: steen
-Fuzzy1: hawes~1
-Fuzzy2: hawes~2
+Fuzzy1: hawes~1 +facets:Date
+Fuzzy2: hawes~2 +facets:Date
 Respell: hawes
-Fuzzy1: benth~1
-Fuzzy2: benth~2
+Fuzzy1: benth~1 +facets:Date
+Fuzzy2: benth~2 +facets:Date
 Respell: benth
-Fuzzy1: matic~1
-Fuzzy2: matic~2
+Fuzzy1: matic~1 +facets:Date
+Fuzzy2: matic~2 +facets:Date
 Respell: matic
-Fuzzy1: cools~1
-Fuzzy2: cools~2
+Fuzzy1: cools~1 +facets:Date
+Fuzzy2: cools~2 +facets:Date
 Respell: cools
-Fuzzy1: maris~1
-Fuzzy2: maris~2
+Fuzzy1: maris~1 +facets:Date
+Fuzzy2: maris~2 +facets:Date
 Respell: maris
-Fuzzy1: beret~1
-Fuzzy2: beret~2
+Fuzzy1: beret~1 +facets:Date
+Fuzzy2: beret~2 +facets:Date
 Respell: beret
-Fuzzy1: pears~1
-Fuzzy2: pears~2
+Fuzzy1: pears~1 +facets:Date
+Fuzzy2: pears~2 +facets:Date
 Respell: pears
-Fuzzy1: saeed~1
-Fuzzy2: saeed~2
+Fuzzy1: saeed~1 +facets:Date
+Fuzzy2: saeed~2 +facets:Date
 Respell: saeed
-Fuzzy1: pater~1
-Fuzzy2: pater~2
+Fuzzy1: pater~1 +facets:Date
+Fuzzy2: pater~2 +facets:Date
 Respell: pater
-Fuzzy1: marcin~1
-Fuzzy2: marcin~2
+Fuzzy1: marcin~1 +facets:Date
+Fuzzy2: marcin~2 +facets:Date
 Respell: marcin
-Fuzzy1: sages~1
-Fuzzy2: sages~2
+Fuzzy1: sages~1 +facets:Date
+Fuzzy2: sages~2 +facets:Date
 Respell: sages
-Fuzzy1: berne~1
-Fuzzy2: berne~2
+Fuzzy1: berne~1 +facets:Date
+Fuzzy2: berne~2 +facets:Date
 Respell: berne
-Fuzzy1: calle~1
-Fuzzy2: calle~2
+Fuzzy1: calle~1 +facets:Date
+Fuzzy2: calle~2 +facets:Date
 Respell: calle
-Fuzzy1: pores~1
-Fuzzy2: pores~2
+Fuzzy1: pores~1 +facets:Date
+Fuzzy2: pores~2 +facets:Date
 Respell: pores
-Fuzzy1: liste~1
-Fuzzy2: liste~2
+Fuzzy1: liste~1 +facets:Date
+Fuzzy2: liste~2 +facets:Date
 Respell: liste
-Fuzzy1: shave~1
-Fuzzy2: shave~2
+Fuzzy1: shave~1 +facets:Date
+Fuzzy2: shave~2 +facets:Date
 Respell: shave
-Fuzzy1: makin~1
-Fuzzy2: makin~2
+Fuzzy1: makin~1 +facets:Date
+Fuzzy2: makin~2 +facets:Date
 Respell: makin
-Fuzzy1: morel~1
-Fuzzy2: morel~2
+Fuzzy1: morel~1 +facets:Date
+Fuzzy2: morel~2 +facets:Date
 Respell: morel
-Fuzzy1: shalt~1
-Fuzzy2: shalt~2
+Fuzzy1: shalt~1 +facets:Date
+Fuzzy2: shalt~2 +facets:Date
 Respell: shalt
-Fuzzy1: heals~1
-Fuzzy2: heals~2
+Fuzzy1: heals~1 +facets:Date
+Fuzzy2: heals~2 +facets:Date
 Respell: heals
-Fuzzy1: corse~1
-Fuzzy2: corse~2
+Fuzzy1: corse~1 +facets:Date
+Fuzzy2: corse~2 +facets:Date
 Respell: corse
-Fuzzy1: morin~1
-Fuzzy2: morin~2
+Fuzzy1: morin~1 +facets:Date
+Fuzzy2: morin~2 +facets:Date
 Respell: morin
-Fuzzy1: maids~1
-Fuzzy2: maids~2
+Fuzzy1: maids~1 +facets:Date
+Fuzzy2: maids~2 +facets:Date
 Respell: maids
-Fuzzy1: shona~1
-Fuzzy2: shona~2
+Fuzzy1: shona~1 +facets:Date
+Fuzzy2: shona~2 +facets:Date
 Respell: shona
-Fuzzy1: parke~1
-Fuzzy2: parke~2
+Fuzzy1: parke~1 +facets:Date
+Fuzzy2: parke~2 +facets:Date
 Respell: parke
-Fuzzy1: matte~1
-Fuzzy2: matte~2
+Fuzzy1: matte~1 +facets:Date
+Fuzzy2: matte~2 +facets:Date
 Respell: matte
-Fuzzy1: booed~1
-Fuzzy2: booed~2
+Fuzzy1: booed~1 +facets:Date
+Fuzzy2: booed~2 +facets:Date
 Respell: booed
-Fuzzy1: swine~1
-Fuzzy2: swine~2
+Fuzzy1: swine~1 +facets:Date
+Fuzzy2: swine~2 +facets:Date
 Respell: swine
-Fuzzy1: hamel~1
-Fuzzy2: hamel~2
+Fuzzy1: hamel~1 +facets:Date
+Fuzzy2: hamel~2 +facets:Date
 Respell: hamel
-Fuzzy1: 1890s~1
-Fuzzy2: 1890s~2
+Fuzzy1: 1890s~1 +facets:Date
+Fuzzy2: 1890s~2 +facets:Date
 Respell: 1890s
-Fuzzy1: spares~1
-Fuzzy2: spares~2
+Fuzzy1: spares~1 +facets:Date
+Fuzzy2: spares~2 +facets:Date
 Respell: spares
-Fuzzy1: hamer~1
-Fuzzy2: hamer~2
+Fuzzy1: hamer~1 +facets:Date
+Fuzzy2: hamer~2 +facets:Date
 Respell: hamer
-Fuzzy1: cared~1
-Fuzzy2: cared~2
+Fuzzy1: cared~1 +facets:Date
+Fuzzy2: cared~2 +facets:Date
 Respell: cared
-Fuzzy1: marín~1
-Fuzzy2: marín~2
+Fuzzy1: marín~1 +facets:Date
+Fuzzy2: marín~2 +facets:Date
 Respell: marín
-Fuzzy1: masse~1
-Fuzzy2: masse~2
+Fuzzy1: masse~1 +facets:Date
+Fuzzy2: masse~2 +facets:Date
 Respell: masse
-Fuzzy1: halen~1
-Fuzzy2: halen~2
+Fuzzy1: halen~1 +facets:Date
+Fuzzy2: halen~2 +facets:Date
 Respell: halen
-Fuzzy1: stains~1
-Fuzzy2: stains~2
+Fuzzy1: stains~1 +facets:Date
+Fuzzy2: stains~2 +facets:Date
 Respell: stains
-Fuzzy1: marek~1
-Fuzzy2: marek~2
+Fuzzy1: marek~1 +facets:Date
+Fuzzy2: marek~2 +facets:Date
 Respell: marek
-Fuzzy1: marcy~1
-Fuzzy2: marcy~2
+Fuzzy1: marcy~1 +facets:Date
+Fuzzy2: marcy~2 +facets:Date
 Respell: marcy
-Fuzzy1: spore~1
-Fuzzy2: spore~2
+Fuzzy1: spore~1 +facets:Date
+Fuzzy2: spore~2 +facets:Date
 Respell: spore
-Fuzzy1: harte~1
-Fuzzy2: harte~2
+Fuzzy1: harte~1 +facets:Date
+Fuzzy2: harte~2 +facets:Date
 Respell: harte
-Fuzzy1: mated~1
-Fuzzy2: mated~2
+Fuzzy1: mated~1 +facets:Date
+Fuzzy2: mated~2 +facets:Date
 Respell: mated
-Fuzzy1: cares~1
-Fuzzy2: cares~2
+Fuzzy1: cares~1 +facets:Date
+Fuzzy2: cares~2 +facets:Date
 Respell: cares
-Fuzzy1: snare~1
-Fuzzy2: snare~2
+Fuzzy1: snare~1 +facets:Date
+Fuzzy2: snare~2 +facets:Date
 Respell: snare
-Fuzzy1: stair~1
-Fuzzy2: stair~2
+Fuzzy1: stair~1 +facets:Date
+Fuzzy2: stair~2 +facets:Date
 Respell: stair
-Fuzzy1: marge~1
-Fuzzy2: marge~2
+Fuzzy1: marge~1 +facets:Date
+Fuzzy2: marge~2 +facets:Date
 Respell: marge
-Fuzzy1: dames~1
-Fuzzy2: dames~2
+Fuzzy1: dames~1 +facets:Date
+Fuzzy2: dames~2 +facets:Date
 Respell: dames
-Fuzzy1: parte~1
-Fuzzy2: parte~2
+Fuzzy1: parte~1 +facets:Date
+Fuzzy2: parte~2 +facets:Date
 Respell: parte
-Fuzzy1: mores~1
-Fuzzy2: mores~2
+Fuzzy1: mores~1 +facets:Date
+Fuzzy2: mores~2 +facets:Date
 Respell: mores
-Fuzzy1: dales~1
-Fuzzy2: dales~2
+Fuzzy1: dales~1 +facets:Date
+Fuzzy2: dales~2 +facets:Date
 Respell: dales
-Fuzzy1: danse~1
-Fuzzy2: danse~2
+Fuzzy1: danse~1 +facets:Date
+Fuzzy2: danse~2 +facets:Date
 Respell: danse
-Fuzzy1: stork~1
-Fuzzy2: stork~2
+Fuzzy1: stork~1 +facets:Date
+Fuzzy2: stork~2 +facets:Date
 Respell: stork
-Fuzzy1: aller~1
-Fuzzy2: aller~2
+Fuzzy1: aller~1 +facets:Date
+Fuzzy2: aller~2 +facets:Date
 Respell: aller
-Fuzzy1: mardi~1
-Fuzzy2: mardi~2
+Fuzzy1: mardi~1 +facets:Date
+Fuzzy2: mardi~2 +facets:Date
 Respell: mardi
-Fuzzy1: slime~1
-Fuzzy2: slime~2
+Fuzzy1: slime~1 +facets:Date
+Fuzzy2: slime~2 +facets:Date
 Respell: slime
-Fuzzy1: hades~1
-Fuzzy2: hades~2
+Fuzzy1: hades~1 +facets:Date
+Fuzzy2: hades~2 +facets:Date
 Respell: hades
-Fuzzy1: paler~1
-Fuzzy2: paler~2
+Fuzzy1: paler~1 +facets:Date
+Fuzzy2: paler~2 +facets:Date
 Respell: paler
-Fuzzy1: mains~1
-Fuzzy2: mains~2
+Fuzzy1: mains~1 +facets:Date
+Fuzzy2: mains~2 +facets:Date
 Respell: mains
-Fuzzy1: stara~1
-Fuzzy2: stara~2
+Fuzzy1: stara~1 +facets:Date
+Fuzzy2: stara~2 +facets:Date
 Respell: stara
-Fuzzy1: marys~1
-Fuzzy2: marys~2
+Fuzzy1: marys~1 +facets:Date
+Fuzzy2: marys~2 +facets:Date
 Respell: marys
-Fuzzy1: sturt~1
-Fuzzy2: sturt~2
+Fuzzy1: sturt~1 +facets:Date
+Fuzzy2: sturt~2 +facets:Date
 Respell: sturt
-Fuzzy1: leste~1
-Fuzzy2: leste~2
+Fuzzy1: leste~1 +facets:Date
+Fuzzy2: leste~2 +facets:Date
 Respell: leste
-Fuzzy1: 1910s~1
-Fuzzy2: 1910s~2
+Fuzzy1: 1910s~1 +facets:Date
+Fuzzy2: 1910s~2 +facets:Date
 Respell: 1910s
-Fuzzy1: part2~1
-Fuzzy2: part2~2
+Fuzzy1: part2~1 +facets:Date
+Fuzzy2: part2~2 +facets:Date
 Respell: part2
-Fuzzy1: langs~1
-Fuzzy2: langs~2
+Fuzzy1: langs~1 +facets:Date
+Fuzzy2: langs~2 +facets:Date
 Respell: langs
-Fuzzy1: stipe~1
-Fuzzy2: stipe~2
+Fuzzy1: stipe~1 +facets:Date
+Fuzzy2: stipe~2 +facets:Date
 Respell: stipe
-Fuzzy1: 2010a~1
-Fuzzy2: 2010a~2
+Fuzzy1: 2010a~1 +facets:Date
+Fuzzy2: 2010a~2 +facets:Date
 Respell: 2010a
-Fuzzy1: lasse~1
-Fuzzy2: lasse~2
+Fuzzy1: lasse~1 +facets:Date
+Fuzzy2: lasse~2 +facets:Date
 Respell: lasse
-Fuzzy1: tiles~1
-Fuzzy2: tiles~2
+Fuzzy1: tiles~1 +facets:Date
+Fuzzy2: tiles~2 +facets:Date
 Respell: tiles
-Fuzzy1: stott~1
-Fuzzy2: stott~2
+Fuzzy1: stott~1 +facets:Date
+Fuzzy2: stott~2 +facets:Date
 Respell: stott
-Fuzzy1: stele~1
-Fuzzy2: stele~2
+Fuzzy1: stele~1 +facets:Date
+Fuzzy2: stele~2 +facets:Date
 Respell: stele
-Fuzzy1: maier~1
-Fuzzy2: maier~2
+Fuzzy1: maier~1 +facets:Date
+Fuzzy2: maier~2 +facets:Date
 Respell: maier
-Fuzzy1: fists~1
-Fuzzy2: fists~2
+Fuzzy1: fists~1 +facets:Date
+Fuzzy2: fists~2 +facets:Date
 Respell: fists
-Fuzzy1: scare~1
-Fuzzy2: scare~2
+Fuzzy1: scare~1 +facets:Date
+Fuzzy2: scare~2 +facets:Date
 Respell: scare
-Fuzzy1: morte~1
-Fuzzy2: morte~2
+Fuzzy1: morte~1 +facets:Date
+Fuzzy2: morte~2 +facets:Date
 Respell: morte
-Fuzzy1: stain~1
-Fuzzy2: stain~2
+Fuzzy1: stain~1 +facets:Date
+Fuzzy2: stain~2 +facets:Date
 Respell: stain
-Fuzzy1: thane~1
-Fuzzy2: thane~2
+Fuzzy1: thane~1 +facets:Date
+Fuzzy2: thane~2 +facets:Date
 Respell: thane
-Fuzzy1: chime~1
-Fuzzy2: chime~2
+Fuzzy1: chime~1 +facets:Date
+Fuzzy2: chime~2 +facets:Date
 Respell: chime
-Fuzzy1: wares~1
-Fuzzy2: wares~2
+Fuzzy1: wares~1 +facets:Date
+Fuzzy2: wares~2 +facets:Date
 Respell: wares
-Fuzzy1: cater~1
-Fuzzy2: cater~2
+Fuzzy1: cater~1 +facets:Date
+Fuzzy2: cater~2 +facets:Date
 Respell: cater
-Fuzzy1: stabs~1
-Fuzzy2: stabs~2
+Fuzzy1: stabs~1 +facets:Date
+Fuzzy2: stabs~2 +facets:Date
 Respell: stabs
-Fuzzy1: artes~1
-Fuzzy2: artes~2
+Fuzzy1: artes~1 +facets:Date
+Fuzzy2: artes~2 +facets:Date
 Respell: artes
-Fuzzy1: shale~1
-Fuzzy2: shale~2
+Fuzzy1: shale~1 +facets:Date
+Fuzzy2: shale~2 +facets:Date
 Respell: shale
-Fuzzy1: altos~1
-Fuzzy2: altos~2
+Fuzzy1: altos~1 +facets:Date
+Fuzzy2: altos~2 +facets:Date
 Respell: altos
-Fuzzy1: monet~1
-Fuzzy2: monet~2
+Fuzzy1: monet~1 +facets:Date
+Fuzzy2: monet~2 +facets:Date
 Respell: monet
-Fuzzy1: dalí~1
-Fuzzy2: dalí~2
+Fuzzy1: dalí~1 +facets:Date
+Fuzzy2: dalí~2 +facets:Date
 Respell: dalí
-Fuzzy1: mayne~1
-Fuzzy2: mayne~2
+Fuzzy1: mayne~1 +facets:Date
+Fuzzy2: mayne~2 +facets:Date
 Respell: mayne
-Fuzzy1: staley~1
-Fuzzy2: staley~2
+Fuzzy1: staley~1 +facets:Date
+Fuzzy2: staley~2 +facets:Date
 Respell: staley
-Fuzzy1: møre~1
-Fuzzy2: møre~2
+Fuzzy1: møre~1 +facets:Date
+Fuzzy2: møre~2 +facets:Date
 Respell: møre
-Fuzzy1: hoare~1
-Fuzzy2: hoare~2
+Fuzzy1: hoare~1 +facets:Date
+Fuzzy2: hoare~2 +facets:Date
 Respell: hoare
-Fuzzy1: crüe~1
-Fuzzy2: crüe~2
+Fuzzy1: crüe~1 +facets:Date
+Fuzzy2: crüe~2 +facets:Date
 Respell: crüe
-Fuzzy1: pacer~1
-Fuzzy2: pacer~2
+Fuzzy1: pacer~1 +facets:Date
+Fuzzy2: pacer~2 +facets:Date
 Respell: pacer
-Fuzzy1: país~1
-Fuzzy2: país~2
+Fuzzy1: país~1 +facets:Date
+Fuzzy2: país~2 +facets:Date
 Respell: país
-Fuzzy1: tiled~1
-Fuzzy2: tiled~2
+Fuzzy1: tiled~1 +facets:Date
+Fuzzy2: tiled~2 +facets:Date
 Respell: tiled
-Fuzzy1: linde~1
-Fuzzy2: linde~2
+Fuzzy1: linde~1 +facets:Date
+Fuzzy2: linde~2 +facets:Date
 Respell: linde
-Fuzzy1: stato~1
-Fuzzy2: stato~2
+Fuzzy1: stato~1 +facets:Date
+Fuzzy2: stato~2 +facets:Date
 Respell: stato
-Fuzzy1: stalk~1
-Fuzzy2: stalk~2
+Fuzzy1: stalk~1 +facets:Date
+Fuzzy2: stalk~2 +facets:Date
 Respell: stalk
-Fuzzy1: laine~1
-Fuzzy2: laine~2
+Fuzzy1: laine~1 +facets:Date
+Fuzzy2: laine~2 +facets:Date
 Respell: laine
-Fuzzy1: conte~1
-Fuzzy2: conte~2
+Fuzzy1: conte~1 +facets:Date
+Fuzzy2: conte~2 +facets:Date
 Respell: conte
-Fuzzy1: stowe~1
-Fuzzy2: stowe~2
+Fuzzy1: stowe~1 +facets:Date
+Fuzzy2: stowe~2 +facets:Date
 Respell: stowe
-Fuzzy1: stave~1
-Fuzzy2: stave~2
+Fuzzy1: stave~1 +facets:Date
+Fuzzy2: stave~2 +facets:Date
 Respell: stave
-Fuzzy1: marne~1
-Fuzzy2: marne~2
+Fuzzy1: marne~1 +facets:Date
+Fuzzy2: marne~2 +facets:Date
 Respell: marne
-Fuzzy1: stare~1
-Fuzzy2: stare~2
+Fuzzy1: stare~1 +facets:Date
+Fuzzy2: stare~2 +facets:Date
 Respell: stare
-Fuzzy1: stade~1
-Fuzzy2: stade~2
+Fuzzy1: stade~1 +facets:Date
+Fuzzy2: stade~2 +facets:Date
 Respell: stade
-Fuzzy1: stale~1
-Fuzzy2: stale~2
+Fuzzy1: stale~1 +facets:Date
+Fuzzy2: stale~2 +facets:Date
 Respell: stale
-Fuzzy1: 20.00~1
-Fuzzy2: 20.00~2
+Fuzzy1: 20.00~1 +facets:Date
+Fuzzy2: 20.00~2 +facets:Date
 Respell: 20.00
-Fuzzy1: 25000~1
-Fuzzy2: 25000~2
+Fuzzy1: 25000~1 +facets:Date
+Fuzzy2: 25000~2 +facets:Date
 Respell: 25000
-Fuzzy1: 20000~1
-Fuzzy2: 20000~2
+Fuzzy1: 20000~1 +facets:Date
+Fuzzy2: 20000~2 +facets:Date
 Respell: 20000
 OrNotHighHigh: -several following +facets:Date # freq=436129 freq=416515
 OrHighNotHigh: several -following +facets:Date # freq=436129 freq=416515

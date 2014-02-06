@@ -129,15 +129,15 @@ class TaskParser {
 
       final List<String> facets = new ArrayList<String>();
       while (true) {
-        int i = text.indexOf("+facets:");
+        int i = text.indexOf(" +facets:");
         if (i == -1) {
           break;
         }
-        int j = text.indexOf(" ", i);
+        int j = text.indexOf(" ", i+1);
         if (j == -1) {
           j = text.length();
         }
-        facets.add(text.substring(i+8, j));
+        facets.add(text.substring(i+9, j));
         text = text.substring(0, i) + text.substring(j);
       }
 

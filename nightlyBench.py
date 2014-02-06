@@ -254,7 +254,11 @@ KNOWN_CHANGES = [
 
   ('2013-11-09',
    'Switched to DirectDocValuesFormat for the Date facets field.',
-   'Switched to DirectDocValuesFormat for the Date facets field.',)
+   'Switched to DirectDocValuesFormat for the Date facets field.'),
+
+  ('2014-02-06',
+   'LUCENE-5525: performance improvement for FixedBitSet.iterator',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5425">LUCENE-5525: performance improvement for FixedBitSet.iterator</a>',),
    ]
 
 # TODO

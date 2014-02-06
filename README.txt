@@ -16,7 +16,7 @@ First, checkout luceneutil:
 
 Run the setup script from the clone:
 
-  * python setup.py -download -prepareTrunk
+  * python src/python/setup.py -download -prepareTrunk
   
 this will setup all necessary directories in the clones parent directory and downloads a
 5GB compressed Wikipedia line doc file from an Apache Mirror. If you don't want to
@@ -51,5 +51,5 @@ some code difference but not a file format change.
 
 To run the benchmark you first test like this:
 
-  python localrun.py -source wikimedium10k
+  python src/python/localrun.py -source wikimedium10k
 

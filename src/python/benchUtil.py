@@ -800,7 +800,8 @@ class RunAlgs:
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
     # so perf.* is found:
-
+    cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+    
     return tuple(cp)
 
   compiledCheckouts = set()

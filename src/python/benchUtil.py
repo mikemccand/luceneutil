@@ -638,10 +638,11 @@ class RunAlgs:
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
-      
+    
     if not os.path.exists(constants.LOGS_DIR):
       os.makedirs(constants.LOGS_DIR)
-    print 'LOGS: %s' % constants.LOGS_DIR
+    print  
+    print 'LOGS:\n%s' % constants.LOGS_DIR
 
     
   def printEnv(self):
@@ -799,7 +800,6 @@ class RunAlgs:
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
     # so perf.* is found:
-    cp.append(checkoutToUtilPath(checkout))
 
     return tuple(cp)
 
@@ -825,15 +825,6 @@ class RunAlgs:
         path = path[:-1]
 
       cp = self.classPathToString(self.getClassPath(competitor.checkout))
-      if not os.path.exists('perf'):
-        version = getLuceneVersion(competitor.checkout)
-        if version == '3.0':
-          subdir = '/30'
-        elif version == '3.1':
-          subdir = '/31'
-        else:
-          subdir = ''
-        srcDir = '%s/perf%s' % (constants.BENCH_BASE_DIR, subdir)
       competitor.compile(cp)
     finally:
       os.chdir(cwd)

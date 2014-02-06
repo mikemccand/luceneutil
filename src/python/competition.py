@@ -203,13 +203,16 @@ class Competitor(object):
     self.javacCommand = javacCommand
 
   def compile(self, cp):
-
-    path = benchUtil.checkoutToUtilPath(self.checkout) + '/perf'
+    root = benchUtil.checkoutToUtilPath(self.checkout)
+    perfSrc = os.path.join(root, "src/main/perf")
+    buildDir = os.path.join(root, "build")
+    if not os.path.exists(constants.LOGS_DIR):
+      os.makedirs(buildDir)
     files = []
-    for f in os.listdir(path):
-      if not f.startswith('.#') and f.endswith('.java') and f not in ('PKLookupPerfTest.java', 'PKLookupUpdatePerfTest.java'):
-        files.append('%s/%s' % (path, f))
-    benchUtil.run('%s -classpath "%s" %s' % (self.javacCommand, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))
+    for f in os.listdir(perfSrc):
+      if not f.startswith('.#') and f.endswith('.java'):
+        files.append('%s/%s' % (perfSrc, f))
+    benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))
 
 class Competition(object):
 

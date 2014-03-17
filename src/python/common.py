@@ -45,10 +45,9 @@ def locateTest(test):
     return allTests[test], method
 
 def findRootDir(s):
-
-  if not s.startswith(constants.BASE_DIR):
+  if not s.replace(os.sep,'/').startswith(constants.BASE_DIR):
     raise RuntimeError('directory is not under constants.BASE_DIR?')
-
+  
   s = s[len(constants.BASE_DIR):]
   if s.startswith(os.sep):
     s = s[1:]

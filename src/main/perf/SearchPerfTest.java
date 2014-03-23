@@ -110,6 +110,11 @@ public class SearchPerfTest {
     protected boolean tryIncRef(IndexSearcher ref) {
       return ref.getIndexReader().tryIncRef();
     }
+    
+    @Override
+    protected int getRefCount(IndexSearcher ref) {
+    	return ref.getIndexReader().getRefCount();
+    }
   }
   
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {

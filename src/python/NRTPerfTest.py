@@ -2,14 +2,15 @@ import os
 import sys
 import constants
 import re
+import benchUtil
+from competition import *
 
 def run(command):
   if os.system(command):
     raise RuntimeError('%s failed' % command)
 
 DIR_IMPL = 'NIOFSDirectory'
-INDEX = '/lucene/indices/clean.svn.Standard.nd24.9005M/index'
-COMMIT = 'multi'
+INDEX = 'd:/dev/lucene/indices/wikimedium10k.lucene-trunk.facets.Date.Direct.Lucene41.nd0.01M/index'
 SEED = 17
 INDEX_NUM_THREADS = 6
 SEARCH_NUM_THREADS = 24
@@ -18,38 +19,52 @@ VERBOSE = '-verbose' in sys.argv
 ADDS_ONLY = '-adds' in sys.argv
 STATS_EVERY_SEC = 1
 REOPEN_RATE = 0.5
-LOG_DIR = 'logs'
 
 def main():
-  if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-    
-  run('ant compile >> compile.log 2>&1')
-  run('%s -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test perf/NRTPerfTest.java' % constants.JAVAC_EXE)
+  if not os.path.exists(constants.LOGS_DIR):
+    os.makedirs(constants.LOGS_DIR)
 
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False)
+  c = Competitor("base", "lucene-trunk")
+  r.compile(c)
+  cp = r.classPathToString(r.getClassPath(c.checkout))
+  
   # fix reopen rate, vary indexing rate
   #for indexRate in (100, 200, 500, 1000, 2000, 5000, 10000):
   indexRate = 2000
   for reopenRate in (0.1, 0.5, 1.0, 5.0, 10.0, 20.0):
-    logFileName = '%s/dps%s_reopen%s.txt' % (LOG_DIR, indexRate, reopenRate)
-    docCount, searchCount, readerCount, runTimeSec = runOne(indexRate, reopenRate, logFileName)
+    logFileName = '%s/dps%s_reopen%s.txt' % (constants.LOGS_DIR, indexRate, reopenRate)
+    docCount, searchCount, readerCount, runTimeSec = runOne(cp, indexRate, reopenRate, logFileName)
     print 'Index rate target=%s/sec: %.2f docs/sec; %.2f reopens/sec; %.2f searches/sec' % (indexRate, docCount/float(runTimeSec), readerCount/float(runTimeSec), searchCount/float(runTimeSec))
   
-def runOne(docsPerSec, reopensPerSec, logFileName):
+def runOne(claspath, docsPerSec, reopensPerSec, logFileName):
   if ADDS_ONLY:
     mode = 'add'
   else:
     mode = 'update'
   command = constants.JAVA_COMMAND
-  command += ' -classpath .:lib/junit-4.7.jar:../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test'
+  command += ' -cp "%s"' % claspath
   command += ' perf.NRTPerfTest'
-  command += ' %s %s %s %s %s %s %s %s %s %s %s %s' % \
-             (DIR_IMPL, INDEX, COMMIT, constants.WIKI_LINE_FILE, SEED, docsPerSec, RUN_TIME_SEC, SEARCH_NUM_THREADS, INDEX_NUM_THREADS, reopensPerSec, mode, STATS_EVERY_SEC)
+  command += ' %s' % DIR_IMPL
+  command += ' %s' % INDEX
+  command += ' multi'
+  command += ' %s' % constants.WIKI_MEDIUM_DOCS_LINE_FILE
+  command += ' %s' % SEED
+  command += ' %s' % docsPerSec
+  command += ' %s' % RUN_TIME_SEC
+  command += ' %s' % SEARCH_NUM_THREADS
+  command += ' %s' % INDEX_NUM_THREADS
+  command += ' %s' % reopensPerSec
+  command += ' %s' % mode
+  command += ' %s' % STATS_EVERY_SEC
+  command += " yes 0.0"
+  command += ' > %s 2>&1' % logFileName
+
   if VERBOSE:
     print
     print 'run: %s' % command
-  result = os.popen(command, 'rb').read()
-  open(logFileName, 'wb').write(result)
+  os.system(command)
+  result = open(logFileName, 'rb').read()
   if VERBOSE:
     print result
 
@@ -74,7 +89,7 @@ def runOne(docsPerSec, reopensPerSec, logFileName):
           totDocs += docs
           totReopens += reopens
           qtCount += 1
-      
+    
     return totDocs, totSearches, totReopens, qtCount * STATS_EVERY_SEC
   except:
     print 'FAILED -- output:\n%s' % result

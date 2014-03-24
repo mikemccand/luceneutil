@@ -43,15 +43,13 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-  public IndexThreads(Random random, IndexWriter w, TaxonomyWriter taxoWriter,
-                      Set<String> facetFields, FacetsConfig facetsConfig,
-                      String lineFile, boolean storeBody, boolean tvsBody,
-                      boolean bodyPostingsOffsets,
-                      int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS,
-                      boolean doUpdate, float docsPerSecPerThread, boolean cloneDocs) throws IOException, InterruptedException {
+	public IndexThreads(Random random, IndexWriter w, TaxonomyWriter taxoWriter, Set<String> facetFields,
+			FacetsConfig facetsConfig, String lineFile, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
+			int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS, boolean doUpdate,
+			float docsPerSecPerThread, boolean cloneDocs, boolean fieldUpdates) throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
 
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, taxoWriter, facetFields, facetsConfig);
+    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, taxoWriter, facetFields, facetsConfig, fieldUpdates);
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
@@ -70,7 +68,7 @@ class IndexThreads {
     failed = new AtomicBoolean(false);
 
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, doUpdate, groupBlockIndex, stop, docsPerSecPerThread, failed);
+      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, doUpdate, groupBlockIndex, stop, docsPerSecPerThread, failed, fieldUpdates);
       threads[thread].start();
     }
 
@@ -125,6 +123,7 @@ class IndexThreads {
     private final AtomicInteger count;
     private final AtomicInteger groupBlockIndex;
     private final boolean doUpdate;
+    private final boolean doFieldUpdates;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
     private final float docsPerSec;
@@ -134,7 +133,7 @@ class IndexThreads {
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
                        LineFileDocs docs,
                        int numTotalDocs, AtomicInteger count, boolean doUpdate, AtomicInteger groupBlockIndex,
-                       AtomicBoolean stop, float docsPerSec, AtomicBoolean failed) {
+                       AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, boolean doFieldUpdates) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -142,6 +141,7 @@ class IndexThreads {
       this.numTotalDocs = numTotalDocs;
       this.count = count;
       this.doUpdate = doUpdate;
+      this.doFieldUpdates = doFieldUpdates; // nocommit use!
       this.groupBlockIndex = groupBlockIndex;
       this.stop = stop;
       this.docsPerSec = docsPerSec;
@@ -311,6 +311,10 @@ class IndexThreads {
               // was true
               ((Document) doc).getField("id").setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
+            } else if (doFieldUpdates) {
+            	final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
+            	// nocommit take care of binaryDV too
+            	w.updateNumericDocValue(new Term("id", updateID), "lastModNDV", System.currentTimeMillis());
             } else {
               w.addDocument(doc);
             }

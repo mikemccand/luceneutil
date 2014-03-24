@@ -64,8 +64,6 @@ import org.apache.lucene.util.Version;
 
 public class NRTPerfTest {
 
-  static final boolean NEW_INDEX = false;
-
   // TODO: share w/ SearchPerfTest
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
     Collection<IndexCommit> commits = DirectoryReader.listCommits(dir);
@@ -90,9 +88,10 @@ public class NRTPerfTest {
     private final Random random;
     public volatile int indexedCount;
     private final boolean doUpdate;
+    private final boolean doFieldUpdates;
     private final LineFileDocs.DocState docState;
 
-    public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random, boolean doUpdate) {
+    public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random, boolean doUpdate, boolean doFieldUpdates) {
       this.w = w;
       this.docs = docs;
       docState = docs.newDocState();
@@ -100,6 +99,7 @@ public class NRTPerfTest {
       this.runTimeSec = runTimeSec;
       this.random = new Random(random.nextInt());
       this.doUpdate = doUpdate;
+      this.doFieldUpdates = doFieldUpdates;
     }
 
     @Override
@@ -114,10 +114,14 @@ public class NRTPerfTest {
           int maxDoc = w.maxDoc();
           final IndexDocument doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
-          if (doUpdate && (!NEW_INDEX || (maxDoc > 0 && random.nextInt(4) != 2))) {
+          if (doUpdate) {
             final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
             docState.id.setStringValue(id);
             w.updateDocument(new Term("id", id), doc);
+          } else if (doFieldUpdates) {
+          	final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
+//          	w.updateNumericDocValue(new Term("id", id), "lastModNDV", System.currentTimeMillis());
+          	w.updateBinaryDocValue(new Term("id", id), "titleBDV", docState.titleBDV.binaryValue());
           } else {
             w.addDocument(doc);
           }
@@ -223,6 +227,7 @@ public class NRTPerfTest {
     final int numIndexThreads = Integer.parseInt(args[8]);
     final double reopenPerSec = Double.parseDouble(args[9]);
     final boolean doUpdates = args[10].equals("update");
+    final boolean doFieldUpdates = args[10].equals("fieldUpdates");
     statsEverySec = Integer.parseInt(args[11]);
     final boolean doCommit = args[12].equals("yes");
     final double mergeMaxWriteMBPerSec = Double.parseDouble(args[13]);
@@ -241,7 +246,7 @@ public class NRTPerfTest {
     System.out.println("NumSearchThreads=" + numSearchThreads);
     System.out.println("NumIndexThreads=" + numIndexThreads);
     System.out.println("Reopen/sec=" + reopenPerSec);
-    System.out.println("Mode=" + (doUpdates ? "updateDocument" : "addDocument"));
+    System.out.println("Mode=" + (doUpdates ? "updateDocument" : (doFieldUpdates ? "fieldUpdates" : "addDocument")));
 
     System.out.println("Record stats every " + statsEverySec + " seconds");
     final int count = (int) ((runTimeSec / statsEverySec) + 2);
@@ -257,7 +262,7 @@ public class NRTPerfTest {
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, new HashSet<String>(), null);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, new HashSet<String>(), null, doFieldUpdates);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {
@@ -377,7 +382,7 @@ public class NRTPerfTest {
 
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {
-      indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, doUpdates);
+      indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, doUpdates, doFieldUpdates);
       indexThreads[i].setPriority(Thread.currentThread().getPriority()+1);
       indexThreads[i].setName("IndexThread " + i);
       indexThreads[i].start();
@@ -519,10 +524,7 @@ public class NRTPerfTest {
       System.out.println("  " + (i*statsEverySec) + " searches=" + searchesByTime[i].get() + " docs=" + docsIndexedByTime[i].get() + " reopens=" + reopensByTime[i]);
     }
     setSearcher(null);
-    if (NEW_INDEX) {
-      w.waitForMerges();
-      w.close();
-    } else if (doCommit) {
+    if (doCommit) {
       w.close(false);
     } else {
       w.rollback();

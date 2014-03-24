@@ -132,6 +132,7 @@ public final class Indexer {
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
+    final boolean addDVFields = args.getFlag("-dvfields");
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
@@ -170,6 +171,7 @@ public final class Indexer {
     System.out.println("Facet fields: " + facetFields);
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
+    System.out.println("Add DocValues fields: " + addDVFields);
     
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
@@ -266,9 +268,9 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    IndexThreads threads = new IndexThreads(random, w, taxoWriter, facetFields, facetsConfig, lineFile, storeBody, tvsBody, bodyPostingsOffsets,
-                                            numThreads, docCountLimit, addGroupingFields, printDPS,
-                                            doUpdate, -1.0f, false);
+		IndexThreads threads = new IndexThreads(random, w, taxoWriter, facetFields, facetsConfig, lineFile, storeBody,
+				tvsBody, bodyPostingsOffsets, numThreads, docCountLimit, addGroupingFields, printDPS, doUpdate, -1.0f, false,
+				addDVFields);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();

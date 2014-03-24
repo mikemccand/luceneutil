@@ -686,7 +686,10 @@ class RunAlgs:
       w('-docCountLimit %s' % index.numDocs)
       w('-threadCount %s' % index.numThreads)
       w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
-
+      
+      if index.addDVFields:
+        w('-dvfields')
+        
       if index.optimize:
         w('-forceMerge')
 

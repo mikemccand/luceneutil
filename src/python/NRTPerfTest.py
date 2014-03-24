@@ -5,20 +5,19 @@ import re
 import benchUtil
 from competition import *
 import stats
-from __builtin__ import len
 
 def run(command):
   if os.system(command):
     raise RuntimeError('%s failed' % command)
 
 DIR_IMPL = 'NIOFSDirectory'
-INDEX = 'd:/dev/lucene/indices/wikimedium10k.lucene-trunk.facets.Date.Direct.Lucene41.nd0.01M/index'
+INDEX = 'd:/dev/lucene/indices/wikimedium500k.lucene-trunk.Lucene41.Memory.dvfields.nd0.5M/index'
 SEED = 17
-INDEX_NUM_THREADS = 6
 SEARCH_NUM_THREADS = 24
 RUN_TIME_SEC = 60
 VERBOSE = '-verbose' in sys.argv
 ADDS_ONLY = '-adds' in sys.argv
+FIELD_UPDATES = '-fupdates' in sys.argv
 STATS_EVERY_SEC = 1
 REOPEN_RATE = 0.5
 
@@ -31,11 +30,13 @@ def main():
   r.compile(c)
   cp = r.classPathToString(r.getClassPath(c.checkout))
   
-  # fix reopen rate, vary indexing rate
-  #for indexRate in (100, 200, 500, 1000, 2000, 5000, 10000):
-  indexRate = 2000
+  constants.INDEX_NUM_THREADS = 1
+  # 1 update/sec
+  indexRate = 1 * constants.INDEX_NUM_THREADS
+  
 #  for reopenRate in (0.1, 0.5, 1.0, 5.0, 10.0, 20.0):
-  for reopenRate in (0.1, 0.5, 1.0):
+#  for reopenRate in (0.1, 0.5, 1.0):
+  for reopenRate in (1,):
     logFileName = '%s/dps%s_reopen%s.txt' % (constants.LOGS_DIR, indexRate, reopenRate)
     docCount, searchCount, readerCount, runTimeSec = runOne(cp, indexRate, reopenRate, logFileName)
     reopenStats(logFileName)
@@ -47,6 +48,8 @@ reByTime = re.compile('  (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)$')
 def runOne(claspath, docsPerSec, reopensPerSec, logFileName):
   if ADDS_ONLY:
     mode = 'add'
+  elif FIELD_UPDATES:
+    mode = 'fieldUpdates'
   else:
     mode = 'update'
   command = constants.JAVA_COMMAND
@@ -60,11 +63,11 @@ def runOne(claspath, docsPerSec, reopensPerSec, logFileName):
   command += ' %s' % docsPerSec
   command += ' %s' % RUN_TIME_SEC
   command += ' %s' % SEARCH_NUM_THREADS
-  command += ' %s' % INDEX_NUM_THREADS
+  command += ' %s' % constants.INDEX_NUM_THREADS
   command += ' %s' % reopensPerSec
   command += ' %s' % mode
   command += ' %s' % STATS_EVERY_SEC
-  command += " yes 0.0"
+  command += " no 0.0"
   command += ' > %s 2>&1' % logFileName
 
   if VERBOSE:

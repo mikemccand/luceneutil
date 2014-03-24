@@ -377,7 +377,7 @@ reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
 
 def runNRTTest(r, indexPath, runLogDir):
 
-  cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 yes 0.0' % \
+  cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 no 0.0' % \
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,

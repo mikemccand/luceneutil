@@ -34,6 +34,7 @@ WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10
 WIKI_MEDIUM_5M = Data('wikimedium5m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 5000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_10K = Data('wikimedium10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
+WIKI_MEDIUM_500K = Data('wikimedium500k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 500000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_2M = Data('wikimedium2m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 2000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
 MEME_ALL = Data('memeall',
@@ -50,6 +51,7 @@ EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 50000
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
+        'wikimedium500k' : WIKI_MEDIUM_500K,
         'wikimedium10k' : WIKI_MEDIUM_10K,
         'wikimedium5m' : WIKI_MEDIUM_5M,
         'wikimedium2m' : WIKI_MEDIUM_2M,
@@ -96,7 +98,8 @@ class Index(object):
                facets = None,
                extraNamePart = None,
                facetDVFormat = constants.FACET_FIELD_DV_FORMAT_DEFAULT,
-               maxConcurrentMerges = 1  # use 1 for spinning-magnets and 3 for fast SSD
+               maxConcurrentMerges = 1,  # use 1 for spinning-magnets and 3 for fast SSD
+               addDVFields = False,
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -119,6 +122,7 @@ class Index(object):
     self.useCFS = useCFS
     self.javaCommand = javaCommand
     self.maxConcurrentMerges = maxConcurrentMerges
+    self.addDVFields = addDVFields
 
     self.lineDocSource = dataSource.lineFile
     self.verbose = verbose
@@ -167,6 +171,9 @@ class Index(object):
     if self.postingsFormat != self.idFieldPostingsFormat:
       name.append(self.idFieldPostingsFormat)
 
+    if self.addDVFields:
+      name.append('dvfields')
+      
     name.append('nd%gM' % (self.numDocs/1000000.0))
     return '.'.join(name)
 

@@ -36,11 +36,13 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
@@ -67,9 +69,11 @@ public class LineFileDocs implements Closeable {
   private final Set<String> facetFields;
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
+  private final boolean addDVFields;
 
-  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean doClone,
-                      TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig) throws IOException {
+	public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
+			boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
+			boolean addDVFields) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
@@ -79,6 +83,7 @@ public class LineFileDocs implements Closeable {
     this.taxoWriter = taxoWriter;
     this.facetFields = facetFields;
     this.facetsConfig = facetsConfig;
+    this.addDVFields = addDVFields;
     open();
   }
 
@@ -197,6 +202,8 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field titleDV;
+    final BinaryDocValuesField titleBDV;
+    final NumericDocValuesField lastModNDV; 
     final Field body;
     final Field id;
     final Field date;
@@ -209,15 +216,28 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields) {
       doc = new Document();
       
       title = new StringField("title", "", Field.Store.NO);
       doc.add(title);
 
-      titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
-      doc.add(titleDV);
-
+      if (addDVFields) {
+//      	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
+//      	doc.add(titleDV);
+      	titleDV = null;
+      	
+      	titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
+      	doc.add(titleBDV);
+      	
+      	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
+      	doc.add(lastModNDV);
+      } else {
+      	titleDV = null;
+      	titleBDV = null;
+      	lastModNDV = null;
+      }
+      
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
       doc.add(titleTokenized);
       
@@ -257,7 +277,7 @@ public class LineFileDocs implements Closeable {
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields);
   }
 
   // TODO: is there a pre-existing way to do this!!!
@@ -326,8 +346,11 @@ public class LineFileDocs implements Closeable {
     doc.body.setStringValue(line.substring(1+spot2, spot3));
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
-    //doc.titleDV.setBytesValue(new BytesRef(title));
-    doc.titleTokenized.setStringValue(title);
+    if (addDVFields) {
+    	doc.titleBDV.setBytesValue(new BytesRef(title));
+    	//doc.titleDV.setBytesValue(new BytesRef(title));
+    	doc.titleTokenized.setStringValue(title);
+    }
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setStringValue(dateString);
     doc.id.setStringValue(intToID(myID));
@@ -342,6 +365,9 @@ public class LineFileDocs implements Closeable {
     //doc.rand.setLongValue(rand.nextInt(10000));
 
     doc.dateCal.setTime(date);
+    if (addDVFields) {
+    	doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
+    }
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
 

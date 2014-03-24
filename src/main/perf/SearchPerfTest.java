@@ -278,6 +278,7 @@ public class SearchPerfTest {
       final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
       final boolean verbose = args.getFlag("-verbose");
       final boolean cloneDocs = args.getFlag("-cloneDocs");
+      final boolean fieldUpdates = args.getFlag("-fieldUpdates");
 
       final long reopenEveryMS = (long) (1000 * reopenEverySec);
 
@@ -347,11 +348,8 @@ public class SearchPerfTest {
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
-      IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, null,
-                                              lineDocsFile, storeBody, tvsBody,
-                                              false,
-                                              indexThreadCount, -1,
-                                              false, false, true, docsPerSecPerThread, cloneDocs);
+			IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, null, lineDocsFile, storeBody,
+					tvsBody, false, indexThreadCount, -1, false, false, true, docsPerSecPerThread, cloneDocs, fieldUpdates);
       threads.start();
 
       mgr = new SearcherManager(writer, true, new SearcherFactory() {

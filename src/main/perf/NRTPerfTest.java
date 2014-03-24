@@ -23,9 +23,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
@@ -64,6 +67,8 @@ import org.apache.lucene.util.Version;
 
 public class NRTPerfTest {
 
+	public enum Mode { UPDATE, ADD, NDV_UPDATE, BDV_UPDATE }
+	
   // TODO: share w/ SearchPerfTest
   private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
     Collection<IndexCommit> commits = DirectoryReader.listCommits(dir);
@@ -87,19 +92,17 @@ public class NRTPerfTest {
     private final double runTimeSec;
     private final Random random;
     public volatile int indexedCount;
-    private final boolean doUpdate;
-    private final boolean doFieldUpdates;
+    private final Mode mode;
     private final LineFileDocs.DocState docState;
 
-    public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random, boolean doUpdate, boolean doFieldUpdates) {
+    public IndexThread(IndexWriter w, LineFileDocs docs, double docsPerSec, double runTimeSec, Random random, Mode mode) {
       this.w = w;
       this.docs = docs;
       docState = docs.newDocState();
       this.docsPerSec = docsPerSec;
       this.runTimeSec = runTimeSec;
       this.random = new Random(random.nextInt());
-      this.doUpdate = doUpdate;
-      this.doFieldUpdates = doFieldUpdates;
+      this.mode = mode;
     }
 
     @Override
@@ -109,24 +112,36 @@ public class NRTPerfTest {
         final long stopNS = startNS + (long) (runTimeSec * 1000000000);
         //System.out.println("IW.maxDoc=" + maxDoc);
         int count = 0;
-        while(true) {
+				while (true) {
           count++;
           int maxDoc = w.maxDoc();
           final IndexDocument doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
-          if (doUpdate) {
-            final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
-            docState.id.setStringValue(id);
-            w.updateDocument(new Term("id", id), doc);
-          } else if (doFieldUpdates) {
-          	final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
-//          	w.updateNumericDocValue(new Term("id", id), "lastModNDV", System.currentTimeMillis());
-          	w.updateBinaryDocValue(new Term("id", id), "titleBDV", docState.titleBDV.binaryValue());
-          } else {
-            w.addDocument(doc);
+          long indexUpdateTime = System.nanoTime();
+          final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
+          switch (mode) {
+          	case UPDATE:
+          		docState.id.setStringValue(id);
+          		w.updateDocument(new Term("id", id), doc);
+          		break;
+          	case NDV_UPDATE:
+          		w.updateNumericDocValue(new Term("id", id), "lastModNDV", System.currentTimeMillis());
+          		break;
+          	case BDV_UPDATE:
+          		w.updateBinaryDocValue(new Term("id", id), "titleBDV", docState.titleBDV.binaryValue());
+          		break;
+          	case ADD:
+          		w.addDocument(doc);
+          		break;
+          	default:
+          		throw new IllegalArgumentException("unknown mode " + mode);
+          }
+          int idx = currentQT.get();
+					if (totalUpdateTimeByTime != null) {
+          	totalUpdateTimeByTime[idx].addAndGet(System.nanoTime() - indexUpdateTime);
           }
           if (docsIndexedByTime != null) {
-            docsIndexedByTime[currentQT.get()].incrementAndGet();
+            docsIndexedByTime[idx].incrementAndGet();
           }
           final long t = System.nanoTime();
           if (t >= stopNS) {
@@ -209,6 +224,7 @@ public class NRTPerfTest {
   static final AtomicInteger currentQT = new AtomicInteger();
   static AtomicInteger[] docsIndexedByTime;
   static AtomicInteger[] searchesByTime;
+  static AtomicLong[] totalUpdateTimeByTime; 
   static int statsEverySec;
 
   static Query[] queries;
@@ -226,8 +242,7 @@ public class NRTPerfTest {
     final int numSearchThreads = Integer.parseInt(args[7]);
     final int numIndexThreads = Integer.parseInt(args[8]);
     final double reopenPerSec = Double.parseDouble(args[9]);
-    final boolean doUpdates = args[10].equals("update");
-    final boolean doFieldUpdates = args[10].equals("fieldUpdates");
+    final Mode mode = Mode.valueOf(args[10].toUpperCase(Locale.ROOT));
     statsEverySec = Integer.parseInt(args[11]);
     final boolean doCommit = args[12].equals("yes");
     final double mergeMaxWriteMBPerSec = Double.parseDouble(args[13]);
@@ -246,23 +261,25 @@ public class NRTPerfTest {
     System.out.println("NumSearchThreads=" + numSearchThreads);
     System.out.println("NumIndexThreads=" + numIndexThreads);
     System.out.println("Reopen/sec=" + reopenPerSec);
-    System.out.println("Mode=" + (doUpdates ? "updateDocument" : (doFieldUpdates ? "fieldUpdates" : "addDocument")));
+    System.out.println("Mode=" + mode);
 
     System.out.println("Record stats every " + statsEverySec + " seconds");
     final int count = (int) ((runTimeSec / statsEverySec) + 2);
     docsIndexedByTime = new AtomicInteger[count];
     searchesByTime = new AtomicInteger[count];
+    totalUpdateTimeByTime = new AtomicLong[count];
     final AtomicInteger reopensByTime[] = new AtomicInteger[count];
     for(int i=0;i<count;i++) {
       docsIndexedByTime[i] = new AtomicInteger();
       searchesByTime[i] = new AtomicInteger();
+      totalUpdateTimeByTime[i] = new AtomicLong();
       reopensByTime[i] = new AtomicInteger();
     }
 
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
     
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, new HashSet<String>(), null, doFieldUpdates);
+    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, new HashSet<String>(), null, true);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {
@@ -382,7 +399,7 @@ public class NRTPerfTest {
 
     final IndexThread[] indexThreads = new IndexThread[numIndexThreads];
     for(int i=0;i<numIndexThreads;i++) {
-      indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, doUpdates, doFieldUpdates);
+      indexThreads[i] = new IndexThread(w, docs, docsPerSec/numIndexThreads, runTimeSec, random, mode);
       indexThreads[i].setPriority(Thread.currentThread().getPriority()+1);
       indexThreads[i].setName("IndexThread " + i);
       indexThreads[i].start();
@@ -503,7 +520,13 @@ public class NRTPerfTest {
           } else {
             other = "";
           }
-          System.out.println("QT " + (prevQT-1) + " searches=" + searchesByTime[(prevQT-1)].get() + " docs=" + docsIndexedByTime[(prevQT-1)].get() + " reopens=" + reopensByTime[(prevQT-1)].get() + other);
+          int prev = prevQT - 1;
+          System.out.println(String.format("QT %d searches=%d docs=%d reopens=%s totUpdateTime=%d", 
+          										prev, 
+          										searchesByTime[prev].get(),
+          										docsIndexedByTime[prev].get(),
+          										reopensByTime[prev].get() + other,
+          										TimeUnit.NANOSECONDS.toMillis(totalUpdateTimeByTime[prev].get())));
         }
       }
       Thread.sleep(25);
@@ -521,7 +544,12 @@ public class NRTPerfTest {
 
     System.out.println("By time:");
     for(int i=0;i<searchesByTime.length-2;i++) {
-      System.out.println("  " + (i*statsEverySec) + " searches=" + searchesByTime[i].get() + " docs=" + docsIndexedByTime[i].get() + " reopens=" + reopensByTime[i]);
+      System.out.println(String.format("  %d searches=%d docs=%d reopens=%d totUpdateTime=%d", 
+      									i*statsEverySec,
+      									searchesByTime[i].get(),
+      									docsIndexedByTime[i].get(),
+      									reopensByTime[i].get(),
+      									TimeUnit.NANOSECONDS.toMillis(totalUpdateTimeByTime[i].get())));
     }
     setSearcher(null);
     if (doCommit) {

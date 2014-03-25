@@ -110,7 +110,8 @@ def runOne(classpath, docsPerSec, reopensPerSec, fullIndexPath,
     if numDrop > 0:
       print 'drop: %s' % ' '.join(['%.1f' % x for x in times[-numDrop:]])
       times = times[:-numDrop]
-    print 'times: %s' % ' '.join(['%.1f' % x for x in times])
+    if VERBOSE:
+      print 'times: %s' % ' '.join(['%.1f' % x for x in times])
   
     minVal, maxVal, mean, stdDev = stats.getStats(times)
     reopenStats.meanReopenTime = mean
@@ -176,6 +177,7 @@ if __name__ == '__main__':
   nst = benchUtil.getArg('-nts', 0, True) # default to no searches
   nit = benchUtil.getArg('nit', 1, True) # no concurrent updates
   
+  allStats = []
   for dps in dpss.split(','):
     for rps in rpss.split(','):
       print
@@ -189,5 +191,9 @@ if __name__ == '__main__':
                            numSearchThreads=nst, # no searches
                            numIndexThreads=1, # no concurrent updates
                            )
-      
-      print 'docs/sec=%s reopen/sec=%s reopenTime(ms)=%.2f totalUpdateTime(ms)=%s' % (dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime)
+      allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime, rts))
+
+  print
+  print 'docs/s reopen/s reopen(ms) update(ms) run(ms)'
+  for s in allStats:
+    print '%6s %8s %10s %10s %7s' % (s[0], s[1], "{:,.2f}".format(float(s[2])), "{:,d}".format(int(s[3])), s[4])

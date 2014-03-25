@@ -190,4 +190,4 @@ if __name__ == '__main__':
                            numIndexThreads=1, # no concurrent updates
                            )
       
-      print 'docs/sec=%s reopen/sec=%s reopenTime(ms)=%s totalUpdateTime(ms)=%s' % (dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime)
+      print 'docs/sec=%s reopen/sec=%s reopenTime(ms)=%.2f totalUpdateTime(ms)=%s' % (dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime)

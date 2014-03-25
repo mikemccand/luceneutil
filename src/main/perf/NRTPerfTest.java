@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene46.Lucene46Codec;
 import org.apache.lucene.index.AtomicReader;
@@ -137,12 +138,8 @@ public class NRTPerfTest {
           		throw new IllegalArgumentException("unknown mode " + mode);
           }
           int idx = currentQT.get();
-					if (totalUpdateTimeByTime != null) {
-          	totalUpdateTimeByTime[idx].addAndGet(System.nanoTime() - indexUpdateTime);
-          }
-          if (docsIndexedByTime != null) {
-            docsIndexedByTime[idx].incrementAndGet();
-          }
+          totalUpdateTimeByTime[idx].addAndGet(System.nanoTime() - indexUpdateTime);
+          docsIndexedByTime[idx].incrementAndGet();
           final long t = System.nanoTime();
           if (t >= stopNS) {
             break;
@@ -201,7 +198,8 @@ public class NRTPerfTest {
             final Query query = queries[queryIdx];
             IndexSearcher s = getSearcher();
             try {
-              final int hitCount = s.search(query, 10).totalHits;
+            	s.search(query, 10);
+//              final int hitCount = s.search(query, 10).totalHits;
               // Not until we have shuffled line docs file w/ matching IDs
               //if (queryHitCounts != null && hitCount != queryHitCounts[queryIdx]) {
               //throw new RuntimeException("hit counts differ for query=" + query + " expected=" + queryHitCounts[queryIdx] + " actual=" + hitCount);
@@ -289,6 +287,7 @@ public class NRTPerfTest {
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       dir0 = new SimpleFSDirectory(new File(dirPath));
     } else {
+    	docs.close();
       throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
     }
     //final NRTCachingDirectory dir = new NRTCachingDirectory(dir0, 10, 200.0, mergeMaxWriteMBPerSec);
@@ -298,7 +297,7 @@ public class NRTPerfTest {
     //final MergeScheduler ms = new ConcurrentMergeScheduler();
 
     queries = new Query[1];
-    for(int idx=0;idx<queries.length;idx++) {
+		for (int idx = 0; idx < queries.length; idx++) {
       queries[idx] = new TermQuery(new Term("body", "10"));
       /*
       BooleanQuery bq = new BooleanQuery();
@@ -324,6 +323,12 @@ public class NRTPerfTest {
         } else {
           return PostingsFormat.forName("Lucene41");
         }
+      }
+      
+      private final DocValuesFormat direct = DocValuesFormat.forName("Direct");
+      @Override
+      public DocValuesFormat getDocValuesFormatForField(String field) {
+      	return direct;
       }
     };
 
@@ -428,7 +433,6 @@ public class NRTPerfTest {
 
     final SearchThread[] searchThreads = new SearchThread[numSearchThreads];
 
-    final long startNS = System.nanoTime();
     for(int i=0;i<numSearchThreads;i++) {
       searchThreads[i] = new SearchThread(runTimeSec);
       //System.out.println("SEARCH PRI=" + searchThreads[i].getPriority() + " MIN=" + Thread.MIN_PRIORITY + " MAX=" + Thread.MAX_PRIORITY);

@@ -142,6 +142,7 @@ public final class Indexer {
     }
 
     if (addGroupingFields && docCountLimit == -1) {
+    	a.close();
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
     }
 
@@ -237,7 +238,7 @@ public final class Indexer {
         private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName(facetDVFormatName);
         //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
-        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
+//        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
         private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
 
         @Override

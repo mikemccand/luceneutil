@@ -1,3 +1,23 @@
+#!/usr/bin/env python
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Measures the NRT performance under different document updates mode
+# (add, update, ndv_update, bdnv_update)
+
 import os
 import sys
 import constants
@@ -6,55 +26,12 @@ import benchUtil
 import competition
 import stats
 
+VERBOSE = '-verbose' in sys.argv
+
 def run(command):
   if os.system(command):
     raise RuntimeError('%s failed' % command)
 
-VERBOSE = '-verbose' in sys.argv
-
-def main():
-  sourceData = competition.sourceData()
-  comp = competition.Competition(randomSeed=0)
-
-  index = comp.newIndex(constants.TRUNK_CHECKOUT, sourceData,
-                        postingsFormat='Lucene41',
-                        idFieldPostingsFormat='Memory',
-                        grouping=False,
-                        doDeletions=False,
-                        addDVFields=True,
-                        )
-  
-  c = competition.Competitor('base', constants.TRUNK_CHECKOUT)
- 
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False)
-  r.compile(c)
-  r.makeIndex(c.name, index, False)
-
-  if not os.path.exists(constants.LOGS_DIR):
-    os.makedirs(constants.LOGS_DIR)
-
-  indexRate = 1000
-  runTimeSec = 10
-  numSearchThreads = 10
-  numIndexThreads = 4
-  
-#  for reopenRate in (0.1, 0.5, 1.0, 5.0, 10.0, 20.0):
-#  for reopenRate in (0.1, 0.5, 1.0):
-  for reopenRate in (1, 0.5):
-    restats = runOne(classpath='%s' % r.classPathToString(r.getClassPath(c.checkout)),
-                     mode=benchUtil.getArg('-mode', 'update', True),
-                     docsPerSec=indexRate,
-                     reopensPerSec=reopenRate,
-                     fullIndexPath='%s/index' % benchUtil.nameToIndexPath(index.getName()),
-                     runTimeSec=runTimeSec,
-                     numSearchThreads=numSearchThreads,
-                     numIndexThreads=numIndexThreads)
-    print 'Index rate target=%s/sec: %.2f docs/sec; %.2f reopens/sec; %.2f searches/sec' % \
-          (indexRate,
-           restats.totalDocs/float(runTimeSec),
-           restats.totalReopens/float(runTimeSec),
-           restats.totalSearches/float(runTimeSec))
-    
 reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
 reByTime = re.compile('  (\d+) searches=(\d+) docs=(\d+) reopens=(\d+) totUpdateTime=(\d+)$')
 
@@ -110,7 +87,7 @@ def runOne(classpath, docsPerSec, reopensPerSec, fullIndexPath,
         updateTime = int(m.group(5))
         perTimeQ.append((t, searches, docs, reopens, updateTime))
         # discard first 5 seconds -- warmup
-        if t >= 5 * reopensPerSec:
+        if t >= (5*float(reopensPerSec)):
           reopenStats.totalSearches += searches
           reopenStats.totalDocs += docs
           reopenStats.totalReopens += reopens
@@ -143,7 +120,7 @@ def runOne(classpath, docsPerSec, reopensPerSec, fullIndexPath,
       print 'reopen stats:'
       reopenStats.toString()
       print
-          
+    
     return reopenStats
   except:
     print 'FAILED -- output:\n%s' % result
@@ -171,4 +148,46 @@ class ReopenStats:
              self.totalUpdateTime)
     
 if __name__ == '__main__':
-  main()
+    
+  sourceData = competition.sourceData()
+  #sourceData.tasksFile = 'D:/tmp/benchmark/wikimedium.10M.datefacets.nostopwords.tasks'
+  comp = competition.Competition(randomSeed=0)
+
+  index = comp.newIndex(constants.TRUNK_CHECKOUT, sourceData,
+                        postingsFormat='Lucene41',
+                        idFieldPostingsFormat='Memory',
+                        grouping=False,
+                        doDeletions=False,
+                        addDVFields=True,
+                        )
+  
+  c = competition.Competitor('base', constants.TRUNK_CHECKOUT)
+ 
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False)
+  r.compile(c)
+  r.makeIndex(c.name, index, False)
+
+  cp = '%s' % r.classPathToString(r.getClassPath(c.checkout))
+  fip = '%s/index' % benchUtil.nameToIndexPath(index.getName())
+  m = benchUtil.getArg('-mode', 'update', True)
+  dpss = benchUtil.getArg('-dps', '1', True)
+  rpss = benchUtil.getArg('-rps', '0.2', True)
+  rts = benchUtil.getArg('-rts', 60, True)
+  nst = benchUtil.getArg('-nts', 0, True) # default to no searches
+  nit = benchUtil.getArg('nit', 1, True) # no concurrent updates
+  
+  for dps in dpss.split(','):
+    for rps in rpss.split(','):
+      print
+      print 'params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' % (m, dps, rps, rts, nst, nit)
+      stats = runOne(classpath=cp,
+                     mode=m,
+                     docsPerSec=dps, # update rate
+                     reopensPerSec=rps,
+                     fullIndexPath=fip,
+                     runTimeSec=rts,
+                     numSearchThreads=nst, # no searches
+                     numIndexThreads=1, # no concurrent updates
+                     )
+      
+      print 'docs/sec=%s reopen/sec=%s reopenTime(ms)=%s totalUpdateTime(ms)=%s' % (dps, rps, stats.meanReopenTime, stats.totalUpdateTime)

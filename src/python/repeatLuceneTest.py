@@ -28,6 +28,7 @@ import re
 import threading
 import subprocess
 import json
+import benchUtil
 
 # NOTE
 #   - only works in the module's working directory,
@@ -61,20 +62,6 @@ def error(message):
 
 def beep():
   print '\a\a\a'  
-
-def getArg(argName, default, hasArg=True):
-  try:
-    idx = sys.argv.index(argName)
-  except ValueError:
-    v = default
-  else:
-    if hasArg:
-      v = sys.argv[idx+1]
-      del sys.argv[idx:idx+2]
-    else:
-      v = True
-      del sys.argv[idx]
-  return v
 
 reRepro = re.compile('NOTE: reproduce with(.*?)$', re.MULTILINE)
 reDefines = re.compile('-D(.*?)=(.*?)(?: |$)')
@@ -131,9 +118,9 @@ sub = os.path.split(sub)[1]
 
 logDirName = '%s/lucene/build' % ROOT
 
-doCompile = not getArg('-noc', False, False)
-doLog = not getArg('-nolog', False, False)
-jvmCount = int(getArg('-jvms', 1))
+doCompile = not benchUtil.getArg('-noc', False, False)
+doLog = not benchUtil.getArg('-nolog', False, False)
+jvmCount = int(benchUtil.getArg('-jvms', 1))
 
 if jvmCount != 1:
   doLog = True
@@ -144,21 +131,21 @@ if doLog:
 if not os.path.exists(logDirName):      
   os.makedirs(logDirName)
 
-onlyOnce = getArg('-once', False, False)
-mult = int(getArg('-mult', 1))
-postingsFormat = getArg('-pf', 'random')
-codec = getArg('-codec', 'random')
-sim = getArg('-sim', 'random')
-dir = getArg('-dir', 'random')
-verbose = getArg('-verbose', False, False)
-iters = int(getArg('-iters', 1))
-seed = getArg('-seed', None)
-dvFormat = getArg('-dvFormat', None)
-nightly = getArg('-nightly', None, False)
-keepLogs = getArg('-keeplogs', False, False)
-slow = getArg('-slow', False, False)
+onlyOnce = benchUtil.getArg('-once', False, False)
+mult = int(benchUtil.getArg('-mult', 1))
+postingsFormat = benchUtil.getArg('-pf', 'random')
+codec = benchUtil.getArg('-codec', 'random')
+sim = benchUtil.getArg('-sim', 'random')
+dir = benchUtil.getArg('-dir', 'random')
+verbose = benchUtil.getArg('-verbose', False, False)
+iters = int(benchUtil.getArg('-iters', 1))
+seed = benchUtil.getArg('-seed', None)
+dvFormat = benchUtil.getArg('-dvFormat', None)
+nightly = benchUtil.getArg('-nightly', None, False)
+keepLogs = benchUtil.getArg('-keeplogs', False, False)
+slow = benchUtil.getArg('-slow', False, False)
 # -Dtests.heapsize=XXX if running ant
-heap = getArg('-heap', None, True)
+heap = benchUtil.getArg('-heap', None, True)
 if heap is not None:
   JAVA_ARGS = JAVA_ARGS.replace('512m', heap)
 

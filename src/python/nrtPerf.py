@@ -180,14 +180,14 @@ if __name__ == '__main__':
     for rps in rpss.split(','):
       print
       print 'params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' % (m, dps, rps, rts, nst, nit)
-      stats = runOne(classpath=cp,
-                     mode=m,
-                     docsPerSec=dps, # update rate
-                     reopensPerSec=rps,
-                     fullIndexPath=fip,
-                     runTimeSec=rts,
-                     numSearchThreads=nst, # no searches
-                     numIndexThreads=1, # no concurrent updates
-                     )
+      reopenStats = runOne(classpath=cp,
+                           mode=m,
+                           docsPerSec=dps, # update rate
+                           reopensPerSec=rps,
+                           fullIndexPath=fip,
+                           runTimeSec=rts,
+                           numSearchThreads=nst, # no searches
+                           numIndexThreads=1, # no concurrent updates
+                           )
       
-      print 'docs/sec=%s reopen/sec=%s reopenTime(ms)=%s totalUpdateTime(ms)=%s' % (dps, rps, stats.meanReopenTime, stats.totalUpdateTime)
+      print 'docs/sec=%s reopen/sec=%s reopenTime(ms)=%s totalUpdateTime(ms)=%s' % (dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime)

@@ -35,7 +35,7 @@ def run(command):
 reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
 reByTime = re.compile('  (\d+) searches=(\d+) docs=(\d+) reopens=(\d+) totUpdateTime=(\d+)$')
 
-def runOne(classpath, docsPerSec, reopensPerSec, fullIndexPath, 
+def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath, 
            mode='update',
            dir='MMapDirectory',
            seed=17,
@@ -43,8 +43,7 @@ def runOne(classpath, docsPerSec, reopensPerSec, fullIndexPath,
            numSearchThreads=4,
            numIndexThreads=constants.INDEX_NUM_THREADS,
            statsEverySec=1,
-           commit="no",
-           docsFile=constants.WIKI_MEDIUM_DOCS_LINE_FILE):
+           commit="no"):
   logFileName = '%s/dps%s_reopen%s.txt' % (constants.LOGS_DIR, docsPerSec, reopensPerSec)
   command = constants.JAVA_COMMAND
   command += ' -cp "%s"' % classpath
@@ -52,7 +51,7 @@ def runOne(classpath, docsPerSec, reopensPerSec, fullIndexPath,
   command += ' %s' % dir
   command += ' %s' % fullIndexPath
   command += ' multi'
-  command += ' %s' % docsFile
+  command += ' %s' % data.lineFile
   command += ' %s' % seed
   command += ' %s' % docsPerSec
   command += ' %s' % runTimeSec
@@ -151,6 +150,7 @@ class ReopenStats:
 if __name__ == '__main__':
     
   sourceData = competition.sourceData()
+  
   #sourceData.tasksFile = 'D:/tmp/benchmark/wikimedium.10M.datefacets.nostopwords.tasks'
   comp = competition.Competition(randomSeed=0)
 
@@ -184,6 +184,7 @@ if __name__ == '__main__':
       print 'params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' % (m, dps, rps, rts, nst, nit)
       reopenStats = runOne(classpath=cp,
                            mode=m,
+                           data=sourceData,
                            docsPerSec=dps, # update rate
                            reopensPerSec=rps,
                            fullIndexPath=fip,
@@ -194,6 +195,12 @@ if __name__ == '__main__':
       allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime, rts))
 
   print
-  print 'docs/s reopen/s reopen(ms) update(ms) run(ms)'
+  print 'docs/s reopen/s reopen(ms) update(ms) ->  total(ms) run(ms)'
   for s in allStats:
-    print '%6s %8s %10s %10s %7s' % (s[0], s[1], "{:,.2f}".format(float(s[2])), "{:,d}".format(int(s[3])), s[4])
+    print '%6s %8s %10s %10s -> %10s %7s' % \
+          (s[0],
+           s[1],
+           "{:,.2f}".format(float(s[2])),
+           "{:,d}".format(int(s[3])),
+           "{:,.2f}".format(float(s[2])+float(s[3])),
+           s[4])

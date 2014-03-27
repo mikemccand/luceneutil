@@ -43,6 +43,7 @@ MEME_ALL = Data('memeall',
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 
 WIKI_BIG = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
+WIKI_BIG_10K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 10000, constants.WIKI_BIG_TASKS_FILE)
 WIKI_BIG_100K = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_BIG_TASKS_FILE)
 WIKI_BIG_1M = Data('wikibig', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
 
@@ -57,6 +58,7 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium2m' : WIKI_MEDIUM_2M,
         'memeall': MEME_ALL,
         'wikibig' : WIKI_BIG,
+        'wikibig10k' : WIKI_BIG_10K,
         'wikibig100k' : WIKI_BIG_100K,
         'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM }

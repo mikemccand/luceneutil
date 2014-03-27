@@ -470,10 +470,6 @@ public class NRTPerfTest {
 
             Thread.sleep(sleepMS);
 
-            if (reopenCount > 1) {
-              reopensByTime[currentQT.get()].incrementAndGet();
-            }
-
             final long tStart = System.nanoTime();
             final DirectoryReader newR = DirectoryReader.openIfChanged(r);
 
@@ -481,7 +477,8 @@ public class NRTPerfTest {
               System.out.println("Reopen: " + String.format("%9.4f", (System.nanoTime() - tStart)/1000000.0) + " msec");
               setSearcher(new IndexSearcher(newR));
               r = newR;
-              reopenCount++;
+              ++reopenCount;
+              reopensByTime[currentQT.get()].incrementAndGet();
             } else {
               System.out.println("WARNING: no changes on reopen");
             }

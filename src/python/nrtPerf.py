@@ -192,7 +192,7 @@ if __name__ == '__main__':
                            numSearchThreads=nst, # no searches
                            numIndexThreads=1, # no concurrent updates
                            )
-      allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime, rts))
+      allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime/reopenStats.totalReopens, rts))
 
   print
   print 'docs/s reopen/s reopen(ms) update(ms) ->  total(ms) run(ms)'

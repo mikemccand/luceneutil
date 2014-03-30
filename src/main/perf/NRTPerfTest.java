@@ -118,8 +118,8 @@ public class NRTPerfTest {
           int maxDoc = w.maxDoc();
           final IndexDocument doc = docs.nextDoc(docState);
           //System.out.println("maxDoc=" + maxDoc + " vs " + doc.get("docid"));
-          long indexUpdateTime = System.nanoTime();
           final String id = LineFileDocs.intToID(random.nextInt(maxDoc));
+          long indexUpdateTime = System.nanoTime();
           switch (mode) {
           	case UPDATE:
           		docState.id.setStringValue(id);

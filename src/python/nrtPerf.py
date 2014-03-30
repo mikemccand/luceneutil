@@ -44,7 +44,7 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
            numIndexThreads=constants.INDEX_NUM_THREADS,
            statsEverySec=1,
            commit="no"):
-  logFileName = '%s/dps%s_reopen%s.txt' % (constants.LOGS_DIR, docsPerSec, reopensPerSec)
+  logFileName = '%s/%s_dps%s_reopen%s.txt' % (constants.LOGS_DIR, mode, docsPerSec, reopensPerSec)
   command = constants.JAVA_COMMAND
   command += ' -cp "%s"' % classpath
   command += ' perf.NRTPerfTest'
@@ -74,7 +74,6 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
     print result
 
   try:
-    perTimeQ = []
     reopenStats = ReopenStats()
     for line in result.split('\n'):
       m = reByTime.match(line.rstrip())
@@ -84,7 +83,6 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
         docs = int(m.group(3))
         reopens = int(m.group(4))
         updateTime = int(m.group(5))
-        perTimeQ.append((t, searches, docs, reopens, updateTime))
         # discard first 5 seconds -- warmup
         if t >= (5*float(reopensPerSec)):
           reopenStats.totalSearches += searches

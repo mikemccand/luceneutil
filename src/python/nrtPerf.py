@@ -174,7 +174,7 @@ if __name__ == '__main__':
   dpss = benchUtil.getArg('-dps', '1', True)
   rpss = benchUtil.getArg('-rps', '0.2', True)
   rts = benchUtil.getArg('-rts', 60, True)
-  nst = benchUtil.getArg('-nts', 0, True) # default to no searches
+  nst = benchUtil.getArg('-nst', 1, True) # default to 1 search thread
   nit = benchUtil.getArg('nit', 1, True) # no concurrent updates
   
   for mode in modes.split(','):

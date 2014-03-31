@@ -26,7 +26,6 @@ package perf;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -49,7 +48,6 @@ import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -119,24 +117,6 @@ public class SearchPerfTest {
     }
   }
   
-  private static IndexCommit findCommitPoint(String commit, Directory dir) throws IOException {
-    List<IndexCommit> commits = DirectoryReader.listCommits(dir);
-    Collections.reverse(commits);
-    
-    for (final IndexCommit ic : commits) {
-      Map<String,String> map = ic.getUserData();
-      String ud = null;
-      if (map != null) {
-        ud = map.get("userData");
-        System.out.println("found commit=" + ud);
-        if (ud != null && ud.equals(commit)) {
-          return ic;
-        }
-      }
-    }
-    throw new RuntimeException("could not find commit '" + commit + "'");
-  }
-
   public static void main(String[] clArgs) throws Exception {
 
     StatisticsHelper stats = new StatisticsHelper();
@@ -309,7 +289,7 @@ public class SearchPerfTest {
       
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening writer on commit=" + commit);
-        iwc.setIndexCommit(findCommitPoint(commit, dir));
+        iwc.setIndexCommit(PerfUtils.findCommitPoint(commit, dir));
       }
 
       ((TieredMergePolicy) iwc.getMergePolicy()).setNoCFSRatio(useCFS ? 1.0 : 0.0);
@@ -415,7 +395,7 @@ public class SearchPerfTest {
       final DirectoryReader reader;
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening searcher on commit=" + commit);
-        reader = DirectoryReader.open(findCommitPoint(commit, dir));
+        reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
         System.out.println("maxDoc=" + reader.maxDoc());
       } else {
         // open last commit
@@ -562,7 +542,7 @@ public class SearchPerfTest {
 
       // Try to get RAM usage -- some ideas poached from http://www.javaworld.com/javaworld/javatips/jw-javatip130.html
       final Runtime runtime = Runtime.getRuntime();
-      long usedMem1 = usedMemory(runtime);
+      long usedMem1 = PerfUtils.usedMemory(runtime);
       long usedMem2 = Long.MAX_VALUE;
       for(int iter=0;iter<10;iter++) {
         runtime.runFinalization();
@@ -570,14 +550,11 @@ public class SearchPerfTest {
         Thread.yield();
         Thread.sleep(100);
         usedMem2 = usedMem1;
-        usedMem1 = usedMemory(runtime);
+        usedMem1 = PerfUtils.usedMemory(runtime);
       }
-      out.println("\nHEAP: " + usedMemory(runtime));
+      out.println("\nHEAP: " + PerfUtils.usedMemory(runtime));
     }
     out.close();
   }
 
-  private static long usedMemory(Runtime runtime) {
-    return runtime.totalMemory() - runtime.freeMemory();
-  }
 }

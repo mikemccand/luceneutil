@@ -45,6 +45,8 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
            statsEverySec=1,
            commit="no"):
   logFileName = '%s/%s_dps%s_reopen%s.txt' % (constants.LOGS_DIR, mode, docsPerSec, reopensPerSec)
+  print 'log: %s' % logFileName
+  
   command = constants.JAVA_COMMAND
   command += ' -cp "%s"' % classpath
   command += ' perf.NRTPerfTest'
@@ -168,37 +170,40 @@ if __name__ == '__main__':
 
   cp = '%s' % r.classPathToString(r.getClassPath(c.checkout))
   fip = '%s/index' % benchUtil.nameToIndexPath(index.getName())
-  m = benchUtil.getArg('-mode', 'update', True)
+  modes = benchUtil.getArg('-mode', 'update', True)
   dpss = benchUtil.getArg('-dps', '1', True)
   rpss = benchUtil.getArg('-rps', '0.2', True)
   rts = benchUtil.getArg('-rts', 60, True)
   nst = benchUtil.getArg('-nts', 0, True) # default to no searches
   nit = benchUtil.getArg('nit', 1, True) # no concurrent updates
   
-  allStats = []
-  for dps in dpss.split(','):
-    for rps in rpss.split(','):
-      print
-      print 'params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' % (m, dps, rps, rts, nst, nit)
-      reopenStats = runOne(classpath=cp,
-                           mode=m,
-                           data=sourceData,
-                           docsPerSec=dps, # update rate
-                           reopensPerSec=rps,
-                           fullIndexPath=fip,
-                           runTimeSec=rts,
-                           numSearchThreads=nst, # no searches
-                           numIndexThreads=1, # no concurrent updates
-                           )
-      allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime/reopenStats.totalReopens, rts))
+  for mode in modes.split(','):
+    allStats = []
+    for dps in dpss.split(','):
+      for rps in rpss.split(','):
+        print
+        print 'params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' % (mode, dps, rps, rts, nst, nit)
+        reopenStats = runOne(classpath=cp,
+                             mode=mode,
+                             data=sourceData,
+                             docsPerSec=dps, # update rate
+                             reopensPerSec=rps,
+                             fullIndexPath=fip,
+                             runTimeSec=rts,
+                             numSearchThreads=nst, # no searches
+                             numIndexThreads=1, # no concurrent updates
+                             )
+        allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime/reopenStats.totalReopens, rts))
 
-  print
-  print 'docs/s reopen/s reopen(ms) update(ms) ->  total(ms) run(ms)'
-  for s in allStats:
-    print '%6s %8s %10s %10s -> %10s %7s' % \
-          (s[0],
-           s[1],
-           "{:,.2f}".format(float(s[2])),
-           "{:,d}".format(int(s[3])),
-           "{:,.2f}".format(float(s[2])+float(s[3])),
-           s[4])
+    print
+    header = 'docs/s reopen/s reopen(ms) update(ms) ->  total(ms) run(ms)'
+    print '%s' % mode.center(len(header))
+    print header
+    for s in allStats:
+      print '%6s %8s %10s %10s -> %10s %7s' % \
+            (s[0],
+             s[1],
+             "{:,.2f}".format(float(s[2])),
+             "{:,d}".format(int(s[3])),
+             "{:,.2f}".format(float(s[2])+float(s[3])),
+             s[4])

@@ -74,6 +74,8 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.Version;
 
+import perf.IndexThreads.Mode;
+
 // TODO
 //   - post queries on pao
 //   - fix pk lookup to tolerate deletes
@@ -278,7 +280,7 @@ public class SearchPerfTest {
       final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
       final boolean verbose = args.getFlag("-verbose");
       final boolean cloneDocs = args.getFlag("-cloneDocs");
-      final boolean fieldUpdates = args.getFlag("-fieldUpdates");
+      final Mode mode = Mode.valueOf(args.getString("-mode", "update").toUpperCase(Locale.ROOT));
 
       final long reopenEveryMS = (long) (1000 * reopenEverySec);
 
@@ -348,8 +350,9 @@ public class SearchPerfTest {
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
-			IndexThreads threads = new IndexThreads(new Random(17), writer, null, null, null, lineDocsFile, storeBody,
-					tvsBody, false, indexThreadCount, -1, false, false, true, docsPerSecPerThread, cloneDocs, fieldUpdates);
+      boolean addDVFields = mode == Mode.BDV_UPDATE || mode == Mode.NDV_UPDATE;
+			LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields);
+			IndexThreads threads = new IndexThreads(new Random(17), writer, lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null);
       threads.start();
 
       mgr = new SearcherManager(writer, true, new SearcherFactory() {

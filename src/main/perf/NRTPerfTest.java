@@ -214,6 +214,7 @@ public class NRTPerfTest {
       }
       
       private final DocValuesFormat direct = DocValuesFormat.forName("Direct");
+//      private final DocValuesFormat sparse = DocValuesFormat.forName("Lucene45Sparse");
       @Override
       public DocValuesFormat getDocValuesFormatForField(String field) {
       	return direct;
@@ -353,20 +354,12 @@ public class NRTPerfTest {
               break;
             }
             
-            final long sleepMS = (long) Math.max(500/reopenPerSec, startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis());
-
-            /*
-            final long sleepMS;
-            if (random.nextBoolean()) {
-              sleepMS = random.nextInt(200);
-            } else if (random.nextBoolean()) {
-              sleepMS = random.nextInt(1000);
+            final long sleepMS = startMS + (long) (1000*(reopenCount/reopenPerSec)) - System.currentTimeMillis();
+            if (sleepMS < 0) {
+            	System.out.println("WARNING: reopen fell behind by " + Math.abs(sleepMS) + " ms");
             } else {
-              sleepMS = random.nextInt(2000);
+            	Thread.sleep(sleepMS);
             }
-            */
-
-            Thread.sleep(sleepMS);
 
             IndexSearcher curS = manager.acquire();
             try {

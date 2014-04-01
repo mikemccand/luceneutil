@@ -354,8 +354,13 @@ public class SearchPerfTest {
 
               int reopenCount = 1;
               while (true) {
-                final long nextReopenMS = startMS + (reopenCount * reopenEveryMS);
-                final long sleepMS = Math.max(100, nextReopenMS - System.currentTimeMillis());
+                final long sleepMS = startMS + (reopenCount * reopenEveryMS) - System.currentTimeMillis();
+                if (sleepMS < 0) {
+                	System.out.println("WARNING: reopen fell behind by " + Math.abs(sleepMS) + " ms");
+                } else {
+                	Thread.sleep(sleepMS);
+                }
+
                 Thread.sleep(sleepMS);
                 mgr.maybeRefresh();
                 reopenCount++;

@@ -112,6 +112,11 @@ public class StatisticsHelper implements Runnable {
 
 	@Override
 	public void run() {
+
+                // So we don't prevent process exit if this
+                // is the only thread left:
+                Thread.currentThread().setDaemon(true);
+
 		if (!hasMemoryPools)
 			return;
 

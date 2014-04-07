@@ -58,8 +58,10 @@ class Remote(threading.Thread):
   Handles interactions with one remote machine.
   """
 
-  def __init__(self, stats, jobs, command, classpath, rootDir, hostName, processCount):
+  def __init__(self, id, stats, jobs, command, classpath, rootDir, hostName, processCount):
     threading.Thread.__init__(self)
+    self.id = id
+    print('%s is %s (%d JVMs)' % (id, hostName, processCount))
     self.stats = stats
     self.jobs = jobs
     self.command = command
@@ -69,6 +71,7 @@ class Remote(threading.Thread):
     self.rootDir = rootDir
     self.anyFails = False
     self.runningJobs = set()
+    self.finishedJobs = set()
 
   def run(self):
     global lastPrint
@@ -81,15 +84,22 @@ class Remote(threading.Thread):
         msg('local: %s: WARNING rsync failed' % self.hostName)
       msg('local: %s: rsync took %.1f sec' % (self.hostName, time.time()-t))
       os.system('scp %s/remoteTestServer.py "%s@%s:%s" > /dev/null 2>&1' % (constants.BENCH_BASE_DIR, USERNAME, self.hostName, constants.BENCH_BASE_DIR))
-      os.system('ssh %s "killall java >& /dev/null"' % self.hostName)
-      for line in os.popen('ssh %s "ps axu | grep remoteTestServer.py | grep -v grep"' % self.hostName).readlines():
-        pid = line.strip().split()[1]
-        os.system('ssh %s kill -9 %s' % (self.hostName, pid))
-        msg('local: kill pid %s on %s' % (pid, self.hostName))
-        
-    cmd = 'ssh -Tx %s@%s python -u %s/remoteTestServer.py %s %s %s %s \'"%s"\'' % \
+
+    os.system('ssh %s "killall java >& /dev/null"' % self.hostName)
+    for line in os.popen('ssh %s "ps axu | grep \'remoteTestServer.py %s\' | grep -v grep"' % (self.hostName, self.hostName)).readlines():
+      pid = line.strip().split()[1]
+      os.system('ssh %s kill -9 %s' % (self.hostName, pid))
+      msg('local: kill pid %s on %s' % (pid, self.hostName))
+
+    if False and self.hostName == 'beast':
+      pythonExe = '/usr/local/src/Python-2.7.6/python'
+    else:
+      pythonExe = 'python'
+      
+    cmd = 'ssh -Tx %s@%s %s -u %s/remoteTestServer.py %s %s %s %s \'"%s"\'' % \
               (USERNAME,
                self.hostName,
+               pythonExe,
                constants.BENCH_BASE_DIR,
                self.hostName,
                self.processCount,
@@ -97,20 +107,20 @@ class Remote(threading.Thread):
                self.classpath,
                self.command)
 
-    # msg('local: %s: start cmd: %s' % (self.hostName, cmd))
+    msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Skip login banner:
     while True:
       s = p.stdout.readline()
-      #print s.rstrip()
+      msg('%s: startup read %s' % (self.hostName, s.rstrip()))
       if s == '':
         raise RuntimeError('failed to start remoteTestServer.py on host "%s"' % self.hostName)
       elif s.strip() == 'REMOTE SERVER STARTED':
         break
       
-    # msg('local: %s: started' % self.hostName)
+    msg('local: %s: started' % self.hostName)
     
     while True:
       command = p.stdout.read(5)
@@ -122,6 +132,8 @@ class Remote(threading.Thread):
         bytes = cPickle.dumps(job)
         if job is not None:
           self.runningJobs.add(job)
+        else:
+          msg('send None to %s' % self.id)
         p.stdin.write('%8d' % len(bytes))
         p.stdin.write(bytes)
       elif command == 'RESUL':
@@ -129,9 +141,10 @@ class Remote(threading.Thread):
         job, msec, errors = cPickle.loads(p.stdout.read(numBytes))
         try:
           self.runningJobs.remove(job)
+          self.finishedJobs.add(job)
         except KeyError:
           # TODO: fix this correctly!
-          pass
+          print('%s: failed to remove running job %s' % (self.hostName, job))
         if len(errors) != 0:
 
           s = '\n\nFAILURE: %s on host %s' % (job, self.hostName)
@@ -150,10 +163,11 @@ class Remote(threading.Thread):
         if VERBOSE:
           msg('%s: %d msec for %s' % (self.hostName, msec, job))
         else:
-          sys.stdout.write('.')
+          sys.stdout.write('%s.' % self.id)
           sys.stdout.flush()
           lastPrint = time.time()
       elif command == '':
+        msg('%s: stop receiving commands' % self.hostName)
         break
 
 TEST_TIMES_FILE = '%s/TEST_TIMES.pk' % constants.BASE_DIR
@@ -229,11 +243,17 @@ class Jobs:
     self.tests = tests
     self.upto = 0
     self.lock = threading.Lock()
+    self.repeatCount = 0
+    self.lastRepeatStart = time.time()
 
   def nextJob(self):
     with self.lock:
       if DO_REPEAT and self.upto == len(self.tests):
-        sys.stdout.write('X')
+        #sys.stdout.write('X')
+        self.repeatCount += 1
+        t = time.time()
+        print('X: %d [%.1f sec]' % (self.repeatCount, t - self.lastRepeatStart))
+        self.lastRepeatStart = t
         self.upto = 0
 
       if self.upto == len(self.tests):
@@ -257,6 +277,18 @@ def gatherTests(stats, rootDir):
 
   os.chdir(rootDir)
   
+  print 'ROOT %s' % rootDir
+
+  if '-noc' not in sys.argv:
+    os.chdir('%s/lucene' % rootDir)
+    run('Compile Lucene...', 'ant compile-test', 'compile.log', printTime=True)
+
+    if '-solr' in sys.argv:
+      os.chdir('%s/solr' % rootDir)
+      run('Compile Solr...', 'ant compile-test', 'compile.log', printTime=True)
+
+    os.chdir(rootDir)
+    
   cp = []
   addCP = cp.append
 
@@ -275,18 +307,6 @@ def gatherTests(stats, rootDir):
 
   modules = []
 
-  print 'ROOT %s' % rootDir
-
-  if '-noc' not in sys.argv:
-    os.chdir('%s/lucene' % rootDir)
-    run('Compile Lucene...', 'ant compile-test', 'compile.log', printTime=True)
-
-    if '-solr' in sys.argv:
-      os.chdir('%s/solr' % rootDir)
-      run('Compile Solr...', 'ant compile-test', 'compile.log', printTime=True)
-
-  os.chdir(rootDir)
-    
   # lucene tests
   for ent in os.listdir('%s/lucene' % rootDir):
     if os.path.isdir('%s/lucene/%s' % (rootDir, ent)):
@@ -482,18 +502,23 @@ def main():
   # Launch local first since it can immediately start working, and, it
   # will pull the hardest jobs...:
   workers = []
+  id = 0
   for hostName, processCount in RESOURCES:
     if hostName == localHostName:
-      remote = Remote(stats, jobs, command, classpath, rootDir, hostName, processCount)
+      remote = Remote(id, stats, jobs, command, classpath, rootDir, hostName, processCount)
+      id += 1
       remote.start()
       workers.append(remote)
       break
 
   for hostName, processCount in RESOURCES:
     if hostName != localHostName:
-      remote = Remote(stats, jobs, command, classpath, rootDir, hostName, processCount)
+      remote = Remote(id, stats, jobs, command, classpath, rootDir, hostName, processCount)
+      id += 1
       remote.start()
       workers.append(remote)
+
+  workersOrig = workers
 
   anyFails = False
   while True:
@@ -509,7 +534,7 @@ def main():
     if time.time() - lastPrint > 5.0:
       l = ['\nRunning:\n']
       for worker in workers:
-        l.append('  %s:\n' % worker.hostName)
+        l.append('  %s (%d finished jobs):\n' % (worker.hostName, len(worker.finishedJobs)))
         for job in worker.runningJobs:
           l.append('    %s\n' % job)
       msg(''.join(l))
@@ -523,6 +548,9 @@ def main():
     print 'SUCCESS'
   print
   print '%.1f sec' % (time.time()-tTestsStart)
+
+  for worker in workersOrig:
+    print('  %s ran %d tests' % (worker.hostName, len(worker.finishedJobs)))
     
 if __name__ == '__main__':
   main()

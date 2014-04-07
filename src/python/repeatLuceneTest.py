@@ -116,7 +116,7 @@ tup = os.path.split(os.getcwd())
 sub = os.path.split(tup[0])[0]
 sub = os.path.split(sub)[1]
 
-logDirName = '%s/lucene/build' % ROOT
+logDirName = benchUtil.getArg('-logDir', '%s/lucene/build' % ROOT)
 
 doCompile = not benchUtil.getArg('-noc', False, False)
 doLog = not benchUtil.getArg('-nolog', False, False)
@@ -148,6 +148,10 @@ slow = benchUtil.getArg('-slow', False, False)
 heap = benchUtil.getArg('-heap', None, True)
 if heap is not None:
   JAVA_ARGS = JAVA_ARGS.replace('512m', heap)
+
+testTmpDir = benchUtil.getArg('-tmpDir', None)
+if testTmpDir is None:
+  testTmpDir = '%s/lucene/build/core/test' % ROOT
 
 # sys.argv also contains the name of the script, so if it's 
 # length is 1, it means no test was specified
@@ -236,8 +240,7 @@ def run(threadID):
 
 def _run(threadID):
   global failed
-
-  TEST_TEMP_DIR = '%s/lucene/build/core/test/reruns.%s.%s.t%d' % (ROOT, tests[0][0].split('.')[-1], tests[0][1], threadID)
+  TEST_TEMP_DIR = '%s/reruns.%s.%s.t%d' % (testTmpDir, tests[0][0].split('.')[-1], tests[0][1], threadID)
 
   upto = 0
   first = True
@@ -313,6 +316,8 @@ def _run(threadID):
           shutil.rmtree(TEST_TEMP_DIR)
         except OSError:
           pass
+      print('mkdirs')
+      os.makedirs(TEST_TEMP_DIR)
 
       if False and first:
         print '  RUN: %s' % command

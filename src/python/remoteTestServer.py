@@ -25,9 +25,10 @@ class Child(threading.Thread) :
   Interacts with one child test runner.
   """
 
-  def __init__(self, id, parent):
+  def __init__(self, id, parent, startedEvent):
     threading.Thread.__init__(self)
     self.id = id
+    self.startedEvent = startedEvent
     self.parent = parent
 
   def run(self):
@@ -43,22 +44,24 @@ class Child(threading.Thread) :
     #   - add -eventsfile /l/lucene.trunk/lucene/build/core/test/junit4-J0-0819129977b5076df.events @/l/lucene.trunk/lucene/build/core/test/junit4-J0-1916253054fa0d84f.suites
 
     try:
-      #self.parent.remotePrint('C%d init' % self.id)
+      self.parent.remotePrint('C%d init' % self.id)
 
       # TODO
       p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, env=self.parent.env)
-      #self.parent.remotePrint('C%d subprocess started' % self.id)
-
+      self.parent.remotePrint('C%d subprocess started' % self.id)
+      self.startedEvent.set()
+      
       events = ReadEvents(p, eventsFile, self.parent)
-      #self.parent.remotePrint('C%d startup0 done' % self.id)
+      self.parent.remotePrint('C%d startup0 done' % self.id)
       events.waitIdle()
 
       #self.parent.remotePrint('startup done C%d' % self.id)
       
       while True:
+        self.parent.remotePrint('C%d get job' % self.id)
         job = self.parent.nextJob()
         if job is None:
-          #self.parent.remotePrint('C%d no more jobs' % self.id)
+          self.parent.remotePrint('C%d no more jobs' % self.id)
           #p.stdin.close()
           p.kill()
           break
@@ -120,7 +123,7 @@ class ReadEvents:
       try:
         self.f = open(self.fileName, 'rb')
       except IOError:
-        time.sleep(.001)
+        time.sleep(.01)
       else:
         break
     self.f.seek(0)
@@ -160,12 +163,15 @@ class Parent:
     self.jobLock = threading.Lock()
 
     print 'REMOTE SERVER STARTED'
+    self.remotePrint('python version is %s' % sys.version)
 
     for childID in xrange(processCount):
-      child = Child(childID, self)
+      self.remotePrint('start child %d' % childID)
+      startedEvent = threading.Event()
+      child = Child(childID, self, startedEvent)
       child.start()
       # Silly: subprocess.Popen seems to hang if we launch too quickly
-      time.sleep(.001)
+      startedEvent.wait()
       self.children.append(child)
 
     for child in self.children:
@@ -208,6 +214,19 @@ def main():
   env['CLASSPATH'] = classPath
 
   Parent(rootDir, myID, processCount, env, command)
+
+def dumpstacks(signal, frame):
+  id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+  code = []
+  for threadId, stack in sys._current_frames().items():
+    code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""), threadId))
+    for filename, lineno, name, line in traceback.extract_stack(stack):
+      code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+      if line:
+        code.append("  %s" % (line.strip()))
+  open('/tmp/%s.stacks' % os.getpid(), 'w').write('\n'.join(code))
+
+signal.signal(signal.SIGUSR1, dumpstacks)
 
 if __name__ == '__main__':
   main()

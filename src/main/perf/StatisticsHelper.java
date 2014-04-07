@@ -115,6 +115,10 @@ public class StatisticsHelper implements Runnable {
 		if (!hasMemoryPools)
 			return;
 
+                // So we don't prevent process exit if this
+                // is the only thread left:
+                Thread.currentThread().setDaemon(true);
+
 		long young = youngMemoryPool.getUsage().getUsed();
 		long survivor = survivorMemoryPool.getUsage().getUsed();
 		long old = oldMemoryPool.getUsage().getUsed();

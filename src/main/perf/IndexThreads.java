@@ -20,7 +20,6 @@ package perf;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,13 +27,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
-import org.apache.lucene.facet.FacetsConfig;
-import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
 
 class IndexThreads {
+
+	public enum Mode { UPDATE, ADD, NDV_UPDATE, BDV_UPDATE }
 
   final IngestRatePrinter printer;
   final CountDownLatch startLatch = new CountDownLatch(1);
@@ -43,13 +42,12 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-	public IndexThreads(Random random, IndexWriter w, TaxonomyWriter taxoWriter, Set<String> facetFields,
-			FacetsConfig facetsConfig, String lineFile, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
-			int numThreads, int docCountLimit, boolean addGroupingFields, boolean printDPS, boolean doUpdate,
-			float docsPerSecPerThread, boolean cloneDocs, boolean fieldUpdates) throws IOException, InterruptedException {
-    final AtomicInteger groupBlockIndex;
+	public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
+			boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener)
+			throws IOException, InterruptedException {
+		final AtomicInteger groupBlockIndex;
 
-    docs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, cloneDocs, taxoWriter, facetFields, facetsConfig, fieldUpdates);
+    this.docs = lineFileDocs;
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
@@ -68,7 +66,7 @@ class IndexThreads {
     failed = new AtomicBoolean(false);
 
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, doUpdate, groupBlockIndex, stop, docsPerSecPerThread, failed, fieldUpdates);
+      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode, groupBlockIndex, stop, docsPerSecPerThread, failed, updatesListener);
       threads[thread].start();
     }
 
@@ -110,6 +108,11 @@ class IndexThreads {
 
     return true;
   }
+  
+  public static interface UpdatesListener {
+  	public void beforeUpdate();
+  	public void afterUpdate();
+  }
 
   private static class IndexThread extends Thread {
     public static String[] group100;
@@ -122,31 +125,30 @@ class IndexThreads {
     private final AtomicBoolean stop;
     private final AtomicInteger count;
     private final AtomicInteger groupBlockIndex;
-    private final boolean doUpdate;
-    private final boolean doFieldUpdates;
+    private final Mode mode;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
     private final float docsPerSec;
     private final Random random;
     private final AtomicBoolean failed;
+    private final UpdatesListener updatesListener;
 
-    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
-                       LineFileDocs docs,
-                       int numTotalDocs, AtomicInteger count, boolean doUpdate, AtomicInteger groupBlockIndex,
-                       AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, boolean doFieldUpdates) {
+		public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
+				LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
+				AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, UpdatesListener updatesListener) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
       this.docs = docs;
       this.numTotalDocs = numTotalDocs;
       this.count = count;
-      this.doUpdate = doUpdate;
-      this.doFieldUpdates = doFieldUpdates; // nocommit use!
+      this.mode = mode;
       this.groupBlockIndex = groupBlockIndex;
       this.stop = stop;
       this.docsPerSec = docsPerSec;
       this.random = random;
       this.failed = failed;
+      this.updatesListener = updatesListener;
     }
 
     @Override
@@ -286,8 +288,7 @@ class IndexThreads {
 
             docState.doc.removeField("groupend");
           }
-        } else if (docsPerSec > 0 || doUpdate) {
-
+        } else if (docsPerSec > 0 && mode != null) {
           final long startNS = System.nanoTime();
           int threadCount = 0;
           while (!stop.get()) {
@@ -305,18 +306,31 @@ class IndexThreads {
             }
             // nocommit have a 'sometimesAdd' mode where 25%
             // of the time we add a new doc
-            if (doUpdate) {
-              final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
-              // NOTE: can't use docState.id in case doClone
-              // was true
-              ((Document) doc).getField("id").setStringValue(updateID);
-              w.updateDocument(new Term("id", updateID), doc);
-            } else if (doFieldUpdates) {
-            	final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
-            	// nocommit take care of binaryDV too
-            	w.updateNumericDocValue(new Term("id", updateID), "lastModNDV", System.currentTimeMillis());
-            } else {
-              w.addDocument(doc);
+            final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
+            if (updatesListener != null) {
+            	updatesListener.beforeUpdate();
+            }
+            switch (mode) {
+            	case UPDATE:
+            		// NOTE: can't use docState.id in case doClone
+            		// was true
+            		((Document) doc).getField("id").setStringValue(updateID);
+            		w.updateDocument(new Term("id", updateID), doc);
+            		break;
+            	case NDV_UPDATE:
+            		w.updateNumericDocValue(new Term("id", updateID), "lastModNDV", System.currentTimeMillis());
+            		break;
+            	case BDV_UPDATE:
+            		w.updateBinaryDocValue(new Term("id", updateID), "titleBDV", docState.titleBDV.binaryValue());
+            		break;
+            	case ADD:
+            		w.addDocument(doc);
+            		break;
+            	default:
+            		throw new IllegalArgumentException("unknown mode " + mode);
+            }
+            if (updatesListener != null) {
+            	updatesListener.afterUpdate();
             }
             count.incrementAndGet();
             threadCount++;

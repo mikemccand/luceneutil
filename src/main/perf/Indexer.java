@@ -20,6 +20,7 @@ package perf;
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -51,6 +52,8 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
+
+import perf.IndexThreads.Mode;
 
 // javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
 
@@ -124,6 +127,12 @@ public final class Indexer {
     final boolean printDPS = args.getFlag("-printDPS");
     final boolean waitForMerges = args.getFlag("-waitForMerges");
     final String mergePolicy = args.getString("-mergePolicy");
+    final Mode mode;
+    if (args.hasArg("-update")) {
+    	mode = Mode.UPDATE;
+    } else {
+    	mode = Mode.valueOf(args.getString("-mode", "update").toUpperCase(Locale.ROOT));
+    }
     final boolean doUpdate = args.getFlag("-update");
     final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
     final boolean addGroupingFields = args.getFlag("-grouping");
@@ -269,9 +278,8 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-		IndexThreads threads = new IndexThreads(random, w, taxoWriter, facetFields, facetsConfig, lineFile, storeBody,
-				tvsBody, bodyPostingsOffsets, numThreads, docCountLimit, addGroupingFields, printDPS, doUpdate, -1.0f, false,
-				addDVFields);
+    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetFields, facetsConfig, addDVFields);
+		IndexThreads threads = new IndexThreads(random, w, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, -1.0f, null);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();

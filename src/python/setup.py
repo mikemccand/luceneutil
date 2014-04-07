@@ -55,7 +55,8 @@ def runSetup(download):
   else:
     print 'indices directory already exists %s' % (idx_dir)
 
-  local_const = os.path.join(cwd, 'localconstants.py')
+  pySrcDir = os.path.join(cwd, 'src', 'python')
+  local_const = os.path.join(pySrcDir, 'localconstants.py')
   if not os.path.exists(local_const):
     f = open(local_const, 'w')
     try:
@@ -65,8 +66,8 @@ def runSetup(download):
   else:
     print 'localconstants.py already exists - skipping'
 
-  local_run = os.path.join(cwd, 'localrun.py')
-  example = os.path.join(cwd, 'example.py')
+  local_run = os.path.join(pySrcDir, 'localrun.py')
+  example = os.path.join(pySrcDir, 'example.py')
   if not os.path.exists(local_run):
     shutil.copyfile(example, local_run)
   else:
@@ -79,7 +80,7 @@ def runSetup(download):
       if os.path.exists(target_file):
         print 'file %s already exists - skipping' % (target_file)
       else:
-        print 'download ', url, ' - time might take a long time!'
+        print 'download ', url, ' - might take a long time!'
         urllib.urlretrieve(url, filename=target_file)
         print 'downloading %s to  %s done ' % (url, target_file)
       if target_file.endswith('.bz2') or target_file.endswith('.lzma'):

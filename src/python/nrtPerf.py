@@ -165,7 +165,7 @@ if __name__ == '__main__':
   c = competition.Competitor('base', constants.TRUNK_CHECKOUT)
  
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False)
-#   r.compile(c)
+  r.compile(c)
   r.makeIndex(c.name, index, False)
 
   cp = '%s' % r.classPathToString(r.getClassPath(c.checkout))
@@ -197,7 +197,7 @@ if __name__ == '__main__':
         allStats.append((dps, rps, runTimeSec, reopenStats))
 
     print
-    header = 'docs/s reopen/s reopen(ms) update(ms)  total(ms) perdoc(ms) run(sec)'
+    header = 'docs/s reopen/s reopen(ms) update(ms)  total(ms) perdoc(ms)    qps run(sec)'
     print '%s' % mode.center(len(header))
     print header
     for s in allStats:
@@ -206,11 +206,13 @@ if __name__ == '__main__':
       meanUpdateMS = float(reopenStats.totalUpdateTime)/reopenStats.totalReopens
       totalPerReopen = meanReopenMS + meanUpdateMS
       avgPerDoc = totalPerReopen / (reopenStats.totalDocs / reopenStats.totalReopens)
-      print '%6s %8s %10s %10s %10s %10s %8s' % \
+      qps = (int(reopenStats.totalSearches) / float(s[2])) / int(numSearchThreads)
+      print '%6s %8s %10s %10s %10s %10s %6s %8s' % \
             (s[0],
              s[1],
              "{:,.2f}".format(meanReopenMS),
              "{:,.2f}".format(meanUpdateMS),
              "{:,.2f}".format(totalPerReopen),
              "{:,.2f}".format(avgPerDoc),
+             "{:,.2f}".format(qps),
              s[2])

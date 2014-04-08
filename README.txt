@@ -16,17 +16,13 @@ First, checkout luceneutil:
 
 Run the setup script from the clone:
 
-  * python setup.py -download -prepareTrunk
+  * python src/python/setup.py -download
   
 this will setup all necessary directories in the clones parent directory and downloads a
 5GB compressed Wikipedia line doc file from an Apache Mirror. If you don't want to
 download the large data file just remove the -download flag from the commandline. 
 
-The -prepareTrunk checks out the latest Apache Lucene trunk into the clones
-parent directory. If you have an existing checkout you can skip this option as well.
-  
-To run luceneutils benchmark scrips you also need a competitor that runs against 
-the checked out trunk.
+To run luceneutils benchmark scripts you typically need two trunk checkouts.
 
 You can either copy the trunk folder and apply a patch to it or check it out 
 again with a different name:
@@ -51,6 +47,5 @@ some code difference but not a file format change.
 
 To run the benchmark you first test like this:
 
-  python localrun.py 
+  python src/python/localrun.py -source wikimedium10k
 
-Note: the defaul localrun.py has debug mode enabled, with debug mode on results are probably not reliable!

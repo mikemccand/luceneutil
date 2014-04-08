@@ -1,8 +1,11 @@
-localconstants.py
-localrun.py
+local
+build
+src/python/localconstants.py
+src/python/localrun.py
 syntax: glob
 *.class
 *.pyc
 *.swp
 .classpath
 .project
+.pydevproject

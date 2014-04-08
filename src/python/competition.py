@@ -220,7 +220,8 @@ class Competitor(object):
     files = benchUtil.addFiles(perfSrc)
     benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))
     # copy resources/META-INF
-    benchUtil.run('cp -r %s %s' % (os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/")))
+    if os.path.exists(os.path.join(perfSrc, 'resources/*')):
+      benchUtil.run('cp -r %s %s' % (os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/")))
 
 class Competition(object):
 

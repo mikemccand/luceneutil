@@ -98,7 +98,7 @@ public class IndexGeoNames {
         System.out.println(count + ": " + ((ms - startMS)/1000.0) + " sec");
       }
     }
-    w.close(false);
+    w.shutdown(false);
     long ms = System.currentTimeMillis();
     System.out.println("end: " + count + ": " + ((ms - startMS)/1000.0) + " sec");
     dir.close();

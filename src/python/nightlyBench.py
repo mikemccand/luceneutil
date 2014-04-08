@@ -308,6 +308,8 @@ NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
 
 if DEBUG:
+  # Must re-direct all logs so we don't overwrite the "production" run's logs:
+  constants.LOGS_DIR = '/lucene/clean2.svn/lucene/benchmark'
   MEDIUM_INDEX_NUM_DOCS /= 100
   BIG_INDEX_NUM_DOCS /= 100
   NRT_RUN_TIME /= 90
@@ -572,7 +574,7 @@ def run():
 
   coldRun = False
   comp = c
-  comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
+  comp.tasksFile = '%s/tasks/wikinightly.tasks' % constants.BENCH_BASE_DIR
   comp.printHeap = True
   if REAL:
     resultsNow = []

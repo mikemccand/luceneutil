@@ -367,7 +367,7 @@ public final class Indexer {
 
     System.out.println("\nIndexer: at close: " + w.segString());
     final long tCloseStart = System.currentTimeMillis();
-    w.close(waitForMerges);
+    w.shutdown(waitForMerges);
     System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
     final long tFinal = System.currentTimeMillis();

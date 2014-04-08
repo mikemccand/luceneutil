@@ -102,11 +102,6 @@ public class SearchPerfTest {
     }
 
     @Override
-    public int getRefCount(IndexSearcher ref) {
-      return ref.getIndexReader().getRefCount();
-    }
-
-    @Override
     protected IndexSearcher refreshIfNeeded(IndexSearcher ref) {
       return null;
     }

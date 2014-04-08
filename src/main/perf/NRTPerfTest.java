@@ -450,7 +450,7 @@ public class NRTPerfTest {
     }
     manager.close();
     if (doCommit) {
-      w.close(false);
+      w.shutdown(false);
     } else {
       w.rollback();
     }

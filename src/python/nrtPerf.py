@@ -165,7 +165,7 @@ if __name__ == '__main__':
   c = competition.Competitor('base', constants.TRUNK_CHECKOUT)
  
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False)
-  r.compile(c)
+#   r.compile(c)
   r.makeIndex(c.name, index, False)
 
   cp = '%s' % r.classPathToString(r.getClassPath(c.checkout))
@@ -175,7 +175,7 @@ if __name__ == '__main__':
   reopenPerSec = benchUtil.getArg('-rps', '0.2', True)
   runTimeSec = benchUtil.getArg('-rts', 60, True)
   numSearchThreads = benchUtil.getArg('-nst', 1, True) # default to 1 search thread
-  numIndexThreads = benchUtil.getArg('-nit', 1, True) # no concurrent updates
+  numIndexThreads = benchUtil.getArg('-nit', constants.INDEX_NUM_THREADS, True)
   
   for mode in modes.split(','):
     allStats = []
@@ -187,24 +187,30 @@ if __name__ == '__main__':
         reopenStats = runOne(classpath=cp,
                              mode=mode,
                              data=sourceData,
-                             docsPerSec=dps, # update rate
+                             docsPerSec=dps,
                              reopensPerSec=rps,
                              fullIndexPath=fip,
                              runTimeSec=runTimeSec,
                              numSearchThreads=numSearchThreads,
                              numIndexThreads=numIndexThreads,
                              )
-        allStats.append((dps, rps, reopenStats.meanReopenTime, reopenStats.totalUpdateTime/reopenStats.totalReopens, runTimeSec))
+        allStats.append((dps, rps, runTimeSec, reopenStats))
 
     print
-    header = 'docs/s reopen/s reopen(ms) update(ms) ->  total(ms) run(ms)'
+    header = 'docs/s reopen/s reopen(ms) update(ms)  total(ms) perdoc(ms) run(sec)'
     print '%s' % mode.center(len(header))
     print header
     for s in allStats:
-      print '%6s %8s %10s %10s -> %10s %7s' % \
+      reopenStats = s[3]
+      meanReopenMS = reopenStats.meanReopenTime
+      meanUpdateMS = float(reopenStats.totalUpdateTime)/reopenStats.totalReopens
+      totalPerReopen = meanReopenMS + meanUpdateMS
+      avgPerDoc = totalPerReopen / (reopenStats.totalDocs / reopenStats.totalReopens)
+      print '%6s %8s %10s %10s %10s %10s %8s' % \
             (s[0],
              s[1],
-             "{:,.2f}".format(float(s[2])),
-             "{:,d}".format(int(s[3])),
-             "{:,.2f}".format(float(s[2])+float(s[3])),
-             s[4])
+             "{:,.2f}".format(meanReopenMS),
+             "{:,.2f}".format(meanUpdateMS),
+             "{:,.2f}".format(totalPerReopen),
+             "{:,.2f}".format(avgPerDoc),
+             s[2])

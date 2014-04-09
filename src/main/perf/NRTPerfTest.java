@@ -71,7 +71,6 @@ import perf.IndexThreads.Mode;
 //   - maybe target certain MB/sec update rate...?
 //   - hmm: we really should have a separate line file, shuffled, that holds the IDs for each line; this way we can update doc w/ same original doc and then we can assert hit counts match
 //   - share *Task code from SearchPerfTest
-//   - cutover to SearcherManager/NRTManager
 
 public class NRTPerfTest {
 

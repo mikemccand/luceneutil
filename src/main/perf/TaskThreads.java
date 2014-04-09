@@ -19,81 +19,93 @@ package perf;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TaskThreads {  
 
-  private final Thread[] threads;
-  final CountDownLatch startLatch = new CountDownLatch(1);
-  final CountDownLatch stopLatch;
+	private final Thread[] threads;
+	final CountDownLatch startLatch = new CountDownLatch(1);
+	final CountDownLatch stopLatch;
+	final AtomicBoolean stop;
 
-  public TaskThreads(TaskSource tasks, IndexState indexState, int numThreads) {
-    threads = new Thread[numThreads];
-    stopLatch = new CountDownLatch(numThreads);
-    for(int threadIDX=0;threadIDX<numThreads;threadIDX++) {
-      threads[threadIDX] = new TaskThread(startLatch, stopLatch, tasks, indexState, threadIDX);
-      threads[threadIDX].start();
-    }
-  }
+	public TaskThreads(TaskSource tasks, IndexState indexState, int numThreads) {
+		threads = new Thread[numThreads];
+		stopLatch = new CountDownLatch(numThreads);
+		stop = new AtomicBoolean(false);
+		for(int threadIDX=0;threadIDX<numThreads;threadIDX++) {
+			threads[threadIDX] = new TaskThread(startLatch, stopLatch, stop, tasks, indexState, threadIDX);
+			threads[threadIDX].start();
+		}
+	}
 
-  public void start() {
-    startLatch.countDown();
-  }
+	public void start() {
+		startLatch.countDown();
+	}
 
-  public void finish() throws InterruptedException {
-    stopLatch.await();
-  }
+	public void finish() throws InterruptedException {
+		stopLatch.await();
+	}
 
-  private static class TaskThread extends Thread {
-    private final CountDownLatch startLatch;
-    private final CountDownLatch stopLatch;
-    private final TaskSource tasks;
-    private final IndexState indexState;
-    private final int threadID;
+	public void stop() throws InterruptedException {
+		stop.getAndSet(true);
+		for (Thread t : threads) {
+			t.join();
+		}
+	}
 
-    public TaskThread(CountDownLatch startLatch, CountDownLatch stopLatch, TaskSource tasks, IndexState indexState, int threadID) {
-      this.startLatch = startLatch;
-      this.stopLatch = stopLatch;
-      this.tasks = tasks;
-      this.indexState = indexState;
-      this.threadID = threadID;
-    }
+	private static class TaskThread extends Thread {
+		private final CountDownLatch startLatch;
+		private final CountDownLatch stopLatch;
+		private final AtomicBoolean stop;
+		private final TaskSource tasks;
+		private final IndexState indexState;
+		private final int threadID;
 
-    @Override
-    public void run() {
-      try {
-        startLatch.await();
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        return;
-      }
+		public TaskThread(CountDownLatch startLatch, CountDownLatch stopLatch, AtomicBoolean stop, TaskSource tasks, IndexState indexState, int threadID) {
+			this.startLatch = startLatch;
+			this.stopLatch = stopLatch;
+			this.stop = stop;
+			this.tasks = tasks;
+			this.indexState = indexState;
+			this.threadID = threadID;
+		}
 
-      try {
-        while(true) {
-          final Task task = tasks.nextTask();
-          if (task == null) {
-            // Done
-            break;
-          }
-          final long t0 = System.nanoTime();
-          try {
-            task.go(indexState);
-          } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-          }
-          try {
-            tasks.taskDone(task, t0-task.recvTimeNS, task.totalHitCount);
-          } catch (Exception e) {
-            System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
-            e.printStackTrace();
-          }
-          task.runTimeNanos = System.nanoTime()-t0;
-          task.threadID = threadID;
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      } finally {
-        stopLatch.countDown();
-      }
-    }
-  }
+		@Override
+		public void run() {
+			try {
+				startLatch.await();
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				return;
+			}
+
+			try {
+				while (!stop.get()) {
+					final Task task = tasks.nextTask();
+					if (task == null) {
+						// Done
+						break;
+					}
+					final long t0 = System.nanoTime();
+					try {
+						task.go(indexState);
+					} catch (IOException ioe) {
+						throw new RuntimeException(ioe);
+					}
+					try {
+						tasks.taskDone(task, t0-task.recvTimeNS, task.totalHitCount);
+					} catch (Exception e) {
+						System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
+						e.printStackTrace();
+					}
+					task.runTimeNanos = System.nanoTime()-t0;
+					task.threadID = threadID;
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			} finally {
+				stopLatch.countDown();
+			}
+		}
+	}
 }

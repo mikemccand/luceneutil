@@ -63,13 +63,14 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
   command += ' %s' % mode
   command += ' %s' % statsEverySec
   command += ' %s' % commit
-  command += " 0.0"
+  command += ' 0.0'
+  command += ' %s' % data.tasksFile 
   command += ' > %s 2>&1' % logFileName
 
   if VERBOSE:
     print
     print 'run: %s' % command
-
+  
   os.system(command)
   result = open(logFileName, 'rb').read()
   if VERBOSE:
@@ -81,16 +82,12 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
       m = reByTime.match(line.rstrip())
       if m is not None:
         t = int(m.group(1))
-        searches = int(m.group(2))
-        docs = int(m.group(3))
-        reopens = int(m.group(4))
-        updateTime = int(m.group(5))
         # discard first 5 seconds -- warmup
         if t >= (5*float(reopensPerSec)):
-          reopenStats.totalSearches += searches
-          reopenStats.totalDocs += docs
-          reopenStats.totalReopens += reopens
-          reopenStats.totalUpdateTime += updateTime
+          reopenStats.totalSearches += int(m.group(2))
+          reopenStats.totalDocs += int(m.group(3))
+          reopenStats.totalReopens += int(m.group(4))
+          reopenStats.totalUpdateTime += int(m.group(5))
           reopenStats.qtCount += 1
 
     # Reopen times
@@ -150,7 +147,9 @@ class ReopenStats:
 if __name__ == '__main__':
     
   sourceData = competition.sourceData()
-  #sourceData.tasksFile = 'D:/tmp/benchmark/wikimedium.10M.datefacets.nostopwords.tasks'
+  sourceData.tasksFile = benchUtil.getArg('-tasks', None, True)
+  if sourceData.tasksFile is None:
+    raise RuntimeError('No tasks file defined: -tasks [file]')
   
   comp = competition.Competition(randomSeed=0)
 
@@ -206,7 +205,7 @@ if __name__ == '__main__':
       meanUpdateMS = float(reopenStats.totalUpdateTime)/reopenStats.totalReopens
       totalPerReopen = meanReopenMS + meanUpdateMS
       avgPerDoc = totalPerReopen / (reopenStats.totalDocs / reopenStats.totalReopens)
-      qps = (int(reopenStats.totalSearches) / float(s[2])) / int(numSearchThreads)
+      qps = 0 if int(numSearchThreads) == 0 else (float(reopenStats.totalSearches) / reopenStats.qtCount) / int(numSearchThreads)
       print '%6s %8s %10s %10s %10s %10s %6s %8s' % \
             (s[0],
              s[1],

@@ -120,14 +120,10 @@ class LocalTaskSource implements TaskSource {
   public void taskDone(Task task, long queueTimeNS, int toalHitCount) {
   }
 
-  private static List<Task> loadTasks(TaskParser taskParser, String filePath) throws IOException, ParseException {
-
+  static List<Task> loadTasks(TaskParser taskParser, String filePath) throws IOException, ParseException {
     final List<Task> tasks = new ArrayList<Task>();
-
     final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
-    int count = 0;
-
-    while(true) {
+    while (true) {
       String line = taskFile.readLine();
       if (line == null) {
         break;
@@ -144,8 +140,8 @@ class LocalTaskSource implements TaskSource {
 
       tasks.add(taskParser.parseOneTask(line));
     }
-
+    taskFile.close();
     return tasks;
   }
+  
 }
-

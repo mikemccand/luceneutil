@@ -204,7 +204,7 @@ if __name__ == '__main__':
       meanReopenMS = reopenStats.meanReopenTime
       meanUpdateMS = float(reopenStats.totalUpdateTime)/reopenStats.totalReopens
       totalPerReopen = meanReopenMS + meanUpdateMS
-      avgPerDoc = 0 if reopenStats.totalReopens == 0 else totalPerReopen / (reopenStats.totalDocs / reopenStats.totalReopens)
+      avgPerDoc = 0 if reopenStats.totalReopens == 0 else totalPerReopen / (float(reopenStats.totalDocs) / reopenStats.totalReopens)
       qps = 0 if int(numSearchThreads) == 0 else (float(reopenStats.totalSearches) / reopenStats.qtCount) / int(numSearchThreads)
       print '%6s %8s %10s %10s %10s %10s %7s %8s' % \
             (s[0],

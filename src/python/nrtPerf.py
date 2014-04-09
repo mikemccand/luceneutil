@@ -196,7 +196,7 @@ if __name__ == '__main__':
         allStats.append((dps, rps, runTimeSec, reopenStats))
 
     print
-    header = 'docs/s reopen/s reopen(ms) update(ms)  total(ms) perdoc(ms)    qps run(sec)'
+    header = 'docs/s reopen/s reopen(ms) update(ms)  total(ms) perdoc(ms) query/s run(sec)'
     print '%s' % mode.center(len(header))
     print header
     for s in allStats:
@@ -206,7 +206,7 @@ if __name__ == '__main__':
       totalPerReopen = meanReopenMS + meanUpdateMS
       avgPerDoc = 0 if reopenStats.totalReopens == 0 else totalPerReopen / (reopenStats.totalDocs / reopenStats.totalReopens)
       qps = 0 if int(numSearchThreads) == 0 else (float(reopenStats.totalSearches) / reopenStats.qtCount) / int(numSearchThreads)
-      print '%6s %8s %10s %10s %10s %10s %6s %8s' % \
+      print '%6s %8s %10s %10s %10s %10s %7s %8s' % \
             (s[0],
              s[1],
              "{:,.2f}".format(meanReopenMS),

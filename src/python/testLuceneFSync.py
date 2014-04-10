@@ -62,7 +62,7 @@ while True:
   log('wait for restart')
   while True:
     print('  check')
-    if os.system('ssh 10.17.4.6 ls'):
+    if os.system('ssh joel@10.17.4.6 ls'):
       time.sleep(5.0)
     else:
       break

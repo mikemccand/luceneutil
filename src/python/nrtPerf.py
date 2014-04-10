@@ -16,7 +16,7 @@
 # limitations under the License.
 
 # Measures the NRT performance under different document updates mode
-# (add, update, ndv_update, bdnv_update)
+# (add, update, ndv_update, bdv_update)
 
 import os
 import sys
@@ -40,7 +40,7 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
            dir='MMapDirectory',
            seed=17,
            runTimeSec=60,
-           numSearchThreads=4,
+           numSearchThreads=1,
            numIndexThreads=constants.INDEX_NUM_THREADS,
            statsEverySec=1,
            commit="no"):

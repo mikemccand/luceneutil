@@ -161,6 +161,7 @@ public class NRTPerfTest {
 					try {
 						final long tStart = System.nanoTime();
 						manager.maybeRefresh();
+						++reopenCount;
 						IndexSearcher newS = manager.acquire();
 						try {
 							if (curS != newS) {
@@ -169,7 +170,6 @@ public class NRTPerfTest {
 							} else {
 								System.out.println("WARNING: no changes on reopen");
 							}
-							++reopenCount;
 						} finally {
 							manager.release(newS);
 						}

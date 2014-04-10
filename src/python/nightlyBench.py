@@ -466,6 +466,18 @@ def run():
     else:
       svnRev = 1417276
       print 'using canned svn rev %s' % svnRev
+
+    for i in range(iters):
+      try:
+        runCommand('hg pull -u > %s/hgupdate.log' % (constants.SVN_EXE, runLogDir))
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        break
+    else:
+      raise RuntimeError('failed to run svn update after %d tries' % iters)
+      
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()

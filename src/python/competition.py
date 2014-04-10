@@ -213,15 +213,15 @@ class Competitor(object):
 
   def compile(self, cp):
     root = benchUtil.checkoutToUtilPath(self.checkout)
-    perfSrc = os.path.join(root, "src/main/perf")
+    perfSrc = os.path.join(root, "src/main")
     buildDir = os.path.join(root, "build")
     if not os.path.exists(buildDir):
       os.makedirs(buildDir)
-    files = []
-    for f in os.listdir(perfSrc):
-      if not f.startswith('.#') and f.endswith('.java'):
-        files.append('%s/%s' % (perfSrc, f))
+    files = benchUtil.addFiles(perfSrc)
     benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))
+    # copy resources/META-INF
+    if os.path.exists(os.path.join(perfSrc, 'resources/*')):
+      benchUtil.run('cp -r %s %s' % (os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/")))
 
 class Competition(object):
 

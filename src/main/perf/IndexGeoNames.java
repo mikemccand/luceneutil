@@ -155,8 +155,7 @@ public class IndexGeoNames {
     }
     long ms = System.currentTimeMillis();
     System.out.println(docsIndexed + ": " + ((ms - startMS)/1000.0) + " sec");
-    w.commit();
-    w.close();
+    w.shutdown(false);
     dir.close();
   }
 }

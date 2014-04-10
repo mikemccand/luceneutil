@@ -55,6 +55,17 @@ PERF_STATS = constants.PERF_STATS
 
 osName = common.osName
 
+# returns an array of all java files in a directory; walks the directory tree
+def addFiles(root):
+  files = []
+  for f in os.listdir(root):
+    f = os.path.join(root, f).replace("\\","/")
+    if os.path.isdir(f):
+      files.extend(addFiles(f))
+    elif not f.startswith('.#') and f.endswith('.java'):
+      files.append(f)
+  return files
+
 def htmlColor(v):
   if v < 0:
     return '<font color="red">%d%%</font>' % (-v)
@@ -817,6 +828,10 @@ class RunAlgs:
       cp.append('%s/build/contrib/spellchecker/classes/java' % path)
 
     # so perf.* is found:
+    lib = os.path.join(checkoutToUtilPath(checkout), "lib")
+    for f in os.listdir(lib):
+      if f.endswith('.jar'):
+        cp.append(os.path.join(lib, f))
     cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
     
     return tuple(cp)

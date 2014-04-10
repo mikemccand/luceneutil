@@ -304,7 +304,7 @@ class IndexThreads {
             if (((1+id) % 100000) == 0) {
               System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
-            // nocommit have a 'sometimesAdd' mode where 25%
+            // TODO have a 'sometimesAdd' mode where 25%
             // of the time we add a new doc
             final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
             if (updatesListener != null) {

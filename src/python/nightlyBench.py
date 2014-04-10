@@ -254,7 +254,11 @@ KNOWN_CHANGES = [
 
   ('2013-11-09',
    'Switched to DirectDocValuesFormat for the Date facets field.',
-   'Switched to DirectDocValuesFormat for the Date facets field.',)
+   'Switched to DirectDocValuesFormat for the Date facets field.'),
+
+  ('2014-02-06',
+   'LUCENE-5425: performance improvement for FixedBitSet.iterator',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5425">LUCENE-5425: performance improvement for FixedBitSet.iterator</a>',),
    ]
 
 # TODO
@@ -304,6 +308,8 @@ NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
 
 if DEBUG:
+  # Must re-direct all logs so we don't overwrite the "production" run's logs:
+  constants.LOGS_DIR = '/lucene/clean2.svn/lucene/benchmark'
   MEDIUM_INDEX_NUM_DOCS /= 100
   BIG_INDEX_NUM_DOCS /= 100
   NRT_RUN_TIME /= 90
@@ -460,6 +466,18 @@ def run():
     else:
       svnRev = 1417276
       print 'using canned svn rev %s' % svnRev
+
+    for i in range(iters):
+      try:
+        runCommand('hg pull -u > %s/hgupdate.log' % (constants.SVN_EXE, runLogDir))
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        break
+    else:
+      raise RuntimeError('failed to run svn update after %d tries' % iters)
+      
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
@@ -568,7 +586,7 @@ def run():
 
   coldRun = False
   comp = c
-  comp.tasksFile = '%s/wikinightly.tasks' % constants.BENCH_BASE_DIR
+  comp.tasksFile = '%s/tasks/wikinightly.tasks' % constants.BENCH_BASE_DIR
   comp.printHeap = True
   if REAL:
     resultsNow = []
@@ -806,7 +824,7 @@ def writeIndexHTML(searchChartData, days):
   w = f.write
   header(w, 'Lucene nightly benchmarks')
   w('<h1>Lucene nightly benchmarks</h1>')
-  w('Each night, an <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.')
+  w('Each night, an <a href="https://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.')
   w('<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>')
   w('<p>See more details in <a href="http://blog.mikemccandless.com/2011/04/catching-slowdowns-in-lucene.html">this blog post</a>.</p>')
   w('<b>Results:</b>')

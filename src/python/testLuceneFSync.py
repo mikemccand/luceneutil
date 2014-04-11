@@ -1,0 +1,69 @@
+import time
+import urllib.request
+import os
+import datetime
+import random
+
+# TODO
+#   - test 4x too
+
+LOG_FILE = '/l/logs/testLuceneFSync.log.txt'
+
+INDEX_PATH = '/l/indices/trunk'
+
+def log(message):
+  if message.startswith('\n'):
+    message = '\n%s: %s' % (datetime.datetime.now(), message[1:])
+  else:
+    message = '%s: %s' % (datetime.datetime.now(), message)
+  open(LOG_FILE, 'ab').write((message + '\n').encode('utf-8'))
+  print(message)
+
+def run(command, wd, bg=False):
+  log('RUN: %s, wd=%s' % (command, wd))
+  command = 'ssh joel@10.17.4.6 "cd %s; %s" >> %s 2>&1' % (wd, command, LOG_FILE)
+  if bg:
+    command += ' &'
+  if os.system(command):
+    raise RuntimeError('FAILED: %s' % command)
+  
+while True:
+
+  log('\ncycle')
+  run('svn up', '/l/trunk')
+  run('ant clean jar', '/l/trunk/lucene')
+
+  log('check index')
+  cmd = 'java -ea -classpath build/core/classes/java:build/codecs/classes/java org.apache.lucene.index.CheckIndex %s/index' % INDEX_PATH
+  run(cmd, '/l/trunk/lucene')
+
+  log('start indexing')
+  indexCmd = 'java -Xms2g -Xmx2g -classpath "build/core/classes/java:build/core/classes/test:build/sandbox/classes/java:build/misc/classes/java:build/facet/classes/java:/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar:build/analysis/common/classes/java:build/analysis/icu/classes/java:build/queryparser/classes/java:build/grouping/classes/java:build/suggest/classes/java:build/highlighter/classes/java:build/codecs/classes/java:build/queries/classes/java:/l/util/lib/HdrHistogram.jar:/l/util/build" perf.Indexer -dirImpl MMapDirectory -indexPath "%s" -analyzer StandardAnalyzerNoStopWords -lineDocsFile /l/data/enwiki-20110115-lines-1k-fixed.txt -docCountLimit 27625038 -threadCount 2 -update -maxConcurrentMerges 3 -ramBufferMB 128 -randomCommit -maxBufferedDocs 3200 -verbose -postingsFormat Lucene41 -mergePolicy TieredMergePolicy -idFieldPostingsFormat Memory' % INDEX_PATH
+
+  run(indexCmd, '/l/trunk/lucene', bg=True)
+
+  sleepTimeSec = 100 + random.randint(0, 200)
+  log('wait for %s sec' % sleepTimeSec)
+  time.sleep(sleepTimeSec)
+
+  log('cut power')
+  u = urllib.request.urlopen('http://10.17.4.73:8000/commands?device=06.21.b0&command=Turn+Off')
+  data = u.read().decode('utf-8')
+  if data.find('SUCCESS') == -1:
+    raise RuntimeError('failed to power off')
+
+  time.sleep(1.0)
+  log('restore power')
+  u = urllib.request.urlopen('http://10.17.4.73:8000/commands?device=06.21.b0&command=Turn+On')
+  if data.find('SUCCESS') == -1:
+    raise RuntimeError('failed to power on')
+
+  # Wait for power up:
+  log('wait for restart')
+  while True:
+    print('  check')
+    if os.system('ssh joel@10.17.4.6 ls'):
+      time.sleep(5.0)
+    else:
+      break
+

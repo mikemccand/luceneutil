@@ -142,6 +142,7 @@ public final class Indexer {
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
     final boolean addDVFields = args.getFlag("-dvfields");
+    final boolean doRandomCommit = args.getFlag("-randomCommit");
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
@@ -279,7 +280,7 @@ public final class Indexer {
     final Random random = new Random(17);
 
     LineFileDocs lineFileDocs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetFields, facetsConfig, addDVFields);
-		IndexThreads threads = new IndexThreads(random, w, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, -1.0f, null);
+    IndexThreads threads = new IndexThreads(random, w, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, -1.0f, null);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();
@@ -288,6 +289,11 @@ public final class Indexer {
 
     while (!threads.done()) {
       Thread.sleep(100);
+      
+      // Commits once per minute on average:
+      if (doRandomCommit && random.nextInt(600) == 17) {
+        w.commit();
+      }
     }
 
     threads.stop();

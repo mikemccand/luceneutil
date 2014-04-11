@@ -81,6 +81,17 @@ def main():
     else:
       raise RuntimeError('svn update failed')
 
+    for i in range(iters):
+      try:
+        runCommand('hg pull -u > %s/hgupdate.log' % runLogDir)
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        break
+    else:
+      raise RuntimeError('failed to run svn update after %d tries' % iters)
+
   runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
   runCommand('%s compile > compile.log 2>&1' % constants.ANT_EXE)
 

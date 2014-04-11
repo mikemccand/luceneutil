@@ -469,7 +469,7 @@ def run():
 
     for i in range(iters):
       try:
-        runCommand('hg pull -u > %s/hgupdate.log' % (constants.SVN_EXE, runLogDir))
+        runCommand('hg pull -u > %s/hgupdate.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)

@@ -29,6 +29,8 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # =============================================================================
 
+# EG: cat /lucenedata/enwiki/enwiki-20130102-pages-articles.xml | python -u src/python/WikipediaExtractor.py -b102400m
+
 """Wikipedia Extractor:
 Extracts and cleans text from Wikipedia database dump and stores output in a
 number of files of similar size in a given directory.

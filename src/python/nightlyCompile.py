@@ -63,9 +63,25 @@ def runCommand(command):
 
 def main():
   
-  os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
-
   if True:
+    os.chdir(constants.BENCH_BASE_DIR)
+    for i in range(30):
+      try:
+        runCommand('hg pull -u > hgupdate.log');
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        s = open('hgupdate.log', 'r').read()
+        if s.find('not updating') != -1:
+          raise RuntimeError('hg did not update: %s' % s)
+        else:
+          break
+    else:
+      raise RuntimeError('failed to run hg pull -u')
+
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+
     runCommand('svn cleanup')
     open('update.log', 'ab').write('\n\n[%s]: update' % datetime.datetime.now())
     for i in range(30):

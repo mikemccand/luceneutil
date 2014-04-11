@@ -441,13 +441,30 @@ def run():
     os.makedirs(runLogDir)
   message('log dir %s' % runLogDir)
 
-  os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
   if not REAL:
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     svnRev = '1102160'
     luceneUtilRev = '2270c7a8b3ac+ tip'
     print 'SVN rev is %s' % svnRev
     print 'luceneutil rev is %s' % luceneUtilRev
   else:
+    os.chdir(constants.BENCH_BASE_DIR)
+
+    for i in range(iters):
+      try:
+        runCommand('hg pull -u > %s/hgupdate.log' % runLogDir)
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
+      else:
+        s = open('%s/hgupdate.log' % runLogDir).read()
+        if s.find('not updating') != -1:
+          raise RuntimeError('hg pull failed: %s' % s)
+        break
+    else:
+      raise RuntimeError('failed to run hg pull -u after %d tries' % iters)
+      
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     runCommand('%s cleanup' % constants.SVN_EXE)
     iters = 30
     if True:
@@ -467,17 +484,6 @@ def run():
       svnRev = 1417276
       print 'using canned svn rev %s' % svnRev
 
-    for i in range(iters):
-      try:
-        runCommand('hg pull -u > %s/hgupdate.log' % (constants.SVN_EXE, runLogDir))
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
-      else:
-        break
-    else:
-      raise RuntimeError('failed to run svn update after %d tries' % iters)
-      
     luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()

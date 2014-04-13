@@ -383,7 +383,9 @@ reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
 
 def runNRTTest(r, indexPath, runLogDir):
 
-  cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 no 0.0' % \
+  open('body10.tasks', 'w').write('Term: body:10\n')
+
+  cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 no 0.0 body10.tasks' % \
         (constants.JAVA_COMMAND,
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,
@@ -450,6 +452,7 @@ def run():
   else:
     os.chdir(constants.BENCH_BASE_DIR)
 
+    iters = 30
     for i in range(iters):
       try:
         runCommand('hg pull -u > %s/hgupdate.log' % runLogDir)
@@ -466,7 +469,6 @@ def run():
       
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     runCommand('%s cleanup' % constants.SVN_EXE)
-    iters = 30
     if True:
       for i in range(iters):
         try:

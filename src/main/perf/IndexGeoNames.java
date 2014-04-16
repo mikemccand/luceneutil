@@ -60,7 +60,7 @@ import org.apache.lucene.util.Version;
 
 public class IndexGeoNames {
 
-  final static boolean normal = true;
+  final static boolean normal = false;
 
   public static void main(String[] args) throws Exception {
     String geoNamesFile = args[0];

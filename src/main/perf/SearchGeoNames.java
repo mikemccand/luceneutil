@@ -174,3 +174,28 @@ public class SearchGeoNames {
     System.out.println("  tot=" + tot);
   }
 }
+
+// NOTE: need this patch
+// 
+// Index: lucene/core/src/java/org/apache/lucene/search/MultiTermQueryWrapperFilter.java
+// ===================================================================
+// --- lucene/core/src/java/org/apache/lucene/search/MultiTermQueryWrapperFilter.java	(revision 1588017)
+// +++ lucene/core/src/java/org/apache/lucene/search/MultiTermQueryWrapperFilter.java	(working copy)
+// @@ -77,6 +77,8 @@
+//  
+//    /** Returns the field name for this query */
+//    public final String getField() { return query.getField(); }
+// +
+// +  public static int rewriteTermCount;
+//    
+//    /**
+//     * Returns a DocIdSet with documents that should be permitted in search
+// @@ -104,6 +106,7 @@
+//        final FixedBitSet bitSet = new FixedBitSet(context.reader().maxDoc());
+//        DocsEnum docsEnum = null;
+//        do {
+// +        rewriteTermCount++;
+//          // System.out.println("  iter termCount=" + termCount + " term=" +
+//          // enumerator.term().toBytesString());
+//          docsEnum = termsEnum.docs(acceptDocs, docsEnum, DocsEnum.FLAG_NONE);
+// 

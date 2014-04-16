@@ -10,7 +10,10 @@ import random
 
 LOG_FILE = '/l/logs/testLuceneFSync.log.txt'
 
-INDEX_PATH = '/l/indices/trunk'
+#INDEX_PATH = '/l/indices/trunk'
+INDEX_PATH = '/home/l/indices/trunk'
+
+INSTEON_ID = '06.21.88'
 
 def log(message):
   if message.startswith('\n'):
@@ -33,8 +36,12 @@ first = True
 while True:
 
   log('\ncycle')
-  run('svn up', '/l/trunk')
-  run('ant clean jar', '/l/trunk/lucene')
+  try:
+    run('svn up', '/l/trunk')
+  except:
+    log('WARNING: svn up failed; ignoring')
+    
+  run('ant clean jar >& compile.log', '/l/trunk/lucene')
 
   if not first:
     log('check index')
@@ -72,12 +79,12 @@ while True:
     dirImpl = None
 
   if dirImpl is not None:
-    indexCmd += '-dirImpl %s' % dirImpl
+    indexCmd += ' -dirImpl %s' % dirImpl
 
   if random.randint(0, 1) == 1:
-    indexCmd += ' -ramBufferSizeMB -1 -maxBufferedDocs %s' % random.randint(1000, 30000)
+    indexCmd += ' -ramBufferMB -1 -maxBufferedDocs %s' % random.randint(1000, 30000)
   else:
-    indexCmd += ' -maxBufferedDocs -1 -ramBufferSizeMB %s' % random.randint(10, 200)
+    indexCmd += ' -maxBufferedDocs -1 -ramBufferMB %s' % random.randint(10, 200)
 
   run(indexCmd, '/l/trunk/lucene', bg=True)
 
@@ -87,28 +94,34 @@ while True:
 
   log('cut power')
   while True:
-    u = urllib.request.urlopen('http://10.17.4.73:8000/commands?device=06.21.b0&command=Turn+Off')
+    u = urllib.request.urlopen('http://10.17.4.73:8000/commands?device=%s&command=Turn+Off' % INSTEON_ID)
     data = u.read().decode('utf-8')
     if data.find('SUCCESS') == -1:
-      print('FAILED; will retry:\n%s' % data)
+      log('FAILED; will retry:\n%s' % data)
       time.sleep(2.0)
     else:
+      log('got: %s' % data)
       break
     
-  time.sleep(1.0)
+  time.sleep(5.0)
+
+  if not os.system('ssh joel@10.17.4.6 ls'):
+    raise RuntimeError('machine is not shutdown')
+  
   log('restore power')
   while True:
-    u = urllib.request.urlopen('http://10.17.4.73:8000/commands?device=06.21.b0&command=Turn+On')
+    u = urllib.request.urlopen('http://10.17.4.73:8000/commands?device=%s&command=Turn+On' % INSTEON_ID)
     if data.find('SUCCESS') == -1:
-      print('FAILED; will retry:\n%s' % data)
+      log('FAILED; will retry:\n%s' % data)
       time.sleep(2.0)
     else:
+      log('got: %s' % data)
       break
 
   # Wait for maching to come back:
   log('wait for restart')
   while True:
-    print('  check')
+    log('  check')
     if os.system('ssh joel@10.17.4.6 ls'):
       time.sleep(5.0)
     else:

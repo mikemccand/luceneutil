@@ -49,6 +49,7 @@ import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.BytesRefHash;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
@@ -380,5 +381,6 @@ public final class Indexer {
     System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
     System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
     System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./((tFinal-t0)/3600000.)) + " GB/hour plain text");
+    System.out.println("conflicts: " + BytesRefHash.totConflict);
   }
 }

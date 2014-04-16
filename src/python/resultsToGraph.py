@@ -4,6 +4,7 @@ import re
 import time
 
 r = re.compile(r'^(\d+): ([0-9\.]+) sec$')
+r2 = re.compile(r'^Indexer: (\d+) docs... \(([0-9\.]+) msec\)$')
 
 def loadPoints(fileName):
   points = []
@@ -13,68 +14,77 @@ def loadPoints(fileName):
       m = r.match(line.strip())
       if m is not None:
         points.append((int(m.group(1)), float(m.group(2))))
+      m = r2.match(line.strip())
+      if m is not None:
+        #print('%s, %s' % (int(m.group(1)), m.group(2)))
+        points.append((int(m.group(1)), float(m.group(2))/1000.))
   return points
 
 def gen():
-  data = []
-  for name in os.listdir('/l/trunk/lucene'):
-    if name.startswith('results') and name.endswith('.txt'):
-      label = 'base:%s' % name[:-4]
-      data.append((label, loadPoints('/l/trunk/lucene/%s' % name)))
-  for name in os.listdir('/l/fastindexingchain/lucene'):
-    if name.startswith('results') and name.endswith('.txt'):
-      label = 'comp:%s' % name[:-4]
-      data.append((label, loadPoints('/l/fastindexingchain/lucene/%s' % name)))
-
   f = open('/x/tmp/results.html', 'w')
-  f.write('''
-  <html>
-    <head>
-      <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-      <script type="text/javascript">
-        google.load("visualization", "1", {packages:["corechart"]});
-        google.setOnLoadCallback(drawChart);
-        function drawChart() {
-          var data = google.visualization.arrayToDataTable([
-          ''')
-  f.write("['Doc count',%s],\n" % ','.join("'%s'" % x[0] for x in data))
-  upto = 0
-  while True:
-    row = []
-    docCount = None
-    for label, points in data:
-      if len(points) > upto:
-        docCount, sec = points[upto]
-        row.append('%.2f' % sec)
-      else:
-        row.append('0.0')
+  f.write('<html>')
 
-    if docCount is None:
-      break
+  for prefix in 'wiki', 'geo':
+    #print('prefix %s' % prefix)
+    data = []
+    root = '/l/trunk/lucene'
+    for name in os.listdir(root):
+      if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
+        #print('  %s' % name)
+        label = 'base:%s' % name[:-4]
+        data.append((label, loadPoints('%s/%s' % (root, name))))
+    root = '/l/fastindexingchain/lucene'
+    #root = '/l/bytesrefhash/lucene'
+    for name in os.listdir(root):
+      if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
+        #print('  %s' % name)
+        label = 'comp:%s' % name[:-4]
+        data.append((label, loadPoints('%s/%s' % (root, name))))
 
-    f.write('[%s,%s],\n' % (docCount, ','.join(row)))
-    upto += 1
+    f.write('''
+        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+        <script type="text/javascript">
+          google.load("visualization", "1", {packages:["corechart"]});
+          google.setOnLoadCallback(drawChart);
+          function drawChart() {
+            var data = google.visualization.arrayToDataTable([
+            ''')
+    f.write("['Doc count',%s],\n" % ','.join("'%s'" % x[0] for x in data))
+    upto = 0
+    while True:
+      row = []
+      docCount = None
+      for label, points in data:
+        if len(points) > upto:
+          docCount, sec = points[upto]
+          row.append('%.2f' % sec)
+        else:
+          row.append('0.0')
 
-  f.write('''
-          ]);
+      if docCount is None:
+        break
 
-          var options = {
-            title: 'Performance'
-          };
+      f.write('[%s,%s],\n' % (docCount, ','.join(row)))
+      upto += 1
 
-          var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
-          chart.draw(data, options);
-        }
-      </script>
-    </head>
-    <body>
-      <div id="chart_div" style="width: 900px; height: 500px;"></div>
-    </body>
-  </html>
-  ''')
+    f.write('''
+            ]);
+
+            var options = {
+              title: 'Performance'
+            };
+
+            var chart = new google.visualization.LineChart(document.getElementById('chart_div_%s'));
+            chart.draw(data, options);
+          }
+        </script>
+        <br><br>
+        %s:
+        <div id="chart_div_%s" style="width: 900px; height: 500px;"></div>
+    ''' % (prefix, prefix, prefix))
+
+  f.write('</html>')
   f.close()
-
-  #os.rename('/x/tmp/results.html.new', '/x/tmp/results.html')
 
 while True:
   print('regen...')

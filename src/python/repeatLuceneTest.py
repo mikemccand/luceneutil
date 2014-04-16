@@ -137,6 +137,7 @@ postingsFormat = benchUtil.getArg('-pf', 'random')
 codec = benchUtil.getArg('-codec', 'random')
 sim = benchUtil.getArg('-sim', 'random')
 dir = benchUtil.getArg('-dir', 'random')
+monsters = benchUtil.getArg('-monsters', False, False)
 verbose = benchUtil.getArg('-verbose', False, False)
 iters = int(benchUtil.getArg('-iters', 1))
 seed = benchUtil.getArg('-seed', None)
@@ -152,6 +153,10 @@ if heap is not None:
 testTmpDir = benchUtil.getArg('-tmpDir', None)
 if testTmpDir is None:
   testTmpDir = '%s/lucene/build/core/test' % ROOT
+else:
+  print('test temp dir %s' % testTmpDir)
+
+print('args: %s' % sys.argv)
 
 # sys.argv also contains the name of the script, so if it's 
 # length is 1, it means no test was specified
@@ -268,6 +273,8 @@ def _run(threadID):
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'
+      if monsters:
+        command += ' -Dtests.monster=true'
       command += ' -Dtests.cleanthreads=perMethod'
       command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % ROOT
       command += ' -Dtests.timeoutSuite=2147483647'

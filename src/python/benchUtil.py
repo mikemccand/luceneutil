@@ -93,6 +93,13 @@ def getArg(argName, default, hasArg=True):
     if hasArg:
       v = sys.argv[idx+1]
       del sys.argv[idx:idx+2]
+      try:
+        sys.argv.index(argName)
+      except ValueError:
+        # ok
+        pass
+      else:
+        raise RuntimeError('argument %s appears more than once' % argName)
     else:
       v = True
       del sys.argv[idx]

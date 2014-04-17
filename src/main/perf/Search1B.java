@@ -37,13 +37,9 @@ import org.apache.lucene.store.FSDirectory;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 
-// javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/SearchGeoNames.java
+// pushd core; ant compile; popd; javac -d /lucene/util/build -cp build/core/classes/java:build/analysis/common/classes/java /lucene/util/src/main/perf/Search1B.java; java -cp /lucene/util/build:build/core/classes/java:build/analysis/common/classes/java perf.Search1B /p/indices/1bnumbers4 4
 
-// java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.SearchGeoNames /l/scratch/indices/geonames
-
-// pushd core; ant compile; popd; javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/SearchGeoNames.java; java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.SearchGeoNames /l/scratch/indices/geonames.8precstep 8
-
-public class SearchGeoNames {
+public class Search1B {
   public static void main(String[] args) throws Exception {
     File indexPath = new File(args[0]);
     int precStep = Integer.parseInt(args[1]);
@@ -51,48 +47,14 @@ public class SearchGeoNames {
     IndexReader r = DirectoryReader.open(dir);
     System.out.println("r=" + r);
     IndexSearcher s = new IndexSearcher(r);
-
-    SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    System.out.println("t=" + dateParser.parse("2014-12-01", new ParsePosition(0)).getTime());
-
-    searchOneField(s, getQueries(s, "geoNameID", precStep, 0, 10000000));
-    searchOneField(s, getQueries(s, "latitude", precStep, -50.0, 50.0));
-    searchOneField(s, getQueries(s, "longitude", precStep, -180.0, 180.0));
-
-    // 1993-12-01 to 2014-12-01:
-    searchOneField(s, getQueries(s, "modified", precStep, 754722000000L, 1417410000000L));
-
+    searchOneField(s, getQueries(s, "number", precStep, 1397724815596L, 1397724815596L + 3600*24*1000));
     r.close();
     dir.close();
   }
 
-  static final int QUERY_COUNT = 100;
-  static final int ITERS = 20;
+  static final int QUERY_COUNT = 10;
+  static final int ITERS = 2;
   
-  private static List<Query> getQueries(IndexSearcher s, String field, int precStep, double min, double max) throws IOException {
-    // Fixed seed so we test same queries:
-    Random r = new Random(19);
-    System.out.println("\nfield=" + field);
-
-    List<Query> queries = new ArrayList<>();
-    long totRewriteCount = 0;
-    for(int j=0;j<QUERY_COUNT;j++) {
-      double v1 = min + r.nextDouble() * (max-min);
-      double v2 = min + r.nextDouble() * (max-min);
-      double minV = Math.min(v1, v2);
-      double maxV = Math.max(v1, v2);
-      Query query = NumericRangeQuery.newDoubleRange(field, precStep, minV, maxV, true, true);
-      queries.add(query);
-      long start = MultiTermQueryWrapperFilter.rewriteTermCount;
-      TopDocs hits = s.search(query, 10);
-      int rewriteCount = (int) (MultiTermQueryWrapperFilter.rewriteTermCount - start);
-      System.out.println("  query=" + query + " hits=" + hits.totalHits + " " + rewriteCount + " terms");
-      totRewriteCount += rewriteCount;
-    }
-    System.out.println("  tot term rewrites=" + totRewriteCount);
-
-    return queries;
-  }
 
   private static List<Query> getQueries(IndexSearcher s, String field, int precStep, long min, long max) throws IOException {
     // Fixed seed so we test same queries:
@@ -104,36 +66,10 @@ public class SearchGeoNames {
     for(int j=0;j<QUERY_COUNT;j++) {
       // NOTE: fails if max-min > Long.MAX_VALUE, but we don't do that:
       long v1 = min + ((r.nextLong()<<1)>>>1) % (max-min);
-      long v2 = min + ((r.nextLong()<<1)>>>1) % (max-min);
+      long v2 = min +  ((r.nextLong()<<1)>>>1) % (max-min);
       long minV = Math.min(v1, v2);
       long maxV = Math.max(v1, v2);
       Query query = NumericRangeQuery.newLongRange(field, precStep, minV, maxV, true, true);
-      queries.add(query);
-      long start = MultiTermQueryWrapperFilter.rewriteTermCount;
-      TopDocs hits = s.search(query, 10);
-      int rewriteCount = (int) (MultiTermQueryWrapperFilter.rewriteTermCount - start);
-      System.out.println("  query=" + query + " hits=" + hits.totalHits + " " + rewriteCount + " terms");
-      totRewriteCount += rewriteCount;
-    }
-    System.out.println("  tot term rewrites=" + totRewriteCount);
-
-    return queries;
-  }
-
-  private static List<Query> getQueries(IndexSearcher s, String field, int precStep, int min, int max) throws IOException {
-    // Fixed seed so we test same queries:
-    Random r = new Random(19);
-    System.out.println("\nfield=" + field);
-
-    List<Query> queries = new ArrayList<>();
-    long totRewriteCount = 0;
-    for(int j=0;j<QUERY_COUNT;j++) {
-      // NOTE: fails if max-min > Long.MAX_VALUE, but we don't do that:
-      int v1 = min + r.nextInt(max-min);
-      int v2 = min + r.nextInt(max-min);
-      int minV = Math.min(v1, v2);
-      int maxV = Math.max(v1, v2);
-      Query query = NumericRangeQuery.newIntRange(field, precStep, minV, maxV, true, true);
       queries.add(query);
       long start = MultiTermQueryWrapperFilter.rewriteTermCount;
       TopDocs hits = s.search(query, 10);

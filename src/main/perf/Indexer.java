@@ -381,6 +381,5 @@ public final class Indexer {
     System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
     System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
     System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./((tFinal-t0)/3600000.)) + " GB/hour plain text");
-    System.out.println("conflicts: " + BytesRefHash.totConflict);
   }
 }

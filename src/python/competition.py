@@ -219,7 +219,7 @@ class Competitor(object):
       os.makedirs(buildDir)
     files = benchUtil.addFiles(perfSrc)
 
-    files = [x for x in files if x.find('SearchGeoNames.java') == -1 and x.find('Search1B.java') == -1]
+    files = [x for x in files if x.find('SearchGeoNames.java') == -1 and x.find('Search1B.java') == -1 and x.find('TestAnalyzerPerf.java') == -1]
     print('files %s' % files)
     
     benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))

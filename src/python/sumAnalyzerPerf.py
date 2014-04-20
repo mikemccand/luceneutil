@@ -1,15 +1,31 @@
 import re
 import os
 
-# TODO: need annot when hash changes
+# TODO:
+#   - click to see log file from that day's run
 
-def renameAnalyzers(l):
-  l2 = []
-  for x in l:
-    if x == 'WordDelimiterFilter':
-      x = 'WDF'
-    l2.append(x)
-  return l2
+KNOWN_CHANGES = {
+  # Known behavior changes
+  (2014, 2, 19, 'Standard'): 'LUCENE-5447: StandardAnalyzer should split on certain punctuation',
+  (2014, 2, 20, 'Standard'): 'LUCENE-5447: StandardAnalyzer should split on certain punctuation',
+  (2013, 12, 7, 'Standard'): 'LUCENE-5357: Upgrade StandardTokenizer to Unicode 6.3',
+  
+  # Known perf changes
+  (2014, 3, 19, 'WordDelimiterFilter'): 'LUCENE-5111: Fix WordDelimiterFilter offsets',
+  }
+  
+
+def renameAnalyzer(x):
+  if x == 'WordDelimiterFilter':
+    x = 'WDF'
+  return x
+
+def getLabel(label):
+  if label < 26:
+    s = chr(65+label)
+  else:
+    s = '%s%s' % (chr(65+(label/26 - 1)), chr(65 + (label%26)))
+  return s
 
 reResult = re.compile('^(.*?) time=(.*?) msec hash=(.*?) tokens=(.*?)$')
 
@@ -36,7 +52,7 @@ for fileName in os.listdir(rootDir):
           results[analyzer] = float(m.group(2)), int(m.group(3)), int(m.group(4))
 
       if len(results) == 6:
-        print("keep %s" % str(results))
+        #print("keep %s" % str(results))
         for key in results.keys():
           if key != 'rev':
             analyzers.add(key)
@@ -63,13 +79,22 @@ with open('analyzers.html', 'w') as f:
   ''')
 
   headers = ['Date'] + list(analyzers)
-  f.write('    "%s\\n"\n' % ','.join(renameAnalyzers(headers)))
+  f.write('    "%s\\n"\n' % ','.join([renameAnalyzer(x) for x in headers]))
 
+  lastHash = {}
+
+  annots = []
   for year, month, day, results in allResults:
     f.write('    + "%4d-%02d-%02d' % (year, month, day))
     for analyzer in headers[1:]:
       if analyzer in results:
         totMS, hash, tokenCount = results[analyzer]
+        oldHash = lastHash.get(analyzer)
+        lastHash[analyzer] = hash
+        if oldHash is not None and oldHash != hash:
+          # Record that analyzer changed:
+          annots.append((year, month, day, analyzer))
+          
         mTokPerSec = tokenCount / totMS / 1000.0
         f.write(',%.1f' % mTokPerSec)
       else:
@@ -77,10 +102,35 @@ with open('analyzers.html', 'w') as f:
     f.write('\\n"\n')
 
   f.write(''',
-  { "title": "Analyzer performance over time",
+  { "title": "Analyzer performance over time in Lucene 4.x branch",
     "xlabel": "Date",
     "ylabel": "Million Tokens/sec"}
     );
+    ''')
+
+  if len(annots) > 0:
+    f.write('g.ready(function() {g.setAnnotations([')
+    label = 0
+    for tup in annots:
+      reason = KNOWN_CHANGES.get(tup)
+      if reason is None:
+        shortText = '?'
+        reason = 'Analyzer changed its behavior for unknown reasons'
+      else:
+        del KNOWN_CHANGES[tup]
+        shortText = getLabel(label)
+        label += 1
+      year, month, day, analyzer = tup
+      f.write('{series: "%s", x: "%04d-%02d-%02d", shortText: "%s", text: "%s"},' % (analyzer, year, month, day, shortText, reason))
+
+    for tup, reason in KNOWN_CHANGES.items():
+      year, month, day, analyzer = tup
+      shortText = getLabel(label)
+      f.write('{series: "%s", x: "%04d-%02d-%02d", shortText: "%s", text: "%s"},' % (renameAnalyzer(analyzer), year, month, day, shortText, reason))
+
+    f.write(']);});')
+
+  f.write('''    
   </script>
   </body>
   </html>

@@ -4,6 +4,7 @@ import datetime
 
 # TODO
 #   - parse date too
+#   - separate "stalled merge MB" from running
 #   - flush sizes/frequency
 
 reTime = re.compile('(\d\d):(\d\d):(\d\d)')
@@ -23,6 +24,7 @@ def parseTime(line):
 def main():
   segCounts = []
   merges = []
+  segsPerFullFlush = []
 
   inFindMerges = False
   maxSegs = 0
@@ -33,6 +35,7 @@ def main():
   flushCount = 0
   minTime = None
   maxTime = None
+  startFlushCount = None
   
   with open(sys.argv[1]) as f:
     for line in f.readlines():
@@ -49,6 +52,13 @@ def main():
 
       if line.find('flush postings as segment') != -1:
         flushCount += 1
+
+      if line.find('prepareCommit: flush') != -1 or line.find('flush at getReader') != -1:
+        if startFlushCount is not None:
+          #print('%s: %d' % (startFlushTime, flushCount - startFlushCount))
+          segsPerFullFlush.append(startFlushTime + [flushCount - startFlushCount])
+        startFlushCount = flushCount
+        startFlushTime = t
         
       m = reMergeStart.match(line)
       if m is not None:
@@ -274,6 +284,32 @@ def main():
       if len(tup) >= 7:
         hr, min, sec, count, mergeMB, indexSizeMB, indexSizeDocs = tup[:7]
         w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, indexSizeDocs))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
+
+
+    # Segs per full flush
+    w('''
+    <td><br><b>Segments per full flush (client concurrency)</b>
+    <div id="segsFullFlush" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("segsFullFlush"),
+    ''')
+
+    headers = ['Date', 'SegsFullFlush']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    for tup in segsPerFullFlush:
+      hr, min, sec, count = tup
+      w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, count))
 
     w('"\n')
     w('''

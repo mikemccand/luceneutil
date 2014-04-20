@@ -15,12 +15,13 @@
 
 import datetime
 import os
+import time
 
 def fixWDF():
   if len(os.popen('grep matchVersion /l/4x.analyzers/lucene/analysis/common/src/java/org/apache/lucene/analysis/miscellaneous/WordDelimiterFilter.java').readlines()) == 0:
-    
-
-
+    s = open('/l/util/src/main/perf/TestAnalyzerPerf.java').read()
+    s = s.replace('new WordDelimiterFilter(Version.LUCENE_CURRENT, ', 'new WordDelimiterFilter(')
+    open('/l/util/src/main/perf/TestAnalyzerPerf.java', 'w').write(s)
 
 def run(cmd):
   if os.system(cmd):
@@ -35,15 +36,19 @@ while True:
   logFile = '/l/logs/analyzers/%s.log' % ymd
   print('\n%s' % ymd)
   if not os.path.exists(logFile):
+    t0 = time.time()
     run('svn up -r {%s}' % ymd)
+    
+    open(logFile + '.tmp', 'w').write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+    run('ant clean compile > compile.log 2>&1')
+
     fixWDF()
     run('javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/TestAnalyzerPerf.java')
-    
-    open(logFile, 'w').write('svnversion: %s\n' % os.popen('svnversion').read().strip())
-    run('ant clean compile > compile.log 2>&1')
+    print('  now run')
     run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % logFile)
-    os.rename('%s.tmp' % logsFile, logsFile)
+    os.rename('%s.tmp' % logFile, logFile)
+    print('  took %.1f sec' % (time.time()-t0))
   else:
     print('  already done; skip')
-  then -= datetime.timedelta(days=7)
+  then -= datetime.timedelta(days=1)
 

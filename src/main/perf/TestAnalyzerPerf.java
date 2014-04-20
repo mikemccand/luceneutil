@@ -52,7 +52,7 @@ import org.apache.lucene.util.Version;
 public class TestAnalyzerPerf {
 
   private static void testAnalyzer(String desc, File wikiLinesFile, Analyzer a) throws Exception {
-    testAnalyzer(desc, wikiLinesFile, a, 100000, 1500000);
+    testAnalyzer(desc, wikiLinesFile, a, 10000, 100000);
   }
 
   private static void testAnalyzer(String desc, File wikiLinesFile, Analyzer a, int warmupCount, int runCount) throws Exception {
@@ -71,7 +71,7 @@ public class TestAnalyzerPerf {
 
       boolean isWarmup = i < warmupCount;
 
-      if (i % 50000 == 0) {
+      if (i % 10000 == 0) {
         System.out.println(String.format(Locale.ROOT, "%.1f sec: %d...", (System.currentTimeMillis()-startTime)/1000.0, i));
       }
       String s = reader.readLine();
@@ -168,7 +168,7 @@ public class TestAnalyzerPerf {
     testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(Version.LUCENE_CURRENT, CharArraySet.EMPTY_SET));
     testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
     testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
-    testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer(), 50000, 200000);
+    testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());
     testAnalyzer("WordDelimiterFilter", wikiLinesFile, new WDFAnalyzer());
   }
 }

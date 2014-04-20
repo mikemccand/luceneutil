@@ -3,6 +3,14 @@ import os
 
 # TODO: need annot when hash changes
 
+def renameAnalyzers(l):
+  l2 = []
+  for x in l:
+    if x == 'WordDelimiterFilter':
+      x = 'WDF'
+    l2.append(x)
+  return l2
+
 reResult = re.compile('^(.*?) time=(.*?) msec hash=(.*?) tokens=(.*?)$')
 
 reYMD = re.compile(r'^(\d\d\d\d)-(\d\d)-(\d\d)\.log$')
@@ -37,9 +45,7 @@ for fileName in os.listdir(rootDir):
 # Sort by date:
 allResults.sort()
 
-print("here: %s" % analyzers)
-
-with open('/x/tmp/analyzers.html', 'w') as f:
+with open('analyzers.html', 'w') as f:
 
   f.write('''
   <html>
@@ -57,20 +63,23 @@ with open('/x/tmp/analyzers.html', 'w') as f:
   ''')
 
   headers = ['Date'] + list(analyzers)
-  f.write('    "%s\\n"\n' % ','.join(headers))
+  f.write('    "%s\\n"\n' % ','.join(renameAnalyzers(headers)))
 
   for year, month, day, results in allResults:
     f.write('    + "%4d-%02d-%02d' % (year, month, day))
     for analyzer in headers[1:]:
       if analyzer in results:
         totMS, hash, tokenCount = results[analyzer]
-        kTokPerSec = tokenCount / totMS
-        f.write(',%.1f' % kTokPerSec)
+        mTokPerSec = tokenCount / totMS / 1000.0
+        f.write(',%.1f' % mTokPerSec)
       else:
         f.write(',')
     f.write('\\n"\n')
 
-  f.write('''
+  f.write(''',
+  { "title": "Analyzer performance over time",
+    "xlabel": "Date",
+    "ylabel": "Million Tokens/sec"}
     );
   </script>
   </body>

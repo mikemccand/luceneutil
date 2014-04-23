@@ -17,24 +17,33 @@ import datetime
 import os
 import constants
 
-LOGS_ROOT = os.path.join(constnats.LOG_DIR, 'analyzers')
+LUCENE_ROOT = '/lucene/4x.analyzers/lucene'
+LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
 
 def run(cmd):
   if os.system(cmd):
     raise RuntimeError('%s failed' % cmd)
 
-os.chdir('/l/4x.analyzers/lucene')
+os.chdir(LUCENE_ROOT)
 
-run('javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/TestAnalyzerPerf.java')
+t = datetime.datetime.now()
+ymd = t.strftime('%Y-%m-%d')
+print('\n%s' % ymd)
 
+run('python -u /home/mike/src/util/svnClean.py %s/..' % LUCENE_ROOT)
 run('svn cleanup')
 run('svn up')
 run('ant clean compile > compile.log 2>&1')
 
-t = datetime.datetime.now()
-ymd = then.strftime('%Y-%m-%d')
-print('\n%s' % ymd)
 logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
-open(logFile + '.tmp', 'w').write('svnversion: %s\n' % os.popen('svnversion').read().strip())
-run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % logFile)
+
+with open(logFile + '.tmp', 'w') as lf:
+  lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+  lf.write('hgversion: %s\n' % os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip())
+
+run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
+
+print('  now run')
+run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
 os.rename(logFile+'.tmp', logFile)
+print('  done')

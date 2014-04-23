@@ -1,8 +1,11 @@
 import re
 import os
+import constants
 
 # TODO:
 #   - click to see log file from that day's run
+
+LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
 
 KNOWN_CHANGES = {
   # Known behavior changes
@@ -30,16 +33,15 @@ def getLabel(label):
 reResult = re.compile('^(.*?) time=(.*?) msec hash=(.*?) tokens=(.*?)$')
 
 reYMD = re.compile(r'^(\d\d\d\d)-(\d\d)-(\d\d)\.log$')
-rootDir = '/l/logs/analyzers'
 allResults = []
 analyzers = set()
-for fileName in os.listdir(rootDir):
+for fileName in os.listdir(LOGS_ROOT):
   m = reYMD.match(fileName)
   if m is not None:
     year = int(m.group(1))
     month = int(m.group(2))
     day = int(m.group(3))
-    with open('%s/%s' % (rootDir, fileName)) as f:
+    with open('%s/%s' % (LOGS_ROOT, fileName)) as f:
       svnRev = f.readline().strip()
 
       results = {'rev': svnRev}
@@ -48,10 +50,11 @@ for fileName in os.listdir(rootDir):
         m = reResult.match(line)
         if m is not None:
           analyzer = m.group(1)
-          # tot msec, hash, token count
-          results[analyzer] = float(m.group(2)), int(m.group(3)), int(m.group(4))
+          if analyzer != 'WordDelimiterFilter':
+            # tot msec, hash, token count
+            results[analyzer] = float(m.group(2)), int(m.group(3)), int(m.group(4))
 
-      if len(results) == 6:
+      if len(results) == 5:
         #print("keep %s" % str(results))
         for key in results.keys():
           if key != 'rev':

@@ -16,36 +16,54 @@
 import datetime
 import os
 import time
+import constants
 
-def fixWDF():
-  if len(os.popen('grep matchVersion /l/4x.analyzers/lucene/analysis/common/src/java/org/apache/lucene/analysis/miscellaneous/WordDelimiterFilter.java').readlines()) == 0:
-    s = open('/l/util/src/main/perf/TestAnalyzerPerf.java').read()
+LUCENE_ROOT = '/lucene/4x.analyzers/lucene'
+LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
+
+def fixCtors():
+  if len(os.popen('grep matchVersion %s/analysis/common/src/java/org/apache/lucene/analysis/miscellaneous/WordDelimiterFilter.java' % LUCENE_ROOT).readlines()) == 0:
+    print('  remove matchVersion from WDF...')
+    s = open('%s/src/main/perf/TestAnalyzerPerf.java' % constants.BENCH_BASE_DIR).read()
     s = s.replace('new WordDelimiterFilter(Version.LUCENE_CURRENT, ', 'new WordDelimiterFilter(')
-    open('/l/util/src/main/perf/TestAnalyzerPerf.java', 'w').write(s)
+    open('%s/src/main/perf/TestAnalyzerPerf.java' % constants.BENCH_BASE_DIR, 'w').write(s)
+
+  # Doens't work, too simplistic: EdgeNGramTokenFilter ctor took Side args before 2013-05-07:
+  if False and len(os.popen('grep EdgeNGramTokenFilter\\(Version %s/analysis/common/src/java/org/apache/lucene/analysis/ngram/EdgeNGramTokenFilter.java' % LUCENE_ROOT).readlines()) == 0:
+    print('  remove matchVersion from EdgeNGramTokenFilter...')
+    s = open('%s/src/main/perf/TestAnalyzerPerf.java' % constants.BENCH_BASE_DIR).read()
+    s = s.replace('new EdgeNGramTokenFilter(Version.LUCENE_CURRENT, ', 'new EdgeNGramTokenFilter(')
+    open('%s/src/main/perf/TestAnalyzerPerf.java' % constants.BENCH_BASE_DIR, 'w').write(s)
 
 def run(cmd):
   if os.system(cmd):
     raise RuntimeError('%s failed' % cmd)
 
-os.chdir('/l/4x.analyzers/lucene')
+os.chdir(LUCENE_ROOT)
 
 then = datetime.datetime.now()
 
 while True:
   ymd = then.strftime('%Y-%m-%d')
-  logFile = '/l/logs/analyzers/%s.log' % ymd
+  logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
   print('\n%s' % ymd)
   if not os.path.exists(logFile):
+
     t0 = time.time()
+    run('python -u /home/mike/src/util/svnClean.py %s/..' % LUCENE_ROOT)
     run('svn up -r {%s}' % ymd)
-    
-    open(logFile + '.tmp', 'w').write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+
+    with open(logFile + '.tmp', 'w') as lf:
+      lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+      lf.write('hgversion: %s\n' % os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip())
+      lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
+
     run('ant clean compile > compile.log 2>&1')
 
-    fixWDF()
-    run('javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/TestAnalyzerPerf.java')
+    fixCtors()
+    run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
     print('  now run')
-    run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % logFile)
+    run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
     os.rename('%s.tmp' % logFile, logFile)
     print('  took %.1f sec' % (time.time()-t0))
   else:

@@ -218,6 +218,9 @@ FLAKY_TESTS = set([
   'org.apache.lucene.analysis.core.TestAllAnalyzersHaveFactories',
   'org.apache.lucene.analysis.core.TestFactories',
 
+  # Not sure why this one sometimes fails:
+  'org.apache.lucene.util.TestMaxFailuresRule',
+
   # Not flaky, just haven't figured out the right env args to send:
   'org.apache.lucene.replicator.http.HttpReplicatorTest',
 

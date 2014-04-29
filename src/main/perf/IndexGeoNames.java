@@ -72,11 +72,11 @@ public class IndexGeoNames {
     }
 
     Directory dir = FSDirectory.open(indexPath);
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, new StandardAnalyzer(Version.LUCENE_50));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
     //iwc.setRAMBufferSizeMB(350);
-    //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {
-      iwc.setRAMBufferSizeMB(64);
+      iwc.setRAMBufferSizeMB(128);
       iwc.setMergePolicy(NoMergePolicy.NO_COMPOUND_FILES);
     } else {
       // 5/5 segments:
@@ -191,7 +191,8 @@ public class IndexGeoNames {
     long ms = System.currentTimeMillis();
     System.out.println(docsIndexed + ": " + ((ms - startMS)/1000.0) + " sec");
     //System.out.println("tot conflicts: " + BytesRefHash.totConflict);
-    w.shutdown(normal);
+    //w.shutdown(normal);
+    w.close();
     dir.close();
   }
 }

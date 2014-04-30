@@ -72,12 +72,12 @@ public class IndexGeoNames {
     }
 
     Directory dir = FSDirectory.open(indexPath);
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_4_8, new StandardAnalyzer(Version.LUCENE_4_8));
     //iwc.setRAMBufferSizeMB(350);
-    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {
-      iwc.setRAMBufferSizeMB(128);
-      iwc.setMergePolicy(NoMergePolicy.NO_COMPOUND_FILES);
+      iwc.setRAMBufferSizeMB(64);
+      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     } else {
       // 5/5 segments:
       iwc.setMaxBufferedDocs(157234);
@@ -107,6 +107,10 @@ public class IndexGeoNames {
 
     final long startMS = System.currentTimeMillis();
     Thread[] threads = new Thread[numThreads];
+
+    // With reuse it's ~ 38% faster (41.8 sec vs 67.0 sec):
+    final boolean reuseDocAndFields = false;
+
     for(int i=0;i<numThreads;i++) {
       threads[i] = new Thread() {
           @Override
@@ -114,71 +118,180 @@ public class IndexGeoNames {
             ParsePosition datePos = new ParsePosition(0);
             SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
-            while (true) {
-              try {
+            if (reuseDocAndFields) {
+              Document doc = new Document();
+              IntField geoNameID = new IntField("geoNameID", 0, intFieldType);
+              doc.add(geoNameID);
+              TextField nameField = new TextField("name", "", store);
+              doc.add(nameField);
+              TextField asciiNameField = new TextField("asciiName", "", store);
+              doc.add(asciiNameField);
+              TextField alternateNameField = new TextField("alternateNames", "", store);
+              doc.add(alternateNameField);
+              StringField featureClassField = new StringField("featureClass", "", store);
+              doc.add(featureClassField);
+              StringField featureCodeField = new StringField("featureCode", "", store);
+              doc.add(featureCodeField);
+              StringField countryCodeField = new StringField("countryCode", "", store);
+              doc.add(countryCodeField);
+              StringField cc2Field = new StringField("cc2", "", store);
+              doc.add(cc2Field);
+              StringField admin1Field = new StringField("admin1", "", store);
+              doc.add(admin1Field);
+              StringField admin2Field = new StringField("admin2", "", store);
+              doc.add(admin2Field);
+              StringField admin3Field = new StringField("admin3", "", store);
+              doc.add(admin3Field);
+              StringField admin4Field = new StringField("admin4", "", store);
+              doc.add(admin4Field);
+              StringField tzField = new StringField("timezone", "", store);
+              doc.add(tzField);
 
-                // Curiously BufferedReader.readLine seems to be thread-safe...
-                String line = reader.readLine();
-                if (line == null) {
-                  break;
-                }
-                String[] values = line.split("\t");
+              while (true) {
+                try {
 
-                Document doc = new Document();
+                  // Curiously BufferedReader.readLine seems to be thread-safe...
+                  String line = reader.readLine();
+                  if (line == null) {
+                    break;
+                  }
+                  String[] values = line.split("\t");
 
-                doc.add(new IntField("geoNameID", Integer.parseInt(values[0]), intFieldType));
-                doc.add(new TextField("name", values[1], store));
-                doc.add(new TextField("asciiName", values[2], store));
-                doc.add(new TextField("alternateNames", values[3], store));
+                  geoNameID.setIntValue(Integer.parseInt(values[0]));
+                  nameField.setStringValue(values[1]);
+                  asciiNameField.setStringValue(values[2]);
+                  alternateNameField.setStringValue(values[3]);
 
-                if (values[4].isEmpty() == false) {
-                  double v = Double.parseDouble(values[4]);
-                  doc.add(new DoubleField("latitude", v, doubleFieldType));
-                  doc.add(new DoubleDocValuesField("latitude", v));
-                }
-                if (values[5].isEmpty() == false) {
-                  double v = Double.parseDouble(values[5]);
-                  doc.add(new DoubleField("longitude", v, doubleFieldType));
-                  doc.add(new DoubleDocValuesField("longitude", v));
-                }
+                  /*
+                  if (values[4].isEmpty() == false) {
+                    double v = Double.parseDouble(values[4]);
+                    doc.add(new DoubleField("latitude", v, doubleFieldType));
+                    doc.add(new DoubleDocValuesField("latitude", v));
+                  }
+                  if (values[5].isEmpty() == false) {
+                    double v = Double.parseDouble(values[5]);
+                    doc.add(new DoubleField("longitude", v, doubleFieldType));
+                    doc.add(new DoubleDocValuesField("longitude", v));
+                  }
+                  */
 
-                doc.add(new StringField("featureClass", values[6], store));
-                doc.add(new StringField("featureCode", values[7], store));
-                doc.add(new StringField("countryCode", values[8], store));
-                doc.add(new StringField("cc2", values[9], store));
-                doc.add(new StringField("admin1Code", values[10], store));
-                doc.add(new StringField("admin2Code", values[11], store));
-                doc.add(new StringField("admin3Code", values[12], store));
-                doc.add(new StringField("admin4Code", values[13], store));
+                  featureClassField.setStringValue(values[6]);
+                  featureCodeField.setStringValue(values[7]);
+                  countryCodeField.setStringValue(values[8]);
+                  cc2Field.setStringValue(values[9]);
+                  admin1Field.setStringValue(values[10]);
+                  admin2Field.setStringValue(values[11]);
+                  admin3Field.setStringValue(values[12]);
+                  admin4Field.setStringValue(values[13]);
 
-                if (values[14].isEmpty() == false) {
-                  long v = Long.parseLong(values[14]);
-                  doc.add(new LongField("population", v, longFieldType));
-                  doc.add(new NumericDocValuesField("population", v));
-                }
-                if (values[15].isEmpty() == false) {
-                  long v = Long.parseLong(values[15]);
-                  doc.add(new LongField("elevation", v, longFieldType));
-                  doc.add(new NumericDocValuesField("elevation", v));
-                }
-                if (values[16].isEmpty() == false) {
-                  doc.add(new IntField("dem", Integer.parseInt(values[16]), intFieldType));
-                }
+                  /*
+                  if (values[14].isEmpty() == false) {
+                    long v = Long.parseLong(values[14]);
+                    doc.add(new LongField("population", v, longFieldType));
+                    doc.add(new NumericDocValuesField("population", v));
+                  }
+                  if (values[15].isEmpty() == false) {
+                    long v = Long.parseLong(values[15]);
+                    doc.add(new LongField("elevation", v, longFieldType));
+                    doc.add(new NumericDocValuesField("elevation", v));
+                  }
+                  if (values[16].isEmpty() == false) {
+                    doc.add(new IntField("dem", Integer.parseInt(values[16]), intFieldType));
+                  }
+                  */
 
-                doc.add(new StringField("timezone", values[17], store));
-                if (values[18].isEmpty() == false) {
-                  datePos.setIndex(0);
-                  Date date = dateParser.parse(values[18], datePos);
-                  doc.add(new LongField("modified", date.getTime(), longFieldType));
+                  tzField.setStringValue(values[17]);
+                  /*
+                  if (values[18].isEmpty() == false) {
+                    datePos.setIndex(0);
+                    Date date = dateParser.parse(values[18], datePos);
+                    doc.add(new LongField("modified", date.getTime(), longFieldType));
+                  }
+                  */
+                  w.addDocument(doc);
+                  int count = docsIndexed.incrementAndGet();
+                  if (count % 200000 == 0) {
+                    long ms = System.currentTimeMillis();
+                    System.out.println(count + ": " + ((ms - startMS)/1000.0) + " sec");
+                  }
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
                 }
-                w.addDocument(doc);
-                int count = docsIndexed.incrementAndGet();
-                if (count % 200000 == 0) {
-                  long ms = System.currentTimeMillis();
-                  System.out.println(count + ": " + ((ms - startMS)/1000.0) + " sec");
+              }
+            } else {
+              while (true) {
+                try {
+
+                  // Curiously BufferedReader.readLine seems to be thread-safe...
+                  String line = reader.readLine();
+                  if (line == null) {
+                    break;
+                  }
+                  String[] values = line.split("\t");
+
+                  Document doc = new Document();
+
+                  doc.add(new IntField("geoNameID", Integer.parseInt(values[0]), intFieldType));
+                  doc.add(new TextField("name", values[1], store));
+                  doc.add(new TextField("asciiName", values[2], store));
+                  doc.add(new TextField("alternateNames", values[3], store));
+
+                  /*
+                  if (values[4].isEmpty() == false) {
+                    double v = Double.parseDouble(values[4]);
+                    doc.add(new DoubleField("latitude", v, doubleFieldType));
+                    doc.add(new DoubleDocValuesField("latitude", v));
+                  }
+                  if (values[5].isEmpty() == false) {
+                    double v = Double.parseDouble(values[5]);
+                    doc.add(new DoubleField("longitude", v, doubleFieldType));
+                    doc.add(new DoubleDocValuesField("longitude", v));
+                  }
+                  */
+
+                  doc.add(new StringField("featureClass", values[6], store));
+                  doc.add(new StringField("featureCode", values[7], store));
+                  doc.add(new StringField("countryCode", values[8], store));
+                  doc.add(new StringField("cc2", values[9], store));
+                  doc.add(new StringField("admin1Code", values[10], store));
+                  doc.add(new StringField("admin2Code", values[11], store));
+                  doc.add(new StringField("admin3Code", values[12], store));
+                  doc.add(new StringField("admin4Code", values[13], store));
+
+                  /*
+                  if (values[14].isEmpty() == false) {
+                    long v = Long.parseLong(values[14]);
+                    doc.add(new LongField("population", v, longFieldType));
+                    doc.add(new NumericDocValuesField("population", v));
+                  }
+                  if (values[15].isEmpty() == false) {
+                    long v = Long.parseLong(values[15]);
+                    doc.add(new LongField("elevation", v, longFieldType));
+                    doc.add(new NumericDocValuesField("elevation", v));
+                  }
+                  if (values[16].isEmpty() == false) {
+                    doc.add(new IntField("dem", Integer.parseInt(values[16]), intFieldType));
+                  }
+                  */
+
+                  doc.add(new StringField("timezone", values[17], store));
+
+                  /*
+                  if (values[18].isEmpty() == false) {
+                    datePos.setIndex(0);
+                    Date date = dateParser.parse(values[18], datePos);
+                    doc.add(new LongField("modified", date.getTime(), longFieldType));
+                  }
+                  */
+                  w.addDocument(doc);
+                  int count = docsIndexed.incrementAndGet();
+                  if (count % 200000 == 0) {
+                    long ms = System.currentTimeMillis();
+                    System.out.println(count + ": " + ((ms - startMS)/1000.0) + " sec");
+                  }
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
                 }
-              } catch (Exception e) {
-                throw new RuntimeException(e);
               }
             }
           }

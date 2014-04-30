@@ -476,7 +476,7 @@ def main():
   command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
   command += ' -Dtests.nightly=false'
   command += ' -Dtests.weekly=false'
-  command += ' -Dtests.slow=false'
+  command += ' -Dtests.slow=true'
   command += ' -Dtests.asserts.gracious=false'
   command += ' -Dtests.multiplier=1'
   command += ' -DtempDir=.'

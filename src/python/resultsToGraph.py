@@ -26,19 +26,14 @@ def gen():
 
   for prefix in 'wiki', 'geo':
     #print('prefix %s' % prefix)
+    if prefix == 'wiki':
+      continue
     data = []
-    root = '/l/trunk/lucene'
+    root = '/l/results'
     for name in os.listdir(root):
       if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
         #print('  %s' % name)
-        label = 'base:%s' % name[:-4]
-        data.append((label, loadPoints('%s/%s' % (root, name))))
-    root = '/l/fastindexingchain/lucene'
-    #root = '/l/bytesrefhash/lucene'
-    for name in os.listdir(root):
-      if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
-        #print('  %s' % name)
-        label = 'comp:%s' % name[:-4]
+        label = name[(9+len(prefix)):-4]
         data.append((label, loadPoints('%s/%s' % (root, name))))
 
     f.write('''

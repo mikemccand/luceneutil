@@ -96,7 +96,7 @@ public class Index1BNumbers {
     }
 
     Directory dir = FSDirectory.open(indexPath);
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, new StandardAnalyzer(Version.LUCENE_50));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer(Version.LUCENE_5_0));
     iwc.setRAMBufferSizeMB(512);
     final IndexWriter w = new IndexWriter(dir, iwc);
 

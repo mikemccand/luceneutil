@@ -72,12 +72,12 @@ public class IndexGeoNames {
     }
 
     Directory dir = FSDirectory.open(indexPath);
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, new StandardAnalyzer(Version.LUCENE_50));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer(Version.LUCENE_5_0));
     //iwc.setRAMBufferSizeMB(350);
     //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {
       iwc.setRAMBufferSizeMB(64);
-      iwc.setMergePolicy(NoMergePolicy.NO_COMPOUND_FILES);
+      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     } else {
       // 5/5 segments:
       iwc.setMaxBufferedDocs(157234);

@@ -122,8 +122,8 @@ public class TestAnalyzerPerf {
 
   private static class LowerCaseAnalyzer extends Analyzer {
     @Override
-    protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT, reader);
+    protected TokenStreamComponents createComponents(String fieldName) {
+      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
       TokenStream tok = new LowerCaseFilter(Version.LUCENE_CURRENT, src);
       return new TokenStreamComponents(src, tok);
     }
@@ -131,8 +131,8 @@ public class TestAnalyzerPerf {
 
   private static class EdgeNGramsAnalyzer extends Analyzer {
     @Override
-    protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT, reader);
+    protected TokenStreamComponents createComponents(String fieldName) {
+      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
       TokenStream tok = new EdgeNGramTokenFilter(Version.LUCENE_CURRENT, src, 1, 3);
       return new TokenStreamComponents(src, tok);
     }
@@ -140,8 +140,8 @@ public class TestAnalyzerPerf {
 
   private static class ShinglesAnalyzer extends Analyzer {
     @Override
-    protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT, reader);
+    protected TokenStreamComponents createComponents(String fieldName) {
+      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
       //TokenStream tok = new ShingleFilter(Version.LUCENE_CURRENT, src, 2, 2);
       TokenStream tok = new ShingleFilter(src, 2, 2);
       return new TokenStreamComponents(src, tok);
@@ -150,8 +150,8 @@ public class TestAnalyzerPerf {
 
   private static class WDFAnalyzer extends Analyzer {
     @Override
-    protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT, reader);
+    protected TokenStreamComponents createComponents(String fieldName) {
+      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
       int flags = 0;
       flags |= WordDelimiterFilter.GENERATE_WORD_PARTS;
       flags |= WordDelimiterFilter.GENERATE_NUMBER_PARTS;

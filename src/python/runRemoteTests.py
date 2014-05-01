@@ -91,21 +91,19 @@ class Remote(threading.Thread):
       os.system('ssh %s kill -9 %s' % (self.hostName, pid))
       msg('local: kill pid %s on %s' % (pid, self.hostName))
 
-    if False and self.hostName == 'beast':
-      pythonExe = '/usr/local/src/Python-2.7.6/python'
-    else:
-      pythonExe = 'python'
-      
-    cmd = 'ssh -Tx %s@%s %s -u %s/remoteTestServer.py %s %s %s %s \'"%s"\'' % \
+    cmd = 'ssh -Tx %s@%s python -u %s/remoteTestServer.py %s %s %s %s \'"%s"\'' % \
               (USERNAME,
                self.hostName,
-               pythonExe,
                constants.BENCH_BASE_DIR,
                self.hostName,
                self.processCount,
                self.rootDir,
                self.classpath,
                self.command)
+
+    if self.hostName == socket.gethostname():
+      # So that test running locally, creating/deleting files, doesn't mess up rsync:
+      cmd = cmd.replace('-DtempDir=.', '-DtempDir=/s2/tmp')
 
     msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 
@@ -219,6 +217,9 @@ FLAKY_TESTS = set([
   'org.apache.lucene.analysis.core.TestRandomChains',
   'org.apache.lucene.analysis.core.TestAllAnalyzersHaveFactories',
   'org.apache.lucene.analysis.core.TestFactories',
+
+  # Not sure why this one sometimes fails:
+  'org.apache.lucene.util.TestMaxFailuresRule',
 
   # Not flaky, just haven't figured out the right env args to send:
   'org.apache.lucene.replicator.http.HttpReplicatorTest',
@@ -475,7 +476,7 @@ def main():
   command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
   command += ' -Dtests.nightly=false'
   command += ' -Dtests.weekly=false'
-  command += ' -Dtests.slow=false'
+  command += ' -Dtests.slow=true'
   command += ' -Dtests.asserts.gracious=false'
   command += ' -Dtests.multiplier=1'
   command += ' -DtempDir=.'

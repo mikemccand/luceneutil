@@ -1,17 +1,23 @@
 import sys
 import re
 import datetime
+import math
+
+# see http://people.apache.org/~mikemccand/lucenebench/iw.html as an example
 
 # TODO
 #   - parse date too
 #   - separate "stalled merge MB" from running
 #   - flush sizes/frequency
+#   - commit frequency
 
 reTime = re.compile('(\d\d):(\d\d):(\d\d)')
 reFindMerges = re.compile('findMerges: (\d+) segments')
 reMergeSize = re.compile(r'[cC](\d+) size=(.*?) MB')
 reMergeStart = re.compile(r'^IW \d+ \[.*?; (.*?)\]: merge seg=(.*?)')
 reMergeEnd = re.compile(r'^IW \d+ \[.*?; (.*?)\]: merged segment size=(.*?) MB')
+reGetReader = re.compile(r'getReader took (\d+) msec')
+reThreadName = re.compile(r'^IW \d+ \[.*?; (.*?)\]:')
 
 def parseTime(line):
   m = reTime.search(line)
@@ -36,6 +42,9 @@ def main():
   minTime = None
   maxTime = None
   startFlushCount = None
+  getReaderTimes = []
+  commitTimes = []
+  runningCommits = {}
   
   with open(sys.argv[1]) as f:
     for line in f.readlines():
@@ -49,7 +58,15 @@ def main():
         
       if line.find('startCommit(): start') != -1:
         commitCount += 1
+        threadName = reThreadName.search(line).group(1)
+        runningCommits[threadName] = len(commitTimes)
+        commitTimes.append(t)
 
+      if line.find('commit: wrote segments file') != -1:
+        threadName = reThreadName.search(line).group(1)
+        commitTimes[runningCommits[threadName]].append(t)
+        del runningCommits[threadName]
+        
       if line.find('flush postings as segment') != -1:
         flushCount += 1
 
@@ -59,6 +76,10 @@ def main():
           segsPerFullFlush.append(startFlushTime + [flushCount - startFlushCount])
         startFlushCount = flushCount
         startFlushTime = t
+
+      m = reGetReader.search(line)
+      if m is not None:
+        getReaderTimes.append(t + [int(m.group(1))])
         
       m = reMergeStart.match(line)
       if m is not None:
@@ -242,6 +263,9 @@ def main():
     for tup in merges:
       if len(tup) == 6:
         event, threadName, hr, min, sec, mergeMB = tup
+        #if mergeMB > 0:
+        #  mergeMB = math.log(mergeMB)/math.log(2.0)
+        
         l = ['0'] * maxRunningMerges
         for ign, (id, size) in runningMerges.items():
           l[id] = '%.1f' % size
@@ -317,7 +341,139 @@ def main():
     </script>
     </td>
     ''')
+
+    w('</tr>')
+    w('<tr>')
+
+    # Refresh times
+    w('''
+    <td><br><b>MS to refresh</b>
+    <div id="refreshTimes" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("refreshTimes"),
+    ''')
+
+    headers = ['Date', 'RefreshMS']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    for tup in getReaderTimes:
+      hr, min, sec, ms = tup
+      w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, ms))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
+
+
+    # Refresh rate
+    w('''
+    <td><br><b>Refreshes in past 10 sec</b>
+    <div id="refreshRate" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("refreshRate"),
+    ''')
+
+    headers = ['Date', 'RefreshRate']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    startIndex = 0
+    l = getReaderTimes[0]
+    startTime = l[0]*3600 + l[1]*60 + l[2]
     
+    for i, tup in enumerate(getReaderTimes):
+      hr, min, sec, ms = tup
+      t = hr*3600 + min*60 + sec
+      # Rolling window of past 10 seconds:
+      while t - startTime > 10.0:
+        startIndex += 1
+        l = getReaderTimes[startIndex]
+        startTime = l[0]*3600 + l[1]*60 + l[2]
+      
+      w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, i-startIndex+1))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
+
+
+    # Commit times
+    w('''
+    <td><br><b>Sec to commit</b>
+    <div id="commitTime" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("commitTime"),
+    ''')
+
+    headers = ['Date', 'CommitSec']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    for i, tup in enumerate(commitTimes):
+      if len(tup) == 4:
+        hr, min, sec, (endHr, endMin, endSec) = tup
+        commitSec = (endHr-hr)*3600 + (endMin-min)*60 + endSec-sec
+        w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, commitSec))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
+
+    w('</tr>')
+    w('<tr>')
+
+    # Commit rate
+    w('''
+    <td><br><b>Commits in past 60 sec</b>
+    <div id="commitRate" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("commitRate"),
+    ''')
+
+    headers = ['Date', 'CommitRate']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    startIndex = 0
+    l = commitTimes[0]
+    startTime = l[0]*3600 + l[1]*60 + l[2]
+    
+    for i, tup in enumerate(commitTimes):
+      if len(tup) >= 3:
+        hr, min, sec = tup[:3]
+        t = hr*3600 + min*60 + sec
+        # Rolling window of past 60 seconds:
+        while t - startTime > 60.0:
+          startIndex += 1
+          l = commitTimes[startIndex]
+          startTime = l[0]*3600 + l[1]*60 + l[2]
+
+        w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, i-startIndex+1))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
 
     w('</tr>')
     w('</table>')

@@ -133,6 +133,7 @@ if not os.path.exists(logDirName):
 
 onlyOnce = benchUtil.getArg('-once', False, False)
 mult = int(benchUtil.getArg('-mult', 1))
+locale = benchUtil.getArg('-locale', None)
 postingsFormat = benchUtil.getArg('-pf', 'random')
 codec = benchUtil.getArg('-codec', 'random')
 sim = benchUtil.getArg('-sim', 'random')
@@ -297,6 +298,8 @@ def _run(threadID):
         command += ' -Dtests.seed=%s' % seed
       if testMethod is not None:
         command += ' -Dtests.method=%s*' % testMethod
+      if locale is not None:
+        command += ' -Dtests.locale=%s' % locale
 
       command += ' -Dtests.slow=%s' % str(slow).lower()
       command += ' -Djetty.testMode=1'

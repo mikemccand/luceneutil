@@ -303,6 +303,7 @@ public class NRTPerfTest {
 		final IndexWriterConfig conf = new IndexWriterConfig(Version.LUCENE_5_0, analyzer);
 		conf.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 		conf.setRAMBufferSizeMB(256.0);
+		conf.setMaxThreadStates(numIndexThreads);
 		//iwc.setMergeScheduler(ms);
 
 		final Codec codec = new Lucene46Codec() {

@@ -43,13 +43,11 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.LogMergePolicy;
-import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.BytesRefHash;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
@@ -216,8 +214,7 @@ public final class Indexer {
     } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
       mp = new LogByteSizeMergePolicy();
     } else if (mergePolicy.equals("NoMergePolicy")) {
-      final MergePolicy nmp = NoMergePolicy.INSTANCE;
-      iwc.setMergePolicy(nmp);
+      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
       mp = null;
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();

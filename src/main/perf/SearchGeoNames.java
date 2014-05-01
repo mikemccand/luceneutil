@@ -19,6 +19,8 @@ package perf;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -27,15 +29,11 @@ import java.util.Random;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.MultiTermQueryWrapperFilter;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
 
 // javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/SearchGeoNames.java
 
@@ -75,7 +73,6 @@ public class SearchGeoNames {
     System.out.println("\nfield=" + field);
 
     List<Query> queries = new ArrayList<>();
-    long totRewriteCount = 0;
     for(int j=0;j<QUERY_COUNT;j++) {
       double v1 = min + r.nextDouble() * (max-min);
       double v2 = min + r.nextDouble() * (max-min);
@@ -83,14 +80,7 @@ public class SearchGeoNames {
       double maxV = Math.max(v1, v2);
       Query query = NumericRangeQuery.newDoubleRange(field, precStep, minV, maxV, true, true);
       queries.add(query);
-      long start = MultiTermQueryWrapperFilter.rewriteTermCount;
-      TopDocs hits = s.search(query, 10);
-      int rewriteCount = (int) (MultiTermQueryWrapperFilter.rewriteTermCount - start);
-      System.out.println("  query=" + query + " hits=" + hits.totalHits + " " + rewriteCount + " terms");
-      totRewriteCount += rewriteCount;
     }
-    System.out.println("  tot term rewrites=" + totRewriteCount);
-
     return queries;
   }
 
@@ -100,7 +90,6 @@ public class SearchGeoNames {
     System.out.println("\nfield=" + field);
 
     List<Query> queries = new ArrayList<>();
-    long totRewriteCount = 0;
     for(int j=0;j<QUERY_COUNT;j++) {
       // NOTE: fails if max-min > Long.MAX_VALUE, but we don't do that:
       long v1 = min + ((r.nextLong()<<1)>>>1) % (max-min);
@@ -109,14 +98,7 @@ public class SearchGeoNames {
       long maxV = Math.max(v1, v2);
       Query query = NumericRangeQuery.newLongRange(field, precStep, minV, maxV, true, true);
       queries.add(query);
-      long start = MultiTermQueryWrapperFilter.rewriteTermCount;
-      TopDocs hits = s.search(query, 10);
-      int rewriteCount = (int) (MultiTermQueryWrapperFilter.rewriteTermCount - start);
-      System.out.println("  query=" + query + " hits=" + hits.totalHits + " " + rewriteCount + " terms");
-      totRewriteCount += rewriteCount;
     }
-    System.out.println("  tot term rewrites=" + totRewriteCount);
-
     return queries;
   }
 
@@ -126,7 +108,6 @@ public class SearchGeoNames {
     System.out.println("\nfield=" + field);
 
     List<Query> queries = new ArrayList<>();
-    long totRewriteCount = 0;
     for(int j=0;j<QUERY_COUNT;j++) {
       // NOTE: fails if max-min > Long.MAX_VALUE, but we don't do that:
       int v1 = min + r.nextInt(max-min);
@@ -135,14 +116,7 @@ public class SearchGeoNames {
       int maxV = Math.max(v1, v2);
       Query query = NumericRangeQuery.newIntRange(field, precStep, minV, maxV, true, true);
       queries.add(query);
-      long start = MultiTermQueryWrapperFilter.rewriteTermCount;
-      TopDocs hits = s.search(query, 10);
-      int rewriteCount = (int) (MultiTermQueryWrapperFilter.rewriteTermCount - start);
-      System.out.println("  query=" + query + " hits=" + hits.totalHits + " " + rewriteCount + " terms");
-      totRewriteCount += rewriteCount;
     }
-    System.out.println("  tot term rewrites=" + totRewriteCount);
-
     return queries;
   }
 

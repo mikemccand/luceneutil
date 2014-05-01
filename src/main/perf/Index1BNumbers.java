@@ -17,40 +17,19 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.DoubleDocValuesField;
-import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.BytesRefHash;
-import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
 
 // rm -rf /p/indices/1bnumbers; pushd core; ant jar; popd; javac -d /lucene/util/build -cp build/core/classes/java:build/analysis/common/classes/java /lucene/util/src/main/perf/Index1BNumbers.java; java -cp /lucene/util/build:build/core/classes/java:build/analysis/common/classes/java perf.Index1BNumbers /p/indices/1bnumbers 4 8
@@ -96,7 +75,7 @@ public class Index1BNumbers {
     }
 
     Directory dir = FSDirectory.open(indexPath);
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, new StandardAnalyzer(Version.LUCENE_50));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer(Version.LUCENE_5_0));
     iwc.setRAMBufferSizeMB(512);
     final IndexWriter w = new IndexWriter(dir, iwc);
 

@@ -43,13 +43,11 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.LogMergePolicy;
-import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.BytesRefHash;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
@@ -96,16 +94,16 @@ public final class Indexer {
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer(Version.LUCENE_50);
+      a = new EnglishAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer(Version.LUCENE_50);
+      a = new StandardAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_5_0),
                                      2, 2);
     } else if (analyzer.equals("ShingleStandardAnalyzerNoStopWords")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_50, CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET),
                                      2, 2);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -189,7 +187,7 @@ public final class Indexer {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_50, a);
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, a);
 
     iwc.setMaxThreadStates(numThreads);
 
@@ -216,8 +214,7 @@ public final class Indexer {
     } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
       mp = new LogByteSizeMergePolicy();
     } else if (mergePolicy.equals("NoMergePolicy")) {
-      final MergePolicy nmp = useCFS ? NoMergePolicy.COMPOUND_FILES : NoMergePolicy.NO_COMPOUND_FILES;
-      iwc.setMergePolicy(nmp);
+      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
       mp = null;
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();

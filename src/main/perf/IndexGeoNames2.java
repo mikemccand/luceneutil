@@ -42,11 +42,11 @@ public class IndexGeoNames2 {
 
     Directory dir = FSDirectory.open(indexPath);
     IndexWriter iw = new IndexWriter(dir, 
-        new IndexWriterConfig(Version.LUCENE_48, null)
+        new IndexWriterConfig(Version.LUCENE_4_8, null)
              .setRAMBufferSizeMB(50)
              //.setRAMBufferSizeMB(1)
              .setOpenMode(IndexWriterConfig.OpenMode.CREATE)
-             .setMergePolicy(NoMergePolicy.NO_COMPOUND_FILES)
+             .setMergePolicy(NoMergePolicy.INSTANCE)
              .setInfoStream(new PrintStreamInfoStream(System.out))
              );
     FileInputStream fs = new FileInputStream(geoNamesFile);

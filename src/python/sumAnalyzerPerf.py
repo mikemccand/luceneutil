@@ -30,6 +30,8 @@ def getLabel(label):
     s = '%s%s' % (chr(65+(label/26 - 1)), chr(65 + (label%26)))
   return s
 
+print
+print('run sumAnalyzerPerf.py')
 reResult = re.compile('^(.*?) time=(.*?) msec hash=(.*?) tokens=(.*?)$')
 
 reYMD = re.compile(r'^(\d\d\d\d)-(\d\d)-(\d\d)\.log$')
@@ -138,3 +140,6 @@ with open('analyzers.html', 'w') as f:
   </body>
   </html>
   ''')
+
+if os.system('scp analyzers.html mikemccand@people.apache.org:public_html/lucenebench'):
+  raise RuntimeError('scp failed')

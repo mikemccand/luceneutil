@@ -11,13 +11,14 @@ import math
 #   - flush sizes/frequency
 #   - commit frequency
 
-reTime = re.compile('(\d\d):(\d\d):(\d\d)')
+reTime = re.compile('(\d\d):(\d\d):(\d\d)(,\d\d\d)?')
 reFindMerges = re.compile('findMerges: (\d+) segments')
 reMergeSize = re.compile(r'[cC](\d+) size=(.*?) MB')
-reMergeStart = re.compile(r'^IW \d+ \[.*?; (.*?)\]: merge seg=(.*?)')
-reMergeEnd = re.compile(r'^IW \d+ \[.*?; (.*?)\]: merged segment size=(.*?) MB')
+reMergeStart = re.compile(r'merge seg=(.*?) ')
+reMergeEnd = re.compile(r'merged segment size=(.*?) MB')
 reGetReader = re.compile(r'getReader took (\d+) msec')
 reThreadName = re.compile(r'^IW \d+ \[.*?; (.*?)\]:')
+reThreadNameES = re.compile(r'[lucene.iw\s*].*? elasticsearch\[.*?\](\[.*?\]\[.*?\]) IW')
 
 def parseTime(line):
   m = reTime.search(line)
@@ -25,7 +26,26 @@ def parseTime(line):
     return None
   
   # hours, minutes, seconds:
-  return [int(x) for x in m.groups()]
+  t = list(m.groups())
+  if len(t) == 4:
+    if t[-1] is None:
+      t = [int(x) for x in t[:3]]
+    else:
+      t2 = [int(x) for x in t[:3]]
+      # ES logs have msec:
+      t2[-1] += float(t[3][1:])/1000.0
+      t = t2
+  else:
+    t = [int(x) for x in t[:3]]
+    
+  return t
+
+def parseThreadName(line):
+  m = reThreadName.search(line)
+  if m is not None:
+    threadName = m.group(1)
+  else:
+    return reThreadNameES.search(line).group(1)
 
 def main():
   segCounts = []
@@ -58,12 +78,12 @@ def main():
         
       if line.find('startCommit(): start') != -1:
         commitCount += 1
-        threadName = reThreadName.search(line).group(1)
+        threadName = parseThreadName(line)
         runningCommits[threadName] = len(commitTimes)
         commitTimes.append(t)
 
       if line.find('commit: wrote segments file') != -1:
-        threadName = reThreadName.search(line).group(1)
+        threadName = parseThreadName(line)
         commitTimes[runningCommits[threadName]].append(t)
         del runningCommits[threadName]
         
@@ -81,20 +101,20 @@ def main():
       if m is not None:
         getReaderTimes.append(t + [int(m.group(1))])
         
-      m = reMergeStart.match(line)
+      m = reMergeStart.search(line)
       if m is not None:
         # A merge kicked off
-        threadName = m.group(1)
+        threadName = parseThreadName(line)
         mergeThreads[threadName] = len(merges)
         merges.append(['start', threadName] + parseTime(line))
         runningMerges += 1
         maxRunningMerges = max(maxRunningMerges, runningMerges)
 
-      m = reMergeEnd.match(line)
+      m = reMergeEnd.search(line)
       if m is not None:
         # A merge finished
-        threadName = m.group(1)
-        mergeSize = float(m.group(2))
+        threadName = parseThreadName(line)
+        mergeSize = float(m.group(1))
         merges[mergeThreads[threadName]].append(mergeSize)
         del mergeThreads[threadName]
         merges.append(['end', threadName] + parseTime(line) + [mergeSize])
@@ -132,10 +152,10 @@ def main():
   now = datetime.datetime.now()
   t0 = datetime.datetime(year=now.year, month=now.month, day=now.day,
                          hour=minTime[0], minute=minTime[1],
-                         second=minTime[2])
+                         second=int(minTime[2]))
   t1 = datetime.datetime(year=now.year, month=now.month, day=now.day,
                          hour=maxTime[0], minute=maxTime[1],
-                         second=minTime[2])
+                         second=int(minTime[2]))
   print('elapsed time %s' % (t1-t0))
   print('max concurrent merges %s' % maxRunningMerges)
   print('commit count %s (avg every %.1f sec)' % \
@@ -186,24 +206,24 @@ def main():
     ''')
 
 
-    # Merging MB
+    # Merging GB
     w('''
-    <td><br><b>Merging MB</b>
-    <div id="mergingMB" style="width:500px; height:300px"></div>
+    <td><br><b>Merging GB</b>
+    <div id="mergingGB" style="width:500px; height:300px"></div>
     <script type="text/javascript">
       g = new Dygraph(
 
         // containing div
-        document.getElementById("mergingMB"),
+        document.getElementById("mergingGB"),
     ''')
 
-    headers = ['Date', 'MergingMB']
+    headers = ['Date', 'MergingGB']
     w('    "%s\\n" + \n"' % ','.join(headers))
 
     for tup in segCounts:
       if len(tup) >= 5:
         hr, min, sec, count, mergeMB = tup[:5]
-        w('2014-04-22 %02d:%02d:%02d,%.1f\\n' % (hr, min, sec, mergeMB))
+        w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, mergeMB/1024.))
 
     w('"\n')
     w('''
@@ -213,24 +233,24 @@ def main():
     ''')
 
 
-    # Index size MB
+    # Index size GB
     w('''
-    <td><br><b>Index Size MB</b>
-    <div id="indexSizeMB" style="width:500px; height:300px"></div>
+    <td><br><b>Index Size GB</b>
+    <div id="indexSizeGB" style="width:500px; height:300px"></div>
     <script type="text/javascript">
       g = new Dygraph(
 
         // containing div
-        document.getElementById("indexSizeMB"),
+        document.getElementById("indexSizeGB"),
     ''')
 
-    headers = ['Date', 'IndexSizeMB']
+    headers = ['Date', 'IndexSizeGB']
     w('    "%s\\n" + \n"' % ','.join(headers))
 
     for tup in segCounts:
       if len(tup) >= 6:
         hr, min, sec, count, mergeMB, indexSizeMB = tup[:6]
-        w('2014-04-22 %02d:%02d:%02d,%.1f\\n' % (hr, min, sec, indexSizeMB))
+        w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, indexSizeMB/1024.))
 
     w('"\n')
     w('''
@@ -292,22 +312,22 @@ def main():
 
     # Index size Docs
     w('''
-    <td><br><b>Index Size Docs</b>
-    <div id="indexSizeDocs" style="width:500px; height:300px"></div>
+    <td><br><b>Index Size MDocs</b>
+    <div id="indexSizeMDocs" style="width:500px; height:300px"></div>
     <script type="text/javascript">
       g = new Dygraph(
 
         // containing div
-        document.getElementById("indexSizeDocs"),
+        document.getElementById("indexSizeMDocs"),
     ''')
 
-    headers = ['Date', 'IndexSizeDocs']
+    headers = ['Date', 'IndexSizeMDocs']
     w('    "%s\\n" + \n"' % ','.join(headers))
 
     for tup in segCounts:
       if len(tup) >= 7:
         hr, min, sec, count, mergeMB, indexSizeMB, indexSizeDocs = tup[:7]
-        w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, indexSizeDocs))
+        w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, indexSizeDocs/1000000.0))
 
     w('"\n')
     w('''
@@ -410,7 +430,7 @@ def main():
 
     # Commit times
     w('''
-    <td><br><b>Sec to commit</b>
+    <td><br><b>Time to commit</b>
     <div id="commitTime" style="width:500px; height:300px"></div>
     <script type="text/javascript">
       g = new Dygraph(
@@ -426,7 +446,7 @@ def main():
       if len(tup) == 4:
         hr, min, sec, (endHr, endMin, endSec) = tup
         commitSec = (endHr-hr)*3600 + (endMin-min)*60 + endSec-sec
-        w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, commitSec))
+        w('2014-04-22 %02d:%02d:%02d,%g\\n' % (hr, min, sec, commitSec))
 
     w('"\n')
     w('''

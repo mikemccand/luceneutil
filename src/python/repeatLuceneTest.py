@@ -145,7 +145,7 @@ seed = benchUtil.getArg('-seed', None)
 dvFormat = benchUtil.getArg('-dvFormat', None)
 nightly = benchUtil.getArg('-nightly', None, False)
 keepLogs = benchUtil.getArg('-keeplogs', False, False)
-slow = benchUtil.getArg('-slow', False, False)
+slow = benchUtil.getArg('-slow', True, False)
 # -Dtests.heapsize=XXX if running ant
 heap = benchUtil.getArg('-heap', None, True)
 if heap is not None:

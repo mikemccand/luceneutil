@@ -36,6 +36,9 @@ import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.DirectoryReader;
+//import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.NoMergePolicy;
@@ -43,7 +46,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
-// rm -rf /l/scratch/indices/geonames; pushd core; ant jar; popd; javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/IndexGeoNames.java; java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.IndexGeoNames /lucenedata/geonames/allCountries.txt /l/scratch/indices/geonames 4
+// rm -rf /l/scratch/indices/geonames; pushd core; ant jar; popd; javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/IndexGeoNames.java; java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.IndexGeoNames /lucenedata/geonames/allCountries.txt /l/scratch/indices/geonames 4 8
 
 // javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/IndexGeoNames.java
 
@@ -63,12 +66,14 @@ public class IndexGeoNames {
     }
 
     Directory dir = FSDirectory.open(indexPath);
+    //IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
     IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer(Version.LUCENE_5_0));
     //iwc.setRAMBufferSizeMB(350);
-    //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {
-      iwc.setRAMBufferSizeMB(64);
+      iwc.setRAMBufferSizeMB(1024);
       iwc.setMergePolicy(NoMergePolicy.INSTANCE);
+      //iwc.setMergePolicy(NoMergePolicy.NO_COMPOUND_FILES);
     } else {
       // 5/5 segments:
       iwc.setMaxBufferedDocs(157234);
@@ -227,7 +232,6 @@ public class IndexGeoNames {
                   doc.add(new TextField("asciiName", values[2], store));
                   doc.add(new TextField("alternateNames", values[3], store));
 
-                  /*
                   if (values[4].isEmpty() == false) {
                     double v = Double.parseDouble(values[4]);
                     doc.add(new DoubleField("latitude", v, doubleFieldType));
@@ -238,7 +242,6 @@ public class IndexGeoNames {
                     doc.add(new DoubleField("longitude", v, doubleFieldType));
                     doc.add(new DoubleDocValuesField("longitude", v));
                   }
-                  */
 
                   doc.add(new StringField("featureClass", values[6], store));
                   doc.add(new StringField("featureCode", values[7], store));
@@ -249,7 +252,6 @@ public class IndexGeoNames {
                   doc.add(new StringField("admin3Code", values[12], store));
                   doc.add(new StringField("admin4Code", values[13], store));
 
-                  /*
                   if (values[14].isEmpty() == false) {
                     long v = Long.parseLong(values[14]);
                     doc.add(new LongField("population", v, longFieldType));
@@ -263,17 +265,14 @@ public class IndexGeoNames {
                   if (values[16].isEmpty() == false) {
                     doc.add(new IntField("dem", Integer.parseInt(values[16]), intFieldType));
                   }
-                  */
 
                   doc.add(new StringField("timezone", values[17], store));
 
-                  /*
                   if (values[18].isEmpty() == false) {
                     datePos.setIndex(0);
                     Date date = dateParser.parse(values[18], datePos);
                     doc.add(new LongField("modified", date.getTime(), longFieldType));
                   }
-                  */
                   w.addDocument(doc);
                   int count = docsIndexed.incrementAndGet();
                   if (count % 200000 == 0) {
@@ -288,6 +287,19 @@ public class IndexGeoNames {
           }
         };
       threads[i].start();
+    }
+    DirectoryReader r = DirectoryReader.open(w, true);
+    for(int i=0;i<100;i++) {
+      DirectoryReader r2 = DirectoryReader.openIfChanged(r);
+      if (r2 != null) {
+        r.close();
+        r = r2;
+      }
+      Thread.sleep(500);
+    }
+    if (r != null) {
+      r.close();
+      r = null;
     }
     for(int i=0;i<numThreads;i++) {
       threads[i].join();

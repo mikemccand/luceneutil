@@ -6,6 +6,7 @@ import math
 # see http://people.apache.org/~mikemccand/lucenebench/iw.html as an example
 
 # TODO
+#   - combine "segment count in index" with "segments being merged"
 #   - parse date too
 #   - separate "stalled merge MB" from running
 #   - flush sizes/frequency
@@ -19,6 +20,7 @@ reMergeEnd = re.compile(r'merged segment size=(.*?) MB')
 reGetReader = re.compile(r'getReader took (\d+) msec')
 reThreadName = re.compile(r'^IW \d+ \[.*?; (.*?)\]:')
 reThreadNameES = re.compile(r'[lucene.iw\s*].*? elasticsearch\[.*?\](\[.*?\]\[.*?\]) IW')
+reIndexedDocCount = re.compile(r'^Indexer: (\d+) docs: ([0-9\.]+) sec')        
 
 def parseTime(line):
   m = reTime.search(line)
@@ -39,6 +41,19 @@ def parseTime(line):
     t = [int(x) for x in t[:3]]
     
   return t
+
+class RollingTimeWindow:
+
+  def __init__(self, windowTime):
+    self.window = []
+    self.windowTime = windowTime
+    self.pruned = False;
+    
+  def add(self, t, value):
+    self.window.append((t, value))
+    while len(self.window) > 0 and t - self.window[0][0] > self.windowTime:
+      del self.window[0]
+      self.pruned = True
 
 def parseThreadName(line):
   m = reThreadName.search(line)
@@ -65,6 +80,7 @@ def main():
   getReaderTimes = []
   commitTimes = []
   runningCommits = {}
+  indexDocTimes = []
   
   with open(sys.argv[1]) as f:
     for line in f.readlines():
@@ -97,6 +113,11 @@ def main():
         startFlushCount = flushCount
         startFlushTime = t
 
+      m = reIndexedDocCount.search(line)
+      if m is not None:
+        docCount, t = m.groups()
+        indexDocTimes.append((int(docCount), float(t)))
+
       m = reGetReader.search(line)
       if m is not None:
         getReaderTimes.append(t + [int(m.group(1))])
@@ -126,16 +147,15 @@ def main():
         segCount = int(m.group(1))
         # hack to not include marvel index; once we get .setInfoStream
         # properly integrated we can differentiate the IW instances:
-        if segCount >= maxSegs/2.5:
+        if True or segCount >= maxSegs/2.5:
           inFindMerges = True
           mergeMB = 0.0
+          mergeSegCount = 0
           indexSizeMB = 0.0
           indexSizeDocs = 0.0
           maxSegs = max(maxSegs, segCount)
           segCounts.append(list(parseTime(line)) + [segCount])
           #print('segCount %s' % (segCounts[-1]))
-          if segCounts[-1][:3] == [14, 59, 15]:
-            doP = True
       elif inFindMerges:
         m = reMergeSize.search(line)
         if m is not None:
@@ -145,9 +165,10 @@ def main():
           indexSizeDocs += sizeDocs
           if line.find(' [merging]') != -1:
             mergeMB += sizeMB
+            mergeSegCount += 1
         elif line.find('allowedSegmentCount=') != -1:
           inFindMerges = False
-          segCounts[-1].extend([mergeMB, indexSizeMB, indexSizeDocs])
+          segCounts[-1].extend([mergeMB, mergeSegCount, indexSizeMB, indexSizeDocs])
 
   now = datetime.datetime.now()
   t0 = datetime.datetime(year=now.year, month=now.month, day=now.day,
@@ -178,6 +199,45 @@ def main():
 
     w('<table><tr>')
 
+    # Index rate past 30 seconds
+    w('''
+    <td><br><b>Indexed K docs per sec, avg over past 10 seconds</b>
+    <div id="indexedDocs60Sec" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("indexedDocs60Sec"),
+    ''')
+
+    headers = ['Date', 'KDocsPerSec']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    r = RollingTimeWindow(30.0)
+    
+    startTime = datetime.datetime(year=2014, month=4, day=22,
+                                  hour=minTime[0], minute=minTime[1],
+                                  second=int(minTime[2]))
+    for docCount, t in indexDocTimes:
+      #print('%d, %.2f' % (docCount, t))
+      r.add(t, docCount)
+      if len(r.window) > 5:
+        t0 = startTime + datetime.timedelta(seconds=t)
+        if r.pruned:
+          windowTime = r.window[-1][0] - r.window[0][0]
+        else:
+          windowTime = r.window[-1][0]
+        docCount = r.window[-1][1] - r.window[0][1]
+        #print('count %s, win time %s' % (docCount, windowTime))
+        w('2014-04-22 %02d:%02d:%02.3f,%.2f\\n' % (t0.hour, t0.minute, t0.second+t0.microsecond/1000000., docCount/1000./windowTime))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
+
     # Segment counts
     w('''
     <td><b>Seg counts</b>
@@ -189,13 +249,14 @@ def main():
         document.getElementById("segCounts"),
     ''')
 
-    headers = ['Date', 'SegCount']
+    headers = ['Date', 'SegCount', 'MergingSegCount']
     w('    "%s\\n" + \n"' % ','.join(headers))
 
+    w('2014-04-22 %02d:%02d:%02d,0,0\\n' % (minTime[0], minTime[1], minTime[2]))
     for tup in segCounts:
-      if len(tup) >= 4:
-        hr, min, sec, count = tup[:4]
-        w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, count))
+      if len(tup) >= 6:
+        hr, min, sec, count, mergeMB, mergeSegCount = tup[:6]
+        w('2014-04-22 %02d:%02d:%.3f,%d,%d\\n' % (hr, min, sec, count, mergeSegCount))
         #w(',%d,%.1f' % (count, mergeMB/1024.))
 
     w('"\n')
@@ -205,6 +266,34 @@ def main():
     </td>
     ''')
 
+
+    # Segs per full flush
+    w('''
+    <td><br><b>Segments per full flush (client concurrency)</b>
+    <div id="segsFullFlush" style="width:500px; height:300px"></div>
+    <script type="text/javascript">
+      g = new Dygraph(
+
+        // containing div
+        document.getElementById("segsFullFlush"),
+    ''')
+
+    headers = ['Date', 'SegsFullFlush']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    for tup in segsPerFullFlush:
+      hr, min, sec, count = tup
+      w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, count))
+
+    w('"\n')
+    w('''
+    );
+    </script>
+    </td>
+    ''')
+
+    w('</tr>')
+    w('<tr>')
 
     # Merging GB
     w('''
@@ -220,6 +309,7 @@ def main():
     headers = ['Date', 'MergingGB']
     w('    "%s\\n" + \n"' % ','.join(headers))
 
+    w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (minTime[0], minTime[1], minTime[2], 0.0))
     for tup in segCounts:
       if len(tup) >= 5:
         hr, min, sec, count, mergeMB = tup[:5]
@@ -231,36 +321,6 @@ def main():
     </script>
     </td>
     ''')
-
-
-    # Index size GB
-    w('''
-    <td><br><b>Index Size GB</b>
-    <div id="indexSizeGB" style="width:500px; height:300px"></div>
-    <script type="text/javascript">
-      g = new Dygraph(
-
-        // containing div
-        document.getElementById("indexSizeGB"),
-    ''')
-
-    headers = ['Date', 'IndexSizeGB']
-    w('    "%s\\n" + \n"' % ','.join(headers))
-
-    for tup in segCounts:
-      if len(tup) >= 6:
-        hr, min, sec, count, mergeMB, indexSizeMB = tup[:6]
-        w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, indexSizeMB/1024.))
-
-    w('"\n')
-    w('''
-    );
-    </script>
-    </td>
-    ''')
-
-    w('</tr>')
-    w('<tr>')
 
     # Running merges
     w('''
@@ -279,6 +339,7 @@ def main():
     # Thread name -> id, size
     runningMerges = {}
 
+    w('2014-04-22 %02d:%02d:%02d,%s\\n' % (minTime[0], minTime[1], minTime[2], ','.join(['0'] * maxRunningMerges)))
     ids = set(range(maxRunningMerges))
     for tup in merges:
       if len(tup) == 6:
@@ -310,24 +371,25 @@ def main():
     </td>
     ''')
 
-    # Index size Docs
+    # Index size GB
     w('''
-    <td><br><b>Index Size MDocs</b>
-    <div id="indexSizeMDocs" style="width:500px; height:300px"></div>
+    <td><br><b>Index Size GB</b>
+    <div id="indexSizeGB" style="width:500px; height:300px"></div>
     <script type="text/javascript">
       g = new Dygraph(
 
         // containing div
-        document.getElementById("indexSizeMDocs"),
+        document.getElementById("indexSizeGB"),
     ''')
 
-    headers = ['Date', 'IndexSizeMDocs']
+    headers = ['Date', 'IndexSizeGB']
     w('    "%s\\n" + \n"' % ','.join(headers))
 
+    w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (minTime[0], minTime[1], minTime[2], 0.0))
     for tup in segCounts:
       if len(tup) >= 7:
-        hr, min, sec, count, mergeMB, indexSizeMB, indexSizeDocs = tup[:7]
-        w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, indexSizeDocs/1000000.0))
+        hr, min, sec, count, mergeMB, mergingSegCount, indexSizeMB = tup[:7]
+        w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, indexSizeMB/1024.))
 
     w('"\n')
     w('''
@@ -336,31 +398,64 @@ def main():
     </td>
     ''')
 
+    if False:
+      # Running merge count
+      w('''
+      <td><br><b>Segments being merged</b>
+      <div id="runningMergeCount" style="width:500px; height:300px"></div>
+      <script type="text/javascript">
+        g = new Dygraph(
 
-    # Segs per full flush
-    w('''
-    <td><br><b>Segments per full flush (client concurrency)</b>
-    <div id="segsFullFlush" style="width:500px; height:300px"></div>
-    <script type="text/javascript">
-      g = new Dygraph(
+          // containing div
+          document.getElementById("runningMergeCount"),
+      ''')
 
-        // containing div
-        document.getElementById("segsFullFlush"),
-    ''')
+      headers = ['Date'] + ['MergeCount']
+      w('    "%s\\n" + \n"' % ','.join(headers))
 
-    headers = ['Date', 'SegsFullFlush']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+      w('2014-04-22 %02d:%02d:%02d,0\\n' % (minTime[0], minTime[1], minTime[2]))
+      ids = set(range(maxRunningMerges))
+      for tup in segCounts:
+        if len(tup) >= 6:
+          hr, min, sec, count, mergeMB, mergingSegCount = tup[:6]
 
-    for tup in segsPerFullFlush:
-      hr, min, sec, count = tup
-      w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, count))
+          w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, mergingSegCount))
 
-    w('"\n')
-    w('''
-    );
-    </script>
-    </td>
-    ''')
+      w('"\n')
+      w('''
+      );
+      </script>
+      </td>
+      ''')
+    
+
+    if False:
+      # Index size Docs
+      w('''
+      <td><br><b>Index Size MDocs</b>
+      <div id="indexSizeMDocs" style="width:500px; height:300px"></div>
+      <script type="text/javascript">
+        g = new Dygraph(
+
+          // containing div
+          document.getElementById("indexSizeMDocs"),
+      ''')
+
+      headers = ['Date', 'IndexSizeMDocs']
+      w('    "%s\\n" + \n"' % ','.join(headers))
+
+      for tup in segCounts:
+        if len(tup) >= 8:
+          hr, min, sec, count, mergeMB, mergingSegCount, indexSizeMB, indexSizeDocs = tup[:8]
+          w('2014-04-22 %02d:%02d:%02d,%.2f\\n' % (hr, min, sec, indexSizeDocs/1000000.0))
+
+      w('"\n')
+      w('''
+      );
+      </script>
+      </td>
+      ''')
+
 
     w('</tr>')
     w('<tr>')

@@ -67,16 +67,19 @@ def gen():
     for label, ign in data:
       w('data.addColumn("number", "%s");\n' % label)
     w('data.addRows([\n')
+    lastSec = None
     for sec in allTimes:
-      row = ['%.1f' % sec]
-      for label, byTime in data:
-        value = byTime.get(sec)
-        if value is None:
-          value = 'null'
-        else:
-          value = '%.1f' % (value/1000.)
-        row.append(value)
-      w('[%s],\n' % ','.join(row))
+      if lastSec is None or sec - lastSec >= 5.0:
+        lastSec = sec
+        row = ['%.1f' % sec]
+        for label, byTime in data:
+          value = byTime.get(sec)
+          if value is None:
+            value = 'null'
+          else:
+            value = '%.1f' % (value/1000.)
+          row.append(value)
+        w('[%s],\n' % ','.join(row))
 
     w('''
             ]);

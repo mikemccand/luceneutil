@@ -455,6 +455,11 @@ def main():
   except ValueError:
     CODEC = 'random'
 
+  if '-nightly' in sys.argv:
+    NIGHTLY = 'true'
+  else:
+    NIGHTLY = 'false'
+
   #tests = [(1.0, 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest')]
   #tests = [(1.0, 'org.apache.lucene.TestDemo')]
 
@@ -474,7 +479,7 @@ def main():
   command += ' -Dtests.luceneMatchVersion=%s' % common.getLuceneMatchVersion(rootDir)
   command += ' -Dtests.cleanthreads=perMethod'
   command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
-  command += ' -Dtests.nightly=false'
+  command += ' -Dtests.nightly=%s' % NIGHTLY
   command += ' -Dtests.weekly=false'
   command += ' -Dtests.slow=true'
   command += ' -Dtests.asserts.gracious=false'
@@ -483,7 +488,7 @@ def main():
   command += ' -Djetty.testMode=1'
   command += ' -Djetty.insecurerandom=1'
   command += ' -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory'
-
+  command += ' -Djava.security.egd=file:/dev/./urandom'
   command += ' -Dlucene.version=%s' % common.getLuceneDevVersion(rootDir)
   command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % rootDir
   command += ' -Dtests.codec=%s' % CODEC

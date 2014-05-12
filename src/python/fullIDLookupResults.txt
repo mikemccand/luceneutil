@@ -1,0 +1,1095 @@
+-*- mode: compilation; default-directory: "/l/48x/lucene/" -*-
+Compilation started at Sun May 11 19:35:02
+
+javac -cp /x/tmp/uuid-3.4.jar:build/core/lucene-core-4.8-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-4.8-SNAPSHOT.jar /l/util/src/main/perf/IDPerfTest.java /l/util/src/main/perf/FlakeID.java; java -Xmx10g -Xms10g -cp /x/tmp/uuid-3.4.jar:/l/util/src/main:build/core/lucene-core-4.8-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-4.8-SNAPSHOT.jar perf.IDPerfTest /l/scratch/indices/ids 
+
+test: flake
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_al:658958:nrt _71pd(4.8):C12870000 _71ma(4.8):C12870000 _71j7(4.8):C12870000 _71sg(4.8):C12870000 _71n4(4.8):C1287000 _71vj(4.8):C12870000 _71sr(4.8):C1287000 _71yx(4.8):C12870000 _7220(4.8):C12870000 _71z8(4.8):C1287000 _71zr(4.8):C1287000 _722b(4.8):C1287000 _722l(4.8):C1287000 _722u(4.8):C1287000 _722e(4.8):C128700 _722f(4.8):C128700 _722g(4.8):C128700 _722q(4.8):C128700 _722r(4.8):C128700 _722s(4.8):C128700 _722t(4.8):C128700 _722v(4.8):C100)
+    id=[30 30 30 31 33 39 39 38 35 31 34 34 34 35 36 37 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 31 37]
+    id=[30 30 30 31 33 39 39 38 35 31 33 32 33 33 38 38 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 34 36]
+    id=[30 30 30 31 33 39 39 38 35 31 37 30 30 30 34 30 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 30 37]
+    id=[30 30 30 31 33 39 39 38 35 31 34 32 33 39 32 34 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 30 32 30]
+    id=[30 30 30 31 33 39 39 38 35 31 37 35 35 30 37 34 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 38 35]
+    id=[30 30 30 31 33 39 39 38 35 31 33 30 38 36 35 30 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 36 35]
+    id=[30 30 30 31 33 39 39 38 35 31 37 32 36 38 37 30 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 30 32 38]
+    id=[30 30 30 31 33 39 39 38 35 31 35 39 35 31 35 30 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 33 36]
+    id=[30 30 30 31 33 39 39 38 35 31 34 37 39 39 39 35 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 31 38]
+    id=[30 30 30 31 33 39 39 38 35 31 34 31 34 37 37 31 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 38 33]
+    id=[30 30 30 31 33 39 39 38 35 31 35 35 30 34 38 37 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 34 34]
+    id=[30 30 30 31 33 39 39 38 35 31 33 33 39 30 37 38 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 39 32]
+    id=[30 30 30 31 33 39 39 38 35 31 36 37 36 39 33 33 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 31 38]
+    id=[30 30 30 31 33 39 39 38 35 31 35 37 38 30 32 31 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 35 38]
+    id=[30 30 30 31 33 39 39 38 35 31 33 31 36 38 32 38 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 30 35 31]
+    id=[30 30 30 31 33 39 39 38 35 31 33 31 34 38 36 39 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 33 39]
+    id=[30 30 30 31 33 39 39 38 35 31 35 32 32 39 30 38 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 38 35]
+    id=[30 30 30 31 33 39 39 38 35 31 38 30 30 34 37 38 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 39 35]
+    id=[30 30 30 31 33 39 39 38 35 31 36 38 37 37 33 39 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 31 39 37]
+    id=[30 30 30 31 33 39 39 38 35 31 34 35 32 37 39 30 2d 62 63 35 66 66 34 33 61 66 66 66 66 38 38 35 31 2d 30 32 36 38]
+  iter=0 lookupTime=8.959 sec
+    **
+  iter=1 lookupTime=8.655 sec
+    **
+  iter=2 lookupTime=8.649 sec
+    **
+  iter=3 lookupTime=8.648 sec
+    **
+  iter=4 lookupTime=8.657 sec
+  best result: flake: lookup=231.3K IDs/sec indexing=200.6K IDs/sec index=975.4 MB termsIndex=28.3 MB checksum=499905979454540 no-seek lookups=42807460 of 53323630 (80.3%)
+
+test: flake, base 10
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_am:660683:nrt _726v(4.8):C1287000 _72a8(4.8):C12870000 _7275(4.8):C12870000 _72db(4.8):C12870000 _72as(4.8):C1287000 _72bm(4.8):C1287000 _72ge(4.8):C12870000 _72jh(4.8):C12870000 _72mk(4.8):C12870000 _72pn(4.8):C12870000 _72q7(4.8):C1287000 _72py(4.8):C1287000 _72qr(4.8):C1287000 _72q0(4.8):C128700 _72qh(4.8):C1287000 _72q5(4.8):C128700 _72qd(4.8):C128700 _72qg(4.8):C128700 _72qp(4.8):C128700 _72qq(4.8):C128700 _72qs(4.8):C128700 _72qt(4.8):C100)
+    id=[1 3 9 9 8 5 1 8 7 4 1 6 1 ff ff fd fc fb fa ff fb fd f8]
+    id=[1 3 9 9 8 5 1 8 5 0 5 4 8 ff ff fd fc fb fa ff fe f8 fb]
+    id=[1 3 9 9 8 5 1 9 2 5 3 6 1 ff ff fd fc fb fa ff f9 f7 fc]
+    id=[1 3 9 9 8 5 1 8 7 0 0 0 1 ff ff fd fc fb fa ff f7 f8 f7]
+    id=[1 3 9 9 8 5 1 9 3 5 8 5 3 ff ff fd fc fb fa fe fe fc fe]
+    id=[1 3 9 9 8 5 1 8 4 7 6 3 6 ff ff fd fc fb fa ff fe f8 fb]
+    id=[1 3 9 9 8 5 1 9 3 0 5 9 6 ff ff fd fc fb fa ff fd fc f7]
+    id=[1 3 9 9 8 5 1 9 0 4 6 3 2 ff ff fd fc fb fa fe ff f9 f8]
+    id=[1 3 9 9 8 5 1 8 8 1 3 8 0 ff ff fd fc fb fa fe fe fc fb]
+    id=[1 3 9 9 8 5 1 8 6 8 1 6 1 ff ff fd fc fb fa ff fc f9 fc]
+    id=[1 3 9 9 8 5 1 8 9 5 7 8 5 ff ff fd fc fb fa fe fe fc fa]
+    id=[1 3 9 9 8 5 1 8 5 3 5 5 4 ff ff fd fc fb fa fe fe fc fb]
+    id=[1 3 9 9 8 5 1 9 2 0 8 8 8 ff ff fd fc fb fa ff fb fc fe]
+    id=[1 3 9 9 8 5 1 9 0 1 3 1 3 ff ff fd fc fb fa ff f7 fe ff]
+    id=[1 3 9 9 8 5 1 8 4 9 2 4 9 ff ff fd fc fb fa fe ff f8 fe]
+    id=[1 3 9 9 8 5 1 8 4 8 8 4 8 ff ff fd fc fb fa ff fe f8 fb]
+    id=[1 3 9 9 8 5 1 8 9 0 5 3 6 ff ff fd fc fb fa ff fc f9 f9]
+    id=[1 3 9 9 8 5 1 9 4 4 7 7 5 ff ff fd fc fb fa ff f8 fb f8]
+    id=[1 3 9 9 8 5 1 9 2 3 0 5 3 ff ff fd fc fb fa ff fa fa f7]
+    id=[1 3 9 9 8 5 1 8 7 5 8 1 4 ff ff fd fc fb fa ff fa 0 fe]
+  iter=0 lookupTime=7.548 sec
+    **
+  iter=1 lookupTime=7.506 sec
+    **
+  iter=2 lookupTime=7.538 sec
+  iter=3 lookupTime=7.480 sec
+    **
+  iter=4 lookupTime=7.770 sec
+  best result: flake, base 10: lookup=267.4K IDs/sec indexing=1017.1K IDs/sec index=165.1 MB termsIndex=0.9 MB checksum=499770764124980 no-seek lookups=54312485 of 65012110 (83.5%)
+
+test: flake, base 16
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_an:662408:nrt _72v3(4.8):C12870000 _72y6(4.8):C12870000 _7319(4.8):C12870000 _737f(4.8):C12870000 _73a9(4.8):C12870000 _734c(4.8):C12870000 _73dl(4.8):C12870000 _739y(4.8):C1287000 _73bm(4.8):C1287000 _73cr(4.8):C1287000 _73dv(4.8):C1287000 _73e5(4.8):C1287000 _73ef(4.8):C1287000 _73dj(4.8):C128700 _73dq(4.8):C128700 _73ds(4.8):C128700 _73ep(4.8):C1287000 _73dw(4.8):C128700 _73ee(4.8):C128700 _73eo(4.8):C128700 _73eq(4.8):C128700 _73er(4.8):C100)
+    id=[1 4 5 e d a e 8 4 1 b fc fd f6 0 0 f8 fc ff]
+    id=[1 4 5 e d a e 2 e a e fc fd f6 0 0 f5 f4 fa]
+    id=[1 4 5 e d a f 3 a 8 6 fc fd f6 0 0 f5 fc fa]
+    id=[1 4 5 e d a e 7 5 1 2 fc fd f6 0 0 f5 f8 fb]
+    id=[1 4 5 e d a f 6 2 2 b fc fd f6 0 0 f8 fc fb]
+    id=[1 4 5 e d a e 2 4 3 0 fc fd f6 0 0 f5 f8 fb]
+    id=[1 4 5 e d a f 4 f 1 a fc fd f6 0 0 f5 fc fe]
+    id=[1 4 5 e d a e e e 6 c fc fd f6 0 0 f5 0 fb]
+    id=[1 4 5 e d a e 9 b 7 b fc fd f6 0 0 f7 f4 ff]
+    id=[1 4 5 e d a e 6 e 6 9 fc fd f6 0 0 f8 f8 fe]
+    id=[1 4 5 e d a e c d f 9 fc fd f6 0 0 f5 f8 fb]
+    id=[1 4 5 e d a e 3 9 9 9 fc fd f6 0 0 f7 f4 fa]
+    id=[1 4 5 e d a f 2 9 2 a fc fd f6 0 0 f5 f4 ff]
+    id=[1 4 5 e d a e e 1 c 2 fc fd f6 0 0 f6 f4 fb]
+    id=[1 4 5 e d a e 2 a 0 1 fc fd f6 0 0 f6 f8 fb]
+    id=[1 4 5 e d a e 2 8 8 d fc fd f6 0 0 f8 fc ff]
+    id=[1 4 5 e d a e b a e 6 fc fd f6 0 0 f5 f8 ff]
+    id=[1 4 5 e d a f 8 2 9 1 fc fd f6 0 0 f8 0 fb]
+    id=[1 4 5 e d a f 3 0 f f fc fd f6 0 0 f7 fc fe]
+    id=[1 4 5 e d a e 8 a 1 6 fc fd f6 0 0 f5 0 fa]
+  iter=0 lookupTime=5.876 sec
+    **
+  iter=1 lookupTime=5.838 sec
+    **
+  iter=2 lookupTime=5.851 sec
+  iter=3 lookupTime=5.782 sec
+    **
+  iter=4 lookupTime=5.781 sec
+    **
+  best result: flake, base 16: lookup=345.9K IDs/sec indexing=1102.2K IDs/sec index=151.7 MB termsIndex=1.0 MB checksum=499742660431190 no-seek lookups=37589635 of 47876310 (78.5%)
+
+test: flake, base 36
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_ao:664133:nrt _73ir(4.8):C1287000 _73ih(4.8):C1287000 _73j1(4.8):C12870000 _73m4(4.8):C12870000 _73lk(4.8):C1287000 _73p7(4.8):C12870000 _73sa(4.8):C12870000 _73vd(4.8):C12870000 _73yg(4.8):C12870000 _741j(4.8):C12870000 _7423(4.8):C1287000 _741u(4.8):C1287000 _742d(4.8):C1287000 _742n(4.8):C1287000 _741v(4.8):C128700 _742c(4.8):C128700 _742e(4.8):C128700 _742g(4.8):C128700 _742i(4.8):C128700 _742m(4.8):C128700 _742o(4.8):C128700 _742p(4.8):C100)
+    id=[11 1f 2 23 1d 9 13 1f ee e5 ef eb e6 f6]
+    id=[11 1f 2 23 1c 1e 7 1b ee e5 ef eb ea e3]
+    id=[11 1f 2 23 1e 6 1 1f ee e5 ef eb e6 f7]
+    id=[11 1f 2 23 1d 6 1e f ee e5 ef eb e6 f7]
+    id=[11 1f 2 23 1e c 20 f ee e5 ef eb fd f7]
+    id=[11 1f 2 23 1c 1c b 20 ee e5 ef eb f3 e3]
+    id=[11 1f 2 23 1e 9 f d ee e5 ef eb fd f6]
+    id=[11 1f 2 23 1d 1c 13 15 ee e5 ef eb ef ef]
+    id=[11 1f 2 23 1d d 1b f ee e5 ef eb ea e2]
+    id=[11 1f 2 23 1d 5 17 a ee e5 ef eb f6 f7]
+    id=[11 1f 2 23 1d 16 1e 5 ee e5 ef eb e8 ea]
+    id=[11 1f 2 23 1c 20 6 e ee e5 ef eb fa e7]
+    id=[11 1f 2 23 1e 3 5 4 ee e5 ef eb fa e3]
+    id=[11 1f 2 23 1d 1a e 0 ee e5 ef eb e6 f7]
+    id=[11 1f 2 23 1c 1d d 10 ee e5 ef eb e6 f2]
+    id=[11 1f 2 23 1c 1d 4 3 ee e5 ef eb fd fb]
+    id=[11 1f 2 23 1d 13 e 1e ee e5 ef eb e8 ee]
+    id=[11 1f 2 23 1e 12 1a 8 ee e5 ef eb fc de]
+    id=[11 1f 2 23 1e 4 13 1c ee e5 ef eb e3 e3]
+    id=[11 1f 2 23 1d a 16 1a ee e5 ef eb ea e7]
+  iter=0 lookupTime=6.557 sec
+    **
+  iter=1 lookupTime=6.567 sec
+  iter=2 lookupTime=6.493 sec
+    **
+  iter=3 lookupTime=6.530 sec
+  iter=4 lookupTime=6.530 sec
+  best result: flake, base 36: lookup=308.0K IDs/sec indexing=1221.2K IDs/sec index=143.2 MB termsIndex=0.9 MB checksum=499803179455680 no-seek lookups=54692220 of 69536845 (78.7%)
+
+test: flake, base 64
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_ap:665858:nrt _744m(4.8):C1287000 _746z(4.8):C12870000 _74jb(4.8):C12870000 _74ph(4.8):C12870000 _74a2(4.8):C12870000 _74d5(4.8):C12870000 _74g8(4.8):C12870000 _74hc(4.8):C1287000 _74me(4.8):C12870000 _74my(4.8):C1287000 _74ps(4.8):C1287000 _74qb(4.8):C1287000 _74q1(4.8):C1287000 _74ql(4.8):C1287000 _74pn(4.8):C128700 _74q0(4.8):C128700 _74qd(4.8):C128700 _74qi(4.8):C128700 _74qj(4.8):C128700 _74qk(4.8):C128700 _74qm(4.8):C128700 _74qn(4.8):C100)
+    id=[14 17 2d 2c 20 3b 2a ff fd d8 0 dd fb]
+    id=[14 17 2d 2c 1c a 25 ff fd d8 0 d2 fb]
+    id=[14 17 2d 2c 2b 4 2 ff fd d8 0 db fa]
+    id=[14 17 2d 2c 20 5 2f ff fd d8 0 d8 fe]
+    id=[14 17 2d 2c 2d c 25 ff fd d8 0 d5 ff]
+    id=[14 17 2d 2c 1b 24 2f ff fd d8 0 df fe]
+    id=[14 17 2d 2c 2c 8 1a ff fd d8 0 d5 fa]
+    id=[14 17 2d 2c 26 36 1d ff fd d8 0 d3 ff]
+    id=[14 17 2d 2c 22 f 1c ff fd d8 0 df fe]
+    id=[14 17 2d 2c 1f 2d 37 ff fd d8 0 dc fe]
+    id=[14 17 2d 2c 25 4 22 ff fd d8 0 d2 fb]
+    id=[14 17 2d 2c 1c 31 36 ff fd d8 0 dd fb]
+    id=[14 17 2d 2c 2a 9 36 ff fd d8 0 d2 fa]
+    id=[14 17 2d 2c 26 b 22 ff fd d8 0 da fa]
+    id=[14 17 2d 2c 1b 39 2c ff fd d8 0 d3 ff]
+    id=[14 17 2d 2c 1b 34 1c ff fd d8 0 d6 ff]
+    id=[14 17 2d 2c 24 0 6 ff fd d8 0 d1 fe]
+    id=[14 17 2d 2c 2f 0 31 ff fd d8 0 dc fb]
+    id=[14 17 2d 2c 2a 26 0 ff fd d8 0 d5 fa]
+    id=[14 17 2d 2c 21 11 7 ff fd d8 0 d5 ff]
+  iter=0 lookupTime=5.964 sec
+    **
+  iter=1 lookupTime=5.919 sec
+    **
+  iter=2 lookupTime=5.893 sec
+    **
+  iter=3 lookupTime=5.820 sec
+    **
+  iter=4 lookupTime=5.835 sec
+  best result: flake, base 64: lookup=343.7K IDs/sec indexing=1242.3K IDs/sec index=142.7 MB termsIndex=0.9 MB checksum=499767390377500 no-seek lookups=46219535 of 56795450 (81.4%)
+
+test: flake, base 256
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_aq:667583:nrt _74y0(4.8):C12870000 _74ux(4.8):C12870000 _74un(4.8):C1287000 _7513(4.8):C12870000 _74xq(4.8):C1287000 _7546(4.8):C12870000 _7579(4.8):C12870000 _75ac(4.8):C12870000 _75a2(4.8):C1287000 _75df(4.8):C12870000 _75dq(4.8):C1287000 _75dz(4.8):C1287000 _75d8(4.8):C128700 _75e9(4.8):C1287000 _75ej(4.8):C1287000 _75dp(4.8):C128700 _75dy(4.8):C128700 _75ec(4.8):C128700 _75ed(4.8):C128700 _75ei(4.8):C128700 _75ek(4.8):C128700 _75el(4.8):C100)
+    id=[1 45 ed b3 b7 65 bd 60 f6 7f]
+    id=[1 45 ed b3 6f e3 bd 60 f6 3b]
+    id=[1 45 ed b4 4f e5 bd 60 f6 3a]
+    id=[1 45 ed b3 aa da bd 60 f6 3b]
+    id=[1 45 ed b4 70 11 bd 60 f6 7f]
+    id=[1 45 ed b3 67 1d bd 60 f8 3a]
+    id=[1 45 ed b4 60 6 bd 60 f5 3f]
+    id=[1 45 ed b4 10 ce bd 60 f6 3e]
+    id=[1 45 ed b3 cb 35 bd 60 f5 3e]
+    id=[1 45 ed b3 a5 50 bd 60 f5 be]
+    id=[1 45 ed b3 f5 c7 bd 60 f8 7f]
+    id=[1 45 ed b3 79 2 bd 60 f5 fa]
+    id=[1 45 ed b4 42 3c bd 60 f6 3b]
+    id=[1 45 ed b4 6 70 bd 60 f5 fb]
+    id=[1 45 ed b3 6b fa bd 60 f6 3e]
+    id=[1 45 ed b3 6a c3 bd 60 f7 ff]
+    id=[1 45 ed b3 e5 f0 bd 60 f8 3a]
+    id=[1 45 ed b4 8b 69 bd 60 f7 fb]
+    id=[1 45 ed b4 48 d4 bd 60 f5 7a]
+    id=[1 45 ed b3 bc cf bd 60 f5 3b]
+  iter=0 lookupTime=5.983 sec
+    **
+  iter=1 lookupTime=5.967 sec
+    **
+  iter=2 lookupTime=5.908 sec
+    **
+  iter=3 lookupTime=5.934 sec
+  iter=4 lookupTime=5.914 sec
+  best result: flake, base 256: lookup=338.5K IDs/sec indexing=1322.0K IDs/sec index=140.6 MB termsIndex=0.8 MB checksum=499764614489150 no-seek lookups=45742120 of 59343320 (77.1%)
+
+test: uuids v1 (time, node, counter)
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_ar:669308:nrt _75iv(4.8):C12870000 _75m9(4.8):C12870000 _75p1(4.8):C12870000 _761d(4.8):C12870000 _75v7(4.8):C12870000 _75sf(4.8):C12870000 _75yl(4.8):C12870000 _75w2(4.8):C1287000 _75x7(4.8):C1287000 _75yv(4.8):C1287000 _7628(4.8):C1287000 _761o(4.8):C1287000 _761y(4.8):C1287000 _762i(4.8):C1287000 _761q(4.8):C128700 _761r(4.8):C128700 _761s(4.8):C128700 _761t(4.8):C128700 _7629(4.8):C128700 _762a(4.8):C128700 _762h(4.8):C128700 _762j(4.8):C100)
+    id=[61 65 65 33 63 66 37 35 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[38 37 61 64 35 61 65 61 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[31 35 66 65 63 33 34 63 2d 64 39 36 38 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[61 37 36 35 63 35 65 32 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[33 31 63 34 32 34 64 35 2d 64 39 36 38 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[38 33 30 39 39 62 62 65 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[32 38 34 62 64 30 35 64 2d 64 39 36 38 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[65 39 63 61 64 61 33 61 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[63 33 34 31 62 39 39 62 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[61 34 35 65 32 62 63 62 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[64 61 39 66 30 38 30 66 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[38 63 36 34 35 34 35 35 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[30 64 36 33 62 35 34 63 2d 64 39 36 38 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[65 34 37 62 34 37 38 65 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[38 35 39 31 35 61 34 65 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[38 34 66 34 32 64 63 66 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[64 31 61 39 30 35 63 62 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[34 31 62 30 66 62 66 39 2d 64 39 36 38 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[31 31 61 63 66 33 63 39 2d 64 39 36 38 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+    id=[62 31 62 31 62 39 65 61 2d 64 39 36 37 2d 31 31 65 33 2d 62 65 36 31 2d 62 63 35 66 66 34 33 61 38 38 35 31]
+  iter=0 lookupTime=5.932 sec
+    **
+  iter=1 lookupTime=4.658 sec
+    **
+  iter=2 lookupTime=4.658 sec
+    **
+  iter=3 lookupTime=4.676 sec
+  iter=4 lookupTime=4.648 sec
+    **
+  best result: uuids v1 (time, node, counter): lookup=430.3K IDs/sec indexing=310.0K IDs/sec index=3546.4 MB termsIndex=12.4 MB checksum=499747152715040 no-seek lookups=37327500 of 47533130 (78.5%)
+
+test: uuids v1 (time, node, counter), base 10
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_as:671033:nrt _769w(4.8):C12870000 _766t(4.8):C12870000 _76cz(4.8):C12870000 _767e(4.8):C1287000 _76bl(4.8):C1287000 _76g2(4.8):C12870000 _76e4(4.8):C1287000 _76j5(4.8):C12870000 _76m8(4.8):C12870000 _76pb(4.8):C12870000 _76pm(4.8):C1287000 _76pw(4.8):C1287000 _76q6(4.8):C1287000 _76qg(4.8):C1287000 _76q8(4.8):C128700 _76qa(4.8):C128700 _76qb(4.8):C128700 _76qc(4.8):C128700 _76qd(4.8):C128700 _76qe(4.8):C128700 _76qf(4.8):C128700 _76qh(4.8):C100)
+    id=[f8 ff ff fe 0 f9 fb fd fd fe f7 f7 f8 fa fb fb fb ff f9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[6 8 9 0 3 1 9 9 9 2 5 6 1 6 0 3 0 4 3 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[ff 0 fa fe f9 fc f9 fd 0 ff 0 f9 fb fe ff f9 f7 fc f7 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[f8 f9 fe f7 fa f7 fe fc fa f9 fa f8 fe 0 f9 f8 fe fd f9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[4 1 2 2 3 0 2 7 3 2 2 7 8 8 7 0 7 5 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[6 5 0 5 0 5 9 5 1 0 5 5 4 9 8 9 0 2 7 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[fd ff f8 fe f7 f8 0 ff fe fa ff fc fd f8 f7 fe f9 f9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[fd f7 fd fa fe fb ff fb fd f9 f8 f7 ff fe fb f9 f8 f8 fb fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[f9 fe 0 fc fb 0 fa fa fd fb fc f7 fc fc f8 fb fb fd fd fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[f8 f7 f8 ff f7 fd fa f9 f7 f8 f7 ff f7 fe f7 0 fd f7 f9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[fb ff fd fb fa fe ff fd fc f8 fb f9 fe f9 f8 fa fe 0 fb fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[7 2 9 9 5 8 7 3 0 1 6 4 3 3 9 1 4 5 9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[ff fa f8 fc f9 fc fd fd 0 f7 fb fd fb f9 fd fb fd fe fb fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[fc fd f9 f8 0 fd ff fb fe fa 0 fa fb fc fa fa f7 0 f7 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[6 7 1 5 2 1 4 0 5 1 3 4 9 6 3 1 4 5 9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[6 6 6 4 5 3 1 7 3 6 4 4 9 7 8 2 2 4 3 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[fb f7 fe f8 fe ff fc fd f7 f8 fa fe f8 fe fa ff fc 0 fb fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[1 7 2 1 0 7 9 6 2 0 6 2 3 2 0 8 9 3 1 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[ff fd f8 fc f9 f8 fe f7 f9 fd f7 f9 ff f9 fe ff f9 fb f9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+    id=[f9 f8 f8 f7 f8 fb fc fc ff fe fe f7 f8 fd f8 fe f8 f9 f9 fc f9 fe f8 fe f7 ff 0 ff fd fc fb fa f7 ff f8 fc fc f9]
+  iter=0 lookupTime=11.633 sec
+    **
+  iter=1 lookupTime=5.809 sec
+    **
+  iter=2 lookupTime=5.806 sec
+    **
+  iter=3 lookupTime=5.827 sec
+  iter=4 lookupTime=5.821 sec
+  best result: uuids v1 (time, node, counter), base 10: lookup=344.5K IDs/sec indexing=311.3K IDs/sec index=3635.5 MB termsIndex=10.6 MB checksum=499793502089540 no-seek lookups=49043340 of 60263575 (81.4%)
+
+test: uuids v1 (time, node, counter), base 16
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_at:672758:nrt _770x(4.8):C12870000 _76ur(4.8):C12870000 _76xu(4.8):C12870000 _7740(4.8):C12870000 _76yp(4.8):C1287000 _76z9(4.8):C1287000 _7773(4.8):C12870000 _77d9(4.8):C12870000 _77a6(4.8):C12870000 _77bv(4.8):C1287000 _77dk(4.8):C1287000 _77ee(4.8):C1287000 _77du(4.8):C1287000 _77d3(4.8):C128700 _77dl(4.8):C128700 _77e4(4.8):C1287000 _77do(4.8):C128700 _77e9(4.8):C128700 _77eb(4.8):C128700 _77ec(4.8):C128700 _77ed(4.8):C128700 _77ef(4.8):C100)
+    id=[6 2 f 6 a 1 6 8 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[3 a f 5 d 8 a 2 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fc fe f2 fe f4 0 f3 fa fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[5 b b 8 8 8 6 a d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fe f1 fd ff fc 0 0 f6 fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[3 6 1 b 5 3 1 0 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fd f7 f2 fa 0 f6 fd f2 fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fa f9 f3 0 f6 fc fa fc fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[6 f 3 c b 9 6 f d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[5 8 8 5 9 9 1 7 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[f9 f9 f7 fb f6 f5 fe fc fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[3 f f 9 d d e 2 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fc f6 f7 f3 f1 f8 f8 f9 fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fa f3 f8 f5 fb fd f4 fe fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[3 8 b e f c 1 2 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[3 8 1 d 1 6 2 1 d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[7 f 7 2 7 f 2 e d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[ff f1 fc f9 fe f6 fc f8 fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[fc fa f4 f3 f7 fe f9 f6 fe fa f7 fa f2 f2 ff f3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+    id=[6 6 2 d 6 0 8 e d 9 6 9 1 1 e 3 fc ff f7 f2 fc fd f6 0 0 f5 f4 fb f9 f9 f6 f1]
+  iter=0 lookupTime=6.234 sec
+    **
+  iter=1 lookupTime=5.447 sec
+    **
+  iter=2 lookupTime=5.447 sec
+    **
+  iter=3 lookupTime=5.495 sec
+  iter=4 lookupTime=5.464 sec
+  best result: uuids v1 (time, node, counter), base 16: lookup=367.2K IDs/sec indexing=345.9K IDs/sec index=3165.0 MB termsIndex=12.3 MB checksum=499771378559540 no-seek lookups=39583000 of 54703225 (72.4%)
+
+test: uuids v1 (time, node, counter), base 36
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_au:674483:nrt _77ip(4.8):C12870000 _77ls(4.8):C12870000 _77ov(4.8):C12870000 _77ry(4.8):C12870000 _77v1(4.8):C12870000 _77y4(4.8):C12870000 _7817(4.8):C12870000 _77wr(4.8):C1287000 _77yp(4.8):C1287000 _77z9(4.8):C1287000 _781i(4.8):C1287000 _781s(4.8):C1287000 _7816(4.8):C128700 _781e(4.8):C128700 _781g(4.8):C128700 _7822(4.8):C1287000 _781l(4.8):C128700 _781r(4.8):C128700 _781v(4.8):C128700 _782c(4.8):C1287000 _782b(4.8):C128700 _782d(4.8):C100)
+    id=[12 14 15 f 1a 4 12 4 19 18 0 23 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[ff fd e5 e3 ff f1 e2 e4 ff f6 f8 e3 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 1a 6 a 15 e e 7 13 18 8 1f 7 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[e 21 15 9 11 2 f 20 23 2 7 7 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[ff df fe e6 fb f9 f1 df ec e5 f1 f6 fb dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[fd f2 e2 dd f2 e9 e9 f0 f1 e6 fb f7 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 1e 19 9 1 1b e b 20 22 3 f 17 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 8 14 9 f 1 d 1f 7 21 c 1b 17 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[18 1 0 b 23 5 b 11 22 3 8 13 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[d f b 2 12 3 6 1a 1c c 1d f dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 0 20 5 23 10 6 6 8 a 23 f 17 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 13 11 11 18 e f 9 8 b 16 1b dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 16 10 18 2 1b 19 1c 14 5 22 11 1f dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 5 20 c 0 1c 18 1e 1f b 1 7 17 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[fe fb ef e6 de de e0 fb eb dd df f7 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[fe f0 ec dd 0 ef fa f6 e5 e7 de fb dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1f 1f 13 3 19 23 a 18 8 16 3 17 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[ff e7 fe df fd fd e1 e9 eb e7 e7 f0 f3 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[1 18 a e 7 1c 7 4 14 20 23 21 f dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+    id=[14 5 3 7 6 1e 1a f 22 14 8 3 dd df f8 e9 f6 0 e5 0 0 df e0 e1]
+  iter=0 lookupTime=6.830 sec
+    **
+  iter=1 lookupTime=6.136 sec
+    **
+  iter=2 lookupTime=6.208 sec
+  iter=3 lookupTime=6.246 sec
+  iter=4 lookupTime=6.222 sec
+  best result: uuids v1 (time, node, counter), base 36: lookup=325.9K IDs/sec indexing=391.8K IDs/sec index=2590.3 MB termsIndex=13.5 MB checksum=499780005964040 no-seek lookups=24977355 of 48578550 (51.4%)
+
+test: uuids v1 (time, node, counter), base 64
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_av:676208:nrt _789q(4.8):C12870000 _786n(4.8):C12870000 _7878(4.8):C1287000 _78ct(4.8):C12870000 _78fw(4.8):C12870000 _78p5(4.8):C12870000 _78iz(4.8):C12870000 _78m2(4.8):C12870000 _78mn(4.8):C1287000 _78ov(4.8):C1287000 _78pg(4.8):C1287000 _78pq(4.8):C1287000 _78q0(4.8):C1287000 _78pe(4.8):C128700 _78pl(4.8):C128700 _78pn(4.8):C128700 _78ps(4.8):C128700 _78qa(4.8):C1287000 _78pu(4.8):C128700 _78pw(4.8):C128700 _78q9(4.8):C128700 _78qb(4.8):C100)
+    id=[fe c3 cb dc c4 d0 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fb fb d9 ed e4 f0 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[1 28 a 1f 24 3f 19 1a 31 7 23 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fd e9 d8 c8 ef d4 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[2 2a 1f 29 21 3f 19 1a 31 7 23 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fb eb cf e8 c2 c8 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[2 b 21 2b 14 37 19 1a 31 7 23 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[ed e9 de c5 cc da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fe e8 d6 dc e3 fc da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fd de cc f3 da ec da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[ff fa ee fd d8 e4 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fc cc ce c4 f1 fc da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[1 e 2c 23 1a 27 19 1a 31 7 23 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[d9 dc d3 c7 e0 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fb f4 c3 c9 c1 c8 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fb f1 fd ca cc ec da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[ff dc c2 e2 fa d0 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[3 21 2a e 2f 3f 19 1a 31 7 23 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[1 1b 9 2a 3d f 19 1a 31 7 23 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+    id=[fe cc da e4 f9 f4 da db e2 c8 e3 fc fa e2 f0 c6 0 f5 cf e9 e2 d1]
+  iter=0 lookupTime=5.231 sec
+    **
+  iter=1 lookupTime=4.618 sec
+    **
+  iter=2 lookupTime=4.697 sec
+  iter=3 lookupTime=4.642 sec
+  iter=4 lookupTime=4.638 sec
+  best result: uuids v1 (time, node, counter), base 64: lookup=433.1K IDs/sec indexing=415.6K IDs/sec index=2408.9 MB termsIndex=21.3 MB checksum=499790722169540 no-seek lookups=42597260 of 53789955 (79.2%)
+
+test: uuids v1 (time, node, counter), base 256
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_aw:677933:nrt _78ul(4.8):C12870000 _78xo(4.8):C12870000 _796x(4.8):C12870000 _79a0(4.8):C12870000 _790r(4.8):C12870000 _7908(4.8):C1287000 _793u(4.8):C12870000 _7959(4.8):C1287000 _799h(4.8):C1287000 _79d3(4.8):C12870000 _79de(4.8):C1287000 _79do(4.8):C1287000 _79e8(4.8):C1287000 _79dy(4.8):C1287000 _79d6(4.8):C128700 _79dp(4.8):C128700 _79dq(4.8):C128700 _79dr(4.8):C128700 _79ds(4.8):C128700 _79e0(4.8):C128700 _79e7(4.8):C128700 _79e9(4.8):C100)
+    id=[6f b9 51 81 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[51 11 44 4d d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[b1 be 23 e2 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[6a 1a de 33 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[c0 b3 56 c0 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[4d 77 2e a8 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[b9 2a 7b 57 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[96 37 a3 26 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[77 bd c6 72 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[67 bc c8 b2 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[8b 7 18 da da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[54 ba 0 47 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[ab 8a eb 41 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[92 1b 63 c4 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[4f 6c 94 a6 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[4e f5 42 a d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[84 6c 98 12 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[cc 6c e5 f4 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[ae 5e a5 20 da 6c 12 e3 bf 62 bd 60 f5 3b 89 51]
+    id=[71 cb da e1 d9 6b 11 e3 bf 62 bd 60 f5 3b 89 51]
+  iter=0 lookupTime=4.459 sec
+    **
+  iter=1 lookupTime=3.926 sec
+    **
+  iter=2 lookupTime=3.925 sec
+    **
+  iter=3 lookupTime=3.932 sec
+  iter=4 lookupTime=3.935 sec
+  best result: uuids v1 (time, node, counter), base 256: lookup=509.6K IDs/sec indexing=468.6K IDs/sec index=1929.1 MB termsIndex=16.0 MB checksum=499814941579040 no-seek lookups=41827270 of 52165280 (80.2%)
+
+test: nanotime, base 10
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_ax:679658:nrt _79ij(4.8):C12870000 _79lm(4.8):C12870000 _79rs(4.8):C12870000 _79jy(4.8):C1287000 _79op(4.8):C12870000 _79uv(4.8):C12870000 _79xy(4.8):C12870000 _79x4(4.8):C1287000 _7a11(4.8):C12870000 _7a0r(4.8):C1287000 _7a1x(4.8):C1287000 _7a1c(4.8):C1287000 _7a0w(4.8):C128700 _7a0x(4.8):C128700 _7a0z(4.8):C128700 _7a1n(4.8):C1287000 _7a27(4.8):C1287000 _7a22(4.8):C128700 _7a23(4.8):C128700 _7a24(4.8):C128700 _7a25(4.8):C128700 _7a26(4.8):C100)
+    id=[1 4 2 0 1 6 2 9 5 6 1 4 2 0 0 3]
+    id=[1 4 2 0 1 1 3 5 0 0 6 0 9 1 9 4]
+    id=[1 4 2 0 2 6 6 1 4 7 7 4 9 1 6 0]
+    id=[1 4 2 0 1 5 4 1 7 4 4 3 4 7 3 0]
+    id=[1 4 2 0 2 8 7 5 0 9 2 7 5 6 3 2]
+    id=[1 4 2 0 1 0 7 7 8 6 4 7 8 5 8 6]
+    id=[1 4 2 0 2 7 6 9 5 8 9 7 6 2 5 6]
+    id=[1 4 2 0 2 2 2 7 7 7 1 6 7 1 7 3]
+    id=[1 4 2 0 1 7 5 8 3 0 0 7 9 7 3 7]
+    id=[1 4 2 0 1 4 9 7 2 2 5 1 8 0 3 1]
+    id=[1 4 2 0 2 0 5 0 0 2 3 0 6 6 3 5]
+    id=[1 4 2 0 1 1 9 3 2 0 9 7 2 6 4 6]
+    id=[1 4 2 0 2 5 6 9 0 2 5 5 1 8 4 8]
+    id=[1 4 2 0 2 1 6 3 3 2 6 8 7 8 3 0]
+    id=[1 4 2 0 1 1 0 9 1 0 0 4 7 8 5 2]
+    id=[1 4 2 0 1 1 0 1 4 9 3 8 2 0 4 0]
+    id=[1 4 2 0 1 9 4 1 0 5 8 0 0 5 8 7]
+    id=[1 4 2 0 3 0 6 6 6 0 6 2 8 0 8 2]
+    id=[1 4 2 0 2 6 1 3 5 0 4 7 8 9 9 7]
+    id=[1 4 2 0 1 6 6 3 9 7 3 8 7 6 3 0]
+  iter=0 lookupTime=7.021 sec
+    **
+  iter=1 lookupTime=6.701 sec
+    **
+  iter=2 lookupTime=6.680 sec
+    **
+  iter=3 lookupTime=6.626 sec
+    **
+  iter=4 lookupTime=6.645 sec
+  best result: nanotime, base 10: lookup=301.9K IDs/sec indexing=497.8K IDs/sec index=1168.1 MB termsIndex=15.5 MB checksum=499730630209040 no-seek lookups=40113715 of 54012130 (74.3%)
+
+test: nanotime, base 16
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_ay:681383:nrt _7a6h(4.8):C12870000 _7a9k(4.8):C12870000 _7ait(4.8):C12870000 _7a86(4.8):C1287000 _7a90(4.8):C1287000 _7acn(4.8):C12870000 _7afq(4.8):C12870000 _7alw(4.8):C12870000 _7ak9(4.8):C1287000 _7aoz(4.8):C12870000 _7aq5(4.8):C1287000 _7apl(4.8):C1287000 _7apa(4.8):C1287000 _7apv(4.8):C1287000 _7apd(4.8):C128700 _7ape(4.8):C128700 _7apr(4.8):C128700 _7aps(4.8):C128700 _7apt(4.8):C128700 _7apu(4.8):C128700 _7apy(4.8):C128700 _7aq4(4.8):C100)
+    id=[5 0 b d 8 6 6 4 3 9 7 d 3]
+    id=[5 0 b c d c 6 7 8 f 7 f b]
+    id=[5 0 b e e 8 b 6 2 b 8 d 6]
+    id=[5 0 b d 6 4 f c 9 c d 5 9]
+    id=[5 0 b f 3 1 4 f f 5 e a 4]
+    id=[5 0 b c c 8 a a 6 1 1 2 7]
+    id=[5 0 b f 0 c 4 1 0 b d 7 4]
+    id=[5 0 b e 5 2 4 6 2 e a c 0]
+    id=[5 0 b d b 2 0 7 b f b 7 6]
+    id=[5 0 b d 5 8 2 6 b 0 0 a 0]
+    id=[5 0 b e 1 3 4 d d 4 4 2 0]
+    id=[5 0 b c f 2 c 7 9 0 9 2 7]
+    id=[5 0 b e c 8 3 f 1 d c 2 c]
+    id=[5 0 b e 3 9 d 2 1 3 a e 8]
+    id=[5 0 b c d 3 7 0 4 d 9 5 4]
+    id=[5 0 b c d 0 e 1 2 0 b d e]
+    id=[5 0 b d e d c 2 3 8 5 2 c]
+    id=[5 0 b f 7 1 7 6 3 6 4 2 7]
+    id=[5 0 b e d 8 f 5 f e 2 8 3]
+    id=[5 0 b d 9 1 8 2 c 9 0 b f]
+  iter=0 lookupTime=6.775 sec
+    **
+  iter=1 lookupTime=6.529 sec
+    **
+  iter=2 lookupTime=6.498 sec
+    **
+  iter=3 lookupTime=6.540 sec
+  iter=4 lookupTime=6.521 sec
+  best result: nanotime, base 16: lookup=307.8K IDs/sec indexing=541.7K IDs/sec index=1075.9 MB termsIndex=17.2 MB checksum=499841302556540 no-seek lookups=47609170 of 57976620 (82.1%)
+
+test: nanotime, base 36
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_az:683108:nrt _7axi(4.8):C12870000 _7auf(4.8):C12870000 _7b3o(4.8):C12870000 _7b0l(4.8):C12870000 _7b6r(4.8):C12870000 _7b20(4.8):C1287000 _7b5e(4.8):C1287000 _7b5y(4.8):C1287000 _7b9u(4.8):C12870000 _7bcx(4.8):C12870000 _7bdt(4.8):C1287000 _7bd9(4.8):C1287000 _7be3(4.8):C1287000 _7bcr(4.8):C128700 _7bcs(4.8):C128700 _7bdj(4.8):C1287000 _7bdn(4.8):C128700 _7bdo(4.8):C128700 _7bdp(4.8):C128700 _7bdq(4.8):C128700 _7bdr(4.8):C128700 _7be2(4.8):C100)
+    id=[d 23 14 f b f 2 c 12 8]
+    id=[d 23 13 1f 11 5 1b 1c 1 10]
+    id=[d 23 15 16 16 23 3 c 21 16]
+    id=[d 23 14 b c f 22 e a 15]
+    id=[d 23 15 1f 7 e f 13 20 18]
+    id=[d 23 13 1d 3 e d f c 9]
+    id=[d 23 15 1a 1e 1d 6 1d 19 12]
+    id=[d 23 15 4 b 1d 3 12 16 f]
+    id=[d 23 14 14 12 17 c 1 11 1a]
+    id=[d 23 14 9 1d 5 22 14 21 c]
+    id=[d 23 14 20 18 4 1c 22 3 1]
+    id=[d 23 13 21 1e 6 5 9 18 12]
+    id=[d 23 15 12 21 7 4 22 23 b]
+    id=[d 23 15 1 19 6 1d 3 1b 11]
+    id=[d 23 13 1e d 18 23 8 21 13]
+    id=[d 23 13 1e 2 e 3 0 0 21]
+    id=[d 23 14 1b 18 1d 1d 16 9 4]
+    id=[d 23 16 2 1f 8 1b 7 7 1]
+    id=[d 23 15 14 1b 9 15 e 7 1f]
+    id=[d 23 14 10 16 4 19 1d 12 1]
+  iter=0 lookupTime=5.735 sec
+    **
+  iter=1 lookupTime=5.513 sec
+    **
+  iter=2 lookupTime=5.494 sec
+    **
+  iter=3 lookupTime=5.496 sec
+  iter=4 lookupTime=5.536 sec
+  best result: nanotime, base 36: lookup=364.0K IDs/sec indexing=556.3K IDs/sec index=980.5 MB termsIndex=18.3 MB checksum=499850583113540 no-seek lookups=43639495 of 54735145 (79.7%)
+
+test: nanotime, base 64
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b0:684833:nrt _7blg(4.8):C12870000 _7bid(4.8):C12870000 _7boj(4.8):C12870000 _7bup(4.8):C12870000 _7bxs(4.8):C12870000 _7brm(4.8):C12870000 _7bsr(4.8):C1287000 _7bwp(4.8):C1287000 _7bwy(4.8):C1287000 _7c0v(4.8):C12870000 _7c17(4.8):C1287000 _7c1r(4.8):C1287000 _7c1h(4.8):C1287000 _7c21(4.8):C1287000 _7c1g(4.8):C128700 _7c1q(4.8):C128700 _7c1v(4.8):C128700 _7c1w(4.8):C128700 _7c1x(4.8):C128700 _7c1y(4.8):C128700 _7c1z(4.8):C128700 _7c20(4.8):C100)
+    id=[5 3 3 32 16 22 8 7 23]
+    id=[5 3 3 c 19 11 f 35 c]
+    id=[5 3 5 5 36 2b 16 1e 1d]
+    id=[5 3 3 2b b b 6 32 a]
+    id=[5 3 5 16 11 1b 0 2b 27]
+    id=[5 3 3 7 32 5 37 d f]
+    id=[5 3 5 d 2e 14 2e 1e 3f]
+    id=[5 3 4 22 14 26 2 20 3c]
+    id=[5 3 3 3c 1d 28 25 24 10]
+    id=[5 3 3 28 12 28 36 27 34]
+    id=[5 3 4 14 18 36 1 21 32]
+    id=[5 3 3 10 37 20 9 b 39]
+    id=[5 3 4 3d 2d 2f 33 d 25]
+    id=[5 3 4 1c 37 2 22 1a 1f]
+    id=[5 3 3 a 9 2b c 37 16]
+    id=[5 3 3 9 25 19 c 27 2a]
+    id=[5 3 4 c d 34 1b 18 25]
+    id=[5 3 5 26 35 2a 18 21 8]
+    id=[5 3 5 1 f 24 1e 20 4]
+    id=[5 3 3 34 32 29 3 6 4]
+  iter=0 lookupTime=5.046 sec
+    **
+  iter=1 lookupTime=4.804 sec
+    **
+  iter=2 lookupTime=4.771 sec
+    **
+  iter=3 lookupTime=4.799 sec
+  iter=4 lookupTime=4.773 sec
+  best result: nanotime, base 64: lookup=419.2K IDs/sec indexing=580.0K IDs/sec index=971.9 MB termsIndex=12.9 MB checksum=499871752333040 no-seek lookups=40536250 of 51012785 (79.5%)
+
+test: nanotime, base 256
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b1:686558:nrt _7c6b(4.8):C12870000 _7cfk(4.8):C12870000 _7cch(4.8):C12870000 _7cin(4.8):C12870000 _7c9e(4.8):C12870000 _7cdm(4.8):C1287000 _7ceq(4.8):C1287000 _7clq(4.8):C12870000 _7ckn(4.8):C1287000 _7cp4(4.8):C12870000 _7cmc(4.8):C1287000 _7cpf(4.8):C1287000 _7cpp(4.8):C1287000 _7coz(4.8):C128700 _7cp0(4.8):C128700 _7cp1(4.8):C128700 _7cp2(4.8):C128700 _7cp3(4.8):C128700 _7cp5(4.8):C128700 _7cpz(4.8):C1287000 _7cpt(4.8):C128700 _7cpy(4.8):C100)
+    id=[5 c 6a f9 53 23 3b]
+    id=[5 c 61 eb c8 45 44]
+    id=[5 c 7e a8 9e 59 b6]
+    id=[5 c 69 61 8c b3 5e]
+    id=[5 c 82 9a 31 d6 f2]
+    id=[5 c 60 db 3f fe 42]
+    id=[5 c 80 98 19 20 d7]
+    id=[5 c 76 7a 25 c9 91]
+    id=[5 c 6d 6f 82 18 19]
+    id=[5 c 68 aa bd 25 d5]
+    id=[5 c 73 9 d2 ac a3]
+    id=[5 c 63 4 5b 5c b1]
+    id=[5 c 7c e2 2c 7f b0]
+    id=[5 c 75 44 c3 ca 58]
+    id=[5 c 61 70 fb 62 2f]
+    id=[5 c 61 4b fe 4 c3]
+    id=[5 c 70 b6 1a 77 37]
+    id=[5 c 85 ec fe 88 a5]
+    id=[5 c 7d bd 85 cf 9e]
+    id=[5 c 6b 92 5e c5 f3]
+  iter=0 lookupTime=4.570 sec
+    **
+  iter=1 lookupTime=4.333 sec
+    **
+  iter=2 lookupTime=4.331 sec
+    **
+  iter=3 lookupTime=4.373 sec
+  iter=4 lookupTime=4.363 sec
+  best result: nanotime, base 256: lookup=461.8K IDs/sec indexing=621.8K IDs/sec index=881.9 MB termsIndex=16.2 MB checksum=499899301855040 no-seek lookups=42320115 of 54022245 (78.3%)
+
+test: simple sequential, base 10
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b2:688283:nrt _7ctz(4.8):C1287000 _7cqd(4.8):C1287000 _7cu9(4.8):C12870000 _7cxc(4.8):C12870000 _7d0f(4.8):C12870000 _7d9o(4.8):C12870000 _7d3i(4.8):C12870000 _7d6l(4.8):C12870000 _7d76(4.8):C1287000 _7dd2(4.8):C12870000 _7dbe(4.8):C1287000 _7ddd(4.8):C1287000 _7ddn(4.8):C1287000 _7dcu(4.8):C128700 _7dcz(4.8):C128700 _7dd5(4.8):C128700 _7dde(4.8):C128700 _7ddx(4.8):C1287000 _7ddp(4.8):C128700 _7ddq(4.8):C128700 _7dds(4.8):C128700 _7ddw(4.8):C100)
+    id=[2 8 1 9 0 4 8 9]
+    id=[3 7 6 0 1 1 2]
+    id=[7 9 6 2 7 5 7 6]
+    id=[2 3 8 8 4 7 5 4]
+    id=[9 0 4 5 8 3 9 8]
+    id=[7 5 1 2 9 4]
+    id=[8 5 0 0 2 3 1 6]
+    id=[5 8 2 6 9 1 9 0]
+    id=[3 4 7 9 7 1 4 0]
+    id=[2 1 9 8 1 2 5 3]
+    id=[4 9 1 6 4 5 3 1]
+    id=[6 8 8 1 4 6 8]
+    id=[7 4 9 8 3 3 6 5]
+    id=[5 4 8 3 5 6 8 6]
+    id=[2 4 2 0 3 6 0]
+    id=[2 0 0 0 4 9 6]
+    id=[4 3 7 9 9 2 8 7]
+    id=[9 9 6 4 3 4 1 7]
+    id=[7 7 2 2 3 7 1 2]
+    id=[2 9 9 0 8 5 2 6]
+  iter=0 lookupTime=8.204 sec
+    **
+  iter=1 lookupTime=8.021 sec
+    **
+  iter=2 lookupTime=8.023 sec
+  iter=3 lookupTime=8.001 sec
+    **
+  iter=4 lookupTime=7.992 sec
+    **
+  best result: simple sequential, base 10: lookup=250.2K IDs/sec indexing=612.7K IDs/sec index=879.7 MB termsIndex=14.7 MB checksum=499844260726040 no-seek lookups=28291760 of 65381995 (43.3%)
+
+test: simple sequential, base 16
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b3:690008:nrt _7dhx(4.8):C1287000 _7di7(4.8):C12870000 _7dla(4.8):C12870000 _7dod(4.8):C12870000 _7drg(4.8):C12870000 _7dnj(4.8):C1287000 _7e0p(4.8):C12870000 _7duj(4.8):C12870000 _7dxm(4.8):C12870000 _7dys(4.8):C1287000 _7e11(4.8):C1287000 _7e0j(4.8):C128700 _7e1b(4.8):C1287000 _7e0n(4.8):C128700 _7e1v(4.8):C1287000 _7e1l(4.8):C1287000 _7e14(4.8):C128700 _7e18(4.8):C128700 _7e1h(4.8):C128700 _7e1p(4.8):C128700 _7e1t(4.8):C128700 _7e1u(4.8):C100)
+    id=[1 a e 2 7 1 9]
+    id=[3 9 5 f f 0]
+    id=[4 b f 0 5 3 8]
+    id=[1 6 c 7 3 d 2]
+    id=[5 6 4 4 9 1 e]
+    id=[b 7 6 b e]
+    id=[5 1 1 0 8 4 c]
+    id=[3 7 9 1 e 0 6]
+    id=[2 1 2 f 6 5 4]
+    id=[1 4 f 6 8 4 5]
+    id=[2 e e 3 0 f 3]
+    id=[6 9 0 0 b c]
+    id=[4 7 8 2 7 c 5]
+    id=[3 4 4 b 9 e 6]
+    id=[2 4 e e 8 8]
+    id=[1 e 8 6 7 0]
+    id=[2 9 c 5 2 f 7]
+    id=[5 f 0 7 0 1 9]
+    id=[4 9 a 5 7 2 0]
+    id=[1 c 8 5 e 2 e]
+  iter=0 lookupTime=6.652 sec
+    **
+  iter=1 lookupTime=6.380 sec
+    **
+  iter=2 lookupTime=6.387 sec
+  iter=3 lookupTime=6.380 sec
+  iter=4 lookupTime=6.432 sec
+  best result: simple sequential, base 16: lookup=313.5K IDs/sec indexing=656.1K IDs/sec index=873.2 MB termsIndex=11.1 MB checksum=499804816106540 no-seek lookups=29829815 of 59687380 (50.0%)
+
+test: simple sequential, base 36
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b4:691733:nrt _7e5v(4.8):C1287000 _7e65(4.8):C12870000 _7e98(4.8):C12870000 _7ecb(4.8):C12870000 _7eih(4.8):C12870000 _7efe(4.8):C12870000 _7ei7(4.8):C1287000 _7elk(4.8):C12870000 _7ejn(4.8):C1287000 _7eoy(4.8):C12870000 _7eoe(4.8):C1287000 _7ep9(4.8):C1287000 _7epj(4.8):C1287000 _7eot(4.8):C128700 _7eox(4.8):C128700 _7ept(4.8):C1287000 _7epk(4.8):C128700 _7epm(4.8):C128700 _7epo(4.8):C128700 _7epq(4.8):C128700 _7epr(4.8):C128700 _7eps(4.8):C100)
+    id=[10 1c 7 21 5]
+    id=[2 8 15 b 14]
+    id=[1 b e 19 1 4]
+    id=[e 7 21 15 e]
+    id=[1 11 1e 1e 5 a]
+    id=[10 3 19 a]
+    id=[1 e 15 20 7 10]
+    id=[22 18 20 1c 16]
+    id=[14 19 1d 17 8]
+    id=[d 3 4 1e d]
+    id=[1d 9 1b 15 f]
+    id=[4 3 11 1b 20]
+    id=[1 8 17 5 13 9]
+    id=[20 17 b 11 12]
+    id=[1 f 1f 14 8]
+    id=[1 6 1f 15 c]
+    id=[1a 2 1b 1a 1f]
+    id=[1 17 b 19 c 19]
+    id=[1 9 23 6 7 4]
+    id=[11 1d 1 14 e]
+  iter=0 lookupTime=6.369 sec
+    **
+  iter=1 lookupTime=6.147 sec
+    **
+  iter=2 lookupTime=6.212 sec
+  iter=3 lookupTime=6.198 sec
+  iter=4 lookupTime=6.133 sec
+    **
+  best result: simple sequential, base 36: lookup=326.1K IDs/sec indexing=622.5K IDs/sec index=794.7 MB termsIndex=20.3 MB checksum=499786142380040 no-seek lookups=30939350 of 59342715 (52.1%)
+
+test: simple sequential, base 64
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b5:693458:nrt _7ett(4.8):C1287000 _7ex6(4.8):C12870000 _7eu3(4.8):C12870000 _7f09(4.8):C12870000 _7f3c(4.8):C12870000 _7f9i(4.8):C12870000 _7f1p(4.8):C1287000 _7f6f(4.8):C12870000 _7f98(4.8):C1287000 _7fcw(4.8):C12870000 _7fcc(4.8):C1287000 _7fdh(4.8):C1287000 _7fd7(4.8):C1287000 _7fcr(4.8):C128700 _7fcx(4.8):C128700 _7fd4(4.8):C128700 _7fdr(4.8):C1287000 _7fdc(4.8):C128700 _7fdg(4.8):C128700 _7fdi(4.8):C128700 _7fdj(4.8):C128700 _7fdq(4.8):C100)
+    id=[1 2b 22 1c 19]
+    id=[e 15 3f 30]
+    id=[4 2f 30 14 38]
+    id=[1 1b 7 f 12]
+    id=[5 19 4 24 1e]
+    id=[2 37 1a 3e]
+    id=[5 4 10 21 c]
+    id=[3 1e 11 38 6]
+    id=[2 4 2f 19 14]
+    id=[1 13 36 21 5]
+    id=[2 3b 23 3 33]
+    id=[1a 10 2 3c]
+    id=[4 1e 2 1f 5]
+    id=[3 11 b 27 26]
+    id=[9 e 3a 8]
+    id=[7 28 19 30]
+    id=[2 27 5 b 37]
+    id=[5 3c 7 0 19]
+    id=[4 26 25 1c 20]
+    id=[1 32 5 38 2e]
+  iter=0 lookupTime=5.821 sec
+    **
+  iter=1 lookupTime=5.607 sec
+    **
+  iter=2 lookupTime=5.609 sec
+  iter=3 lookupTime=5.610 sec
+  iter=4 lookupTime=5.608 sec
+  best result: simple sequential, base 64: lookup=356.7K IDs/sec indexing=654.6K IDs/sec index=786.4 MB termsIndex=17.2 MB checksum=499814502712040 no-seek lookups=30899980 of 59470790 (52.0%)
+
+test: simple sequential, base 256
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b6:695183:nrt _7fhr(4.8):C1287000 _7fi1(4.8):C12870000 _7fl4(4.8):C12870000 _7fra(4.8):C12870000 _7fo7(4.8):C12870000 _7fud(4.8):C12870000 _7fxg(4.8):C12870000 _7g0u(4.8):C12870000 _7fxs(4.8):C1287000 _7fym(4.8):C1287000 _7fzp(4.8):C1287000 _7g15(4.8):C1287000 _7g0t(4.8):C128700 _7g0w(4.8):C128700 _7g1f(4.8):C1287000 _7g0z(4.8):C128700 _7g10(4.8):C128700 _7g1a(4.8):C128700 _7g1b(4.8):C128700 _7g1c(4.8):C128700 _7g1p(4.8):C1287000 _7g1o(4.8):C100)
+    id=[1 ae 27 19]
+    id=[39 5f f0]
+    id=[4 bf 5 38]
+    id=[1 6c 73 d2]
+    id=[5 64 49 1e]
+    id=[b 76 be]
+    id=[5 11 8 4c]
+    id=[3 79 1e 6]
+    id=[2 12 f6 54]
+    id=[1 4f 68 45]
+    id=[2 ee 30 f3]
+    id=[69 0 bc]
+    id=[4 78 27 c5]
+    id=[3 44 b9 e6]
+    id=[24 ee 88]
+    id=[1e 86 70]
+    id=[2 9c 52 f7]
+    id=[5 f0 70 19]
+    id=[4 9a 57 20]
+    id=[1 c8 5e 2e]
+  iter=0 lookupTime=5.063 sec
+    **
+  iter=1 lookupTime=4.813 sec
+    **
+  iter=2 lookupTime=4.813 sec
+    **
+  iter=3 lookupTime=4.814 sec
+  iter=4 lookupTime=4.819 sec
+  best result: simple sequential, base 256: lookup=415.6K IDs/sec indexing=701.8K IDs/sec index=777.8 MB termsIndex=13.2 MB checksum=499726471912040 no-seek lookups=30071725 of 56679485 (53.1%)
+
+test: zero pad sequential, base 10
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b7:696908:nrt _7g5z(4.8):C12870000 _7g92(4.8):C12870000 _7gc5(4.8):C12870000 _7ga7(4.8):C1287000 _7gf8(4.8):C12870000 _7gib(4.8):C12870000 _7gle(4.8):C12870000 _7giw(4.8):C1287000 _7gjr(4.8):C1287000 _7gos(4.8):C12870000 _7gn4(4.8):C1287000 _7gp3(4.8):C1287000 _7gpd(4.8):C1287000 _7gok(4.8):C128700 _7gop(4.8):C128700 _7gov(4.8):C128700 _7gp4(4.8):C128700 _7gpn(4.8):C1287000 _7gpf(4.8):C128700 _7gpg(4.8):C128700 _7gpi(4.8):C128700 _7gpm(4.8):C100)
+    id=[2 8 1 9 0 4 8 9]
+    id=[0 3 7 6 0 1 1 2]
+    id=[7 9 6 2 7 5 7 6]
+    id=[2 3 8 8 4 7 5 4]
+    id=[9 0 4 5 8 3 9 8]
+    id=[0 0 7 5 1 2 9 4]
+    id=[8 5 0 0 2 3 1 6]
+    id=[5 8 2 6 9 1 9 0]
+    id=[3 4 7 9 7 1 4 0]
+    id=[2 1 9 8 1 2 5 3]
+    id=[4 9 1 6 4 5 3 1]
+    id=[0 6 8 8 1 4 6 8]
+    id=[7 4 9 8 3 3 6 5]
+    id=[5 4 8 3 5 6 8 6]
+    id=[0 2 4 2 0 3 6 0]
+    id=[0 2 0 0 0 4 9 6]
+    id=[4 3 7 9 9 2 8 7]
+    id=[9 9 6 4 3 4 1 7]
+    id=[7 7 2 2 3 7 1 2]
+    id=[2 9 9 0 8 5 2 6]
+  iter=0 lookupTime=4.160 sec
+    **
+  iter=1 lookupTime=3.931 sec
+    **
+  iter=2 lookupTime=3.930 sec
+    **
+  iter=3 lookupTime=3.930 sec
+    **
+  iter=4 lookupTime=3.930 sec
+  best result: zero pad sequential, base 10: lookup=508.9K IDs/sec indexing=623.2K IDs/sec index=879.9 MB termsIndex=14.7 MB checksum=499797432587540 no-seek lookups=44951560 of 54951560 (81.8%)
+
+test: zero pad sequential, base 16
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b8:698633:nrt _7gtx(4.8):C12870000 _7gx0(4.8):C12870000 _7h03(4.8):C12870000 _7h36(4.8):C12870000 _7gz9(4.8):C1287000 _7h2m(4.8):C1287000 _7h69(4.8):C12870000 _7h9c(4.8):C12870000 _7h7f(4.8):C1287000 _7hcq(4.8):C12870000 _7hbc(4.8):C1287000 _7hd1(4.8):C1287000 _7hdl(4.8):C1287000 _7hdb(4.8):C1287000 _7hcu(4.8):C128700 _7hcy(4.8):C128700 _7hd7(4.8):C128700 _7hdf(4.8):C128700 _7hdg(4.8):C128700 _7hdi(4.8):C128700 _7hdj(4.8):C128700 _7hdk(4.8):C100)
+    id=[1 a e 2 7 1 9]
+    id=[0 3 9 5 f f 0]
+    id=[4 b f 0 5 3 8]
+    id=[1 6 c 7 3 d 2]
+    id=[5 6 4 4 9 1 e]
+    id=[0 0 b 7 6 b e]
+    id=[5 1 1 0 8 4 c]
+    id=[3 7 9 1 e 0 6]
+    id=[2 1 2 f 6 5 4]
+    id=[1 4 f 6 8 4 5]
+    id=[2 e e 3 0 f 3]
+    id=[0 6 9 0 0 b c]
+    id=[4 7 8 2 7 c 5]
+    id=[3 4 4 b 9 e 6]
+    id=[0 2 4 e e 8 8]
+    id=[0 1 e 8 6 7 0]
+    id=[2 9 c 5 2 f 7]
+    id=[5 f 0 7 0 1 9]
+    id=[4 9 a 5 7 2 0]
+    id=[1 c 8 5 e 2 e]
+  iter=0 lookupTime=4.088 sec
+    **
+  iter=1 lookupTime=3.860 sec
+    **
+  iter=2 lookupTime=3.860 sec
+    **
+  iter=3 lookupTime=3.860 sec
+  iter=4 lookupTime=3.861 sec
+  best result: zero pad sequential, base 16: lookup=518.1K IDs/sec indexing=640.1K IDs/sec index=874.1 MB termsIndex=11.2 MB checksum=499779666839540 no-seek lookups=44386675 of 55625540 (79.8%)
+
+test: zero pad sequential, base 36
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_b9:700358:nrt _7hhv(4.8):C12870000 _7hky(4.8):C12870000 _7ho1(4.8):C12870000 _7hr4(4.8):C12870000 _7hu7(4.8):C12870000 _7hph(4.8):C1287000 _7hsk(4.8):C1287000 _7hxa(4.8):C12870000 _7hvd(4.8):C1287000 _7i0o(4.8):C12870000 _7i04(4.8):C1287000 _7i0z(4.8):C1287000 _7i19(4.8):C1287000 _7i0j(4.8):C128700 _7i0n(4.8):C128700 _7i1j(4.8):C1287000 _7i1a(4.8):C128700 _7i1c(4.8):C128700 _7i1e(4.8):C128700 _7i1g(4.8):C128700 _7i1h(4.8):C128700 _7i1i(4.8):C100)
+    id=[0 10 1c 7 21 5]
+    id=[0 2 8 15 b 14]
+    id=[1 b e 19 1 4]
+    id=[0 e 7 21 15 e]
+    id=[1 11 1e 1e 5 a]
+    id=[0 0 10 3 19 a]
+    id=[1 e 15 20 7 10]
+    id=[0 22 18 20 1c 16]
+    id=[0 14 19 1d 17 8]
+    id=[0 d 3 4 1e d]
+    id=[0 1d 9 1b 15 f]
+    id=[0 4 3 11 1b 20]
+    id=[1 8 17 5 13 9]
+    id=[0 20 17 b 11 12]
+    id=[0 1 f 1f 14 8]
+    id=[0 1 6 1f 15 c]
+    id=[0 1a 2 1b 1a 1f]
+    id=[1 17 b 19 c 19]
+    id=[1 9 23 6 7 4]
+    id=[0 11 1d 1 14 e]
+  iter=0 lookupTime=4.377 sec
+    **
+  iter=1 lookupTime=4.170 sec
+    **
+  iter=2 lookupTime=4.170 sec
+    **
+  iter=3 lookupTime=4.170 sec
+  iter=4 lookupTime=4.170 sec
+  best result: zero pad sequential, base 36: lookup=479.6K IDs/sec indexing=603.9K IDs/sec index=795.0 MB termsIndex=20.4 MB checksum=499783391417540 no-seek lookups=43546795 of 53546795 (81.3%)
+
+test: zero pad sequential, base 64
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_ba:702083:nrt _7i5t(4.8):C12870000 _7i8w(4.8):C12870000 _7ibz(4.8):C12870000 _7ii5(4.8):C12870000 _7ia1(4.8):C1287000 _7if2(4.8):C12870000 _7idf(4.8):C1287000 _7il8(4.8):C12870000 _7ik5(4.8):C1287000 _7iom(4.8):C12870000 _7io2(4.8):C1287000 _7ip7(4.8):C1287000 _7iox(4.8):C1287000 _7ioh(4.8):C128700 _7ion(4.8):C128700 _7iou(4.8):C128700 _7iph(4.8):C1287000 _7ip2(4.8):C128700 _7ip6(4.8):C128700 _7ip8(4.8):C128700 _7ip9(4.8):C128700 _7ipg(4.8):C100)
+    id=[1 2b 22 1c 19]
+    id=[0 e 15 3f 30]
+    id=[4 2f 30 14 38]
+    id=[1 1b 7 f 12]
+    id=[5 19 4 24 1e]
+    id=[0 2 37 1a 3e]
+    id=[5 4 10 21 c]
+    id=[3 1e 11 38 6]
+    id=[2 4 2f 19 14]
+    id=[1 13 36 21 5]
+    id=[2 3b 23 3 33]
+    id=[0 1a 10 2 3c]
+    id=[4 1e 2 1f 5]
+    id=[3 11 b 27 26]
+    id=[0 9 e 3a 8]
+    id=[0 7 28 19 30]
+    id=[2 27 5 b 37]
+    id=[5 3c 7 0 19]
+    id=[4 26 25 1c 20]
+    id=[1 32 5 38 2e]
+  iter=0 lookupTime=3.915 sec
+    **
+  iter=1 lookupTime=3.654 sec
+    **
+  iter=2 lookupTime=3.654 sec
+  iter=3 lookupTime=3.653 sec
+    **
+  iter=4 lookupTime=3.654 sec
+  best result: zero pad sequential, base 64: lookup=547.4K IDs/sec indexing=640.3K IDs/sec index=786.6 MB termsIndex=17.3 MB checksum=499855969208540 no-seek lookups=44477345 of 54834910 (81.1%)
+
+test: zero pad sequential, base 256
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_bb:703808:nrt _7iwu(4.8):C12870000 _7itr(4.8):C12870000 _7izx(4.8):C12870000 _7j30(4.8):C12870000 _7j63(4.8):C12870000 _7j96(4.8):C12870000 _7jck(4.8):C12870000 _7j8w(4.8):C1287000 _7j9i(4.8):C1287000 _7jac(4.8):C1287000 _7jbf(4.8):C1287000 _7jcv(4.8):C1287000 _7jcj(4.8):C128700 _7jcm(4.8):C128700 _7jd5(4.8):C1287000 _7jcp(4.8):C128700 _7jcq(4.8):C128700 _7jd0(4.8):C128700 _7jd1(4.8):C128700 _7jd2(4.8):C128700 _7jdf(4.8):C1287000 _7jde(4.8):C100)
+    id=[1 ae 27 19]
+    id=[0 39 5f f0]
+    id=[4 bf 5 38]
+    id=[1 6c 73 d2]
+    id=[5 64 49 1e]
+    id=[0 b 76 be]
+    id=[5 11 8 4c]
+    id=[3 79 1e 6]
+    id=[2 12 f6 54]
+    id=[1 4f 68 45]
+    id=[2 ee 30 f3]
+    id=[0 69 0 bc]
+    id=[4 78 27 c5]
+    id=[3 44 b9 e6]
+    id=[0 24 ee 88]
+    id=[0 1e 86 70]
+    id=[2 9c 52 f7]
+    id=[5 f0 70 19]
+    id=[4 9a 57 20]
+    id=[1 c8 5e 2e]
+  iter=0 lookupTime=3.671 sec
+    **
+  iter=1 lookupTime=3.370 sec
+    **
+  iter=2 lookupTime=3.371 sec
+  iter=3 lookupTime=3.392 sec
+  iter=4 lookupTime=3.371 sec
+  best result: zero pad sequential, base 256: lookup=593.4K IDs/sec indexing=689.3K IDs/sec index=777.8 MB termsIndex=13.2 MB checksum=499780771085540 no-seek lookups=38540045 of 48573930 (79.3%)
+
+test: uuids v4 (random)
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_bc:705533:nrt _7jhp(4.8):C12870000 _7jks(4.8):C12870000 _7jgk(4.8):C1287000 _7jnv(4.8):C12870000 _7jx4(4.8):C12870000 _7jqy(4.8):C12870000 _7jq3(4.8):C1287000 _7ju1(4.8):C12870000 _7k07(4.8):C12870000 _7jxf(4.8):C1287000 _7k0i(4.8):C1287000 _7k0s(4.8):C1287000 _7k09(4.8):C128700 _7k12(4.8):C1287000 _7k0c(4.8):C128700 _7k0o(4.8):C128700 _7k0p(4.8):C128700 _7k1c(4.8):C1287000 _7k0w(4.8):C128700 _7k18(4.8):C128700 _7k1b(4.8):C128700 _7k1d(4.8):C100)
+    id=[30 62 66 61 65 31 39 35 2d 63 31 30 38 2d 34 32 64 37 2d 61 62 35 39 2d 62 61 65 66 38 31 66 30 36 62 34 30]
+    id=[33 61 31 61 62 34 37 66 2d 33 36 37 39 2d 34 35 32 66 2d 62 31 32 34 2d 62 63 31 32 36 36 63 36 31 38 64 63]
+    id=[32 66 31 30 34 33 34 35 2d 38 65 31 32 2d 34 36 38 66 2d 39 65 66 32 2d 65 33 31 38 36 61 34 36 36 32 33 61]
+    id=[37 61 32 37 63 64 32 65 2d 30 65 65 38 2d 34 66 30 39 2d 38 37 35 34 2d 31 32 37 61 64 39 31 35 61 39 32 30]
+    id=[37 39 35 61 63 66 61 61 2d 33 33 35 64 2d 34 61 31 33 2d 39 32 61 36 2d 39 63 66 36 65 63 38 64 35 62 38 62]
+    id=[31 32 62 33 61 64 65 31 2d 36 31 33 63 2d 34 61 36 31 2d 38 36 31 62 2d 62 65 32 33 34 35 63 64 38 63 39 62]
+    id=[35 39 32 39 63 30 61 30 2d 36 62 65 63 2d 34 36 35 32 2d 39 33 33 37 2d 65 62 30 33 33 35 65 64 30 32 36 61]
+    id=[61 34 64 35 39 62 62 65 2d 38 62 31 34 2d 34 39 65 38 2d 62 31 64 62 2d 63 66 36 35 61 33 62 39 39 31 34 31]
+    id=[37 33 63 34 37 62 66 33 2d 33 62 36 61 2d 34 31 35 66 2d 38 37 62 61 2d 35 63 61 38 38 66 65 39 63 36 62 65]
+    id=[30 32 64 61 37 36 61 37 2d 64 35 63 32 2d 34 33 34 35 2d 62 66 32 65 2d 32 30 63 38 66 63 32 65 64 66 37 62]
+    id=[32 30 64 32 31 36 34 31 2d 63 66 64 30 2d 34 63 31 33 2d 61 62 34 37 2d 31 39 62 34 38 61 32 36 38 37 37 61]
+    id=[61 31 35 34 64 63 32 31 2d 34 61 64 65 2d 34 34 30 38 2d 38 63 62 62 2d 34 38 63 64 62 34 33 61 32 36 30 64]
+    id=[63 61 31 34 62 63 30 66 2d 30 31 66 39 2d 34 37 31 63 2d 39 35 64 38 2d 38 65 62 66 61 63 63 38 38 33 62 66]
+    id=[37 64 62 62 32 30 35 33 2d 36 38 30 34 2d 34 30 61 64 2d 61 36 32 35 2d 36 31 65 39 65 33 64 30 64 36 66 36]
+    id=[33 30 38 66 64 33 66 63 2d 30 35 61 32 2d 34 30 61 30 2d 38 38 64 34 2d 38 36 64 65 65 38 38 38 65 62 63 39]
+    id=[66 33 37 34 61 61 35 63 2d 35 32 32 64 2d 34 30 32 30 2d 62 66 36 66 2d 38 62 38 35 61 63 37 39 64 30 38 65]
+    id=[32 36 32 63 37 37 63 33 2d 63 35 39 38 2d 34 39 35 32 2d 61 30 33 64 2d 65 61 33 30 30 64 30 65 33 33 61 38]
+    id=[36 61 62 61 34 65 31 61 2d 31 30 66 62 2d 34 35 65 64 2d 39 31 30 66 2d 63 65 62 36 61 37 38 31 31 66 36 65]
+    id=[33 36 63 35 32 31 63 37 2d 62 33 61 61 2d 34 62 32 63 2d 62 37 65 36 2d 35 62 33 30 37 62 37 38 31 62 37 66]
+    id=[64 31 39 65 30 39 39 35 2d 62 39 31 62 2d 34 34 33 34 2d 61 32 62 66 2d 64 37 32 38 39 62 64 34 35 31 39 62]
+  iter=0 lookupTime=46.235 sec
+    **
+  iter=1 lookupTime=13.446 sec
+    **
+  iter=2 lookupTime=13.389 sec
+    **
+  iter=3 lookupTime=13.576 sec
+  iter=4 lookupTime=13.645 sec
+  best result: uuids v4 (random): lookup=149.4K IDs/sec indexing=168.1K IDs/sec index=3746.3 MB termsIndex=13.9 MB checksum=499875177040040 no-seek lookups=0 of 56224145 (0.0%)
+
+test:  uuids v4 (random), base 10
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_bd:707258:nrt _7k8q(4.8):C12870000 _7k5n(4.8):C12870000 _7kbt(4.8):C12870000 _7khz(4.8):C12870000 _7kew(4.8):C12870000 _7kl2(4.8):C12870000 _7ko5(4.8):C12870000 _7km7(4.8):C1287000 _7kmq(4.8):C1287000 _7kna(4.8):C1287000 _7kog(4.8):C1287000 _7kp0(4.8):C1287000 _7koq(4.8):C1287000 _7kop(4.8):C128700 _7kpa(4.8):C1287000 _7kou(4.8):C128700 _7kov(4.8):C128700 _7koy(4.8):C128700 _7kp1(4.8):C128700 _7kp8(4.8):C128700 _7kp9(4.8):C128700 _7kpb(4.8):C100)
+    id=[5 6 8 9 4 0 6 1 0 6 7 3 9 2 3 1 7 5 6 f8 fc f9 fe f9 f9 f8 fd ff fa fa fc 0 fb fe f9 fa fb fc]
+    id=[fa fd ff f7 0 fc ff 0 0 ff f8 0 fb fc f7 fd f8 0 fb f9 f9 fb 0 fa ff fd fd f9 fb fb fd fb fd fa f7 f7 fa f8]
+    id=[4 6 6 9 9 6 9 9 3 5 0 4 1 5 1 4 6 1 7 fb fc f9 f7 ff fb fa fb fb f7 f8 f7 0 f9 fe fb ff fd fe]
+    id=[3 2 7 9 9 0 4 3 8 2 3 1 7 7 1 1 0 5 5 f9 f9 ff f9 fb fb fa fb fa fd f9 fe fb fc ff fa f8 fc fe]
+    id=[2 8 9 5 4 1 9 4 6 0 5 7 2 4 9 8 5 2 1 f9 fe ff f7 fc ff ff fa fc ff fd fd fc fd fb fd fb fa fc]
+    id=[fb fd fd fd fc fa f9 fc f8 fa f7 fc 0 fd fc fb fa fc fc f8 f8 f8 fd fe fc ff f8 fa f8 f7 f8 fb fb fb fd fc f8 ff]
+    id=[fb f9 fb f8 fd fd fb fe f9 fa f8 f7 fb fb fb ff fc 0 fd f9 f9 fb ff fa fe f8 fa fc 0 f9 f9 fb ff f9 fe f7 f9 ff]
+    id=[fb fe f8 f9 f7 fc f7 f9 f7 f9 fc fc fe fb 0 fe fa fe fc fb ff fe fc fb fd fc fa fc fd f9 fb ff fe ff f7 f8 f8 fb]
+    id=[fd fe f7 fe ff fc fb fc fc f7 fc f7 fd fd ff fe f8 f7 fc fa fb fa f7 f7 fa f8 fd f8 ff fe f8 ff fc f7 ff ff fb fc]
+    id=[7 6 0 0 8 6 2 7 6 5 6 7 5 3 3 2 0 5 8 fa 0 f7 f8 fe f9 ff 0 0 fc fa 0 f8 fe fe fe fd fd f7]
+    id=[5 8 4 8 3 2 6 4 6 2 6 6 7 2 4 7 2 6 5 fc fa f8 fd ff f9 fc fb fb fe fa 0 fe fb f9 f9 f7 ff fb]
+    id=[2 0 2 8 7 7 8 1 0 4 1 7 2 5 9 5 0 0 1 f7 0 0 fd fc fc f7 f7 ff ff fb ff fa f8 fc fa f9 0 fa]
+    id=[3 6 2 9 1 3 3 5 3 5 7 0 9 4 4 6 2 6 8 f8 ff 0 fa f7 fb fd 0 fc fd fe fb f9 f8 0 fe fc f7 ff]
+    id=[2 6 9 1 8 1 1 6 2 1 1 0 6 2 3 7 6 5 3 fc f7 fa fb 0 f8 fc fd fb f7 fb fb fa f9 fd f7 ff f8 fc]
+    id=[fa f7 ff fc fd fb fe f9 fe 0 f9 f9 fa fb f9 fb f7 fe ff fa fa f9 f7 0 fb f8 0 fb 0 fa f9 0 fa f9 f8 fa fc fd]
+    id=[fd f8 fd f8 f8 fe f8 fe fe f8 fb f8 f8 fd fe ff f9 fc ff fa f8 fb ff fe f7 fd ff f7 f8 fa fd 0 f9 f8 f8 fa f8 fe]
+    id=[fe f8 ff 0 ff fd fe f7 fc f7 f7 fd 0 fd fe fc fa f9 ff fc f7 fe fa fd f9 0 0 fe ff fa fb fb fd ff f8 f7 fe fe]
+    id=[ff f8 fe f8 f9 fa f7 f8 fc fe f9 fd f8 fe ff fa ff ff fe fa 0 fc fc 0 0 ff fe f7 0 f8 0 ff fa fe f7 fc fd fd]
+    id=[fb fe fe ff f9 f8 fc ff fa fa fa fb f8 fc fb fc ff fa fe fa fc f7 fe fe f7 f7 fa ff f9 fe f7 f9 fe fd f7 fb fe f7]
+    id=[4 1 5 0 7 9 4 9 1 1 7 7 4 6 2 4 9 5 4 f9 f8 f9 fe fd fe fa fd f7 fc fd f7 fc fb fd fa f8 fc fe]
+  iter=0 lookupTime=105.262 sec
+    **
+  iter=1 lookupTime=12.586 sec
+    **
+  iter=2 lookupTime=12.588 sec
+  iter=3 lookupTime=12.574 sec
+    **
+  iter=4 lookupTime=12.578 sec
+  best result:  uuids v4 (random), base 10: lookup=159.1K IDs/sec indexing=171.8K IDs/sec index=3843.5 MB termsIndex=19.5 MB checksum=499863532907540 no-seek lookups=0 of 47650590 (0.0%)
+
+test:  uuids v4 (random), base 16
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_be:708983:nrt _7ktl(4.8):C12870000 _7kwo(4.8):C12870000 _7kzr(4.8):C12870000 _7l2u(4.8):C12870000 _7l90(4.8):C12870000 _7l5x(4.8):C12870000 _7lc3(4.8):C12870000 _7l9l(4.8):C1287000 _7l9v(4.8):C1287000 _7lbj(4.8):C1287000 _7lco(4.8):C1287000 _7lce(4.8):C1287000 _7lcy(4.8):C1287000 _7lcf(4.8):C128700 _7lcg(4.8):C128700 _7lci(4.8):C128700 _7ld8(4.8):C1287000 _7lcw(4.8):C128700 _7ld0(4.8):C128700 _7ld1(4.8):C128700 _7ld7(4.8):C128700 _7ld9(4.8):C100)
+    id=[fc f7 f5 fa f5 f6 fb f5 f4 f2 f5 f7 f5 ff fb f8 fb f7 f7 f7 fd f4 fa fa 0 f1 f8 0 f2 f6 fc f6]
+    id=[fb ff fc fc f6 f6 f9 fd f9 fa f6 ff f5 0 f5 f3 f9 f9 fb f5 fa f9 f6 f6 f5 fd f3 0 fc fe fc 0]
+    id=[fe f5 f5 fb f3 f3 fd f8 f3 f8 f5 f2 f5 f5 f6 f1 fc f2 fa fd f2 0 0 fa f8 f8 f3 f1 fc f1 fb f9]
+    id=[fe fa ff fa f1 f5 f3 f5 fc f4 f4 fb f5 f7 f7 fd f9 fa 0 0 f3 f9 f1 f7 f3 f6 f8 f3 fe f5 f4 0]
+    id=[fe f1 f7 f6 f7 fd 0 f6 f5 f2 f4 f5 f5 f1 f5 0 fb f8 f1 0 f7 fc f5 fc f7 f4 fc fc f6 f7 f4 ff]
+    id=[2 0 e f 9 0 d d 4 3 8 8 4 a 4 2 fc ff f6 f4 0 f2 f3 f6 f3 fe f8 fc ff f4 ff f2]
+    id=[fa f8 f3 f8 f8 f2 0 fa 0 f2 f8 f5 f5 f6 f4 fa fc f4 f3 fa f3 fa fd f3 f2 ff f7 fd 0 0 fa f3]
+    id=[3 e 6 4 2 8 a f 4 d 8 c 4 b e e fb 0 f5 ff f3 0 f8 fa f9 fb 0 f1 f2 fe f8 f8]
+    id=[4 e e b 2 6 4 8 6 6 6 5 4 4 c a fc f3 fb fe fe fe f6 fa fa 0 fa f7 fe fc f3 f5]
+    id=[1 f 6 7 2 e 9 d 6 a 6 a 4 0 c e fb f2 f5 f9 0 f5 f1 f7 ff 0 fe fd f3 f4 f3 f9]
+    id=[1 c a 4 9 a d 4 d 0 a 2 4 d f 8 fb fa fd f2 ff f7 fe fe fb f8 0 f2 f5 0 fb f3]
+    id=[fd f1 fe f3 f1 f5 f9 fa 0 fd ff fb f5 f1 f1 ff f9 f2 f7 f6 f1 f1 fc f5 fd fd fb f2 f9 fb f4 f5]
+    id=[fd f6 fe f7 f7 f3 f7 fe f8 f8 f6 fe f5 fc f3 fd fc f7 ff f2 f7 fa f2 fd fa fd f9 f4 fe f4 f4 f1]
+    id=[fb f1 f4 fb fc f5 fa f2 fb fc 0 f4 f5 f9 fd fd fc f2 ff f8 f5 fe f9 f9 fc fb f2 0 ff f2 f2 fc]
+    id=[6 4 9 e 7 3 c 6 e 5 7 a 4 4 a 9 f9 0 fd f9 fc fd fe f9 f8 f2 f9 f8 f4 f1 fc ff]
+    id=[5 8 f 1 f 2 0 f 7 d 5 4 4 6 1 7 f9 fe fb ff f9 f4 f7 f8 fc f3 ff fd f2 f8 f2 f9]
+    id=[f9 f3 0 f9 f2 fa f2 f7 0 f2 f7 f5 f5 f7 f4 f9 fc f5 f6 fd ff f5 f8 fa f7 0 f3 0 0 f3 fb fd]
+    id=[f3 0 fe fa fb f2 f5 fa fc f5 f3 f7 fa fa fe f4 f9 ff f6 f6 f4 fd f1 f7 f4 f5 f6 f8 fc]
+    id=[f9 f5 f4 fc f4 f5 f1 fe fd f2 f5 f7 f5 f1 f2 f3 fb fa f8 f7 f4 f6 0 ff f1 fe fe f5 f2 f9 f8 f8]
+    id=[fc ff f9 f6 fd f6 fc f1 fd fa f3 f5 ff f5 f9 fb ff fb f8 fb f2 f3 f2 f4 f2 f2 fc f9 f2 f7 0]
+  iter=0 lookupTime=126.327 sec
+    **
+  iter=1 lookupTime=12.019 sec
+    **
+  iter=2 lookupTime=11.920 sec
+    **
+  iter=3 lookupTime=11.985 sec
+  iter=4 lookupTime=12.149 sec
+  best result:  uuids v4 (random), base 16: lookup=167.8K IDs/sec indexing=179.5K IDs/sec index=3357.3 MB termsIndex=13.9 MB checksum=499758663643040 no-seek lookups=0 of 47875460 (0.0%)
+
+test:  uuids v4 (random), base 36
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_bf:710708:nrt _7lkm(4.8):C12870000 _7lhj(4.8):C12870000 _7lnp(4.8):C12870000 _7lqs(4.8):C12870000 _7ltv(4.8):C12870000 _7lwy(4.8):C12870000 _7lsg(4.8):C1287000 _7m01(4.8):C12870000 _7lvj(4.8):C1287000 _7lym(4.8):C1287000 _7m0m(4.8):C1287000 _7m0c(4.8):C1287000 _7m03(4.8):C128700 _7m07(4.8):C128700 _7m0f(4.8):C128700 _7m0w(4.8):C1287000 _7m0h(4.8):C128700 _7m16(4.8):C1287000 _7m0n(4.8):C128700 _7m10(4.8):C128700 _7m15(4.8):C128700 _7m17(4.8):C100)
+    id=[ff e0 ec f8 fa e7 f5 ee f4 e1 e1 fb f0 ff ee fb e0 f0 f8 e6 fb ec ef ed 0 e0]
+    id=[1d 10 21 c 6 3 17 7 18 13 9 a ff e0 dd ee f9 dd f5 e7 dd f7 ea f3 f3]
+    id=[1 17 20 2 1 1a 0 0 23 21 f 11 16 ff fa e6 dd fd f2 e2 e8 fd f1 e7 ff ef]
+    id=[e6 ec f8 e5 e1 fb ed e5 fa f6 e2 0 dd f1 ee e2 e2 0 fd 0 fc ea dd f5]
+    id=[9 23 19 9 23 8 14 f 3 1f 20 18 ff f1 e8 f8 f0 f0 f2 f1 df eb e3 fa e2]
+    id=[c 1d 1e c 1a 9 1d 5 2 2 1c e ff e1 ee e3 fe e3 e6 f2 ee ff f2 f0 fd]
+    id=[1 1a 16 e 23 1e 17 1 1c 1 14 2 1a ff fe fc 0 fb e1 ea f9 f4 f5 e9 e5 f7]
+    id=[5 1a e 10 15 12 1 d 7 4 1e e ff ff f1 f1 fc e3 f1 fe fe e3 e5 e6 e9]
+    id=[13 1e 1f 1b 6 22 1b 16 a 15 19 11 ff fb 0 fc f1 f6 ee f8 fe f4 fd dd f4]
+    id=[1e 1e 1c b 8 d 8 6 0 1b 17 a ff e3 ec f3 fb 0 f9 fc e2 ff fa f3 f4]
+    id=[ff ea e2 df df e2 ff f7 ff f8 fd fc e8 ff e3 ef ec e9 e0 f4 f5 ec fa ee fe f3]
+    id=[ea ff fb e2 ea eb de f5 e1 f8 f3 f8 ff df ef e5 ef e1 f7 e6 e6 f2 e6 ee f8]
+    id=[1 e b 13 a 17 16 13 0 9 1d d 4 ff ec e5 f2 e2 eb eb ea e8 f4 fa f5 f8]
+    id=[e3 e1 f7 e6 e8 de f5 fd f3 eb f3 f0 ff e9 ef df f8 f9 de 0 0 fa ef e6 f9]
+    id=[16 5 8 1c 17 15 1e b 23 11 9 ff f6 fe fa ec f7 fd e0 f5 e5 f7 e2 fd]
+    id=[f 8 3 f 7 22 9 15 14 9 1e 9 ff ef ec dd f9 e0 fd f2 f1 e5 e2 fb ef]
+    id=[ff 0 0 ea ed e5 fa e4 ff ea ed f4 f8 ff f2 f5 e3 fc f7 e1 fa ff f0 df ec f1]
+    id=[1 1d 0 f f 9 23 1a 8 1c c 5 12 ff f5 ec de fa dd ec fb e9 e3 f3 0 e0]
+    id=[2 11 a 0 5 12 1c 9 22 6 b 7 ff e6 e4 ef f2 ea e2 f0 f5 f7 e8 f5 e5]
+    id=[ec f8 e0 fe fe e6 ee dd f5 f5 f3 ee ff ef f5 e7 f1 f8 f3 f0 fb fa ee f1 f2]
+  iter=0 lookupTime=90.063 sec
+    **
+  iter=1 lookupTime=11.507 sec
+    **
+  iter=2 lookupTime=11.504 sec
+    **
+  iter=3 lookupTime=11.611 sec
+  iter=4 lookupTime=11.568 sec
+  best result:  uuids v4 (random), base 36: lookup=173.9K IDs/sec indexing=190.0K IDs/sec index=2797.7 MB termsIndex=19.4 MB checksum=499638335578040 no-seek lookups=0 of 49484890 (0.0%)
+
+test:  uuids v4 (random), base 64
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_bg:712433:nrt _7m5h(4.8):C12870000 _7mbn(4.8):C12870000 _7m8k(4.8):C12870000 _7m75(4.8):C1287000 _7m9f(4.8):C1287000 _7mai(4.8):C1287000 _7meq(4.8):C12870000 _7mht(4.8):C12870000 _7mkw(4.8):C12870000 _7mnz(4.8):C12870000 _7moa(4.8):C1287000 _7mok(4.8):C1287000 _7mnu(4.8):C128700 _7mp3(4.8):C1287000 _7mou(4.8):C1287000 _7mot(4.8):C128700 _7mox(4.8):C128700 _7moy(4.8):C128700 _7moz(4.8):C128700 _7mp2(4.8):C128700 _7mp4(4.8):C128700 _7mp5(4.8):C100)
+    id=[7 2e 2e 2 11 22 3b 0 14 8 1c fb df c8 eb f9 cc da c4 ec dd f0]
+    id=[fd f4 0 d7 e3 e3 ea f2 e5 fd de fc c6 ef f6 fb fe f6 c1 f0 da e0]
+    id=[f9 ce eb e3 c2 dd fb c2 e5 f5 d1 fa de c4 dc d5 f3 c6 f9 cf c8 d6]
+    id=[3 21 8 7 3b 11 10 2a 24 25 11 fb c9 da e0 d2 f3 c4 cc d9 d7 e5]
+    id=[fa d4 fd ef c2 cb eb ea c5 f3 e8 fc c5 c1 cb e8 da ed e1 f7 fb fd]
+    id=[5 29 3d e 2f 5 30 2f 4 35 1a fc ee f2 c7 d0 f1 d0 d0 f5 c9 d8]
+    id=[6 35 3a 4 a 27 9 14 4 4 6 f9 ec cc d5 dd ff f2 ff f2 ed f7]
+    id=[fa eb ea f9 df ea c9 e7 e5 f9 fc f9 c2 dc de e6 c2 f0 c3 f2 ca ea]
+    id=[7 30 8 2 21 15 7 12 4 31 39 fc c2 ff fe fb ff e5 dc fe dc f0]
+    id=[5 31 13 16 2b 3 18 30 24 24 8 fb c2 fc ed f4 d1 e9 f3 e2 e2 e4]
+    id=[fc d9 f8 e2 f3 f0 e2 df e5 fe f7 fc ea ed e4 d3 e8 fe d2 da fb d7]
+    id=[f9 dd c9 fd f7 ca c8 df d5 ca db f9 fa c7 f8 c4 e0 c3 e9 f8 e2 ed]
+    id=[f9 c9 ce e6 c9 c8 c9 f9 e5 f5 d3 fa dc c5 eb f4 c5 fb ea ce c3 ee]
+    id=[f9 ea d6 c7 e7 d9 f6 e4 d5 e1 e8 fa c9 ec f6 de e8 f3 d6 cf d0 f5]
+    id=[6 a c 3e 1c 5 d 23 34 35 8 fa c2 dc cb eb f6 d3 cf d3 c5 d2]
+    id=[fd e2 f9 f6 d4 dd ec f6 e5 e0 d6 f9 eb dc d7 f4 c3 e8 ea f0 cd e4]
+    id=[fd cc c6 ef f9 d8 fa ec f5 d3 0 f9 e6 e4 d8 d7 cb eb e8 e9 f1 e6]
+    id=[4 36 0 23 1a b 1d 10 24 3e 9 f9 fc d8 cc d3 ed f1 de d3 ed d3]
+    id=[fd d1 fa d7 c8 d3 d9 ef c5 d6 f5 fa de ed f0 fa c9 e0 e7 fb dc f1]
+    id=[4 1e 5 3 20 39 3d b 34 9 3f fc ee ec d6 d6 dd ee dd f9 f9 f9]
+  iter=0 lookupTime=66.033 sec
+    **
+  iter=1 lookupTime=13.597 sec
+    **
+  iter=2 lookupTime=13.663 sec
+  iter=3 lookupTime=13.735 sec
+  iter=4 lookupTime=13.826 sec
+  best result:  uuids v4 (random), base 64: lookup=147.1K IDs/sec indexing=201.0K IDs/sec index=2506.3 MB termsIndex=14.9 MB checksum=499801953818540 no-seek lookups=0 of 61655915 (0.0%)
+
+test:  uuids v4 (random), base 256
+  indexing done; waitForMerges...
+  reader=StandardDirectoryReader(segments_bh:714158:nrt _7mwi(4.8):C12870000 _7mtf(4.8):C12870000 _7mzl(4.8):C12870000 _7mxd(4.8):C1287000 _7n2o(4.8):C12870000 _7mz1(4.8):C1287000 _7n5r(4.8):C12870000 _7n2z(4.8):C1287000 _7n8u(4.8):C12870000 _7nbx(4.8):C12870000 _7nc8(4.8):C1287000 _7nci(4.8):C1287000 _7ncs(4.8):C1287000 _7nd1(4.8):C1287000 _7nck(4.8):C128700 _7ncr(4.8):C128700 _7ncu(4.8):C128700 _7ncv(4.8):C128700 _7ncz(4.8):C128700 _7nd0(4.8):C128700 _7nd2(4.8):C128700 _7nd3(4.8):C100)
+    id=[f6 4f 75 4c 32 e5 43 fa 86 4 4c c4 75 24 f a2]
+    id=[44 a8 7d c6 1a ab 4a 79 92 b0 40 e3 ca 6d d5 63]
+    id=[69 12 0 cb fe c4 46 a2 85 d1 64 1b cc 7d 6c 25]
+    id=[41 66 5d 22 5e 31 42 61 b1 b4 7a bf df 30 7a 3c]
+    id=[8 8 38 c3 32 5b 42 6 a2 40 99 5c da 79 35 2e]
+    id=[d7 36 62 9a ac 56 4b 7e 96 b7 97 28 75 95 b d1]
+    id=[3c 49 9c 58 6f 6a 4b af c0 d0 da 70 49 d6 3f 57]
+    id=[fe 4 5 47 39 92 4a 72 84 db 26 90 64 d1 1d 75]
+    id=[4d b7 95 f1 50 c4 48 5f 88 25 54 75 ef 17 2b b6]
+    id=[bd 96 28 7b 16 ff 4e b8 94 95 7f dd 9e 91 5a 5e]
+    id=[40 63 99 bb a2 65 43 9c 84 24 3c 89 4 ba c0 ff]
+    id=[fc 58 a3 b5 e9 5b 42 2c 8b ce cf 1c 6e bc a4 21]
+    id=[b3 42 23 c7 72 98 50 c9 91 67 6a 31 6c e6 28 68]
+    id=[14 58 c9 61 8e b8 4f aa 9c fa 18 9e 75 6f 64 51]
+    id=[86 9e 4c d0 6f 1d 41 ff 9c da ca 69 4c 37 a2 65]
+    id=[f4 19 f4 73 99 68 4b 24 92 23 dc 28 8c 4a 59 48]
+    id=[65 1e 8f cf 43 24 4d a3 97 da 74 ca 82 38 23 b4]
+    id=[a9 e0 d8 7a 17 6b 48 30 b1 a5 8c 4e 5c 5a b6 b]
+    id=[1e 60 3c 5c 68 51 47 e5 b5 34 dd 3d 2c a 22 d7]
+    id=[48 1d 17 b6 d9 7b 47 15 af 7b cd 68 ed 6d 45 30]
+  iter=0 lookupTime=47.089 sec
+    **
+  iter=1 lookupTime=12.711 sec
+    **
+  iter=2 lookupTime=12.789 sec
+  iter=3 lookupTime=12.784 sec
+  iter=4 lookupTime=12.676 sec
+    **
+  best result:  uuids v4 (random), base 256: lookup=157.8K IDs/sec indexing=220.4K IDs/sec index=2030.8 MB termsIndex=15.7 MB checksum=499844121730040 no-seek lookups=0 of 57950030 (0.0%)
+
+Compilation finished at Sun May 11 22:20:52

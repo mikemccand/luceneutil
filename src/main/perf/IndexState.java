@@ -31,7 +31,6 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.CachingWrapperFilter;
-import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.QueryWrapperFilter;
@@ -95,21 +94,10 @@ class IndexState {
       docIDToID = new int[searcher.getIndexReader().maxDoc()];
       int base = 0;
       for(AtomicReaderContext sub : searcher.getIndexReader().leaves()) {
-        final FieldCache.Ints ids = FieldCache.DEFAULT.getInts(sub.reader(), "id", new FieldCache.IntParser() {
-            @Override
-            public int parseInt(BytesRef term) {
-              return LineFileDocs.idToInt(term);
-            }
-
-            @Override
-            public TermsEnum termsEnum(Terms terms) throws IOException {
-              return terms.iterator(null);
-            }
-
-          }, false);
         int maxDoc = sub.reader().maxDoc();
-        for(int i=0;i<maxDoc;i++) {
-          docIDToID[base+i] = ids.get(i);
+        for(int doc=0;doc<maxDoc;doc++) {
+          // NOTE: slow!!!!  But we do this once on startup ...
+          docIDToID[base+doc] = Integer.parseInt(sub.reader().document(doc).get("id"));
         }
         base += maxDoc;
       }

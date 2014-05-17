@@ -97,7 +97,7 @@ class IndexState {
         int maxDoc = sub.reader().maxDoc();
         for(int doc=0;doc<maxDoc;doc++) {
           // NOTE: slow!!!!  But we do this once on startup ...
-          docIDToID[base+doc] = Integer.parseInt(sub.reader().document(doc).get("id"));
+          docIDToID[base+doc] = LineFileDocs.idToInt(sub.reader().document(doc).get("id"));
         }
         base += maxDoc;
       }

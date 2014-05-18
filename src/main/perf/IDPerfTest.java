@@ -19,6 +19,10 @@ package perf;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -28,6 +32,10 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.codecs.BlockTreeTermsReader;
+import org.apache.lucene.codecs.BlockTreeTermsWriter;
+import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.lucene41.Lucene41PostingsFormat;
+import org.apache.lucene.codecs.lucene46.Lucene46Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
@@ -38,7 +46,9 @@ import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
@@ -61,24 +71,58 @@ import org.apache.lucene.util.Version;
 //   - batch lookup vs singleton
 //   - nrt reader along the way
 
-// javac -cp /x/tmp/uuid-3.4.jar:build/core/lucene-core-4.8-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-4.8-SNAPSHOT.jar /l/util/src/main/perf/IDPerfTest.java /l/util/src/main/perf/FlakeID.java; java -Xmx10g -Xms10g -cp /x/tmp/uuid-3.4.jar:/l/util/src/main:build/core/lucene-core-4.8-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-4.8-SNAPSHOT.jar perf.IDPerfTest /l/scratch/indices/ids 
+// 4.8
+// rm -rf /l/scratch/indices/ids; javac -cp /x/tmp/uuid-3.4.jar:build/core/lucene-core-4.8-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-4.8-SNAPSHOT.jar /l/util/src/main/perf/IDPerfTest.java /l/util/src/main/perf/FlakeID.java; java -Xmx10g -Xms10g -cp /x/tmp/uuid-3.4.jar:/l/util/src/main:build/core/lucene-core-4.8-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-4.8-SNAPSHOT.jar perf.IDPerfTest /l/scratch/indices/ids 
+
+// 5.0:
+// rm -rf /l/scratch/indices/ids; pushd core; ant jar; popd; javac -cp /x/tmp/uuid-3.4.jar:build/core/lucene-core-5.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-5.0-SNAPSHOT.jar /l/util/src/main/perf/IDPerfTest.java /l/util/src/main/perf/FlakeID.java; java -Xmx10g -Xms10g -cp /x/tmp/uuid-3.4.jar:/l/util/src/main:build/core/lucene-core-5.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-5.0-SNAPSHOT.jar perf.IDPerfTest /l/scratch/indices/ids
 
 public class IDPerfTest {
 
-  // 50 million:
-  private static final int ID_COUNT = 100000000;
+  // 100 million:
+  // nocommit
+  //private static final int ID_COUNT = 100000000;
+  private static final int ID_COUNT = 10000000;
 
   // 2 million
-  private static final int ID_SEARCH_COUNT = 2000000;
+  // nocommit
+  //private static final int ID_SEARCH_COUNT = 2000000;
+  private static final int ID_SEARCH_COUNT = 1000000;
+
+  private static long[] topBitByBase = new long[257];
+  static {
+    BigInteger x = new BigInteger(1, new byte[] {(byte) 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+    for(int base=2;base<257;base++) {
+      topBitByBase[base] = x.divide(BigInteger.valueOf(base)).longValue();
+      //System.out.println("  base=" + base + " div=" + topBitByBase[base]);
+    }
+  }
 
   public static void main(String[] args) throws IOException {
     String indexPath = args[0];
     Result r;
 
+    //r = testOne(indexPath, "uuids v1 (time, node, counter)", type1UUIDs());
+    //r = testOne(indexPath, "uuids v1 (time, node, counter), base 256", type1UUIDsBase(256));
+    //r = testOne(indexPath, "flake, base " + 256, flakeIDs(256));
+    //r = testOne(indexPath, "flake", flakeIDs());
+    //r = testOne(indexPath, "zero pad sequential, base 256", zeroPadSequentialIDs(256));
+    //r = testOne(indexPath, "uuids v1 (time, node, counter)", type1UUIDs());
+    //System.out.println("  best result: " + r);
+
+    /*
+    for(int i=5;i<=25;i+=5) {
+      r = testOne(indexPath, "uuids v1 (time, node, counter), base 256", type1UUIDsBase(256), i, 2*(i-1));
+      System.out.println("  best result: " + r);
+    }
+    */
+
+    int NUM_BASE = 1;
+
     r = testOne(indexPath, "flake", flakeIDs());
     System.out.println("  best result: " + r);
 
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, "flake, base " + base, flakeIDs(base));
       System.out.println("  best result: " + r);
@@ -87,32 +131,32 @@ public class IDPerfTest {
     r = testOne(indexPath, "uuids v1 (time, node, counter)", type1UUIDs());
     System.out.println("  best result: " + r);
 
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, "uuids v1 (time, node, counter), base " + base, type1UUIDsBase(base));
       System.out.println("  best result: " + r);
     }
 
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, "nanotime, base " + base, nanoTimeIDs(base));
       System.out.println("  best result: " + r);
     }
 
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, "simple sequential, base " + base, simpleSequentialIDs(base));
       System.out.println("  best result: " + r);
     }
 
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, "zero pad sequential, base " + base, zeroPadSequentialIDs(base));
       System.out.println("  best result: " + r);
     }
 
     /*
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, "zero pad random, base " + base, zeroPadRandomIDs(base));
       System.out.println("  best result: " + r);
@@ -122,7 +166,7 @@ public class IDPerfTest {
     r = testOne(indexPath, "uuids v4 (random)", javaUUIDs());
     System.out.println("  best result: " + r);
 
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<NUM_BASE;i++) {
       int base = getBase(i);
       r = testOne(indexPath, " uuids v4 (random), base " + base, javaUUIDsBase(base));
       System.out.println("  best result: " + r);
@@ -130,21 +174,26 @@ public class IDPerfTest {
   }
 
   private static int getBase(int i) {
+    return 256;
+    /*
     int base;
     if (i == 0) {
-      base = 10;
+      base = 5;
     } else if (i == 1) {
-      base = 16;
+      base = 10;
     } else if (i == 2) {
-      base = 36;
+      base = 16;
     } else if (i == 3) {
-      base = 64;
+      base = 36;
     } else if (i == 4) {
+      base = 64;
+    } else if (i == 5) {
       base = 256;
     } else {
       throw new RuntimeException("missing base");
     }
     return base;
+    */
   }
 
 
@@ -213,6 +262,7 @@ public class IDPerfTest {
       @Override
       public void next(BytesRef result) {
         com.eaio.uuid.UUID uuid = new com.eaio.uuid.UUID();
+        //System.out.println("got uuid=" + uuid.getTime() + " " + uuid.getClockSeqAndNode());
         longToBytesRef(uuid.getTime(), result, base);
         longToBytesRef(uuid.getClockSeqAndNode(), scratch, base);
         result.append(scratch);
@@ -238,7 +288,6 @@ public class IDPerfTest {
   /** 0000, 0001, 0002, ... */
   private static IDIterator zeroPadSequentialIDs(final int base) {
     final int zeroPadDigits = getZeroPadDigits(base, ID_COUNT-1);
-
     return new IDIterator() {
       int counter = 0;
       @Override
@@ -273,19 +322,36 @@ public class IDPerfTest {
   }
 
   private static Result testOne(String indexPath, String desc, IDIterator ids) throws IOException {
-    System.out.println("\ntest: " + desc);
+    //return testOne(indexPath, desc, ids, BlockTreeTermsWriter.DEFAULT_MIN_BLOCK_SIZE, BlockTreeTermsWriter.DEFAULT_MAX_BLOCK_SIZE);
+    return testOne(indexPath, desc, ids, 10, 18);
+  }
+
+  private static Result testOne(String indexPath, String desc, IDIterator ids, final int minTermsInBlock, final int maxTermsInBlock) throws IOException {
+    System.out.println("\ntest: " + desc + " termBlocks=" + minTermsInBlock + "/" + maxTermsInBlock);
     Directory dir = FSDirectory.open(new File(indexPath));
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
+    //IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_4_8, new StandardAnalyzer(Version.LUCENE_4_8));
+    iwc.setMergeScheduler(new SerialMergeScheduler());
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     // So I can walk the files and get the *.tip sizes:
     iwc.setUseCompoundFile(false);
+
+    iwc.setCodec(new Lucene46Codec() {
+        @Override
+        public PostingsFormat getPostingsFormatForField(String field) {
+          return new Lucene41PostingsFormat(minTermsInBlock, maxTermsInBlock);
+        }
+      });
 
     /// 7/7/7 segment structure:
     iwc.setMaxBufferedDocs(ID_COUNT/777);
     iwc.setRAMBufferSizeMB(-1);
     //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
-    ((TieredMergePolicy) iwc.getMergePolicy()).setFloorSegmentMB(.1);
+    //iwc.setMergePolicy(new LogDocMergePolicy());
+    ((TieredMergePolicy) iwc.getMergePolicy()).setFloorSegmentMB(.001);
     ((TieredMergePolicy) iwc.getMergePolicy()).setNoCFSRatio(0.0);
+    //((LogDocMergePolicy) iwc.getMergePolicy()).setMinMergeDocs(1000);
+    iwc.getMergePolicy().setNoCFSRatio(0.0);
 
     IndexWriter w = new IndexWriter(dir, iwc);
     Document doc = new Document();
@@ -302,7 +368,7 @@ public class IDPerfTest {
     BytesRef[] lookupIDs = new BytesRef[ID_SEARCH_COUNT];
     Random random = new Random(17);
     int lookupCount = 0;
-    double rate = 1.001 * ((double) ID_SEARCH_COUNT)/ID_COUNT;
+    double rate = 1.01 * ((double) ID_SEARCH_COUNT)/ID_COUNT;
     for(int i=0;i<ID_COUNT;i++) {
       ids.next(idValue);
       if (lookupCount < lookupIDs.length && random.nextDouble() <= rate) {
@@ -313,7 +379,7 @@ public class IDPerfTest {
     }
 
     if (lookupCount < lookupIDs.length) {
-      throw new RuntimeException("didn't get enough lookup ids");
+      throw new RuntimeException("didn't get enough lookup ids: " + lookupCount + " vs " + lookupIDs.length);
     }
 
     long indexTime = System.nanoTime()-t0;
@@ -330,23 +396,33 @@ public class IDPerfTest {
     long bestTime = Long.MAX_VALUE;
     long checksum = 0;
 
-    List<AtomicReaderContext> leaves = r.leaves();
+    List<AtomicReaderContext> leaves = new ArrayList<>(r.leaves());
+    // Sort largest to smallest:
+    Collections.sort(leaves, new Comparator<AtomicReaderContext>() {
+        @Override
+        public int compare(AtomicReaderContext c1, AtomicReaderContext c2) {
+          return c2.reader().maxDoc() - c1.reader().maxDoc();
+        }
+      });
     TermsEnum[] termsEnums = new TermsEnum[leaves.size()];
     DocsEnum[] docsEnums = new DocsEnum[leaves.size()];
     int[] docBases = new int[leaves.size()];
     for(int i=0;i<leaves.size();i++) {
+      //System.out.println("i=" + i + " count=" + leaves.get(i).reader().maxDoc());
       termsEnums[i] = leaves.get(i).reader().fields().terms("id").iterator(null);
       docBases[i] = leaves.get(i).docBase;
     }
 
-    BlockTreeTermsReader.seekExactFastNotFound = 0;
     long rawLookupCount = 0;
 
     int countx = 0;
     for(int iter=0;iter<5;iter++) {
       t0 = System.nanoTime();
+      BlockTreeTermsReader.seekExactFastNotFound = 0;
+      BlockTreeTermsReader.seekExactFastRootNotFound = 0;
+      rawLookupCount = 0;
       for(BytesRef id : lookupIDs) {
-        if (countx++ < 20) {
+        if (countx++ < 50) {
           System.out.println("    id=" + id);
         }
         boolean found = false;
@@ -357,7 +433,7 @@ public class IDPerfTest {
             int docID = docsEnums[seg].nextDoc();
             if (docID == DocsEnum.NO_MORE_DOCS) {
               // uh-oh!
-              throw new RuntimeException("id not found");
+              throw new RuntimeException("id not found: " + id);
             }
             // paranoia:
             checksum += docID + docBases[seg];
@@ -370,7 +446,7 @@ public class IDPerfTest {
         }
         if (found == false) {
           // uh-oh!
-          throw new RuntimeException("id not found");
+          throw new RuntimeException("id not found: " + id);
         }
       }
       long lookupTime = System.nanoTime() - t0;
@@ -381,9 +457,6 @@ public class IDPerfTest {
       }
     }
 
-    r.close();
-    w.close();
-
     long totalBytes = 0;
     long termsIndexTotalBytes = 0;
     for(String fileName : dir.listAll()) { 
@@ -393,6 +466,9 @@ public class IDPerfTest {
         termsIndexTotalBytes += bytes;
       }
     }
+
+    r.close();
+    w.rollback();
     dir.close();
 
     return new Result(desc,
@@ -402,7 +478,9 @@ public class IDPerfTest {
                       termsIndexTotalBytes,
                       checksum,
                       BlockTreeTermsReader.seekExactFastNotFound,
-                      rawLookupCount);
+                      BlockTreeTermsReader.seekExactFastRootNotFound,
+                      rawLookupCount,
+                      minTermsInBlock, maxTermsInBlock);
   }
 
   private static class Result {
@@ -412,32 +490,42 @@ public class IDPerfTest {
     final long indexSizeBytes;
     final long termsIndexSizeBytes;
     final long checksum;
-    final long rawLookupsNoSeek;
+    final long fastPathNoSeek;
+    final long fastPathNoSeekRoot;
     final long rawLookups;
+    final int minTermsInBlock;
+    final int maxTermsInBlock;
 
-    public Result(String desc, double indexKPS, double lookupKPS, long indexSizeBytes, long termsIndexSizeBytes, long checksum, long rawLookupsNoSeek, long rawLookups) {
+    public Result(String desc, double indexKPS, double lookupKPS, long indexSizeBytes, long termsIndexSizeBytes, long checksum,
+                  long fastPathNoSeek, long fastPathNoSeekRoot, long rawLookups,
+                  int minTermsInBlock, int maxTermsInBlock) {
       this.desc = desc;
       this.indexKPS = indexKPS;
       this.lookupKPS = lookupKPS;
       this.indexSizeBytes = indexSizeBytes;
       this.termsIndexSizeBytes = termsIndexSizeBytes;
       this.checksum = checksum;
-      this.rawLookupsNoSeek = rawLookupsNoSeek;
+      this.fastPathNoSeek = fastPathNoSeek;
+      this.fastPathNoSeekRoot = fastPathNoSeekRoot;
       this.rawLookups = rawLookups;
+      this.minTermsInBlock = minTermsInBlock;
+      this.maxTermsInBlock = maxTermsInBlock;
     }
 
     @Override
     public String toString() {
-      return String.format(Locale.ROOT, "%s: lookup=%.1fK IDs/sec indexing=%.1fK IDs/sec index=%.1f MB termsIndex=%.1f MB checksum=%d no-seek lookups=%d of %d (%.1f%%)",
+      return String.format(Locale.ROOT, "%s: lookup=%.1fK IDs/sec termBlocks=%d/%d indexing=%.1fK IDs/sec index=%.1f MB termsIndex=%.1f MB checksum=%d falseSeeks=%d of %d (%.2f%%, %.2f%% no-root)",
                            desc,
                            lookupKPS,
+                           minTermsInBlock, maxTermsInBlock,
                            indexKPS,
                            indexSizeBytes/1024/1024.,
                            termsIndexSizeBytes/1024/1024.,
                            checksum,
-                           rawLookupsNoSeek,
-                           rawLookups,
-                           (100.*rawLookupsNoSeek)/rawLookups);
+                           rawLookups-ID_SEARCH_COUNT-fastPathNoSeek-fastPathNoSeekRoot,
+                           rawLookups-ID_SEARCH_COUNT,
+                           100.*(((double) rawLookups-ID_SEARCH_COUNT-fastPathNoSeek-fastPathNoSeekRoot)/(rawLookups-ID_SEARCH_COUNT)),
+                           100.*(((double) rawLookups-ID_SEARCH_COUNT-fastPathNoSeek)/(rawLookups-ID_SEARCH_COUNT)));
     }
   }
 
@@ -448,6 +536,7 @@ public class IDPerfTest {
   
     public BinaryTokenStream(BytesRef bytes) {
       this.bytes = bytes;
+      bytesAtt.setBytesRef(bytes);
     }
   
     @Override
@@ -455,7 +544,6 @@ public class IDPerfTest {
       if (available) {
         clearAttributes();
         available = false;
-        bytesAtt.setBytesRef(bytes);
         return true;
       }
       return false;
@@ -501,11 +589,18 @@ public class IDPerfTest {
 
   // bytes must already be grown big enough!
   private static void longToBytesRef(long value, BytesRef bytes, int base) {
+    //System.out.println("valueStart=" + value);
+    boolean topBit = value < 0;
+    value = value & 0x7fffffffffffffffL;
+    //System.out.println("  topBit=" + topBit + " valueNow=" + value);
     long valueStart = value;
     bytes.length = 0;
     while (value != 0) {
       bytes.bytes[bytes.length++] = (byte) (value % base);
       value = value / base;
+      if (topBit && bytes.length == 1) {
+        value += topBitByBase[base];
+      }
     }
 
     // Reverse in place
@@ -519,13 +614,15 @@ public class IDPerfTest {
 
   // bytes must already be grown big enough!
   private static void longToBytesRef(long value, BytesRef bytes, int base, int zeroPadDigits) {
-    if (value < 0) {
-      throw new IllegalArgumentException("value=" + value + " is not >= 0; base=" + base);
-    }
+    boolean topBit = value < 0;
+    value = value & 0x7fffffffffffffffL;
     int downTo = zeroPadDigits-1;
     while (value != 0) {
       bytes.bytes[downTo--] = (byte) (value % base);
       value = value / base;
+      if (topBit && downTo == zeroPadDigits-2) {
+        value += topBitByBase[base];
+      }
     }
     while (downTo >= 0) {
       bytes.bytes[downTo--] = 0;

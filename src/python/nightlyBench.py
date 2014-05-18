@@ -776,6 +776,9 @@ def makeGraphs():
                         '02/03/2013'):
               # Bug in luceneutil (didn't actually run faceting on these days)
               continue
+          if date in ('05/16/2014'):
+            # But in luceneutil made it look like 0 qps on all queries
+            continue
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
       for date, desc, fullDesc in KNOWN_CHANGES:

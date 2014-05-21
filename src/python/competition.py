@@ -187,6 +187,7 @@ class Competitor(object):
                index = None,
                numThreads = constants.SEARCH_NUM_THREADS,
                directory = 'MMapDirectory',
+# TODO: can this default to the index analyzer so you dont have to change it 3 times???
                analyzer = constants.ANALYZER_DEFAULT,
                commitPoint = 'multi',
                similarity = constants.SIMILARITY_DEFAULT,

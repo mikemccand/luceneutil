@@ -157,7 +157,7 @@ if testTmpDir is None:
 else:
   print('test temp dir %s' % testTmpDir)
 
-print('args: %s' % sys.argv)
+#print('args: %s' % sys.argv)
 
 # sys.argv also contains the name of the script, so if it's 
 # length is 1, it means no test was specified
@@ -326,7 +326,6 @@ def _run(threadID):
           shutil.rmtree(TEST_TEMP_DIR)
         except OSError:
           pass
-      print('mkdirs')
       os.makedirs(TEST_TEMP_DIR)
 
       if False and first:
@@ -336,13 +335,20 @@ def _run(threadID):
       if doLog:
         res = os.system(command)
         if USE_JUNIT:
-          noTestsRun = open(logFileName).read().find('OK (0 tests)') != -1
+          with open(logFileName) as f:
+            noTestsRun = False
+            while True:
+              line = f.readline()
+              if line == '':
+                break
+              if line.find('OK (0 tests') != -1:
+                noTestsRun = True
+                break
       else:
 
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
         noTestsRun = False
-
         while True:
           line = p.stdout.readline()
           if line == '':

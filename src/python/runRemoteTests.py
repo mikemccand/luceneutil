@@ -460,6 +460,11 @@ def main():
   else:
     NIGHTLY = 'false'
 
+  try:
+    MULT = int(sys.argv[1+sys.argv.index('-mult')])
+  except ValueError:
+    MULT = 1
+
   #tests = [(1.0, 'org.apache.solr.client.solrj.embedded.SolrExampleStreamingTest')]
   #tests = [(1.0, 'org.apache.lucene.TestDemo')]
 
@@ -483,7 +488,7 @@ def main():
   command += ' -Dtests.weekly=false'
   command += ' -Dtests.slow=true'
   command += ' -Dtests.asserts.gracious=false'
-  command += ' -Dtests.multiplier=1'
+  command += ' -Dtests.multiplier=%s' % MULT
   command += ' -DtempDir=.'
   command += ' -Djetty.testMode=1'
   command += ' -Djetty.insecurerandom=1'

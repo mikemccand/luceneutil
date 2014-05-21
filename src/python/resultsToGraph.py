@@ -8,23 +8,30 @@ r = re.compile(r'^(\d+): ([0-9\.]+) sec$')
 r2 = re.compile(r'^Indexer: (\d+) docs... \(([0-9\.]+) msec\)$')
 r3 = re.compile(r'^Indexer: (\d+) docs: ([0-9\.]+) sec')
 
+pointsCache = {}
+
 def loadPoints(fileName):
   #print('load %s' % fileName)
-  points = []
-  with open(fileName, 'r') as f:
-    for line in f.readlines():
-      #print('line %s' % line)
-      m = r.match(line.strip())
-      if m is not None:
-        points.append((int(m.group(1)), float(m.group(2))))
-      m = r2.match(line.strip())
-      if m is not None:
-        #print('%s, %s' % (int(m.group(1)), m.group(2)))
-        points.append((int(m.group(1)), float(m.group(2))/1000.))
-      m = r3.search(line.strip())
-      if m is not None:
-        #print('%s, %s' % (int(m.group(1)), m.group(2)))
-        points.append((int(m.group(1)), float(m.group(2))))
+  size = os.path.getsize(fileName)
+  if fileName not in pointsCache or pointsCache[fileName][0] != size:
+    points = []
+    with open(fileName, 'r') as f:
+      for line in f.readlines():
+        #print('line %s' % line)
+        m = r.match(line.strip())
+        if m is not None:
+          points.append((int(m.group(1)), float(m.group(2))))
+        m = r2.match(line.strip())
+        if m is not None:
+          #print('%s, %s' % (int(m.group(1)), m.group(2)))
+          points.append((int(m.group(1)), float(m.group(2))/1000.))
+        m = r3.search(line.strip())
+        if m is not None:
+          #print('%s, %s' % (int(m.group(1)), m.group(2)))
+          points.append((int(m.group(1)), float(m.group(2))))
+    pointsCache[fileName] = (size, points)
+  else:
+    points = pointsCache[fileName][1]
   return points
 
 def gen():
@@ -33,7 +40,7 @@ def gen():
   
   w('<html>')
   for prefix in ('logs',):
-    #print('prefix %s' % prefix)
+    print('prefix %s' % prefix)
     if prefix == 'wiki':
       continue
     data = []
@@ -42,11 +49,13 @@ def gen():
     allTimes = set()
     for name in os.listdir(root):
       if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
-        #print('  %s' % name)
+        print('  %s' % name)
         label = name[(9+len(prefix)):-4].replace('.10gheap', '')
         points = loadPoints('%s/%s' % (root, name))
         byTime = {}
         for docs, sec in points:
+          #if label == '1th.opto':
+          #  print('docs %s, sec %s' % (docs, sec))
           allTimes.add(sec)
           byTime[sec] = docs
         data.append((label, byTime))
@@ -69,7 +78,7 @@ def gen():
     w('data.addRows([\n')
     lastSec = None
     for sec in allTimes:
-      if lastSec is None or sec - lastSec >= 5.0:
+      if lastSec is None or sec - lastSec >= 1.0:
         lastSec = sec
         row = ['%.1f' % sec]
         for label, byTime in data:

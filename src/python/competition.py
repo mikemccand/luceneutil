@@ -187,8 +187,7 @@ class Competitor(object):
                index = None,
                numThreads = constants.SEARCH_NUM_THREADS,
                directory = 'MMapDirectory',
-# TODO: can this default to the index analyzer so you dont have to change it 3 times???
-               analyzer = constants.ANALYZER_DEFAULT,
+               analyzer = None,
                commitPoint = 'multi',
                similarity = constants.SIMILARITY_DEFAULT,
                javaCommand = constants.JAVA_COMMAND,
@@ -202,6 +201,11 @@ class Competitor(object):
     self.numThreads = numThreads
     self.index = index
     self.directory = directory
+    if analyzer is None:
+      if index is not None:
+        analyzer = index.analyzer
+      else:
+        analyzer = constants.ANALYZER_DEFAULT
     self.analyzer = analyzer
     self.commitPoint = commitPoint
     self.similarity = similarity

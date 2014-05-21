@@ -551,7 +551,6 @@ def run():
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
                       directory=DIR_IMPL,
-                      analyzer='StandardAnalyzerNoStopWords',
                       commitPoint='multi')
   
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)

@@ -1003,7 +1003,13 @@ class RunAlgs:
           break
         f.write(s)
       f.close()
-      p.wait()
+      if p.wait() != 0:
+        print
+        print 'SearchPerfTest FAILED:'
+        s = open(logFile + '.stdout', 'r')
+        for line in s.readlines():
+          print line.strip()
+        raise RuntimeError('SearchPerfTest failed')
 
     #run(command, logFile + '.stdout', indent='      ')
     print '      %.1f s' % (time.time()-t0)

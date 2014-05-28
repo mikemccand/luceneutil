@@ -464,7 +464,7 @@ final class SearchTask extends Task {
   @Override
   public String toString() {
     return "cat=" + category + " q=" + q + " s=" + s + " f=" + f + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
-      (group == null ? " hits=" + hits.totalHits :
+      (group == null ? " hits=" + (hits==null ? "null" : hits.totalHits) :
        " groups=" + (singlePassGroup ?
                      (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
                      (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount)));
@@ -495,10 +495,12 @@ final class SearchTask extends Task {
         final String vs;
         if (v instanceof Long) {
           vs = v.toString();
+        } else if (v == null) {
+          vs = "null";
         } else {
           vs = ((BytesRef) v).utf8ToString();
         }
-        out.println("  doc=" + state.docIDToID[hit.doc] + " field=" + vs);
+        out.println("  doc=" + state.docIDToID[hit.doc] + " " + s.getSort()[0].getField() + "=" + vs);
       }
     } else {
       for(ScoreDoc hit : hits.scoreDocs) {

@@ -450,7 +450,9 @@ final class SearchTask extends Task {
           final FieldDoc fd = (FieldDoc) hit;
           if (fd.fields != null) {
             for(Object o : fd.fields) {
-              sum = sum * PRIME + o.hashCode();
+              if (o != null) {
+                sum = sum * PRIME + o.hashCode();
+              }
             }
           }
         }

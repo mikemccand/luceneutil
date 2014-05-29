@@ -27,7 +27,7 @@ export JAVA_HOME=/usr/local/src/jdk1.7.0_55
 export ANT_HOME=/usr/local/src/apache-ant-1.8.4
 export PATH=$ANT_HOME/bin:$PATH
 
-/usr/bin/python -uO /lucene/util.nightly/src/python/nightlyBench.py -run >> /lucene/logs.nightly/all.log 2>&1
+/usr/bin/python -uO /lucene/util.nightly/src/python/nightlyBench.py -run -reset >> /lucene/logs.nightly/all.log 2>&1
 
 /usr/bin/python -uO /lucene/util.nightly/src/python/runAnalyzerPerf.py >> /lucene/logs.nightly/all.log 2>&1
 

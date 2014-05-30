@@ -368,7 +368,7 @@ public class SearchPerfTest {
                 try {
                   if (ramDir != null) {
                     System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes in RAMDir; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
-                                                     (System.currentTimeMillis() - startMS)/1000.0, ramDir.sizeInBytes(),
+                                                     (System.currentTimeMillis() - startMS)/1000.0, ramDir.ramBytesUsed(),
                                                      writer.maxDoc(), s.getIndexReader().maxDoc(), s.getIndexReader().numDocs()));
                     //String[] l = ramDir.listAll();
                     //Arrays.sort(l);

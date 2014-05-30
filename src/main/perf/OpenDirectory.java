@@ -58,7 +58,7 @@ public abstract class OpenDirectory {
           public Directory open(File path) throws IOException {
             final long t0 = System.currentTimeMillis();
             Directory dir =new RAMDirectory(new SimpleFSDirectory(path), IOContext.READ);
-            System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; sizeInBytes=" + ((RAMDirectory) dir).sizeInBytes());
+            System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; ramBytesUsed=" + ((RAMDirectory) dir).ramBytesUsed());
             return dir;
           }
       };

@@ -306,7 +306,7 @@ reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=
 reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=([0-9]+)$')
 reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
-reSearchHitField = re.compile('doc=(.*?) field=(.*?)$')
+reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
 rePKOrd = re.compile(r'PK(.*?)\[')
 reOneGroup = re.compile('group=(.*?) totalHits=(.*?) groupRelevance=(.*?)$', re.DOTALL)

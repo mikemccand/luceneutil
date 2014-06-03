@@ -97,6 +97,7 @@ class Index(object):
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
+               useCMS = False,
                facets = None,
                extraNamePart = None,
                facetDVFormat = constants.FACET_FIELD_DV_FORMAT_DEFAULT,
@@ -140,7 +141,8 @@ class Index(object):
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
-
+    self.useCMS = useCMS
+    
   def getName(self):
     name = [self.dataSource.name,
             self.checkout]

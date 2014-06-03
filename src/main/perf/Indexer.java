@@ -45,6 +45,7 @@ import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.LogMergePolicy;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
@@ -142,6 +143,7 @@ public final class Indexer {
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
     final boolean addDVFields = args.getFlag("-dvfields");
     final boolean doRandomCommit = args.getFlag("-randomCommit");
+    final boolean useCMS = args.getFlag("-useCMS");
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
@@ -182,6 +184,7 @@ public final class Indexer {
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     System.out.println("Add DocValues fields: " + addDVFields);
+    System.out.println("Use ConcurrentMergeScheduler: " + useCMS);
     
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
@@ -204,9 +207,15 @@ public final class Indexer {
     iwc.setUseCompoundFile(useCFS);
 
     // Increase number of concurrent merges since we are on SSD:
-    ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
-    iwc.setMergeScheduler(cms);
-    cms.setMaxMergesAndThreads(maxConcurrentMerges+2, maxConcurrentMerges);
+    if (useCMS) {
+      ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
+      iwc.setMergeScheduler(cms);
+      cms.setMaxMergesAndThreads(maxConcurrentMerges+2, maxConcurrentMerges);
+    } else {
+      // Gives better repeatability because if you use CMS, the order in which the merges complete can impact how the merge policy later
+      // picks merges so you can easily get a very different index structure when you are comparing two indices:
+      iwc.setMergeScheduler(new SerialMergeScheduler());
+    }
 
     final LogMergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {

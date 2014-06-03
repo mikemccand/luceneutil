@@ -721,6 +721,9 @@ class RunAlgs:
       
       if index.addDVFields:
         w('-dvfields')
+
+      if index.useCMS:
+        w('-useCMS')
         
       if index.optimize:
         w('-forceMerge')

@@ -491,41 +491,42 @@ def main():
     ''')
 
 
-    # Refresh rate
-    w('''
-    <td><br><b>Refreshes in past 10 sec</b>
-    <div id="refreshRate" style="width:500px; height:300px"></div>
-    <script type="text/javascript">
-      g = new Dygraph(
+    if len(getReaderTimes) != 0:
+      # Refresh rate
+      w('''
+      <td><br><b>Refreshes in past 10 sec</b>
+      <div id="refreshRate" style="width:500px; height:300px"></div>
+      <script type="text/javascript">
+        g = new Dygraph(
 
-        // containing div
-        document.getElementById("refreshRate"),
-    ''')
+          // containing div
+          document.getElementById("refreshRate"),
+      ''')
 
-    headers = ['Date', 'RefreshRate']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+      headers = ['Date', 'RefreshRate']
+      w('    "%s\\n" + \n"' % ','.join(headers))
 
-    startIndex = 0
-    l = getReaderTimes[0]
-    startTime = l[0]*3600 + l[1]*60 + l[2]
-    
-    for i, tup in enumerate(getReaderTimes):
-      hr, min, sec, ms = tup
-      t = hr*3600 + min*60 + sec
-      # Rolling window of past 10 seconds:
-      while t - startTime > 10.0:
-        startIndex += 1
-        l = getReaderTimes[startIndex]
-        startTime = l[0]*3600 + l[1]*60 + l[2]
-      
-      w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, i-startIndex+1))
+      startIndex = 0
+      l = getReaderTimes[0]
+      startTime = l[0]*3600 + l[1]*60 + l[2]
 
-    w('"\n')
-    w('''
-    );
-    </script>
-    </td>
-    ''')
+      for i, tup in enumerate(getReaderTimes):
+        hr, min, sec, ms = tup
+        t = hr*3600 + min*60 + sec
+        # Rolling window of past 10 seconds:
+        while t - startTime > 10.0:
+          startIndex += 1
+          l = getReaderTimes[startIndex]
+          startTime = l[0]*3600 + l[1]*60 + l[2]
+
+        w('2014-04-22 %02d:%02d:%02d,%d\\n' % (hr, min, sec, i-startIndex+1))
+
+      w('"\n')
+      w('''
+      );
+      </script>
+      </td>
+      ''')
 
 
     # Commit times

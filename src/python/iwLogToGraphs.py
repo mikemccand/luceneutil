@@ -100,8 +100,10 @@ def main():
 
       if line.find('commit: wrote segments file') != -1:
         threadName = parseThreadName(line)
-        commitTimes[runningCommits[threadName]].append(t)
-        del runningCommits[threadName]
+        # Might not be present if IW infoStream was enabled "mid flight":
+        if threadName in runningCommits:
+          commitTimes[runningCommits[threadName]].append(t)
+          del runningCommits[threadName]
         
       if line.find('flush postings as segment') != -1:
         flushCount += 1
@@ -136,10 +138,13 @@ def main():
         # A merge finished
         threadName = parseThreadName(line)
         mergeSize = float(m.group(1))
-        merges[mergeThreads[threadName]].append(mergeSize)
-        del mergeThreads[threadName]
-        merges.append(['end', threadName] + parseTime(line) + [mergeSize])
-        runningMerges -= 1
+
+        # Might not be present if IW infoStream was enabled "mid flight":
+        if threadName in mergeThreads:
+          merges[mergeThreads[threadName]].append(mergeSize)
+          del mergeThreads[threadName]
+          merges.append(['end', threadName] + parseTime(line) + [mergeSize])
+          runningMerges -= 1
         
       m = reFindMerges.search(line)
       #if m is not None and line.find('[es1][bulk]') != -1:

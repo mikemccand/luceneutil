@@ -180,7 +180,7 @@ class SearchTask:
     else:
       # groups
       if self.groupCount != other.groupCount:
-        self.fail('wrong groupCount: %s vs %s' % (self.groupCount, other.groupCount))
+        self.fail('wrong groupCount: cat=%s groupField=%s %s vs %s: self=%s, other=%s' % (self.cat, self.groupField, self.groupCount, other.groupCount, self, other))
       for groupIDX in xrange(self.groupCount):
         groupValue1, groupTotHits1, groupTopScore1, groups1 = self.groups[groupIDX]
         groupValue2, groupTotHits2, groupTopScore2, groups2 = other.groups[groupIDX]

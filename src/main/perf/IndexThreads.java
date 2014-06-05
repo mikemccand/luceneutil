@@ -35,7 +35,7 @@ import org.apache.lucene.util.BytesRef;
 
 class IndexThreads {
 
-	public enum Mode { UPDATE, ADD, NDV_UPDATE, BDV_UPDATE }
+  public enum Mode { UPDATE, ADD, NDV_UPDATE, BDV_UPDATE }
 
   final IngestRatePrinter printer;
   final CountDownLatch startLatch = new CountDownLatch(1);
@@ -44,10 +44,10 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-	public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
-			boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener)
-			throws IOException, InterruptedException {
-		final AtomicInteger groupBlockIndex;
+  public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener)
+    throws IOException, InterruptedException {
+    final AtomicInteger groupBlockIndex;
 
     this.docs = lineFileDocs;
     if (addGroupingFields) {
@@ -112,8 +112,8 @@ class IndexThreads {
   }
   
   public static interface UpdatesListener {
-  	public void beforeUpdate();
-  	public void afterUpdate();
+    public void beforeUpdate();
+    public void afterUpdate();
   }
 
   private static class IndexThread extends Thread {
@@ -135,9 +135,9 @@ class IndexThreads {
     private final AtomicBoolean failed;
     private final UpdatesListener updatesListener;
 
-		public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
-				LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
-				AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, UpdatesListener updatesListener) {
+    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
+                       LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
+                       AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, UpdatesListener updatesListener) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -234,26 +234,28 @@ class IndexThreads {
                 public Iterator<IndexDocument> iterator() {
                   return new Iterator<IndexDocument>() {
                     int upto;
-                    IndexDocument doc;
+                    Document doc;
 
                     @SuppressWarnings("synthetic-access")
                     @Override
                     public boolean hasNext() {
                       if (upto < numDocs) {
                         upto++;
+
                         Field extraField;
-                        if (upto == numDocs) {
-                          extraField = groupEndField;
-                        } else {
-                          extraField = null;
-                        }
+
                         try {
-                          doc = docs.nextDoc(docState, extraField);
+                          doc = docs.nextDoc(docState);
                         } catch (IOException ioe) {
                           throw new RuntimeException(ioe);
                         }
                         if (doc == null) {
                           return false;
+                        }
+
+                        if (upto == numDocs) {
+                          // Sneaky: we remove it down below, so that in the not-cloned case we don't accumulate this field:
+                          doc.add(groupEndField);
                         }
 
                         final int id = LineFileDocs.idToInt(idField.stringValue());

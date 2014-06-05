@@ -847,20 +847,24 @@ class RunAlgs:
     return tuple(cp)
 
   compiledCheckouts = set()
-  
+
   def compile(self, competitor):
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
+    checkoutPath = checkoutToPath(competitor.checkout)
     try:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
         for module in ('core', 'suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
-          modulePath = '%s/lucene/%s' % (checkoutToPath(competitor.checkout), module)
-          print '  %s...' % modulePath
-          os.chdir(modulePath)
-          run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          modulePath = '%s/lucene/%s' % (checkoutPath, module)
+          classesPath = '%s/lucene/build/%s/classes/java' % (checkoutPath, module)
+          # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
+          if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
+            print '  %s...' % modulePath
+            os.chdir(modulePath)
+            run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
 
       print '  %s' % path
       os.chdir(path)      
@@ -988,10 +992,11 @@ class RunAlgs:
       p2 = subprocess.Popen(perfCommand, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
       f = open(logFile + '.stdout', 'wb')
       while True:
-        s = p.stdout.read(1024)
+        s = p.stdout.readline()
         if s == '':
           break
         f.write(s)
+        f.flush()
       f.close()
       p.wait()
       run('sudo kill -INT %s' % p2.pid)
@@ -999,12 +1004,13 @@ class RunAlgs:
       stdout, stderr = p2.communicate()
       print 'PERF: %s' % fixupPerfOutput(stderr)
     else:
-      f = open(logFile + '.stdout', 'wb')
+      f = open(logFile + '.stdout', 'wbu')
       while True:
-        s = p.stdout.read(1024)
+        s = p.stdout.readline()
         if s == '':
           break
         f.write(s)
+        f.flush()
       f.close()
       if p.wait() != 0:
         print

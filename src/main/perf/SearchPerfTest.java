@@ -121,6 +121,14 @@ public class SearchPerfTest {
 
     StatisticsHelper stats = new StatisticsHelper();
     stats.startStatistics();
+    try {
+      _main(clArgs);
+    } finally {
+      stats.stopStatistics();
+    }
+  }
+
+  private static void _main(String[] clArgs) throws Exception {
 
     // args: dirImpl indexPath numThread numIterPerThread
     // eg java SearchPerfTest /path/to/index 4 100
@@ -486,7 +494,6 @@ public class SearchPerfTest {
     final long endNanos = System.nanoTime();
 
     System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
-    stats.stopStatistics();
 
     final List<Task> allTasks = tasks.getAllTasks();
 

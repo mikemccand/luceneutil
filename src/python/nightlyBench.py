@@ -259,6 +259,10 @@ KNOWN_CHANGES = [
   ('2014-02-06',
    'LUCENE-5425: performance improvement for FixedBitSet.iterator',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5425">LUCENE-5425: performance improvement for FixedBitSet.iterator</a>',),
+
+  ('2014-04-05',
+   'LUCENE-5527: LeafCollector (made CachingCollector slower)',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5527">LUCENE-527: LeafCollector (made CachingCollector slower)</a>',),
    ]
 
 # TODO

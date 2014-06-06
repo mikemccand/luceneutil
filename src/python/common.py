@@ -172,6 +172,8 @@ def getLatestModTime(path, extension=None):
   for root, dirs, files in os.walk(path):
     for file in files:
       if extension is None or file.endswith(extension):
-        modTime = max(os.path.getmtime('%s/%s' % (root, file)), modTime)
+        fullPath = '%s/%s' % (root, file)
+        if os.path.isfile(fullPath):
+          modTime = max(os.path.getmtime(fullPath), modTime)
   return modTime
   

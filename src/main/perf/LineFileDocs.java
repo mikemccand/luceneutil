@@ -71,9 +71,9 @@ public class LineFileDocs implements Closeable {
   private String[] extraFacetFields;
   private final boolean addDVFields;
 
-	public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
-			boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
-			boolean addDVFields) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
+                      boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
+                      boolean addDVFields) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
@@ -207,9 +207,9 @@ public class LineFileDocs implements Closeable {
     final Field body;
     final Field id;
     final Field date;
-    final LongField dateMSec;
+    //final NumericDocValuesField dateMSec;
     //final LongField rand;
-    final IntField timeSec;
+    //final NumericDocValuesField timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     //final SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
@@ -265,14 +265,14 @@ public class LineFileDocs implements Closeable {
       date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
 
-      dateMSec = new LongField("datenum", 0L, Field.Store.NO);
-      doc.add(dateMSec);
+      //dateMSec = new NumericDocValuesField("datenum", 0L);
+      //doc.add(dateMSec);
 
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      timeSec = new IntField("timesecnum", 0, Field.Store.NO);
-      doc.add(timeSec);
+      //timeSec = new NumericDocValuesField("timesecnum", 0);
+      //doc.add(timeSec);
     }
   }
 
@@ -356,16 +356,16 @@ public class LineFileDocs implements Closeable {
     if (date == null) {
       System.out.println("FAILED: " + dateString);
     }
-    doc.dateMSec.setLongValue(date.getTime());
+    //doc.dateMSec.setLongValue(date.getTime());
 
     //doc.rand.setLongValue(rand.nextInt(10000));
 
     doc.dateCal.setTime(date);
     if (addDVFields) {
-    	doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
+      doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
     }
-    final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-    doc.timeSec.setIntValue(sec);
+    //final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
+    //doc.timeSec.setLongValue(sec);
 
     if (facetFields.isEmpty() == false) {
       FacetField dateFacetField = new FacetField("Date",

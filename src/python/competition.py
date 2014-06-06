@@ -243,7 +243,8 @@ class Competitor(object):
          x.find('SearchNumbers.java') == -1 and \
          x.find('IDPerfTest.java') == -1 and \
          x.find('FlakeID.java') == -1 and \
-         x.find('TestAnalyzerPerf4x.java') == -1:
+         x.find('TestAnalyzerPerf4x.java') == -1 and \
+         os.path.isfile(x):
         newFiles.append(x)
 
     files = newFiles

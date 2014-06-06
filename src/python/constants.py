@@ -31,11 +31,11 @@ if 'BENCH_BASE_DIR' not in globals():
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
-#WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
-#WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/wikimedium.1M.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_ALL_FILE = '%s/wikimedium.10M.tasks' % BENCH_BASE_DIR
+#WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
+#WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 
 # wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR
@@ -70,7 +70,7 @@ if 'JAVA_COMMAND' not in globals():
   JAVA_COMMAND = '%s -server -Xms2g -Xmx2g' % JAVA_EXE
 
 JRE_SUPPORTS_SERVER_MODE = True
-INDEX_NUM_THREADS = 2
+INDEX_NUM_THREADS = 1
 SEARCH_NUM_THREADS = 2
 # geonames: http://download.geonames.org/export/dump/
 

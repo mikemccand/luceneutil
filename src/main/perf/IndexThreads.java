@@ -27,13 +27,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.util.BytesRef;
 
 class IndexThreads {
 
-	public enum Mode { UPDATE, ADD, NDV_UPDATE, BDV_UPDATE }
+  public enum Mode { UPDATE, ADD, NDV_UPDATE, BDV_UPDATE }
 
   final IngestRatePrinter printer;
   final CountDownLatch startLatch = new CountDownLatch(1);
@@ -42,10 +44,10 @@ class IndexThreads {
   final LineFileDocs docs;
   final Thread[] threads;
 
-	public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
-			boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener)
-			throws IOException, InterruptedException {
-		final AtomicInteger groupBlockIndex;
+  public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener)
+    throws IOException, InterruptedException {
+    final AtomicInteger groupBlockIndex;
 
     this.docs = lineFileDocs;
     if (addGroupingFields) {
@@ -110,15 +112,15 @@ class IndexThreads {
   }
   
   public static interface UpdatesListener {
-  	public void beforeUpdate();
-  	public void afterUpdate();
+    public void beforeUpdate();
+    public void afterUpdate();
   }
 
   private static class IndexThread extends Thread {
-    public static String[] group100;
-    public static String[] group100K;
-    public static String[] group10K;
-    public static String[] group1M;
+    public static BytesRef[] group100;
+    public static BytesRef[] group100K;
+    public static BytesRef[] group10K;
+    public static BytesRef[] group1M;
     private final LineFileDocs docs;
     private final int numTotalDocs;
     private final IndexWriter w;
@@ -133,9 +135,9 @@ class IndexThreads {
     private final AtomicBoolean failed;
     private final UpdatesListener updatesListener;
 
-		public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
-				LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
-				AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, UpdatesListener updatesListener) {
+    public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
+                       LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
+                       AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, UpdatesListener updatesListener) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -165,15 +167,15 @@ class IndexThreads {
         final Field groupBlockField;
         final Field groupEndField;
         if (group100 != null) {
-          group100Field = new StringField("group100", "", Field.Store.NO);
+          group100Field = new SortedDocValuesField("group100", new BytesRef());
           docState.doc.add(group100Field);
-          group10KField = new StringField("group10K", "", Field.Store.NO);
+          group10KField = new SortedDocValuesField("group10K", new BytesRef());
           docState.doc.add(group10KField);
-          group100KField = new StringField("group100K", "", Field.Store.NO);
+          group100KField = new SortedDocValuesField("group100K", new BytesRef());
           docState.doc.add(group100KField);
-          group1MField = new StringField("group1M", "", Field.Store.NO);
+          group1MField = new SortedDocValuesField("group1M", new BytesRef());
           docState.doc.add(group1MField);
-          groupBlockField = new StringField("groupblock", "", Field.Store.NO);
+          groupBlockField = new SortedDocValuesField("groupblock", new BytesRef());
           docState.doc.add(groupBlockField);
           // Binary marker field:
           groupEndField = new StringField("groupend", "x", Field.Store.NO);
@@ -201,7 +203,7 @@ class IndexThreads {
 
           // Add docs in blocks:
           
-          final String[] groupBlocks;
+          final BytesRef[] groupBlocks;
           if (numTotalDocs >= 5000000) {
             groupBlocks = group1M;
           } else if (numTotalDocs >= 500000) {
@@ -225,33 +227,35 @@ class IndexThreads {
             } else {
               numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
             }
-            groupBlockField.setStringValue(groupBlocks[groupCounter]);
+            groupBlockField.setBytesValue(groupBlocks[groupCounter]);
 
             w.addDocuments(new Iterable<IndexDocument>() {
                 @Override
                 public Iterator<IndexDocument> iterator() {
                   return new Iterator<IndexDocument>() {
                     int upto;
-                    IndexDocument doc;
+                    Document doc;
 
                     @SuppressWarnings("synthetic-access")
-										@Override
+                    @Override
                     public boolean hasNext() {
                       if (upto < numDocs) {
                         upto++;
+
                         Field extraField;
-                        if (upto == numDocs) {
-                          extraField = groupEndField;
-                        } else {
-                          extraField = null;
-                        }
+
                         try {
-                          doc = docs.nextDoc(docState, extraField);
+                          doc = docs.nextDoc(docState);
                         } catch (IOException ioe) {
                           throw new RuntimeException(ioe);
                         }
                         if (doc == null) {
                           return false;
+                        }
+
+                        if (upto == numDocs) {
+                          // Sneaky: we remove it down below, so that in the not-cloned case we don't accumulate this field:
+                          doc.add(groupEndField);
                         }
 
                         final int id = LineFileDocs.idToInt(idField.stringValue());
@@ -261,10 +265,10 @@ class IndexThreads {
                         if (((1+id) % 100000) == 0) {
                           System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
                         }
-                        group100Field.setStringValue(group100[id%100]);
-                        group10KField.setStringValue(group10K[id%10000]);
-                        group100KField.setStringValue(group100K[id%100000]);
-                        group1MField.setStringValue(group1M[id%1000000]);
+                        group100Field.setBytesValue(group100[id%100]);
+                        group10KField.setBytesValue(group10K[id%10000]);
+                        group100KField.setBytesValue(group100K[id%100000]);
+                        group1MField.setBytesValue(group1M[id%1000000]);
                         count.incrementAndGet();
                         return true;
                       } else {
@@ -400,13 +404,13 @@ class IndexThreads {
   }
 
   // NOTE: returned array might have dups
-  private static String[] randomStrings(int count, Random random) {
-    final String[] strings = new String[count];
+  private static BytesRef[] randomStrings(int count, Random random) {
+    final BytesRef[] strings = new BytesRef[count];
     int i = 0;
     while(i < count) {
       final String s = randomRealisticUnicodeString(random);
       if (s.length() >= 7) {
-        strings[i++] = s;
+        strings[i++] = new BytesRef(s);
       }
     }
 

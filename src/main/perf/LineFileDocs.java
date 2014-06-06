@@ -308,11 +308,7 @@ public class LineFileDocs implements Closeable {
   //private final Random rand = new Random(17);
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public IndexDocument nextDoc(DocState doc) throws IOException {
-    return nextDoc(doc, null);
-  }
-
-  public IndexDocument nextDoc(DocState doc, Field extraField) throws IOException {
+  public Document nextDoc(DocState doc) throws IOException {
     String line;
     final int myID;
     synchronized(this) {
@@ -378,9 +374,6 @@ public class LineFileDocs implements Closeable {
                                                  ""+doc.dateCal.get(Calendar.DAY_OF_MONTH));
 
       Document doc2 = cloneDoc(doc.doc);
-      if (extraField != null) {
-        doc2.add(extraField);
-      }
 
       if (facetFields.contains("Date")) {
         doc2.add(dateFacetField);
@@ -434,10 +427,8 @@ public class LineFileDocs implements Closeable {
       }
       return facetsConfig.build(taxoWriter, doc2);
     } else if (doClone) {
-      // nocommit what about extraField?
       return cloneDoc(doc.doc);
     } else {
-      // nocommit what about extraField?
       return doc.doc;
     }
   }

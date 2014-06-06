@@ -32,7 +32,6 @@ import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.StorableField;
 import org.apache.lucene.index.StoredDocument;
-import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
@@ -154,17 +153,17 @@ final class SearchTask extends Task {
         } else {
           //System.out.println("GB: " + group);
           final TermFirstPassGroupingCollector c1 = new TermFirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
-          final CachingCollector cCache = CachingCollector.create(c1, true, 32.0);
 
           final Collector c;
           final TermAllGroupsCollector allGroupsCollector;
           // Turn off AllGroupsCollector for now -- it's very slow:
           if (false && doCountGroups) {
             allGroupsCollector = new TermAllGroupsCollector(group);
-            c = MultiCollector.wrap(allGroupsCollector, cCache);
+            //c = MultiCollector.wrap(allGroupsCollector, c1);
+            c = c1;
           } else {
             allGroupsCollector = null;
-            c = cCache;
+            c = c1;
           }
           
           searcher.search(q, c);
@@ -172,11 +171,7 @@ final class SearchTask extends Task {
           final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
           if (topGroups != null) {
             final TermSecondPassGroupingCollector c2 = new TermSecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, null, 10, true, true, true);
-            if (cCache.isCached()) {
-              cCache.replay(c2);
-            } else {
-              searcher.search(q, c2);
-            }
+            searcher.search(q, c2);
             groupsResultTerms = c2.getTopGroups(0);
             if (allGroupsCollector != null) {
               groupsResultTerms = new TopGroups<BytesRef>(groupsResultTerms,

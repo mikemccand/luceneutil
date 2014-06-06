@@ -40,7 +40,7 @@ def gen():
   
   w('<html>')
   for prefix in ('logs',):
-    print('prefix %s' % prefix)
+    #print('prefix %s' % prefix)
     if prefix == 'wiki':
       continue
     data = []
@@ -49,19 +49,35 @@ def gen():
     allTimes = set()
     for name in os.listdir(root):
       if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
-        print('  %s' % name)
+        #print('  %s' % name)
+        if False and name.find('2M') == -1:
+          continue
         label = name[(9+len(prefix)):-4].replace('.10gheap', '')
+        label = label.replace('10M.', '')
+        label = label.replace('2M.', '')
+        label = label.replace('issue-6212.', 'reuse.')
+        label = label.replace('ssd.', '')
+        label = label.replace('random.', '')
+        label = label.replace('.1g', '')
+        label = label.replace('.4th', '')
+        label = label.replace('-no-bloom', '')
         points = loadPoints('%s/%s' % (root, name))
         byTime = {}
+        lastSec = None
         for docs, sec in points:
           #if label == '1th.opto':
           #  print('docs %s, sec %s' % (docs, sec))
-          allTimes.add(sec)
+          if lastSec is None or sec - lastSec > 1.0:
+            allTimes.add(sec)
+            lastSec = sec
           byTime[sec] = docs
+        if lastSec is not None:
+          allTimes.add(sec)
         data.append((label, byTime))
 
     allTimes = list(allTimes)
     allTimes.sort()
+    data.sort()
 
     w('''
         <script type="text/javascript" src="https://www.google.com/jsapi"></script>
@@ -76,26 +92,23 @@ def gen():
     for label, ign in data:
       w('data.addColumn("number", "%s");\n' % label)
     w('data.addRows([\n')
-    lastSec = None
     for sec in allTimes:
-      if lastSec is None or sec - lastSec >= 1.0:
-        lastSec = sec
-        row = ['%.1f' % sec]
-        for label, byTime in data:
-          value = byTime.get(sec)
-          if value is None:
-            value = 'null'
-          else:
-            value = '%.1f' % (value/1000.)
-          row.append(value)
-        w('[%s],\n' % ','.join(row))
+      row = ['%.1f' % sec]
+      for label, byTime in data:
+        value = byTime.get(sec)
+        if value is None:
+          value = 'null'
+        else:
+          value = '%.1f' % (value/1000.)
+        row.append(value)
+      w('[%s],\n' % ','.join(row))
 
     w('''
             ]);
 
             var options = {
               title: 'Bulk Indexing Performance',
-              //legend: {position: 'bottom'},
+              legend: {position: 'bottom'},
               hAxis: {title: 'Seconds'},
               vAxis: {title: 'K Docs'},
               interpolateNulls: true,

@@ -259,6 +259,10 @@ KNOWN_CHANGES = [
   ('2014-02-06',
    'LUCENE-5425: performance improvement for FixedBitSet.iterator',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5425">LUCENE-5425: performance improvement for FixedBitSet.iterator</a>',),
+
+  ('2014-04-05',
+   'LUCENE-5527: LeafCollector (made CachingCollector slower)',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5527">LUCENE-527: LeafCollector (made CachingCollector slower)</a>',),
    ]
 
 # TODO
@@ -516,7 +520,8 @@ def run():
                                   grouping=False,
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
-                                  maxConcurrentMerges=3)
+                                  maxConcurrentMerges=3,
+                                  useCMS=True)
 
   bigSource = competition.Data('wikibig',
                                BIG_LINE_FILE,
@@ -534,7 +539,8 @@ def run():
                                grouping=False,
                                verbose=False,
                                mergePolicy='TieredMergePolicy',
-                               maxConcurrentMerges=3)
+                               maxConcurrentMerges=3,
+                               useCMS=True)
 
   # Must use only 1 thread so we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,

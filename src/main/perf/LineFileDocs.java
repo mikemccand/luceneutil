@@ -202,7 +202,7 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field titleDV;
-    final BinaryDocValuesField titleBDV;
+    //final BinaryDocValuesField titleBDV;
     final NumericDocValuesField lastModNDV; 
     final Field body;
     final Field id;
@@ -223,18 +223,17 @@ public class LineFileDocs implements Closeable {
       doc.add(title);
 
       if (addDVFields) {
-//      	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
-//      	doc.add(titleDV);
-      	titleDV = null;
+      	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
+      	doc.add(titleDV);
       	
-      	titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
-      	doc.add(titleBDV);
+      	//titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
+      	//doc.add(titleBDV);
       	
       	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
       	doc.add(lastModNDV);
       } else {
       	titleDV = null;
-      	titleBDV = null;
+      	//titleBDV = null;
       	lastModNDV = null;
       }
       
@@ -291,11 +290,14 @@ public class LineFileDocs implements Closeable {
         doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
       } else if (f instanceof SortedDocValuesField) {
         doc2.add(new SortedDocValuesField(f.name(), f.binaryValue()));
+      } else if (f instanceof NumericDocValuesField) {
+        doc2.add(new NumericDocValuesField(f.name(), f.numericValue().longValue()));
+      } else if (f instanceof BinaryDocValuesField) {
+        doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
       } else {
-        Field field1 = f;
-        Field field2 = new Field(field1.name(),
-                                 field1.stringValue(),
-                                 field1.fieldType());
+        Field field2 = new Field(f.name(),
+                                 f.stringValue(),
+                                 f.fieldType());
         doc2.add(field2);
       }
     }
@@ -343,9 +345,9 @@ public class LineFileDocs implements Closeable {
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
     if (addDVFields) {
-    	doc.titleBDV.setBytesValue(new BytesRef(title));
-    	//doc.titleDV.setBytesValue(new BytesRef(title));
-    	doc.titleTokenized.setStringValue(title);
+      //doc.titleBDV.setBytesValue(new BytesRef(title));
+      doc.titleDV.setBytesValue(new BytesRef(title));
+      doc.titleTokenized.setStringValue(title);
     }
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setStringValue(dateString);

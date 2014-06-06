@@ -163,7 +163,7 @@ class SearchTask:
         hitsOther = collapseDups(other.hits)
 
         if len(hitsSelf) != len(hitsOther):
-          self.fail('wrong collapsed hit count: %s vs %s' % (len(hitsSelf), len(hitsOther)))
+          self.fail('self=%s: wrong collapsed hit count: %s vs %s' % (self, len(hitsSelf), len(hitsOther)))
 
         for i in xrange(len(hitsSelf)):
           if hitsSelf[i][1] != hitsOther[i][1]:

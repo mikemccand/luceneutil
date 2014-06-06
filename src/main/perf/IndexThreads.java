@@ -315,26 +315,27 @@ class IndexThreads {
             	updatesListener.beforeUpdate();
             }
             switch (mode) {
-            	case UPDATE:
-            		// NOTE: can't use docState.id in case doClone
-            		// was true
-            		((Document) doc).getField("id").setStringValue(updateID);
-            		w.updateDocument(new Term("id", updateID), doc);
-            		break;
-            	case NDV_UPDATE:
-            		w.updateNumericDocValue(new Term("id", updateID), "lastModNDV", System.currentTimeMillis());
-            		break;
-            	case BDV_UPDATE:
-            		w.updateBinaryDocValue(new Term("id", updateID), "titleBDV", docState.titleBDV.binaryValue());
-            		break;
-            	case ADD:
-            		w.addDocument(doc);
-            		break;
-            	default:
-            		throw new IllegalArgumentException("unknown mode " + mode);
+            case UPDATE:
+              // NOTE: can't use docState.id in case doClone
+              // was true
+              ((Document) doc).getField("id").setStringValue(updateID);
+              w.updateDocument(new Term("id", updateID), doc);
+              break;
+            case NDV_UPDATE:
+              w.updateNumericDocValue(new Term("id", updateID), "lastModNDV", System.currentTimeMillis());
+              break;
+            case BDV_UPDATE:
+              throw new IllegalArgumentException("not implemented!");
+              //w.updateBinaryDocValue(new Term("id", updateID), "titleBDV", docState.titleBDV.binaryValue());
+              //break;
+            case ADD:
+              w.addDocument(doc);
+              break;
+            default:
+              throw new IllegalArgumentException("unknown mode " + mode);
             }
             if (updatesListener != null) {
-            	updatesListener.afterUpdate();
+              updatesListener.afterUpdate();
             }
             count.incrementAndGet();
             threadCount++;

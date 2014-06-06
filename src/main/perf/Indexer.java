@@ -265,7 +265,8 @@ public final class Indexer {
             //} else if (field.equals("$facets_sorted_doc_values")) {
             //return diskDVFormat;
           } else {
-            return directDVFormat;
+            // Use default DVFormat for all else:
+            return super.getDocValuesFormatForField(field);
           }
         }
       };

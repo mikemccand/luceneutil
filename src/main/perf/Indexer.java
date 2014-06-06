@@ -260,7 +260,7 @@ public final class Indexer {
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
-          if (facetFields.contains(field)) {
+          if (facetFields.contains(field) || field.equals("$facets")) {
             return facetsDVFormat;
             //} else if (field.equals("$facets_sorted_doc_values")) {
             //return diskDVFormat;
@@ -277,7 +277,7 @@ public final class Indexer {
 
     final IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter taxoWriter;
-    if (!facetFields.isEmpty()) {
+    if (facetFields.isEmpty() == false) {
       taxoWriter = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
                                                IndexWriterConfig.OpenMode.CREATE);
     } else {

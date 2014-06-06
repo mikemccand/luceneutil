@@ -238,6 +238,7 @@ class Competitor(object):
     for x in files:
       if x.find('SearchGeoNames.java') == -1 and \
          x.find('Search1B.java') == -1 and \
+         x.find('DumpFacets.java') == -1 and \
          x.find('TestAnalyzerPerf.java') == -1 and \
          x.find('SearchNumbers.java') == -1 and \
          x.find('IDPerfTest.java') == -1 and \

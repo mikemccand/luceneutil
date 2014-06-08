@@ -51,7 +51,7 @@ class IndexState {
   public final boolean useHighlighter;
   public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
-  public int[] docIDToID;
+  //public int[] docIDToID;
   public final boolean hasDeletions;
   public final TaxonomyReader taxoReader;
   public final FacetsConfig facetsConfig;
@@ -88,7 +88,9 @@ class IndexState {
     }
   }
 
+  /*
   public void setDocIDToID() throws IOException {
+    long t0 = System.currentTimeMillis();
     IndexSearcher searcher = mgr.acquire();
     try {
       docIDToID = new int[searcher.getIndexReader().maxDoc()];
@@ -104,5 +106,8 @@ class IndexState {
     } finally {
       mgr.release(searcher);
     }
+    long t1 = System.currentTimeMillis();
+    System.out.println((t1-t0) + " msec to set docIDToID");
   }
+  */
 }

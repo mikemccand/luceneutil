@@ -502,7 +502,7 @@ public class SearchPerfTest {
     if (allTasks != null) {
       // Tasks were local: verify checksums:
 
-      indexState.setDocIDToID();
+      // indexState.setDocIDToID();
 
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 

@@ -469,54 +469,59 @@ final class SearchTask extends Task {
 
   @Override
   public void printResults(PrintStream out, IndexState state) throws IOException {
-    if (group != null) {
-      if (singlePassGroup) {
-        for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-          out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-          for(ScoreDoc hit : groupDocs.scoreDocs) {
-            out.println("    doc=" + hit.doc + " score=" + hit.score);
+    IndexSearcher searcher = state.mgr.acquire();
+    try {
+      if (group != null) {
+        if (singlePassGroup) {
+          for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
+            out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+            for(ScoreDoc hit : groupDocs.scoreDocs) {
+              out.println("    doc=" + hit.doc + " score=" + hit.score);
+            }
           }
+        } else {
+          for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
+            out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
+            for(ScoreDoc hit : groupDocs.scoreDocs) {
+              out.println("    doc=" + hit.doc + " score=" + hit.score);
+            }
+          }
+        }
+      } else if (hits instanceof TopFieldDocs) {
+        for(int idx=0;idx<hits.scoreDocs.length;idx++) {
+          FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
+          final Object v = hit.fields[0];
+          final String vs;
+          if (v instanceof Long) {
+            vs = v.toString();
+          } else if (v == null) {
+            vs = "null";
+          } else {
+            vs = ((BytesRef) v).utf8ToString();
+          }
+          out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " " + s.getSort()[0].getField() + "=" + vs);
         }
       } else {
-        for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-          out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-          for(ScoreDoc hit : groupDocs.scoreDocs) {
-            out.println("    doc=" + hit.doc + " score=" + hit.score);
-          }
+        for(ScoreDoc hit : hits.scoreDocs) {
+          out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " score=" + hit.score);
         }
       }
-    } else if (hits instanceof TopFieldDocs) {
-      for(int idx=0;idx<hits.scoreDocs.length;idx++) {
-        FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
-        final Object v = hit.fields[0];
-        final String vs;
-        if (v instanceof Long) {
-          vs = v.toString();
-        } else if (v == null) {
-          vs = "null";
-        } else {
-          vs = ((BytesRef) v).utf8ToString();
+
+      if (hiliteMsec > 0) {
+        out.println(String.format("  hilite time %.4f msec", hiliteMsec));
+      }
+      if (getFacetResultsMsec > 0) {
+        out.println(String.format("  getFacetResults time %.4f msec", getFacetResultsMsec));
+      }
+
+      if (facetResults != null) {
+        out.println("  facets:");
+        for(FacetResult fr : facetResults) {
+          out.println("    " + fr);
         }
-        out.println("  doc=" + state.docIDToID[hit.doc] + " " + s.getSort()[0].getField() + "=" + vs);
       }
-    } else {
-      for(ScoreDoc hit : hits.scoreDocs) {
-        out.println("  doc=" + state.docIDToID[hit.doc] + " score=" + hit.score);
-      }
-    }
-
-    if (hiliteMsec > 0) {
-      out.println(String.format("  hilite time %.4f msec", hiliteMsec));
-    }
-    if (getFacetResultsMsec > 0) {
-      out.println(String.format("  getFacetResults time %.4f msec", getFacetResultsMsec));
-    }
-
-    if (facetResults != null) {
-      out.println("  facets:");
-      for(FacetResult fr : facetResults) {
-        out.println("    " + fr);
-      }
+    } finally {
+      state.mgr.release(searcher);
     }
   }
 }

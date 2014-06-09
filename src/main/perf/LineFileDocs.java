@@ -209,7 +209,7 @@ public class LineFileDocs implements Closeable {
     final Field date;
     //final NumericDocValuesField dateMSec;
     //final LongField rand;
-    //final NumericDocValuesField timeSec;
+    final NumericDocValuesField timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     //final SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
@@ -270,8 +270,8 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      //timeSec = new NumericDocValuesField("timesecnum", 0);
-      //doc.add(timeSec);
+      timeSec = new NumericDocValuesField("timesecnum", 0);
+      doc.add(timeSec);
     }
   }
 
@@ -366,8 +366,9 @@ public class LineFileDocs implements Closeable {
     if (addDVFields) {
       doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
     }
-    //final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-    //doc.timeSec.setLongValue(sec);
+
+    final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
+    doc.timeSec.setLongValue(sec);
 
     if (facetFields.isEmpty() == false) {
       FacetField dateFacetField = new FacetField("Date",

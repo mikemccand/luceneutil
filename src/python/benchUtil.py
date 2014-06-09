@@ -163,7 +163,7 @@ class SearchTask:
         hitsOther = collapseDups(other.hits)
 
         if len(hitsSelf) != len(hitsOther):
-          self.fail('self=%s: wrong collapsed hit count: %s vs %s' % (self, len(hitsSelf), len(hitsOther)))
+          self.fail('self=%s: wrong collapsed hit count: %s vs %s\n  %s vs %s\n  %s vs %s' % (self, len(hitsSelf), len(hitsOther), hitsSelf, hitsOther, self.hits, other.hits))
 
         for i in xrange(len(hitsSelf)):
           if hitsSelf[i][1] != hitsOther[i][1]:
@@ -221,9 +221,7 @@ class SearchTask:
         self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
     
   def fail(self, message):
-    s = 'query=%s filter=%s' % (self.query, self.filter)
-    if self.sort is not None:
-      s += ' sort=%s' % self.sort
+    s = 'query=%s filter=%s sort=%s groupField=%s hitCount=%s' % (self.query, self.filter, self.sort, self.groupField, self.hitCount)
     raise RuntimeError('%s: %s' % (s, message))
 
   def __str__(self):
@@ -362,10 +360,12 @@ def parseResults(resultsFiles):
           # print 'CAT %s' % cat
 
           task.hitCount = int(hitCount)
-          if sort == '<string: "title">':
+          if sort == '<string: "title">' or sort == '<string: "titleDV">':
             task.sort = 'Title'
-          elif sort.startswith('<long: "datenum">'):
+          elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">'):
             task.sort = 'DateTime'
+          elif sort != 'null':
+            raise RuntimeError('could not parse sort: ' % sort)
           else:
             task.sort = None
 

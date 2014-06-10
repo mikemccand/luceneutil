@@ -270,7 +270,7 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      timeSec = new NumericDocValuesField("timesecnum", 0);
+      timeSec = new LongField("timesecnum", 0);
       doc.add(timeSec);
     }
   }

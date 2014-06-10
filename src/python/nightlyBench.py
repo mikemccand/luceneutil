@@ -552,7 +552,6 @@ def run():
                         mergePolicy='LogDocMergePolicy',
                         facets = (('Date',),),
                         maxConcurrentMerges=3,
-                        facetDVFormat='Direct',
                         addDVFields=True)
 
   c = comp.competitor(id, NIGHTLY_DIR,

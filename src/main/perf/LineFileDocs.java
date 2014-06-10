@@ -209,7 +209,7 @@ public class LineFileDocs implements Closeable {
     final Field date;
     //final NumericDocValuesField dateMSec;
     //final LongField rand;
-    final NumericDocValuesField timeSec;
+    final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     //final SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
@@ -270,7 +270,7 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      timeSec = new LongField("timesecnum", 0);
+      timeSec = new LongField("timesecnum", 0, Field.Store.NO);
       doc.add(timeSec);
     }
   }

@@ -270,7 +270,7 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      timeSec = new LongField("timesecnum", 0, Field.Store.NO);
+      timeSec = new IntField("timesecnum", 0, Field.Store.NO);
       doc.add(timeSec);
     }
   }
@@ -368,7 +368,7 @@ public class LineFileDocs implements Closeable {
     }
 
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-    doc.timeSec.setLongValue(sec);
+    doc.timeSec.setIntValue(sec);
 
     if (facetFields.isEmpty() == false) {
       FacetField dateFacetField = new FacetField("Date",

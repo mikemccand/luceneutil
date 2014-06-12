@@ -781,6 +781,11 @@ def makeGraphs():
                         '02/03/2013'):
               # Bug in luceneutil (didn't actually run faceting on these days)
               continue
+          if cat == 'IntNRQ':
+            if date in ('06/09/2014',
+                        '06/10/2014'):
+              # Bug in luceneutil (didn't index numeric field properly)
+              continue
           if date in ('05/16/2014'):
             # But in luceneutil made it look like 0 qps on all queries
             continue

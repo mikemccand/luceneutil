@@ -48,11 +48,11 @@ def gen():
 
     allTimes = set()
     for name in os.listdir(root):
-      if name.startswith('results.%s' % prefix) and name.endswith('.txt'):
-        #print('  %s' % name)
+      if name.endswith('.txt'):
+        # print('  %s' % name)
         if False and name.find('2M') == -1:
           continue
-        label = name[(9+len(prefix)):-4].replace('.10gheap', '')
+        label = name[(1+len(prefix)):-4].replace('.10gheap', '')
         label = label.replace('10M.', '')
         label = label.replace('2M.', '')
         label = label.replace('issue-6212.', 'reuse.')

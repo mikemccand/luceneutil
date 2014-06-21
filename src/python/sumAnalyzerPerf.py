@@ -15,6 +15,11 @@ KNOWN_CHANGES = {
   
   # Known perf changes
   (2014, 3, 19, 'WordDelimiterFilter'): 'LUCENE-5111: Fix WordDelimiterFilter offsets',
+
+  (2014, 5, 4, 'Standard'): 'LUCENE-5638: pack the core attributes into one impl by default',
+  (2014, 5, 4, 'Shingles'): 'LUCENE-5638: pack the core attributes into one impl by default',
+  (2014, 5, 4, 'EdgeNGrams'): 'LUCENE-5638: pack the core attributes into one impl by default',
+  (2014, 5, 4, 'Lowercase'): 'LUCENE-5638: pack the core attributes into one impl by default',
   }
   
 
@@ -120,7 +125,7 @@ with open('analyzers.html', 'w') as f:
       reason = KNOWN_CHANGES.get(tup)
       if reason is None:
         shortText = '?'
-        reason = 'Analyzer changed its behavior for unknown reasons'
+        reason = '%s: Analyzer changed its behavior for unknown reasons' % tup[3]
       else:
         del KNOWN_CHANGES[tup]
         shortText = getLabel(label)

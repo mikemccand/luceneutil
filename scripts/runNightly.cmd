@@ -33,3 +33,7 @@ export PATH=$ANT_HOME/bin:$PATH
 
 /usr/bin/python -uO /lucene/util.nightly/src/python/sumAnalyzerPerf.py >> /lucene/logs.nightly/all.log 2>&1
 
+/usr/bin/python3 -u /home/mike/src/util/runAllESNightly.py >> /lucene/logs.nightly/all.log 2>&1
+
+/usr/bin/python3 -u /home/mike/src/util/esMakeGraph.py >> /lucene/logs.nightly/all.log 2>&1
+

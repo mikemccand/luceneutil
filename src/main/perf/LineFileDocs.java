@@ -71,9 +71,9 @@ public class LineFileDocs implements Closeable {
   private String[] extraFacetFields;
   private final boolean addDVFields;
 
-	public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
-			boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
-			boolean addDVFields) throws IOException {
+  public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
+                      boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
+                      boolean addDVFields) throws IOException {
     this.path = path;
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
@@ -202,14 +202,14 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field titleDV;
-    final BinaryDocValuesField titleBDV;
+    //final BinaryDocValuesField titleBDV;
     final NumericDocValuesField lastModNDV; 
     final Field body;
     final Field id;
     final Field date;
-    final LongField dateMSec;
+    //final NumericDocValuesField dateMSec;
     //final LongField rand;
-    final IntField timeSec;
+    final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
     //final SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
@@ -223,18 +223,17 @@ public class LineFileDocs implements Closeable {
       doc.add(title);
 
       if (addDVFields) {
-//      	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
-//      	doc.add(titleDV);
-      	titleDV = null;
+      	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
+      	doc.add(titleDV);
       	
-      	titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
-      	doc.add(titleBDV);
+      	//titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
+      	//doc.add(titleBDV);
       	
       	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
       	doc.add(lastModNDV);
       } else {
       	titleDV = null;
-      	titleBDV = null;
+      	//titleBDV = null;
       	lastModNDV = null;
       }
       
@@ -265,8 +264,8 @@ public class LineFileDocs implements Closeable {
       date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
 
-      dateMSec = new LongField("datenum", 0L, Field.Store.NO);
-      doc.add(dateMSec);
+      //dateMSec = new NumericDocValuesField("datenum", 0L);
+      //doc.add(dateMSec);
 
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
@@ -291,11 +290,14 @@ public class LineFileDocs implements Closeable {
         doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
       } else if (f instanceof SortedDocValuesField) {
         doc2.add(new SortedDocValuesField(f.name(), f.binaryValue()));
+      } else if (f instanceof NumericDocValuesField) {
+        doc2.add(new NumericDocValuesField(f.name(), f.numericValue().longValue()));
+      } else if (f instanceof BinaryDocValuesField) {
+        doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
       } else {
-        Field field1 = f;
-        Field field2 = new Field(field1.name(),
-                                 field1.stringValue(),
-                                 field1.fieldType());
+        Field field2 = new Field(f.name(),
+                                 f.stringValue(),
+                                 f.fieldType());
         doc2.add(field2);
       }
     }
@@ -308,11 +310,7 @@ public class LineFileDocs implements Closeable {
   //private final Random rand = new Random(17);
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public IndexDocument nextDoc(DocState doc) throws IOException {
-    return nextDoc(doc, null);
-  }
-
-  public IndexDocument nextDoc(DocState doc, Field extraField) throws IOException {
+  public Document nextDoc(DocState doc) throws IOException {
     String line;
     final int myID;
     synchronized(this) {
@@ -347,9 +345,9 @@ public class LineFileDocs implements Closeable {
     final String title = line.substring(0, spot);
     doc.title.setStringValue(title);
     if (addDVFields) {
-    	doc.titleBDV.setBytesValue(new BytesRef(title));
-    	//doc.titleDV.setBytesValue(new BytesRef(title));
-    	doc.titleTokenized.setStringValue(title);
+      //doc.titleBDV.setBytesValue(new BytesRef(title));
+      doc.titleDV.setBytesValue(new BytesRef(title));
+      doc.titleTokenized.setStringValue(title);
     }
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setStringValue(dateString);
@@ -360,14 +358,15 @@ public class LineFileDocs implements Closeable {
     if (date == null) {
       System.out.println("FAILED: " + dateString);
     }
-    doc.dateMSec.setLongValue(date.getTime());
+    //doc.dateMSec.setLongValue(date.getTime());
 
     //doc.rand.setLongValue(rand.nextInt(10000));
 
     doc.dateCal.setTime(date);
     if (addDVFields) {
-    	doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
+      doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
     }
+
     final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     doc.timeSec.setIntValue(sec);
 
@@ -378,9 +377,6 @@ public class LineFileDocs implements Closeable {
                                                  ""+doc.dateCal.get(Calendar.DAY_OF_MONTH));
 
       Document doc2 = cloneDoc(doc.doc);
-      if (extraField != null) {
-        doc2.add(extraField);
-      }
 
       if (facetFields.contains("Date")) {
         doc2.add(dateFacetField);
@@ -434,10 +430,8 @@ public class LineFileDocs implements Closeable {
       }
       return facetsConfig.build(taxoWriter, doc2);
     } else if (doClone) {
-      // nocommit what about extraField?
       return cloneDoc(doc.doc);
     } else {
-      // nocommit what about extraField?
       return doc.doc;
     }
   }

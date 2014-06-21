@@ -33,7 +33,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene46.Lucene46Codec;
+import org.apache.lucene.codecs.lucene49.Lucene49Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -147,7 +147,7 @@ public final class Indexer {
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
-      facetDVFormatName = "Lucene45";
+      facetDVFormatName = "Lucene49";
     } else {
       facetDVFormatName = args.getString("-facetDVFormat");
     }
@@ -245,7 +245,7 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Codec codec = new Lucene46Codec() {
+    final Codec codec = new Lucene49Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
@@ -260,12 +260,14 @@ public final class Indexer {
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
-          if (facetFields.contains(field)) {
+          if (facetFields.contains(field) || field.equals("$facets")) {
             return facetsDVFormat;
             //} else if (field.equals("$facets_sorted_doc_values")) {
             //return diskDVFormat;
           } else {
-            return directDVFormat;
+            // Use default DVFormat for all else:
+            System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
+            return super.getDocValuesFormatForField(field);
           }
         }
       };
@@ -276,7 +278,7 @@ public final class Indexer {
 
     final IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter taxoWriter;
-    if (!facetFields.isEmpty()) {
+    if (facetFields.isEmpty() == false) {
       taxoWriter = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
                                                IndexWriterConfig.OpenMode.CREATE);
     } else {

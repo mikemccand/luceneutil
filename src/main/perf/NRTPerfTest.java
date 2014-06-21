@@ -38,7 +38,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene46.Lucene46Codec;
+import org.apache.lucene.codecs.lucene49.Lucene49Codec;
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
@@ -306,7 +306,7 @@ public class NRTPerfTest {
 		conf.setMaxThreadStates(numIndexThreads);
 		//iwc.setMergeScheduler(ms);
 
-		final Codec codec = new Lucene46Codec() {
+		final Codec codec = new Lucene49Codec() {
 			@Override
 			public PostingsFormat getPostingsFormatForField(String field) {
 				if (field.equals("id")) {

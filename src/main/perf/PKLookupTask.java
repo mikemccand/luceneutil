@@ -141,12 +141,14 @@ final class PKLookupTask extends Task {
         }
       }
 
+      /*
       final int id = LineFileDocs.idToInt(ids[idx]);
       //System.out.println("  " + id + " -> " + answers[idx]);
       final int actual = state.docIDToID[answers[idx]];
       if (actual != id) {
         throw new RuntimeException("PKLookup: id=" + LineFileDocs.intToID(id) + " returned doc with id=" + LineFileDocs.intToID(actual) + " docID=" + answers[idx]);
       }
+      */
     }
   }
 }

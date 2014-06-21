@@ -259,6 +259,14 @@ KNOWN_CHANGES = [
   ('2014-02-06',
    'LUCENE-5425: performance improvement for FixedBitSet.iterator',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5425">LUCENE-5425: performance improvement for FixedBitSet.iterator</a>',),
+
+  ('2014-04-05',
+   'LUCENE-5527: LeafCollector (made CachingCollector slower)',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5527">LUCENE-527: LeafCollector (made CachingCollector slower)</a>',),
+
+  ('2014-06-10',
+   'Switched from DirectDVFormat to Lucene\'s default for Date facet field',
+   'Switched from DirectDVFormat to Lucene\'s default for Date facet field'),
    ]
 
 # TODO
@@ -548,7 +556,7 @@ def run():
                         mergePolicy='LogDocMergePolicy',
                         facets = (('Date',),),
                         maxConcurrentMerges=3,
-                        facetDVFormat='Direct')
+                        addDVFields=True)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
@@ -776,6 +784,11 @@ def makeGraphs():
             if date in ('02/02/2013',
                         '02/03/2013'):
               # Bug in luceneutil (didn't actually run faceting on these days)
+              continue
+          if cat == 'IntNRQ':
+            if date in ('06/09/2014',
+                        '06/10/2014'):
+              # Bug in luceneutil (didn't index numeric field properly)
               continue
           if date in ('05/16/2014'):
             # But in luceneutil made it look like 0 qps on all queries

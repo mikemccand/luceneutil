@@ -164,3 +164,16 @@ def filterCWD(l):
     l2.append(e)
   return l2
 
+def getLatestModTime(path, extension=None):
+  '''
+  Returns latest modified time of all files with the specified extension under the specified path.
+  '''
+  modTime = 0
+  for root, dirs, files in os.walk(path):
+    for file in files:
+      if extension is None or file.endswith(extension):
+        fullPath = '%s/%s' % (root, file)
+        if os.path.isfile(fullPath):
+          modTime = max(os.path.getmtime(fullPath), modTime)
+  return modTime
+  

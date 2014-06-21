@@ -20,6 +20,7 @@ import searchBench
 import benchUtil
 import constants
 import random
+import common
 
 class Data(object):
   
@@ -220,25 +221,34 @@ class Competitor(object):
 
   def compile(self, cp):
     root = benchUtil.checkoutToUtilPath(self.checkout)
+
     perfSrc = os.path.join(root, "src/main")
+      
     buildDir = os.path.join(root, "build")
     if not os.path.exists(buildDir):
       os.makedirs(buildDir)
+
+    # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
+    if common.getLatestModTime(perfSrc) <= common.getLatestModTime(buildDir, '.class'):
+      return
+    
     files = benchUtil.addFiles(perfSrc)
 
     newFiles = []
     for x in files:
       if x.find('SearchGeoNames.java') == -1 and \
          x.find('Search1B.java') == -1 and \
+         x.find('DumpFacets.java') == -1 and \
          x.find('TestAnalyzerPerf.java') == -1 and \
          x.find('SearchNumbers.java') == -1 and \
          x.find('IDPerfTest.java') == -1 and \
          x.find('FlakeID.java') == -1 and \
-         x.find('TestAnalyzerPerf4x.java') == -1:
+         x.find('TestAnalyzerPerf4x.java') == -1 and \
+         os.path.isfile(x):
         newFiles.append(x)
 
     files = newFiles
-    
+
     print('files %s' % files)
     
     benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))

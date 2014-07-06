@@ -84,12 +84,15 @@ class Remote(threading.Thread):
         msg('local: %s: WARNING rsync failed' % self.hostName)
       msg('local: %s: rsync took %.1f sec' % (self.hostName, time.time()-t))
       os.system('scp %s/remoteTestServer.py "%s@%s:%s" > /dev/null 2>&1' % (constants.BENCH_BASE_DIR, USERNAME, self.hostName, constants.BENCH_BASE_DIR))
+      msg('local: %s: done scp' % self.hostName)
 
     os.system('ssh %s "killall java >& /dev/null"' % self.hostName)
+    msg('local: %s: done killall' % self.hostName)
     for line in os.popen('ssh %s "ps axu | grep \'remoteTestServer.py %s\' | grep -v grep"' % (self.hostName, self.hostName)).readlines():
       pid = line.strip().split()[1]
       os.system('ssh %s kill -9 %s' % (self.hostName, pid))
       msg('local: kill pid %s on %s' % (pid, self.hostName))
+    msg('local: %s: done kill remoteTestServer' % self.hostName)
 
     cmd = 'ssh -Tx %s@%s python -u %s/remoteTestServer.py %s %s %s %s \'"%s"\'' % \
               (USERNAME,

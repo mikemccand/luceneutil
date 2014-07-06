@@ -1,3 +1,4 @@
+import socket
 import os
 import sys
 import re
@@ -9,6 +10,8 @@ r2 = re.compile(r'^Indexer: (\d+) docs... \(([0-9\.]+) msec\)$')
 r3 = re.compile(r'^Indexer: (\d+) docs: ([0-9\.]+) sec')
 
 pointsCache = {}
+destFile = '/x/tmp/results.%s.html' % socket.gethostname()
+print('Will write to %s' % destFile)
 
 def loadPoints(fileName):
   #print('load %s' % fileName)
@@ -125,7 +128,7 @@ def gen():
 
   w('</html>')
 
-  f = open('/x/tmp/results.html', 'w')
+  f = open(destFile, 'w')
   f.write(''.join(x))
   f.close()
 

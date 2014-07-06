@@ -19,6 +19,7 @@ import os
 import sys
 import urllib
 import shutil
+import time
 
 BASE_URL = 'http://people.apache.org/~mikemccand'
 DATA_FILES = [
@@ -81,13 +82,48 @@ def runSetup(download):
         print 'file %s already exists - skipping' % (target_file)
       else:
         print 'download ', url, ' - might take a long time!'
-        urllib.urlretrieve(url, filename=target_file)
+        Downloader(url, target_file).download()
+        print ''
         print 'downloading %s to  %s done ' % (url, target_file)
       if target_file.endswith('.bz2') or target_file.endswith('.lzma'):
         print 'NOTE: make sure you decompress %s' % (target_file)
 
   print 'setup successful'
     
+class Downloader:
+  HISTORY_SIZE = 100
+
+  def __init__(self, url, target_path):
+    self.__url = url
+    self.__target_path = target_path
+    Downloader.times = [time.time()] * Downloader.HISTORY_SIZE
+    Downloader.sizes = [0] * Downloader.HISTORY_SIZE
+    Downloader.index = 0
+
+  def download(self):
+    urllib.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
+
+  @staticmethod
+  def reporthook(count, block_size, total_size):
+    current_time = time.time()
+    current_size = long(count * block_size)
+    last_time = Downloader.times[Downloader.index]
+    last_size = Downloader.sizes[Downloader.index]
+    delta_size = current_size - last_size
+    delta_time = current_time - last_time
+    Downloader.times[Downloader.index] = current_time
+    Downloader.sizes[Downloader.index] = current_size
+    Downloader.index = (Downloader.index + 1) % Downloader.HISTORY_SIZE;
+
+    speed = float(delta_size) / (1024 * delta_time)
+    precent = int(current_size / total_size * 100)
+    sys.stdout.write('\r ')
+#    sys.stdout.write('(%d, %d), (%d, %d), (%d, %d) ' % (current_size, current_time, last_size, last_time, delta_size, delta_time))
+    sys.stdout.write('downloading ... %d%%, %.2f MB/%.2fMB, speed %.2f KB/s' % \
+        (precent, float(current_size) / (1024 * 1024), float(total_size) / (1024 * 1024), speed))
+    sys.stdout.flush()
+  
+
 if __name__ == '__main__':
   if '-help' in sys.argv or '--help' in sys.argv:
     print USAGE

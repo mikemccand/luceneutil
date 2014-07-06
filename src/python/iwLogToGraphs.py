@@ -19,7 +19,8 @@ reMergeStart = re.compile(r'merge seg=(.*?) ')
 reMergeEnd = re.compile(r'merged segment size=(.*?) MB')
 reGetReader = re.compile(r'getReader took (\d+) msec')
 reThreadName = re.compile(r'^IW \d+ \[.*?; (.*?)\]:')
-reThreadNameES = re.compile(r'[lucene.iw\s*].*? elasticsearch\[.*?\](\[.*?\]\[.*?\]) IW')
+reThreadNameES = re.compile(r' elasticsearch\[.*?\](\[.*?\]\[.*?\]) IW')
+reThreadNameES2 = re.compile(r' elasticsearch\[.*?\]\[\[.*?\]\[.*?\]: (.*?)\]\]:')
 reIndexedDocCount = re.compile(r'^Indexer: (\d+) docs: ([0-9\.]+) sec')        
 
 def parseTime(line):
@@ -56,11 +57,12 @@ class RollingTimeWindow:
       self.pruned = True
 
 def parseThreadName(line):
-  m = reThreadName.search(line)
-  if m is not None:
-    threadName = m.group(1)
-  else:
-    return reThreadNameES.search(line).group(1)
+  for r in reThreadNameES, reThreadNameES2, reThreadName:
+    m = r.search(line)
+    if m is not None:
+      return m.group(1)
+
+  print('no thread name: line=%s' % line)
 
 def main():
   segCounts = []
@@ -145,6 +147,8 @@ def main():
           del mergeThreads[threadName]
           merges.append(['end', threadName] + parseTime(line) + [mergeSize])
           runningMerges -= 1
+        else:
+          print('WARNING: thread %s missing from mergeThreads' % threadName)
         
       m = reFindMerges.search(line)
       #if m is not None and line.find('[es1][bulk]') != -1:
@@ -351,7 +355,7 @@ def main():
         event, threadName, hr, min, sec, mergeMB = tup
         #if mergeMB > 0:
         #  mergeMB = math.log(mergeMB)/math.log(2.0)
-        
+
         l = ['0'] * maxRunningMerges
         for ign, (id, size) in runningMerges.items():
           l[id] = '%.1f' % size

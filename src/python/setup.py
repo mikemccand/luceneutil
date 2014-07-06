@@ -116,11 +116,11 @@ class Downloader:
     Downloader.index = (Downloader.index + 1) % Downloader.HISTORY_SIZE;
 
     speed = float(delta_size) / (1024 * delta_time)
-    precent = int(current_size / total_size * 100)
+    percent = int(current_size * 100 / total_size)
     sys.stdout.write('\r ')
 #    sys.stdout.write('(%d, %d), (%d, %d), (%d, %d) ' % (current_size, current_time, last_size, last_time, delta_size, delta_time))
     sys.stdout.write('downloading ... %d%%, %.2f MB/%.2fMB, speed %.2f KB/s' % \
-        (precent, float(current_size) / (1024 * 1024), float(total_size) / (1024 * 1024), speed))
+        (percent, float(current_size) / (1024 * 1024), float(total_size) / (1024 * 1024), speed))
     sys.stdout.flush()
   
 

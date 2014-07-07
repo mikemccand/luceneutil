@@ -167,8 +167,9 @@ def main():
       m = reMergeStart.search(line)
       if m is not None:
         # A merge kicked off
-        mergeThreads[threadName] = len(merges)
-        merges.append(['start', threadName] + t)
+        key = shardTup + (threadName,)
+        mergeThreads[key] = len(merges)
+        merges.append(['start', key] + t)
         runningMerges += 1
         # print("mergeStart: %s, running=%d" % (threadName, runningMerges))
         maxRunningMerges = max(maxRunningMerges, runningMerges)
@@ -176,15 +177,16 @@ def main():
       m = reMergeEnd.search(line)
       if m is not None:
         # A merge finished
+        key = shardTup + (threadName,)
         mergeSize = float(m.group(1))
 
         # print("mergeFinish: %s" % threadName)
 
         # Might not be present if IW infoStream was enabled "mid flight":
-        if threadName in mergeThreads:
-          merges[mergeThreads[threadName]].append(mergeSize)
-          del mergeThreads[threadName]
-          merges.append(['end', threadName] + t + [mergeSize])
+        if key in mergeThreads:
+          merges[mergeThreads[key]].append(mergeSize)
+          del mergeThreads[key]
+          merges.append(['end', key] + t + [mergeSize])
           runningMerges -= 1
         else:
           print('WARNING: thread %s missing from mergeThreads' % threadName)
@@ -334,6 +336,7 @@ def main():
 
     endChart(w)
 
+
     # Running merges
     startChart(w, 'runningMerges', 'Running Merges (GB)')
 
@@ -347,7 +350,7 @@ def main():
     ids = set(range(maxRunningMerges))
     for tup in merges:
       if len(tup) == 9:
-        event, threadName, year, month, day, hr, min, sec, mergeMB = tup
+        event, key, year, month, day, hr, min, sec, mergeMB = tup
         #if mergeMB > 0:
         #  mergeMB = math.log(mergeMB)/math.log(2.0)
 
@@ -357,11 +360,11 @@ def main():
         w('%s,%s\\n' % (formatTime(year, month, day, hr, min, sec), ','.join(l)))
 
         if event == 'end':
-          ids.add(runningMerges[threadName][0])
-          del runningMerges[threadName]
+          ids.add(runningMerges[key][0])
+          del runningMerges[key]
         else:
           id = ids.pop()
-          runningMerges[threadName] = id, mergeMB
+          runningMerges[key] = id, mergeMB
 
         l = ['0'] * maxRunningMerges
         for ign, (id, size) in runningMerges.items():
@@ -369,6 +372,32 @@ def main():
         w('%s,%s\\n' % (formatTime(year, month, day, hr, min, sec), ','.join(l)))
 
     endChart(w)
+
+    # Running merges
+    startChart(w, 'runningMergeCount', 'Running Merge Count')
+
+    headers = ['Date'] + ['MergeCount']
+    w('    "%s\\n" + \n"' % ','.join(headers))
+
+    # Thread name -> id, size
+    runningMerges = {}
+
+    w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+    mergeCount = 0
+    for tup in merges:
+      if len(tup) == 9:
+        event, key, year, month, day, hr, min, sec, mergeMB = tup
+        if event == 'start':
+          mergeCount += 1
+        elif event == 'end':
+          mergeCount -= 1
+        else:
+          raise RuntimeError()
+
+        w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), mergeCount))
+
+    endChart(w)
+
 
     # Index size GB
     startChart(w, 'indexSizeGB', 'Index Size GB')

@@ -266,7 +266,7 @@ public final class Indexer {
             //return diskDVFormat;
           } else {
             // Use default DVFormat for all else:
-            System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
+            // System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
             return super.getDocValuesFormatForField(field);
           }
         }

@@ -299,7 +299,7 @@ public class NRTPerfTest {
 		// Open an IW on the requested commit point, but, don't
 		// delete other (past or future) commit points:
 		// TODO take Analyzer as parameter
-		StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET);
+		StandardAnalyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
 		final IndexWriterConfig conf = new IndexWriterConfig(Version.LUCENE_5_0, analyzer);
 		conf.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 		conf.setRAMBufferSizeMB(256.0);
@@ -382,7 +382,7 @@ public class NRTPerfTest {
 		final DirectSpellChecker spellChecker = new DirectSpellChecker();
 		final IndexState indexState = new IndexState(manager, null, field, spellChecker, "PostingsHighlighter", null);
 		final Map<Double,Filter> filters = new HashMap<Double,Filter>();
-		final QueryParser qp = new QueryParser(Version.LUCENE_5_0, field, analyzer);
+		final QueryParser qp = new QueryParser(field, analyzer);
 		qp.setLowercaseExpandedTerms(false);
 		TaskParser taskParser = new TaskParser(indexState, qp, field, filters, 10, random, true);
 		final TaskSource tasks = new RandomTaskSource(taskParser, tasksFile, random) {

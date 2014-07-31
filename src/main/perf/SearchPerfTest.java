@@ -222,15 +222,15 @@ public class SearchPerfTest {
  
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer();
+      a = new EnglishAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("ClassicAnalyzer")) {
-      a = new ClassicAnalyzer();
+      a = new ClassicAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer();
+      a = new StandardAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET),
                                      2, 2, ShingleFilter.DEFAULT_TOKEN_SEPARATOR, true, true, ShingleFilter.DEFAULT_FILLER_TOKEN);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);
@@ -453,7 +453,7 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig);
 
     Map<Double,Filter> filters = new HashMap<Double,Filter>();
-    final QueryParser queryParser = new QueryParser("body", a);
+    final QueryParser queryParser = new QueryParser(Version.LUCENE_5_0, "body", a);
     queryParser.setLowercaseExpandedTerms(false);
     TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, filters, topN, staticRandom, doStoredLoads);
 

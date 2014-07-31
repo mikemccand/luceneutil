@@ -329,7 +329,8 @@ public class IDPerfTest {
   private static Result testOne(String indexPath, String desc, IDIterator ids, final int minTermsInBlock, final int maxTermsInBlock) throws IOException {
     System.out.println("\ntest: " + desc + " termBlocks=" + minTermsInBlock + "/" + maxTermsInBlock);
     Directory dir = FSDirectory.open(new File(indexPath));
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_4_8, new StandardAnalyzer());
+    //IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_4_8, new StandardAnalyzer(Version.LUCENE_4_8));
     iwc.setMergeScheduler(new SerialMergeScheduler());
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     // So I can walk the files and get the *.tip sizes:

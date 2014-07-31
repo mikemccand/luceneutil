@@ -95,16 +95,16 @@ public final class Indexer {
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer();
+      a = new EnglishAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer();
+      a = new StandardAnalyzer(Version.LUCENE_5_0);
     } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(CharArraySet.EMPTY_SET);
+      a = new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET);
     } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_5_0),
                                      2, 2);
     } else if (analyzer.equals("ShingleStandardAnalyzerNoStopWords")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(CharArraySet.EMPTY_SET),
+      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(Version.LUCENE_5_0, CharArraySet.EMPTY_SET),
                                      2, 2);
     } else {
       throw new RuntimeException("unknown analyzer " + analyzer);

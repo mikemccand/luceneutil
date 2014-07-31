@@ -165,7 +165,7 @@ public class TestAnalyzerPerf4x {
 
   public static void main(String[] args) throws Exception {
     File wikiLinesFile = new File(args[0]);
-    testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(CharArraySet.EMPTY_SET));
+    testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(Version.LUCENE_CURRENT, CharArraySet.EMPTY_SET));
     testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
     testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
     testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());

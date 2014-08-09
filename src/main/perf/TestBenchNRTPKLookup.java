@@ -50,7 +50,7 @@ public class TestBenchNRTPKLookup {
     Directory dir = new MMapDirectory(new File(args[0]));
     //Directory dir = new NIOFSDirectory(new File(args[0]));
     IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0,
-        new StandardAnalyzer(Version.LUCENE_5_0));
+        new StandardAnalyzer());
     iwc.setRAMBufferSizeMB(250);
     IndexWriter writer = new IndexWriter(dir, iwc);
     final SearcherManager manager = new SearcherManager(writer, true, new SearcherFactory() {

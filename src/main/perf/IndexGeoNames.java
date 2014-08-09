@@ -71,7 +71,7 @@ public class IndexGeoNames {
 
     Directory dir = FSDirectory.open(indexPath);
     //IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer(Version.LUCENE_5_0));
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer());
     //iwc.setRAMBufferSizeMB(350);
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {

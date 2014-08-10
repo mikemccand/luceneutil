@@ -190,7 +190,7 @@ public final class Indexer {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, a);
+    final IndexWriterConfig iwc = new IndexWriterConfig(a);
 
     iwc.setMaxThreadStates(numThreads);
 
@@ -382,7 +382,10 @@ public final class Indexer {
 
     System.out.println("\nIndexer: at close: " + w.segString());
     final long tCloseStart = System.currentTimeMillis();
-    w.shutdown(waitForMerges);
+    if (waitForMerges == false) {
+      w.abortMerges();
+    }
+    w.close();
     System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
     final long tFinal = System.currentTimeMillis();

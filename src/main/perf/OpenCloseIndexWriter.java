@@ -32,7 +32,7 @@ public class OpenCloseIndexWriter {
     final String dirPath = args[0];
     final Directory dir = new MMapDirectory(new File(dirPath));
     final Analyzer a = new StandardAnalyzer(CharArraySet.EMPTY_SET);
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, a);
+    final IndexWriterConfig iwc = new IndexWriterConfig(a);
     final IndexWriter writer = new IndexWriter(dir, iwc);
     System.out.println("Segments: " + writer.segString());
     writer.close();

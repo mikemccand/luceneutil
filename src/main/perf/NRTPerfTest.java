@@ -300,7 +300,7 @@ public class NRTPerfTest {
 		// delete other (past or future) commit points:
 		// TODO take Analyzer as parameter
 		StandardAnalyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
-		final IndexWriterConfig conf = new IndexWriterConfig(Version.LUCENE_5_0, analyzer);
+		final IndexWriterConfig conf = new IndexWriterConfig(analyzer);
 		conf.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 		conf.setRAMBufferSizeMB(256.0);
 		conf.setMaxThreadStates(numIndexThreads);
@@ -458,9 +458,10 @@ public class NRTPerfTest {
 
 		manager.close();
 		if (doCommit) {
-			w.shutdown(false);
+                  w.abortMerges();
+                  w.close();
 		} else {
-			w.rollback();
+                  w.rollback();
 		}
 	}
 

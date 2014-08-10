@@ -42,7 +42,7 @@ public class IndexGeoNames2 {
 
     Directory dir = FSDirectory.open(indexPath);
     IndexWriter iw = new IndexWriter(dir, 
-        new IndexWriterConfig(Version.LUCENE_5_0, null)
+        new IndexWriterConfig(null)
              .setRAMBufferSizeMB(50)
              //.setRAMBufferSizeMB(1)
              .setOpenMode(IndexWriterConfig.OpenMode.CREATE)
@@ -73,7 +73,7 @@ public class IndexGeoNames2 {
       iw.addDocument(doc);
     }
     r.close();
-    iw.shutdown();
+    iw.close();
     dir.close();
   }
 }

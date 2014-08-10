@@ -75,7 +75,7 @@ public class Index1BNumbers {
     }
 
     Directory dir = FSDirectory.open(indexPath);
-    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, new StandardAnalyzer());
+    IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
     iwc.setRAMBufferSizeMB(512);
     final IndexWriter w = new IndexWriter(dir, iwc);
 
@@ -126,7 +126,7 @@ public class Index1BNumbers {
     long ms = System.currentTimeMillis();
     System.out.println(docsIndexed + ": " + ((ms - startMS)/1000.0) + " sec");
     //System.out.println("tot conflicts: " + BytesRefHash.totConflict);
-    w.shutdown();
+    w.close();
     dir.close();
   }
 }

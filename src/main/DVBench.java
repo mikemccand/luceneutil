@@ -61,7 +61,7 @@ public class DVBench {
     File file = new File("/data/indices/dvbench");
     file.mkdirs();
     Directory dir = FSDirectory.open(file);
-    IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_CURRENT, null);
+    IndexWriterConfig config = new IndexWriterConfig(null);
     config.setOpenMode(OpenMode.CREATE);
     config.setMergeScheduler(new SerialMergeScheduler());
     config.setMergePolicy(new LogDocMergePolicy());
@@ -98,7 +98,7 @@ public class DVBench {
       writer.addDocument(doc);
     }
     
-    writer.shutdown();
+    writer.close();
     
     // run dv search tests
     String description = "dv (bpv=" + bpv + ")";

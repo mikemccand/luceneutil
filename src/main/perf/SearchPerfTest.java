@@ -283,7 +283,7 @@ public class SearchPerfTest {
 
       dir = dir0;
 
-      final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_5_0, a);
+      final IndexWriterConfig iwc = new IndexWriterConfig(a);
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
       iwc.setRAMBufferSizeMB(256.0);
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);

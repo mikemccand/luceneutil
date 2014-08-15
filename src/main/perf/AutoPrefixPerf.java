@@ -56,16 +56,22 @@ import org.apache.lucene.index.CheckIndex;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.SegmentCommitInfo;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.AttributeImpl;
@@ -94,6 +100,8 @@ public class AutoPrefixPerf {
     boolean useNumericField = (precStep != 0);
 
     BytesRefBuilder binaryToken = new BytesRefBuilder();
+    binaryToken.grow(8);
+    binaryToken.setLength(8);
 
     int minTermsInPrefix = Integer.parseInt(args[4]);
     Directory dir = FSDirectory.open(indexPath);
@@ -114,7 +122,8 @@ public class AutoPrefixPerf {
         if (minTermsInPrefix == 0) {
           throw new IllegalArgumentException("one of precStep or minTermsInPrefix must be non-zero");
         }
-        pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, (minTermsInPrefix-1)*2);
+        //pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, (minTermsInPrefix-1)*2);
+        pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, Integer.MAX_VALUE);
       }
 
       iwc.setCodec(new Lucene49Codec() {
@@ -167,7 +176,11 @@ public class AutoPrefixPerf {
         if (useNumericField) {
           field.setLongValue(v);
         } else {
-          NumericUtils.longToPrefixCoded(v, 0, binaryToken);
+          //NumericUtils.longToPrefixCoded(v, 0, binaryToken);
+          longToBytes(v, binaryToken);
+          //if (bytesToLong(binaryToken.get()) != v) {
+          //  throw new RuntimeException("wrong long: v=" + v + " vs " + bytesToLong(binaryToken.get()));
+          //}
         }
         w.addDocument(doc);
         count++;
@@ -193,6 +206,15 @@ public class AutoPrefixPerf {
       if (status.clean == false) {
         throw new IllegalStateException("CheckIndex failed");
       }
+
+      SegmentInfos infos = new SegmentInfos();
+      infos.read(dir);
+
+      long totBytes = 0;
+      for(SegmentCommitInfo info : infos) {
+        totBytes += info.sizeInBytes();
+      }
+      System.out.println("\nTotal index size: " + totBytes + " bytes");
     } else {
       System.out.println("Skip indexing: index already exists");
     }
@@ -216,9 +238,9 @@ public class AutoPrefixPerf {
                                                    minValue, maxValue,
                                                    true, true));
       } else {
-        NumericUtils.longToPrefixCoded(minValue, 0, binaryToken);
+        longToBytes(minValue, binaryToken);
         BytesRef minTerm = binaryToken.toBytesRef();
-        NumericUtils.longToPrefixCoded(maxValue, 0, binaryToken);
+        longToBytes(maxValue, binaryToken);
         BytesRef maxTerm = binaryToken.toBytesRef();
         queries.add(new TermRangeQuery("number", minTerm, maxTerm, true, true));
       }
@@ -230,15 +252,21 @@ public class AutoPrefixPerf {
 
     DirectoryReader r = DirectoryReader.open(dir);
     IndexSearcher s = new IndexSearcher(r);
+
+    printQueryTerms((MultiTermQuery) queries.get(0), s);
+
     long bestMS = Long.MAX_VALUE;
     for(int iter=0;iter<10;iter++) {
       long startMS = System.currentTimeMillis();
       long totalHits = 0;
+      long hash = 0;
       for(Query query : queries) {
-        totalHits += s.search(query, 10).totalHits;
+        TopDocs hits = s.search(query, 10);
+        totalHits += hits.totalHits;
+        hash = hash * 31 + hits.totalHits; 
       }
       long ms = System.currentTimeMillis() - startMS;
-      System.out.println("iter " + iter + ": " + ms + " msec; totalHits=" + totalHits);
+      System.out.println("iter " + iter + ": " + ms + " msec; totalHits=" + totalHits + " hash=" + hash);
       if (ms < bestMS) {
         System.out.println("  **");
         bestMS = ms;
@@ -257,6 +285,67 @@ public class AutoPrefixPerf {
 
     r.close();
     dir.close();
+  }
+
+  private static void longToBytes(long v, BytesRefBuilder token) {
+    // Like NumericUtils.longToPrefixCodedBytes, but without the
+    // prefix byte, and fully binary encoding (not 7 bit clean):
+    long sortableBits = v ^ 0x8000000000000000L;
+    int index = 7;
+    while (index >= 0) {
+      token.setByteAt(index, (byte) (sortableBits & 0xffL));
+      index--;
+      sortableBits >>>= 8;
+    }
+  }
+
+  private static long bytesToLong(BytesRef term) {
+    long v = 0;
+    for(int i=0;i<8;i++) {
+      v <<= 8;
+      v |= (term.bytes[term.offset+i] & 0xffL);
+    }
+    return v ^ 0x8000000000000000L;
+  }
+
+  private static void printQueryTerms(final MultiTermQuery mtq, final IndexSearcher searcher) throws IOException {
+    final AtomicInteger termCount = new AtomicInteger();
+    final AtomicInteger docCount = new AtomicInteger();
+    // TODO: is there an easier way to see terms an MTQ matches?  this is awkward
+    MultiTermQuery.RewriteMethod rewriter = mtq.getRewriteMethod();
+    if (mtq instanceof TermRangeQuery) {
+      TermRangeQuery trq = (TermRangeQuery) mtq;
+      BytesRef lowerTerm = trq.getLowerTerm();
+      BytesRef upperTerm = trq.getUpperTerm();
+      System.out.println("query: " +
+                         bytesToLong(lowerTerm) + " " + lowerTerm +
+                         " - " +
+                         bytesToLong(upperTerm) + " " + upperTerm);
+    } else {
+      System.out.println("query: " + mtq);
+    }
+    System.out.println("  query matches " + searcher.search(mtq, 1).totalHits + " docs");
+    mtq.setRewriteMethod(new MultiTermQuery.RewriteMethod() {
+        @Override
+        public Query rewrite(IndexReader reader, MultiTermQuery query) throws IOException {
+          for(AtomicReaderContext ctx : searcher.getIndexReader().leaves()) {
+            TermsEnum termsEnum = getTermsEnum(mtq, ctx.reader().fields().terms(mtq.getField()), null);
+            System.out.println("  reader=" + ctx.reader());
+            BytesRef term;
+            while ((term = termsEnum.next()) != null) {
+              System.out.println("  term: len=" + term.length + " " + term + " dF=" + termsEnum.docFreq());
+              termCount.incrementAndGet();
+              docCount.addAndGet(termsEnum.docFreq());
+            }
+          }
+
+          return null;
+        }
+      });
+    mtq.rewrite(searcher.getIndexReader());
+    System.out.println("  total terms: " + termCount);
+    System.out.println("  total docs: " + docCount);
+    mtq.setRewriteMethod(rewriter);
   }
 
   // TODO: do we need a BinaryField?  This is too hard...:

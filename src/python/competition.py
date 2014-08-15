@@ -244,6 +244,7 @@ class Competitor(object):
          x.find('IDPerfTest.java') == -1 and \
          x.find('FlakeID.java') == -1 and \
          x.find('TestAnalyzerPerf4x.java') == -1 and \
+         x.find('AutoPrefixPerf.java') == -1 and \
          os.path.isfile(x):
         newFiles.append(x)
 

@@ -21,6 +21,7 @@ import java.util.Arrays;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IntsRef;
+import org.apache.lucene.util.IntsRefBuilder;
 import org.apache.lucene.util.fst.Builder;
 import org.apache.lucene.util.fst.ByteSequenceOutputs;
 import org.apache.lucene.util.fst.FST;
@@ -101,13 +102,17 @@ public class BuildFST {
     if (numeric) {
       Builder<Long> b = new Builder<Long>(FST.INPUT_TYPE.BYTE1, outputs);
       for(Pair pair : inputs) {
-        b.add(Util.toIntsRef(pair.input, new IntsRef()), (Long) pair.output);
+        IntsRefBuilder intsBuilder = new IntsRefBuilder();
+        Util.toIntsRef(pair.input, intsBuilder);
+        b.add(intsBuilder.get(), (Long) pair.output);
       }
       fst = b.finish();
     } else {
       Builder<BytesRef> b = new Builder<BytesRef>(FST.INPUT_TYPE.BYTE1, outputs);
       for(Pair pair : inputs) {
-        b.add(Util.toIntsRef(pair.input, new IntsRef()), (BytesRef) pair.output);
+        IntsRefBuilder intsBuilder = new IntsRefBuilder();
+        Util.toIntsRef(pair.input, intsBuilder);
+        b.add(intsBuilder.get(), (BytesRef) pair.output);
       }
       fst = b.finish();
     }

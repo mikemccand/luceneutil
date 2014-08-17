@@ -147,7 +147,7 @@ public final class Indexer {
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
-      facetDVFormatName = "Lucene49";
+      facetDVFormatName = "Lucene410";
     } else {
       facetDVFormatName = args.getString("-facetDVFormat");
     }

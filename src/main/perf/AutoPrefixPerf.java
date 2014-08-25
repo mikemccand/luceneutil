@@ -59,6 +59,7 @@ import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
@@ -98,17 +99,26 @@ public class AutoPrefixPerf {
 
     int precStep = Integer.parseInt(args[3]);
     boolean useNumericField = (precStep != 0);
+    int maxTermsInPrefix;
+    int minTermsInPrefix;
+    if (useNumericField == false) {
+      minTermsInPrefix = Integer.parseInt(args[4]);
+      maxTermsInPrefix = Integer.parseInt(args[5]);
+    } else {
+      minTermsInPrefix = 0;
+      maxTermsInPrefix = 0;
+    }
 
     BytesRefBuilder binaryToken = new BytesRefBuilder();
     binaryToken.grow(8);
     binaryToken.setLength(8);
 
-    int minTermsInPrefix = Integer.parseInt(args[4]);
     Directory dir = FSDirectory.open(indexPath);
     if (indexPath.exists() == false) {
       IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
       iwc.setMaxBufferedDocs(30000);
       iwc.setRAMBufferSizeMB(-1);
+      iwc.setMergePolicy(new LogDocMergePolicy());
 
       final PostingsFormat pf;
 
@@ -119,11 +129,13 @@ public class AutoPrefixPerf {
         }
         pf = new Lucene41PostingsFormat(25, 48, 0, 0);
       } else {
+        /*
         if (minTermsInPrefix == 0) {
           throw new IllegalArgumentException("one of precStep or minTermsInPrefix must be non-zero");
         }
-        //pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, (minTermsInPrefix-1)*2);
-        pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, Integer.MAX_VALUE);
+        */
+        pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, maxTermsInPrefix);
+        //pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, Integer.MAX_VALUE);
       }
 
       iwc.setCodec(new Lucene49Codec() {
@@ -136,8 +148,8 @@ public class AutoPrefixPerf {
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
       iwc.setMergeScheduler(new SerialMergeScheduler());
 
-      TieredMergePolicy tmp = (TieredMergePolicy) iwc.getMergePolicy();
-      tmp.setFloorSegmentMB(.1);
+      //TieredMergePolicy tmp = (TieredMergePolicy) iwc.getMergePolicy();
+      //tmp.setFloorSegmentMB(.1);
       //ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
       // More concurrency (for SSD)
       //cms.setMaxMergesAndThreads(5, 3);
@@ -192,6 +204,11 @@ public class AutoPrefixPerf {
       reader.close();
 
       System.out.println("Final Indexed " + count + ": " + ((System.currentTimeMillis() - startMS)/1000.0) + " sec");
+
+      // nocommit just to make debugging easier:
+      //System.out.println("Optimize...");
+      //w.forceMerge(1);
+
       System.out.println("Close...");
       w.close();
       System.out.println("After close: " + ((System.currentTimeMillis() - startMS)/1000.0) + " sec");
@@ -272,6 +289,7 @@ public class AutoPrefixPerf {
         bestMS = ms;
       }
     }
+
     /*
     long t0 = System.currentTimeMillis();
     long bytesUsed = 0;
@@ -333,7 +351,7 @@ public class AutoPrefixPerf {
             System.out.println("  reader=" + ctx.reader());
             BytesRef term;
             while ((term = termsEnum.next()) != null) {
-              System.out.println("  term: len=" + term.length + " " + term + " dF=" + termsEnum.docFreq());
+              System.out.println("    term: len=" + term.length + " " + term + " dF=" + termsEnum.docFreq());
               termCount.incrementAndGet();
               docCount.addAndGet(termsEnum.docFreq());
             }
@@ -405,5 +423,3 @@ public class AutoPrefixPerf {
     }
   }
 }
-
-

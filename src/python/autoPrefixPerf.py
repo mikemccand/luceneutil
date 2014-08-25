@@ -6,12 +6,13 @@ import re
 # run from lucene subdir in trunk checkout
 
 reIter = re.compile(': (\d+) msec; totalHits=(\d+) hash=(\d+)')
+logsDir = '/x/tmp/prefixtermsperf'
 
 def run(cmd):
   if os.system(cmd):
     raise RuntimeError('%s failed' % cmd)
 
-def parseLog():
+def parseLog(logFileName):
   global totalHits
   global hash
   
@@ -20,7 +21,7 @@ def parseLog():
   indexTimeSec = None
   indexSizeBytes = None
   
-  f = open('log.txt', 'r')
+  f = open(logFileName, 'r')
   while True:
     line = f.readline()
     if line == '':
@@ -60,12 +61,14 @@ hash = None
 
 for precStep in (4, 8, 12, 16):
   print
-  print('  NF precStep=%d' % precStep)
-  if os.path.exists('/l/indices/numbers'):
-    shutil.rmtree('/l/indices/numbers')
-  run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.AutoPrefixPerf /lucenedata/numbers/randlongs.10m.txt /lucenedata/numbers/randlongs.queries.txt /l/indices/numbers %d 0 0 > log.txt 2>&1' % precStep)
+  print('NF precStep=%d' % precStep)
+  logFileName = '%s/nf.precStep%d.txt' % (logsDir, precStep)
+  if not os.path.exists(logFileName):
+    if os.path.exists('/l/indices/numbers'):
+      shutil.rmtree('/l/indices/numbers')
+    run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.AutoPrefixPerf /lucenedata/numbers/randlongs.10m.txt /lucenedata/numbers/randlongs.queries.txt /l/indices/numbers %d 0 0 > %s 2>&1' % (precStep, logFileName))
 
-  indexTimeSec, indexSizeBytes, totalTerms, bestMS = parseLog()
+  indexTimeSec, indexSizeBytes, totalTerms, bestMS = parseLog(logFileName)
   print('    index sec %.2f' % indexTimeSec)
   print('    index MB %.2f' % (indexSizeBytes/1024/1024.))
   print('    term count %s' % totalTerms)
@@ -73,17 +76,19 @@ for precStep in (4, 8, 12, 16):
 
 for minItemsInPrefix in 5, 10, 15, 20, 25, 30, 35, 40:
   for mult in 2, 3, 4, 5, None:
-    print
-    print('AP min=%d max=%d' % (minItemsInPrefix, maxItemsInPrefix))
     if mult is None:
       maxItemsInPrefix = (1<<31)-1
     else:
       maxItemsInPrefix = (minItemsInPrefix-1) * mult
-    if os.path.exists('/l/indices/numbers'):
-      shutil.rmtree('/l/indices/numbers')
-    run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.AutoPrefixPerf /lucenedata/numbers/randlongs.10m.txt /lucenedata/numbers/randlongs.queries.txt /l/indices/numbers 0 %d %d > log.txt 2>&1' % (minItemsInPrefix, maxItemsInPrefix))
+    logFileName = '%s/ap.%s.%s.txt' % (logsDir, minItemsInPrefix, maxItemsInPrefix)
+    print
+    print('AP min=%d max=%d' % (minItemsInPrefix, maxItemsInPrefix))
+    if not os.path.exists(logFileName):
+      if os.path.exists('/l/indices/numbers'):
+        shutil.rmtree('/l/indices/numbers')
+      run('java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.AutoPrefixPerf /lucenedata/numbers/randlongs.10m.txt /lucenedata/numbers/randlongs.queries.txt /l/indices/numbers 0 %d %d > %s 2>&1' % (minItemsInPrefix, maxItemsInPrefix, logFileName))
 
-    indexTimeSec, indexSizeBytes, totalTerms, bestMS = parseLog()
+    indexTimeSec, indexSizeBytes, totalTerms, bestMS = parseLog(logFileName)
     print('    index sec %.2f' % indexTimeSec)
     print('    index MB %.2f' % (indexSizeBytes/1024/1024.))
     print('    term count %d' % totalTerms)

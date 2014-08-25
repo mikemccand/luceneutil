@@ -77,7 +77,7 @@ class Remote(threading.Thread):
     global lastPrint
     
     if self.hostName != socket.gethostname():
-      cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude="build/core/test" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
+      cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
             (self.rootDir, USERNAME, self.hostName, constants.BASE_DIR)
       t = time.time()
       if os.system(cmd):
@@ -106,7 +106,7 @@ class Remote(threading.Thread):
 
     if self.hostName == socket.gethostname():
       # So that test running locally, creating/deleting files, doesn't mess up rsync:
-      cmd = cmd.replace('-DtempDir=.', '-DtempDir=/s2/tmp')
+      cmd = cmd.replace('-DtempDir=.', '-DtempDir=/l/tmp')
 
     msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 
@@ -452,7 +452,7 @@ def main():
     SEED = sys.argv[1+sys.argv.index('-seed')]
   except ValueError:
     SEED = hex(random.getrandbits(63))[2:-1]
-
+    
   try:
     CODEC = sys.argv[1+sys.argv.index('-codec')]
   except ValueError:
@@ -480,11 +480,14 @@ def main():
   command += ' -Dtests.infostream=false'
   command += ' -Dtests.lockdir=%s/lucene/build' % rootDir
   command += ' -Dtests.postingsformat=random'
+  #print('NOTE: using Lucene410 DVFormat')
+  #command += ' -Dtests.docvaluesformat=Lucene410'
   #command += ' -Dtests.locale=random'
   #command += ' -Dtests.timezone=random'
   command += ' -Dtests.directory=random'
   command += ' -Dtests.linedocsfile=europarl.lines.txt.gz'
   command += ' -Dtests.luceneMatchVersion=%s' % common.getLuceneMatchVersion(rootDir)
+  command += ' -Dtests.LUCENE_VERSION=%s' % common.getLuceneMatchVersion(rootDir)
   command += ' -Dtests.cleanthreads=perMethod'
   command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % rootDir
   command += ' -Dtests.nightly=%s' % NIGHTLY
@@ -497,7 +500,6 @@ def main():
   command += ' -Djetty.insecurerandom=1'
   command += ' -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory'
   command += ' -Djava.security.egd=file:/dev/./urandom'
-  command += ' -Dlucene.version=%s' % common.getLuceneDevVersion(rootDir)
   command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % rootDir
   command += ' -Dtests.codec=%s' % CODEC
   command += ' -Dtests.seed=%s' % SEED

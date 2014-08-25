@@ -69,10 +69,10 @@ def addJARs(cp, path):
         cp.append('%s/%s' % (path, f))
 
 def getLuceneMatchVersion(ROOT):
-  return re.search('tests.luceneMatchVersion" value="(.*?)"', open('%s/lucene/common-build.xml' % ROOT).read()).group(1)
-
-def getLuceneDevVersion(ROOT):
-  return re.search('dev.version.base" value="(.*?)"', open('%s/lucene/common-build.xml' % ROOT).read()).group(1) + '-SNAPSHOT'
+  for line in open('%s/lucene/version.properties' % ROOT).readlines():
+    if line.startswith('version.base='):
+      return line[13:].strip()
+  raise RuntimeError('could not locate lucene version')
 
 def getLuceneTestClassPath(ROOT):
   CP = []

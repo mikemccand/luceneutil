@@ -47,10 +47,11 @@ class Child(threading.Thread) :
       self.parent.remotePrint('C%d init' % self.id)
 
       # TODO
-      p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, env=self.parent.env)
+      p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, env=self.parent.env)
+      #p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, env=self.parent.env)
       self.parent.remotePrint('C%d subprocess started' % self.id)
       self.startedEvent.set()
-      
+      #self.parent.remotePrint('HERE: %s' % p.stdout.read(1))
       events = ReadEvents(p, eventsFile, self.parent)
       self.parent.remotePrint('C%d startup0 done' % self.id)
       events.waitIdle()

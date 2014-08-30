@@ -451,7 +451,8 @@ def main():
   try:
     SEED = sys.argv[1+sys.argv.index('-seed')]
   except ValueError:
-    SEED = hex(random.getrandbits(63))[2:-1]
+    #SEED = hex(random.getrandbits(63))[2:-1]
+    SEED = None
     
   try:
     CODEC = sys.argv[1+sys.argv.index('-codec')]
@@ -502,7 +503,8 @@ def main():
   command += ' -Djava.security.egd=file:/dev/./urandom'
   command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % rootDir
   command += ' -Dtests.codec=%s' % CODEC
-  command += ' -Dtests.seed=%s' % SEED
+  if SEED is not None:
+    command += ' -Dtests.seed=%s' % SEED
 
   command += ' -ea:org.apache.lucene... -ea:org.apache.solr... com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin'
   

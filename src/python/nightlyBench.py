@@ -264,6 +264,10 @@ KNOWN_CHANGES = [
    'LUCENE-5527: LeafCollector (made CachingCollector slower)',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-5527">LUCENE-527: LeafCollector (made CachingCollector slower)</a>',),
 
+  ('2014-04-25',
+   'Upgraded to Ubuntu 14.04 LTS (kernel 3.13.0-32-generic #57)',
+   'Upgraded to Ubuntu 14.04 LTS (kernel 3.13.0-32-generic #57)'),
+  
   ('2014-06-10',
    'Switched from DirectDVFormat to Lucene\'s default for Date facet field',
    'Switched from DirectDVFormat to Lucene\'s default for Date facet field'),

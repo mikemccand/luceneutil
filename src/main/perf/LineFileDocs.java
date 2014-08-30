@@ -212,6 +212,10 @@ public class LineFileDocs implements Closeable {
     final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
+
+    // For just y/m/day:
+    //final SimpleDateFormat dateParser = new SimpleDateFormat("y/M/d", Locale.US);
+
     //final SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);

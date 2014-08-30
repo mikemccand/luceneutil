@@ -498,6 +498,8 @@ def run():
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
     print '%s' % javaVersion
+    print 'uname -a: %s' % os.popen('uname -a 2>&1').read().strip()
+    print 'lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip()
 
   print 'Java command-line: %s' % constants.JAVA_COMMAND
   

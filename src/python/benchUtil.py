@@ -650,7 +650,7 @@ def run(cmd, logFile=None, indent='    '):
   if logFile is not None:
     cmd = '%s > "%s" 2>&1' % (cmd, logFile)
   if os.system(cmd):
-    if logFile is not None and os.path.getsize(logFile) < 5*1024:
+    if logFile is not None and os.path.getsize(logFile) < 50*1024:
       print open(logFile).read()
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
 

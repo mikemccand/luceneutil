@@ -231,24 +231,29 @@ class Competitor(object):
     # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
     if common.getLatestModTime(perfSrc) <= common.getLatestModTime(buildDir, '.class'):
       return
-    
-    files = benchUtil.addFiles(perfSrc)
 
-    newFiles = []
-    for x in files:
-      if x.find('SearchGeoNames.java') == -1 and \
-         x.find('Search1B.java') == -1 and \
-         x.find('DumpFacets.java') == -1 and \
-         x.find('TestAnalyzerPerf.java') == -1 and \
-         x.find('SearchNumbers.java') == -1 and \
-         x.find('IDPerfTest.java') == -1 and \
-         x.find('FlakeID.java') == -1 and \
-         x.find('TestAnalyzerPerf4x.java') == -1 and \
-         x.find('AutoPrefixPerf.java') == -1 and \
-         os.path.isfile(x):
-        newFiles.append(x)
-
-    files = newFiles
+    files = ['%s/perf/%s' % (perfSrc, x) for x in (
+      'Args.java',
+      'IndexState.java',
+      'IndexThreads.java',
+      'Indexer.java',
+      'KeepNoCommitsDeletionPolicy.java',
+      'LineFileDocs.java',
+      'LocalTaskSource.java',
+      'OpenDirectory.java',
+      'PKLookupTask.java',
+      'PerfUtils.java',
+      'RandomFilter.java',
+      'RemoteTaskSource.java',
+      'RespellTask.java',
+      'SearchPerfTest.java',
+      'SearchTask.java',
+      'StatisticsHelper.java',
+      'Task.java',
+      'TaskParser.java',
+      'TaskSource.java',
+      'TaskThreads.java',
+      )]
 
     print('files %s' % files)
     

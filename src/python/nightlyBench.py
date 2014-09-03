@@ -271,6 +271,14 @@ KNOWN_CHANGES = [
   ('2014-06-10',
    'Switched from DirectDVFormat to Lucene\'s default for Date facet field',
    'Switched from DirectDVFormat to Lucene\'s default for Date facet field'),
+
+  ('2014-07-25',
+   'Disabled transparent huge pages',
+   'Disabled transparent huge pages'),   
+
+  ('2014-08-30',
+   'Re-enabled transparent huge pages',
+   'Re-enabled transparent huge pages'),   
    ]
 
 # TODO
@@ -756,6 +764,13 @@ def makeGraphs():
                          timeStamp.minute,
                          int(timeStamp.second))
       date = '%02d/%02d/%04d' % (timeStamp.month, timeStamp.day, timeStamp.year)
+      if date in ('09/03/2014',):
+        # I was testing disabling THP again...
+        continue
+      if date in ('05/16/2014'):
+        # Bug in luceneutil made it look like 0 qps on all queries
+        continue
+      
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       mean, stdDev = nrtResults
@@ -796,9 +811,6 @@ def makeGraphs():
                         '06/10/2014'):
               # Bug in luceneutil (didn't index numeric field properly)
               continue
-          if date in ('05/16/2014'):
-            # But in luceneutil made it look like 0 qps on all queries
-            continue
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
       for date, desc, fullDesc in KNOWN_CHANGES:

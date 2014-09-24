@@ -17,7 +17,7 @@ package perf;
  */
 import java.util.Random;
 
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.BitsFilteredDocIdSet;
 import org.apache.lucene.search.DocIdSet;
@@ -35,7 +35,7 @@ class RandomFilter extends Filter {
   }
 
   @Override
-  public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
+  public DocIdSet getDocIdSet(LeafReaderContext context, Bits acceptDocs) {
     final Random rand = new Random(randomSeed);
     final int maxDoc = context.reader().maxDoc();
     FixedBitSet bits = new FixedBitSet(maxDoc);

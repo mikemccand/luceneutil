@@ -236,6 +236,7 @@ class Competitor(object):
       'Args.java',
       'IndexState.java',
       'IndexThreads.java',
+      'NRTPerfTest.java',
       'Indexer.java',
       'KeepNoCommitsDeletionPolicy.java',
       'LineFileDocs.java',

@@ -23,9 +23,10 @@ package perf;
 //  - switch to named cmd line args
 //  - get pk lookup working w/ remote tasks
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -45,7 +46,7 @@ import org.apache.lucene.codecs.lucene410.Lucene410Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
-import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -179,7 +180,7 @@ public class SearchPerfTest {
       */
 
     final RAMDirectory ramDir;
-    dir0 = od.open(new File(dirPath));
+    dir0 = od.open(Paths.get(dirPath));
     if (dir0 instanceof RAMDirectory) {
       ramDir = (RAMDirectory) dir0;
     } else {
@@ -323,7 +324,7 @@ public class SearchPerfTest {
 
       iwc.setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
           @Override
-          public void warm(AtomicReader reader) throws IOException {
+          public void warm(LeafReader reader) throws IOException {
             final long t0 = System.currentTimeMillis();
             //System.out.println("DO WARM: " + reader);
             IndexSearcher s = new IndexSearcher(reader);
@@ -437,7 +438,7 @@ public class SearchPerfTest {
     facetsConfig.setHierarchical("Date", true);
 
     TaxonomyReader taxoReader;
-    File taxoPath = new File(args.getString("-indexPath"), "facets");
+    Path taxoPath = Paths.get(args.getString("-indexPath"), "facets");
     Directory taxoDir = od.open(taxoPath);
     if (DirectoryReader.indexExists(taxoDir)) {
       taxoReader = new DirectoryTaxonomyReader(taxoDir);

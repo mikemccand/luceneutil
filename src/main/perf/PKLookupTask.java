@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-import org.apache.lucene.index.AtomicReader;
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
@@ -82,7 +82,7 @@ final class PKLookupTask extends Task {
 
     final IndexSearcher searcher = state.mgr.acquire();
     try {
-      final List<AtomicReaderContext> subReaders = searcher.getIndexReader().leaves();
+      final List<LeafReaderContext> subReaders = searcher.getIndexReader().leaves();
       final TermsEnum[] termsEnums = new TermsEnum[subReaders.size()];
       final DocsEnum[] docsEnums = new DocsEnum[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
@@ -93,7 +93,7 @@ final class PKLookupTask extends Task {
         int base = 0;
         final BytesRef id = ids[idx];
         for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
-          final AtomicReader sub = subReaders.get(subIDX).reader();
+          final LeafReader sub = subReaders.get(subIDX).reader();
           final TermsEnum termsEnum = termsEnums[subIDX];
           //System.out.println("\nTASK: sub=" + sub);
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());

@@ -17,7 +17,9 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.File;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -90,7 +92,7 @@ public final class Indexer {
     final Directory dir;
     OpenDirectory od = OpenDirectory.get(dirImpl);
 
-    dir = od.open(new File(dirPath));
+    dir = od.open(Paths.get(dirPath));
 
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
@@ -279,7 +281,7 @@ public final class Indexer {
     final IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter taxoWriter;
     if (facetFields.isEmpty() == false) {
-      taxoWriter = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
+      taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
                                                IndexWriterConfig.OpenMode.CREATE);
     } else {
       taxoWriter = null;

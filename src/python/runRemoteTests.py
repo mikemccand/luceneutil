@@ -31,6 +31,8 @@ VERBOSE = '-verbose' in sys.argv
 
 printLock = threading.Lock()
 
+TEST_ASSERTS = True
+
 tStart = time.time()
 lastPrint = time.time()
 
@@ -478,6 +480,10 @@ def main():
   command += ' -Xmx512M'
   command += ' -Dtests.iters='
   command += ' -Dtests.verbose=false'
+  if TEST_ASSERTS:
+    command += ' -Dtests.asserts=true'
+  else:
+    command += ' -Dtests.asserts=false'
   command += ' -Dtests.infostream=false'
   command += ' -Dtests.lockdir=%s/lucene/build' % rootDir
   command += ' -Dtests.postingsformat=random'
@@ -494,7 +500,6 @@ def main():
   command += ' -Dtests.nightly=%s' % NIGHTLY
   command += ' -Dtests.weekly=false'
   command += ' -Dtests.slow=true'
-  command += ' -Dtests.asserts.gracious=false'
   command += ' -Dtests.multiplier=%s' % MULT
   command += ' -DtempDir=.'
   command += ' -Djetty.testMode=1'
@@ -506,8 +511,11 @@ def main():
   if SEED is not None:
     command += ' -Dtests.seed=%s' % SEED
 
-  command += ' -ea:org.apache.lucene... -ea:org.apache.solr... com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin'
-  
+  if TEST_ASSERTS:
+    command += ' -ea -esa'
+
+  command += ' com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin'
+
   # Tests first chdir to lucene/build:
   classpath = ':'.join(['../../%s' % x for x in classpath])
   # print 'CP: %s' % classpath

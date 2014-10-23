@@ -17,13 +17,14 @@ package perf;
  */
 import java.util.Random;
 
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.BitsFilteredDocIdSet;
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.FixedBitDocIdSet;
 
 class RandomFilter extends Filter {
   final double fractionKeep;
@@ -35,7 +36,7 @@ class RandomFilter extends Filter {
   }
 
   @Override
-  public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
+  public DocIdSet getDocIdSet(LeafReaderContext context, Bits acceptDocs) {
     final Random rand = new Random(randomSeed);
     final int maxDoc = context.reader().maxDoc();
     FixedBitSet bits = new FixedBitSet(maxDoc);
@@ -45,7 +46,7 @@ class RandomFilter extends Filter {
       }
     }
 
-    return BitsFilteredDocIdSet.wrap(bits, acceptDocs);
+    return BitsFilteredDocIdSet.wrap(new FixedBitDocIdSet(bits), acceptDocs);
   }
 
   @Override

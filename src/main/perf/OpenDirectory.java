@@ -17,8 +17,8 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
@@ -28,34 +28,34 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SimpleFSDirectory;
 
 public abstract class OpenDirectory {
-  public abstract Directory open(File path) throws IOException;
+  public abstract Directory open(Path path) throws IOException;
 
   public static OpenDirectory get(String dirImpl) {
     if (dirImpl.equals("MMapDirectory")) {
       return new OpenDirectory() {
           @Override
-          public Directory open(File path) throws IOException {
+          public Directory open(Path path) throws IOException {
             return new MMapDirectory(path);
           }
         };
     } else if (dirImpl.equals("NIOFSDirectory")) {
       return new OpenDirectory() {
           @Override
-          public Directory open(File path) throws IOException {
+          public Directory open(Path path) throws IOException {
             return new NIOFSDirectory(path);
           }
         };
     } else if (dirImpl.equals("SimpleFSDirectory")) {
       return new OpenDirectory() {
           @Override
-          public Directory open(File path) throws IOException {
+          public Directory open(Path path) throws IOException {
             return new SimpleFSDirectory(path);
           }
         };
     } else if (dirImpl.equals("RAMDirectory")) {
       return new OpenDirectory() {
           @Override
-          public Directory open(File path) throws IOException {
+          public Directory open(Path path) throws IOException {
             final long t0 = System.currentTimeMillis();
             Directory dir =new RAMDirectory(new SimpleFSDirectory(path), IOContext.READ);
             System.out.println((System.currentTimeMillis() - t0) + " msec to load RAMDir; ramBytesUsed=" + ((RAMDirectory) dir).ramBytesUsed());

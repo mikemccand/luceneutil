@@ -18,10 +18,12 @@ package perf;
  */
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,8 +40,8 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene410.Lucene410Codec;
-import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.codecs.lucene50.Lucene50Codec;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -83,7 +85,7 @@ public class NRTPerfTest {
 		}
 
 		@Override
-		public void warm(AtomicReader reader) throws IOException {
+		public void warm(LeafReader reader) throws IOException {
 			final long t0 = System.currentTimeMillis();
 			//System.out.println("DO WARM: " + reader);
 			IndexSearcher s = new IndexSearcher(reader);
@@ -241,11 +243,11 @@ public class NRTPerfTest {
 			throw new IllegalArgumentException("mergeMaxWriteMBPerSec must be 0.0 until LUCENE-3202 is done");
 		}
 		final String tasksFile = args[14];
-		if (!new File(tasksFile).exists()) {
+		if (Files.notExists(Paths.get(tasksFile))) {
 			throw new FileNotFoundException("tasks file not found " + tasksFile);
 		}
 
-		final boolean hasProcMemInfo = new File("/proc/meminfo").exists();
+		final boolean hasProcMemInfo = Files.exists(Paths.get("/proc/meminfo"));
 
 		System.out.println("DIR=" + dirImpl);
 		System.out.println("Index=" + dirPath);
@@ -279,11 +281,11 @@ public class NRTPerfTest {
 
 		final Directory dir0;
 		if (dirImpl.equals("MMapDirectory")) {
-			dir0 = new MMapDirectory(new File(dirPath));
+			dir0 = new MMapDirectory(Paths.get(dirPath));
 		} else if (dirImpl.equals("NIOFSDirectory")) {
-			dir0 = new NIOFSDirectory(new File(dirPath));
+			dir0 = new NIOFSDirectory(Paths.get(dirPath));
 		} else if (dirImpl.equals("SimpleFSDirectory")) {
-			dir0 = new SimpleFSDirectory(new File(dirPath));
+			dir0 = new SimpleFSDirectory(Paths.get(dirPath));
 		} else {
 			docs.close();
 			throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");
@@ -306,7 +308,7 @@ public class NRTPerfTest {
 		conf.setMaxThreadStates(numIndexThreads);
 		//iwc.setMergeScheduler(ms);
 
-		final Codec codec = new Lucene410Codec() {
+		final Codec codec = new Lucene50Codec() {
 			@Override
 			public PostingsFormat getPostingsFormatForField(String field) {
 				if (field.equals("id")) {

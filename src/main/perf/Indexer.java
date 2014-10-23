@@ -17,7 +17,9 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.File;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -33,7 +35,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene410.Lucene410Codec;
+import org.apache.lucene.codecs.lucene50.Lucene50Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -90,7 +92,7 @@ public final class Indexer {
     final Directory dir;
     OpenDirectory od = OpenDirectory.get(dirImpl);
 
-    dir = od.open(new File(dirPath));
+    dir = od.open(Paths.get(dirPath));
 
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
@@ -245,7 +247,7 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Codec codec = new Lucene410Codec() {
+    final Codec codec = new Lucene50Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
@@ -279,7 +281,7 @@ public final class Indexer {
     final IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter taxoWriter;
     if (facetFields.isEmpty() == false) {
-      taxoWriter = new DirectoryTaxonomyWriter(od.open(new File(args.getString("-indexPath"), "facets")),
+      taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
                                                IndexWriterConfig.OpenMode.CREATE);
     } else {
       taxoWriter = null;

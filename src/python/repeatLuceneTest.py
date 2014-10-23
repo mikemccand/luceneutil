@@ -47,8 +47,9 @@ USE_JUNIT = True
 
 osName = common.osName
 
-JAVA_ARGS = '-Xmx512m -Xms512m'
-#JAVA_ARGS = '-Xmx512m -Xms512m -client -XX:+UseParallelGC'
+#JAVA_ARGS = '-Xmx512m -Xms512m'
+JAVA_ARGS = '-Xmx512m -Xms512m -server -XX:+UseSerialGC'
+#JAVA_ARGS += ' -XX:+PrintCompilation -XX:+UnlockDiagnosticVMOptions -XX:CompileCommand=print,*Version.init'
 # print
 # print 'WARNING: *** running java w/ 8 GB heap ***'
 # print
@@ -283,6 +284,7 @@ def _run(threadID):
       command += ' -Dtests.infostream=%s' % str(verbose).lower()
       command += ' -Dtests.multiplier=%s' % mult
       command += ' -Dtests.iters=%s' % iters
+      command += ' -Dtests.maxfailures=1'
       command += ' -Dtests.postingsformat=%s' % postingsFormat
       command += ' -Dtests.codec=%s' % codec
       command += ' -Dtests.similarity=%s' % sim
@@ -318,7 +320,7 @@ def _run(threadID):
       if doLog:
         command += ' > %s 2>&1' % logFileName
 
-      #print('command: %s' % command)
+      # print('command: %s' % command)
 
       if os.path.exists(TEST_TEMP_DIR):
         #print '  remove %s' % TEST_TEMP_DIR

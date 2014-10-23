@@ -19,12 +19,14 @@ package perf;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -95,7 +97,7 @@ public class AutoPrefixPerf {
   public static void main(String[] args) throws Exception {
     String numbersFile = args[0];
     String queriesFile = args[1];
-    File indexPath = new File(args[2]);
+    Path indexPath = Paths.get(args[2]);
 
     int precStep = Integer.parseInt(args[3]);
     boolean useNumericField = (precStep != 0);
@@ -114,7 +116,7 @@ public class AutoPrefixPerf {
     binaryToken.setLength(8);
 
     Directory dir = FSDirectory.open(indexPath);
-    if (indexPath.exists() == false) {
+    if (Files.notExists(indexPath) == false) {
       IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
       iwc.setMaxBufferedDocs(30000);
       iwc.setRAMBufferSizeMB(-1);
@@ -167,6 +169,7 @@ public class AutoPrefixPerf {
         FieldType longFieldType = new FieldType(TextField.TYPE_NOT_STORED);
         longFieldType.setIndexOptions(IndexOptions.DOCS_ONLY);
         longFieldType.setOmitNorms(true);
+        longFieldType.setIndexRanges(true);
         longFieldType.freeze();
         field = new Field("number", new BinaryTokenStream(binaryToken.get()), longFieldType);
         doc.add(field);

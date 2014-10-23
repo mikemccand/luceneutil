@@ -69,10 +69,14 @@ def addJARs(cp, path):
         cp.append('%s/%s' % (path, f))
 
 def getLuceneMatchVersion(ROOT):
-  for line in open('%s/lucene/version.properties' % ROOT).readlines():
-    if line.startswith('version.base='):
-      return line[13:].strip()
-  raise RuntimeError('could not locate lucene version')
+  fileName = '%s/lucene/version.properties' % ROOT
+  if os.path.exists(fileName):
+    for line in open(fileName).readlines():
+      if line.startswith('version.base='):
+        return line[13:].strip()
+    raise RuntimeError('could not locate lucene version')
+  else:
+    return '4.10.1'
 
 def getLuceneTestClassPath(ROOT):
   CP = []
@@ -120,6 +124,8 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/demo/classes/test')
   CP.append(ROOT + '/lucene/build/codecs/classes/java')
   CP.append(ROOT + '/lucene/build/codecs/classes/test')
+  CP.append(ROOT + '/lucene/build/backward-codecs/classes/java')
+  CP.append(ROOT + '/lucene/build/backward-codecs/classes/test')
   CP.append(ROOT + '/lucene/build/benchmark/classes/java')
   CP.append(ROOT + '/lucene/build/benchmark/classes/test')
   addJARs(CP, ROOT + '/lucene/benchmark/lib')
@@ -152,7 +158,6 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/sandbox/classes/test')
   CP.append(ROOT + '/lucene/build/sandbox/classes/java')
 
-  # return filterCWD(CP)
   return CP
 
 def filterCWD(l):

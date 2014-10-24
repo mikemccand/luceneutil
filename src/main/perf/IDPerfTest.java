@@ -34,7 +34,7 @@ import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.codecs.BlockTreeTermsReader;
 import org.apache.lucene.codecs.BlockTreeTermsWriter;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene41.Lucene41PostingsFormat;
+import org.apache.lucene.codecs.lucene50.Lucene50PostingsFormat;
 import org.apache.lucene.codecs.lucene50.Lucene50Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -339,7 +339,7 @@ public class IDPerfTest {
     iwc.setCodec(new Lucene50Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
-          return new Lucene41PostingsFormat(minTermsInBlock, maxTermsInBlock);
+          return new Lucene50PostingsFormat(minTermsInBlock, maxTermsInBlock);
         }
       });
 

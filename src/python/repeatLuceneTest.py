@@ -47,8 +47,8 @@ USE_JUNIT = True
 
 osName = common.osName
 
-#JAVA_ARGS = '-Xmx512m -Xms512m'
-JAVA_ARGS = '-Xmx512m -Xms512m -server -XX:+UseSerialGC'
+JAVA_ARGS = '-Xmx512m -Xms512m'
+#JAVA_ARGS = '-Xmx512m -Xms512m -server -XX:+UseSerialGC'
 #JAVA_ARGS += ' -XX:+PrintCompilation -XX:+UnlockDiagnosticVMOptions -XX:CompileCommand=print,*Version.init'
 # print
 # print 'WARNING: *** running java w/ 8 GB heap ***'
@@ -180,7 +180,6 @@ for test in sys.argv[1:]:
     testClass, testMethod = tup
     tests.append((testClass, testMethod))
 
-JAVA_ARGS += ' -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
 OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
 if doCompile:
@@ -196,6 +195,9 @@ if doCompile:
       sys.exit(1)
   finally:
     os.remove('%s/compile.log' % logDirName)
+
+#JAVA_ARGS += ' -XX:+HeapDumpOnOutOfMemoryError -agentlib:yjpagent=alloceach=10,allocsizelimit=1024 -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
+JAVA_ARGS += ' -XX:+HeapDumpOnOutOfMemoryError -cp "%s"' % common.pathsep().join(common.getLuceneTestClassPath(ROOT))
 
 failed = False
 

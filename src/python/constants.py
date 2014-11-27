@@ -67,8 +67,10 @@ if 'JAVA_EXE' not in globals():
 if 'JAVAC_EXE' not in globals():
   JAVAC_EXE = 'javac'
 if 'JAVA_COMMAND' not in globals():
-  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g -XX:-UseTieredCompilation -Xbatch' % JAVA_EXE
-
+  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g -XX:-UseTieredCompilation -XX:+HeapDumpOnOutOfMemoryError -Xbatch' % JAVA_EXE
+else:
+  print('use java command %s' % JAVA_COMMAND)
+  
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1
 SEARCH_NUM_THREADS = 2

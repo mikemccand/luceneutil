@@ -24,7 +24,7 @@ import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.FixedBitSet;
-import org.apache.lucene.util.FixedBitDocIdSet;
+import org.apache.lucene.util.BitDocIdSet;
 
 class RandomFilter extends Filter {
   final double fractionKeep;
@@ -46,7 +46,7 @@ class RandomFilter extends Filter {
       }
     }
 
-    return BitsFilteredDocIdSet.wrap(new FixedBitDocIdSet(bits), acceptDocs);
+    return BitsFilteredDocIdSet.wrap(new BitDocIdSet(bits), acceptDocs);
   }
 
   @Override

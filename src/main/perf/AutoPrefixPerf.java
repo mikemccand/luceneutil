@@ -40,8 +40,8 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene41.Lucene41PostingsFormat;
-import org.apache.lucene.codecs.lucene410.Lucene410Codec;
+import org.apache.lucene.codecs.lucene50.Lucene50PostingsFormat;
+import org.apache.lucene.codecs.lucene50.Lucene50Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
 import org.apache.lucene.document.DoubleField;
@@ -129,18 +129,18 @@ public class AutoPrefixPerf {
         if (minTermsInPrefix != 0) {
           throw new IllegalArgumentException("only precStep or minTermsInPrefix should be non-zero");
         }
-        pf = new Lucene41PostingsFormat(25, 48, 0, 0);
+        pf = new Lucene50PostingsFormat(25, 48, 0, 0);
       } else {
         /*
         if (minTermsInPrefix == 0) {
           throw new IllegalArgumentException("one of precStep or minTermsInPrefix must be non-zero");
         }
         */
-        pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, maxTermsInPrefix);
-        //pf = new Lucene41PostingsFormat(25, 48, minTermsInPrefix, Integer.MAX_VALUE);
+        pf = new Lucene50PostingsFormat(25, 48, minTermsInPrefix, maxTermsInPrefix);
+        //pf = new Lucene50PostingsFormat(25, 48, minTermsInPrefix, Integer.MAX_VALUE);
       }
 
-      iwc.setCodec(new Lucene410Codec() {
+      iwc.setCodec(new Lucene50Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return pf;

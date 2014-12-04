@@ -154,7 +154,7 @@ if __name__ == '__main__':
   comp = competition.Competition(randomSeed=0)
 
   index = comp.newIndex(constants.TRUNK_CHECKOUT, sourceData,
-                        postingsFormat='Lucene41',
+                        postingsFormat='Lucene50',
                         idFieldPostingsFormat='Memory',
                         grouping=False,
                         doDeletions=False,

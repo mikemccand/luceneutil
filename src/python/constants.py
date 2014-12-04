@@ -67,10 +67,10 @@ if 'JAVA_EXE' not in globals():
 if 'JAVAC_EXE' not in globals():
   JAVAC_EXE = 'javac'
 if 'JAVA_COMMAND' not in globals():
-  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g -XX:-UseTieredCompilation -XX:+HeapDumpOnOutOfMemoryError -Xbatch' % JAVA_EXE
+  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g -XX:-TieredCompilation -XX:+HeapDumpOnOutOfMemoryError -Xbatch' % JAVA_EXE
 else:
   print('use java command %s' % JAVA_COMMAND)
-  
+
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1
 SEARCH_NUM_THREADS = 2
@@ -86,9 +86,9 @@ if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
-POSTINGS_FORMAT_DEFAULT='Lucene41'
+POSTINGS_FORMAT_DEFAULT='Lucene50'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT='Memory'
-FACET_FIELD_DV_FORMAT_DEFAULT='Lucene410'
+FACET_FIELD_DV_FORMAT_DEFAULT='Lucene50'
 ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='DefaultSimilarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'

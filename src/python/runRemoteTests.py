@@ -79,7 +79,7 @@ class Remote(threading.Thread):
     global lastPrint
     
     if self.hostName != socket.gethostname():
-      cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
+      cmd = '/usr/bin/rsync --copy-links --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
             (self.rootDir, USERNAME, self.hostName, constants.BASE_DIR)
       t = time.time()
       if os.system(cmd):

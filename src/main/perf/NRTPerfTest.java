@@ -460,7 +460,6 @@ public class NRTPerfTest {
 
 		manager.close();
 		if (doCommit) {
-                  w.abortMerges();
                   w.close();
 		} else {
                   w.rollback();

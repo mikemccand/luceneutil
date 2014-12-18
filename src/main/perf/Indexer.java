@@ -278,7 +278,7 @@ public final class Indexer {
 
     System.out.println("IW config=" + iwc);
 
-    final IndexWriter w = new IndexWriter(dir, iwc);
+    IndexWriter w = new IndexWriter(dir, iwc);
     final TaxonomyWriter taxoWriter;
     if (facetFields.isEmpty() == false) {
       taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
@@ -322,7 +322,8 @@ public final class Indexer {
 
     final long t2;
     if (waitForMerges) {
-      w.waitForMerges();
+      w.close();
+      w = new IndexWriter(dir, new IndexWriterConfig(a));
       t2 = System.currentTimeMillis();
       System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
     } else {
@@ -385,9 +386,10 @@ public final class Indexer {
     System.out.println("\nIndexer: at close: " + w.segString());
     final long tCloseStart = System.currentTimeMillis();
     if (waitForMerges == false) {
-      w.abortMerges();
+      w.rollback();
+    } else {
+      w.close();
     }
-    w.close();
     System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
     final long tFinal = System.currentTimeMillis();

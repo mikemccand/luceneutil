@@ -135,6 +135,12 @@ public final class Indexer {
     } else {
     	mode = Mode.valueOf(args.getString("-mode", "update").toUpperCase(Locale.ROOT));
     }
+    int randomDocIDMax;
+    if (mode == Mode.UPDATE) {
+      randomDocIDMax = args.getInt("-randomDocIDMax");
+    } else {
+      randomDocIDMax = -1;
+    }
     final boolean doUpdate = args.getFlag("-update");
     final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
     final boolean addGroupingFields = args.getFlag("-grouping");
@@ -146,6 +152,17 @@ public final class Indexer {
     final boolean addDVFields = args.getFlag("-dvfields");
     final boolean doRandomCommit = args.getFlag("-randomCommit");
     final boolean useCMS = args.getFlag("-useCMS");
+
+    final double nrtEverySec;
+    if (args.hasArg("-nrtEverySec")) {
+      nrtEverySec = args.getDouble("-nrtEverySec");
+    } else {
+      nrtEverySec = -1.0;
+    }
+
+    // True to start back at the beginning if we run out of
+    // docs from the line file source:
+    final boolean repeatDocs = args.getFlag("-repeatDocs");
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
@@ -175,7 +192,10 @@ public final class Indexer {
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
     System.out.println("Merge policy: " + mergePolicy);
-    System.out.println("Update: " + doUpdate);
+    System.out.println("Mode: " + mode);
+    if (mode == Mode.UPDATE) {
+      System.out.println("DocIDMax: " + randomDocIDMax);
+    }
     System.out.println("ID field postings format: " + idFieldPostingsFormat);
     System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
     System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
@@ -187,6 +207,12 @@ public final class Indexer {
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     System.out.println("Add DocValues fields: " + addDVFields);
     System.out.println("Use ConcurrentMergeScheduler: " + useCMS);
+    if (nrtEverySec > 0.0) {
+      System.out.println("Open & close NRT reader every: " + nrtEverySec + " sec");
+    } else {
+      System.out.println("Open & close NRT reader every: never");
+    }
+    System.out.println("Repeat docs: " + repeatDocs);
     
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
@@ -212,7 +238,7 @@ public final class Indexer {
     if (useCMS) {
       ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
       iwc.setMergeScheduler(cms);
-      cms.setMaxMergesAndThreads(maxConcurrentMerges+2, maxConcurrentMerges);
+      cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
     } else {
       // Gives better repeatability because if you use CMS, the order in which the merges complete can impact how the merge policy later
       // picks merges so you can easily get a very different index structure when you are comparing two indices:
@@ -230,7 +256,7 @@ public final class Indexer {
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       iwc.setMergePolicy(tmp);
-      tmp.setMaxMergedSegmentMB(1000000.0);
+      //tmp.setMaxMergedSegmentMB(1000000.0);
       tmp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
       mp = null;
     } else {
@@ -290,8 +316,13 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, false, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetFields, facetsConfig, addDVFields);
-    IndexThreads threads = new IndexThreads(random, w, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, -1.0f, null);
+    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetFields, facetsConfig, addDVFields);
+
+    float docsPerSecPerThread = -1f;
+    //float docsPerSecPerThread = 100f;
+
+    IndexThreads threads = new IndexThreads(random, w, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
+                                            randomDocIDMax);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();

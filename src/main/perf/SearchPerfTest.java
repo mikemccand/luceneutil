@@ -316,8 +316,6 @@ public class SearchPerfTest {
       iwc.setCodec(codec);
 
       final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
-      // Make sure merges run @ higher prio than indexing:
-      cms.setMergeThreadPriority(Thread.currentThread().getPriority()+2);
       // Only let one merge run at a time...
       // ... but queue up up to 4, before index thread is stalled:
       cms.setMaxMergesAndThreads(4, 1);
@@ -341,7 +339,7 @@ public class SearchPerfTest {
       // hardwired false:
       boolean addDVFields = mode == Mode.BDV_UPDATE || mode == Mode.NDV_UPDATE;
 			LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields);
-			IndexThreads threads = new IndexThreads(new Random(17), writer, lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null);
+			IndexThreads threads = new IndexThreads(new Random(17), writer, lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
       threads.start();
 
       mgr = new SearcherManager(writer, true, new SearcherFactory() {

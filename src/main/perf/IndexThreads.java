@@ -19,9 +19,11 @@ package perf;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.document.Document;
@@ -30,6 +32,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.BytesRef;
 
@@ -43,9 +46,12 @@ class IndexThreads {
   final AtomicBoolean failed;
   final LineFileDocs docs;
   final Thread[] threads;
+  final AtomicBoolean refreshing;
+  final AtomicLong lastRefreshNS;
 
   public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
-                      boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener)
+                      boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
+                      double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
 
@@ -66,9 +72,11 @@ class IndexThreads {
     final AtomicInteger count = new AtomicInteger();
     stop = new AtomicBoolean(false);
     failed = new AtomicBoolean(false);
+    refreshing = new AtomicBoolean(false);
+    lastRefreshNS = new AtomicLong(System.nanoTime());
 
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode, groupBlockIndex, stop, docsPerSecPerThread, failed, updatesListener);
+      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode, groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener, nrtEverySec, randomDocIDMax);
       threads[thread].start();
     }
 
@@ -134,10 +142,15 @@ class IndexThreads {
     private final Random random;
     private final AtomicBoolean failed;
     private final UpdatesListener updatesListener;
+    private final AtomicBoolean refreshing;
+    private final AtomicLong lastRefreshNS;
+    private final double nrtEverySec;
+    final int randomDocIDMax;
 
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
                        LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
-                       AtomicBoolean stop, float docsPerSec, AtomicBoolean failed, UpdatesListener updatesListener) {
+                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, float docsPerSec,
+                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -151,11 +164,14 @@ class IndexThreads {
       this.random = random;
       this.failed = failed;
       this.updatesListener = updatesListener;
+      this.refreshing = refreshing;
+      this.lastRefreshNS = lastRefreshNS;
+      this.nrtEverySec = nrtEverySec;
+      this.randomDocIDMax = randomDocIDMax;
     }
 
     @Override
     public void run() {
-      final int maxDoc = w.maxDoc();
       try {
         final LineFileDocs.DocState docState = docs.newDocState();
         final Field idField = docState.id;
@@ -310,7 +326,7 @@ class IndexThreads {
             }
             // TODO have a 'sometimesAdd' mode where 25%
             // of the time we add a new doc
-            final String updateID = LineFileDocs.intToID(random.nextInt(maxDoc));
+            final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
             if (updatesListener != null) {
             	updatesListener.beforeUpdate();
             }
@@ -337,7 +353,7 @@ class IndexThreads {
             if (updatesListener != null) {
               updatesListener.afterUpdate();
             }
-            count.incrementAndGet();
+            int docCount = count.incrementAndGet();
             threadCount++;
 
             final long sleepNS = startNS + (long) (1000000000*(threadCount/docsPerSec)) - System.nanoTime();
@@ -345,6 +361,22 @@ class IndexThreads {
               final long sleepMS = sleepNS/1000000;
               final int sleepNS2 = (int) (sleepNS - sleepMS*1000000);
               Thread.sleep(sleepMS, sleepNS2);
+            }
+            if (nrtEverySec > 0.0) {
+              long ns = System.nanoTime();
+              if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
+                System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+                DirectoryReader r = DirectoryReader.open(w, true);
+                int irNumDocs = r.numDocs();
+                int irMaxDoc = r.maxDoc();
+                System.out.println(String.format(Locale.ROOT,
+                                                 "%.2f sec: %d numDocs, %d deletions (%.2f%%)",
+                                                 (System.currentTimeMillis() - tStart)/1000.0,
+                                                 irNumDocs, irMaxDoc-irNumDocs, 100.*(irMaxDoc-irNumDocs)/irNumDocs));
+                r.close();
+                lastRefreshNS.set(ns);
+                refreshing.set(false);
+              }
             }
           }
         } else {
@@ -357,10 +389,31 @@ class IndexThreads {
             if (numTotalDocs != -1 && docCount > numTotalDocs) {
               break;
             }
-            if ((docCount % 100000) == 0) {
-              System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            if (nrtEverySec > 0.0) {
+              long ns = System.nanoTime();
+              if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
+                System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+                DirectoryReader r = DirectoryReader.open(w, true);
+                int irNumDocs = r.numDocs();
+                int irMaxDoc = r.maxDoc();
+                System.out.println(String.format(Locale.ROOT,
+                                                 "%.2f sec: %d numDocs, %d deletions (%.2f%%)",
+                                                 (System.currentTimeMillis() - tStart)/1000.0,
+                                                 irNumDocs, irMaxDoc-irNumDocs, 100.*(irMaxDoc-irNumDocs)/irNumDocs));
+                r.close();
+                lastRefreshNS.set(ns);
+                refreshing.set(false);
+              }
             }
-            w.addDocument(doc);
+            if (mode == Mode.UPDATE) {
+              final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
+              // NOTE: can't use docState.id in case doClone
+              // was true
+              ((Document) doc).getField("id").setStringValue(updateID);
+              w.updateDocument(new Term("id", updateID), doc);
+            } else {
+              w.addDocument(doc);
+            }
           }
         }
       } catch (Exception e) {

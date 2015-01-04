@@ -348,7 +348,6 @@ public class NRTPerfTest {
 
 		// Make sure merges run @ higher prio than indexing:
 		final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) conf.getMergeScheduler();
-		cms.setMergeThreadPriority(Thread.currentThread().getPriority()+2);
 		cms.setMaxMergesAndThreads(4, 1);
 
 		conf.setMergedSegmentWarmer(new MergedReaderWarmer(field));
@@ -370,7 +369,7 @@ public class NRTPerfTest {
 			}
 		};
 		IndexThreads indexThreads = new IndexThreads(random, w, docs, numIndexThreads, -1, false, false, mode,
-				(float) (docsPerSec / numIndexThreads), updatesListener);
+                                                             (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, -1);
 
 		// NativePosixUtil.mlockTermsDict(startR, "id");
 		final SearcherManager manager = new SearcherManager(w, true, null);

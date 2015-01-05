@@ -34,9 +34,13 @@ import constants
 reSVNRev = re.compile(r'revision (.*?)\.')
 REAL = True
 
-DEBUG = '-debug' in sys.argv
+if '-debug' in sys.argv:
+  DEBUG = True
+  sys.argv.remove('-debug')
 
-if DEBUG:
+if len(sys.argv) > 1:
+  NIGHTLY_DIR = sys.argv[1]
+elif DEBUG:
   NIGHTLY_DIR = 'clean2.svn'
 else:
   NIGHTLY_DIR = 'trunk.nightly'

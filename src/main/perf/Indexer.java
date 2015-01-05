@@ -130,10 +130,11 @@ public final class Indexer {
     final boolean waitForMerges = args.getFlag("-waitForMerges");
     final String mergePolicy = args.getString("-mergePolicy");
     final Mode mode;
-    if (args.hasArg("-update")) {
-    	mode = Mode.UPDATE;
+    final boolean doUpdate = args.getFlag("-update");
+    if (doUpdate) {
+      mode = Mode.UPDATE;
     } else {
-    	mode = Mode.valueOf(args.getString("-mode", "add").toUpperCase(Locale.ROOT));
+      mode = Mode.valueOf(args.getString("-mode", "add").toUpperCase(Locale.ROOT));
     }
     int randomDocIDMax;
     if (mode == Mode.UPDATE) {
@@ -141,7 +142,6 @@ public final class Indexer {
     } else {
       randomDocIDMax = -1;
     }
-    final boolean doUpdate = args.getFlag("-update");
     final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
     final boolean addGroupingFields = args.getFlag("-grouping");
     final boolean useCFS = args.getFlag("-cfs");
@@ -222,8 +222,8 @@ public final class Indexer {
 
     iwc.setMaxThreadStates(numThreads);
 
-    if (doUpdate) {
-      iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+    if (mode == Mode.UPDATE) {
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
     } else {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     }
@@ -305,6 +305,9 @@ public final class Indexer {
     System.out.println("IW config=" + iwc);
 
     IndexWriter w = new IndexWriter(dir, iwc);
+
+    System.out.println("Index has " + w.maxDoc() + " docs");
+
     final TaxonomyWriter taxoWriter;
     if (facetFields.isEmpty() == false) {
       taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
@@ -343,7 +346,7 @@ public final class Indexer {
     final long t1 = System.currentTimeMillis();
     System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.maxDoc() + " docs");
     // if we update we can not tell how many docs
-    if (!doUpdate && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
+    if (mode != Mode.UPDATE && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
       throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
     }
     if (threads.failed.get()) {

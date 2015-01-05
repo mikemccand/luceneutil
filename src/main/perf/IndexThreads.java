@@ -356,6 +356,10 @@ class IndexThreads {
             int docCount = count.incrementAndGet();
             threadCount++;
 
+            if ((docCount % 100000) == 0) {
+              System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            }
+
             final long sleepNS = startNS + (long) (1000000000*(threadCount/docsPerSec)) - System.nanoTime();
             if (sleepNS > 0) {
               final long sleepMS = sleepNS/1000000;
@@ -365,7 +369,6 @@ class IndexThreads {
             if (nrtEverySec > 0.0) {
               long ns = System.nanoTime();
               if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
-                System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
                 DirectoryReader r = DirectoryReader.open(w, true);
                 int irNumDocs = r.numDocs();
                 int irMaxDoc = r.maxDoc();
@@ -389,10 +392,14 @@ class IndexThreads {
             if (numTotalDocs != -1 && docCount > numTotalDocs) {
               break;
             }
+
+            if ((docCount % 100000) == 0) {
+              System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            }
+
             if (nrtEverySec > 0.0) {
               long ns = System.nanoTime();
               if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
-                System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
                 DirectoryReader r = DirectoryReader.open(w, true);
                 int irNumDocs = r.numDocs();
                 int irMaxDoc = r.maxDoc();

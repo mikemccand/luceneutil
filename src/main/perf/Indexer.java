@@ -133,7 +133,7 @@ public final class Indexer {
     if (args.hasArg("-update")) {
     	mode = Mode.UPDATE;
     } else {
-    	mode = Mode.valueOf(args.getString("-mode", "update").toUpperCase(Locale.ROOT));
+    	mode = Mode.valueOf(args.getString("-mode", "add").toUpperCase(Locale.ROOT));
     }
     int randomDocIDMax;
     if (mode == Mode.UPDATE) {

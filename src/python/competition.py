@@ -104,6 +104,7 @@ class Index(object):
                facetDVFormat = constants.FACET_FIELD_DV_FORMAT_DEFAULT,
                maxConcurrentMerges = 1,  # use 1 for spinning-magnets and 3 for fast SSD
                addDVFields = False,
+               name = None
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -138,6 +139,7 @@ class Index(object):
     self.bodyPostingsOffsets = bodyPostingsOffsets
     self.facets = facets
     self.facetDVFormat = facetDVFormat
+    self.assignedName = name
     
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
@@ -145,6 +147,9 @@ class Index(object):
     self.useCMS = useCMS
     
   def getName(self):
+    if self.assignedName is not None:
+      return self.assignedName
+    
     name = [self.dataSource.name,
             self.checkout]
 

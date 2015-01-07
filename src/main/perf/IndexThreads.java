@@ -383,7 +383,7 @@ class IndexThreads {
             }
           }
         } else {
-          while (true) {
+          while (!stop.get()) {
             final IndexDocument doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
@@ -442,7 +442,7 @@ class IndexThreads {
     }
     
     @Override
-		public void run() {
+    public void run() {
        long time = System.currentTimeMillis();
        System.out.println("startIngest: " + time);
        final long start = time;

@@ -337,7 +337,10 @@ public final class Indexer {
       
       // Commits once per minute on average:
       if (doRandomCommit && random.nextInt(600) == 17) {
+        System.out.println("Indexer: now commit");
+        long commitStartNS = System.nanoTime();
         w.commit();
+        System.out.println(String.format(Locale.ROOT, "Indexer: commit took %.1f msec", (System.nanoTime()-commitStartNS)/1000000.));
       }
     }
 
@@ -352,7 +355,6 @@ public final class Indexer {
     if (threads.failed.get()) {
       throw new RuntimeException("exceptions during indexing");
     }
-
 
     final long t2;
     if (waitForMerges) {

@@ -408,13 +408,13 @@ public class SearchPerfTest {
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening searcher on commit=" + commit);
         reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
-        System.out.println("maxDoc=" + reader.maxDoc());
       } else {
         // open last commit
         reader = DirectoryReader.open(dir);
       }
       IndexSearcher s = new IndexSearcher(reader);
       s.setSimilarity(sim);
+      System.out.println("maxDoc=" + reader.maxDoc() + " numDocs=" + reader.numDocs() + " %tg deletes=" + (100.*reader.maxDoc()/reader.numDocs()));
       
       mgr = new SingleIndexSearcher(s);
     }

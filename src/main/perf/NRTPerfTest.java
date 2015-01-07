@@ -369,7 +369,7 @@ public class NRTPerfTest {
 			}
 		};
 		IndexThreads indexThreads = new IndexThreads(random, w, docs, numIndexThreads, -1, false, false, mode,
-                                                             (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, -1);
+                                                             (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, w.maxDoc());
 
 		// NativePosixUtil.mlockTermsDict(startR, "id");
 		final SearcherManager manager = new SearcherManager(w, true, null);

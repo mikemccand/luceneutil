@@ -280,6 +280,10 @@ KNOWN_CHANGES = [
    'Re-enabled transparent huge pages',
    'Re-enabled transparent huge pages'),
 
+  ('2014-03-11',
+   'LUCENE-5487: add BulkScorer',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5487">LUCENE-5487: add BulkScorer</a>'),
+
   ('2014-11-01',
    'LUCENE-6030: norms compression',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6030">LUCENE-6030: norms compression</a>'),

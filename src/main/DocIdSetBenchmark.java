@@ -16,6 +16,7 @@
  */
 
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -25,6 +26,7 @@ import java.util.Random;
 
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.util.BitDocIdSet;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.RamUsageTester;
 import org.apache.lucene.util.RoaringDocIdSet;
@@ -39,20 +41,20 @@ public class DocIdSetBenchmark {
   /** Tracks scores for each {@link DocIdSet} impl. */
   private static class ScoresRegister {
 
-    private final Map<Object, Map<Float, Map<Class<? extends DocIdSet>, Long>>> scores;
+    private final Map<Object, Map<Float, Map<Class<?>, Long>>> scores;
 
     ScoresRegister() {
       scores = new LinkedHashMap<>();
     }
 
-    public void registerScore(Object key, Float loadFactor, Class<? extends DocIdSet> cls, long score) {
-      Map<Float, Map<Class<? extends DocIdSet>, Long>> m1 = scores.get(key);
+    public void registerScore(String key, Float loadFactor, Class<?> cls, long score) {
+      Map<Float, Map<Class<?>, Long>> m1 = scores.get(key);
       if (m1 == null) {
         m1 = new LinkedHashMap<>();
         scores.put(key, m1);
       }
 
-      Map<Class<? extends DocIdSet>, Long> m2 = m1.get(loadFactor);
+      Map<Class<?>, Long> m2 = m1.get(loadFactor);
       if (m2 == null) {
         m2 = new LinkedHashMap<>();
         m1.put(loadFactor, m2);
@@ -67,9 +69,9 @@ public class DocIdSetBenchmark {
 
     // print the tables that are used for the visualizations
     public void printChartsTables() {
-      for (Map.Entry<Object, Map<Float, Map<Class<? extends DocIdSet>, Long>>> entry : scores.entrySet()) {
+      for (Map.Entry<Object, Map<Float, Map<Class<?>, Long>>> entry : scores.entrySet()) {
         System.out.println("#### " + entry.getKey());
-        Map<Float, Map<Class<? extends DocIdSet>, Long>> m2 = entry.getValue();
+        Map<Float, Map<Class<?>, Long>> m2 = entry.getValue();
         System.out.print("['log10(loadFactor)', '" + FixedBitSet.class.getSimpleName() + "'");
         for (Class<?> cls : m2.values().iterator().next().keySet()) {
           if (cls != FixedBitSet.class) {
@@ -77,12 +79,12 @@ public class DocIdSetBenchmark {
           }
         }
         System.out.println("],");
-        for (Map.Entry<Float, Map<Class<? extends DocIdSet>, Long>> entry2 : m2.entrySet()) {
+        for (Map.Entry<Float, Map<Class<?>, Long>> entry2 : m2.entrySet()) {
           final float loadFactor = entry2.getKey();
-          final Map<Class<? extends DocIdSet>, Long> scores = entry2.getValue();
+          final Map<Class<?>, Long> scores = entry2.getValue();
           final double fbsScore = scores.get(FixedBitSet.class);
           System.out.print("[" + Math.log10(loadFactor) + ",0");
-          for (Map.Entry<Class<? extends DocIdSet>, Long> score : scores.entrySet()) {
+          for (Map.Entry<Class<?>, Long> score : scores.entrySet()) {
             if (score.getKey() != FixedBitSet.class) {
               System.out.print("," + Math.log(score.getValue() / fbsScore) / Math.log(2));
             }
@@ -99,6 +101,9 @@ public class DocIdSetBenchmark {
   private static final Random RANDOM = new Random();
   private static DocIdSetFactory[] FACTORIES = new DocIdSetFactory[] {
     new DocIdSetFactory() {
+      public Class<?> getKey() {
+        return RoaringDocIdSet.class;
+      }
       @Override
       public DocIdSet copyOf(DocIdSet set, int numBits) throws IOException {
         RoaringDocIdSet.Builder copy = new RoaringDocIdSet.Builder(numBits);
@@ -110,6 +115,9 @@ public class DocIdSetBenchmark {
       }
     },
     new DocIdSetFactory() {
+      public Class<?> getKey() {
+        return EliasFanoDocIdSet.class;
+      }
       @Override
       public DocIdSet copyOf(DocIdSet set, int numBits) throws IOException {
         int cardinality = 0, maxDoc = -1;
@@ -124,11 +132,14 @@ public class DocIdSetBenchmark {
       }
     },
     new DocIdSetFactory() {
+      public Class<?> getKey() {
+        return SparseFixedBitSet.class;
+      }
       @Override
       public DocIdSet copyOf(DocIdSet set, int numBits) throws IOException {
         SparseFixedBitSet copy = new SparseFixedBitSet(numBits);
         copy.or(set.iterator());
-        return copy;
+        return new BitDocIdSet(copy, copy.approximateCardinality());
       }
     }
   };
@@ -136,6 +147,7 @@ public class DocIdSetBenchmark {
   private static float[] LOAD_FACTORS = new float[] {0.00001f, 0.0001f, 0.001f, 0.01f, 0.1f, 0.5f, 0.9f, 0.99f, 1f};
 
   private static abstract class DocIdSetFactory {
+    public abstract Class<?> getKey();
     public abstract DocIdSet copyOf(DocIdSet set, int numBits) throws IOException;
   }
 
@@ -180,12 +192,12 @@ public class DocIdSetBenchmark {
     return dummy;
   }
 
-  private static Collection<DocIdSet> sets(int numBits, float load) throws IOException {
-    final FixedBitSet fixedSet = randomSet(numBits, load);
-    final List<DocIdSet> sets = new ArrayList<DocIdSet>();
-    sets.add(fixedSet);
+  private static Collection<Map.Entry<Class<?>, DocIdSet>> sets(int numBits, float load) throws IOException {
+    final BitDocIdSet fixedSet = new BitDocIdSet(randomSet(numBits, load));
+    final List<Map.Entry<Class<?>, DocIdSet>> sets = new ArrayList<>();
+    sets.add(new AbstractMap.SimpleImmutableEntry<Class<?>, DocIdSet>(FixedBitSet.class, fixedSet));
     for (DocIdSetFactory factory : FACTORIES) {
-      sets.add(factory.copyOf(fixedSet, fixedSet.length()));
+      sets.add(new AbstractMap.SimpleImmutableEntry<Class<?>, DocIdSet>(factory.getKey(), factory.copyOf(fixedSet, numBits)));
     }
     return sets;
   }
@@ -251,10 +263,10 @@ public class DocIdSetBenchmark {
   public static void main(String[] args) throws IOException, InterruptedException {
     ScoresRegister reg = new ScoresRegister();
     for (float loadFactor : LOAD_FACTORS) {
-      for (DocIdSet set : sets(MAX_DOC, loadFactor)) {
-        final long memSize = RamUsageTester.sizeOf(set);
-        reg.registerScore("memory", loadFactor, set.getClass(), memSize);
-        System.out.println(set.getClass().getSimpleName() + "\t" + loadFactor + "\t" + memSize);
+      for (Map.Entry<Class<?>, DocIdSet> set : sets(MAX_DOC, loadFactor)) {
+        final long memSize = RamUsageTester.sizeOf(set.getValue());
+        reg.registerScore("memory", loadFactor, set.getKey(), memSize);
+        System.out.println(set.getKey().getSimpleName() + "\t" + loadFactor + "\t" + memSize);
       }
     }
     System.out.println();
@@ -263,15 +275,14 @@ public class DocIdSetBenchmark {
     while (System.nanoTime() - start < 30 * SECOND) {
       final int numBits = 1 << 18;
       for (float loadFactor : LOAD_FACTORS) {
-        final FixedBitSet fixedSet = randomSet(numBits, loadFactor);
+        final BitDocIdSet fixedSet = new BitDocIdSet(randomSet(numBits, loadFactor), 0);
         scoreBuildFixedBitSet(fixedSet, numBits);
         for (DocIdSetFactory factory : FACTORIES) {
-          scoreBuild(factory, fixedSet, fixedSet.length());
+          scoreBuild(factory, fixedSet, numBits);
         }
-        for (DocIdSet set : sets(numBits, loadFactor)) {
-          score(set);
-          score(set, 1);
-          score(set, 701);
+        for (Map.Entry<Class<?>, DocIdSet> set : sets(numBits, loadFactor)) {
+          score(set.getValue());
+          score(set.getValue(), 313);
         }
       }
     }
@@ -280,14 +291,14 @@ public class DocIdSetBenchmark {
     System.out.println("LoadFactor\tBenchmark\tImplementation\tScore");
     for (int i = 0; i < 3; ++i) {
       for (float load : LOAD_FACTORS) {
-        final Collection<DocIdSet> sets = sets(MAX_DOC, load);
+        final Collection<Map.Entry<Class<?>, DocIdSet>> sets = sets(MAX_DOC, load);
         // Free memory so that GC doesn't kick in while the benchmark is running
         System.gc();
         Thread.sleep(5 * 1000);
         DocIdSet fastestSet = null;
-        for (DocIdSet set : sets) {
-          fastestSet = set;
-          if (set instanceof RoaringDocIdSet) { // fastest at nextDoc
+        for (Map.Entry<Class<?>, DocIdSet> set : sets) {
+          fastestSet = set.getValue();
+          if (set.getValue() instanceof RoaringDocIdSet) { // fastest at nextDoc
             break;
           }
         }
@@ -296,23 +307,22 @@ public class DocIdSetBenchmark {
         System.out.println(load + "\tbuild\t" + FixedBitSet.class.getSimpleName() + "\t" + score);
         for (DocIdSetFactory factory : FACTORIES) {
           score = scoreBuild(factory, fastestSet, MAX_DOC);
-          final Class<? extends DocIdSet> cls = factory.copyOf(new FixedBitSet(1), MAX_DOC).getClass();
-          reg.registerScore("build", load, cls, score);
-          System.out.println(load + "\tbuild\t" + cls.getSimpleName() + "\t" + score);
+          reg.registerScore("build", load, factory.getKey(), score);
+          System.out.println(load + "\tbuild\t" + factory.getKey().getSimpleName() + "\t" + score);
         }
         System.gc();
         Thread.sleep(5 * 1000);
-        for (DocIdSet set : sets) {
-          score = score(set);
-          reg.registerScore("nextDoc", load, set.getClass(), score);
-          System.out.println(load + "\tnextDoc()\t" + set.getClass().getSimpleName() + "\t" + score(set));
+        for (Map.Entry<Class<?>, DocIdSet> set : sets) {
+          score = score(set.getValue());
+          reg.registerScore("nextDoc", load, set.getKey(), score);
+          System.out.println(load + "\tnextDoc()\t" + set.getKey().getSimpleName() + "\t" + score(set.getValue()));
         }
         for (int inc : new int[] {1, 31, 313, 3571, 33533, 319993}) { // primes
           final String key = "advance(" + inc + ")";
-          for (DocIdSet set : sets) {
-            score = score(set, inc);
-            reg.registerScore(key, load, set.getClass(), score);
-            System.out.println(load + "\t" + key + "\t" + set.getClass().getSimpleName() + "\t" + score);
+          for (Map.Entry<Class<?>, DocIdSet> set : sets) {
+            score = score(set.getValue(), inc);
+            reg.registerScore(key, load, set.getKey(), score);
+            System.out.println(load + "\t" + key + "\t" + set.getKey().getSimpleName() + "\t" + score);
           }
         }
       }

@@ -296,7 +296,7 @@ KNOWN_CHANGES = [
    'LUCENE-6179: remove out-of-order scoring',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6179">LUCENE-6179: remove out-of-order scoring</a>'),
 
-  ('2015-01-15',
+  ('2015-01-19',
    'LUCENE-6184: BooleanScorer better deals with sparse clauses',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6184">LUCENE-6184: BooleanScorer better deals with sparse clauses</a>'),
    ]

@@ -66,7 +66,7 @@ def beep():
 
 reRepro = re.compile('NOTE: reproduce with(.*?)$', re.MULTILINE)
 reDefines = re.compile('-D(.*?)=(.*?)(?: |$)')
-def printReproLines(logFileName):
+def printReproLines(logFileName, iters):
   with open(logFileName, 'rb') as f:
     print
     while True:
@@ -75,10 +75,10 @@ def printReproLines(logFileName):
         break
       m = reRepro.search(line)
       if m is not None:
-        parseReproLine(line)
+        parseReproLine(line, iters)
         break
 
-def parseReproLine(line):
+def parseReproLine(line, iters):
 
   codec = None
   mult = 1
@@ -110,6 +110,10 @@ def parseReproLine(line):
   s = 'REPRO: %s %s -seed %s %s'%  (constants.REPRO_COMMAND_START, testCase, seed, ' '.join(extra))
   if constants.REPRO_COMMAND_END != '':
     s += ' %s' % constants.REPRO_COMMAND_END
+
+  if iters != 1:
+    s = s.strip() + ' -iters %s' % iters
+    
   print('\n%s\n' % s)
 
 tup = os.path.split(os.getcwd())
@@ -309,6 +313,7 @@ def _run(threadID):
       command += ' -Djetty.testMode=1'
       command += ' -Djetty.insecurerandom=1'
       command += ' -Dtests.asserts.gracious=false'
+      command += ' -Dtests.asserts=true'
       command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
 
       if USE_JUNIT:
@@ -320,7 +325,9 @@ def _run(threadID):
       command += ' %s' % testClass
 
       if doLog:
-        command += ' > %s 2>&1' % logFileName
+        with open(logFileName, 'w') as f:
+          f.write('RUN: %s\n\n' % command)
+        command += ' >> %s 2>&1' % logFileName
 
       # print('command: %s' % command)
 
@@ -435,7 +442,7 @@ def _run(threadID):
           print '  FAILED [log %s]' % logFileName
           
         if doLog:
-          printReproLines(logFileName)
+          printReproLines(logFileName, iters)
         failed = True
         beep()
         break

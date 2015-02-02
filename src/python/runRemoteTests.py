@@ -300,6 +300,7 @@ def gatherTests(stats, rootDir):
 
   addJARs(cp, 'lucene/test-framework/lib')
   addCP('lucene/build/test-framework/classes/java')
+  addCP('lucene/analysis/common/src/test')
   if '-solr' in sys.argv:
     addCP('solr/build/solr-test-framework/classes/java')
     addJARs(cp, 'solr/example/example-DIH/solr/db/lib')

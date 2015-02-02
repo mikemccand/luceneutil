@@ -366,21 +366,8 @@ class IndexThreads {
               final int sleepNS2 = (int) (sleepNS - sleepMS*1000000);
               Thread.sleep(sleepMS, sleepNS2);
             }
-            if (nrtEverySec > 0.0) {
-              long ns = System.nanoTime();
-              if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
-                DirectoryReader r = DirectoryReader.open(w, true);
-                int irNumDocs = r.numDocs();
-                int irMaxDoc = r.maxDoc();
-                System.out.println(String.format(Locale.ROOT,
-                                                 "%.2f sec: %d numDocs, %d deletions (%.2f%%)",
-                                                 (System.currentTimeMillis() - tStart)/1000.0,
-                                                 irNumDocs, irMaxDoc-irNumDocs, 100.*(irMaxDoc-irNumDocs)/irNumDocs));
-                r.close();
-                lastRefreshNS.set(ns);
-                refreshing.set(false);
-              }
-            }
+
+            maybeOpenReader(tStart);
           }
         } else {
           while (!stop.get()) {
@@ -397,21 +384,6 @@ class IndexThreads {
               System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
 
-            if (nrtEverySec > 0.0) {
-              long ns = System.nanoTime();
-              if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
-                DirectoryReader r = DirectoryReader.open(w, true);
-                int irNumDocs = r.numDocs();
-                int irMaxDoc = r.maxDoc();
-                System.out.println(String.format(Locale.ROOT,
-                                                 "%.2f sec: %d numDocs, %d deletions (%.2f%%)",
-                                                 (System.currentTimeMillis() - tStart)/1000.0,
-                                                 irNumDocs, irMaxDoc-irNumDocs, 100.*(irMaxDoc-irNumDocs)/irNumDocs));
-                r.close();
-                lastRefreshNS.set(ns);
-                refreshing.set(false);
-              }
-            }
             if (mode == Mode.UPDATE) {
               final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
               // NOTE: can't use docState.id in case doClone
@@ -421,6 +393,8 @@ class IndexThreads {
             } else {
               w.addDocument(doc);
             }
+
+            maybeOpenReader(tStart);
           }
         }
       } catch (Exception e) {
@@ -428,6 +402,27 @@ class IndexThreads {
         throw new RuntimeException(e);
       } finally {
         stopLatch.countDown();
+      }
+    }
+
+    private void maybeOpenReader(long tStart) throws IOException {
+      if (nrtEverySec > 0.0) {
+        long ns = System.nanoTime();
+        if (ns - lastRefreshNS.get() > nrtEverySec*1000000000 && refreshing.compareAndSet(false, true)) {
+          System.out.println(String.format(Locale.ROOT,
+                                           "%.2f sec: now getReader",
+                                           (System.currentTimeMillis() - tStart)/1000.0));
+          DirectoryReader r = DirectoryReader.open(w, true);
+          int irNumDocs = r.numDocs();
+          int irMaxDoc = r.maxDoc();
+          System.out.println(String.format(Locale.ROOT,
+                                           "%.2f sec: %d numDocs, %d deletions (%.2f%%)",
+                                           (System.currentTimeMillis() - tStart)/1000.0,
+                                           irNumDocs, irMaxDoc-irNumDocs, 100.*(irMaxDoc-irNumDocs)/irNumDocs));
+          r.close();
+          lastRefreshNS.set(ns);
+          refreshing.set(false);
+        }
       }
     }
   }

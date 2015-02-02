@@ -278,7 +278,27 @@ KNOWN_CHANGES = [
 
   ('2014-08-30',
    'Re-enabled transparent huge pages',
-   'Re-enabled transparent huge pages'),   
+   'Re-enabled transparent huge pages'),
+
+  ('2014-03-11',
+   'LUCENE-5487: add BulkScorer',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5487">LUCENE-5487: add BulkScorer</a>'),
+
+  ('2014-11-01',
+   'LUCENE-6030: norms compression',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6030">LUCENE-6030: norms compression</a>'),
+
+  ('2014-11-22',
+   'Upgrade from java 1.7.0_55-b13 to java 1.8.0_20-ea-b05',
+   'Upgrade from java 1.7.0_55-b13 to java 1.8.0_20-ea-b05'),
+
+  ('2015-01-15',
+   'LUCENE-6179: remove out-of-order scoring',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6179">LUCENE-6179: remove out-of-order scoring</a>'),
+
+  ('2015-01-19',
+   'LUCENE-6184: BooleanScorer better deals with sparse clauses',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6184">LUCENE-6184: BooleanScorer better deals with sparse clauses</a>'),
    ]
 
 # TODO

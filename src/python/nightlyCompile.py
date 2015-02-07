@@ -37,6 +37,8 @@ REAL = True
 if '-debug' in sys.argv:
   DEBUG = True
   sys.argv.remove('-debug')
+else:
+  DEBUG = False
 
 if len(sys.argv) > 1:
   NIGHTLY_DIR = sys.argv[1]

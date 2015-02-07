@@ -26,7 +26,7 @@ import java.util.Set;
 
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
@@ -84,7 +84,7 @@ final class PKLookupTask extends Task {
     try {
       final List<LeafReaderContext> subReaders = searcher.getIndexReader().leaves();
       final TermsEnum[] termsEnums = new TermsEnum[subReaders.size()];
-      final DocsEnum[] docsEnums = new DocsEnum[subReaders.size()];
+      final PostingsEnum[] docsEnums = new PostingsEnum[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
         termsEnums[subIDX] = subReaders.get(subIDX).reader().fields().terms("id").iterator(null);
       }
@@ -99,7 +99,7 @@ final class PKLookupTask extends Task {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           if (termsEnum.seekExact(id)) { 
             //System.out.println("  found!");
-            final DocsEnum docs = docsEnums[subIDX] = termsEnum.docs(sub.getLiveDocs(), docsEnums[subIDX], 0);
+            final PostingsEnum docs = docsEnums[subIDX] = termsEnum.postings(sub.getLiveDocs(), docsEnums[subIDX], 0);
             assert docs != null;
             final int docID = docs.nextDoc();
             if (docID != DocIdSetIterator.NO_MORE_DOCS) {

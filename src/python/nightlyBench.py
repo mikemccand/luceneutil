@@ -20,6 +20,7 @@
 #   - outgoing smtp
 
 import cPickle
+import tarfile
 import traceback
 import time
 import datetime
@@ -733,7 +734,8 @@ def run():
   open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(cPickle.dumps(results))
 
   if REAL:
-    runCommand('chmod -R a-w %s' % runLogDir)
+    if False:
+      runCommand('chmod -R a-w %s' % runLogDir)
 
   message('done: total time %s' % (now()-start))
 
@@ -846,6 +848,9 @@ def makeGraphs():
   # Index time
   writeIndexingHTML(medIndexChartData, bigIndexChartData)
 
+  # CheckIndex time
+  writeCheckIndexTimeHTML()
+
   # NRT
   writeNRTHTML(nrtChartData)
 
@@ -865,7 +870,83 @@ def makeGraphs():
 
   if not DEBUG:
     runCommand('rsync -rv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
-  
+
+reTookSec = re.compile('took ([0-9.]+) sec')
+reDateTime = re.compile('log dir /lucene/logs.nightly/(.*?)$')
+
+def writeCheckIndexTimeHTML():
+  # Messy: parses the .tar.bz2 to find timestamps of each file  Once
+  # LUCENE-6233 is in we can more cleanly get this from CheckIndex's output
+  # instead:
+  chartData = []
+
+  l = os.listdir(NIGHTLY_LOG_DIR)
+  l.sort()
+
+  for subDir in l:
+    checkIndexTimeFile = '%s/%s/checkIndex.time' % (NIGHTLY_LOG_DIR, subDir)
+    if os.path.exists('%s/%s/results.debug.pk' % (NIGHTLY_LOG_DIR, subDir)):
+      # Skip debug runs
+      continue
+    
+    if os.path.exists(checkIndexTimeFile):
+      # Already previously computed & cached:
+      seconds = int(open(checkIndexTimeFile, 'r').read())
+    else:
+      # Look at timestamps of each file in the tar file:
+      logsFile = '%s/%s/logs.tar.bz2' % (NIGHTLY_LOG_DIR, subDir)
+      if os.path.exists(logsFile):
+        t = tarfile.open(logsFile, 'r:bz2')
+        l = []
+        while True:
+          ti = t.next()
+          if ti is None:
+            break
+          l.append((ti.mtime, ti.name))
+
+        l.sort()
+        for i in range(len(l)):
+          if l[i][1] == 'checkIndex.fixedIndex.log':
+            seconds = l[i][0] - l[i-1][0]
+            break
+        else:
+          continue
+
+        open(checkIndexTimeFile, 'w').write('%d' % seconds)
+      else:
+        continue
+
+    tup = subDir.split('.')
+    if len(tup) != 6:
+      #print('skip %s' % subDir)
+      continue
+    #print("tup %s" % tup)
+    chartData.append('%s-%s-%s %s:%s:%s,%s' % (tuple(tup) + (seconds,)))
+    #print("added %s" % chartData[-1])
+                
+  with open('%s/checkIndexTime.html' % NIGHTLY_REPORTS_DIR, 'wb') as f:
+    w = f.write
+    header(w, 'Lucene nightly CheckIndex time')
+    w('<h1>Seconds to run CheckIndex</h1>\n')
+    w('<br>')
+    w(getOneGraphHTML('CheckIndexTimeSeconds', chartData, "Seconds", "CheckIndex time (seconds)", errorBars=False))
+
+    writeKnownChanges(w)
+
+    w('<br><br>')
+    w('<b>Notes</b>:\n')
+    w('<ul>\n')
+    w('  <li> Java command-line: <tt>%s</tt>\n' % constants.JAVA_COMMAND)
+    w('  <li> Java version: <tt>%s</tt>\n' % htmlEscape(os.popen('java -version 2>&1').read().strip()))
+    w('  <li> OS: <tt>%s</tt>\n' % htmlEscape(os.popen('uname -a 2>&1').read().strip()))
+    w('  <li> CPU: 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores = 2 CPU * 6 core * 2 hyperthreads)\n')
+    w('  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))')
+    w('  <li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/Indexer.java"><tt>Indexer.java</tt></a>')
+    w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
+    w('</ul>')
+    w('<br><a href="index.html">Back to all results</a><br>')
+    footer(w)
+    
 def header(w, title):
   w('<html>')
   w('<head>')
@@ -894,6 +975,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>')
   w('<br>&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
   w('<br>&nbsp;&nbsp;<a href="nrt.html">Near-real-time latency</a>')
+  w('<br>&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
   l = searchChartData.keys()
   lx = []
   for s in l:

@@ -300,6 +300,10 @@ KNOWN_CHANGES = [
   ('2015-01-19',
    'LUCENE-6184: BooleanScorer better deals with sparse clauses',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6184">LUCENE-6184: BooleanScorer better deals with sparse clauses</a>'),
+
+  ('2015-02-13',
+   'LUCENE-6198: Two phase intersection',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6198">LUCENE-6198: Two phase intersection</a> (approximations are not needed by any query in this benchmark, but the change refactored ConjunctionScorer a bit)'),
    ]
 
 # TODO

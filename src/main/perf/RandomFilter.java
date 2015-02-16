@@ -60,7 +60,7 @@ class RandomFilter extends Filter {
   }
 
   @Override
-  public String toString() {
+  public String toString(String field) {
     return "RandomFilter(seed=" + randomSeed + " pctKeep=" + (100.0*fractionKeep) + "%)";
   }
 }

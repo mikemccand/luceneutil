@@ -108,3 +108,13 @@ Wildcard: fu*r
 Wildcard: no*n
 Wildcard: pr*t
 Wildcard: un*l
+AndHighOrMedMed: +be +(mostly interview) # freq=2115632 freq=89401 freq=94736
+AndHighOrMedMed: +cite +(9 hard) # freq=1367577 freq=541405 freq=92045
+AndHighOrMedMed: +is +(bay 16) # freq=4214104 freq=117167 freq=531050
+AndHighOrMedMed: +no +(power particularly) # freq=1060681 freq=257919 freq=100045
+AndHighOrMedMed: +title +(1983 ed) # freq=2077102 freq=150075 freq=127497
+AndMedOrHighHigh: +mostly +(are last) # freq=89401 freq=1921211 freq=830278
+AndMedOrHighHigh: +interview +(at united) # freq=94736 freq=2834104 freq=1185528
+AndMedOrHighHigh: +hard +(but year) # freq=92045 freq=1484398 freq=1098425
+AndMedOrHighHigh: +9 +(name its) # freq=541405 freq=2577591 freq=1160703
+AndMedOrHighHigh: +bay +(to but) # freq=117167 freq=6105155 freq=1484398

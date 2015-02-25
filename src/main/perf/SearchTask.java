@@ -225,18 +225,21 @@ final class SearchTask extends Task {
           }
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         }
-      } else if (s == null && f == null) {
-        hits = searcher.search(q, topN);
-        if (doHilite) {
-          hilite(hits, state, searcher, q);
+      } else if (s == null) {
+        if (f == null) {
+          hits = searcher.search(q, topN);
+        } else {
+          hits = searcher.search(new FilteredQuery(q, f), topN);
         }
-      } else if (s == null && f != null) {
-        hits = searcher.search(new FilteredQuery(q, f), topN);
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }
       } else {
-        hits = searcher.search(new FilteredQuery(q, f), topN, s);
+        if (f == null) {
+          hits = searcher.search(q, topN, s);
+        } else {
+          hits = searcher.search(new FilteredQuery(q, f), topN, s);
+        }
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }

@@ -35,6 +35,7 @@ import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MultiCollector;
 import org.apache.lucene.search.Query;
@@ -230,12 +231,12 @@ final class SearchTask extends Task {
           hilite(hits, state, searcher, q);
         }
       } else if (s == null && f != null) {
-        hits = searcher.search(q, f, topN);
+        hits = searcher.search(new FilteredQuery(q, f), topN);
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }
       } else {
-        hits = searcher.search(q, f, topN, s);
+        hits = searcher.search(new FilteredQuery(q, f), topN, s);
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }

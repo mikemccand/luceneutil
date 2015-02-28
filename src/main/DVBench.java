@@ -104,6 +104,7 @@ public class DVBench {
     String description = "dv (bpv=" + bpv + ")";
     DirectoryReader reader = DirectoryReader.open(dir);
     IndexSearcher searcher = new IndexSearcher(reader);
+    searcher.setQueryCache(null); // don't bench the cache
     
     int hash = 0;
     // warmup
@@ -114,6 +115,7 @@ public class DVBench {
     Map<String,UninvertingReader.Type> mapping = Collections.singletonMap("inv", UninvertingReader.Type.LONG);
     DirectoryReader uninv = UninvertingReader.wrap(reader, mapping);
     IndexSearcher searcher2 = new IndexSearcher(uninv);
+    searcher2.setQueryCache(null); // don't bench the cache
     
     description = "fc (bpv=" + bpv + ")";
     // warmup
@@ -123,6 +125,7 @@ public class DVBench {
     // Boxed inside binary
     DirectoryReader boxedReader = new BinaryAsVLongReader(reader);
     IndexSearcher searcher3 = new IndexSearcher(boxedReader);
+    searcher3.setQueryCache(null); // don't bench the cache
     description = "boxed (bpv=" + bpv + ")";
     // warmup
     hash += search(description, searcher3, "boxed", 300, true);

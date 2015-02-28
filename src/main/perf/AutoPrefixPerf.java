@@ -272,6 +272,7 @@ public class AutoPrefixPerf {
 
     DirectoryReader r = DirectoryReader.open(dir);
     IndexSearcher s = new IndexSearcher(r);
+    s.setQueryCache(null); // don't bench the cache
 
     printQueryTerms((MultiTermQuery) queries.get(0), s);
 

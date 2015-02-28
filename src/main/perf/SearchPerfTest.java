@@ -326,6 +326,7 @@ public class SearchPerfTest {
             final long t0 = System.currentTimeMillis();
             //System.out.println("DO WARM: " + reader);
             IndexSearcher s = new IndexSearcher(reader);
+            s.setQueryCache(null); // don't bench the cache
             s.search(new TermQuery(new Term(fieldName, "united")), 10);
             final long t1 = System.currentTimeMillis();
             System.out.println("warm segment=" + reader + " numDocs=" + reader.numDocs() + ": took " + (t1-t0) + " msec");
@@ -346,6 +347,7 @@ public class SearchPerfTest {
           @Override
           public IndexSearcher newSearcher(IndexReader reader) {
             IndexSearcher s = new IndexSearcher(reader);
+            s.setQueryCache(null); // don't bench the cache
             s.setSimilarity(sim);
             return s;
           }
@@ -413,6 +415,7 @@ public class SearchPerfTest {
         reader = DirectoryReader.open(dir);
       }
       IndexSearcher s = new IndexSearcher(reader);
+      s.setQueryCache(null); // don't bench the cache
       s.setSimilarity(sim);
       System.out.println("maxDoc=" + reader.maxDoc() + " numDocs=" + reader.numDocs() + " %tg deletes=" + (100.*reader.maxDoc()/reader.numDocs()));
       

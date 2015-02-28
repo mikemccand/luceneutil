@@ -37,6 +37,7 @@ public final class RunFuzzyQuery {
     final Directory dir = new MMapDirectory(new File(dirPath));
     final DirectoryReader r = DirectoryReader.open(dir);
     final IndexSearcher s = new IndexSearcher(r);
+    s.setQueryCache(null); // don't bench the cache
 
     // nocommit
     //final float minSim = ((float) ed) / text.length();

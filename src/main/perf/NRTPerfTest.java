@@ -89,6 +89,7 @@ public class NRTPerfTest {
 			final long t0 = System.currentTimeMillis();
 			//System.out.println("DO WARM: " + reader);
 			IndexSearcher s = new IndexSearcher(reader);
+                        s.setQueryCache(null); // don't bench the cache
 			s.search(new TermQuery(new Term(field, "10")), 10);
 
 			// Warm terms dict & index:

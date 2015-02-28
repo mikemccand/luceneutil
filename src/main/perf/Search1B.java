@@ -43,6 +43,7 @@ public class Search1B {
     IndexReader r = DirectoryReader.open(dir);
     System.out.println("r=" + r);
     IndexSearcher s = new IndexSearcher(r);
+    s.setQueryCache(null); // don't bench the cache
     searchOneField(s, getQueries(s, "number", precStep, 1397724815596L, 1397724815596L + 3600*24*1000));
     r.close();
     dir.close();

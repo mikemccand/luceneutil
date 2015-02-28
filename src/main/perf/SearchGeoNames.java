@@ -49,6 +49,7 @@ public class SearchGeoNames {
     IndexReader r = DirectoryReader.open(dir);
     System.out.println("r=" + r);
     IndexSearcher s = new IndexSearcher(r);
+    s.setQueryCache(null); // don't bench the cache
 
     SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
     System.out.println("t=" + dateParser.parse("2014-12-01", new ParsePosition(0)).getTime());

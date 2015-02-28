@@ -29,7 +29,6 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.NumericRangeQuery;
@@ -111,7 +110,7 @@ class TaskParser {
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         filter = filters.get(filterPct);
         if (filter == null) {
-          filter = new CachingWrapperFilter(new RandomFilter(filterPct, random.nextLong()));
+          filter = new RandomFilter(filterPct, random.nextLong());
           filters.put(filterPct, filter);
         }
       } else {

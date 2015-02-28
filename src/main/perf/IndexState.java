@@ -28,7 +28,6 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.QueryWrapperFilter;
@@ -62,7 +61,7 @@ class IndexState {
     this.taxoReader = taxoReader;
     this.facetsConfig = facetsConfig;
     
-    groupEndFilter = new CachingWrapperFilter(new QueryWrapperFilter(new TermQuery(new Term("groupend", "x"))));
+    groupEndFilter = new QueryWrapperFilter(new TermQuery(new Term("groupend", "x")));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
       fastHighlighter = new FastVectorHighlighter(true, true);
       useHighlighter = false;

@@ -345,7 +345,7 @@ public class SearchPerfTest {
 
       mgr = new SearcherManager(writer, true, new SearcherFactory() {
           @Override
-          public IndexSearcher newSearcher(IndexReader reader) {
+          public IndexSearcher newSearcher(IndexReader reader, IndexReader previous) {
             IndexSearcher s = new IndexSearcher(reader);
             s.setQueryCache(null); // don't bench the cache
             s.setSimilarity(sim);

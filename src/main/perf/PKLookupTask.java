@@ -86,7 +86,7 @@ final class PKLookupTask extends Task {
       final TermsEnum[] termsEnums = new TermsEnum[subReaders.size()];
       final PostingsEnum[] docsEnums = new PostingsEnum[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
-        termsEnums[subIDX] = subReaders.get(subIDX).reader().fields().terms("id").iterator(null);
+        termsEnums[subIDX] = subReaders.get(subIDX).reader().fields().terms("id").iterator();
       }
 
       for(int idx=0;idx<ids.length;idx++) {

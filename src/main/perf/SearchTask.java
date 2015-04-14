@@ -39,6 +39,7 @@ import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MultiCollector;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryWrapperFilter;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
@@ -229,7 +230,7 @@ final class SearchTask extends Task {
         if (f == null) {
           hits = searcher.search(q, topN);
         } else {
-          hits = searcher.search(new FilteredQuery(q, f), topN);
+          hits = searcher.search(new FilteredQuery(q, new QueryWrapperFilter(f)), topN);
         }
         if (doHilite) {
           hilite(hits, state, searcher, q);
@@ -238,7 +239,7 @@ final class SearchTask extends Task {
         if (f == null) {
           hits = searcher.search(q, topN, s);
         } else {
-          hits = searcher.search(new FilteredQuery(q, f), topN, s);
+          hits = searcher.search(new FilteredQuery(q, new QueryWrapperFilter(f)), topN, s);
         }
         if (doHilite) {
           hilite(hits, state, searcher, q);

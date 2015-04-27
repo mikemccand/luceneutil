@@ -76,7 +76,7 @@ def getLuceneMatchVersion(ROOT):
         return line[13:].strip()
     raise RuntimeError('could not locate lucene version')
   else:
-    return '4.10.3'
+    return '4.10.4'
 
 def getLuceneTestClassPath(ROOT):
   CP = []

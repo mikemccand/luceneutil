@@ -47,13 +47,14 @@ USE_JUNIT = True
 
 osName = common.osName
 
-JAVA_ARGS = '-Xmx512m -Xms512m'
+#JAVA_ARGS = '-Xmx512m -Xms512m -XX:+UseG1GC'
 #JAVA_ARGS = '-Xmx512m -Xms512m -server -XX:+UseSerialGC'
 #JAVA_ARGS += ' -XX:+PrintCompilation -XX:+UnlockDiagnosticVMOptions -XX:CompileCommand=print,*Version.init'
 # print
 # print 'WARNING: *** running java w/ 8 GB heap ***'
 # print
 # JAVA_ARGS = '-Xmx8g -Xms8g'
+JAVA_ARGS = ''
 
 def error(message):
   beep()
@@ -314,8 +315,11 @@ def _run(threadID):
       command += ' -Djetty.insecurerandom=1'
       command += ' -Dtests.asserts.gracious=false'
       command += ' -Dtests.asserts=true'
-      command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
+      #command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
+      #command += ' -Djava.security.manager=org.apache.lucene.util.TestSecurityManager'
 
+      #command += ' -Dtests.leaveTemporary=true'
+      
       if USE_JUNIT:
         command += ' org.junit.runner.JUnitCore'
       else:
@@ -328,6 +332,8 @@ def _run(threadID):
         with open(logFileName, 'w') as f:
           f.write('RUN: %s\n\n' % command)
         command += ' >> %s 2>&1' % logFileName
+      else:
+        print('RUN: %s\n\n' % command)
 
       # print('command: %s' % command)
 

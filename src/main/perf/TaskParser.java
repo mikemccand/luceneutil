@@ -31,6 +31,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
@@ -198,6 +199,30 @@ class TaskParser {
                                                    new SpanTermQuery(new Term(fieldName, text.substring(spot3+1).trim()))},
                                   10,
                                   true);
+        sort = null;
+        group = null;
+      } else if (text.startsWith("multiPhrase//(")) {
+        int colon = text.indexOf(':');
+        if (colon == -1) {
+          throw new RuntimeException("failed to parse query=" + text);
+        }
+        String field = text.substring("//multiPhrase(".length(), colon);
+        MultiPhraseQuery pq = new MultiPhraseQuery();
+        int endParen = text.indexOf(')');
+        if (endParen == -1) {
+          throw new RuntimeException("failed to parse query=" + text);
+        }
+        String queryText = text.substring(colon+1, endParen);
+        String elements[] = queryText.split("\\s+");
+        for (int i = 0; i < elements.length; i++) {
+          String words[] = elements[i].split("\\|");
+          Term terms[] = new Term[words.length];
+          for (int j = 0; j < words.length; j++) {
+            terms[j] = new Term(field, words[j]);
+          }
+          pq.add(terms);
+        }
+        query = pq;
         sort = null;
         group = null;
       } else if (text.startsWith("disjunctionMax//")) {

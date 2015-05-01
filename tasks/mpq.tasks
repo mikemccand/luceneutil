@@ -1,0 +1,6 @@
+MultiPhraseHHH: multiPhrase//(body:in|of the)
+MultiPhraseHHM: multiPhrase//(body:in|of your)
+MultiPhraseHHL: multiPhrase//(body:in|of harvard)
+MultiPhraseMMH: multiPhrase//(body:northern|southern states)
+MultiPhraseMMM: multiPhrase//(body:northern|southern usa)
+MultiPhraseMML: multiPhrase//(body:northern|southern iraq)

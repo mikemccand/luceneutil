@@ -307,7 +307,20 @@ KNOWN_CHANGES = [
 
   ('2015-02-23',
    'LUCENE-6275: SloppyPhraseScorer reuses ConjunctionDISI',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6275">LUCENE-6275: SloppyPhraseScorer reuses ConjunctionDISI'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6275">LUCENE-6275: SloppyPhraseScorer reuses ConjunctionDISI</a>'),
+
+  ('2015-03-02',
+   'LUCENE-6320: Speed up CheckIndex',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6320">LUCENE-6320: Speed up CheckIndex</a>'),
+
+  ('2015-03-06',
+   'Upgrade JDK from 1.8.0_25-b17 to 1.8.0_40-b25',
+   'Upgrade JDK from 1.8.0_25-b17 to 1.8.0_40-b25'),
+
+  ('2015-04-02',
+   'LUCENE-6308: span queries support two-phased iteration',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6308">LUCENE-6308: span queries support two-phased iteration'),
+
    ]
 
 # TODO

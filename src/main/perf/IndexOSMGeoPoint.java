@@ -44,7 +44,7 @@ public class IndexOSMGeoPoint {
         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
     int BUFFER_SIZE = 1 << 16;     // 64K
-    InputStream is = new FileInputStream(new File("/lucenedata/open-street-maps/latlon.subset.txt"));
+    InputStream is = new FileInputStream(new File("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
     int count = 0;
     long t0 = System.currentTimeMillis();

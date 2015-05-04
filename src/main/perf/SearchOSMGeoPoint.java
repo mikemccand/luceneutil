@@ -59,7 +59,7 @@ public class SearchOSMGeoPoint {
     */
 
     // London, UK:
-    int STEPS = 10;
+    int STEPS = 5;
     double MIN_LAT = 51.0919106;
     double MAX_LAT = 51.6542719;
     double MIN_LON = -0.3867282;

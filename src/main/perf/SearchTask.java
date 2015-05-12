@@ -34,12 +34,8 @@ import org.apache.lucene.index.StorableField;
 import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
-import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.MultiCollector;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.QueryWrapperFilter;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
@@ -64,7 +60,6 @@ final class SearchTask extends Task {
   private final String category;
   private final Query q;
   private final Sort s;
-  private final Filter f;
   private final String group;
   private final int topN;
   private final boolean singlePassGroup;
@@ -83,13 +78,12 @@ final class SearchTask extends Task {
   private double getFacetResultsMsec;
   private List<String> facetRequests;
 
-  public SearchTask(String category, Query q, Sort s, String group, Filter f, int topN,
+  public SearchTask(String category, Query q, Sort s, String group, int topN,
                     boolean doHilite, boolean doStoredLoads, List<String> facetRequests,
                     boolean doDrillSideways) {
     this.category = category;
     this.q = q;
     this.s = s;
-    this.f = f;
     if (group != null && group.startsWith("groupblock")) {
       this.group = "groupblock";
       this.singlePassGroup = group.equals("groupblock1pass");
@@ -113,9 +107,9 @@ final class SearchTask extends Task {
       throw new RuntimeException("q=" + q + " failed to clone");
     }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", f, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
+      return new SearchTask(category, q2, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
     } else {
-      return new SearchTask(category, q2, s, group, f, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
+      return new SearchTask(category, q2, s, group, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
     }
   }
 
@@ -227,20 +221,12 @@ final class SearchTask extends Task {
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         }
       } else if (s == null) {
-        if (f == null) {
-          hits = searcher.search(q, topN);
-        } else {
-          hits = searcher.search(new FilteredQuery(q, new QueryWrapperFilter(f)), topN);
-        }
+        hits = searcher.search(q, topN);
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }
       } else {
-        if (f == null) {
-          hits = searcher.search(q, topN, s);
-        } else {
-          hits = searcher.search(new FilteredQuery(q, new QueryWrapperFilter(f)), topN, s);
-        }
+        hits = searcher.search(q, topN, s);
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }
@@ -380,16 +366,6 @@ final class SearchTask extends Task {
         return false;
       }
 
-      if (f != null) {
-        if (otherSearchTask.f == null) {
-          return false;
-        } else if (!f.equals(otherSearchTask.f)) {
-          return false;
-        }
-      } else if (otherSearchTask.f != null) {
-        return false;
-      }
-
       return true;
     } else {
       return false;
@@ -404,9 +380,6 @@ final class SearchTask extends Task {
     }
     if (group != null) {
       hashCode ^= group.hashCode();
-    }
-    if (f != null) {
-      hashCode ^= f.hashCode();
     }
     hashCode *= topN;
     return hashCode;
@@ -465,7 +438,7 @@ final class SearchTask extends Task {
 
   @Override
   public String toString() {
-    return "cat=" + category + " q=" + q + " s=" + s + " f=" + f + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
+    return "cat=" + category + " q=" + q + " s=" + s + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
       (group == null ? " hits=" + (hits==null ? "null" : hits.totalHits) :
        " groups=" + (singlePassGroup ?
                      (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :

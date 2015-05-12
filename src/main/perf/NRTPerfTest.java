@@ -383,10 +383,9 @@ public class NRTPerfTest {
 
 		final DirectSpellChecker spellChecker = new DirectSpellChecker();
 		final IndexState indexState = new IndexState(manager, null, field, spellChecker, "PostingsHighlighter", null);
-		final Map<Double,Filter> filters = new HashMap<Double,Filter>();
 		final QueryParser qp = new QueryParser(field, analyzer);
 		qp.setLowercaseExpandedTerms(false);
-		TaskParser taskParser = new TaskParser(indexState, qp, field, filters, 10, random, true);
+		TaskParser taskParser = new TaskParser(indexState, qp, field, 10, random, true);
 		final TaskSource tasks = new RandomTaskSource(taskParser, tasksFile, random) {
 			@Override
 			public void taskDone(Task task, long queueTimeNS, int toalHitCount) {

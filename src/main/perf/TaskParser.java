@@ -19,7 +19,6 @@ package perf;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,9 +27,9 @@ import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
@@ -45,9 +44,6 @@ class TaskParser {
 
   private final QueryParser queryParser;
   private final String fieldName;
-  private final Map<Double,Filter> filters;
-  private final Sort dateTimeSort;
-  private final Sort titleSort;
   private final Sort titleDVSort;
   private final Sort lastModNDVSort;
   private final int topN;
@@ -58,19 +54,15 @@ class TaskParser {
   public TaskParser(IndexState state,
                     QueryParser queryParser,
                     String fieldName,
-                    Map<Double,Filter> filters,
                     int topN,
                     Random random,
                     boolean doStoredLoads) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
-    this.filters = filters;
     this.topN = topN;
     this.random = random;
     this.doStoredLoads = doStoredLoads;
     this.state = state;
-    dateTimeSort = new Sort(new SortField("datenum", SortField.Type.LONG));
-    titleSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
     lastModNDVSort = new Sort(new SortField("lastModNDV", SortField.Type.LONG));
   }
@@ -104,16 +96,12 @@ class TaskParser {
 
       // Check for filter (eg: " +filter=0.5%")
       final Matcher m = filterPattern.matcher(text);
-      Filter filter;
+      Query filter;
       if (m.find()) {
         final double filterPct = Double.parseDouble(m.group(1));
         // Splice out the filter string:
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
-        filter = filters.get(filterPct);
-        if (filter == null) {
-          filter = new RandomFilter(filterPct, random.nextLong());
-          filters.put(filterPct, filter);
-        }
+        filter = new RandomQuery(filterPct);
       } else {
         filter = null;
       }
@@ -332,6 +320,13 @@ class TaskParser {
         query2 = query;
       }
 
+      if (filter != null) {
+        BooleanQuery filtered = new BooleanQuery();
+        filtered.add(query2, Occur.MUST);
+        filtered.add(filter, Occur.FILTER);
+        query2 = filtered;
+      }
+
       /*
         if (category.startsWith("Or")) {
         for(BooleanClause clause : ((BooleanQuery) query).clauses()) {
@@ -340,7 +335,7 @@ class TaskParser {
         }
       */
 
-      task = new SearchTask(category, query2, sort, group, filter, topN, doHilite, doStoredLoads, facets, doDrillSideways);
+      task = new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoads, facets, doDrillSideways);
     }
 
     return task;

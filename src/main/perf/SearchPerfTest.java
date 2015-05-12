@@ -84,7 +84,7 @@ import perf.IndexThreads.Mode;
 // commits: single, multi, delsingle, delmulti
 
 // trunk:
-//   javac -Xlint -Xlint:deprecation -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomFilter.java
+//   javac -Xlint -Xlint:deprecation -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomQuery.java
 //   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -searchThreadCount 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
 @SuppressWarnings("deprecation")
@@ -454,10 +454,9 @@ public class SearchPerfTest {
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig);
 
-    Map<Double,Filter> filters = new HashMap<Double,Filter>();
     final QueryParser queryParser = new QueryParser("body", a);
     queryParser.setLowercaseExpandedTerms(false);
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, filters, topN, staticRandom, doStoredLoads);
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, doStoredLoads);
 
     final TaskSource tasks;
 

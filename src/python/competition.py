@@ -249,7 +249,7 @@ class Competitor(object):
       'OpenDirectory.java',
       'PKLookupTask.java',
       'PerfUtils.java',
-      'RandomFilter.java',
+      'RandomQuery.java',
       'RemoteTaskSource.java',
       'RespellTask.java',
       'SearchPerfTest.java',

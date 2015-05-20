@@ -1,4 +1,5 @@
 import rtree
+import time
 
 def build():
   with open('/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt', 'rb') as f:
@@ -16,6 +17,7 @@ def build():
       yield int(id), (lat, lon, lat, lon), None
     
 
+t0 = time.time()
 p = rtree.index.Property()
 p.filename = 'theindex'
 p.overwrite = True
@@ -45,3 +47,4 @@ rtree.index.Index(p.filename,
                   properties = p,
                   interleaved = True,
                   overwrite = True)
+print('%.3f sec to index' % (time.time()-t0))

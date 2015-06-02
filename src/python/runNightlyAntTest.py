@@ -1,6 +1,7 @@
 import time
 import os
 import datetime
+import sys
 
 DEBUG = False
 
@@ -146,10 +147,14 @@ def backTest():
     else:
       print('  already done')
 
+    writeGraph()
+    
     then = then - datetime.timedelta(days=1)
     
 if __name__ == '__main__':
-  print('\nNow run nightly ant test')
-  #backTest()
-  #runOneDay(getLogFile(datetime.datetime.now()))
-  writeGraph()
+  if '-backTest' in sys.argv:
+    print('\nNow run nightly ant test')
+    backTest()
+  else:
+    runOneDay(getLogFile(datetime.datetime.now()))
+    writeGraph()

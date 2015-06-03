@@ -136,7 +136,7 @@ with open(polyFile) as f:
       lats.append(lat)
       lons.append(lon)
 
-      if count % 95 == 0:
+      if count % 105 == 0:
         writeFrame(justMap)
 
     count += 1
@@ -163,7 +163,7 @@ with open(cellsFile) as f:
   for line in f.readlines():
     if line.startswith('#'):
       continue
-    if False:
+    if True:
       if line[0] == 'A':
         color = (128, 0, 0, ALPHA)
       else:

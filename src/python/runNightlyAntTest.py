@@ -104,9 +104,23 @@ def writeGraph():
 
     w(''',
     { "title": "Time for \'ant clean test\'",
+      "labels": ["Date", "Count (thousands)", "Minutes"],
+      "series": {
+        "Count (thousands)": {
+          "axis": "y2"
+        }
+      },
+      "axes": {
+        "y2": {
+          "axisLabelFormatter": function(x) {
+            return x.toFixed(0);
+          }
+        }
+      },
       "includeZero": true,
       "xlabel": "Date",
       "ylabel": "Minutes",
+      "y2label": "Count (thousands)",
       "connectSeparatedPoints": true,
       "hideOverlayOnMouseOut": false,
       "labelsDiv": "chart_ant_clean_test_time_labels",

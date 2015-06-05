@@ -1,9 +1,12 @@
+import re
 import shutil
 import time
 import os
 import datetime
 import sys
 import constants
+
+reCompletedTestCount = re.compile(r', (\d+) tests')
 
 DEBUG = False
 
@@ -52,10 +55,14 @@ def writeGraph():
     timestamp = datetime.datetime(year = tup[0],
                                   month = tup[1],
                                   day = tup[2])
+    totalTests = 0
     with open('%s/%s' % (LOGS_DIR, logFile)) as f:
       for line in f.readlines():
+        m = reCompletedTestCount.search(line)
+        if m is not None:
+          totalTests += int(m.group(1))
         if line.startswith('TOTAL SEC: '):
-          results.append((timestamp, float(line[11:].strip())))
+          results.append((timestamp, totalTests, float(line[11:].strip())))
           break
       else:
         raise RuntimeError("couldn't find total seconds for %s/%s" % (LOGS_DIR, logFile))
@@ -88,11 +95,11 @@ def writeGraph():
         document.getElementById("chart_ant_clean_test_time"),
     ''')
 
-    headers = ['Date', 'Time (minutes)']
+    headers = ['Date', 'K Test count', 'Time (minutes)']
     w('    "%s\\n"\n' % ','.join(headers))
 
-    for date, seconds in results:
-      w('    + "%4d-%02d-%02d,%s\\n"\n' % (date.year, date.month, date.day, seconds/60.0))
+    for date, totalTests, seconds in results:
+      w('    + "%4d-%02d-%02d,%s,%s\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0))
 
     w(''',
     { "title": "Time for \'ant clean test\'",

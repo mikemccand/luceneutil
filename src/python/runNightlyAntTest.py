@@ -1,7 +1,9 @@
+import shutil
 import time
 import os
 import datetime
 import sys
+import constants
 
 DEBUG = False
 
@@ -14,7 +16,8 @@ else:
 
 LOGS_DIR = '%s/logs.nightly/ant_test' % BASE_DIR
 
-KNOWN_CHANGES_ANT_TEST = []
+KNOWN_CHANGES_ANT_TEST = [
+  ('2014-05-04', 'Switched from Java 1.7.0_65 to 1.8.0_40')]
 
 def runOneDay(logFile):
 
@@ -59,7 +62,7 @@ def writeGraph():
 
   results.sort()
 
-  with open('/x/tmp/anttest.html', 'w') as f:
+  with open('/x/tmp/antcleantest.html', 'w') as f:
     w = f.write
     
     w('<html>')
@@ -122,6 +125,15 @@ def writeGraph():
     w('</body>')
     w('</html>')
 
+  shutil.copy('/x/tmp/antcleantest.html', '%s/antcleantest.html' % constants.NIGHTLY_REPORTS_DIR)
+
+def getLabel(label):
+  if label < 26:
+    s = chr(65+label)
+  else:
+    s = '%s%s' % (chr(65+(label/26 - 1)), chr(65 + (label%26)))
+  return s
+              
 def run(cmd):
   if os.system(cmd):
     raise RuntimeError('%s failed' % cmd)
@@ -135,6 +147,7 @@ def getLogFile(then):
 
 def backTest():
   then = datetime.datetime.now().date()
+  #then = datetime.datetime(year=2014, month=5, day=24)
   os.chdir('%s/%s' % (BASE_DIR, NIGHTLY_DIR))
   
   while True:
@@ -144,15 +157,16 @@ def backTest():
       run('python -u /home/mike/src/util/svnClean.py .')
       run('svn up -r {%s}' % then.strftime('%Y-%m-%d'))
       runOneDay(logFile)
+      writeGraph()
     else:
       print('  already done')
-
-    writeGraph()
     
     then = then - datetime.timedelta(days=1)
     
 if __name__ == '__main__':
-  if '-backTest' in sys.argv:
+  if '-chart' in sys.argv:
+    writeGraph()
+  elif '-backTest' in sys.argv:
     print('\nNow run nightly ant test')
     backTest()
   else:

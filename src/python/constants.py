@@ -127,6 +127,7 @@ PERF_STATS = (
   'stalled-cycles-backend',
 )
 
+NIGHTLY_REPORTS_DIR = '%s/reports.nightly' % BASE_DIR
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

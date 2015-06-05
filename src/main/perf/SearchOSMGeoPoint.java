@@ -23,6 +23,7 @@ import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.GeoPointInBBoxQuery;
+import org.apache.lucene.search.GeoPointInPolygonQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
@@ -78,7 +79,24 @@ public class SearchOSMGeoPoint {
               double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
 
               //System.out.println("LON: " + lon + " to " + lonEnd + " LAT: " + lat + " to " + latEnd);
-              Query query = new GeoPointInBBoxQuery("geo", lon, lat, lonEnd, latEnd);
+              double[] lats = new double[5];
+              double[] lons = new double[5];
+              lats[0] = lat;
+              lons[0] = lon;
+              lats[1] = latEnd;
+              lons[1] = lon;
+              lats[2] = latEnd;
+              lons[2] = lonEnd;
+              lats[3] = lat;
+              lons[3] = lonEnd;
+              lats[4] = lat;
+              lons[4] = lon;
+              Query query;
+              if (true) {
+                query = new GeoPointInBBoxQuery("geo", lon, lat, lonEnd, latEnd);
+              } else {
+                query = new GeoPointInPolygonQuery("geo", lons, lats);
+              }
               TotalHitCountCollector c = new TotalHitCountCollector();
               //long t0 = System.nanoTime();
               indexSearcher.search(query, c);

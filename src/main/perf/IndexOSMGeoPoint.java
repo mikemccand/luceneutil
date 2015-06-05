@@ -29,7 +29,7 @@ import com.spatial4j.core.context.SpatialContext;
 
 // javac -cp /l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint.java
 
-// java -cp .:/l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint geopointindex
+// rm -rf geopointindex; java -cp .:/l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint geopointindex
 
 public class IndexOSMGeoPoint {
 

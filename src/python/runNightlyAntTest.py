@@ -17,8 +17,8 @@ if DEBUG:
 else:
   NIGHTLY_DIR = 'trunk.nightly'
 
-#LOGS_DIR = '%s/logs.nightly/ant_test' % BASE_DIR
-LOGS_DIR = '/x/tmp/beast.logs/logs.nightly/ant_test'
+LOGS_DIR = '%s/logs.nightly/ant_test' % BASE_DIR
+#LOGS_DIR = '/x/tmp/beast.logs/logs.nightly/ant_test'
 
 KNOWN_CHANGES_ANT_TEST = [
   ('2014-05-04', 'Switched from Java 1.7.0_65 to 1.8.0_40')]

@@ -28,7 +28,7 @@ def runOneDay(logFile):
   # nocommit svn up to the timestamp:
   os.chdir('%s/%s/lucene' % (BASE_DIR, NIGHTLY_DIR))
 
-  print('  log: %s' % logFile)
+  print('  ant test log: %s' % logFile)
   open(logFile + '.tmp', 'w').write('svn rev: %s\n\n' % os.popen('svnversion 2>&1').read())
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
   
@@ -100,13 +100,16 @@ def writeGraph():
     w('    "%s\\n"\n' % ','.join(headers))
 
     for date, totalTests, seconds in results:
-      w('    + "%4d-%02d-%02d,%s,%s\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0))
+      w('    + "%4d-%02d-%02d,%s,%s,%.1f\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0, float(totalTests)/(seconds/60.0)/1000.))
 
     w(''',
     { "title": "Time for \'ant clean test\'",
-      "labels": ["Date", "Count (thousands)", "Minutes"],
+      "labels": ["Date", "Count (thousands)", "Minutes", "Tests per minute (thousands)"],
       "series": {
         "Count (thousands)": {
+          "axis": "y2"
+        },
+        "Tests per minute (thousands)": {
           "axis": "y2"
         }
       },
@@ -186,7 +189,7 @@ def backTest():
     then = then - datetime.timedelta(days=1)
     
 if __name__ == '__main__':
-  if '-chart' in sys.argv:
+  if '-chart' in sys.argv: 
     writeGraph()
   elif '-backTest' in sys.argv:
     print('\nNow run nightly ant test')
@@ -194,3 +197,5 @@ if __name__ == '__main__':
   else:
     runOneDay(getLogFile(datetime.datetime.now()))
     writeGraph()
+    if os.system('scp %s/antcleantest.html mikemccand@people.apache.org:public_html/lucenebench' % constants.NIGHTLY_REPORT_DIR):
+      raise RuntimeError('scp failed')      

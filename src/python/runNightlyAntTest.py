@@ -21,7 +21,9 @@ LOGS_DIR = '%s/logs.nightly/ant_test' % BASE_DIR
 #LOGS_DIR = '/x/tmp/beast.logs/logs.nightly/ant_test'
 
 KNOWN_CHANGES_ANT_TEST = [
-  ('2014-05-04', 'Switched from Java 1.7.0_65 to 1.8.0_40')]
+  ('2014-05-04', 'Switched from Java 1.7.0_65 to 1.8.0_40'),
+  ('2014-10-15', 'The Great Test Slowdown of 2014')
+  ]
 
 def runOneDay(logFile):
 
@@ -100,7 +102,7 @@ def writeGraph():
     w('    "%s\\n"\n' % ','.join(headers))
 
     for date, totalTests, seconds in results:
-      w('    + "%4d-%02d-%02d,%s,%s,%.1f\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0, float(totalTests)/(seconds/60.0)/1000.))
+      w('    + "%4d-%02d-%02d,%s,%s,%.2f\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0, float(totalTests)/(seconds/60.0)/1000.))
 
     w(''',
     { "title": "Time for \'ant clean test\'",
@@ -138,7 +140,7 @@ def writeGraph():
       label = 0
       for tup in KNOWN_CHANGES_ANT_TEST:
         date, reason = tup[:2]
-        series = 'Time (minutes)'
+        series = 'Minutes'
         shortText = getLabel(label)
         label += 1
         w('{series: "%s", x: "%s", shortText: "%s", text: "%s"},' % \

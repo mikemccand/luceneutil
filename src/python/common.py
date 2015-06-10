@@ -104,6 +104,8 @@ def getLuceneTestClassPath(ROOT):
     CP.append(ROOT + '/lucene/build/classes/demo')
 
   CP.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
+  CP.append(ROOT + '/lucene/build/test-framework/classes/java')
+  CP.append(ROOT + '/lucene/build/test-framework/classes/test')
   CP.append(ROOT + '/lucene/build/queries/classes/java')
   CP.append(ROOT + '/lucene/build/queries/classes/test')
   CP.append(ROOT + '/lucene/build/spatial/classes/test')

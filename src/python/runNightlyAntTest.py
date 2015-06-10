@@ -195,11 +195,13 @@ def backTest():
 if __name__ == '__main__':
   if '-chart' in sys.argv: 
     writeGraph()
+    if os.system('scp %s/antcleantest.html mikemccand@people.apache.org:public_html/lucenebench' % constants.NIGHTLY_REPORTS_DIR):
+      raise RuntimeError('scp failed')
   elif '-backTest' in sys.argv:
     print('\nNow run nightly ant test')
     backTest()
   else:
     runOneDay(getLogFile(datetime.datetime.now()))
     writeGraph()
-    if os.system('scp %s/antcleantest.html mikemccand@people.apache.org:public_html/lucenebench' % constants.NIGHTLY_REPORT_DIR):
-      raise RuntimeError('scp failed')      
+    if os.system('scp %s/antcleantest.html mikemccand@people.apache.org:public_html/lucenebench' % constants.NIGHTLY_REPORTS_DIR):
+      raise RuntimeError('scp failed')

@@ -52,6 +52,8 @@ def writeGraph():
   for logFile in logFiles:
     if logFile.endswith('.txt.tmp'):
       continue
+    if logFile.startswith('#'):
+      continue
     if not logFile.endswith('.txt'):
       raise RuntimeError('unexpected file "%s"' % logFile)
     tup = tuple(int(x) for x in logFile[:-4].split('.'))

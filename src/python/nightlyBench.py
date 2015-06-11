@@ -910,6 +910,16 @@ def writeCheckIndexTimeHTML():
       # Skip debug runs
       continue
     
+    tup = subDir.split('.')
+    if len(tup) != 6:
+      #print('skip %s' % subDir)
+      continue
+
+    print('check tup: %s' % str(tup))
+    if tup[:3] == ['2015', '04', '04']:
+      # Hide disastrously slow CheckIndex time after auto-prefix first landed
+      continue
+    
     if os.path.exists(checkIndexTimeFile):
       # Already previously computed & cached:
       seconds = int(open(checkIndexTimeFile, 'r').read())
@@ -937,10 +947,6 @@ def writeCheckIndexTimeHTML():
       else:
         continue
 
-    tup = subDir.split('.')
-    if len(tup) != 6:
-      #print('skip %s' % subDir)
-      continue
     #print("tup %s" % tup)
     chartData.append('%s-%s-%s %s:%s:%s,%s' % (tuple(tup) + (seconds,)))
     #print("added %s" % chartData[-1])

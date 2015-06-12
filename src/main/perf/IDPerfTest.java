@@ -35,7 +35,7 @@ import org.apache.lucene.codecs.BlockTreeTermsReader;
 import org.apache.lucene.codecs.BlockTreeTermsWriter;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene50.Lucene50PostingsFormat;
-import org.apache.lucene.codecs.lucene50.Lucene50Codec;
+import org.apache.lucene.codecs.lucene53.Lucene53Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
@@ -336,7 +336,7 @@ public class IDPerfTest {
     // So I can walk the files and get the *.tip sizes:
     iwc.setUseCompoundFile(false);
 
-    iwc.setCodec(new Lucene50Codec() {
+    iwc.setCodec(new Lucene53Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return new Lucene50PostingsFormat(minTermsInBlock, maxTermsInBlock);

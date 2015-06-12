@@ -41,7 +41,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene50.Lucene50PostingsFormat;
-import org.apache.lucene.codecs.lucene50.Lucene50Codec;
+import org.apache.lucene.codecs.lucene53.Lucene53Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
 import org.apache.lucene.document.DoubleField;
@@ -140,7 +140,7 @@ public class AutoPrefixPerf {
         //pf = new Lucene50PostingsFormat(25, 48, minTermsInPrefix, Integer.MAX_VALUE);
       }
 
-      iwc.setCodec(new Lucene50Codec() {
+      iwc.setCodec(new Lucene53Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return pf;

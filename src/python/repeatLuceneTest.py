@@ -209,15 +209,15 @@ failed = False
 iterLock = threading.Lock()
 iter = 0
 
-def nextIter(threadID, logFileName):
+def nextIter(threadID, logFileName, secLastIter):
   global iter
   
   with iterLock:
     print
     if logFileName is None:
-      print '%s [%d, jvm %d]:' % (datetime.datetime.now(), iter, threadID)
+      print '%s [%d, jvm %d, %5.1fs]:' % (datetime.datetime.now(), iter, threadID, secLastIter)
     else:
-      print '%s [%d, jvm %d]: %s' % (datetime.datetime.now(), iter, threadID, logFileName)
+      print '%s [%d, jvm %d, %5.1fs]: %s' % (datetime.datetime.now(), iter, threadID, secLastIter, logFileName)
     iter += 1
     return iter
 
@@ -258,6 +258,7 @@ def _run(threadID):
 
   upto = 0
   first = True
+  secLastIter = 0.0
   while not failed:
     for testClass, testMethod in tests:
       if testMethod is not None:
@@ -276,7 +277,7 @@ def _run(threadID):
         logFileName = None
 
       if not onlyOnce:
-        iter = nextIter(threadID, logFileName)
+        iter = nextIter(threadID, logFileName, secLastIter)
 
       command = '%s %s -DtempDir=%s -ea:org.apache.lucene... -ea:org.apache.solr...' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
       #command += ' -Dtests.locale=random'
@@ -349,6 +350,7 @@ def _run(threadID):
         print '  RUN: %s' % command
         first = False
 
+      t0 = time.time()
       if doLog:
         res = os.system(command)
         if USE_JUNIT:
@@ -378,6 +380,7 @@ def _run(threadID):
             break
 
         res = p.wait()
+      secLastIter = (time.time()-t0)
 
       if res == signal.SIGINT:
         # Ctrl+C
@@ -466,7 +469,8 @@ def _run(threadID):
           print('  OK [%d tests]\n' % testCount)
         if doLog and USE_JUNIT:
           if not keepLogs:
-            os.remove(logFileName)
+            pass
+            #os.remove(logFileName)
           else:
             upto += 1
 

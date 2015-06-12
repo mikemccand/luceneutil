@@ -910,6 +910,16 @@ def writeCheckIndexTimeHTML():
       # Skip debug runs
       continue
     
+    tup = subDir.split('.')
+    if len(tup) != 6:
+      #print('skip %s' % subDir)
+      continue
+
+    print('check tup: %s' % str(tup))
+    if tup[:3] == ['2015', '04', '04']:
+      # Hide disastrously slow CheckIndex time after auto-prefix first landed
+      continue
+    
     if os.path.exists(checkIndexTimeFile):
       # Already previously computed & cached:
       seconds = int(open(checkIndexTimeFile, 'r').read())
@@ -937,10 +947,6 @@ def writeCheckIndexTimeHTML():
       else:
         continue
 
-    tup = subDir.split('.')
-    if len(tup) != 6:
-      #print('skip %s' % subDir)
-      continue
     #print("tup %s" % tup)
     chartData.append('%s-%s-%s %s:%s:%s,%s' % (tuple(tup) + (seconds,)))
     #print("added %s" % chartData[-1])
@@ -994,6 +1000,8 @@ def writeIndexHTML(searchChartData, days):
   w('<p>See more details in <a href="http://blog.mikemccandless.com/2011/04/catching-slowdowns-in-lucene.html">this blog post</a>.</p>')
   w('<b>Results:</b>')
   w('<br>')
+  w('<br>&nbsp;&nbsp;<a href="antcleantest.html">Time to run "ant clean test" in lucene directory</a>')
+  w('<br>&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
   w('<br>&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
   w('<br>&nbsp;&nbsp;<a href="nrt.html">Near-real-time latency</a>')
   w('<br>&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')

@@ -349,11 +349,11 @@ public final class Indexer {
     final long t1 = System.currentTimeMillis();
     System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.maxDoc() + " docs");
     // if we update we can not tell how many docs
-    if (mode != Mode.UPDATE && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
-      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
-    }
     if (threads.failed.get()) {
       throw new RuntimeException("exceptions during indexing");
+    }
+    if (mode != Mode.UPDATE && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
+      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
     }
 
     final long t2;

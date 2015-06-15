@@ -17,7 +17,7 @@ INDEX_PATH = '/q/lucene/indices/corruption'
 LINE_DOCS_FILE = '/lucene/data/enwiki-20110115-lines-1k-fixed.txt'
 
 # Customize the java command-line:
-JAVA_CMD = 'java'
+JAVA_CMD = 'java -Xms4g -Xmx4g'
 
 DOC_COUNT = 27625038
 # DOC_COUNT = 100000

@@ -16,8 +16,8 @@ INDEX_PATH = '/q/lucene/indices/corruption'
 JAVA_CMD = 'java'
 
 # nocommit
-# DOC_COUNT = 27625038
-DOC_COUNT = 100000
+DOC_COUNT = 27625038
+# DOC_COUNT = 100000
 
 print('Compile luceneutil and %s/%s...' % (constants.BASE_DIR, LUCENE_TRUNK_ROOT))
 r = benchUtil.RunAlgs(JAVA_CMD, False)

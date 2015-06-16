@@ -23,13 +23,15 @@ JAVA_CMD = '/usr/local/src/jdk1.8.0_45/bin/java -Xms4g -Xmx4g'
 USE_CMS = True
 
 # How many indexing threads to use
-INDEX_THREADS = 12
+INDEX_THREADS = 4
 
 # MAX_BUFFERED_DOCS = 49774
 # INDEXING_BUFFER_MB = -1
 
-MAX_BUFFERED_DOCS = -1
-INDEXING_BUFFER_MB = 64.0
+MAX_BUFFERED_DOCS = 5000
+INDEXING_BUFFER_MB = -1
+
+BODY_FIELD_TERM_VECTORS = True
 
 # DOC_COUNT = 27625038
 # DOC_COUNT = 100000
@@ -51,12 +53,15 @@ while True:
   if USE_CMS:
     cmd += ' -useCMS'
 
+  if BODY_FIELD_TERM_VECTORS:
+    cmd += ' -tvs'
+
   print('  run: %s' % cmd)
   if os.system(cmd):
     raise RuntimeError('failed to build index')
 
   print('%s: check index' % datetime.datetime.now())
-  cmd = '%s -cp ROOT/lucene/build/core/classes/java:ROOT/lucene/build/codecs/classes/java org.apache.lucene.index.CheckIndex -fast %s/index'.replace('ROOT', '%s/%s' % (constants.BASE_DIR, LUCENE_TRUNK_ROOT)) % (JAVA_CMD, INDEX_PATH)
+  cmd = '%s -cp ROOT/lucene/build/core/classes/java:ROOT/lucene/build/codecs/classes/java org.apache.lucene.index.CheckIndex -crossCheckTermVectors %s/index'.replace('ROOT', '%s/%s' % (constants.BASE_DIR, LUCENE_TRUNK_ROOT)) % (JAVA_CMD, INDEX_PATH)
   print('  run: %s' % cmd)
   if os.system(cmd):
     raise RuntimeError('CheckIndex failed')

@@ -343,7 +343,7 @@ public final class Indexer {
 
     threads.start();
 
-    while (!threads.done()) {
+    while (!threads.done() && indexingFailed.get() == false) {
       Thread.sleep(100);
       
       // Commits once per minute on average:

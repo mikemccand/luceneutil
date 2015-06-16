@@ -49,7 +49,7 @@ class IndexThreads {
   final AtomicBoolean refreshing;
   final AtomicLong lastRefreshNS;
 
-  public IndexThreads(Random random, IndexWriter w, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
+  public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
                       boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
@@ -71,7 +71,7 @@ class IndexThreads {
     final CountDownLatch stopLatch = new CountDownLatch(numThreads);
     final AtomicInteger count = new AtomicInteger();
     stop = new AtomicBoolean(false);
-    failed = new AtomicBoolean(false);
+    failed = indexingFailed;
     refreshing = new AtomicBoolean(false);
     lastRefreshNS = new AtomicLong(System.nanoTime());
 

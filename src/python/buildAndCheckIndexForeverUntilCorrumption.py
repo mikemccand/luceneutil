@@ -22,6 +22,15 @@ JAVA_CMD = '/usr/local/src/jdk1.8.0_45/bin/java -Xms4g -Xmx4g'
 # Should we use ConcurrentMergeScheduler?
 USE_CMS = True
 
+# How many indexing threads to use
+INDEX_THREADS = 12
+
+# MAX_BUFFERED_DOCS = 49774
+# INDEXING_BUFFER_MB = -1
+
+MAX_BUFFERED_DOCS = -1
+INDEXING_BUFFER_MB = 64.0
+
 # DOC_COUNT = 27625038
 # DOC_COUNT = 100000
 DOC_COUNT = 10000000
@@ -37,7 +46,7 @@ while True:
 
   shutil.rmtree(INDEX_PATH)
 
-  cmd = '%s -classpath "ROOT/lucene/build/core/classes/java:ROOT/lucene/build/core/classes/test:ROOT/lucene/build/sandbox/classes/java:ROOT/lucene/build/misc/classes/java:ROOT/lucene/build/facet/classes/java:/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar:ROOT/lucene/build/analysis/common/classes/java:ROOT/lucene/build/analysis/icu/classes/java:ROOT/lucene/build/queryparser/classes/java:ROOT/lucene/build/grouping/classes/java:ROOT/lucene/build/suggest/classes/java:ROOT/lucene/build/highlighter/classes/java:ROOT/lucene/build/codecs/classes/java:ROOT/lucene/build/queries/classes/java:lib/HdrHistogram.jar:build" perf.Indexer -dirImpl MMapDirectory -indexPath "%s" -analyzer StandardAnalyzerNoStopWords -lineDocsFile %s -docCountLimit %s -threadCount 1 -maxConcurrentMerges 3 -dvfields -ramBufferMB -1 -maxBufferedDocs 49774 -postingsFormat Lucene50 -waitForMerges -mergePolicy LogDocMergePolicy -facets Date -facetDVFormat Lucene50 -idFieldPostingsFormat Memory'.replace('ROOT', '%s/%s' % (constants.BASE_DIR, LUCENE_TRUNK_ROOT)) % (JAVA_CMD, INDEX_PATH, LINE_DOCS_FILE, DOC_COUNT)
+  cmd = '%s -classpath "ROOT/lucene/build/core/classes/java:ROOT/lucene/build/core/classes/test:ROOT/lucene/build/sandbox/classes/java:ROOT/lucene/build/misc/classes/java:ROOT/lucene/build/facet/classes/java:/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar:ROOT/lucene/build/analysis/common/classes/java:ROOT/lucene/build/analysis/icu/classes/java:ROOT/lucene/build/queryparser/classes/java:ROOT/lucene/build/grouping/classes/java:ROOT/lucene/build/suggest/classes/java:ROOT/lucene/build/highlighter/classes/java:ROOT/lucene/build/codecs/classes/java:ROOT/lucene/build/queries/classes/java:lib/HdrHistogram.jar:build" perf.Indexer -dirImpl MMapDirectory -indexPath "%s" -analyzer StandardAnalyzerNoStopWords -lineDocsFile %s -docCountLimit %s -threadCount %d -maxConcurrentMerges 3 -dvfields -ramBufferMB %s -maxBufferedDocs %d -postingsFormat Lucene50 -waitForMerges -mergePolicy LogDocMergePolicy -facets Date -facetDVFormat Lucene50 -idFieldPostingsFormat Memory'.replace('ROOT', '%s/%s' % (constants.BASE_DIR, LUCENE_TRUNK_ROOT)) % (JAVA_CMD, INDEX_PATH, LINE_DOCS_FILE, DOC_COUNT, INDEX_THREADS, INDEXING_BUFFER_MB, MAX_BUFFERED_DOCS)
 
   if USE_CMS:
     cmd += ' -useCMS'

@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
@@ -234,9 +235,19 @@ public final class Indexer {
     // So flushed segments do/don't use CFS:
     iwc.setUseCompoundFile(useCFS);
 
+    final AtomicBoolean indexingFailed = new AtomicBoolean();
+
     // Increase number of concurrent merges since we are on SSD:
     if (useCMS) {
-      ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
+      ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
+          @Override
+          protected void handleMergeException(Directory dir, Throwable exc) {
+            System.out.println("ERROR: CMS hit exception during merging; aborting...");
+            indexingFailed.set(true);
+            exc.printStackTrace(System.out);
+            super.handleMergeException(dir, exc);
+          }
+        };
       iwc.setMergeScheduler(cms);
       cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
     } else {
@@ -324,7 +335,7 @@ public final class Indexer {
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;
 
-    IndexThreads threads = new IndexThreads(random, w, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
+    IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
                                             randomDocIDMax);
 
     System.out.println("\nIndexer: start");

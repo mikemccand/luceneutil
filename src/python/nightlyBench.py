@@ -321,6 +321,13 @@ KNOWN_CHANGES = [
    'LUCENE-6308: span queries support two-phased iteration',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6308">LUCENE-6308: span queries support two-phased iteration'),
 
+  ('2015-04-04',
+   'LUCENE-5879: add auto-prefix terms',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5879">LUCENE-5879: add auto-prefix terms'),
+
+  ('2015-06-24',
+   'LUCENE-6548: some optimizations to block tree intersect',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6548">LUCENE-6548: some optimizations to block tree intersect'),
    ]
 
 # TODO
@@ -858,6 +865,7 @@ def makeGraphs():
 
       for date, desc, fullDesc in KNOWN_CHANGES:
         if timeStampString.startswith(date):
+          # print('add annot %s' % desc)
           annotations.append((date, timeStampString, desc, fullDesc))
           KNOWN_CHANGES.remove((date, desc, fullDesc))
           
@@ -915,7 +923,6 @@ def writeCheckIndexTimeHTML():
       #print('skip %s' % subDir)
       continue
 
-    print('check tup: %s' % str(tup))
     if tup[:3] == ['2015', '04', '04']:
       # Hide disastrously slow CheckIndex time after auto-prefix first landed
       continue

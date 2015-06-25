@@ -1286,3 +1286,4 @@ if __name__ == '__main__':
 #   - rm -rf /lucene/logs.nightly/*
 #   - rm -rf /lucene/reports.nightly/*
 #   - rm -f /lucene/trunk.nightly/modules/benchmark/*.x
+

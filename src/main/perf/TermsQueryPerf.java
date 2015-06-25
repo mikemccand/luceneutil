@@ -63,7 +63,7 @@ public class TermsQueryPerf {
 
   // Make 10 queries, each searching a random 50K:
   static final int ID_SEARCH_COUNT = 50000;
-  static final int NUM_QUERIES = 1;
+  static final int NUM_QUERIES = 10;
 
   public static void main(String[] args) throws Exception {
 
@@ -147,7 +147,7 @@ public class TermsQueryPerf {
       // nocommit: we can be more efficient here, go straight to binary:
       Query query = new AutomatonQuery(new Term("id", "manyterms"),
                                        Automata.makeStringUnion(sortedTermBytes));
-      ((MultiTermQuery) query).setRewriteMethod(MultiTermQuery.CONSTANT_SCORE_REWRITE);
+      //((MultiTermQuery) query).setRewriteMethod(MultiTermQuery.CONSTANT_SCORE_REWRITE);
       //Query query = new TermsQuery("id", lookupIDs.subList(i*ID_SEARCH_COUNT, (i+1)*ID_SEARCH_COUNT));
       queries.add(query);
     }

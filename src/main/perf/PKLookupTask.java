@@ -30,6 +30,7 @@ import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
 final class PKLookupTask extends Task {
@@ -99,9 +100,16 @@ final class PKLookupTask extends Task {
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           if (termsEnum.seekExact(id)) { 
             //System.out.println("  found!");
-            final PostingsEnum docs = docsEnums[subIDX] = termsEnum.postings(sub.getLiveDocs(), docsEnums[subIDX], 0);
+            final PostingsEnum docs = docsEnums[subIDX] = termsEnum.postings(docsEnums[subIDX], 0);
             assert docs != null;
-            final int docID = docs.nextDoc();
+            int docID = DocIdSetIterator.NO_MORE_DOCS;
+            final Bits liveDocs = sub.getLiveDocs();
+            for (int d = docs.nextDoc(); d != DocIdSetIterator.NO_MORE_DOCS; d = docs.nextDoc()) {
+              if (liveDocs == null || liveDocs.get(d)) {
+                docID = d;
+                break;
+              }
+            }
             if (docID != DocIdSetIterator.NO_MORE_DOCS) {
               answers[idx] = base + docID;
               break;

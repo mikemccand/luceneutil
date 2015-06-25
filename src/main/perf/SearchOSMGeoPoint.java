@@ -1,3 +1,5 @@
+package perf;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,7 +23,6 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.GeoPointInBBoxQuery;
 import org.apache.lucene.search.GeoPointInPolygonQuery;
 import org.apache.lucene.search.IndexSearcher;
@@ -39,7 +40,6 @@ import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import com.spatial4j.core.context.SpatialContext;
 
 // javac -cp /l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSMGeoPoint.java
 

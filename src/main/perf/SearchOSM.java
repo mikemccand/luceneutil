@@ -1,3 +1,5 @@
+package perf;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,7 +23,6 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.TopDocs;
@@ -36,7 +37,6 @@ import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import com.spatial4j.core.context.SpatialContext;
 
 // javac -cp /l/trunk/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/trunk/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSM.java
 
@@ -91,7 +91,7 @@ public class SearchOSM {
               Filter filter = strategy.makeFilter(spatialArgs);
               TotalHitCountCollector c = new TotalHitCountCollector();
               //long t0 = System.nanoTime();
-              indexSearcher.search(new FilteredQuery(new MatchAllDocsQuery(), filter), c);
+              indexSearcher.search(filter, c);
               //long t1 = System.nanoTime();
               //System.out.println("  " + c.getTotalHits() + " total hits");
               //System.out.println("  " + ((t1-t0)/1000000.0) + " msec");

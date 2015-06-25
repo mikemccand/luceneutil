@@ -41,7 +41,7 @@ public class RandomQuery extends Query {
   public Weight createWeight(IndexSearcher searcher, boolean needsScores) throws IOException {
     return new ConstantScoreWeight(this) {
       @Override
-      public Scorer scorer(LeafReaderContext context, Bits acceptDocs) throws IOException {
+      public Scorer scorer(LeafReaderContext context) throws IOException {
         final int maxDoc = context.reader().maxDoc();
         final int interval = (int) (1 / fractionKeep);
         final DocIdSetIterator iterator = new DocIdSetIterator() {

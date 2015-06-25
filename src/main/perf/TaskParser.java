@@ -27,8 +27,10 @@ import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.NumericRangeQuery;
@@ -161,7 +163,7 @@ class TaskParser {
       }
 
       final Sort sort;
-      final Query query;
+      Query query;
       final String group;
       final boolean doHilite;
 
@@ -290,7 +292,13 @@ class TaskParser {
         if (!(query instanceof BooleanQuery)) {
           throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
         }
-        ((BooleanQuery) query).setMinimumNumberShouldMatch(minShouldMatch);
+        Builder b = new BooleanQuery.Builder();
+        b.setDisableCoord(((BooleanQuery) query).isCoordDisabled());
+        b.setMinimumNumberShouldMatch(minShouldMatch);
+        for (BooleanClause clause : ((BooleanQuery) query)) {
+          b.add(clause);
+        }
+        query = b.build();
       }
 
       Query query2;
@@ -321,10 +329,10 @@ class TaskParser {
       }
 
       if (filter != null) {
-        BooleanQuery filtered = new BooleanQuery();
-        filtered.add(query2, Occur.MUST);
-        filtered.add(filter, Occur.FILTER);
-        query2 = filtered;
+        query2 = new BooleanQuery.Builder()
+            .add(query2, Occur.MUST)
+            .add(filter, Occur.FILTER)
+            .build();
       }
 
       /*

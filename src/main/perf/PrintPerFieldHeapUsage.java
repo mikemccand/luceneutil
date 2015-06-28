@@ -116,6 +116,7 @@ public class PrintPerFieldHeapUsage {
 
     r = DirectoryReader.open(dir);
     System.out.println(String.format(Locale.ROOT, "Took %.1f sec; bytes per unique NumericDocValuesField, latent: %.1f", (System.nanoTime()-t0)/1000000000.0, (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
+    // Now force lazy loading of all the DV fields:
     for(int i=0;i<FIELD_COUNT;i++) {
       MultiDocValues.getNumericValues(r, "f" + i);
     }
@@ -140,7 +141,12 @@ public class PrintPerFieldHeapUsage {
     w.close();
 
     r = DirectoryReader.open(dir);
-    System.out.println(String.format(Locale.ROOT, "Took %.1f sec; bytes per unique SortedDocValuesField: %.1f", (System.nanoTime()-t0)/1000000000.0, (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
+    System.out.println(String.format(Locale.ROOT, "Took %.1f sec; bytes per unique SortedDocValuesField, latent: %.1f", (System.nanoTime()-t0)/1000000000.0, (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
+    // Now force lazy loading of all the DV fields:
+    for(int i=0;i<FIELD_COUNT;i++) {
+      MultiDocValues.getSortedValues(r, "f" + i);
+    }
+    System.out.println(String.format(Locale.ROOT, "Bytes per unique SortedDocValuesField, loaded: %.1f", (System.nanoTime()-t0)/1000000000.0, (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
     r.close();
 
     dir.close();

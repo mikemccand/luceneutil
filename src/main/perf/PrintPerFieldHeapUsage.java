@@ -44,7 +44,7 @@ import java.util.Locale;
 
 public class PrintPerFieldHeapUsage {
 
-  static final int FIELD_COUNT = 100000;
+  static final int FIELD_COUNT = 50000;
 
   public static void main(String[] args) throws IOException {
     Directory dir = FSDirectory.open(Paths.get("fields"));
@@ -120,7 +120,7 @@ public class PrintPerFieldHeapUsage {
     for(int i=0;i<FIELD_COUNT;i++) {
       MultiDocValues.getNumericValues(r, "f" + i);
     }
-    System.out.println(String.format(Locale.ROOT, "Bytes per unique NumericDocValuesField, loaded: %.1f", (System.nanoTime()-t0)/1000000000.0, (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
+    System.out.println(String.format(Locale.ROOT, "Bytes per unique NumericDocValuesField, loaded: %.1f", (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
     r.close();
 
     // Sorted DV field:
@@ -146,7 +146,7 @@ public class PrintPerFieldHeapUsage {
     for(int i=0;i<FIELD_COUNT;i++) {
       MultiDocValues.getSortedValues(r, "f" + i);
     }
-    System.out.println(String.format(Locale.ROOT, "Bytes per unique SortedDocValuesField, loaded: %.1f", (System.nanoTime()-t0)/1000000000.0, (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
+    System.out.println(String.format(Locale.ROOT, "Bytes per unique SortedDocValuesField, loaded: %.1f", (RamUsageTester.sizeOf(r)/(double) FIELD_COUNT)));
     r.close();
 
     dir.close();

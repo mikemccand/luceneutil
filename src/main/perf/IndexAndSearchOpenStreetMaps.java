@@ -1,3 +1,5 @@
+package perf;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -21,7 +23,7 @@ import org.apache.lucene.bkdtree.BKDPointInPolygonQuery;
 import org.apache.lucene.bkdtree.BKDTreeDocValuesFormat;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.lucene50.Lucene50Codec;
+import org.apache.lucene.codecs.lucene53.Lucene53Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -44,7 +46,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-// javac -cp /l/bkd/lucene/build/core/classes/java:/l/bkd/lucene/build/sandbox/classes/java IndexAndSearchOpenStreetMaps.java; java -cp /l/bkd/lucene/build/core/classes/java:/l/bkd/lucene/build/sandbox/classes/java:. IndexAndSearchOpenStreetMaps
+// javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
 public class IndexAndSearchOpenStreetMaps {
 
@@ -62,7 +64,7 @@ public class IndexAndSearchOpenStreetMaps {
 
     BKDTreeDocValuesFormat dvFormat = new BKDTreeDocValuesFormat();
     Directory dir = FSDirectory.open(Paths.get("bkdtest"));
-    Codec codec = new Lucene50Codec() {
+    Codec codec = new Lucene53Codec() {
       @Override
       public DocValuesFormat getDocValuesFormatForField(String field) {
         return dvFormat;
@@ -166,7 +168,7 @@ public class IndexAndSearchOpenStreetMaps {
   }
 
   public static void main(String[] args) throws IOException {
-    //createIndex();
+    createIndex();
     queryIndex();
   }
 }

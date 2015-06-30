@@ -79,9 +79,10 @@ class Remote(threading.Thread):
     global lastPrint
     
     if self.hostName != socket.gethostname():
-      cmd = '/usr/bin/rsync --copy-links --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
+      cmd = '/usr/bin/rsync --copy-links --delete -rtS %s -e "ssh -x -c arcfour128 -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
             (self.rootDir, USERNAME, self.hostName, constants.BASE_DIR)
       t = time.time()
+      print("rsync command: %s" % cmd)
       if os.system(cmd):
         msg('local: %s: WARNING rsync failed' % self.hostName)
       msg('local: %s: rsync took %.1f sec' % (self.hostName, time.time()-t))

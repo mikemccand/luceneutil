@@ -17,10 +17,6 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.DirectoryReader;
@@ -30,6 +26,7 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryWrapperFilter;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.SearcherManager;
@@ -40,10 +37,14 @@ import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 class IndexState {
   public final ReferenceManager<IndexSearcher> mgr;
   public final DirectSpellChecker spellChecker;
-  public final Filter groupEndFilter;
+  public final Query groupEndQuery;
   public final FastVectorHighlighter fastHighlighter;
   public final boolean useHighlighter;
   public final PostingsHighlighter postingsHighlighter;
@@ -61,7 +62,7 @@ class IndexState {
     this.taxoReader = taxoReader;
     this.facetsConfig = facetsConfig;
     
-    groupEndFilter = new QueryWrapperFilter(new TermQuery(new Term("groupend", "x")));
+    groupEndQuery = new TermQuery(new Term("groupend", "x"));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
       fastHighlighter = new FastVectorHighlighter(true, true);
       useHighlighter = false;

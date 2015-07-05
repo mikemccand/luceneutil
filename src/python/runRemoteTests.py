@@ -77,9 +77,9 @@ class Remote(threading.Thread):
 
   def run(self):
     global lastPrint
-    
+
     if self.hostName != socket.gethostname():
-      cmd = '/usr/bin/rsync --copy-links --delete -rtS %s -e "ssh -x -c arcfour128 -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s' % \
+      cmd = '/usr/bin/rsync --copy-links --delete -rtS %s -e "ssh -x -c arcfour128 -o Compression=no" --exclude=".#*" --exclude="C*.events" --exclude=.svn/ --exclude="*.log" %s@%s:%s.copy' % \
             (self.rootDir, USERNAME, self.hostName, constants.BASE_DIR)
       t = time.time()
       print("rsync command: %s" % cmd)
@@ -110,6 +110,8 @@ class Remote(threading.Thread):
     if self.hostName == socket.gethostname():
       # So that test running locally, creating/deleting files, doesn't mess up rsync:
       cmd = cmd.replace('-DtempDir=.', '-DtempDir=/l/tmp')
+    else:
+      cmd = cmd.replace(self.rootDir, self.rootDir.replace(constants.BASE_DIR, constants.BASE_DIR + '.copy'))
 
     msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 

@@ -59,7 +59,7 @@ class Child(threading.Thread) :
       #self.parent.remotePrint('startup done C%d' % self.id)
       
       while True:
-        self.parent.remotePrint('C%d get job' % self.id)
+        #self.parent.remotePrint('C%d get job' % self.id)
         job = self.parent.nextJob()
         if job is None:
           self.parent.remotePrint('C%d no more jobs' % self.id)
@@ -67,7 +67,7 @@ class Child(threading.Thread) :
           p.kill()
           break
         #self.parent.remotePrint('C%d: job %s' % (self.id, job))
-        p.stdin.write(job + '\n')
+        p.stdin.write(job[1] + '\n')
         results = events.waitIdle()
 
         endSuite = False

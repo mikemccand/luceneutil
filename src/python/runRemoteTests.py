@@ -72,7 +72,7 @@ class Remote(threading.Thread):
     self.processCount = processCount
     self.rootDir = rootDir
     self.anyFails = False
-    self.runningJobs = set()
+    self.runningJobs = {}
     self.finishedJobs = set()
 
   def run(self):
@@ -137,7 +137,7 @@ class Remote(threading.Thread):
         job = self.jobs.nextJob()
         bytes = cPickle.dumps(job)
         if job is not None:
-          self.runningJobs.add(job)
+          self.runningJobs[job] = time.time()
         else:
           msg('send None to %s' % self.id)
         p.stdin.write('%8d' % len(bytes))
@@ -145,12 +145,9 @@ class Remote(threading.Thread):
       elif command == 'RESUL':
         numBytes = int(p.stdout.read(8))
         job, msec, errors = cPickle.loads(p.stdout.read(numBytes))
-        try:
-          self.runningJobs.remove(job)
-          self.finishedJobs.add(job)
-        except KeyError:
-          # TODO: fix this correctly!
-          print('%s: failed to remove running job %s' % (self.hostName, job))
+        del self.runningJobs[job]
+        self.finishedJobs.add(job)
+
         if len(errors) != 0:
 
           s = '\n\nFAILURE: %s on host %s' % (job, self.hostName)
@@ -165,7 +162,7 @@ class Remote(threading.Thread):
             msg(s)
             self.anyFails = True
         if msec is not None:
-          self.stats.update(job, msec/1000.0)
+          self.stats.update(job[1], msec/1000.0)
         if VERBOSE:
           msg('%s: %d msec for %s' % (self.hostName, msec, job))
         else:
@@ -271,7 +268,9 @@ class Jobs:
       else:
         test = self.tests[self.upto][1]
         self.upto += 1
-      return test
+
+      # Dedup the job across multiple iterations:
+      return self.repeatCount, test
     
 def jarOK(jar):
   return jar != 'log4j-1.2.14.jar'
@@ -551,6 +550,8 @@ def main():
 
   workersOrig = workers
 
+  lastSlowCheckTime = time.time()
+
   anyFails = False
   while True:
     alive = []
@@ -561,14 +562,33 @@ def main():
         anyFails = True
     if len(alive) == 0:
       break
+    now = time.time()
     workers = alive
-    if time.time() - lastPrint > 5.0:
+    if now - lastPrint > 5.0:
       l = ['\nRunning:\n']
       for worker in workers:
         l.append('  %s (%d finished jobs):\n' % (worker.hostName, len(worker.finishedJobs)))
-        for job in worker.runningJobs:
-          l.append('    %s\n' % job)
+        for job, startTime in worker.runningJobs:
+          l.append('    %s [%.1f sec]\n' % (job[1], now - startTime))
       msg(''.join(l))
+
+    if now - lastSlowCheckTime > 5.0:
+      lastSlowCheckTime = now
+      l = ['\nSlow still-running tests:\n']
+      for worker in workers:
+        slow = []
+        for job, startTime in worker.runningJobs.items():
+          runTime = now - startTime
+          if runTime > 30.0:
+            slow.append((runTime, job[1]))
+        if len(slow) > 0:
+          slow.sort(key=lambda x: -x[0])
+          l.append('  %s (%d finished jobs):\n' % (worker.hostName, len(worker.finishedJobs)))
+          for runTime, job in slow:
+            l.append('    %4.1f sec: %s\n' % (runTime, job))
+      if len(l) > 1:
+        msg(''.join(l))
+      
     time.sleep(.010)
     
   stats.save()

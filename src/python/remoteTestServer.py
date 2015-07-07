@@ -44,16 +44,16 @@ class Child(threading.Thread) :
     #   - add -eventsfile /l/lucene.trunk/lucene/build/core/test/junit4-J0-0819129977b5076df.events @/l/lucene.trunk/lucene/build/core/test/junit4-J0-1916253054fa0d84f.suites
 
     try:
-      self.parent.remotePrint('C%d init' % self.id)
+      #self.parent.remotePrint('C%d init' % self.id)
 
       # TODO
       p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, env=self.parent.env)
       #p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, env=self.parent.env)
-      self.parent.remotePrint('C%d subprocess started' % self.id)
+      #self.parent.remotePrint('C%d subprocess started' % self.id)
       self.startedEvent.set()
       #self.parent.remotePrint('HERE: %s' % p.stdout.read(1))
       events = ReadEvents(p, eventsFile, self.parent)
-      self.parent.remotePrint('C%d startup0 done' % self.id)
+      #self.parent.remotePrint('C%d startup0 done' % self.id)
       events.waitIdle()
 
       #self.parent.remotePrint('startup done C%d' % self.id)
@@ -62,7 +62,7 @@ class Child(threading.Thread) :
         #self.parent.remotePrint('C%d get job' % self.id)
         job = self.parent.nextJob()
         if job is None:
-          self.parent.remotePrint('C%d no more jobs' % self.id)
+          #self.parent.remotePrint('C%d no more jobs' % self.id)
           #p.stdin.close()
           p.kill()
           break
@@ -164,10 +164,10 @@ class Parent:
     self.jobLock = threading.Lock()
 
     print 'REMOTE SERVER STARTED'
-    self.remotePrint('python version is %s' % sys.version)
+    #self.remotePrint('python version is %s' % sys.version)
 
     for childID in xrange(processCount):
-      self.remotePrint('start child %d' % childID)
+      #self.remotePrint('start child %d' % childID)
       startedEvent = threading.Event()
       child = Child(childID, self, startedEvent)
       child.start()

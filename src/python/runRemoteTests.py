@@ -505,7 +505,8 @@ def main():
   command += ' -Dtests.weekly=false'
   command += ' -Dtests.slow=true'
   command += ' -Dtests.multiplier=%s' % MULT
-  command += ' -DtempDir=.'
+  command += ' -DtempDir=./temp'
+  command += ' -Djava.io.tmpDir=./temp'
   command += ' -Djetty.testMode=1'
   command += ' -Djetty.insecurerandom=1'
   command += ' -Dsolr.directoryFactory=org.apache.solr.core.MockDirectoryFactory'

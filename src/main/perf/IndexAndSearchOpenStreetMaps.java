@@ -71,7 +71,8 @@ public class IndexAndSearchOpenStreetMaps {
       }
       };
     IndexWriterConfig iwc = new IndexWriterConfig(null);
-    iwc.setRAMBufferSizeMB(256);
+    //iwc.setRAMBufferSizeMB(256);
+    iwc.setMaxBufferedDocs(109630);
     iwc.setCodec(codec);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     IndexWriter w = new IndexWriter(dir, iwc);
@@ -92,12 +93,12 @@ public class IndexAndSearchOpenStreetMaps {
     }
     long t1 = System.nanoTime();
     System.out.println(((t1-t0)/1000000000.0) + " sec to build index");
-    w.forceMerge(1);
     System.out.println(w.maxDoc() + " total docs");
+    //w.forceMerge(1);
 
     w.close();
-    long t2 = System.nanoTime();
-    System.out.println(((t2-t1)/1000000000.0) + " sec to forceMerge + close");
+    //long t2 = System.nanoTime();
+    //System.out.println(((t2-t1)/1000000000.0) + " sec to forceMerge + close");
   }
 
   private static void queryIndex() throws IOException {

@@ -569,8 +569,8 @@ def main():
       l = ['\nRunning:\n']
       for worker in workers:
         l.append('  %s (%d finished jobs):\n' % (worker.hostName, len(worker.finishedJobs)))
-        for job, startTime in worker.runningJobs:
-          l.append('    %s [%.1f sec]\n' % (job[1], now - startTime))
+        for job, startTime in worker.runningJobs.items():
+          l.append('    %s [%.1f sec]\n' % (job, now - startTime))
       msg(''.join(l))
 
     if now - lastSlowCheckTime > 5.0:

@@ -97,8 +97,8 @@ public class IndexAndSearchOpenStreetMaps {
     //w.forceMerge(1);
 
     w.close();
-    //long t2 = System.nanoTime();
-    //System.out.println(((t2-t1)/1000000000.0) + " sec to forceMerge + close");
+    long t2 = System.nanoTime();
+    System.out.println(((t2-t1)/1000000000.0) + " sec to close");
   }
 
   private static void queryIndex() throws IOException {

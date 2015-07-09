@@ -61,7 +61,7 @@ class Child(threading.Thread) :
       while True:
         #self.parent.remotePrint('C%d get job' % self.id)
         job = self.parent.nextJob()
-        if job is None:
+        if job[1] is None:
           #self.parent.remotePrint('C%d no more jobs' % self.id)
           #p.stdin.close()
           p.kill()

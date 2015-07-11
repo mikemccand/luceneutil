@@ -48,11 +48,11 @@ import org.apache.lucene.util.Version;
 
 // javac -cp /l/trunk/lucene/build/core/classes/java:/l/trunk/lucene/build/suggest/classes/java:/l/trunk/lucene/build/analysis/common/classes/java:/l/trunk/lucene/build/analysis/icu/classes/java FreeDBSuggest.java
 
-// java -Xmx14g -cp .:/l/trunk/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/trunk/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/classes/java:/l/trunk/lucene/build/suggest/classes/java:/l/trunk/lucene/build/analysis/common/classes/java:/l/trunk/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../trunk/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
+// java -Xmx14g -cp .:/l/trunk/lucene/build/highlighter/lucene-highlighter-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/misc/lucene-misc-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/classes/java:/l/trunk/lucene/build/suggest/classes/java:/l/trunk/lucene/build/analysis/common/classes/java:/l/trunk/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../trunk/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
 
 // NGram:
-// java -Xmx1g -cp .:/l/predictivesuggest2/lucene/build/highlighter/lucene-highlighter-5.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/misc/lucene-misc-5.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/core/classes/java:/l/predictivesuggest2/lucene/build/suggest/classes/java:/l/predictivesuggest2/lucene/build/analysis/common/classes/java:/l/predictivesuggest2/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../predictivesuggest2/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
+// java -Xmx1g -cp .:/l/predictivesuggest2/lucene/build/highlighter/lucene-highlighter-6.0.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/misc/lucene-misc-6.0.0-SNAPSHOT.jar:/l/predictivesuggest2/lucene/build/core/classes/java:/l/predictivesuggest2/lucene/build/suggest/classes/java:/l/predictivesuggest2/lucene/build/analysis/common/classes/java:/l/predictivesuggest2/lucene/build/analysis/icu/classes/java:/l/util.trunk2/../predictivesuggest2/lucene/analysis/icu/lib/icu4j-49.1.jar FreeDBSuggest -create
 
 public class FreeDBSuggest {
   public static void main(String[] args) throws Exception {
@@ -60,8 +60,7 @@ public class FreeDBSuggest {
     // StandardAnalyzer plus ICUFoldingFilter
     Analyzer a = new Analyzer() {
         @Override 
-        protected TokenStreamComponents createComponents(final String fieldName,
-                                                         final Reader reader) {
+        protected TokenStreamComponents createComponents(final String fieldName) {
 
           /*
           Tokenizer t = new WhitespaceTokenizer(Version.LUCENE_50, reader);
@@ -71,14 +70,13 @@ public class FreeDBSuggest {
           */
 
           // StandardAnalyzer + ICUFoldingFilter:
-          Version matchVersion = Version.LUCENE_50;
           final int maxTokenLength = 255;
 
-          final StandardTokenizer src = new StandardTokenizer(matchVersion, reader);
+          final StandardTokenizer src = new StandardTokenizer();
           src.setMaxTokenLength(maxTokenLength);
           TokenStream tok = src;
           //TokenStream tok = new StandardFilter(matchVersion, tok);
-          tok = new LowerCaseFilter(matchVersion, tok);
+          tok = new LowerCaseFilter(tok);
           //tok = new StopFilter(matchVersion, tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
           //tok = new ICUFoldingFilter(tok);
           //tok = new EnglishMinimalStemFilter(tok);
@@ -94,8 +92,7 @@ public class FreeDBSuggest {
 
     Analyzer qa = new Analyzer() {
         @Override 
-        protected TokenStreamComponents createComponents(final String fieldName,
-                                                         final Reader reader) {
+        protected TokenStreamComponents createComponents(final String fieldName) {
 
           /*
           Tokenizer t = new WhitespaceTokenizer(Version.LUCENE_50, reader);
@@ -105,14 +102,13 @@ public class FreeDBSuggest {
           */
 
           // StandardAnalyzer + ICUFoldingFilter:
-          Version matchVersion = Version.LUCENE_50;
           final int maxTokenLength = 255;
 
-          final StandardTokenizer src = new StandardTokenizer(matchVersion, reader);
+          final StandardTokenizer src = new StandardTokenizer();
           src.setMaxTokenLength(maxTokenLength);
           TokenStream tok = src;
           //TokenStream tok = new StandardFilter(matchVersion, tok);
-          tok = new LowerCaseFilter(matchVersion, tok);
+          tok = new LowerCaseFilter(tok);
           //tok = new SuggestStopFilter(tok, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
           //tok = new ICUFoldingFilter(tok);
           //tok = new EnglishMinimalStemFilter(tok);
@@ -130,7 +126,7 @@ public class FreeDBSuggest {
     //Lookup suggester = new AnalyzingInfixSuggester(Version.LUCENE_50, new File("infixsuggest"), a);
     //Lookup suggester = new InfixingSuggester(a, a);
     //Lookup suggester = new FuzzySuggester(a, a, AnalyzingSuggester.PRESERVE_SEP, 256, -1, 1, true, 1, 3);
-    Lookup suggester = new FreeTextSuggester(a, qa, 4, (byte) 0x20);
+    Lookup suggester = new FreeTextSuggester(a, qa, 3, (byte) 0x20);
 
     boolean doCreate = false;
     boolean doServer = false;
@@ -154,7 +150,7 @@ public class FreeDBSuggest {
       //String source = "/lucenedata/enwiki/enwiki-20120502-lines-1k.txt";
       //String source = "/lucenedata/aolqueries/AOL-user-ct-collection/justQueriesSorted.txt";
       //String source = "/lucenedata/bible/lines.txt";
-      String source = "/lucenedata/lucene-user-list/lines.txt";
+      String source = "/lucenedata/reddit-comments/justBody.txt";
       InputStream is = new FileInputStream(source);
       final BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), 1<<16);
       //final Set<String> seen = new HashSet<String>();
@@ -169,6 +165,16 @@ public class FreeDBSuggest {
           int currentUpto;
           int count;
           long weight;
+
+          @Override
+          public boolean hasContexts() {
+            return false;
+          }
+
+          @Override
+          public Set<BytesRef> contexts() {
+            return null;
+          }
 
           @Override
           public BytesRef next() throws IOException {
@@ -206,6 +212,10 @@ public class FreeDBSuggest {
             */
             
             String line = reader.readLine();
+            count++;
+            if (count % 100000 == 0) {
+              System.out.println(count + "...");
+            }
             //System.out.println("line=" + line);
             //if (line == null || count++ == 100000) {
             if (line == null) {

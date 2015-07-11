@@ -15,7 +15,7 @@ cp.append('%s/lucene/build/analysis/common/classes/java' % LUCENE_HOME)
 cp.append('%s/lucene/build/analysis/icu/classes/java' % LUCENE_HOME)
 cp.append('%s/lucene/analysis/icu/lib/icu4j-49.1.jar' % LUCENE_HOME)
 
-cmd = 'java -Xmx3g -cp %s FreeDBSuggest %s -server' % (':'.join(cp), sys.argv[1])
+cmd = 'java -Xmx14g -cp %s FreeDBSuggest %s -server' % (':'.join(cp), sys.argv[1])
 
 p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 print p.stdout.readline().strip()

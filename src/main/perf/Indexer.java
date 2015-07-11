@@ -221,8 +221,6 @@ public final class Indexer {
 
     final IndexWriterConfig iwc = new IndexWriterConfig(a);
 
-    iwc.setMaxThreadStates(numThreads);
-
     if (mode == Mode.UPDATE) {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
     } else {

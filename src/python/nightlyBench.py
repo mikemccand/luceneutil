@@ -524,18 +524,21 @@ def run():
     iters = 30
     for i in range(iters):
       try:
-        runCommand('hg pull -u > %s/hgupdate.log' % runLogDir)
+        runCommand('git pull -u > %s/gitupdate.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
       else:
-        s = open('%s/hgupdate.log' % runLogDir).read()
+        s = open('%s/gitupdate.log' % runLogDir).read()
         if s.find('not updating') != -1:
-          raise RuntimeError('hg pull failed: %s' % s)
+          raise RuntimeError('git pull failed: %s' % s)
         break
     else:
-      raise RuntimeError('failed to run hg pull -u after %d tries' % iters)
-      
+      raise RuntimeError('failed to run git pull -u after %d tries' % iters)
+
+    os.chdir(constants.BENCH_BASE_DIR)
+    luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
+
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     runCommand('%s cleanup' % constants.SVN_EXE)
     if True:
@@ -555,7 +558,6 @@ def run():
       svnRev = 1417276
       print 'using canned svn rev %s' % svnRev
 
-    luceneUtilRev = os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip()
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
     print '%s' % javaVersion

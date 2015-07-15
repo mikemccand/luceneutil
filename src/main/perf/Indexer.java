@@ -18,16 +18,6 @@ package perf;
  */
 
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
@@ -48,6 +38,7 @@ import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.LogMergePolicy;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
@@ -55,6 +46,16 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import perf.IndexThreads.Mode;
 
@@ -428,13 +429,13 @@ public final class Indexer {
       taxoWriter.close();
     }
 
-    System.out.println("\nIndexer: at close: " + w.segString());
     final long tCloseStart = System.currentTimeMillis();
     if (waitForMerges == false) {
       w.rollback();
     } else {
       w.close();
     }
+    System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
     System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
     final long tFinal = System.currentTimeMillis();

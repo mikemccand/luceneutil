@@ -110,6 +110,7 @@ class Remote(threading.Thread):
     if self.hostName == socket.gethostname():
       # So that test running locally, creating/deleting files, doesn't mess up rsync:
       cmd = cmd.replace('-DtempDir=.', '-DtempDir=/l/tmp')
+      cmd = cmd.replace('-Djava.io.tmpDir=./temp', '-Djava.io.tempDir=/l/tmp')
     else:
       cmd = cmd.replace(self.rootDir, self.rootDir.replace(constants.BASE_DIR, constants.BASE_DIR + '.copy'))
 

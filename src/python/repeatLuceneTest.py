@@ -54,7 +54,7 @@ osName = common.osName
 # print 'WARNING: *** running java w/ 8 GB heap ***'
 # print
 # JAVA_ARGS = '-Xmx8g -Xms8g'
-JAVA_ARGS = ''
+JAVA_ARGS = '-Xmx512m -Xms512m'
 
 def error(message):
   beep()

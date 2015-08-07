@@ -27,8 +27,8 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.numtree.NumericTreeDocValuesFormat;
-import org.apache.lucene.numtree.NumericTreeRangeQuery;
+import org.apache.lucene.rangetree.NumericRangeTreeQuery;
+import org.apache.lucene.rangetree.RangeTreeDocValuesFormat;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
@@ -53,7 +53,7 @@ import java.nio.file.Paths;
 
 public class IndexAndSearchOpenStreetMaps1D {
 
-  private final static boolean USE_NF = true;
+  private final static boolean USE_NF = false;
 
   private static void createIndex() throws IOException {
 
@@ -73,7 +73,7 @@ public class IndexAndSearchOpenStreetMaps1D {
     if (USE_NF) {
       codec = new Lucene53Codec();
     } else {
-      NumericTreeDocValuesFormat dvFormat = new NumericTreeDocValuesFormat();
+      RangeTreeDocValuesFormat dvFormat = new RangeTreeDocValuesFormat();
       codec = new Lucene53Codec() {
           @Override
           public DocValuesFormat getDocValuesFormatForField(String field) {
@@ -151,7 +151,7 @@ public class IndexAndSearchOpenStreetMaps1D {
               if (USE_NF) {
                 q = NumericRangeQuery.newLongRange("latnum", (long) (1000000. * lat), (long) (1000000. * latEnd), true, true);
               } else {
-                q = new NumericTreeRangeQuery("lat", (long) (1000000. * lat), true, (long) (1000000. * latEnd), true);
+                q = new NumericRangeTreeQuery("lat", (long) (1000000. * lat), true, (long) (1000000. * latEnd), true);
               }
 
               TotalHitCountCollector c = new TotalHitCountCollector();

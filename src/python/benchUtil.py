@@ -425,6 +425,7 @@ def parseResults(resultsFiles):
           if cat is not None:
             task.cat = cat
             task.hits = hitCount
+            task.hitCount = hitCount
             task.groupedHitCount = groupedHitCount
             task.groupCount = int(groupCount)
             task.filter = filter

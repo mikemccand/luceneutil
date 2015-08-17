@@ -27,9 +27,9 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import com.spatial4j.core.context.SpatialContext;
 
-// javac -cp /l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint.java
+// javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/IndexOSMGeoPoint.java
 
-// rm -rf geopointindex; java -cp .:/l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint geopointindex
+// rm -rf geopointindex; java -cp /l/util/src/main/perf:build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint geopointindex
 
 public class IndexOSMGeoPoint {
 
@@ -58,8 +58,8 @@ public class IndexOSMGeoPoint {
       double lat = Double.parseDouble(parts[1]);
       double lng = Double.parseDouble(parts[2]);
       Document doc = new Document();
-      doc.add(new StoredField("id", id));
-      doc.add(new NumericDocValuesField("id", id));
+      //doc.add(new StoredField("id", id));
+      //doc.add(new NumericDocValuesField("id", id));
       doc.add(new GeoPointField("geo", lng, lat, Field.Store.NO));
       w.addDocument(doc);
       count++;
@@ -70,11 +70,13 @@ public class IndexOSMGeoPoint {
     long t1 = System.currentTimeMillis();
     System.out.println(((t1-t0)/1000.) + " sec to index");
 
-    System.out.println("Force merge...");
-    w.forceMerge(1);
-    long t2 = System.currentTimeMillis();
-    System.out.println(((t2-t1)/1000.) + " sec to forceMerge");
+    //System.out.println("Force merge...");
+    //w.forceMerge(1);
+    //long t2 = System.currentTimeMillis();
+    //System.out.println(((t2-t1)/1000.) + " sec to forceMerge");
     w.close();
+    long t2 = System.currentTimeMillis();
+    System.out.println(((t2-t1)/1000.) + " sec to close");
     dir.close();
   }
 }

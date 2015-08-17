@@ -28,9 +28,9 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import com.spatial4j.core.context.SpatialContext;
 
-// javac -cp /l/trunk/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/trunk/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSM.java
+// javac -cp build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/IndexOSM.java
 
-// java -cp .:/l/trunk/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/trunk/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSM javaindex
+// rm -rf javaindex; java -cp /l/util/src/main/perf:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSM javaindex
 
 public class IndexOSM {
 
@@ -44,8 +44,8 @@ public class IndexOSM {
 
     int maxLevels = 11;
     //SpatialPrefixTree grid = new GeohashPrefixTree(ctx, maxLevels);
-    // SpatialPrefixTree grid = new PackedQuadPrefixTree(ctx, 25);
-    SpatialPrefixTree grid = new QuadPrefixTree(ctx, 20);
+    SpatialPrefixTree grid = new PackedQuadPrefixTree(ctx, 25);
+    //SpatialPrefixTree grid = new QuadPrefixTree(ctx, 20);
 
     RecursivePrefixTreeStrategy strategy = new RecursivePrefixTreeStrategy(grid, "myGeoField");
     //strategy.setPruneLeafyBranches(false);
@@ -69,8 +69,8 @@ public class IndexOSM {
       double lat = Double.parseDouble(parts[1]);
       double lng = Double.parseDouble(parts[2]);
       Document doc = new Document();
-      doc.add(new StoredField("id", id));
-      doc.add(new NumericDocValuesField("id", id));
+      //doc.add(new StoredField("id", id));
+      //doc.add(new NumericDocValuesField("id", id));
       for(Field f : strategy.createIndexableFields(ctx.makePoint(lng, lat))) {
         doc.add(f);
       }
@@ -83,11 +83,13 @@ public class IndexOSM {
     long t1 = System.currentTimeMillis();
     System.out.println(((t1-t0)/1000.) + " sec to index");
 
-    System.out.println("Force merge...");
-    w.forceMerge(1);
-    long t2 = System.currentTimeMillis();
-    System.out.println(((t2-t1)/1000.) + " sec to forceMerge");
+    //System.out.println("Force merge...");
+    //w.forceMerge(1);
+    //long t2 = System.currentTimeMillis();
+    //System.out.println(((t2-t1)/1000.) + " sec to forceMerge");
     w.close();
+    long t2 = System.currentTimeMillis();
+    System.out.println(((t2-t1)/1000.) + " sec to close");
     dir.close();
   }
 }

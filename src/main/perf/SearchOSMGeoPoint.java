@@ -41,9 +41,9 @@ import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-// javac -cp /l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSMGeoPoint.java
+// javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/SearchOSMGeoPoint.java
 
-// java -cp .:/l/geopoint/lucene/build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/geopoint/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/geopoint/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSMGeoPoint geopointindex
+// java -cp /l/util/src/main:build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar perf.SearchOSMGeoPoint geopointindex
 
 public class SearchOSMGeoPoint {
 

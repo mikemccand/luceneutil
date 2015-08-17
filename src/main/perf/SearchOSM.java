@@ -1,18 +1,3 @@
-package perf;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -38,9 +23,24 @@ import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-// javac -cp /l/trunk/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/trunk/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSM.java
+import com.spatial4j.core.context.SpatialContext;
 
-// java -cp .:/l/trunk/lucene/build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/spatial/lib/spatial4j-0.4.1.jar:/l/trunk/lucene/build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/core/lucene-core-6.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSM javaindex
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+// javac -cp build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/SearchOSM.java
+
+// java -cp /l/util/src/main/perf:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar SearchOSM javaindex
 
 public class SearchOSM {
 
@@ -52,8 +52,8 @@ public class SearchOSM {
 
     int maxLevels = 11;
     //SpatialPrefixTree grid = new GeohashPrefixTree(ctx, maxLevels);
-    //SpatialPrefixTree grid = new PackedQuadPrefixTree(ctx, 25);
-    SpatialPrefixTree grid = new QuadPrefixTree(ctx, 12);
+    SpatialPrefixTree grid = new PackedQuadPrefixTree(ctx, 25);
+    //SpatialPrefixTree grid = new QuadPrefixTree(ctx, 12);
     RecursivePrefixTreeStrategy strategy = new RecursivePrefixTreeStrategy(grid, "myGeoField");
     //strategy.setPruneLeafyBranches(false);
 

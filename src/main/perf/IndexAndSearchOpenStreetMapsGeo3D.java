@@ -161,7 +161,7 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
   }
 
   public static void main(String[] args) throws IOException {
-    //createIndex();
+    createIndex();
     queryIndex();
   }
 }

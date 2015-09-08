@@ -344,12 +344,6 @@ DEBUG = '-debug' in sys.argv
 
 DIR_IMPL = 'MMapDirectory'
 
-#MEDIUM_INDEX_NUM_DOCS = 27625038
-MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS
-
-#BIG_INDEX_NUM_DOCS = 5982049
-BIG_INDEX_NUM_DOCS = constants.NIGHTLY_BIG_INDEX_NUM_DOCS
-
 # TODO: tune for AMD box
 INDEXING_RAM_BUFFER_MB = 350
 
@@ -359,30 +353,12 @@ TASK_REPEAT_COUNT = 50
 #MED_WIKI_BYTES_PER_DOC = 950.21921304868431
 #BIG_WIKI_BYTES_PER_DOC = 4183.3843150398807
 
-MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
-BIG_LINE_FILE = constants.NIGHTLY_BIG_LINE_FILE
-NIGHTLY_LOG_DIR = constants.NIGHTLY_LOG_DIR
-NIGHTLY_REPORTS_DIR = constants.NIGHTLY_REPORTS_DIR
-
-if DEBUG:
-  NIGHTLY_DIR = 'clean2.svn'
-else:
-  NIGHTLY_DIR = 'trunk.nightly'
-  
 NRT_DOCS_PER_SECOND = 1103  # = 1 MB / avg med wiki doc size
 NRT_RUN_TIME = 30*60
 NRT_SEARCH_THREADS = 4
 NRT_INDEX_THREADS = 1
 NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
-
-if DEBUG:
-  # Must re-direct all logs so we don't overwrite the "production" run's logs:
-  constants.LOGS_DIR = '/lucene/clean2.svn/lucene/benchmark'
-  MEDIUM_INDEX_NUM_DOCS /= 100
-  BIG_INDEX_NUM_DOCS /= 100
-  NRT_RUN_TIME /= 90
-  JVM_COUNT = 3
 
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
 reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
@@ -494,6 +470,28 @@ def runNRTTest(r, indexPath, runLogDir):
 
 def run():
 
+  MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
+  BIG_LINE_FILE = constants.NIGHTLY_BIG_LINE_FILE
+
+  if DEBUG:
+    NIGHTLY_DIR = 'clean2.svn'
+  else:
+    NIGHTLY_DIR = 'trunk.nightly'
+
+  #MEDIUM_INDEX_NUM_DOCS = 27625038
+  MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS
+
+  #BIG_INDEX_NUM_DOCS = 5982049
+  BIG_INDEX_NUM_DOCS = constants.NIGHTLY_BIG_INDEX_NUM_DOCS
+
+  if DEBUG:
+    # Must re-direct all logs so we don't overwrite the "production" run's logs:
+    constants.LOGS_DIR = '/lucene/clean2.svn/lucene/benchmark'
+    MEDIUM_INDEX_NUM_DOCS /= 100
+    BIG_INDEX_NUM_DOCS /= 100
+    NRT_RUN_TIME /= 90
+    JVM_COUNT = 3
+
   DO_RESET = '-reset' in sys.argv
 
   print
@@ -507,7 +505,7 @@ def run():
   else:
     start = now()
   timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)
-  runLogDir = '%s/%s' % (NIGHTLY_LOG_DIR, timeStamp)
+  runLogDir = '%s/%s' % (constants.NIGHTLY_LOG_DIR, timeStamp)
   if REAL:
     os.makedirs(runLogDir)
   message('log dir %s' % runLogDir)
@@ -694,7 +692,7 @@ def run():
                                                     False, True,
                                                     'prev', 'now',
                                                     writer=output.append)
-    f = open('%s/%s.html' % (NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
+    f = open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
     timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
     w = f.write
     w('<html>\n')
@@ -712,7 +710,7 @@ def run():
     f.close()
 
     if os.path.exists('out.png'):
-      shutil.move('out.png', '%s/%s.png' % (NIGHTLY_REPORTS_DIR, timeStamp))
+      shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
     searchResults = results
 
     print '  heaps: %s' % str(searchHeaps)
@@ -769,23 +767,46 @@ def run():
 
   message('done: total time %s' % (now()-start))
 
+def getGCTimes(subDir):
+  if not os.path.exists('%s/gcTimes.pk' % subDir):
+    times = {}
+    print("check %s" % ('%s/logs.tar.bz2' % subDir))
+    if os.path.exists('%s/logs.tar.bz2' % subDir):
+      reTimeIn = re.compile('^\s*Time in (.*?): (\d+) ms')
+      cmd = 'tar xjf %s/logs.tar.bz2 fastIndexMediumDocs.log' % subDir
+      if os.system(cmd):
+        raise RuntimeError('%s failed (cwd %s)' % (cmd, os.getcwd()))
+
+      with open('fastIndexMediumDocs.log') as f:
+        for line in f.readlines():
+          m = reTimeIn.search(line)
+          if m is not None:
+            times[m.group(1)] = float(m.group(2))/1000.
+
+      open('%s/gcTimes.pk' % subDir, 'wb').write(cPickle.dumps(times))
+    return times
+  else:
+    return cPickle.loads(open('%s/gcTimes.pk' % subDir, 'rb').read())
+
 def makeGraphs():
   global annotations
   medIndexChartData = ['Date,GB/hour']
   bigIndexChartData = ['Date,GB/hour']
   nrtChartData = ['Date,Reopen Time (msec)']
+  gcTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
   searchChartData = {}
   days = []
   annotations = []
-  l = os.listdir(NIGHTLY_LOG_DIR)
+  l = os.listdir(constants.NIGHTLY_LOG_DIR)
   l.sort()
 
   for subDir in l:
-    resultsFile = '%s/%s/results.pk' % (NIGHTLY_LOG_DIR, subDir)
+    resultsFile = '%s/%s/results.pk' % (constants.NIGHTLY_LOG_DIR, subDir)
     if DEBUG and not os.path.exists(resultsFile):
-      resultsFile = '%s/%s/results.debug.pk' % (NIGHTLY_LOG_DIR, subDir)
-      
+      resultsFile = '%s/%s/results.debug.pk' % (constants.NIGHTLY_LOG_DIR, subDir)
+
     if os.path.exists(resultsFile):
+
       tup = cPickle.loads(open(resultsFile).read())
       # print 'RESULTS: %s' % resultsFile
       
@@ -822,7 +843,16 @@ def makeGraphs():
       if date in ('05/16/2014'):
         # Bug in luceneutil made it look like 0 qps on all queries
         continue
-      
+
+      gcTimes = getGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
+      s = timeStampString
+      for h in 'JIT compilation', 'Young Generation GC', 'Old Generation GC':
+        v = gcTimes.get(h)
+        s += ','
+        if v is not None:
+          s += '%.4f' % v
+      gcTimesChartData.append(s)
+
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       mean, stdDev = nrtResults
@@ -876,8 +906,8 @@ def makeGraphs():
   for k, v in searchChartData.items():
     sort(v)
 
-  # Index time
-  writeIndexingHTML(medIndexChartData, bigIndexChartData)
+  # Index time, including GC/JIT times
+  writeIndexingHTML(medIndexChartData, bigIndexChartData, gcTimesChartData)
 
   # CheckIndex time
   writeCheckIndexTimeHTML()
@@ -889,7 +919,7 @@ def makeGraphs():
     # Graph does not render right with only one value:
     if len(v) > 2:
       writeOneGraphHTML('Lucene %s queries/sec' % taskRename.get(k, k),
-                        '%s/%s.html' % (NIGHTLY_REPORTS_DIR, k),
+                        '%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, k),
                         getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
     else:
       del searchChartData[k]
@@ -911,12 +941,12 @@ def writeCheckIndexTimeHTML():
   # instead:
   chartData = []
 
-  l = os.listdir(NIGHTLY_LOG_DIR)
+  l = os.listdir(constants.NIGHTLY_LOG_DIR)
   l.sort()
 
   for subDir in l:
-    checkIndexTimeFile = '%s/%s/checkIndex.time' % (NIGHTLY_LOG_DIR, subDir)
-    if os.path.exists('%s/%s/results.debug.pk' % (NIGHTLY_LOG_DIR, subDir)):
+    checkIndexTimeFile = '%s/%s/checkIndex.time' % (constants.NIGHTLY_LOG_DIR, subDir)
+    if os.path.exists('%s/%s/results.debug.pk' % (constants.NIGHTLY_LOG_DIR, subDir)):
       # Skip debug runs
       continue
     
@@ -934,7 +964,7 @@ def writeCheckIndexTimeHTML():
       seconds = int(open(checkIndexTimeFile, 'r').read())
     else:
       # Look at timestamps of each file in the tar file:
-      logsFile = '%s/%s/logs.tar.bz2' % (NIGHTLY_LOG_DIR, subDir)
+      logsFile = '%s/%s/logs.tar.bz2' % (constants.NIGHTLY_LOG_DIR, subDir)
       if os.path.exists(logsFile):
         t = tarfile.open(logsFile, 'r:bz2')
         l = []
@@ -960,7 +990,7 @@ def writeCheckIndexTimeHTML():
     chartData.append('%s-%s-%s %s:%s:%s,%s' % (tuple(tup) + (seconds,)))
     #print("added %s" % chartData[-1])
                 
-  with open('%s/checkIndexTime.html' % NIGHTLY_REPORTS_DIR, 'wb') as f:
+  with open('%s/checkIndexTime.html' % constants.NIGHTLY_REPORTS_DIR, 'wb') as f:
     w = f.write
     header(w, 'Lucene nightly CheckIndex time')
     w('<h1>Seconds to run CheckIndex</h1>\n')
@@ -1000,7 +1030,7 @@ def footer(w):
   w('</html>')
 
 def writeIndexHTML(searchChartData, days):
-  f = open('%s/index.html' % NIGHTLY_REPORTS_DIR, 'wb')
+  f = open('%s/index.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
   header(w, 'Lucene nightly benchmarks')
   w('<h1>Lucene nightly benchmarks</h1>')
@@ -1098,8 +1128,8 @@ def writeKnownChanges(w):
     label += 1
   w('</ul>')
 
-def writeIndexingHTML(medChartData, bigChartData):
-  f = open('%s/indexing.html' % NIGHTLY_REPORTS_DIR, 'wb')
+def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
+  f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
   header(w, 'Lucene nightly indexing benchmark')
   w('<h1>Indexing Throughput</h1>\n')
@@ -1111,6 +1141,13 @@ def writeIndexingHTML(medChartData, bigChartData):
   w('<br>')
   w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs", errorBars=False))
   w('\n')
+
+  w('<br>')
+  w('<br>')
+  w('<br>')
+  w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False))
+  w('\n')
+
   writeKnownChanges(w)
 
   w('<br><br>')
@@ -1134,7 +1171,7 @@ def writeIndexingHTML(medChartData, bigChartData):
   f.close()
 
 def writeNRTHTML(nrtChartData):
-  f = open('%s/nrt.html' % NIGHTLY_REPORTS_DIR, 'wb')
+  f = open('%s/nrt.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
   header(w, 'Lucene nightly near-real-time latency benchmark')
   w('<br>')
@@ -1220,19 +1257,20 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   w('  g_%s.setAnnotations([' % id)
   label = 0
   for date, timestamp, desc, fullDesc in annotations:
-    w('    {')
-    w('      series: "%s",' % series)
-    w('      x: "%s",' % timestamp)
-    w('      shortText: "%s",' % getLabel(label))
-    w('      width: 20,')
+    if 'JIT/GC' not in title or label >= 33:
+      w('    {')
+      w('      series: "%s",' % series)
+      w('      x: "%s",' % timestamp)
+      w('      shortText: "%s",' % getLabel(label))
+      w('      width: 20,')
+      w('      text: "%s",' % desc)
+      w('    },')
     label += 1
-    w('      text: "%s",' % desc)
-    w('    },')
   w('  ]);')
   w('</script>')
 
   if 0:
-    f = open('%s/%s.txt' % (NIGHTLY_REPORTS_DIR, id), 'wb')
+    f = open('%s/%s.txt' % (constants.NIGHTLY_REPORTS_DIR, id), 'wb')
     for s in data:
       f.write('%s\n' % s)
     f.close()

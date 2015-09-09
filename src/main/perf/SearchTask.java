@@ -102,14 +102,10 @@ final class SearchTask extends Task {
 
   @Override
   public Task clone() {
-    Query q2 = q.clone();
-    if (q2 == null) {
-      throw new RuntimeException("q=" + q + " failed to clone");
-    }
     if (singlePassGroup) {
-      return new SearchTask(category, q2, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
+      return new SearchTask(category, q, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
     } else {
-      return new SearchTask(category, q2, s, group, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
+      return new SearchTask(category, q, s, group, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
     }
   }
 

@@ -342,6 +342,11 @@ KNOWN_CHANGES = [
 
 DEBUG = '-debug' in sys.argv
 
+if DEBUG:
+  NIGHTLY_DIR = 'clean2.svn'
+else:
+  NIGHTLY_DIR = 'trunk.nightly'
+
 DIR_IMPL = 'MMapDirectory'
 
 # TODO: tune for AMD box
@@ -472,11 +477,6 @@ def run():
 
   MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
   BIG_LINE_FILE = constants.NIGHTLY_BIG_LINE_FILE
-
-  if DEBUG:
-    NIGHTLY_DIR = 'clean2.svn'
-  else:
-    NIGHTLY_DIR = 'trunk.nightly'
 
   #MEDIUM_INDEX_NUM_DOCS = 27625038
   MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS

@@ -39,7 +39,9 @@ logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
 
 with open(logFile + '.tmp', 'w') as lf:
   lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+  os.chdir(constants.BENCH_BASE_DIR)
   lf.write('hgversion: %s\n' % os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip())
+  os.chdir(LUCENE_ROOT)
 
 run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf4x.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
 

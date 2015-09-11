@@ -365,6 +365,10 @@ NRT_INDEX_THREADS = 1
 NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
 
+if DEBUG:
+  NRT_RUN_TIME /= 90
+  JVM_COUNT = 3
+
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
 reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
 reSVNRev = re.compile(r'revision (.*?)\.')
@@ -440,7 +444,7 @@ def runNRTTest(r, indexPath, runLogDir):
          r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,
          indexPath + '/index',
-         MEDIUM_LINE_FILE,
+         constants.NIGHTLY_MEDIUM_LINE_FILE,
          NRT_DOCS_PER_SECOND,
          NRT_RUN_TIME,
          NRT_SEARCH_THREADS,
@@ -475,13 +479,7 @@ def runNRTTest(r, indexPath, runLogDir):
 
 def run():
 
-  MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
-  BIG_LINE_FILE = constants.NIGHTLY_BIG_LINE_FILE
-
-  #MEDIUM_INDEX_NUM_DOCS = 27625038
   MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS
-
-  #BIG_INDEX_NUM_DOCS = 5982049
   BIG_INDEX_NUM_DOCS = constants.NIGHTLY_BIG_INDEX_NUM_DOCS
 
   if DEBUG:
@@ -489,8 +487,6 @@ def run():
     constants.LOGS_DIR = '/lucene/clean2.svn/lucene/benchmark'
     MEDIUM_INDEX_NUM_DOCS /= 100
     BIG_INDEX_NUM_DOCS /= 100
-    NRT_RUN_TIME /= 90
-    JVM_COUNT = 3
 
   DO_RESET = '-reset' in sys.argv
 
@@ -572,7 +568,7 @@ def run():
                                  taskCountPerCat=COUNTS_PER_CAT)
 
   mediumSource = competition.Data('wikimedium',
-                                  MEDIUM_LINE_FILE,
+                                  constants.NIGHTLY_MEDIUM_LINE_FILE,
                                   MEDIUM_INDEX_NUM_DOCS,
                                   constants.WIKI_MEDIUM_TASKS_FILE)
 
@@ -591,7 +587,7 @@ def run():
                                   useCMS=True)
 
   bigSource = competition.Data('wikibig',
-                               BIG_LINE_FILE,
+                               constants.NIGHTLY_BIG_LINE_FILE,
                                BIG_INDEX_NUM_DOCS,
                                constants.WIKI_MEDIUM_TASKS_FILE)
 

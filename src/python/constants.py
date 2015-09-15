@@ -90,7 +90,7 @@ POSTINGS_FORMAT_DEFAULT='Lucene50'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT='Memory'
 FACET_FIELD_DV_FORMAT_DEFAULT='Lucene50'
 ANALYZER_DEFAULT='StandardAnalyzer'
-SIMILARITY_DEFAULT='DefaultSimilarity'
+SIMILARITY_DEFAULT='BM25Similarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
 
 TESTS_LINE_FILE = '/lucene/clean2.svn/lucene/test-framework/src/resources/org/apache/lucene/util/europarl.lines.txt'

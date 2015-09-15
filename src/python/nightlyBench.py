@@ -926,7 +926,7 @@ def makeGraphs():
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
   if not DEBUG:
-    runCommand('rsync -rv -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
 
 reTookSec = re.compile('took ([0-9.]+) sec')
 reDateTime = re.compile('log dir /lucene/logs.nightly/(.*?)$')

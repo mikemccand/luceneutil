@@ -332,6 +332,10 @@ KNOWN_CHANGES = [
   ('2015-09-15',
    'LUCENE-6789: switch to BM25 scoring by default',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6789">LUCENE-6789 switch to BM25 scoring by default'),
+
+  ('2015-10-05',
+   'Randomize what time of day benchmark runs',
+   'Randomize what time of day benchmark runs'),
    ]
 
 # TODO

@@ -1,0 +1,22 @@
+## intellij files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+## project files
+.project
+.classpath
+.settings
+.pydevproject
+
+## temporaries and build directories
+*.class
+*.pyc
+*.swp
+local/
+tmp/
+bin/
+build/
+work/
+.DS_Store

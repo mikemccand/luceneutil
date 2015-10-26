@@ -9,14 +9,17 @@
 .classpath
 .settings
 .pydevproject
+*.sublime_session
 
 ## temporaries and build directories
 *.class
 *.pyc
 *.swp
+npm-debug.log 
 local/
 tmp/
 bin/
 build/
 work/
 .DS_Store
+node_modules/

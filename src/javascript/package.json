@@ -1,0 +1,32 @@
+{
+  "name": "lucene-geoview",
+  "version": "0.0.0",
+  "description": "visualize geo indexing and utilities in Apache Lucene",
+  "main": "client.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mikemccand/luceneutil.git"
+  },
+  "keywords": [
+    "lucene",
+    "geo"
+  ],
+  "author": "Nicholas Knize",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mikemccand/luceneutil/issues"
+  },
+  "dependencies": {
+    "hyperquest": "~0.3.0",
+    "querystring": "0.2.0",
+    "through": "~2.3.4",
+    "url": "~0.11.0"
+  },
+  "devDependencies": {
+    "express": "^4.13.3",
+    "body-parser": "^1.14.1",
+    "browserify": "~12.0.0",
+    "leaflet": "~0.7.2",
+    "uglifyjs": "^2.3.6"
+  }
+}

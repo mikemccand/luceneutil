@@ -29,7 +29,13 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
+ * Requires NodeJS
  *
+ *  See installation instructions here: https://nodejs.org/en/download/package-manager/
+ *
+ *  Once installed:
+ *    1. navigate to the src/javascript directory and type 'npm install'
+ *    2. node server.js
  */
 public class GeoMapPoster {
   enum GeometryType {

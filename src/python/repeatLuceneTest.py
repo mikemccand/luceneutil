@@ -319,7 +319,8 @@ def _run(threadID):
       #command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
       #command += ' -Djava.security.manager=org.apache.lucene.util.TestSecurityManager'
 
-      #command += ' -Dtests.leaveTemporary=true'
+      # nocommit
+      command += ' -Dtests.leaveTemporary=true'
       
       if USE_JUNIT:
         command += ' org.junit.runner.JUnitCore'

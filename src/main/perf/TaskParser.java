@@ -220,9 +220,10 @@ class TaskParser {
         if (spot3 == -1) {
           throw new RuntimeException("failed to parse query=" + text);
         }
-        DisjunctionMaxQuery dismax = new DisjunctionMaxQuery(1f);
-        dismax.add(new TermQuery(new Term(fieldName, text.substring(16, spot3))));
-        dismax.add(new TermQuery(new Term(fieldName, text.substring(spot3+1).trim())));
+        List<Query> clauses = new ArrayList<Query>();
+        clauses.add(new TermQuery(new Term(fieldName, text.substring(16, spot3))));
+        clauses.add(new TermQuery(new Term(fieldName, text.substring(spot3+1).trim())));
+        DisjunctionMaxQuery dismax = new DisjunctionMaxQuery(clauses, 1f);
         query = dismax;
         sort = null;
         group = null;

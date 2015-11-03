@@ -32,28 +32,32 @@ import org.apache.lucene.document.GeoPointField;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.GeoDistanceUtils;
-import org.apache.lucene.util.GeoProjectionUtils;
 import org.apache.lucene.util.GeoRect;
 import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.SloppyMath;
 
 /**
- * An validation utility for GeoTermsEnum, computes the ranges and provides utilities to check if a reduced resolution
+ * A validation utility for GeoTermsEnum, computes the ranges and provides utilities to check if a reduced resolution
  * point falls within the computed ranges.
  */
 public class GeoRangeComputer {
-  enum QueryType {
-    BBOX, DISTANCE
-  }
-  protected double cntrLon;
-  protected double cntrLat;
-  protected double radius;
+//  // distance
+//  protected double cntrLon;
+//  protected double cntrLat;
+//  protected double radius;
 
-  public double minLon;
-  public double minLat;
-  public double maxLon;
-  public double maxLat;
+//  // bbox
+//  public double minLon;
+//  public double minLat;
+//  public double maxLon;
+//  public double maxLat;
+
+//  // polygon
+//  public double[] x;
+//  public double[] y;
+
+  private GeoRangeQueryEnum termEnum;
 
   private static short DETAIL_LEVEL;
   private static short MAX_SHIFT;
@@ -67,52 +71,22 @@ public class GeoRangeComputer {
 
 //  private RangeFile rangeFile;
 
-  private QueryType type;
   private static double LOG2 = StrictMath.log(2);
 
-  public GeoRangeComputer(final double minLon, final double minLat, final double maxLon, final double maxLat) {
+  GeoRangeComputer(final GeoRangeQueryEnum queryEnum) {
     try {
-      this.type = QueryType.BBOX;
-//      this.rangeFile = new RangeFile("./ranges.geojson", minLon, minLat, maxLon, maxLat);
-      // compute diagonal radius
-      double midLon = (minLon + maxLon) * 0.5;
-      double midLat = (minLat + maxLat) * 0.5;
+      this.termEnum = queryEnum;
+      this.MAX_SHIFT = queryEnum.computeMaxShift();
+      this.DETAIL_LEVEL = (short)(((GeoUtils.BITS<<1)-this.MAX_SHIFT)/2);
 
-      this.MAX_SHIFT = (short)((SloppyMath.haversin(minLat, minLon, midLat, midLon)*1000 > 1000000) ? 5 : 4);
-      this.DETAIL_LEVEL = (short)(((GeoUtils.BITS<<1)-computeMaxShift())/2);//16;//computeDetailLevel(minLon, minLat, maxLon, maxLat);
-      this.minLon = minLon;
-      this.minLat = minLat;
-      this.maxLon = maxLon;
-      this.maxLat = maxLat;
+//      this.rangeFile = new RangeFile("./ranges.geojson", minLon, minLat, maxLon, maxLat);
       computeRange(0L, (short) (((GeoUtils.BITS) << 1) - 1));
+      assert rangeBounds.isEmpty() == false;
 //      rangeFile.finish();
       Collections.sort(rangeBounds);
 //      rangeFile.close();
       System.out.println("Created " + rangeBounds.size() + " ranges");
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  public GeoRangeComputer(final double cntrLon, final double cntrLat, final double radius, final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    try {
-      this.type = QueryType.DISTANCE;
-//      this.rangeFile = new RangeFile("./ranges.geojson", minLon, minLat, maxLon, maxLat);
-      this.MAX_SHIFT = (short)(GeoPointField.PRECISION_STEP * ((short)((radius>1000000) ? 5 : 4)));
-      this.DETAIL_LEVEL =  (short)(((GeoUtils.BITS<<1)-MAX_SHIFT)/2);//computeDetailLevel(minLon, minLat, maxLon, maxLat);
-      this.cntrLon = cntrLon;
-      this.cntrLat = cntrLat;
-      this.radius = radius;
-      this.minLon = minLon;
-      this.minLat = minLat;
-      this.maxLon = maxLon;
-      this.maxLat = maxLat;
-      computeRange(0L, (short) (((GeoUtils.BITS) << 1) - 1));
-//      rangeFile.finish();
-      Collections.sort(rangeBounds);
-//      rangeFile.close();
-      System.out.println("Created " + rangeBounds.size() + " ranges");
-    } catch (Exception e) {
+    } catch(Exception e) {
       e.printStackTrace();
     }
   }
@@ -152,9 +126,9 @@ public class GeoRangeComputer {
 
     final short level = (short)((GeoUtils.BITS<<1)-res>>>1);
 
-    final boolean within = res % GeoPointField.PRECISION_STEP == 0 && cellWithin(minLon, minLat, maxLon, maxLat);
+    final boolean within = res % GeoPointField.PRECISION_STEP == 0 && termEnum.cellWithin(minLon, minLat, maxLon, maxLat);
 //    final boolean crosses = cellCrosses(minLon, minLat, maxLon, maxLat);
-    final boolean crosses = cellIntersectsShape(minLon, minLat, maxLon, maxLat);
+    final boolean crosses = termEnum.cellIntersectsShape(minLon, minLat, maxLon, maxLat);
     if (within || (level == DETAIL_LEVEL && crosses)) {
       final short nextRes = (short)(res-1);
       if (nextRes % GeoPointField.PRECISION_STEP == 0) {
@@ -164,7 +138,7 @@ public class GeoRangeComputer {
       } else {
         addRange(start, end, level, res, !within);
       }
-    } else if (level < DETAIL_LEVEL &&  cellIntersectsMBR(minLon, minLat, maxLon, maxLat)) {
+    } else if (level < DETAIL_LEVEL &&  termEnum.cellIntersectsMBR(minLon, minLat, maxLon, maxLat)) {
         computeRange(start, (short) (res - 1));
     }
   }
@@ -183,106 +157,41 @@ public class GeoRangeComputer {
     }
   }
 
-  protected short computeMaxShift() {
-    // in this case a factor of 4 brings the detail level to ~0.002/0.001 degrees lon/lat respectively (or ~222m/111m)
-    return (short)(GeoPointField.PRECISION_STEP * MAX_SHIFT);
-  }
-
-  protected boolean cellContains(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return GeoUtils.rectWithin(this.minLon, this.minLat, this.maxLon, this.maxLat, minLon, minLat, maxLon, maxLat);
-  }
-
-  protected boolean cellIntersectsMBR(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return GeoUtils.rectIntersects(minLon, minLat, maxLon, maxLat, this.minLon, this.minLat, this.maxLon, this.maxLat);
-  }
-
-  protected boolean cellIntersectsShape(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return (type == QueryType.DISTANCE) ? cellIntersectsShapePR(minLon, minLat, maxLon, maxLat) :
-        cellIntersectsShapeBB(minLon, minLat, maxLon, maxLat);
-  }
-
-  protected boolean cellCrosses(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return (type == QueryType.DISTANCE) ? cellCrossesPR(minLon, minLat, maxLon, maxLat) :
-        cellCrossesBB(minLon, minLat, maxLon, maxLat);
-  }
-
-  protected boolean cellWithin(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return (type == QueryType.DISTANCE) ? cellWithinPR(minLon, minLat, maxLon, maxLat) :
-        cellWithinBB(minLon, minLat, maxLon, maxLat);
-  }
-
-  /**
-   * BBox
-   */
-  protected boolean cellIntersectsShapeBB(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return cellIntersectsMBR(minLon, minLat, maxLon, maxLat);
-  }
-
-  protected boolean cellCrossesBB(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return GeoUtils.rectCrosses(minLon, minLat, maxLon, maxLat, this.minLon, this.minLat, this.maxLon, this.maxLat);
-  }
-
-  protected boolean cellWithinBB(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return GeoUtils.rectWithin(minLon, minLat, maxLon, maxLat, this.minLon, this.minLat, this.maxLon, this.maxLat);
-  }
-
-
-  /**
-   * Point radius
-   */
-  protected boolean cellIntersectsShapePR(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return (cellContains(minLon, minLat, maxLon, maxLat)
-        || cellWithinPR(minLon, minLat, maxLon, maxLat) || cellCrossesPR(minLon, minLat, maxLon, maxLat));
-  }
-
-  protected boolean cellCrossesPR(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return GeoUtils.rectCrossesCircle(minLon, minLat, maxLon, maxLat, cntrLon, cntrLat, radius);
-  }
-
-  protected boolean cellWithinPR(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-    return GeoUtils.rectWithinCircle(minLon, minLat, maxLon, maxLat, cntrLon, cntrLat, radius);
-  }
-
   public static GeoRangeComputer[] pointRadius(final double centerLon, final double centerLat, final double radius) {
-    GeoRect bbox =  GeoUtils.circleToBBox(centerLon, centerLat, radius); /* computeBBox(centerLon, centerLat, radius);*/
-    GeoRangeComputer[] grc;
+    GeoRect bbox = GeoUtils.circleToBBox(centerLon, centerLat, radius);
     if (bbox.maxLon < bbox.minLon) {
       return new GeoRangeComputer[] {
-          new GeoRangeComputer(centerLon, centerLat, radius, GeoUtils.MIN_LON_INCL, bbox.minLat, bbox.maxLon, bbox.maxLat),
-          new GeoRangeComputer(centerLon, centerLat, radius, bbox.minLon, bbox.minLat, GeoUtils.MAX_LON_INCL, bbox.maxLat)
+        new GeoRangeComputer(new GeoRangeQueryEnum.Distance(new GeoRect(GeoUtils.MIN_LON_INCL, bbox.maxLon, bbox.minLat, bbox.maxLat), centerLon, centerLat, radius)),
+        new GeoRangeComputer(new GeoRangeQueryEnum.Distance(new GeoRect(bbox.minLon, GeoUtils.MAX_LON_INCL, bbox.minLat, bbox.maxLat), centerLon, centerLat, radius))
       };
     }
 
-    return new GeoRangeComputer[] { new GeoRangeComputer(centerLon, centerLat, radius, bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat)};
+    return new GeoRangeComputer[] { new GeoRangeComputer(new GeoRangeQueryEnum.Distance(bbox, centerLon, centerLat, radius)) };
   }
 
   public static GeoRangeComputer[] bbox(final double minLon, final double minLat, final double maxLon, final double maxLat) {
     if (maxLon < minLon) {
       return new GeoRangeComputer[] {
-          new GeoRangeComputer(-180.0, minLat, maxLon, maxLat),
-          new GeoRangeComputer(minLon, minLat, 180.0, maxLat)
+          new GeoRangeComputer(new GeoRangeQueryEnum.BBox(-180.0, minLat, maxLon, maxLat)),
+          new GeoRangeComputer(new GeoRangeQueryEnum.BBox(minLon, minLat, 180.0, maxLat))
       };
     }
-
-    return new GeoRangeComputer[] { new GeoRangeComputer(minLon, minLat, maxLon, maxLat) };
+    return new GeoRangeComputer[] { new GeoRangeComputer(new GeoRangeQueryEnum.BBox(minLon, minLat, maxLon, maxLat)) };
   }
 
-//  protected static BoundingBox computeBBox(final double centerLon, final double centerLat, final double radius) {
-//    final double lonDistDeg = GeoDistanceUtils.distanceToDegreesLon(centerLat, radius);
-//    final double latDistDeg = GeoDistanceUtils.distanceToDegreesLat(centerLat, radius);
-//
-//    return new BoundingBox(GeoUtils.normalizeLon(centerLon - lonDistDeg)-1.0, GeoUtils.normalizeLon(centerLon + lonDistDeg) + 1.0,
-//        GeoUtils.normalizeLat(centerLat - latDistDeg) - 1.0, GeoUtils.normalizeLat(centerLat + latDistDeg) + 1.0);
-//  }
+  public static GeoRangeComputer[] polygon(final double[] x, final double[] y) {
+    GeoRect bbox = GeoUtils.polyToBBox(x, y);
+//    if (bbox.maxLon < bbox.minLon) {
+//      return new GeoRangeComputer[] {
+//          new GeoRangeComputer(new GeoRangeQueryEnum.Polygon(new GeoRect(GeoUtils.MIN_LON_INCL, bbox.maxLon, bbox.minLat, bbox.maxLat), x, y)),
+//          new GeoRangeComputer(new GeoRangeQueryEnum.Polygon(new GeoRect(bbox.minLon, GeoUtils.MAX_LON_INCL, bbox.minLat, bbox.maxLat), x, y))
+//      };
 
-  public static BoundingBox computeBBox(final double centerLon, final double centerLat, final double radius) {
-    double[] t = GeoProjectionUtils.pointFromLonLatBearing(centerLon, centerLat, 0, radius, null);
-    double[] r = GeoProjectionUtils.pointFromLonLatBearing(centerLon, centerLat, 90, radius, null);
-    double[] b = GeoProjectionUtils.pointFromLonLatBearing(centerLon, centerLat, 180, radius, null);
-    double[] l = GeoProjectionUtils.pointFromLonLatBearing(centerLon, centerLat, 270, radius, null);
+    return new GeoRangeComputer[] { new GeoRangeComputer(new GeoRangeQueryEnum.Polygon(bbox, x, y)) };
+  }
 
-    return new BoundingBox(GeoUtils.normalizeLon(l[0])-1.0, GeoUtils.normalizeLon(r[0])+1.0, GeoUtils.normalizeLat(b[1])-1.0,
-        GeoUtils.normalizeLat(t[1])+1.0);
+  public GeoRect mbr() {
+    return termEnum.mbr;
   }
 
   public void contains(final double lon, final double lat) {
@@ -365,42 +274,6 @@ public class GeoRangeComputer {
     public Range contains(BytesRef b) {
       Range r = new Range(b);
       return (super.contains(r)) ? super.floor(r) : null;
-    }
-  }
-
-  /**
-   * BoundingBox
-   */
-  static class BoundingBox {
-    public final double minLon;
-    public final double maxLon;
-    public final double minLat;
-    public final double maxLat;
-
-    public BoundingBox(double minLon, double maxLon, double minLat, double maxLat) {
-      if (GeoUtils.isValidLon(minLon) == false) {
-        throw new IllegalArgumentException("invalid minLon " + minLon);
-      }
-      if (GeoUtils.isValidLon(maxLon) == false) {
-        throw new IllegalArgumentException("invalid maxLon " + minLon);
-      }
-      if (GeoUtils.isValidLat(minLat) == false) {
-        throw new IllegalArgumentException("invalid minLat " + minLat);
-      }
-      if (GeoUtils.isValidLat(maxLat) == false) {
-        throw new IllegalArgumentException("invalid maxLat " + minLat);
-      }
-      this.minLon = minLon;
-      this.maxLon = maxLon;
-      this.minLat = minLat;
-      this.maxLat = maxLat;
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder sb = new StringBuilder();
-      sb.append("[" + minLon + ", " + minLat + ", " + maxLon + ", " + maxLat + "]");
-      return sb.toString();
     }
   }
 

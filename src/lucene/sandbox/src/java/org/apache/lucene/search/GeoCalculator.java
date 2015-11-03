@@ -21,22 +21,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
-import org.apache.lucene.util.GeoDistanceUtils;
-import org.apache.lucene.util.GeoProjectionUtils;
 import org.apache.lucene.util.GeoRect;
-import org.apache.lucene.util.GeoUtils;
-import org.apache.lucene.util.SloppyMath;
-import org.json.JSONObject;
 
 /**
  * A simple command line utility for testing {@code org.apache.lucene.util.}
  */
 public class GeoCalculator {
-  private static GeoMapPoster mapPoster = new GeoMapPoster("localhost", "3000");
+  protected static GeoMapPoster mapPoster = new GeoMapPoster("localhost", "3000");
 
-  private static int ALT_INDEX = 2;
-  private static int LAT_INDEX = 1;
-  private static int LON_INDEX = 0;
+  protected static int ALT_INDEX = 2;
+  protected static int LAT_INDEX = 1;
+  protected static int LON_INDEX = 0;
 
   enum DistanceMethod {
     HAVERSINE, VINCENTY, KARNEY
@@ -46,11 +41,11 @@ public class GeoCalculator {
     LLA, ECEF, ENU
   }
 
-  private static double[][] getPoints(Scanner in, int numPts) {
+  protected static double[][] getPoints(Scanner in, int numPts) {
     return getPoints(in, CRS.LLA, numPts, 2);
   }
 
-  public static double[][] getPoints(Scanner in, CRS crs, int numPts, int dim) {
+  protected static double[][] getPoints(Scanner in, CRS crs, int numPts, int dim) {
     double[][] points = new double[numPts][];
     for (int p=0; p<numPts; ++p) {
       System.out.print(" Enter point " + p + " (lon, lat) | (lon, lat, alt): ");
@@ -91,11 +86,7 @@ public class GeoCalculator {
 //    return points;
 //  }
 
-  public static void getMapPosterURL(Scanner in) {
-
-  }
-
-  public static double getRadius(Scanner in) {
+  protected static double getRadius(Scanner in) {
     System.out.print(" Enter Radius: ");
     return in.nextDouble();
   }
@@ -106,6 +97,31 @@ public class GeoCalculator {
     System.out.println("Enter upper right:");
     double[][] ur = getPoints(in, 1);
     return new GeoRect(ll[0][LON_INDEX], ur[0][LON_INDEX], ll[0][LAT_INDEX], ur[0][LAT_INDEX]); //double[][] {ll[0], ur[1]};
+  }
+
+  public static double[][] getPoly(Scanner in) {
+    System.out.print("Enter number of points: ");
+    return getPoints(in, in.nextInt());
+  }
+
+  /**
+   * transposes from a series of points represented as [numPts][dimension] to a lon/lat double array
+   */
+  protected static double[][] transposePoly(double[][] poly) {
+    final int numPts = poly.length;
+    if (numPts == 0) return null;
+    final int dim = poly[0].length;
+    double[][] polyTrans = new double[dim][numPts];
+    for (int i=0; i<numPts; ++i) {
+      polyTrans[LON_INDEX][i] = poly[i][LON_INDEX];
+      polyTrans[LAT_INDEX][i] = poly[i][LAT_INDEX];
+      if (dim > 2) {
+        for (int j=2; j<dim; ++j) {
+          polyTrans[j][i] = poly[i][j];
+        }
+      }
+    }
+    return polyTrans;
   }
 
   private static DistanceMethod getDistanceMethod(Scanner in, DistanceMethod... omit) {
@@ -131,26 +147,6 @@ public class GeoCalculator {
       }
     }
     return null;
-  }
-
-  private static boolean doPostToMap(Scanner in) {
-    System.out.print(" Post to map (y/n)? ");
-    String s = in.next();
-    return (s.equalsIgnoreCase("Y"));
-  }
-
-  private static void postTermsEnumToMap(GeoRangeComputer[] grc) {
-    for (GeoRangeComputer c : grc) {
-      mapPoster.post(mapPoster.toJSON(new GeoRect(c.minLon, c.maxLon, c.minLat, c.maxLat)));
-      for (GeoRangeComputer.Range rng : c.rangeBounds) {
-        try {
-          Thread.sleep(150);
-          mapPoster.post(new JSONObject(rng.toGeoJson()));
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
   }
 
   public static void sillyAsciiArt() {
@@ -179,8 +175,10 @@ public class GeoCalculator {
     System.out.println("/ 5. Map Point(s)                                 6. Map Line                        /");
     System.out.println("/ 7. Re-project from LLA                          8. Re-project from ECEF            /");
     System.out.println("/ 9. Re-project from ENU                          a. Compute DistanceQuery TermsEnum /");
-    System.out.println("/ b. Compute BBoxQuery TermsEnum                  c. Closest point on rectangle      /");
-    System.out.println("/ d. Does Rect Cross Circle                       e. Compute max radius              /");
+    System.out.println("/ b. Compute BBoxQuery TermsEnum                  c. Compute PolygonQuery TermsEnum  /");
+    System.out.println("/ d. Closest point on rectangle                   e. Does Rect Cross Circle          /");
+    System.out.println("/ f. Does Rect Cross Poly                         g. Compute max radius              /");
+    System.out.println("/ h. Display Ranges for Point                                                        /");
     System.out.println("/ 0. Options                                                                         /");
     System.out.println("/ q. QUIT                                                                            /");
     System.out.println("/------------------------------------------------------------------------------------/");
@@ -197,20 +195,23 @@ public class GeoCalculator {
       Scanner in = new Scanner(System.in);
       for (String option = getOption(in); ; option = getOption(in)) {
         System.out.println();
-        if (option.equalsIgnoreCase("1")) computeDistance(in);
-        else if (option.equalsIgnoreCase("2")) computePointFromLocBearing(in);
-        else if (option.equalsIgnoreCase("3")) boundingBoxFromPointRadius(in);
-        else if (option.equalsIgnoreCase("4")) pointRadiusToPolygon(in);
-        else if (option.equalsIgnoreCase("5")) mapPoints(in);
-        else if (option.equalsIgnoreCase("6")) mapLine(in);
-        else if (option.equalsIgnoreCase("7")) reproject(in, CRS.LLA);
-        else if (option.equalsIgnoreCase("8")) reproject(in, CRS.ECEF);
-        else if (option.equalsIgnoreCase("9")) reproject(in, CRS.ENU);
-        else if (option.equalsIgnoreCase("a")) pointDistanceTermsEnum(in);
-        else if (option.equalsIgnoreCase("b")) bboxTermsEnum(in);
-        else if (option.equalsIgnoreCase("c")) closestPtOnCircle(in);
-        else if (option.equalsIgnoreCase("d")) rectCrossesCircle(in);
-        else if (option.equalsIgnoreCase("e")) computeMaxRadius(in);
+        if (option.equalsIgnoreCase("1")) GeoProcessor.computeDistance(in);
+        else if (option.equalsIgnoreCase("2")) GeoProcessor.computePointFromLocBearing(in);
+        else if (option.equalsIgnoreCase("3")) GeoProcessor.boundingBoxFromPointRadius(in);
+        else if (option.equalsIgnoreCase("4")) GeoProcessor.pointRadiusToPolygon(in);
+        else if (option.equalsIgnoreCase("5")) GeoProcessor.mapPoints(in);
+        else if (option.equalsIgnoreCase("6")) GeoProcessor.mapLine(in);
+        else if (option.equalsIgnoreCase("7")) GeoProcessor.reproject(in, CRS.LLA);
+        else if (option.equalsIgnoreCase("8")) GeoProcessor.reproject(in, CRS.ECEF);
+        else if (option.equalsIgnoreCase("9")) GeoProcessor.reproject(in, CRS.ENU);
+        else if (option.equalsIgnoreCase("a")) GeoProcessor.pointDistanceTermsEnum(in);
+        else if (option.equalsIgnoreCase("b")) GeoProcessor.bboxTermsEnum(in);
+        else if (option.equalsIgnoreCase("c")) GeoProcessor.polygonTermsEnum(in);
+        else if (option.equalsIgnoreCase("d")) GeoProcessor.closestPtOnCircle(in);
+        else if (option.equalsIgnoreCase("e")) GeoProcessor.rectCrossesCircle(in);
+        else if (option.equalsIgnoreCase("f")) GeoProcessor.rectPolyRelation(in);
+        else if (option.equalsIgnoreCase("g")) GeoProcessor.computeMaxRadius(in);
+        else if (option.equalsIgnoreCase("h")) GeoProcessor.displayPointRanges(in);
         else if (option.equalsIgnoreCase("0")) configureOptions(in);
         else if (option.equalsIgnoreCase("q")) {
           System.out.println("Exiting!\n");
@@ -221,206 +222,7 @@ public class GeoCalculator {
     catch (Exception e) {}
   }
 
-  /**
-   * OPTION 1 - Compute Distance Between 2 Points
-   */
-  public static void computeDistance(Scanner in) {
-    double[][] pts = getPoints(in, 2);
-    // compute distance with haversine
-    System.out.println("\n HAVERSINE: " + SloppyMath.haversin(pts[0][LAT_INDEX], pts[0][LON_INDEX], pts[1][LAT_INDEX], pts[1][LON_INDEX])*1000.0 + " meters");
-    System.out.println(" VINCENTY : " + GeoDistanceUtils.vincentyDistance(pts[0][LON_INDEX], pts[0][LAT_INDEX], pts[1][LON_INDEX], pts[1][LAT_INDEX]) + " meters");
-    System.out.println(" KARNEY   : **** IN WORK ****");
-  }
 
-  /**
-   * OPTION 2 - Compute a new Point from existing Location and Bearing (Heading)
-   */
-  public static void computePointFromLocBearing(Scanner in) {
-    double[][] pts = getPoints(in, 1);
-    System.out.print(" Enter Bearing : ");
-    double bearing = in.nextDouble();
-    System.out.print(" Enter Distance: ");
-    double distance = in.nextDouble();
-
-    double[] location = GeoProjectionUtils.pointFromLonLatBearing(pts[0][LON_INDEX], pts[0][LAT_INDEX], bearing, distance, null);
-    System.out.println("\n Vincenty: " + location[LON_INDEX] + ", " + location[LAT_INDEX]);
-    System.out.println(" Karney  :  *** IN WORK ***");
-  }
-
-  /**
-   * OPTION 3 - Compute a Bounding Box from an existing Location and Raidus
-   */
-  public static void boundingBoxFromPointRadius(Scanner in) {
-    boolean postToMap = doPostToMap(in);
-    double[][] point = getPoints(in, 1);
-    double radius = getRadius(in);
-    GeoRect rect = GeoUtils.circleToBBox(point[0][LON_INDEX], point[0][LAT_INDEX], radius);
-    GeoRect[] rects;
-    if (rect.maxLon < rect.minLon) {
-      rects = new GeoRect[] {
-          new GeoRect(GeoUtils.MIN_LON_INCL, rect.maxLon, rect.minLat, rect.maxLat),
-          new GeoRect(rect.minLon, GeoUtils.MAX_LON_INCL, rect.minLat, rect.maxLat)
-      };
-    } else {
-      rects = new GeoRect[] {rect};
-    }
-
-    for (GeoRect r : rects) {
-      System.out.println("\n" + r);
-      if (postToMap == true) {
-        mapPoster.post(GeoMapPoster.toJSON(r));
-        try {
-          Thread.sleep(500);
-        } catch (Exception e) { e.printStackTrace(); }
-      }
-    }
-  }
-
-  /**
-   *
-   */
-  public static void pointRadiusToPolygon(Scanner in) {
-    boolean postToMap = doPostToMap(in);
-    double[][] point = getPoints(in, 1);
-    double radius = getRadius(in);
-
-    List<double[]> polyPoints = GeoUtils.circleToPoly(point[0][LON_INDEX], point[0][LAT_INDEX], radius);
-
-    if (postToMap == true) {
-      mapPoster.post(GeoMapPoster.toJSON(polyPoints));
-    }
-  }
-
-  public static void mapPoints(Scanner in) {
-    double[][] point = getPoints(in, 1);
-    mapPoster.post(GeoMapPoster.toJSON(point));
-  }
-
-  public static void mapLine(Scanner in) {
-    System.out.print(" Number of points: ");
-    double[][] points = getPoints(in, in.nextInt());
-    mapPoster.post(GeoMapPoster.toJSON(true, points));
-  }
-
-  public static void reproject(Scanner in, CRS crs) {
-    double[][] point = getPoints(in, crs, 1, 3);
-    System.out.print(" Include ENU (y/n): ");
-    boolean toENU =  in.next().equalsIgnoreCase("y");
-    if (crs == CRS.LLA) {
-      double[] result = GeoProjectionUtils.llaToECF(point[0][LON_INDEX], point[0][LAT_INDEX], 0, null);
-      System.out.println(" Projected to ECEF: " + result[LON_INDEX] + ", " + result[LAT_INDEX] + ", " + result[ALT_INDEX]);
-      if (toENU) {
-        double[][] center = getPoints(in, CRS.LLA, 1, 3);
-        GeoProjectionUtils.llaToENU(point[0][LON_INDEX], point[0][LAT_INDEX], point[0][ALT_INDEX],
-            center[0][LON_INDEX], center[0][LAT_INDEX], center[0][ALT_INDEX], result);
-        System.out.println(" Projected to ENU : " + +result[LON_INDEX] + ", " + result[LAT_INDEX] + ", " + result[ALT_INDEX]);
-      }
-    } else if (crs == CRS.ECEF) {
-      double[] result = GeoProjectionUtils.ecfToLLA(point[0][LON_INDEX], point[0][LAT_INDEX], point[0][ALT_INDEX], null);
-      System.out.println(" Projected to LLA: " + result[LON_INDEX] + ", " + result[LAT_INDEX] + ", " + result[ALT_INDEX]);
-      if (toENU) {
-        double[][] center = getPoints(in, CRS.LLA, 1, 3);
-        GeoProjectionUtils.ecfToENU(point[0][LON_INDEX], point[0][LAT_INDEX], point[0][ALT_INDEX], center[0][LON_INDEX],
-            center[0][LAT_INDEX], center[0][ALT_INDEX], result);
-        System.out.println(" Projected to ENU : " + +result[LON_INDEX] + ", " + result[LAT_INDEX] + ", " + result[ALT_INDEX]);
-      }
-    } else if (crs == CRS.ENU) {
-      double[][] center = getPoints(in, CRS.LLA, 1, 3);
-      double[] result = GeoProjectionUtils.enuToLLA(point[0][LON_INDEX], point[0][LAT_INDEX], point[0][ALT_INDEX],
-          center[0][LON_INDEX], center[0][LAT_INDEX], center[0][ALT_INDEX], null);
-      System.out.println(" Projected to LLA : " + result[LON_INDEX] + ", " + result[LAT_INDEX] + ", " + result[ALT_INDEX]);
-      GeoProjectionUtils.enuToECF(point[0][LON_INDEX], point[0][LAT_INDEX], point[0][ALT_INDEX], center[0][LON_INDEX],
-          center[0][LAT_INDEX], center[0][ALT_INDEX], result);
-      System.out.println(" Projected to ECEF : " + result[LON_INDEX] + ", " + result[LAT_INDEX] + ", " + result[ALT_INDEX]);
-    }
-  }
-
-  public static void pointDistanceTermsEnum(Scanner in) {
-    boolean postToMap = doPostToMap(in);
-    double[][] center = getPoints(in, 1);
-    double r = getRadius(in);
-    GeoRangeComputer[] grc = GeoRangeComputer.pointRadius(center[0][LON_INDEX], center[0][LAT_INDEX], r);
-    System.out.print( "Check target point (y/n): ");
-    if (in.next().equalsIgnoreCase("y")) {
-      double[][] qPoint = getPoints(in, 1);
-      for (GeoRangeComputer c : grc) {
-        c.contains(qPoint[0][LON_INDEX], qPoint[0][LAT_INDEX]);
-      }
-    }
-
-    if (postToMap) {
-      postTermsEnumToMap(grc);
-    }
-  }
-
-  public static void bboxTermsEnum(Scanner in) {
-    boolean postToMap = doPostToMap(in);
-    GeoRect rect = getRect(in);
-    GeoRangeComputer[] grc = GeoRangeComputer.bbox(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat);
-    System.out.print( "Check target point (y/n): ");
-    if (in.next().equalsIgnoreCase("y")) {
-      double[][] qPoint = getPoints(in, 1);
-      for (GeoRangeComputer c : grc) {
-        c.contains(qPoint[0][LON_INDEX], qPoint[0][LAT_INDEX]);
-      }
-    }
-
-    if (postToMap) {
-      postTermsEnumToMap(grc);
-    }
-  }
-
-  public static void closestPtOnCircle(Scanner in) {
-    boolean postToMap = doPostToMap(in);
-    System.out.println("Enter start point:");
-    double[][] cntr = getPoints(in, 1);
-//    GeoRect rect = getRect(in);
-    System.out.println("Enter lower left and upper right of rectangle:");
-    double[][] pt = getPoints(in, 2);
-
-    double[] closestPt = new double[2];
-    GeoDistanceUtils.closestPointOnBBox(pt[0][LON_INDEX], pt[0][LAT_INDEX], pt[1][LON_INDEX], pt[1][LAT_INDEX],
-        cntr[0][LON_INDEX], cntr[0][LAT_INDEX], closestPt);
-
-    System.out.println(" Closest Point: " + closestPt[LON_INDEX] + " " + closestPt[LAT_INDEX]);
-
-    if (postToMap) {
-      double[][] pts = new double[][] {
-          {cntr[0][LON_INDEX], cntr[0][LAT_INDEX]}, closestPt};
-      // draw both points
-      mapPoster.post(GeoMapPoster.toJSON(pts));
-      // draw a line
-      mapPoster.post(GeoMapPoster.toJSON(true, pts));
-    }
-  }
-
-  public static void rectCrossesCircle(Scanner in) {
-    boolean postToMap = doPostToMap(in);
-    GeoRect rect = getRect(in);
-    System.out.println("Enter Center Point: ");
-    double[][] cntr = getPoints(in, 1);
-    double r = getRadius(in);
-
-    System.out.println(" Rectangle " + (GeoUtils.rectCrossesCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
-        cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r) ? " Crosses Circle" : " does not cross circle"));
-
-    if (postToMap) {
-      // draw rectangle
-      mapPoster.post(GeoMapPoster.toJSON(rect));
-
-      // convert point radius to poly
-      List<double[]> polyPoints = GeoUtils.circleToPoly(cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r);
-      mapPoster.post(GeoMapPoster.toJSON(polyPoints));
-    }
-  }
-
-  public static void computeMaxRadius(Scanner in) {
-    double[][] pt = getPoints(in, 1);
-    double[][] ptOpposite = new double[][] { {(180.0 + pt[0][LON_INDEX]) % 360, pt[0][LAT_INDEX]} };
-    System.out.println(" Point opposite: " + ptOpposite[0][LON_INDEX] + ", " + ptOpposite[0][LAT_INDEX]);
-    System.out.println("   Haversine: " + SloppyMath.haversin(pt[0][LAT_INDEX], pt[0][LON_INDEX], ptOpposite[0][LAT_INDEX], ptOpposite[0][LON_INDEX]));
-    System.out.println("   Vincenty : " + GeoDistanceUtils.vincentyDistance(pt[0][LON_INDEX], pt[0][LAT_INDEX], ptOpposite[0][LON_INDEX], ptOpposite[0][LAT_INDEX]));
-  }
 
   public static void configureOptions(Scanner in) {
     String option;

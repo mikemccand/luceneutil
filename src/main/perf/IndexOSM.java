@@ -18,6 +18,8 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.spatial.SpatialStrategy;
 import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
 import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
@@ -26,11 +28,13 @@ import org.apache.lucene.spatial.prefix.tree.QuadPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.PrintStreamInfoStream;
+
 import com.spatial4j.core.context.SpatialContext;
 
-// javac -cp build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/IndexOSM.java
+// javac -cp build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.5.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/IndexOSM.java
 
-// rm -rf javaindex; java -cp /l/util/src/main/perf:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSM javaindex
+// rm -rf javaindex; java -cp /l/util/src/main/perf:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.5.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSM javaindex
 
 public class IndexOSM {
 
@@ -38,11 +42,16 @@ public class IndexOSM {
     Directory dir = FSDirectory.open(Paths.get(args[0]));
     IndexWriterConfig iwc = new IndexWriterConfig(new WhitespaceAnalyzer());
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    iwc.setMaxBufferedDocs(109630);
+    iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+    iwc.setMergePolicy(new LogDocMergePolicy());
+    iwc.setMergeScheduler(new SerialMergeScheduler());
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     IndexWriter w = new IndexWriter(dir, iwc);
 
     SpatialContext ctx = SpatialContext.GEO;
 
-    int maxLevels = 11;
+    //int maxLevels = 11;
     //SpatialPrefixTree grid = new GeohashPrefixTree(ctx, maxLevels);
     SpatialPrefixTree grid = new PackedQuadPrefixTree(ctx, 25);
     //SpatialPrefixTree grid = new QuadPrefixTree(ctx, 20);
@@ -85,11 +94,11 @@ public class IndexOSM {
 
     //System.out.println("Force merge...");
     //w.forceMerge(1);
-    //long t2 = System.currentTimeMillis();
+    long t2 = System.currentTimeMillis();
     //System.out.println(((t2-t1)/1000.) + " sec to forceMerge");
     w.close();
-    long t2 = System.currentTimeMillis();
-    System.out.println(((t2-t1)/1000.) + " sec to close");
+    long t3 = System.currentTimeMillis();
+    System.out.println(((t3-t2)/1000.) + " sec to close");
     dir.close();
   }
 }

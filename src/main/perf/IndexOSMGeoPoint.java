@@ -19,12 +19,16 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.spatial.SpatialStrategy;
 import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
 import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.PrintStreamInfoStream;
+
 import com.spatial4j.core.context.SpatialContext;
 
 // javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/IndexOSMGeoPoint.java
@@ -37,6 +41,11 @@ public class IndexOSMGeoPoint {
     Directory dir = FSDirectory.open(Paths.get(args[0]));
     IndexWriterConfig iwc = new IndexWriterConfig(new WhitespaceAnalyzer());
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    iwc.setMaxBufferedDocs(109630);
+    iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+    iwc.setMergePolicy(new LogDocMergePolicy());
+    iwc.setMergeScheduler(new SerialMergeScheduler());
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     IndexWriter w = new IndexWriter(dir, iwc);
 
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
@@ -72,11 +81,11 @@ public class IndexOSMGeoPoint {
 
     //System.out.println("Force merge...");
     //w.forceMerge(1);
-    //long t2 = System.currentTimeMillis();
+    long t2 = System.currentTimeMillis();
     //System.out.println(((t2-t1)/1000.) + " sec to forceMerge");
     w.close();
-    long t2 = System.currentTimeMillis();
-    System.out.println(((t2-t1)/1000.) + " sec to close");
+    long t3 = System.currentTimeMillis();
+    System.out.println(((t3-t2)/1000.) + " sec to close");
     dir.close();
   }
 }

@@ -17,12 +17,13 @@ import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
+import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Collector;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.GeoPointInBBoxQuery;
 import org.apache.lucene.search.GeoPointInPolygonQuery;
 import org.apache.lucene.search.IndexSearcher;
@@ -40,6 +41,8 @@ import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Accountable;
+import org.apache.lucene.util.Accountables;
 
 // javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/SearchOSMGeoPoint.java
 
@@ -50,6 +53,15 @@ public class SearchOSMGeoPoint {
   public static void main(String[] args) throws IOException {
     Directory dir = FSDirectory.open(Paths.get(args[0]));
     IndexReader r = DirectoryReader.open(dir);
+    long bytes = 0;
+    for(LeafReaderContext ctx : r.leaves()) {
+      CodecReader cr = (CodecReader) ctx.reader();
+      for(Accountable acc : cr.getChildResources()) {
+        System.out.println("  " + Accountables.toString(acc));
+      }
+      bytes += cr.ramBytesUsed();
+    }
+    System.out.println("READER MB: " + (bytes/1024./1024.));
     IndexSearcher indexSearcher = new IndexSearcher(r);
 
     /*

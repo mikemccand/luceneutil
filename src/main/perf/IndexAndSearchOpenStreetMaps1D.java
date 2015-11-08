@@ -96,14 +96,14 @@ public class IndexAndSearchOpenStreetMaps1D {
 
       String[] parts = line.split(",");
       //long id = Long.parseLong(parts[0]);
-      long lat = (long) (1000000. * Double.parseDouble(parts[1]));
-      long lon = (long) (1000000. * Double.parseDouble(parts[2]));
+      int lat = (int) (1000000. * Double.parseDouble(parts[1]));
+      int lon = (int) (1000000. * Double.parseDouble(parts[2]));
       Document doc = new Document();
       if (USE_NF) {
-        doc.add(new LongField("latnum", lat, Field.Store.NO));
+        doc.add(new IntField("latnum", lat, Field.Store.NO));
         //doc.add(new LongField("lonnum", lon, Field.Store.NO));
       } else {
-        doc.add(new SortedNumericDocValuesField("lat", lat));
+        doc.add(new DimensionalField("lat", lat));
         //doc.add(new SortedNumericDocValuesField("lon", lon));
       }
       w.addDocument(doc);

@@ -21,6 +21,11 @@ import sys
 import re
 import ImageFont
 
+#install using pip: sudo pip install iso8601
+import iso8601
+
+from datetime import datetime
+
 """
 Parses infoStream output from IW and draws an movie showing the merges over time.
 """
@@ -52,10 +57,11 @@ mergeColors = ('#ffccff',  # pink
 TMP_DIR = '/dev/shm/mergeimages'
 
 def parseTime(l):
+  #Lucene now uses ISO8601 dates, so parse those.
   m = reTime.search(l)
-  t0 = m.group(1).split()[3]
-  hr, mn, ss = [int(x) for x in t0.split(':')]
-  return hr * 3600 + mn * 60 + ss
+  dt = iso8601.parse_date(m.group(1)).replace(tzinfo=None)
+  diff_seconds = (dt-datetime.fromtimestamp(0)).total_seconds()
+  return diff_seconds
 
 def main():
   global MAX_SEG_COUNT

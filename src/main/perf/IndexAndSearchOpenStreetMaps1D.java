@@ -15,30 +15,6 @@
  * limitations under the License.
  */
 
-import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.lucene53.Lucene53Codec;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.document.SortedNumericDocValuesField;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.rangetree.NumericRangeTreeQuery;
-import org.apache.lucene.rangetree.RangeTreeDocValuesFormat;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.NumericRangeQuery;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TotalHitCountCollector;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Accountable;
-import org.apache.lucene.util.Accountables;
-import org.apache.lucene.util.IOUtils;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,11 +25,42 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.document.DimensionalField;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.IntField;
+import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedNumericDocValuesField;
+import org.apache.lucene.index.CodecReader;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.search.DimensionalRangeQuery;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.NumericRangeQuery;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Accountable;
+import org.apache.lucene.util.Accountables;
+import org.apache.lucene.util.IOUtils;
+import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.bkd.BKDUtil;
+
 // javac -cp /l/1dkd/lucene/build/core/classes/java:/l/1dkd/lucene/build/sandbox/classes/java IndexAndSearchOpenStreetMaps1D.java; java -cp /l/1dkd/lucene/build/core/classes/java:/l/1dkd/lucene/build/sandbox/classes/java:. IndexAndSearchOpenStreetMaps1D
 
 public class IndexAndSearchOpenStreetMaps1D {
 
-  private final static boolean USE_NF = false;
+  private static boolean USE_NF;
 
   private static void createIndex() throws IOException {
 
@@ -67,27 +74,19 @@ public class IndexAndSearchOpenStreetMaps1D {
     InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    Directory dir = FSDirectory.open(Paths.get("1dkdtest" + (USE_NF ? "_nf" : "")));
+    Directory dir = FSDirectory.open(Paths.get("/l/tmp/1dkd" + (USE_NF ? "_nf" : "")));
 
-    Codec codec;
-    if (USE_NF) {
-      codec = new Lucene53Codec();
-    } else {
-      RangeTreeDocValuesFormat dvFormat = new RangeTreeDocValuesFormat();
-      codec = new Lucene53Codec() {
-          @Override
-          public DocValuesFormat getDocValuesFormatForField(String field) {
-            return dvFormat;
-          }
-        };
-    }
-
-    IndexWriterConfig iwc = new IndexWriterConfig(null);
-    iwc.setRAMBufferSizeMB(256);
-    iwc.setCodec(codec);
+    IndexWriterConfig iwc = new IndexWriterConfig(new WhitespaceAnalyzer());
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    iwc.setMaxBufferedDocs(109630);
+    iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+    iwc.setMergePolicy(new LogDocMergePolicy());
+    iwc.setMergeScheduler(new SerialMergeScheduler());
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     IndexWriter w = new IndexWriter(dir, iwc);
-    
+
+    int count = 0;
+    byte[] scratch = new byte[4];
     while (true) {
       String line = reader.readLine();
       if (line == null) {
@@ -97,33 +96,36 @@ public class IndexAndSearchOpenStreetMaps1D {
       String[] parts = line.split(",");
       //long id = Long.parseLong(parts[0]);
       int lat = (int) (1000000. * Double.parseDouble(parts[1]));
-      int lon = (int) (1000000. * Double.parseDouble(parts[2]));
+      //int lon = (int) (1000000. * Double.parseDouble(parts[2]));
       Document doc = new Document();
       if (USE_NF) {
         doc.add(new IntField("latnum", lat, Field.Store.NO));
         //doc.add(new LongField("lonnum", lon, Field.Store.NO));
       } else {
-        doc.add(new DimensionalField("lat", lat));
+        BKDUtil.intToBytes(lat, scratch, 0);
+        doc.add(new DimensionalField("lat", scratch));
         //doc.add(new SortedNumericDocValuesField("lon", lon));
       }
       w.addDocument(doc);
+      count++;
+      if (count % 1000000 == 0) {
+        System.out.println(count + "...");
+      }
     }
     w.commit();
-    long t1 = System.nanoTime();
-    System.out.println(((t1-t0)/1000000000.0) + " sec to build index");
-    w.forceMerge(1);
     System.out.println(w.maxDoc() + " total docs");
 
     w.close();
-    long t2 = System.nanoTime();
-    System.out.println(((t2-t1)/1000000000.0) + " sec to forceMerge + close");
+    long t1 = System.nanoTime();
+    System.out.println(((t1-t0)/1000000000.0) + " sec to build index");
   }
 
   private static void queryIndex() throws IOException {
-    Directory dir = FSDirectory.open(Paths.get("1dkdtest" + (USE_NF ? "_nf" : "")));
+    Directory dir = FSDirectory.open(Paths.get("/l/tmp/1dkd" + (USE_NF ? "_nf" : "")));
     System.out.println("DIR: " + dir);
     IndexReader r = DirectoryReader.open(dir);
     System.out.println("maxDoc=" + r.maxDoc());
+
     IndexSearcher s = new IndexSearcher(r);
 
     //System.out.println("reader MB heap=" + (reader.ramBytesUsed()/1024/1024.));
@@ -134,6 +136,8 @@ public class IndexAndSearchOpenStreetMaps1D {
     double MAX_LAT = 51.6542719;
     double MIN_LON = -0.3867282;
     double MAX_LON = 0.8492337;
+    byte[] scratch1 = new byte[4];
+    byte[] scratch2 = new byte[4];
     for(int iter=0;iter<100;iter++) {
       long tStart = System.nanoTime();
       long totHits = 0;
@@ -149,9 +153,11 @@ public class IndexAndSearchOpenStreetMaps1D {
 
               Query q;
               if (USE_NF) {
-                q = NumericRangeQuery.newLongRange("latnum", (long) (1000000. * lat), (long) (1000000. * latEnd), true, true);
+                q = NumericRangeQuery.newIntRange("latnum", (int) (1000000. * lat), (int) (1000000. * latEnd), true, true);
               } else {
-                q = new NumericRangeTreeQuery("lat", (long) (1000000. * lat), true, (long) (1000000. * latEnd), true);
+                BKDUtil.intToBytes((int) (1000000. * lat), scratch1, 0);
+                BKDUtil.intToBytes((int) (1000000. * latEnd), scratch2, 0);
+                q = new DimensionalRangeQuery("lat", scratch1, true, scratch2, true);
               }
 
               TotalHitCountCollector c = new TotalHitCountCollector();
@@ -174,6 +180,13 @@ public class IndexAndSearchOpenStreetMaps1D {
       System.out.println("ITER: " + iter + " " + ((tEnd-tStart)/1000000000.0) + " sec; totHits=" + totHits + "; " + queryCount + " queries");
 
       if (iter == 0) {
+        long bytes = 0;
+        for(LeafReaderContext ctx : r.leaves()) {
+          CodecReader cr = (CodecReader) ctx.reader();
+          System.out.println(Accountables.toString(cr));
+          bytes += cr.ramBytesUsed();
+        }
+        System.out.println("READER MB: " + (bytes/1024./1024.));
         System.out.println("RAM: " + Accountables.toString((Accountable) r.leaves().get(0).reader()));
       }
     }
@@ -182,6 +195,13 @@ public class IndexAndSearchOpenStreetMaps1D {
   }
 
   public static void main(String[] args) throws IOException {
+    if (args.length == 0) {
+      USE_NF = false;
+    } else if (args.length == 1 && args[0].equals("-nf")) {
+      USE_NF = true;
+    } else {
+      throw new RuntimeException();
+    }
     createIndex();
     queryIndex();
   }

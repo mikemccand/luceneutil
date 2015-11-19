@@ -322,7 +322,7 @@ public class GeoProcessor extends GeoCalculator {
         double[][] pt = getPoints(in, 1);
         double[][] ptOpposite = new double[][] { {(180.0 + pt[0][LON_INDEX]) % 360, pt[0][LAT_INDEX]} };
         System.out.println(" Point opposite: " + ptOpposite[0][LON_INDEX] + ", " + ptOpposite[0][LAT_INDEX]);
-        System.out.println("   Haversine: " + SloppyMath.haversin(pt[0][LAT_INDEX], pt[0][LON_INDEX], ptOpposite[0][LAT_INDEX], ptOpposite[0][LON_INDEX]));
+        System.out.println("   Haversine: " + SloppyMath.haversin(pt[0][LAT_INDEX], pt[0][LON_INDEX], ptOpposite[0][LAT_INDEX], ptOpposite[0][LON_INDEX])*1000.0);
         System.out.println("   Vincenty : " + GeoDistanceUtils.vincentyDistance(pt[0][LON_INDEX], pt[0][LAT_INDEX], ptOpposite[0][LON_INDEX], ptOpposite[0][LAT_INDEX]));
     }
 }

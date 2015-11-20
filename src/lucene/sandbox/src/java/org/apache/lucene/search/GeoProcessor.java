@@ -281,6 +281,26 @@ public class GeoProcessor extends GeoCalculator {
         }
     }
 
+    public static void rectWithinCircle(Scanner in) {
+        boolean postToMap = doPostToMap(in);
+        GeoRect rect = getRect(in);
+        System.out.println("Enter Center Point: ");
+        double[][] cntr = getPoints(in, 1);
+        double r = getRadius(in);
+
+        System.out.println(" Rectangle " + (GeoUtils.rectWithinCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
+                cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r) ? "within" : "not within") + " circle");
+
+        if (postToMap) {
+            // draw rectangle
+            mapPoster.post(GeoMapPoster.toJSON(rect));
+
+            // convert point radius to poly
+            List<double[]> polyPoints = GeoUtils.circleToPoly(cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r);
+            mapPoster.post(GeoMapPoster.toJSON(polyPoints));
+        }
+    }
+
     public static void rectPolyRelation(Scanner in) throws Exception {
         boolean postToMap = doPostToMap(in);
         GeoRect rect = getRect(in);

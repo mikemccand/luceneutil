@@ -27,7 +27,7 @@ import org.apache.lucene.util.GeoRect;
  * A simple command line utility for testing {@code org.apache.lucene.util.}
  */
 public class GeoCalculator {
-  protected static GeoMapPoster mapPoster = new GeoMapPoster("localhost", "3000");
+  protected static GeoMapPoster mapPoster = new GeoMapPoster("localhost", "8080");
 
   protected static int ALT_INDEX = 2;
   protected static int LAT_INDEX = 1;
@@ -179,6 +179,7 @@ public class GeoCalculator {
     System.out.println("/ d. Closest point on rectangle                   e. Does Rect Cross Circle          /");
     System.out.println("/ f. Is rect within circle                        g. Does Rect Cross Poly            /");
     System.out.println("/ h. Compute max radius                           i. Display Ranges for Point        /");
+    System.out.println("/ j. Map Rectangle                                                                   /");
     System.out.println("/ 0. Options                                                                         /");
     System.out.println("/ q. QUIT                                                                            /");
     System.out.println("/------------------------------------------------------------------------------------/");
@@ -213,6 +214,7 @@ public class GeoCalculator {
         else if (option.equalsIgnoreCase("g")) GeoProcessor.rectPolyRelation(in);
         else if (option.equalsIgnoreCase("h")) GeoProcessor.computeMaxRadius(in);
         else if (option.equalsIgnoreCase("i")) GeoProcessor.displayPointRanges(in);
+        else if (option.equalsIgnoreCase("j")) GeoProcessor.mapBBox(in);
         else if (option.equalsIgnoreCase("0")) configureOptions(in);
         else if (option.equalsIgnoreCase("q")) {
           System.out.println("Exiting!\n");

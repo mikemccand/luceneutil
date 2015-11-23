@@ -119,6 +119,11 @@ public class GeoProcessor extends GeoCalculator {
         mapPoster.post(GeoMapPoster.toJSON(true, points));
     }
 
+    public static void mapBBox(Scanner in) {
+        GeoRect rect = getRect(in);
+        mapPoster.post(GeoMapPoster.toJSON(rect));
+    }
+
     public static void reproject(Scanner in, CRS crs) {
         double[][] point = getPoints(in, crs, 1, 3);
         System.out.print(" Include ENU (y/n): ");

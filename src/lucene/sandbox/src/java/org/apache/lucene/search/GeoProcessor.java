@@ -119,6 +119,11 @@ public class GeoProcessor extends GeoCalculator {
         mapPoster.post(GeoMapPoster.toJSON(true, points));
     }
 
+    public static void mapBBox(Scanner in) {
+        GeoRect rect = getRect(in);
+        mapPoster.post(GeoMapPoster.toJSON(rect));
+    }
+
     public static void reproject(Scanner in, CRS crs) {
         double[][] point = getPoints(in, crs, 1, 3);
         System.out.print(" Include ENU (y/n): ");
@@ -281,6 +286,26 @@ public class GeoProcessor extends GeoCalculator {
         }
     }
 
+    public static void rectWithinCircle(Scanner in) {
+        boolean postToMap = doPostToMap(in);
+        GeoRect rect = getRect(in);
+        System.out.println("Enter Center Point: ");
+        double[][] cntr = getPoints(in, 1);
+        double r = getRadius(in);
+
+        System.out.println(" Rectangle " + (GeoUtils.rectWithinCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
+                cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r) ? "within" : "not within") + " circle");
+
+        if (postToMap) {
+            // draw rectangle
+            mapPoster.post(GeoMapPoster.toJSON(rect));
+
+            // convert point radius to poly
+            List<double[]> polyPoints = GeoUtils.circleToPoly(cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r);
+            mapPoster.post(GeoMapPoster.toJSON(polyPoints));
+        }
+    }
+
     public static void rectPolyRelation(Scanner in) throws Exception {
         boolean postToMap = doPostToMap(in);
         GeoRect rect = getRect(in);
@@ -322,7 +347,7 @@ public class GeoProcessor extends GeoCalculator {
         double[][] pt = getPoints(in, 1);
         double[][] ptOpposite = new double[][] { {(180.0 + pt[0][LON_INDEX]) % 360, pt[0][LAT_INDEX]} };
         System.out.println(" Point opposite: " + ptOpposite[0][LON_INDEX] + ", " + ptOpposite[0][LAT_INDEX]);
-        System.out.println("   Haversine: " + SloppyMath.haversin(pt[0][LAT_INDEX], pt[0][LON_INDEX], ptOpposite[0][LAT_INDEX], ptOpposite[0][LON_INDEX]));
+        System.out.println("   Haversine: " + SloppyMath.haversin(pt[0][LAT_INDEX], pt[0][LON_INDEX], ptOpposite[0][LAT_INDEX], ptOpposite[0][LON_INDEX])*1000.0);
         System.out.println("   Vincenty : " + GeoDistanceUtils.vincentyDistance(pt[0][LON_INDEX], pt[0][LAT_INDEX], ptOpposite[0][LON_INDEX], ptOpposite[0][LAT_INDEX]));
     }
 }

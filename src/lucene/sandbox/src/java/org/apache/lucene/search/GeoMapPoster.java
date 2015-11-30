@@ -34,8 +34,9 @@ import org.json.JSONObject;
  *  See installation instructions here: https://nodejs.org/en/download/package-manager/
  *
  *  Once installed:
- *    1. navigate to the src/javascript directory and type 'npm install'
- *    2. node server.js
+ *    1. navigate to the src/javascript/{2d | 3d} directory and type 'npm install'
+ *    2. npm start
+ *    3. be sure to set host and port from the calculator menu (option 0) default is localhost:8080
  */
 public class GeoMapPoster {
   enum GeometryType {

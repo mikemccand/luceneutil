@@ -27,7 +27,7 @@ import org.apache.lucene.util.GeoRect;
  * A simple command line utility for testing {@code org.apache.lucene.util.}
  */
 public class GeoCalculator {
-  protected static GeoMapPoster mapPoster = new GeoMapPoster("localhost", "3000");
+  protected static GeoMapPoster mapPoster = new GeoMapPoster("localhost", "8080");
 
   protected static int ALT_INDEX = 2;
   protected static int LAT_INDEX = 1;
@@ -177,8 +177,9 @@ public class GeoCalculator {
     System.out.println("/ 9. Re-project from ENU                          a. Compute DistanceQuery TermsEnum /");
     System.out.println("/ b. Compute BBoxQuery TermsEnum                  c. Compute PolygonQuery TermsEnum  /");
     System.out.println("/ d. Closest point on rectangle                   e. Does Rect Cross Circle          /");
-    System.out.println("/ f. Does Rect Cross Poly                         g. Compute max radius              /");
-    System.out.println("/ h. Display Ranges for Point                                                        /");
+    System.out.println("/ f. Is rect within circle                        g. Does Rect Cross Poly            /");
+    System.out.println("/ h. Compute max radius                           i. Display Ranges for Point        /");
+    System.out.println("/ j. Map Rectangle                                                                   /");
     System.out.println("/ 0. Options                                                                         /");
     System.out.println("/ q. QUIT                                                                            /");
     System.out.println("/------------------------------------------------------------------------------------/");
@@ -192,7 +193,7 @@ public class GeoCalculator {
   public static void main(String[] args) {
     try {
       sillyAsciiArt();
-      Scanner in = new Scanner(System.in);
+      Scanner in = new Scanner(System.in).useDelimiter("\n");
       for (String option = getOption(in); ; option = getOption(in)) {
         System.out.println();
         if (option.equalsIgnoreCase("1")) GeoProcessor.computeDistance(in);
@@ -209,9 +210,11 @@ public class GeoCalculator {
         else if (option.equalsIgnoreCase("c")) GeoProcessor.polygonTermsEnum(in);
         else if (option.equalsIgnoreCase("d")) GeoProcessor.closestPtOnCircle(in);
         else if (option.equalsIgnoreCase("e")) GeoProcessor.rectCrossesCircle(in);
-        else if (option.equalsIgnoreCase("f")) GeoProcessor.rectPolyRelation(in);
-        else if (option.equalsIgnoreCase("g")) GeoProcessor.computeMaxRadius(in);
-        else if (option.equalsIgnoreCase("h")) GeoProcessor.displayPointRanges(in);
+        else if (option.equalsIgnoreCase("f")) GeoProcessor.rectWithinCircle(in);
+        else if (option.equalsIgnoreCase("g")) GeoProcessor.rectPolyRelation(in);
+        else if (option.equalsIgnoreCase("h")) GeoProcessor.computeMaxRadius(in);
+        else if (option.equalsIgnoreCase("i")) GeoProcessor.displayPointRanges(in);
+        else if (option.equalsIgnoreCase("j")) GeoProcessor.mapBBox(in);
         else if (option.equalsIgnoreCase("0")) configureOptions(in);
         else if (option.equalsIgnoreCase("q")) {
           System.out.println("Exiting!\n");

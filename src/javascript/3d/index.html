@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8">
+  <!-- Tell IE to use the latest, best version (or Chrome Frame if pre-IE11). -->
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>Lucene GeoView</title>
+  <script src="../Build/Cesium/Cesium.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <style>
+      @import url(../Build/Cesium/Widgets/widgets.css);
+      html, body, #cesiumContainer {
+          width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script>
+//    var viewer = new Cesium.Viewer('cesiumContainer', {
+//        baseLayerPicker: false,
+//        imageryProvider: new Cesium.OpenStreetMapImageryProvider({
+//		url : 'http://a.tile.openstreetmap.org'
+//        })
+//    });
+
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+        baseLayerPicker: false,
+        imageryProvider: new Cesium.BingMapsImageryProvider({
+		url : 'http://dev.virtualearth.net',
+                key : 'An7DMALLDX3IzQyY-3wbSa0MaUIXIuAg-buSeTaOrbfLeD7diqOyXUavb275X37W'	    
+        })
+    });
+
+    longPoll_feed();
+
+    function longPoll_feed() {
+        console.log("longPoll called");
+        // make another request
+        $.ajax({
+            cache: false,
+            dataType: 'json',
+            type: "GET",
+            url: "/real_time_feed",
+            error: function() {
+                // don't flood the servers on error
+                setTimeout(longPoll_feed, 10*1000);
+            },
+            success: function (json) {
+                var j = JSON.stringify(json);
+                j = j.substring(1, j.length-1);
+                json = JSON.parse(j);
+                console.log("adding to map " + json);
+                viewer.dataSources.add(Cesium.GeoJsonDataSource.load(json, {
+	            stroke: Cesium.Color.HOTPINK,
+                    fill: Cesium.Color.PINK.withAlpha(0.5),
+                    strokeWidth: 3
+                }));
+//                L.geoJson(json).addTo(map);
+                longPoll_feed();
+            }
+        });
+    }
+  </script>
+</body>
+</html>

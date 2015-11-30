@@ -224,6 +224,9 @@ FLAKY_TESTS = set([
   'org.apache.lucene.analysis.core.TestAllAnalyzersHaveFactories',
   'org.apache.lucene.analysis.core.TestFactories',
 
+  # NPE because of static members
+  'org.apache.lucene.queryparser.flexible.standard.TestNumericQueryParser',
+
   # Not sure why this one sometimes fails:
   'org.apache.lucene.util.TestMaxFailuresRule',
 

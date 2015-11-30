@@ -136,7 +136,7 @@ final class SearchTask extends Task {
         if (singlePassGroup) {
           final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createNormalizedWeight(state.groupEndQuery, false));
           searcher.search(q, c);
-          groupsResultBlock = c.getTopGroups(null, 0, 0, 10, true);
+          groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10, true);
 
           if (doHilite) {
             hilite(groupsResultBlock, state, searcher);
@@ -162,7 +162,7 @@ final class SearchTask extends Task {
 
           final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
           if (topGroups != null) {
-            final TermSecondPassGroupingCollector c2 = new TermSecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, null, 10, true, true, true);
+            final TermSecondPassGroupingCollector c2 = new TermSecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true, true, true);
             searcher.search(q, c2);
             groupsResultTerms = c2.getTopGroups(0);
             if (allGroupsCollector != null) {

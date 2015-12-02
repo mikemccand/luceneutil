@@ -235,6 +235,7 @@ class Competitor(object):
 
     # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
     if common.getLatestModTime(perfSrc) <= common.getLatestModTime(buildDir, '.class'):
+      print('Skip compile: all .class are up to date')
       return
 
     files = ['%s/perf/%s' % (perfSrc, x) for x in (

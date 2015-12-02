@@ -415,6 +415,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   #indexTime = (now()-t0)
 
   if REAL:
+    print('Move log to %s/%s' % (runLogDir, logFile))
     os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
 
   s = open('%s/%s' % (runLogDir, logFile)).read()

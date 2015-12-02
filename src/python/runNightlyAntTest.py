@@ -10,7 +10,7 @@ reCompletedTestCount = re.compile(r', (\d+) tests')
 
 DEBUG = False
 
-BASE_DIR = '/lucene'
+BASE_DIR = constants.BASE_DIR
 
 if DEBUG:
   NIGHTLY_DIR = 'clean2.svn'
@@ -35,7 +35,7 @@ def runOneDay(logFile):
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
   
   t0 = time.time()
-  if not os.system('ant clean test -Dtests.jvms=12 >> %s.tmp 2>&1' % logFile):
+  if not os.system('ant clean test -Dtests.jvms=%s >> %s.tmp 2>&1' % (constants.PROCESSOR_COUNT, logFile)):
     # Success
     t1 = time.time()
     open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))

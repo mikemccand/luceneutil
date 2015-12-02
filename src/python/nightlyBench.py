@@ -336,6 +336,10 @@ KNOWN_CHANGES = [
   ('2015-10-05',
    'Randomize what time of day benchmark runs',
    'Randomize what time of day benchmark runs'),
+
+  ('2015-12-02',
+   'Upgrade to beast2 (72 cores, 256 GB RAM)',
+   'Upgrade to beast2 (72 cores, 256 GB RAM)'),
    ]
 
 # TODO

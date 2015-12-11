@@ -319,19 +319,19 @@ KNOWN_CHANGES = [
 
   ('2015-04-02',
    'LUCENE-6308: span queries support two-phased iteration',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6308">LUCENE-6308: span queries support two-phased iteration'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6308">LUCENE-6308: span queries support two-phased iteration</a>'),
 
   ('2015-04-04',
    'LUCENE-5879: add auto-prefix terms',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-5879">LUCENE-5879: add auto-prefix terms'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5879">LUCENE-5879: add auto-prefix terms</a>'),
 
   ('2015-06-24',
    'LUCENE-6548: some optimizations to block tree intersect',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6548">LUCENE-6548: some optimizations to block tree intersect'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6548">LUCENE-6548: some optimizations to block tree intersect</a>'),
 
   ('2015-09-15',
    'LUCENE-6789: switch to BM25 scoring by default',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6789">LUCENE-6789 switch to BM25 scoring by default'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6789">LUCENE-6789 switch to BM25 scoring by default</a>'),
 
   ('2015-10-05',
    'Randomize what time of day benchmark runs',
@@ -340,6 +340,10 @@ KNOWN_CHANGES = [
   ('2015-12-02',
    'Upgrade to beast2 (72 cores, 256 GB RAM)',
    'Upgrade to beast2 (72 cores, 256 GB RAM)'),
+
+  ('2015-12-10',
+   'LUCENE-6919: Change the Scorer API to expose an iterator instead of extending DocIdSetIterator',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6919">LUCENE-6919: Change the Scorer API to expose an iterator instead of extending DocIdSetIterator</a>'),
    ]
 
 # TODO

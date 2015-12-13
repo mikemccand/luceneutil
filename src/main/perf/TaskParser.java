@@ -33,7 +33,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
-import org.apache.lucene.search.NumericRangeQuery;
+import org.apache.lucene.search.LegacyNumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -240,7 +240,7 @@ class TaskParser {
         final String nrqFieldName = text.substring(5, spot3);
         final int start = Integer.parseInt(text.substring(1+spot3, spot4));
         final int end = Integer.parseInt(text.substring(1+spot4));
-        query = NumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
+        query = LegacyNumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
         sort = null;
         group = null;
       } else if (text.startsWith("datetimesort//")) {

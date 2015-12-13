@@ -18,7 +18,7 @@ import os
 import time
 import constants
 
-LUCENE_ROOT = '/lucene/4x.analyzers/lucene'
+LUCENE_ROOT = '/l/trunk.analyzers.nightly/lucene'
 LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
 
 def fixCtors():
@@ -55,15 +55,17 @@ while True:
 
     with open(logFile + '.tmp', 'w') as lf:
       lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
-      lf.write('hgversion: %s\n' % os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip())
+      os.chdir(constants.BENCH_BASE_DIR)
+      lf.write('git version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
       lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
+      os.chdir(LUCENE_ROOT)
 
     run('ant clean compile > compile.log 2>&1')
 
     fixCtors()
-    run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf4x.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
+    run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
     print('  now run')
-    run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf4x /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
+    run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
     os.rename('%s.tmp' % logFile, logFile)
     print('  took %.1f sec' % (time.time()-t0))
   else:

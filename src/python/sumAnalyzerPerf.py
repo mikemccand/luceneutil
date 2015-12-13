@@ -112,7 +112,7 @@ with open('analyzers.html', 'w') as f:
     f.write('\\n"\n')
 
   f.write(''',
-  { "title": "Analyzer performance over time in Lucene 4.x branch",
+  { "title": "Analyzer performance over time in Lucene trunk",
     "xlabel": "Date",
     "ylabel": "Million Tokens/sec"}
     );

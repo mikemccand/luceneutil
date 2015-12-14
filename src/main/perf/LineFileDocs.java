@@ -37,11 +37,11 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.BinaryDocValuesField;
+import org.apache.lucene.document.DimensionalIntField;
+import org.apache.lucene.document.DimensionalLongField;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.LegacyIntField;
-import org.apache.lucene.document.LegacyLongField;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
@@ -49,8 +49,8 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
-import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexDocument;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 
@@ -274,8 +274,7 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      // TODO: cutover to dim values instead
-      timeSec = new LegacyIntField("timesecnum", 0, Field.Store.NO);
+      timeSec = new DimensionalIntField("timesecnum", 0);
       doc.add(timeSec);
     }
   }
@@ -289,10 +288,10 @@ public class LineFileDocs implements Closeable {
     final Document doc2 = new Document();
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof LegacyLongField) {
-        doc2.add(new LegacyLongField(f.name(), ((LegacyLongField) f).numericValue().longValue(), Field.Store.NO));
-      } else if (f instanceof LegacyIntField) {
-        doc2.add(new LegacyIntField(f.name(), ((LegacyIntField) f).numericValue().intValue(), Field.Store.NO));
+      if (f instanceof DimensionalLongField) {
+        doc2.add(new DimensionalLongField(f.name(), ((DimensionalLongField) f).numericValue().longValue()));
+      } else if (f instanceof DimensionalIntField) {
+        doc2.add(new DimensionalIntField(f.name(), ((DimensionalIntField) f).numericValue().intValue()));
       } else if (f instanceof SortedDocValuesField) {
         doc2.add(new SortedDocValuesField(f.name(), f.binaryValue()));
       } else if (f instanceof NumericDocValuesField) {

@@ -27,13 +27,13 @@ import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.DimensionalRangeQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
-import org.apache.lucene.search.LegacyNumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -240,7 +240,7 @@ class TaskParser {
         final String nrqFieldName = text.substring(5, spot3);
         final int start = Integer.parseInt(text.substring(1+spot3, spot4));
         final int end = Integer.parseInt(text.substring(1+spot4));
-        query = LegacyNumericRangeQuery.newIntRange(nrqFieldName, start, end, true, true);
+        query = DimensionalRangeQuery.new1DIntRange(nrqFieldName, start, true, end, true);
         sort = null;
         group = null;
       } else if (text.startsWith("datetimesort//")) {

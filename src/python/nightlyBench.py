@@ -344,6 +344,10 @@ KNOWN_CHANGES = [
   ('2015-12-10',
    'LUCENE-6919: Change the Scorer API to expose an iterator instead of extending DocIdSetIterator',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-6919">LUCENE-6919: Change the Scorer API to expose an iterator instead of extending DocIdSetIterator</a>'),
+
+  ('2015-12-14',
+   'LUCENE-6917: Change from LegacyNumericRangeQuery to DimensionalRangeQuery',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6917">LUCENE-6917: Change from LegacyNumericRangeQuery to DimensionalRangeQuery</a>'),
    ]
 
 # TODO

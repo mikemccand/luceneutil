@@ -30,7 +30,6 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.index.IndexDocument;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Term;
@@ -245,10 +244,10 @@ class IndexThreads {
             }
             groupBlockField.setBytesValue(groupBlocks[groupCounter]);
 
-            w.addDocuments(new Iterable<IndexDocument>() {
+            w.addDocuments(new Iterable<Document>() {
                 @Override
-                public Iterator<IndexDocument> iterator() {
-                  return new Iterator<IndexDocument>() {
+                public Iterator<Document> iterator() {
+                  return new Iterator<Document>() {
                     int upto;
                     Document doc;
 
@@ -294,7 +293,7 @@ class IndexThreads {
                     }
 
                     @Override
-                    public IndexDocument next() {
+                    public Document next() {
                       return doc;
                     }
 
@@ -312,7 +311,7 @@ class IndexThreads {
           final long startNS = System.nanoTime();
           int threadCount = 0;
           while (!stop.get()) {
-            final IndexDocument doc = docs.nextDoc(docState);
+            final Document doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
             }
@@ -334,7 +333,7 @@ class IndexThreads {
             case UPDATE:
               // NOTE: can't use docState.id in case doClone
               // was true
-              ((Document) doc).getField("id").setStringValue(updateID);
+              ((Field) ((Document) doc).getField("id")).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
               break;
             case NDV_UPDATE:
@@ -371,7 +370,7 @@ class IndexThreads {
           }
         } else {
           while (!stop.get()) {
-            final IndexDocument doc = docs.nextDoc(docState);
+            final Document doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
             }
@@ -388,7 +387,7 @@ class IndexThreads {
               final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
               // NOTE: can't use docState.id in case doClone
               // was true
-              ((Document) doc).getField("id").setStringValue(updateID);
+              ((Field) ((Document) doc).getField("id")).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);

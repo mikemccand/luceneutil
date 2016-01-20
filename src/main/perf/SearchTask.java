@@ -17,20 +17,15 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
-import org.apache.lucene.index.StorableField;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
@@ -55,6 +50,12 @@ import org.apache.lucene.search.highlight.TextFragment;
 import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.vectorhighlight.FieldQuery;
 import org.apache.lucene.util.BytesRef;
+
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 final class SearchTask extends Task {
   private final String category;
@@ -245,8 +246,8 @@ final class SearchTask extends Task {
         if (doStoredLoads) {
           for (int i = 0; i < hits.scoreDocs.length; i++) {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
-            StoredDocument doc = searcher.doc(scoreDoc.doc);
-            for (StorableField field : doc) {
+            Document doc = searcher.doc(scoreDoc.doc);
+            for (IndexableField field : doc.fields()) {
               field.stringValue();
             }
           }
@@ -313,7 +314,7 @@ final class SearchTask extends Task {
         //System.out.println("    frag: " + h);
       }
     } else {
-      StoredDocument doc = searcher.doc(docID);
+      Document doc = searcher.doc(docID);
       String text = doc.get(indexState.textFieldName);
       // NOTE: passing null for analyzer: TermVectors must
       // be indexed!

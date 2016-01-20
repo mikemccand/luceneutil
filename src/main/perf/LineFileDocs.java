@@ -19,6 +19,23 @@ package perf;
 
 // FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
 
+import org.apache.lucene.document.BinaryDocValuesField;
+import org.apache.lucene.document.DimensionalIntField;
+import org.apache.lucene.document.DimensionalLongField;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.TextField;
+import org.apache.lucene.facet.FacetField;
+import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
+import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.util.BytesRef;
+
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -35,23 +52,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.lucene.document.BinaryDocValuesField;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.facet.FacetField;
-import org.apache.lucene.facet.FacetsConfig;
-import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
-import org.apache.lucene.index.IndexOptions;
-import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.util.BytesRef;
 
 public class LineFileDocs implements Closeable {
 
@@ -273,7 +273,7 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      timeSec = new IntField("timesecnum", 0, Field.Store.NO);
+      timeSec = new DimensionalIntField("timesecnum", 0);
       doc.add(timeSec);
     }
   }
@@ -287,10 +287,10 @@ public class LineFileDocs implements Closeable {
     final Document doc2 = new Document();
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof LongField) {
-        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue(), Field.Store.NO));
-      } else if (f instanceof IntField) {
-        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
+      if (f instanceof DimensionalLongField) {
+        doc2.add(new DimensionalLongField(f.name(), ((DimensionalLongField) f).numericValue().longValue()));
+      } else if (f instanceof DimensionalIntField) {
+        doc2.add(new DimensionalIntField(f.name(), ((DimensionalIntField) f).numericValue().intValue()));
       } else if (f instanceof SortedDocValuesField) {
         doc2.add(new SortedDocValuesField(f.name(), f.binaryValue()));
       } else if (f instanceof NumericDocValuesField) {

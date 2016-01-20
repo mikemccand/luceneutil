@@ -319,23 +319,35 @@ KNOWN_CHANGES = [
 
   ('2015-04-02',
    'LUCENE-6308: span queries support two-phased iteration',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6308">LUCENE-6308: span queries support two-phased iteration'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6308">LUCENE-6308: span queries support two-phased iteration</a>'),
 
   ('2015-04-04',
    'LUCENE-5879: add auto-prefix terms',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-5879">LUCENE-5879: add auto-prefix terms'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-5879">LUCENE-5879: add auto-prefix terms</a>'),
 
   ('2015-06-24',
    'LUCENE-6548: some optimizations to block tree intersect',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6548">LUCENE-6548: some optimizations to block tree intersect'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6548">LUCENE-6548: some optimizations to block tree intersect</a>'),
 
   ('2015-09-15',
    'LUCENE-6789: switch to BM25 scoring by default',
-   '<a href="https://issues.apache.org/jira/browse/LUCENE-6789">LUCENE-6789 switch to BM25 scoring by default'),
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6789">LUCENE-6789 switch to BM25 scoring by default</a>'),
 
   ('2015-10-05',
    'Randomize what time of day benchmark runs',
    'Randomize what time of day benchmark runs'),
+
+  ('2015-12-02',
+   'Upgrade to beast2 (72 cores, 256 GB RAM)',
+   'Upgrade to beast2 (72 cores, 256 GB RAM)'),
+
+  ('2015-12-10',
+   'LUCENE-6919: Change the Scorer API to expose an iterator instead of extending DocIdSetIterator',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6919">LUCENE-6919: Change the Scorer API to expose an iterator instead of extending DocIdSetIterator</a>'),
+
+  ('2015-12-14',
+   'LUCENE-6917: Change from LegacyNumericRangeQuery to DimensionalRangeQuery',
+   '<a href="https://issues.apache.org/jira/browse/LUCENE-6917">LUCENE-6917: Change from LegacyNumericRangeQuery to DimensionalRangeQuery</a>'),
    ]
 
 # TODO
@@ -415,6 +427,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   #indexTime = (now()-t0)
 
   if REAL:
+    print('Move log to %s/%s' % (runLogDir, logFile))
     os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
 
   s = open('%s/%s' % (runLogDir, logFile)).read()

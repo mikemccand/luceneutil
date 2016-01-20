@@ -17,10 +17,11 @@ import datetime
 import os
 import constants
 
-LUCENE_ROOT = '/lucene/4x.analyzers/lucene'
+LUCENE_ROOT = '/l/trunk.analyzers.nightly/lucene'
 LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
 
 def run(cmd):
+  print('RUN: %s' % cmd)
   if os.system(cmd):
     raise RuntimeError('%s failed' % cmd)
 
@@ -33,6 +34,7 @@ print('\n%s' % ymd)
 run('python -u /home/mike/src/util/svnClean.py %s/..' % LUCENE_ROOT)
 run('svn cleanup')
 run('svn up')
+print('Compile...')
 run('ant clean compile > compile.log 2>&1')
 
 logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
@@ -40,12 +42,13 @@ logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
 with open(logFile + '.tmp', 'w') as lf:
   lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
   os.chdir(constants.BENCH_BASE_DIR)
-  lf.write('hgversion: %s\n' % os.popen('hg id %s' % constants.BENCH_BASE_DIR).read().strip())
+  lf.write('git version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
   os.chdir(LUCENE_ROOT)
 
-run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf4x.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
+run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
 
 print('  now run')
-run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf4x /lucenedata/enwiki/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
+run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
 os.rename(logFile+'.tmp', logFile)
 print('  done')

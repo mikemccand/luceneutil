@@ -123,8 +123,8 @@ public class TestAnalyzerPerf {
   private static class LowerCaseAnalyzer extends Analyzer {
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
-      TokenStream tok = new LowerCaseFilter(Version.LUCENE_CURRENT, src);
+      Tokenizer src = new WhitespaceTokenizer();
+      TokenStream tok = new LowerCaseFilter(src);
       return new TokenStreamComponents(src, tok);
     }
   }
@@ -132,8 +132,8 @@ public class TestAnalyzerPerf {
   private static class EdgeNGramsAnalyzer extends Analyzer {
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
-      TokenStream tok = new EdgeNGramTokenFilter(Version.LUCENE_CURRENT, src, 1, 3);
+      Tokenizer src = new WhitespaceTokenizer();
+      TokenStream tok = new EdgeNGramTokenFilter(src, 1, 3);
       return new TokenStreamComponents(src, tok);
     }
   }
@@ -141,8 +141,8 @@ public class TestAnalyzerPerf {
   private static class ShinglesAnalyzer extends Analyzer {
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
-      //TokenStream tok = new ShingleFilter(Version.LUCENE_CURRENT, src, 2, 2);
+      Tokenizer src = new WhitespaceTokenizer();
+      //TokenStream tok = new ShingleFilter(src, 2, 2);
       TokenStream tok = new ShingleFilter(src, 2, 2);
       return new TokenStreamComponents(src, tok);
     }
@@ -151,21 +151,21 @@ public class TestAnalyzerPerf {
   private static class WDFAnalyzer extends Analyzer {
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
-      Tokenizer src = new WhitespaceTokenizer(Version.LUCENE_CURRENT);
+      Tokenizer src = new WhitespaceTokenizer();
       int flags = 0;
       flags |= WordDelimiterFilter.GENERATE_WORD_PARTS;
       flags |= WordDelimiterFilter.GENERATE_NUMBER_PARTS;
       flags |= WordDelimiterFilter.SPLIT_ON_CASE_CHANGE;
       flags |= WordDelimiterFilter.SPLIT_ON_NUMERICS;
       flags |= WordDelimiterFilter.STEM_ENGLISH_POSSESSIVE;
-      TokenStream tok = new WordDelimiterFilter(Version.LUCENE_CURRENT, src, flags, null);
+      TokenStream tok = new WordDelimiterFilter(src, flags, null);
       return new TokenStreamComponents(src, tok);
     }
   }
 
   public static void main(String[] args) throws Exception {
     File wikiLinesFile = new File(args[0]);
-    testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(Version.LUCENE_CURRENT, CharArraySet.EMPTY_SET));
+    testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(CharArraySet.EMPTY_SET));
     testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
     testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
     testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());

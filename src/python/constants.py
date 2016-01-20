@@ -129,5 +129,7 @@ PERF_STATS = (
 
 NIGHTLY_REPORTS_DIR = '%s/reports.nightly' % BASE_DIR
 
+PROCESSOR_COUNT = 12
+
 # import again in case you want to override any of the vars set above
 from localconstants import *

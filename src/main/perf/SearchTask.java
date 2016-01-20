@@ -26,7 +26,6 @@ import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.StoredDocument;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
@@ -246,10 +245,7 @@ final class SearchTask extends Task {
         if (doStoredLoads) {
           for (int i = 0; i < hits.scoreDocs.length; i++) {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
-            Document doc = searcher.doc(scoreDoc.doc);
-            for (IndexableField field : doc.fields()) {
-              field.stringValue();
-            }
+            searcher.doc(scoreDoc.doc);
           }
         }
 

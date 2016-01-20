@@ -158,7 +158,7 @@ public class TestAnalyzerPerf4x {
       flags |= WordDelimiterFilter.SPLIT_ON_CASE_CHANGE;
       flags |= WordDelimiterFilter.SPLIT_ON_NUMERICS;
       flags |= WordDelimiterFilter.STEM_ENGLISH_POSSESSIVE;
-      TokenStream tok = new WordDelimiterFilter(Version.LUCENE_CURRENT, src, flags, null);
+      TokenStream tok = new WordDelimiterFilter(src, flags, null);
       return new TokenStreamComponents(src, tok);
     }
   }

@@ -20,8 +20,8 @@ package perf;
 // FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
 
 import org.apache.lucene.document.BinaryDocValuesField;
-import org.apache.lucene.document.DimensionalIntField;
-import org.apache.lucene.document.DimensionalLongField;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
@@ -273,7 +273,7 @@ public class LineFileDocs implements Closeable {
       //rand = new LongField("rand", 0L, Field.Store.NO);
       //doc.add(rand);
 
-      timeSec = new DimensionalIntField("timesecnum", 0);
+      timeSec = new IntPoint("timesecnum", 0);
       doc.add(timeSec);
     }
   }
@@ -287,10 +287,10 @@ public class LineFileDocs implements Closeable {
     final Document doc2 = new Document();
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof DimensionalLongField) {
-        doc2.add(new DimensionalLongField(f.name(), ((DimensionalLongField) f).numericValue().longValue()));
-      } else if (f instanceof DimensionalIntField) {
-        doc2.add(new DimensionalIntField(f.name(), ((DimensionalIntField) f).numericValue().intValue()));
+      if (f instanceof LongPoint) {
+        doc2.add(new LongPoint(f.name(), ((LongPoint) f).numericValue().longValue()));
+      } else if (f instanceof IntPoint) {
+        doc2.add(new IntPoint(f.name(), ((IntPoint) f).numericValue().intValue()));
       } else if (f instanceof SortedDocValuesField) {
         doc2.add(new SortedDocValuesField(f.name(), f.binaryValue()));
       } else if (f instanceof NumericDocValuesField) {

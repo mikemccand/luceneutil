@@ -555,23 +555,22 @@ def run():
     luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
 
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
-    runCommand('%s cleanup' % constants.SVN_EXE)
-    if True:
-      for i in range(iters):
-        try:
-          runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-        except RuntimeError:
-          message('  retry...')
-          time.sleep(60.0)
-        else:
-          svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-          print 'SVN rev is %s' % svnRev
-          break
+    #runCommand('%s cleanup' % constants.SVN_EXE)
+    runCommand('%s clean -fd' % constants.GIT_EXE)
+    for i in range(iters):
+      try:
+        #runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
+        runCommand('%s pull -u > %s/update.log' % (constants.GIT_EXE, runLogDir))
+      except RuntimeError:
+        message('  retry...')
+        time.sleep(60.0)
       else:
-        raise RuntimeError('failed to run svn update after %d tries' % iters)
+        luceneRev = os.popen('git rev-parse HEAD').read().strip()
+        #svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
+        print 'LUCENE rev is %s' % luceneRev
+        break
     else:
-      svnRev = 1417276
-      print 'using canned svn rev %s' % svnRev
+      raise RuntimeError('failed to run git pull -u after %d tries' % iters)
 
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
@@ -714,7 +713,7 @@ def run():
     w = f.write
     w('<html>\n')
     w('<h1>%s</h1>' % timeStamp2)
-    w('Lucene/Solr trunk rev %s<br>' % svnRev)
+    w('Lucene/Solr trunk rev %s<br>' % luceneRev)
     w('luceneutil rev %s<br>' % luceneUtilRev)
     w('%s<br>' % javaVersion)
     w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))

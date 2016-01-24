@@ -62,6 +62,8 @@ TRUNK_CHECKOUT = 'trunk'
   
 INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 
+GIT_EXE = 'git'
+
 if 'JAVA_EXE' not in globals():
   JAVA_EXE = 'java'
 if 'JAVAC_EXE' not in globals():

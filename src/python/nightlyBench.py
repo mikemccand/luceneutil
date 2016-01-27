@@ -745,7 +745,7 @@ def run():
              BIG_INDEX_NUM_DOCS, bigIndexTime, bigBytesIndexed,
              nrtResults,
              searchResults,
-             svnRev,
+             luceneRev,
              luceneUtilRev,
              searchHeaps)
   for fname in resultsNow:

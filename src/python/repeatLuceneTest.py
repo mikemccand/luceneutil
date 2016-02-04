@@ -320,7 +320,7 @@ def _run(threadID):
       #command += ' -Djava.security.manager=org.apache.lucene.util.TestSecurityManager'
 
       # nocommit
-      command += ' -Dtests.leaveTemporary=true'
+      #command += ' -Dtests.leaveTemporary=true'
       
       if USE_JUNIT:
         command += ' org.junit.runner.JUnitCore'
@@ -337,7 +337,7 @@ def _run(threadID):
       else:
         print('RUN: %s\n\n' % command)
 
-      # print('command: %s' % command)
+      print('command: %s' % command)
 
       if os.path.exists(TEST_TEMP_DIR):
         #print '  remove %s' % TEST_TEMP_DIR

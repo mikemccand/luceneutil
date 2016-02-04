@@ -29,8 +29,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
-import com.spatial4j.core.context.SpatialContext;
-
 // javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/IndexOSMGeoPoint.java
 
 // rm -rf geopointindex; java -cp /l/util/src/main/perf:build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar IndexOSMGeoPoint geopointindex

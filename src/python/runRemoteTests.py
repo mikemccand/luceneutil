@@ -114,7 +114,7 @@ class Remote(threading.Thread):
     else:
       cmd = cmd.replace(self.rootDir, self.rootDir.replace(constants.BASE_DIR, constants.BASE_DIR + '.copy'))
 
-    # msg('local: %s: start cmd: %s' % (self.hostName, cmd))
+    #msg('local: %s: start cmd: %s' % (self.hostName, cmd))
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -305,6 +305,7 @@ def gatherTests(stats, rootDir):
   addCP = cp.append
 
   addJARs(cp, 'lucene/test-framework/lib')
+  addCP('/home/mike/.ivy2/cache/com.carrotsearch.randomizedtesting/junit4-ant/jars/junit4-ant-2.1.13.jar')
   addCP('lucene/build/test-framework/classes/java')
   addCP('lucene/analysis/common/src/test')
   if '-solr' in sys.argv:
@@ -526,8 +527,13 @@ def main():
   command += ' com.carrotsearch.ant.tasks.junit4.slave.SlaveMainSafe -flush -stdin'
 
   # Tests first chdir to lucene/build:
-  classpath = ':'.join(['../../%s' % x for x in classpath])
-  #print 'CP: %s' % classpath
+  classpath2 = []
+  for x in classpath:
+    if not x.startswith('/'):
+      x = '../../%s' % x
+    classpath2.append(x)
+  classpath = ':'.join(classpath2)
+  print 'CP: %s' % classpath
   jobs = Jobs(tests)
 
   tTestsStart = time.time()

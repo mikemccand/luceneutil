@@ -30,6 +30,7 @@ import shutil
 import smtplib
 import re
 import random
+import pysftp
 
 # local imports:
 import benchUtil
@@ -947,7 +948,16 @@ def makeGraphs():
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
   if not DEBUG:
-    runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    #runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    pushReports()
+
+def pushReports():
+  print('Copy reports...')
+  with pysftp.Connection('home.apache.org', username='mikemccand') as c:
+    with c.cd('public_html'):
+      #c.mkdir('lucenebench')
+      # TODO: this is not incremental...
+      c.put_r('%s/reports.nightly' % constants.BASE_DIR, 'lucenebench')
 
 reTookSec = re.compile('took ([0-9.]+) sec')
 reDateTime = re.compile('log dir /lucene/logs.nightly/(.*?)$')

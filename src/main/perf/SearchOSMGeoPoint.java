@@ -23,6 +23,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.GeoPointInBBoxQuery;
 import org.apache.lucene.search.GeoPointInPolygonQuery;
@@ -43,6 +44,9 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
+//import org.apache.lucene.util.GeoEncodingUtils;
+import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.util.GeoRelationUtils;
 
 // javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/SearchOSMGeoPoint.java
 
@@ -81,6 +85,7 @@ public class SearchOSMGeoPoint {
       long tStart = System.nanoTime();
       long totHits = 0;
       int queryCount = 0;
+      long totStupidHits = 0;
       for(int latStep=0;latStep<STEPS;latStep++) {
         double lat = MIN_LAT + latStep * (MAX_LAT - MIN_LAT) / STEPS;
         for(int lonStep=0;lonStep<STEPS;lonStep++) {
@@ -117,15 +122,41 @@ public class SearchOSMGeoPoint {
               //System.out.println("  " + ((t1-t0)/1000000.0) + " msec");
               totHits += c.getTotalHits();
               queryCount++;
+
+              if (iter == 0) {
+                totStupidHits += stupidBBoxQuery(indexSearcher, lon, lat, lonEnd, latEnd);
+              }
+
             }
           }
         }
       }
       long tEnd = System.nanoTime();
-      System.out.println("ITER: " + iter + " " + ((tEnd-tStart)/1000000000.0) + " sec; totHits=" + totHits + "; " + queryCount + " queries");
+      System.out.println("ITER: " + iter + " " + ((tEnd-tStart)/1000000000.0) + " sec; totHits=" + totHits + "; totStupidHits=" + totStupidHits + "; " + queryCount + " queries");
     }
     r.close();
     dir.close();
+  }
+
+  private static int stupidBBoxQuery(IndexSearcher s, double minLon, double minLat, double maxLon, double maxLat) throws IOException {
+    int totalHits = 0;
+    for(LeafReaderContext ctx : s.getIndexReader().leaves()) {
+      SortedNumericDocValues sdv = ctx.reader().getSortedNumericDocValues("geo");
+      for(int docID=0;docID<ctx.reader().maxDoc();docID++) {
+        sdv.setDocument(docID);
+        for (int i=0; i<sdv.count(); ++i) {
+          long hash = sdv.valueAt(i);
+          double lon = GeoUtils.mortonUnhashLon(hash);
+          double lat = GeoUtils.mortonUnhashLat(hash);
+          if (GeoRelationUtils.pointInRect(lon, lat, minLon, minLat, maxLon, maxLat)) {
+            totalHits++;
+            break;
+          }
+        }
+      }
+    }
+
+    return totalHits;
   }
 }
 

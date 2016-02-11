@@ -28,11 +28,11 @@ import java.nio.file.Paths;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.document.DimensionalField;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LegacyIntField;
+import org.apache.lucene.document.LegacyLongField;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.index.CodecReader;
@@ -43,9 +43,9 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.SerialMergeScheduler;
-import org.apache.lucene.search.DimensionalRangeQuery;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.NumericRangeQuery;
+import org.apache.lucene.search.LegacyNumericRangeQuery;
+import org.apache.lucene.search.PointRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.store.Directory;
@@ -54,7 +54,6 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
-import org.apache.lucene.util.bkd.BKDUtil;
 
 // javac -cp /l/1dkd/lucene/build/core/classes/java:/l/1dkd/lucene/build/sandbox/classes/java IndexAndSearchOpenStreetMaps1D.java; java -cp /l/1dkd/lucene/build/core/classes/java:/l/1dkd/lucene/build/sandbox/classes/java:. IndexAndSearchOpenStreetMaps1D
 
@@ -99,11 +98,10 @@ public class IndexAndSearchOpenStreetMaps1D {
       //int lon = (int) (1000000. * Double.parseDouble(parts[2]));
       Document doc = new Document();
       if (USE_NF) {
-        doc.add(new IntField("latnum", lat, Field.Store.NO));
+        doc.add(new LegacyIntField("latnum", lat, Field.Store.NO));
         //doc.add(new LongField("lonnum", lon, Field.Store.NO));
       } else {
-        BKDUtil.intToBytes(lat, scratch, 0);
-        doc.add(new DimensionalField("lat", scratch));
+        doc.add(new IntPoint("lat", lat));
         //doc.add(new SortedNumericDocValuesField("lon", lon));
       }
       w.addDocument(doc);
@@ -153,11 +151,9 @@ public class IndexAndSearchOpenStreetMaps1D {
 
               Query q;
               if (USE_NF) {
-                q = NumericRangeQuery.newIntRange("latnum", (int) (1000000. * lat), (int) (1000000. * latEnd), true, true);
+                q = LegacyNumericRangeQuery.newIntRange("latnum", (int) (1000000. * lat), (int) (1000000. * latEnd), true, true);
               } else {
-                BKDUtil.intToBytes((int) (1000000. * lat), scratch1, 0);
-                BKDUtil.intToBytes((int) (1000000. * latEnd), scratch2, 0);
-                q = new DimensionalRangeQuery("lat", scratch1, true, scratch2, true);
+                q = PointRangeQuery.new1DIntRange("lat", (int) (1000000. * lat), true, (int) (1000000. * latEnd), true);
               }
 
               TotalHitCountCollector c = new TotalHitCountCollector();

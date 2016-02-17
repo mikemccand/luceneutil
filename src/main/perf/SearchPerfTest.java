@@ -343,7 +343,7 @@ public class SearchPerfTest {
 			IndexThreads threads = new IndexThreads(new Random(17), writer, new AtomicBoolean(false), lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
       threads.start();
 
-      mgr = new SearcherManager(writer, true, new SearcherFactory() {
+      mgr = new SearcherManager(writer, new SearcherFactory() {
           @Override
           public IndexSearcher newSearcher(IndexReader reader, IndexReader previous) {
             IndexSearcher s = new IndexSearcher(reader);

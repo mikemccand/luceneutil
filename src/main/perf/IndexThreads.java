@@ -411,7 +411,7 @@ class IndexThreads {
           System.out.println(String.format(Locale.ROOT,
                                            "%.2f sec: now getReader",
                                            (System.currentTimeMillis() - tStart)/1000.0));
-          DirectoryReader r = DirectoryReader.open(w, true);
+          DirectoryReader r = DirectoryReader.open(w);
           int irNumDocs = r.numDocs();
           int irMaxDoc = r.maxDoc();
           System.out.println(String.format(Locale.ROOT,

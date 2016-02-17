@@ -372,7 +372,7 @@ public class NRTPerfTest {
                                                              (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, w.maxDoc());
 
 		// NativePosixUtil.mlockTermsDict(startR, "id");
-		final SearcherManager manager = new SearcherManager(w, true, null);
+		final SearcherManager manager = new SearcherManager(w, null);
 		IndexSearcher s = manager.acquire();
 		try {
 			System.out.println("Reader=" + s.getIndexReader());

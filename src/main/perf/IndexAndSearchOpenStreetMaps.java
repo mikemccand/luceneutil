@@ -184,7 +184,7 @@ public class IndexAndSearchOpenStreetMaps {
   }
 
   public static void main(String[] args) throws IOException {
-    createIndex();
+    //createIndex();
     queryIndex();
   }
 }

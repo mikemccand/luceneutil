@@ -277,7 +277,7 @@ class IndexThreads {
                         if (id >= numTotalDocs) {
                           throw new IllegalStateException();
                         }
-                        if (((1+id) % 100000) == 0) {
+                        if (((1+id) % 10000) == 0) {
                           System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
                         }
                         group100Field.setBytesValue(group100[id%100]);
@@ -320,7 +320,7 @@ class IndexThreads {
               break;
             }
 
-            if (((1+id) % 100000) == 0) {
+            if (((1+id) % 10000) == 0) {
               System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
             // TODO have a 'sometimesAdd' mode where 25%
@@ -355,7 +355,7 @@ class IndexThreads {
             int docCount = count.incrementAndGet();
             threadCount++;
 
-            if ((docCount % 100000) == 0) {
+            if ((docCount % 10000) == 0) {
               System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
 
@@ -379,7 +379,7 @@ class IndexThreads {
               break;
             }
 
-            if ((docCount % 100000) == 0) {
+            if ((docCount % 10000) == 0) {
               System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
 

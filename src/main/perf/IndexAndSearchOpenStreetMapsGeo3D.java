@@ -17,26 +17,6 @@ package perf;
  * limitations under the License.
  */
 
-import org.apache.lucene.bkdtree3d.Geo3DDocValuesFormat;
-import org.apache.lucene.bkdtree3d.Geo3DPointField;
-import org.apache.lucene.bkdtree3d.PointInGeo3DShapeQuery;
-import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.lucene53.Lucene53Codec;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.geo3d.GeoBBoxFactory;
-import org.apache.lucene.geo3d.PlanetModel;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TotalHitCountCollector;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.IOUtils;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +26,31 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.geo3d.Geo3DPoint;
+import org.apache.lucene.geo3d.GeoBBoxFactory;
+import org.apache.lucene.geo3d.PlanetModel;
+import org.apache.lucene.geo3d.PointInGeo3DShapeQuery;
+import org.apache.lucene.index.CodecReader;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Accountable;
+import org.apache.lucene.util.Accountables;
+import org.apache.lucene.util.IOUtils;
+import org.apache.lucene.util.PrintStreamInfoStream;
 
 // javac -cp build/core/classes/java:build/spatial3d/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMapsGeo3D.java; java -cp /l/util/src/main:build/core/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMapsGeo3D
 
@@ -63,19 +68,14 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
     InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    DocValuesFormat dvFormat = new Geo3DDocValuesFormat();
-    Directory dir = FSDirectory.open(Paths.get("bkdtestgeo3d"));
-    Codec codec = new Lucene53Codec() {
-      @Override
-      public DocValuesFormat getDocValuesFormatForField(String field) {
-        return dvFormat;
-      }
-      };
+    Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkd3d"));
     IndexWriterConfig iwc = new IndexWriterConfig(null);
-    //iwc.setRAMBufferSizeMB(256);
-    iwc.setMaxBufferedDocs(109630);
-    iwc.setCodec(codec);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    iwc.setMaxBufferedDocs(109630);
+    iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+    iwc.setMergePolicy(new LogDocMergePolicy());
+    iwc.setMergeScheduler(new SerialMergeScheduler());
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     IndexWriter w = new IndexWriter(dir, iwc);
     
     while (true) {
@@ -89,7 +89,7 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
       double lat = toRadians(Double.parseDouble(parts[1]));
       double lon = toRadians(Double.parseDouble(parts[2]));
       Document doc = new Document();
-      doc.add(new Geo3DPointField("point", PlanetModel.WGS84, lat, lon));
+      doc.add(new Geo3DPoint("point", PlanetModel.WGS84, lat, lon));
       w.addDocument(doc);
     }
     long t1 = System.nanoTime();
@@ -107,9 +107,20 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
   }
 
   private static void queryIndex() throws IOException {
-    Directory dir = FSDirectory.open(Paths.get("bkdtestgeo3d"));
+    Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkd3d"));
     System.out.println("DIR: " + dir);
     IndexReader r = DirectoryReader.open(dir);
+
+    long bytes = 0;
+    for(LeafReaderContext ctx : r.leaves()) {
+      CodecReader cr = (CodecReader) ctx.reader();
+      for(Accountable acc : cr.getChildResources()) {
+        System.out.println("  " + Accountables.toString(acc));
+      }
+      bytes += cr.ramBytesUsed();
+    }
+    System.out.println("READER MB: " + (bytes/1024./1024.));
+
     System.out.println("maxDoc=" + r.maxDoc());
     IndexSearcher s = new IndexSearcher(r);
     //SegmentReader sr = (SegmentReader) r.leaves().get(0).reader();
@@ -161,7 +172,7 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
   }
 
   public static void main(String[] args) throws IOException {
-    createIndex();
+    //createIndex();
     queryIndex();
   }
 }

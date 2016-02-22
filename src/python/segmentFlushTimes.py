@@ -6,7 +6,9 @@ import re
 import subprocess
 import shutil
 
-THREAD_COUNT = 1
+THREAD_COUNT = 4
+DATA_FILE = '/l/data/enwiki-20110115-lines-1k-fixed.txt'
+# DATA_FILE = '/b/lucenedata/enwiki-20120502-lines-1k.txt'
 
 chartHTML = '''
 <html>
@@ -233,7 +235,7 @@ def writeChart(results):
                          ))
 
 if not os.path.exists('results.pk'):
-  cmd = 'java -verbose:gc -Xmx8g -server -classpath "/l/trunk/lucene/build/core/classes/java:/l/trunk/lucene/build/core/classes/test:/l/trunk/lucene/build/sandbox/classes/java:/l/trunk/lucene/build/misc/classes/java:/l/trunk/lucene/build/facet/classes/java:/home/mike/src/l-c-boost/dist/lCBoost-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/classes/java:/l/trunk/lucene/build/analysis/icu/classes/java:/l/trunk/lucene/build/queryparser/classes/java:/l/trunk/lucene/build/grouping/classes/java:/l/trunk/lucene/build/suggest/classes/java:/l/trunk/lucene/build/highlighter/classes/java:/l/trunk/lucene/build/codecs/classes/java:/l/trunk/lucene/build/queries/classes/java:/l/util/lib/HdrHistogram.jar:/l/util/build" perf.Indexer -dirImpl MMapDirectory -indexPath "/l/tmp/index" -analyzer StandardAnalyzerNoStopWords -lineDocsFile /b/lucenedata/enwiki-20120502-lines-1k.txt -docCountLimit 33332620 -threadCount %s -maxConcurrentMerges 1 -ramBufferMB %%s -maxBufferedDocs -1 -postingsFormat Lucene50 -mergePolicy NoMergePolicy -idFieldPostingsFormat Lucene50 -verbose -repeatDocs' % THREAD_COUNT
+  cmd = 'java -verbose:gc -Xms8g -Xmx8g -server -classpath "/l/trunk/lucene/build/core/classes/java:/l/trunk/lucene/build/core/classes/test:/l/trunk/lucene/build/sandbox/classes/java:/l/trunk/lucene/build/misc/classes/java:/l/trunk/lucene/build/facet/classes/java:/home/mike/src/l-c-boost/dist/lCBoost-SNAPSHOT.jar:/l/trunk/lucene/build/analysis/common/classes/java:/l/trunk/lucene/build/analysis/icu/classes/java:/l/trunk/lucene/build/queryparser/classes/java:/l/trunk/lucene/build/grouping/classes/java:/l/trunk/lucene/build/suggest/classes/java:/l/trunk/lucene/build/highlighter/classes/java:/l/trunk/lucene/build/codecs/classes/java:/l/trunk/lucene/build/queries/classes/java:/l/util/lib/HdrHistogram.jar:/l/util/build" perf.Indexer -dirImpl MMapDirectory -indexPath "/l/tmp/index" -analyzer StandardAnalyzerNoStopWords -lineDocsFile %s -docCountLimit 33332620 -threadCount %s -maxConcurrentMerges 1 -ramBufferMB %%s -maxBufferedDocs -1 -postingsFormat Lucene50 -mergePolicy NoMergePolicy -idFieldPostingsFormat Lucene50 -verbose -repeatDocs' % (DATA_FILE, THREAD_COUNT)
 
   reSegSizeMB = re.compile('ramUsed=([0-9,.]+) MB newFlushedSize=([0-9,.]+) MB')
   reFlushTime = re.compile('flush time ([0-9.]+) msec')

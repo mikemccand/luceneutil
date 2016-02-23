@@ -240,7 +240,7 @@ class TaskParser {
         final String nrqFieldName = text.substring(5, spot3);
         final int start = Integer.parseInt(text.substring(1+spot3, spot4));
         final int end = Integer.parseInt(text.substring(1+spot4));
-        query = PointRangeQuery.new1DIntRange(nrqFieldName, start, true, end, true);
+        query = PointRangeQuery.newIntRange(nrqFieldName, start, true, end, true);
         sort = null;
         group = null;
       } else if (text.startsWith("datetimesort//")) {

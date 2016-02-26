@@ -17,12 +17,7 @@ package perf;
  * limitations under the License.
  */
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -31,9 +26,9 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.PointRangeQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
+import org.apache.lucene.search.PointRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -41,6 +36,12 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 class TaskParser {
 
@@ -240,7 +241,7 @@ class TaskParser {
         final String nrqFieldName = text.substring(5, spot3);
         final int start = Integer.parseInt(text.substring(1+spot3, spot4));
         final int end = Integer.parseInt(text.substring(1+spot4));
-        query = PointRangeQuery.newIntRange(nrqFieldName, start, true, end, true);
+        query = IntPoint.newRangeQuery(nrqFieldName, start, true, end, true);
         sort = null;
         group = null;
       } else if (text.startsWith("datetimesort//")) {

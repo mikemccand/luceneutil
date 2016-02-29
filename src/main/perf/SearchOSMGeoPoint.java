@@ -1,18 +1,5 @@
 package perf;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -33,6 +20,7 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.spatial.SpatialStrategy;
+import org.apache.lucene.spatial.geopoint.search.GeoPointDistanceQuery;
 import org.apache.lucene.spatial.geopoint.search.GeoPointInBBoxQuery;
 import org.apache.lucene.spatial.geopoint.search.GeoPointInPolygonQuery;
 import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
@@ -40,6 +28,7 @@ import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
+import org.apache.lucene.spatial.util.GeoDistanceUtils;
 import org.apache.lucene.spatial.util.GeoEncodingUtils;
 import org.apache.lucene.spatial.util.GeoRelationUtils;
 import org.apache.lucene.spatial.util.GeoUtils;
@@ -47,6 +36,19 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 // javac -cp build/sandbox/lucene-sandbox-6.0.0-SNAPSHOT.jar:build/queries/lucene-queries-6.0.0-SNAPSHOT.jar:spatial/lib/spatial4j-0.4.1.jar:build/spatial/lucene-spatial-6.0.0-SNAPSHOT.jar:build/core/lucene-core-6.0.0-SNAPSHOT.jar:build/analysis/common/lucene-analyzers-common-6.0.0-SNAPSHOT.jar /l/util/src/main/perf/SearchOSMGeoPoint.java
 
@@ -110,7 +112,9 @@ public class SearchOSMGeoPoint {
               lons[4] = lon;
               Query query;
               if (true) {
-                query = new GeoPointInBBoxQuery("geo", lon, lat, lonEnd, latEnd);
+                //query = new GeoPointInBBoxQuery("geo", lon, lat, lonEnd, latEnd);
+                double distance = GeoDistanceUtils.haversin(lat, lon, latEnd, lonEnd)/2.0;
+                query = new GeoPointDistanceQuery("geo", (lon+lonEnd)/2.0, (lat+latEnd)/2.0, distance);
               } else {
                 query = new GeoPointInPolygonQuery("geo", lons, lats);
               }
@@ -162,5 +166,3 @@ public class SearchOSMGeoPoint {
     return totalHits;
   }
 }
-
-

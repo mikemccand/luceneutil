@@ -198,7 +198,7 @@ class TaskParser {
           throw new RuntimeException("failed to parse query=" + text);
         }
         String field = text.substring("//multiPhrase(".length(), colon);
-        MultiPhraseQuery pq = new MultiPhraseQuery();
+        MultiPhraseQuery.Builder b = new MultiPhraseQuery.Builder();
         int endParen = text.indexOf(')');
         if (endParen == -1) {
           throw new RuntimeException("failed to parse query=" + text);
@@ -211,9 +211,9 @@ class TaskParser {
           for (int j = 0; j < words.length; j++) {
             terms[j] = new Term(field, words[j]);
           }
-          pq.add(terms);
+          b.add(terms);
         }
-        query = pq;
+        query = b.build();
         sort = null;
         group = null;
       } else if (text.startsWith("disjunctionMax//")) {
@@ -241,7 +241,7 @@ class TaskParser {
         final String nrqFieldName = text.substring(5, spot3);
         final int start = Integer.parseInt(text.substring(1+spot3, spot4));
         final int end = Integer.parseInt(text.substring(1+spot4));
-        query = IntPoint.newRangeQuery(nrqFieldName, start, true, end, true);
+        query = IntPoint.newRangeQuery(nrqFieldName, start, end);
         sort = null;
         group = null;
       } else if (text.startsWith("datetimesort//")) {

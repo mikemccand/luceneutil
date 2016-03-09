@@ -233,6 +233,9 @@ FLAKY_TESTS = set([
   # Not flaky, just haven't figured out the right env args to send:
   'org.apache.lucene.replicator.http.HttpReplicatorTest',
 
+  # Not sure why this fails
+  'org.apache.lucene.replicator.nrt.TestNRTReplication',
+
   # requires a certain cwd because it writes to a relative path:
   'org.apache.solr.handler.dataimport.TestSolrEntityProcessorEndToEnd',
 

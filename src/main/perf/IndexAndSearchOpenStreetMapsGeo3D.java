@@ -32,8 +32,10 @@ import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.geo3d.Geo3DPoint;
 import org.apache.lucene.geo3d.GeoBBoxFactory;
+import org.apache.lucene.geo3d.GeoCircleFactory;
+import org.apache.lucene.geo3d.GeoPoint;
+import org.apache.lucene.geo3d.GeoShape;
 import org.apache.lucene.geo3d.PlanetModel;
-import org.apache.lucene.geo3d.PointInGeo3DShapeQuery;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -45,6 +47,7 @@ import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.spatial.util.GeoDistanceUtils;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Accountable;
@@ -78,6 +81,7 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     IndexWriter w = new IndexWriter(dir, iwc);
     
+    int count = 0;
     while (true) {
       String line = reader.readLine();
       if (line == null) {
@@ -91,11 +95,15 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
       Document doc = new Document();
       doc.add(new Geo3DPoint("point", PlanetModel.WGS84, lat, lon));
       w.addDocument(doc);
+      count++;
+      if (count % 1000000 == 0) {
+        System.out.println(count + "...");
+      }
     }
     long t1 = System.nanoTime();
     System.out.println(((t1-t0)/1000000000.0) + " sec to build index");
     System.out.println(w.maxDoc() + " total docs");
-    //w.forceMerge(1);
+    w.forceMerge(1);
 
     w.close();
     long t2 = System.nanoTime();
@@ -147,7 +155,15 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
             for(int lonStepEnd=lonStep+1;lonStepEnd<=STEPS;lonStepEnd++) {
               double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
 
-              Query q = new PointInGeo3DShapeQuery(PlanetModel.WGS84, "point", GeoBBoxFactory.makeGeoBBox(PlanetModel.WGS84, toRadians(latEnd), toRadians(lat), toRadians(lon), toRadians(lonEnd)));
+              //GeoShape shape = GeoBBoxFactory.makeGeoBBox(PlanetModel.WGS84, toRadians(latEnd), toRadians(lat), toRadians(lon), toRadians(lonEnd));
+
+              //double distance = GeoDistanceUtils.haversin(lat, lon, latEnd, lonEnd)/2.0;
+              GeoPoint p1 = new GeoPoint(PlanetModel.WGS84, toRadians(lat), toRadians(lon));
+              GeoPoint p2 = new GeoPoint(PlanetModel.WGS84, toRadians(latEnd), toRadians(lonEnd));
+              double radiusAngle = p1.arcDistance(p2)/2.0;
+              GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, toRadians((lat+latEnd)/2), toRadians((lon+lonEnd)/2), radiusAngle);
+              
+              Query q = Geo3DPoint.newShapeQuery(PlanetModel.WGS84, "point", shape);
               TotalHitCountCollector c = new TotalHitCountCollector();
               //long t0 = System.nanoTime();
               s.search(q, c);
@@ -172,7 +188,7 @@ public class IndexAndSearchOpenStreetMapsGeo3D {
   }
 
   public static void main(String[] args) throws IOException {
-    //createIndex();
+    createIndex();
     queryIndex();
   }
 }

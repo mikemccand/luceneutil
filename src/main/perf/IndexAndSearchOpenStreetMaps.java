@@ -17,6 +17,26 @@ package perf;
  * limitations under the License.
  */
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.FilterCodec;
+import org.apache.lucene.codecs.PointsFormat;
+import org.apache.lucene.codecs.PointsReader;
+import org.apache.lucene.codecs.PointsWriter;
+import org.apache.lucene.codecs.lucene60.Lucene60PointsReader;
+import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.index.CodecReader;
@@ -26,6 +46,8 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SegmentReadState;
+import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -38,72 +60,136 @@ import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
 // javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
 public class IndexAndSearchOpenStreetMaps {
 
-  private static void createIndex() throws IOException {
-
-    long t0 = System.nanoTime();
+  private static void createIndex() throws IOException, InterruptedException {
 
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
     int BUFFER_SIZE = 1 << 16;     // 64K
-    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
+    //InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
+    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkdtest"));
-    IndexWriterConfig iwc = new IndexWriterConfig(null);
-    iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setMaxBufferedDocs(109630);
-    iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
-    iwc.setMergePolicy(new LogDocMergePolicy());
-    iwc.setMergeScheduler(new SerialMergeScheduler());
-    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
-    IndexWriter w = new IndexWriter(dir, iwc);
-    int count = 0;
-    while (true) {
-      String line = reader.readLine();
-      if (line == null) {
-        break;
+    int NUM_THREADS = 4;
+    int CHUNK = 10000;
+
+    long t0 = System.nanoTime();
+    AtomicLong totalCount = new AtomicLong();
+
+    for(int part=0;part<2;part++) {
+      Directory dir = FSDirectory.open(Paths.get("/b/tmp/bkdtest" + part));
+
+      IndexWriterConfig iwc = new IndexWriterConfig(null);
+      iwc.setCodec(getCodec());
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+      //iwc.setMaxBufferedDocs(109630);
+      iwc.setRAMBufferSizeMB(1024);
+      //iwc.setMergePolicy(new LogDocMergePolicy());
+      //iwc.setMergeScheduler(new SerialMergeScheduler());
+      iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+      IndexWriter w = new IndexWriter(dir, iwc);
+
+      Thread[] threads = new Thread[NUM_THREADS];
+      AtomicBoolean finished = new AtomicBoolean();
+      Object lock = new Object();
+
+      final int finalPart = part;
+
+      for(int t=0;t<NUM_THREADS;t++) {
+        threads[t] = new Thread() {
+            @Override
+            public void run() {
+              String[] lines = new String[CHUNK];
+
+              while (finished.get() == false) {
+                try {
+                  int count = CHUNK;
+                  synchronized(lock) {
+                    for(int i=0;i<CHUNK;i++) {
+                      String line = reader.readLine();
+                      if (line == null) {
+                        count = i;
+                        finished.set(true);
+                        break;
+                      }
+                      lines[i] = line;
+                    }
+                    if (finalPart == 0 && totalCount.get() > 2000000000) {
+                      finished.set(true);
+                    }
+                  }
+
+                  for(int i=0;i<count;i++) {
+                    String[] parts = lines[i].split(",");
+                    //long id = Long.parseLong(parts[0]);
+                    double lat = Double.parseDouble(parts[1]);
+                    double lon = Double.parseDouble(parts[2]);
+                    Document doc = new Document();
+                    doc.add(new LatLonPoint("point", lat, lon));
+                    w.addDocument(doc);
+                    long x = totalCount.incrementAndGet();
+                    if (x % 1000000 == 0) {
+                      System.out.println(x + "...");
+                    }
+                  }
+                } catch (IOException ioe) {
+                  throw new RuntimeException(ioe);
+                }
+              }
+            }
+          };
+        threads[t].start();
       }
 
-      String[] parts = line.split(",");
-      //long id = Long.parseLong(parts[0]);
-      double lat = Double.parseDouble(parts[1]);
-      double lon = Double.parseDouble(parts[2]);
-      Document doc = new Document();
-      doc.add(new LatLonPoint("point", lat, lon));
-      w.addDocument(doc);
-      count++;
-      if (count % 1000000 == 0) {
-        System.out.println(count + "...");
+      for(Thread thread : threads) {
+        thread.join();
       }
+
+      System.out.println("Part " + part + " is done: w.maxDoc()=" + w.maxDoc());
+      w.close();
     }
+
     long t1 = System.nanoTime();
     System.out.println(((t1-t0)/1000000000.0) + " sec to index");
-    System.out.println(w.maxDoc() + " total docs");
+    System.out.println(totalCount.get() + " total docs");
     //System.out.println("Force merge...");
     //w.forceMerge(1);
-    long t2 = System.nanoTime();
+    //long t2 = System.nanoTime();
     //System.out.println(((t2-t1)/1000000000.0) + " sec to force merge");
 
-    w.close();
-    long t3 = System.nanoTime();
-    System.out.println(((t3-t2)/1000000000.0) + " sec to close");
+    //w.close();
+    //long t3 = System.nanoTime();
+    //System.out.println(((t3-t2)/1000000000.0) + " sec to close");
+    //System.out.println(((t3-t2)/1000000000.0) + " sec to close");
   }
+
+  private static Codec getCodec() {
+
+    return new FilterCodec("Lucene60", Codec.getDefault()) {
+      @Override
+      public PointsFormat pointsFormat() {
+        return new PointsFormat() {
+          @Override
+          public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
+            int maxPointsInLeafNode = 1024;
+            double maxMBSortInHeap = 512.0;
+            return new Lucene60PointsWriter(writeState, maxPointsInLeafNode, maxMBSortInHeap);
+          }
+
+          @Override
+          public PointsReader fieldsReader(SegmentReadState readState) throws IOException {
+            return new Lucene60PointsReader(readState);
+          }
+        };
+      }
+    };
+  }
+
 
   private static void queryIndex() throws IOException {
     Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkdtest"));
@@ -186,7 +272,7 @@ public class IndexAndSearchOpenStreetMaps {
     IOUtils.close(r, dir);
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws IOException, InterruptedException {
     createIndex();
     queryIndex();
   }

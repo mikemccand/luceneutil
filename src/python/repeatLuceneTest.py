@@ -283,8 +283,7 @@ def _run(threadID):
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'
-      if monsters:
-        command += ' -Dtests.monster=true'
+      command += ' -Dtests.monster=true'
       command += ' -Dtests.cleanthreads=perMethod'
       command += ' -Djava.util.logging.config.file=%s/lucene/tools/junit4/logging.properties' % ROOT
       command += ' -Dtests.timeoutSuite=2147483647'

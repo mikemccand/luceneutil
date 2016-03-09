@@ -21,7 +21,7 @@ import urllib
 import shutil
 import time
 
-BASE_URL = 'http://people.apache.org/~mikemccand'
+BASE_URL = 'http://home.apache.org/~mikemccand'
 DATA_FILES = [
   'enwiki-20120502-lines-1k.txt.lzma',
   'wikimedium500.tasks'

@@ -28,14 +28,12 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.lucene.document.GeoPointField;
-import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.BytesRefBuilder;
-import org.apache.lucene.util.GeoDistanceUtils;
-import org.apache.lucene.util.GeoRect;
-import org.apache.lucene.util.GeoUtils;
-import org.apache.lucene.util.NumericUtils;
-import org.apache.lucene.util.SloppyMath;
+import org.apache.lucene.spatial.geopoint.document.GeoPointField;
+import org.apache.lucene.spatial.util.GeoEncodingUtils;
+import org.apache.lucene.util.*;
+import org.apache.lucene.spatial.util.GeoDistanceUtils;
+import org.apache.lucene.spatial.util.GeoRect;
+import org.apache.lucene.spatial.util.GeoUtils;
 
 /**
  * A validation utility for GeoTermsEnum, computes the ranges and provides utilities to check if a reduced resolution
@@ -77,10 +75,10 @@ public class GeoRangeComputer {
     try {
       this.termEnum = queryEnum;
       this.MAX_SHIFT = queryEnum.computeMaxShift();
-      this.DETAIL_LEVEL = (short)(((GeoUtils.BITS<<1)-this.MAX_SHIFT)/2);
+      this.DETAIL_LEVEL = (short)(((GeoEncodingUtils.BITS<<1)-this.MAX_SHIFT)/2);
 
 //      this.rangeFile = new RangeFile("./ranges.geojson", minLon, minLat, maxLon, maxLat);
-      computeRange(0L, (short) (((GeoUtils.BITS) << 1) - 1));
+      computeRange(0L, (short) (((GeoEncodingUtils.BITS) << 1) - 1));
       assert rangeBounds.isEmpty() == false;
 //      rangeFile.finish();
       Collections.sort(rangeBounds);
@@ -119,12 +117,12 @@ public class GeoRangeComputer {
    * @return
    */
   private void relateAndRecurse(final long start, final long end, final short res) {
-    final double minLon = GeoUtils.mortonUnhashLon(start);
-    final double minLat = GeoUtils.mortonUnhashLat(start);
-    final double maxLon = GeoUtils.mortonUnhashLon(end);
-    final double maxLat = GeoUtils.mortonUnhashLat(end);
+    final double minLon = GeoEncodingUtils.mortonUnhashLon(start);
+    final double minLat = GeoEncodingUtils.mortonUnhashLat(start);
+    final double maxLon = GeoEncodingUtils.mortonUnhashLon(end);
+    final double maxLat = GeoEncodingUtils.mortonUnhashLat(end);
 
-    final short level = (short)((GeoUtils.BITS<<1)-res>>>1);
+    final short level = (short)((GeoEncodingUtils.BITS<<1)-res>>>1);
 
     final boolean within = res % GeoPointField.PRECISION_STEP == 0 && termEnum.cellWithin(minLon, minLat, maxLon, maxLat);
 //    final boolean crosses = cellCrosses(minLon, minLat, maxLon, maxLat);
@@ -199,10 +197,10 @@ public class GeoRangeComputer {
     boolean contained = false;
     for (int i=63; i>=MAX_SHIFT; i-=GeoPointField.PRECISION_STEP) {
       BytesRefBuilder brb = new BytesRefBuilder();
-      NumericUtils.longToPrefixCoded(GeoUtils.mortonHash(lon, lat), i, brb);
+      LegacyNumericUtils.longToPrefixCoded(GeoEncodingUtils.mortonHash(lon, lat), i, brb);
       BytesRef br = brb.get();
       System.out.println(br);
-      final long reducedHash = NumericUtils.prefixCodedToLong(br);
+      final long reducedHash = LegacyNumericUtils.prefixCodedToLong(br);
       if (hset.contains(reducedHash)) {
         contained = true;
         System.out.println("CONTAINED at resolution " + i + " with hash " + reducedHash);
@@ -218,13 +216,13 @@ public class GeoRangeComputer {
     double[] closestPoint = new double[2];
     for (int i=63; i>=GeoPointField.PRECISION_STEP*MAX_SHIFT; i-=9) {
       BytesRefBuilder brb = new BytesRefBuilder();
-      NumericUtils.longToPrefixCoded(GeoUtils.mortonHash(lon, lat), i, brb);
-      final long hash = NumericUtils.prefixCodedToLong(brb.get());
-      final double minX = GeoUtils.mortonUnhashLon(hash);
-      final double minY = GeoUtils.mortonUnhashLat(hash);
+      LegacyNumericUtils.longToPrefixCoded(GeoEncodingUtils.mortonHash(lon, lat), i, brb);
+      final long hash = LegacyNumericUtils.prefixCodedToLong(brb.get());
+      final double minX = GeoEncodingUtils.mortonUnhashLon(hash);
+      final double minY = GeoEncodingUtils.mortonUnhashLat(hash);
       final long hashUpper = hash | ((1L<<i)-1);
-      final double maxX = GeoUtils.mortonUnhashLon(hashUpper);
-      final double maxY = GeoUtils.mortonUnhashLat(hashUpper);
+      final double maxX = GeoEncodingUtils.mortonUnhashLon(hashUpper);
+      final double maxY = GeoEncodingUtils.mortonUnhashLat(hashUpper);
       GeoDistanceUtils.closestPointOnBBox(minX, minY, maxX, maxY, centerLon, centerLat, closestPoint);
       final double distance = SloppyMath.haversin(closestPoint[1], closestPoint[0], centerLat, centerLon)*1000.0;
       System.out.println(i + ": " + closestPoint[0] + ", " + closestPoint[1] + " [" + distance + "]");
@@ -293,7 +291,7 @@ public class GeoRangeComputer {
     Range(final BytesRef term) {
       this.lower = term;
       this.boundary = false;
-      this.lowerVal = NumericUtils.prefixCodedToLong(term);
+      this.lowerVal = LegacyNumericUtils.prefixCodedToLong(term);
       this.upperVal = -1;
       this.level = -1;
     }
@@ -303,11 +301,11 @@ public class GeoRangeComputer {
       this.boundary = boundary;
 
       BytesRefBuilder brb = new BytesRefBuilder();
-      NumericUtils.longToPrefixCodedBytes((this.lowerVal = lower), boundary ? 0 : res, brb);
+      LegacyNumericUtils.longToPrefixCoded((this.lowerVal = lower), boundary ? 0 : res, brb);
       this.lower = brb.get();
-      NumericUtils.longToPrefixCodedBytes((this.upperVal = upper), boundary ? 0 : res, (brb = new BytesRefBuilder()));
+      LegacyNumericUtils.longToPrefixCoded((this.upperVal = upper), boundary ? 0 : res, (brb = new BytesRefBuilder()));
       this.upper = brb.get();
-      NumericUtils.longToPrefixCoded(this.lowerVal, res, (brb = new BytesRefBuilder()));
+      LegacyNumericUtils.longToPrefixCoded(this.lowerVal, res, (brb = new BytesRefBuilder()));
       this.cell = brb.get();
 
     }
@@ -339,15 +337,15 @@ public class GeoRangeComputer {
 
     @Override
     public String toString() {
-      return GeoUtils.geoTermToString(lowerVal) + " " + lowerVal + " " +  cell.toString() + (((this.boundary) ? " cellCrosses " : " within ") + level);
+      return GeoEncodingUtils.geoTermToString(lowerVal) + " " + lowerVal + " " +  cell.toString() + (((this.boundary) ? " cellCrosses " : " within ") + level);
     }
 
     public String toGeoJson() {
 
-      final double llLat = GeoUtils.mortonUnhashLat(lowerVal);
-      final double llLon = GeoUtils.mortonUnhashLon(lowerVal);
-      final double urLat = GeoUtils.mortonUnhashLat(upperVal);
-      final double urLon = GeoUtils.mortonUnhashLon(upperVal);
+      final double llLat = GeoEncodingUtils.mortonUnhashLat(lowerVal);
+      final double llLon = GeoEncodingUtils.mortonUnhashLon(lowerVal);
+      final double urLat = GeoEncodingUtils.mortonUnhashLat(upperVal);
+      final double urLon = GeoEncodingUtils.mortonUnhashLon(upperVal);
       final String coords = "\"coordinates\":[[[" + llLon + "," + llLat + "],[" + urLon + "," + llLat + "],[" + urLon + "," + urLat
           + "],[" + llLon + "," + urLat + "],[" + llLon + "," + llLat + "]]]";
 
@@ -394,8 +392,8 @@ public class GeoRangeComputer {
   }
 
   public static void main(String[] args) {
-    long hash = GeoUtils.mortonHash(-95.95683785493188, 35.30495325717168);
-    System.out.println(GeoUtils.mortonUnhashLon(hash) + ", " + GeoUtils.mortonUnhashLat(hash));
+    long hash = GeoEncodingUtils.mortonHash(-95.95683785493188, 35.30495325717168);
+    System.out.println(GeoEncodingUtils.mortonUnhashLon(hash) + ", " + GeoEncodingUtils.mortonUnhashLat(hash));
 
     System.exit(1);
 

@@ -21,7 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
-import org.apache.lucene.util.GeoRect;
+import org.apache.lucene.spatial.util.GeoRect;
 
 /**
  * A simple command line utility for testing {@code org.apache.lucene.util.}

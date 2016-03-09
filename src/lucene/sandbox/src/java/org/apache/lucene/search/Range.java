@@ -16,10 +16,10 @@ package org.apache.lucene.search;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import org.apache.lucene.spatial.util.GeoEncodingUtils;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
-import org.apache.lucene.util.GeoUtils;
-import org.apache.lucene.util.NumericUtils;
+import org.apache.lucene.util.LegacyNumericUtils;
 
 /**
  * Internal class to represent a range along the space filling curve
@@ -35,7 +35,7 @@ public final class Range implements Comparable<Range> {
 
   public BytesRef asTerm() {
     BytesRefBuilder brb = new BytesRefBuilder();
-    NumericUtils.longToPrefixCodedBytes(this.start, this.shift, brb);
+    LegacyNumericUtils.longToPrefixCoded(this.start, this.shift, brb);
     return brb.get();
   }
 
@@ -56,10 +56,10 @@ public final class Range implements Comparable<Range> {
   }
 
   public static String toGeoJson(final long lowerVal, final long upperVal) {
-    final double llLat = GeoUtils.mortonUnhashLat(lowerVal);
-    final double llLon = GeoUtils.mortonUnhashLon(lowerVal);
-    final double urLat = GeoUtils.mortonUnhashLat(upperVal);
-    final double urLon = GeoUtils.mortonUnhashLon(upperVal);
+    final double llLat = GeoEncodingUtils.mortonUnhashLat(lowerVal);
+    final double llLon = GeoEncodingUtils.mortonUnhashLon(lowerVal);
+    final double urLat = GeoEncodingUtils.mortonUnhashLat(upperVal);
+    final double urLon = GeoEncodingUtils.mortonUnhashLon(upperVal);
     final String coords = "\"coordinates\":[[[" + llLon + "," + llLat + "],[" + urLon + "," + llLat + "],[" + urLon + "," + urLat
         + "],[" + llLon + "," + urLat + "],[" + llLon + "," + llLat + "]]]";
 

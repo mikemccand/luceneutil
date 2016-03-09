@@ -1,8 +1,9 @@
 package org.apache.lucene.search;
 
-import org.apache.lucene.document.GeoPointField;
-import org.apache.lucene.util.GeoRect;
-import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.spatial.geopoint.document.GeoPointField;
+import org.apache.lucene.spatial.util.GeoRect;
+import org.apache.lucene.spatial.util.GeoRelationUtils;
+import org.apache.lucene.spatial.util.GeoUtils;
 import org.apache.lucene.util.SloppyMath;
 
 /**
@@ -17,12 +18,12 @@ abstract class GeoRangeQueryEnum {
 
         @Override
         protected boolean cellCrosses(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-            return GeoUtils.rectCrosses(minLon, minLat, maxLon, maxLat, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
+            return GeoRelationUtils.rectCrosses(minLon, minLat, maxLon, maxLat, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
         }
 
         @Override
         protected boolean cellWithin(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-            return GeoUtils.rectWithin(minLon, minLat, maxLon, maxLat, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
+            return GeoRelationUtils.rectWithin(minLon, minLat, maxLon, maxLat, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
         }
 
         public BBox(double minLon, double minLat, double maxLon, double maxLat) {
@@ -39,12 +40,12 @@ abstract class GeoRangeQueryEnum {
 
         @Override
         protected boolean cellCrosses(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-            return GeoUtils.rectCrossesCircle(minLon, minLat, maxLon, maxLat, cntrLon, cntrLat, radius);
+            return GeoRelationUtils.rectCrossesCircle(minLon, minLat, maxLon, maxLat, cntrLon, cntrLat, radius, true);
         }
 
         @Override
         protected boolean cellWithin(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-            return GeoUtils.rectWithinCircle(minLon, minLat, maxLon, maxLat, cntrLon, cntrLat, radius);
+            return GeoRelationUtils.rectWithinCircle(minLon, minLat, maxLon, maxLat, cntrLon, cntrLat, radius, true);
         }
 
         @Override
@@ -71,12 +72,12 @@ abstract class GeoRangeQueryEnum {
     public static class Polygon extends GeoRangeQueryEnum {
         @Override
         protected boolean cellCrosses(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-            return GeoUtils.rectCrossesPoly(minLon, minLat, maxLon, maxLat, x, y, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
+            return GeoRelationUtils.rectCrossesPolyApprox(minLon, minLat, maxLon, maxLat, x, y, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
         }
 
         @Override
         protected boolean cellWithin(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-            return GeoUtils.rectWithinPoly(minLon, minLat, maxLon, maxLat, x, y, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
+            return GeoRelationUtils.rectWithinPolyApprox(minLon, minLat, maxLon, maxLat, x, y, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
         }
 
         @Override
@@ -103,11 +104,11 @@ abstract class GeoRangeQueryEnum {
     }
 
     protected boolean cellIntersectsMBR(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-        return GeoUtils.rectIntersects(minLon, minLat, maxLon, maxLat, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
+        return GeoRelationUtils.rectIntersects(minLon, minLat, maxLon, maxLat, this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat);
     }
 
     protected boolean cellContains(final double minLon, final double minLat, final double maxLon, final double maxLat) {
-        return GeoUtils.rectWithin(this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat, minLon, minLat, maxLon, maxLat);
+        return GeoRelationUtils.rectWithin(this.mbr.minLon, this.mbr.minLat, this.mbr.maxLon, this.mbr.maxLat, minLon, minLat, maxLon, maxLat);
     }
 
     abstract boolean cellIntersectsShape(final double minLon, final double minLat, final double maxLon, final double maxLat);

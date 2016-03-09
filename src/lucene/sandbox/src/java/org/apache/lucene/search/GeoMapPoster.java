@@ -24,7 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 
-import org.apache.lucene.util.GeoRect;
+import org.apache.lucene.spatial.util.GeoRect;
 import org.json.JSONArray;
 import org.json.JSONObject;
 

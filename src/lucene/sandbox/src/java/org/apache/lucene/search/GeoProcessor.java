@@ -1,14 +1,8 @@
 package org.apache.lucene.search;
 
-import org.apache.lucene.document.GeoPointField;
-import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.BytesRefBuilder;
-import org.apache.lucene.util.GeoDistanceUtils;
-import org.apache.lucene.util.GeoProjectionUtils;
-import org.apache.lucene.util.GeoRect;
-import org.apache.lucene.util.GeoUtils;
-import org.apache.lucene.util.NumericUtils;
-import org.apache.lucene.util.SloppyMath;
+import org.apache.lucene.spatial.geopoint.document.GeoPointField;
+import org.apache.lucene.spatial.util.*;
+import org.apache.lucene.util.*;
 import org.json.JSONObject;
 
 import java.util.List;
@@ -26,10 +20,10 @@ public class GeoProcessor extends GeoCalculator {
 
     private static void postTermsEnumToMap(GeoRangeComputer[] grc) {
         for (GeoRangeComputer c : grc) {
-            mapPoster.post(mapPoster.toJSON(c.mbr()));
+//            mapPoster.post(mapPoster.toJSON(c.mbr()));
             for (GeoRangeComputer.Range rng : c.rangeBounds) {
                 try {
-                    Thread.sleep(150);
+                    Thread.sleep(300);
                     mapPoster.post(new JSONObject(rng.toGeoJson()));
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -59,7 +53,7 @@ public class GeoProcessor extends GeoCalculator {
         System.out.print(" Enter Distance: ");
         double distance = in.nextDouble();
 
-        double[] location = GeoProjectionUtils.pointFromLonLatBearing(pts[0][LON_INDEX], pts[0][LAT_INDEX], bearing, distance, null);
+        double[] location = GeoProjectionUtils.pointFromLonLatBearingGreatCircle(pts[0][LON_INDEX], pts[0][LAT_INDEX], bearing, distance, null);
         System.out.println("\n Vincenty: " + location[LON_INDEX] + ", " + location[LAT_INDEX]);
         System.out.println(" Karney  :  *** IN WORK ***");
     }
@@ -230,14 +224,14 @@ public class GeoProcessor extends GeoCalculator {
 
         for (int i=63; i>=45; i-= GeoPointField.PRECISION_STEP) {
             BytesRefBuilder brb = new BytesRefBuilder();
-            NumericUtils.longToPrefixCoded(GeoUtils.mortonHash(point[0][LON_INDEX], point[0][LAT_INDEX]), i, brb);
+            LegacyNumericUtils.longToPrefixCoded(GeoEncodingUtils.mortonHash(point[0][LON_INDEX], point[0][LAT_INDEX]), i, brb);
             BytesRef br = brb.get();
-            hash = NumericUtils.prefixCodedToLong(br);
+            hash = LegacyNumericUtils.prefixCodedToLong(br);
             hashUpper = hash | ((1L<<i)-1);
-            lon = GeoUtils.mortonUnhashLon(hash);
-            lat = GeoUtils.mortonUnhashLat(hash);
-            lonUpper = GeoUtils.mortonUnhashLon(hashUpper);
-            latUpper = GeoUtils.mortonUnhashLat(hashUpper);
+            lon = GeoEncodingUtils.mortonUnhashLon(hash);
+            lat = GeoEncodingUtils.mortonUnhashLat(hash);
+            lonUpper = GeoEncodingUtils.mortonUnhashLon(hashUpper);
+            latUpper = GeoEncodingUtils.mortonUnhashLat(hashUpper);
             System.out.println(i + ": " + br + " " + hash + " (" + lon + "," + lat + ")" + " : " + "(" + lonUpper + "," + latUpper + ")");
         }
     }
@@ -273,7 +267,7 @@ public class GeoProcessor extends GeoCalculator {
         double[][] cntr = getPoints(in, 1);
         double r = getRadius(in);
 
-        System.out.println(" Rectangle " + (GeoUtils.rectCrossesCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
+        System.out.println(" Rectangle " + (GeoRelationUtils.rectCrossesCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
                 cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r) ? " Crosses Circle" : " does not cross circle"));
 
         if (postToMap) {
@@ -293,8 +287,8 @@ public class GeoProcessor extends GeoCalculator {
         double[][] cntr = getPoints(in, 1);
         double r = getRadius(in);
 
-        System.out.println(" Rectangle " + (GeoUtils.rectWithinCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
-                cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r) ? "within" : "not within") + " circle");
+        System.out.println(" Rectangle " + (GeoRelationUtils.rectWithinCircle(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
+                cntr[0][LON_INDEX], cntr[0][LAT_INDEX], r, true) ? "within" : "not within") + " circle");
 
         if (postToMap) {
             // draw rectangle
@@ -313,11 +307,11 @@ public class GeoProcessor extends GeoCalculator {
         double[][] polyTrans = transposePoly(poly);
         GeoRect polyBBox = GeoUtils.polyToBBox(polyTrans[LON_INDEX], polyTrans[LAT_INDEX]);
 
-        boolean within = GeoUtils.rectWithinPoly(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat, polyTrans[LON_INDEX],
+        boolean within = GeoRelationUtils.rectWithinPolyApprox(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat, polyTrans[LON_INDEX],
                 polyTrans[LAT_INDEX], polyBBox.minLon, polyBBox.minLat, polyBBox.maxLon, polyBBox.maxLat);
-        boolean crosses = GeoUtils.rectCrossesPoly(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
+        boolean crosses = GeoRelationUtils.rectCrossesPolyApprox(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat,
                 polyTrans[LON_INDEX], polyTrans[LAT_INDEX], polyBBox.minLon, polyBBox.minLat, polyBBox.maxLon, polyBBox.maxLat);
-        boolean contains = GeoUtils.rectContains(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat, polyBBox.minLon, polyBBox.minLat,
+        boolean contains = GeoRelationUtils.rectContains(rect.minLon, rect.minLat, rect.maxLon, rect.maxLat, polyBBox.minLon, polyBBox.minLat,
                 polyBBox.maxLon, polyBBox.maxLat);
 
         System.out.print(" Rectangle ");

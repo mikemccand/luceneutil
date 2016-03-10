@@ -1,3 +1,4 @@
+import pysftp
 import re
 import shutil
 import time
@@ -191,17 +192,22 @@ def backTest():
       print('  already done')
     
     then = then - datetime.timedelta(days=1)
-    
+
+def copyChart():
+  with pysftp.Connection('home.apache.org', username='mikemccand') as c:
+    with c.cd('public_html/lucenebench'):
+      #c.mkdir('lucenebench')
+      # TODO: this is not incremental...
+      c.put('%s/antcleantest.html' % constants.NIGHTLY_REPORTS_DIR, 'antcleantest.html')
+
 if __name__ == '__main__':
   if '-chart' in sys.argv: 
     writeGraph()
-    if os.system('scp %s/antcleantest.html mikemccand@people.apache.org:public_html/lucenebench' % constants.NIGHTLY_REPORTS_DIR):
-      raise RuntimeError('scp failed')
+    copyChart()
   elif '-backTest' in sys.argv:
     print('\nNow run nightly ant test')
     backTest()
   else:
     runOneDay(getLogFile(datetime.datetime.now()))
     writeGraph()
-    if os.system('scp %s/antcleantest.html mikemccand@people.apache.org:public_html/lucenebench' % constants.NIGHTLY_REPORTS_DIR):
-      raise RuntimeError('scp failed')
+    copyChart()

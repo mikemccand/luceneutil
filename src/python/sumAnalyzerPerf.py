@@ -146,5 +146,7 @@ with open('analyzers.html', 'w') as f:
   </html>
   ''')
 
-if os.system('scp analyzers.html mikemccand@people.apache.org:public_html/lucenebench'):
-  raise RuntimeError('scp failed')
+import pysftp
+with pysftp.Connection('home.apache.org', username='mikemccand') as c:
+  with c.cd('public_html/lucenebench'):
+    c.put('analyzers.html', 'analyzers.html')

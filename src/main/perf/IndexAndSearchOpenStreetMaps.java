@@ -71,24 +71,24 @@ public class IndexAndSearchOpenStreetMaps {
         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
     int BUFFER_SIZE = 1 << 16;     // 64K
-    //InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
-    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
+    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
+    //InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    int NUM_THREADS = 4;
+    int NUM_THREADS = 1;
     int CHUNK = 10000;
 
     long t0 = System.nanoTime();
     AtomicLong totalCount = new AtomicLong();
 
     for(int part=0;part<2;part++) {
-      Directory dir = FSDirectory.open(Paths.get("/b/tmp/bkdtest" + part));
+      Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkdtest" + part));
 
       IndexWriterConfig iwc = new IndexWriterConfig(null);
       iwc.setCodec(getCodec());
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
       //iwc.setMaxBufferedDocs(109630);
-      iwc.setRAMBufferSizeMB(1024);
+      iwc.setRAMBufferSizeMB(128);
       //iwc.setMergePolicy(new LogDocMergePolicy());
       //iwc.setMergeScheduler(new SerialMergeScheduler());
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -151,12 +151,13 @@ public class IndexAndSearchOpenStreetMaps {
       }
 
       System.out.println("Part " + part + " is done: w.maxDoc()=" + w.maxDoc());
+      w.forceMerge(1);
       w.close();
     }
 
     long t1 = System.nanoTime();
     System.out.println(((t1-t0)/1000000000.0) + " sec to index");
-    System.out.println(totalCount.get() + " total docs");
+    //System.out.println(totalCount.get() + " total docs");
     //System.out.println("Force merge...");
     //w.forceMerge(1);
     //long t2 = System.nanoTime();

@@ -4,7 +4,7 @@ import re
 import datetime
 import math
 
-# see http://people.apache.org/~mikemccand/lucenebench/iw.html as an example
+# see http://home.apache.org/~mikemccand/lucenebench/iw.html as an example
 
 # TODO
 #   - add chart showing %tg deletes

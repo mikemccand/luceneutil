@@ -24,10 +24,10 @@ from localconstants import *
 if 'BENCH_BASE_DIR' not in globals():
   BENCH_BASE_DIR = '%s/util' % BASE_DIR
 
-# wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
+# wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 #WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
 
-# wget http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
+# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
@@ -37,7 +37,7 @@ WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % B
 WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 
-# wget http://people.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
+# wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR
 #WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
 WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
@@ -52,7 +52,7 @@ WIKI_BIG_DOCS_COUNT = 6726515
 #WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
 
 # 5607746 docs:
-# wget http://people.apache.org/~mikemccand/europarl.para.lines.txt
+# wget http://home.apache.org/~mikemccand/europarl.para.lines.txt
 EUROPARL_MEDIUM_DOCS_LINE_FILE = '%s/data/europarl.para.lines.txt' % BASE_DIR
 EUROPARL_MEDIUM_TASKS_FILE = '%s/data/europarlmedium.tasks' % BASE_DIR
 

@@ -17,6 +17,41 @@ package perf;
  * limitations under the License.
  */
 
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.FilterCodec;
+import org.apache.lucene.codecs.PointsFormat;
+import org.apache.lucene.codecs.PointsReader;
+import org.apache.lucene.codecs.PointsWriter;
+import org.apache.lucene.codecs.lucene60.Lucene60PointsReader;
+import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.index.CodecReader;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SegmentReadState;
+import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.spatial.geopoint.document.GeoPointField;
+import org.apache.lucene.spatial.geopoint.search.GeoPointDistanceQuery;
+import org.apache.lucene.spatial3d.Geo3DPoint;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Accountable;
+import org.apache.lucene.util.Accountables;
+import org.apache.lucene.util.IOUtils;
+import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.SloppyMath;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,39 +65,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.FilterCodec;
-import org.apache.lucene.codecs.PointsFormat;
-import org.apache.lucene.codecs.PointsReader;
-import org.apache.lucene.codecs.PointsWriter;
-import org.apache.lucene.codecs.lucene60.Lucene60PointsReader;
-import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.LatLonPoint;
-import org.apache.lucene.index.CodecReader;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.LogDocMergePolicy;
-import org.apache.lucene.index.SegmentReadState;
-import org.apache.lucene.index.SegmentWriteState;
-import org.apache.lucene.index.SerialMergeScheduler;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TotalHitCountCollector;
-import org.apache.lucene.spatial.util.GeoDistanceUtils;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Accountable;
-import org.apache.lucene.util.Accountables;
-import org.apache.lucene.util.IOUtils;
-import org.apache.lucene.util.PrintStreamInfoStream;
-
 // javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
 public class IndexAndSearchOpenStreetMaps {
+
+  static final boolean useGeoPoint = false;
+  static final boolean useGeo3D = true;
+
+  private static String getName(int part) {
+    String name = "/b/osm" + part;
+    if (useGeoPoint) {
+      name += ".postings";
+    } else if (useGeo3D) {
+      name += ".geo3d";
+    }
+    return name;
+  }
 
   private static void createIndex() throws IOException, InterruptedException {
 
@@ -71,24 +89,25 @@ public class IndexAndSearchOpenStreetMaps {
         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
     int BUFFER_SIZE = 1 << 16;     // 64K
-    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
-    //InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
+    //InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
+    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    int NUM_THREADS = 1;
+    int NUM_THREADS = 8;
     int CHUNK = 10000;
 
     long t0 = System.nanoTime();
     AtomicLong totalCount = new AtomicLong();
 
     for(int part=0;part<2;part++) {
-      Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkdtest" + part));
+      Directory dir = FSDirectory.open(Paths.get(getName(part)));
 
       IndexWriterConfig iwc = new IndexWriterConfig(null);
       iwc.setCodec(getCodec());
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+      ((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(Double.POSITIVE_INFINITY);
       //iwc.setMaxBufferedDocs(109630);
-      iwc.setRAMBufferSizeMB(128);
+      iwc.setRAMBufferSizeMB(1024);
       //iwc.setMergePolicy(new LogDocMergePolicy());
       //iwc.setMergeScheduler(new SerialMergeScheduler());
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -130,7 +149,15 @@ public class IndexAndSearchOpenStreetMaps {
                     double lat = Double.parseDouble(parts[1]);
                     double lon = Double.parseDouble(parts[2]);
                     Document doc = new Document();
-                    doc.add(new LatLonPoint("point", lat, lon));
+                    if (useGeoPoint) {
+                      doc.add(new GeoPointField("geo", lon, lat, Field.Store.NO));
+                    } else if (useGeo3D) {
+                      lat = toRadians(lat);
+                      lon = toRadians(lon);
+                      doc.add(new Geo3DPoint("point", lat, lon));
+                    } else {
+                      doc.add(new LatLonPoint("point", lat, lon));
+                    }
                     w.addDocument(doc);
                     long x = totalCount.incrementAndGet();
                     if (x % 1000000 == 0) {
@@ -151,6 +178,8 @@ public class IndexAndSearchOpenStreetMaps {
       }
 
       System.out.println("Part " + part + " is done: w.maxDoc()=" + w.maxDoc());
+      w.commit();
+      System.out.println("done commit");
       w.forceMerge(1);
       w.close();
     }
@@ -178,7 +207,7 @@ public class IndexAndSearchOpenStreetMaps {
           @Override
           public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
             int maxPointsInLeafNode = 1024;
-            double maxMBSortInHeap = 512.0;
+            double maxMBSortInHeap = 1024.0;
             return new Lucene60PointsWriter(writeState, maxPointsInLeafNode, maxMBSortInHeap);
           }
 
@@ -193,21 +222,28 @@ public class IndexAndSearchOpenStreetMaps {
 
 
   private static void queryIndex() throws IOException {
-    Directory dir = FSDirectory.open(Paths.get("/l/tmp/bkdtest"));
-    System.out.println("DIR: " + dir);
-    IndexReader r = DirectoryReader.open(dir);
-    long bytes = 0;
-    for(LeafReaderContext ctx : r.leaves()) {
-      CodecReader cr = (CodecReader) ctx.reader();
-      for(Accountable acc : cr.getChildResources()) {
-        System.out.println("  " + Accountables.toString(acc));
-      }
-      bytes += cr.ramBytesUsed();
+    int NUM_PARTS = 2;
+    IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
+    Directory[] dirs = new Directory[NUM_PARTS];
+    for(int part=0;part<NUM_PARTS;part++) {
+      dirs[part] = FSDirectory.open(Paths.get(getName(part)));
+      searchers[part] = new IndexSearcher(DirectoryReader.open(dirs[part]));
     }
-    System.out.println("READER MB: " + (bytes/1024./1024.));
-
-    System.out.println("maxDoc=" + r.maxDoc());
-    IndexSearcher s = new IndexSearcher(r);
+    long bytes = 0;
+    long maxDoc = 0;
+    for(IndexSearcher s : searchers) {
+      IndexReader r = s.getIndexReader();
+      maxDoc += r.maxDoc();
+      for(LeafReaderContext ctx : r.leaves()) {
+        CodecReader cr = (CodecReader) ctx.reader();
+        for(Accountable acc : cr.getChildResources()) {
+          System.out.println("  " + Accountables.toString(acc));
+        }
+        bytes += cr.ramBytesUsed();
+      }
+      System.out.println("READER MB: " + (bytes/1024./1024.));
+    }
+    System.out.println("maxDoc=" + maxDoc);
     //SegmentReader sr = (SegmentReader) r.leaves().get(0).reader();
     //BKDTreeReader reader = ((BKDTreeSortedNumericDocValues) sr.getSortedNumericDocValues("point")).getBKDTreeReader();
 
@@ -248,18 +284,26 @@ public class IndexAndSearchOpenStreetMaps {
               double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
 
               //Query q = new PointInRectQuery("point", lat, latEnd, lon, lonEnd);
-              double distance = GeoDistanceUtils.haversin(lat, lon, latEnd, lonEnd)/2.0;
-              Query q = LatLonPoint.newDistanceQuery("point", (lat+latEnd)/2, (lon+lonEnd)/2, distance);
-              TotalHitCountCollector c = new TotalHitCountCollector();
+              double distance = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
+              Query q;
+              if (useGeoPoint) {
+                q = new GeoPointDistanceQuery("geo", (lon+lonEnd)/2.0, (lat+latEnd)/2.0, distance);
+              } else {
+                q = LatLonPoint.newDistanceQuery("point", (lat+latEnd)/2, (lon+lonEnd)/2, distance);
+              }
+              
               //long t0 = System.nanoTime();
-              s.search(q, c);
+              for(IndexSearcher s : searchers) {
+                TotalHitCountCollector c = new TotalHitCountCollector();
+                s.search(q, c);
+                totHits += c.getTotalHits();
+              }
 
               //System.out.println("\nITER: now query lat=" + lat + " latEnd=" + latEnd + " lon=" + lon + " lonEnd=" + lonEnd);
               //Bits hits = reader.intersect(lat, latEnd, lon, lonEnd);
               //System.out.println("  total hits: " + hitCount);
               //totHits += ((FixedBitSet) hits).cardinality();
               //System.out.println("  add tot " + c.getTotalHits());
-              totHits += c.getTotalHits();
               queryCount++;
             }
           }
@@ -270,11 +314,18 @@ public class IndexAndSearchOpenStreetMaps {
       System.out.println("ITER: " + iter + " " + ((tEnd-tStart)/1000000000.0) + " sec; totHits=" + totHits + "; " + queryCount + " queries");
     }
 
-    IOUtils.close(r, dir);
+    for(IndexSearcher s : searchers) {
+      s.getIndexReader().close();
+    }
+    IOUtils.close(dirs);
   }
 
   public static void main(String[] args) throws IOException, InterruptedException {
     createIndex();
     queryIndex();
+  }
+
+  private static double toRadians(double degrees) {
+    return Math.PI*(degrees/360.0);
   }
 }

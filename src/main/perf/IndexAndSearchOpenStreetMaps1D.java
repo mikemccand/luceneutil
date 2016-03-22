@@ -25,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.document.Document;
@@ -73,12 +72,13 @@ public class IndexAndSearchOpenStreetMaps1D {
     InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    Directory dir = FSDirectory.open(Paths.get("/l/tmp/1dkd" + (USE_NF ? "_nf" : "")));
+    Directory dir = FSDirectory.open(Paths.get("/b/tmp/bkdtest1d" + (USE_NF ? "_nf" : "")));
 
-    IndexWriterConfig iwc = new IndexWriterConfig(new WhitespaceAnalyzer());
+    IndexWriterConfig iwc = new IndexWriterConfig(null);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setMaxBufferedDocs(109630);
-    iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+    //iwc.setMaxBufferedDocs(109630);
+    //iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+    iwc.setRAMBufferSizeMB(256.0);
     iwc.setMergePolicy(new LogDocMergePolicy());
     iwc.setMergeScheduler(new SerialMergeScheduler());
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -110,6 +110,7 @@ public class IndexAndSearchOpenStreetMaps1D {
         System.out.println(count + "...");
       }
     }
+    w.forceMerge(1);
     w.commit();
     System.out.println(w.maxDoc() + " total docs");
 
@@ -153,7 +154,7 @@ public class IndexAndSearchOpenStreetMaps1D {
               if (USE_NF) {
                 q = LegacyNumericRangeQuery.newIntRange("latnum", (int) (1000000. * lat), (int) (1000000. * latEnd), true, true);
               } else {
-                q = PointRangeQuery.new1DIntRange("lat", (int) (1000000. * lat), true, (int) (1000000. * latEnd), true);
+                q = IntPoint.newRangeQuery("lat", (int) (1000000. * lat), (int) (1000000. * latEnd));
               }
 
               TotalHitCountCollector c = new TotalHitCountCollector();

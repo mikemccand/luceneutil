@@ -45,6 +45,8 @@ ROOT = common.findRootDir(os.getcwd())
 # randomizedtesting's runner:
 USE_JUNIT = True
 
+ASSERTS = True
+
 osName = common.osName
 
 #JAVA_ARGS = '-Xmx512m -Xms512m -XX:+UseG1GC'
@@ -279,7 +281,9 @@ def _run(threadID):
       if not onlyOnce:
         iter = nextIter(threadID, logFileName, secLastIter)
 
-      command = '%s %s -DtempDir=%s -ea:org.apache.lucene... -ea:org.apache.solr...' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
+      command = '%s %s -DtempDir=%s' % (constants.JAVA_EXE, JAVA_ARGS, TEST_TEMP_DIR)
+      if ASSERTS:
+        command += ' -ea:org.apache.lucene... -ea:org.apache.solr...'
       #command += ' -Dtests.locale=random'
       #command += ' -Dtests.timezone=random'
       #command += ' -Dtests.lockdir=build'
@@ -314,7 +318,10 @@ def _run(threadID):
       command += ' -Djetty.testMode=1'
       command += ' -Djetty.insecurerandom=1'
       command += ' -Dtests.asserts.gracious=false'
-      command += ' -Dtests.asserts=true'
+      if ASSERTS:
+        command += ' -Dtests.asserts=true'
+      else:
+        command += ' -Dtests.asserts=false'
       #command += ' -Djava.security.policy=%s/lucene/tools/junit4/tests.policy' % ROOT
       #command += ' -Djava.security.manager=org.apache.lucene.util.TestSecurityManager'
 

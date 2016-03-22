@@ -70,7 +70,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class IndexAndSearchOpenStreetMaps {
 
   static final boolean useGeoPoint = false;
-  static final boolean useGeo3D = true;
+  static final boolean useGeo3D = false;
+  static final boolean SMALL = true;
+  static final int NUM_PARTS = SMALL ? 1 : 2;
 
   private static String getName(int part) {
     String name = "/b/osm" + part;
@@ -89,17 +91,21 @@ public class IndexAndSearchOpenStreetMaps {
         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
     int BUFFER_SIZE = 1 << 16;     // 64K
-    //InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
-    InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
+    InputStream is;
+    if (SMALL) {
+      is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
+    } else {
+      is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
+    }
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    int NUM_THREADS = 8;
+    int NUM_THREADS = 1;
     int CHUNK = 10000;
 
     long t0 = System.nanoTime();
     AtomicLong totalCount = new AtomicLong();
 
-    for(int part=0;part<2;part++) {
+    for(int part=0;part<NUM_PARTS;part++) {
       Directory dir = FSDirectory.open(Paths.get(getName(part)));
 
       IndexWriterConfig iwc = new IndexWriterConfig(null);
@@ -107,9 +113,12 @@ public class IndexAndSearchOpenStreetMaps {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
       ((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(Double.POSITIVE_INFINITY);
       //iwc.setMaxBufferedDocs(109630);
-      iwc.setRAMBufferSizeMB(1024);
+      //iwc.setRAMBufferSizeMB(1024);
       //iwc.setMergePolicy(new LogDocMergePolicy());
       //iwc.setMergeScheduler(new SerialMergeScheduler());
+      //iwc.setRAMBufferSizeMB(1024);
+      iwc.setMergePolicy(new LogDocMergePolicy());
+      iwc.setMergeScheduler(new SerialMergeScheduler());
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
       IndexWriter w = new IndexWriter(dir, iwc);
 
@@ -180,12 +189,14 @@ public class IndexAndSearchOpenStreetMaps {
       System.out.println("Part " + part + " is done: w.maxDoc()=" + w.maxDoc());
       w.commit();
       System.out.println("done commit");
+      long t1 = System.nanoTime();
+      System.out.println(((t1-t0)/1000000000.0) + " sec to index part " + part);
       w.forceMerge(1);
+      long t2 = System.nanoTime();
+      System.out.println(((t2-t1)/1000000000.0) + " sec to force merge part " + part);
       w.close();
     }
 
-    long t1 = System.nanoTime();
-    System.out.println(((t1-t0)/1000000000.0) + " sec to index");
     //System.out.println(totalCount.get() + " total docs");
     //System.out.println("Force merge...");
     //w.forceMerge(1);
@@ -199,7 +210,9 @@ public class IndexAndSearchOpenStreetMaps {
   }
 
   private static Codec getCodec() {
+    return Codec.forName("Lucene60");
 
+    /*
     return new FilterCodec("Lucene60", Codec.getDefault()) {
       @Override
       public PointsFormat pointsFormat() {
@@ -218,11 +231,11 @@ public class IndexAndSearchOpenStreetMaps {
         };
       }
     };
+    */
   }
 
 
   private static void queryIndex() throws IOException {
-    int NUM_PARTS = 2;
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
     for(int part=0;part<NUM_PARTS;part++) {
@@ -241,8 +254,8 @@ public class IndexAndSearchOpenStreetMaps {
         }
         bytes += cr.ramBytesUsed();
       }
-      System.out.println("READER MB: " + (bytes/1024./1024.));
     }
+    System.out.println("READER MB: " + (bytes/1024./1024.));
     System.out.println("maxDoc=" + maxDoc);
     //SegmentReader sr = (SegmentReader) r.leaves().get(0).reader();
     //BKDTreeReader reader = ((BKDTreeSortedNumericDocValues) sr.getSortedNumericDocValues("point")).getBKDTreeReader();

@@ -26,6 +26,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -307,10 +308,12 @@ public class IndexAndSearchOpenStreetMaps {
     double MAX_LAT = 51.6542719;
     double MIN_LON = -0.3867282;
     double MAX_LON = 0.8492337;
+    double bestQPS = Double.NEGATIVE_INFINITY;
     for(int iter=0;iter<100;iter++) {
       long tStart = System.nanoTime();
       long totHits = 0;
       int queryCount = 0;
+
       for(int latStep=0;latStep<STEPS;latStep++) {
         double lat = MIN_LAT + latStep * (MAX_LAT - MIN_LAT) / STEPS;
         for(int lonStep=0;lonStep<STEPS;lonStep++) {
@@ -360,7 +363,15 @@ public class IndexAndSearchOpenStreetMaps {
       }
 
       long tEnd = System.nanoTime();
-      System.out.println("ITER: " + iter + " " + ((tEnd-tStart)/1000000000.0) + " sec; totHits=" + totHits + "; " + queryCount + " queries");
+      double elapsedSec = (tEnd-tStart)/1000000000.0;
+      double qps = queryCount / elapsedSec;
+      System.out.println(String.format(Locale.ROOT,
+                                       "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                       iter, qps, elapsedSec, queryCount, totHits));
+      if (qps > bestQPS) {
+        System.out.println("  ***");
+        bestQPS = qps;
+      }
     }
 
     for(IndexSearcher s : searchers) {

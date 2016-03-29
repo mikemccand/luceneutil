@@ -343,7 +343,7 @@ def _run(threadID):
       else:
         print('RUN: %s\n\n' % command)
 
-      print('command: %s' % command)
+      # print('command: %s' % command)
 
       if os.path.exists(TEST_TEMP_DIR):
         #print '  remove %s' % TEST_TEMP_DIR

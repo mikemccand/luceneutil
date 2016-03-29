@@ -110,6 +110,8 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + '/lucene/build/queries/classes/test')
   CP.append(ROOT + '/lucene/build/spatial/classes/test')
   CP.append(ROOT + '/lucene/build/spatial/classes/java')
+  CP.append(ROOT + '/lucene/build/spatial-extras/classes/test')
+  CP.append(ROOT + '/lucene/build/spatial-extras/classes/java')
   CP.append(ROOT + '/lucene/build/spatial3d/classes/test')
   CP.append(ROOT + '/lucene/build/spatial3d/classes/java')
   CP.append(ROOT + '/lucene/spatial/src/test-files')

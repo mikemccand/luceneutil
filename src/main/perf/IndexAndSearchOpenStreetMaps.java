@@ -17,6 +17,19 @@ package perf;
  * limitations under the License.
  */
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.PointsFormat;
@@ -44,6 +57,10 @@ import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.spatial.geopoint.document.GeoPointField;
 import org.apache.lucene.spatial.geopoint.search.GeoPointDistanceQuery;
 import org.apache.lucene.spatial3d.Geo3DPoint;
+import org.apache.lucene.spatial3d.geom.GeoCircleFactory;
+import org.apache.lucene.spatial3d.geom.GeoPoint;
+import org.apache.lucene.spatial3d.geom.GeoShape;
+import org.apache.lucene.spatial3d.geom.PlanetModel;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Accountable;
@@ -52,27 +69,17 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-
 // javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
 public class IndexAndSearchOpenStreetMaps {
 
-  static final boolean useGeoPoint = false;
-  static final boolean useGeo3D = false;
+  static boolean useGeoPoint = false;
+  static boolean useGeo3D = false;
+  static boolean useLatLonPoint = false;
   static final boolean SMALL = true;
-  static final int NUM_PARTS = SMALL ? 1 : 2;
+  // nocommit
+  //static final int NUM_PARTS = SMALL ? 1 : 2;
+  static final int NUM_PARTS = SMALL ? 1 : 1;
 
   private static String getName(int part) {
     String name = "/b/osm" + part;
@@ -80,8 +87,10 @@ public class IndexAndSearchOpenStreetMaps {
       name += ".postings";
     } else if (useGeo3D) {
       name += ".geo3d";
-    } else {
+    } else if (useLatLonPoint) {
       name += ".points";
+    } else {
+      throw new AssertionError();
     }
     if (SMALL) {
       name += ".small";
@@ -120,10 +129,9 @@ public class IndexAndSearchOpenStreetMaps {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
       ((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(Double.POSITIVE_INFINITY);
       //iwc.setMaxBufferedDocs(109630);
-      //iwc.setRAMBufferSizeMB(1024);
+      iwc.setRAMBufferSizeMB(1024);
       //iwc.setMergePolicy(new LogDocMergePolicy());
       //iwc.setMergeScheduler(new SerialMergeScheduler());
-      iwc.setRAMBufferSizeMB(1024);
       iwc.setMergePolicy(new LogDocMergePolicy());
       iwc.setMergeScheduler(new SerialMergeScheduler());
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -154,7 +162,7 @@ public class IndexAndSearchOpenStreetMaps {
                       }
                       lines[i] = line;
                     }
-                    if (finalPart == 0 && totalCount.get() > 2000000000) {
+                    if (finalPart == 0 && totalCount.get() >= 2000000000) {
                       finished.set(true);
                     }
                   }
@@ -248,10 +256,15 @@ public class IndexAndSearchOpenStreetMaps {
   private static void queryIndex() throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
+    long sizeOnDisk = 0;
     for(int part=0;part<NUM_PARTS;part++) {
       dirs[part] = FSDirectory.open(Paths.get(getName(part)));
       searchers[part] = new IndexSearcher(DirectoryReader.open(dirs[part]));
+      for(String name : dirs[part].listAll()) {
+        sizeOnDisk += dirs[part].fileLength(name);
+      }
     }
+    System.out.println("INDEX SIZE: " + (sizeOnDisk/1024./1024./1024.) + " GB");
     long bytes = 0;
     long maxDoc = 0;
     for(IndexSearcher s : searchers) {
@@ -309,17 +322,29 @@ public class IndexAndSearchOpenStreetMaps {
               //Query q = new PointInRectQuery("point", lat, latEnd, lon, lonEnd);
               double distance = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
               Query q;
-              if (useGeoPoint) {
-                q = new GeoPointDistanceQuery("geo", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, distance);
+              double centerLat = (lat+latEnd)/2.0;
+              double centerLon = (lon+lonEnd)/2.0;
+              if (useGeo3D) {
+                GeoPoint p1 = new GeoPoint(PlanetModel.WGS84, toRadians(lat), toRadians(lon));
+                GeoPoint p2 = new GeoPoint(PlanetModel.WGS84, toRadians(latEnd), toRadians(lonEnd));
+                double radiusAngle = p1.arcDistance(p2)/2.0;
+                GeoPoint center = PlanetModel.WGS84.bisection(p1, p2);
+                //GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, toRadians(centerLat), toRadians(centerLon), radiusAngle);
+                GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, center.getLatitude(), center.getLongitude(), radiusAngle);
+                q = Geo3DPoint.newShapeQuery("point", shape);
+              } else if (useLatLonPoint) {
+                q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distance);
               } else {
-                q = LatLonPoint.newDistanceQuery("point", (lat+latEnd)/2, (lon+lonEnd)/2, distance);
+                q = new GeoPointDistanceQuery("geo", centerLat, centerLon, distance);
               }
               
               //long t0 = System.nanoTime();
               for(IndexSearcher s : searchers) {
-                TotalHitCountCollector c = new TotalHitCountCollector();
-                s.search(q, c);
-                totHits += c.getTotalHits();
+                int hitCount = s.count(q);
+                totHits += hitCount;
+                if (false && iter == 0) {
+                  System.out.println("lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distance + " hits: " + hitCount);
+                }
               }
 
               //System.out.println("\nITER: now query lat=" + lat + " latEnd=" + latEnd + " lon=" + lon + " lonEnd=" + lonEnd);
@@ -344,7 +369,38 @@ public class IndexAndSearchOpenStreetMaps {
   }
 
   public static void main(String[] args) throws IOException, InterruptedException {
-    createIndex();
+    int count = 0;
+    boolean reindex = false;
+    for(String arg : args) {
+      if (arg.equals("-reindex")) {
+        reindex = true;
+      } else if (arg.equals("-points")) {
+        useLatLonPoint = true;
+        count++;
+      } else if (arg.equals("-geopoint")) {
+        useGeoPoint = true;
+        count++;
+      } else if (arg.equals("-geo3d")) {
+        useGeo3D = true;
+        count++;
+      }
+    }
+    if (count == 0) {
+      throw new IllegalArgumentException("must specify exactly one of -points, -geopoint or -geo3d; got none");
+    } else if (count > 1) {
+      throw new IllegalArgumentException("must specify exactly one of -points, -geopoint or -geo3d; got more than one");
+    }
+    if (useGeo3D) {
+      System.out.println("Using geo3d");
+    } else if (useLatLonPoint) {
+      System.out.println("Using points");
+    } else {
+      System.out.println("Using geopoint");
+    }
+
+    if (reindex) {
+      createIndex();
+    }
     queryIndex();
   }
 

@@ -80,6 +80,13 @@ public class IndexAndSearchOpenStreetMaps {
       name += ".postings";
     } else if (useGeo3D) {
       name += ".geo3d";
+    } else {
+      name += ".points";
+    }
+    if (SMALL) {
+      name += ".small";
+    } else {
+      name += ".large";
     }
     return name;
   }
@@ -116,7 +123,7 @@ public class IndexAndSearchOpenStreetMaps {
       //iwc.setRAMBufferSizeMB(1024);
       //iwc.setMergePolicy(new LogDocMergePolicy());
       //iwc.setMergeScheduler(new SerialMergeScheduler());
-      //iwc.setRAMBufferSizeMB(1024);
+      iwc.setRAMBufferSizeMB(1024);
       iwc.setMergePolicy(new LogDocMergePolicy());
       iwc.setMergeScheduler(new SerialMergeScheduler());
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -133,7 +140,7 @@ public class IndexAndSearchOpenStreetMaps {
             @Override
             public void run() {
               String[] lines = new String[CHUNK];
-
+              int chunkCount = 0;
               while (finished.get() == false) {
                 try {
                   int count = CHUNK;
@@ -159,7 +166,7 @@ public class IndexAndSearchOpenStreetMaps {
                     double lon = Double.parseDouble(parts[2]);
                     Document doc = new Document();
                     if (useGeoPoint) {
-                      doc.add(new GeoPointField("geo", lon, lat, Field.Store.NO));
+                      doc.add(new GeoPointField("geo", lat, lon, Field.Store.NO));
                     } else if (useGeo3D) {
                       lat = toRadians(lat);
                       lon = toRadians(lon);
@@ -172,6 +179,11 @@ public class IndexAndSearchOpenStreetMaps {
                     if (x % 1000000 == 0) {
                       System.out.println(x + "...");
                     }
+                  }
+                  chunkCount++;
+                  if (false && SMALL == false && chunkCount == 20000) {
+                    System.out.println("NOW BREAK EARLY");
+                    break;
                   }
                 } catch (IOException ioe) {
                   throw new RuntimeException(ioe);
@@ -210,9 +222,8 @@ public class IndexAndSearchOpenStreetMaps {
   }
 
   private static Codec getCodec() {
-    return Codec.forName("Lucene60");
+    //return Codec.forName("Lucene60");
 
-    /*
     return new FilterCodec("Lucene60", Codec.getDefault()) {
       @Override
       public PointsFormat pointsFormat() {
@@ -231,7 +242,6 @@ public class IndexAndSearchOpenStreetMaps {
         };
       }
     };
-    */
   }
 
 
@@ -300,7 +310,7 @@ public class IndexAndSearchOpenStreetMaps {
               double distance = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
               Query q;
               if (useGeoPoint) {
-                q = new GeoPointDistanceQuery("geo", (lon+lonEnd)/2.0, (lat+latEnd)/2.0, distance);
+                q = new GeoPointDistanceQuery("geo", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, distance);
               } else {
                 q = LatLonPoint.newDistanceQuery("point", (lat+latEnd)/2, (lon+lonEnd)/2, distance);
               }

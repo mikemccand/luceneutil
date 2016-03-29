@@ -260,6 +260,7 @@ public class IndexAndSearchOpenStreetMaps {
     for(int part=0;part<NUM_PARTS;part++) {
       dirs[part] = FSDirectory.open(Paths.get(getName(part)));
       searchers[part] = new IndexSearcher(DirectoryReader.open(dirs[part]));
+      searchers[part].setQueryCache(null);
       for(String name : dirs[part].listAll()) {
         sizeOnDisk += dirs[part].fileLength(name);
       }
@@ -329,8 +330,8 @@ public class IndexAndSearchOpenStreetMaps {
                 GeoPoint p2 = new GeoPoint(PlanetModel.WGS84, toRadians(latEnd), toRadians(lonEnd));
                 double radiusAngle = p1.arcDistance(p2)/2.0;
                 GeoPoint center = PlanetModel.WGS84.bisection(p1, p2);
-                //GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, toRadians(centerLat), toRadians(centerLon), radiusAngle);
                 GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, center.getLatitude(), center.getLongitude(), radiusAngle);
+                //GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, toRadians(centerLat), toRadians(centerLon), radiusAngle);
                 q = Geo3DPoint.newShapeQuery("point", shape);
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distance);

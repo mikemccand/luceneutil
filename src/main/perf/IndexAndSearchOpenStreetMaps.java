@@ -505,6 +505,9 @@ public class IndexAndSearchOpenStreetMaps {
         throw new IllegalArgumentException("unknown command line option \"" + arg + "\"");
       }
     }
+    if (queryClass == null) {
+      throw new IllegalArgumentException("must specify exactly one of -box, -poly gons or -distance; got none");
+    }
     if (count == 0) {
       throw new IllegalArgumentException("must specify exactly one of -points, -geopoint or -geo3d; got none");
     } else if (count > 1) {

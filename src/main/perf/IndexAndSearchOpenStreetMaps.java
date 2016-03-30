@@ -182,7 +182,7 @@ public class IndexAndSearchOpenStreetMaps {
                     if (useGeoPoint) {
                       doc.add(new GeoPointField("geo", lat, lon, Field.Store.NO));
                     } else if (useGeo3D) {
-                      doc.add(new Geo3DPoint("point", Math.toRadians(lat), Math.toRadians(lon)));
+                      doc.add(new Geo3DPoint("point", lat, lon));
                     } else {
                       doc.add(new LatLonPoint("point", lat, lon));
                     }

@@ -78,9 +78,7 @@ public class IndexAndSearchOpenStreetMaps {
   static boolean useGeo3D = false;
   static boolean useLatLonPoint = false;
   static final boolean SMALL = true;
-  // nocommit
-  //static final int NUM_PARTS = SMALL ? 1 : 2;
-  static final int NUM_PARTS = SMALL ? 1 : 1;
+  static final int NUM_PARTS = SMALL ? 1 : 2;
 
   private static String getName(int part) {
     String name = "/b/osm" + part;
@@ -101,7 +99,7 @@ public class IndexAndSearchOpenStreetMaps {
     return name;
   }
 
-  private static void createIndex() throws IOException, InterruptedException {
+  private static void createIndex(boolean fast) throws IOException, InterruptedException {
 
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
@@ -116,7 +114,13 @@ public class IndexAndSearchOpenStreetMaps {
     }
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    int NUM_THREADS = 1;
+    int NUM_THREADS;
+    if (fast) {
+      NUM_THREADS = 4;
+    } else {
+      NUM_THREADS = 1;
+    }
+
     int CHUNK = 10000;
 
     long t0 = System.nanoTime();
@@ -126,15 +130,16 @@ public class IndexAndSearchOpenStreetMaps {
       Directory dir = FSDirectory.open(Paths.get(getName(part)));
 
       IndexWriterConfig iwc = new IndexWriterConfig(null);
-      iwc.setCodec(getCodec());
+      iwc.setCodec(getCodec(fast));
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-      ((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(Double.POSITIVE_INFINITY);
-      //iwc.setMaxBufferedDocs(109630);
-      iwc.setRAMBufferSizeMB(1024);
-      //iwc.setMergePolicy(new LogDocMergePolicy());
-      //iwc.setMergeScheduler(new SerialMergeScheduler());
-      iwc.setMergePolicy(new LogDocMergePolicy());
-      iwc.setMergeScheduler(new SerialMergeScheduler());
+      if (fast) {
+        ((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(Double.POSITIVE_INFINITY);
+        iwc.setRAMBufferSizeMB(1024);
+      } else {
+        iwc.setMaxBufferedDocs(109630);
+        iwc.setMergePolicy(new LogDocMergePolicy());
+        iwc.setMergeScheduler(new SerialMergeScheduler());
+      }
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
       IndexWriter w = new IndexWriter(dir, iwc);
 
@@ -228,29 +233,30 @@ public class IndexAndSearchOpenStreetMaps {
     //System.out.println(((t3-t2)/1000000000.0) + " sec to close");
   }
 
-  private static Codec getCodec() {
-    //return Codec.forName("Lucene60");
+  private static Codec getCodec(boolean fast) {
+    if (fast) {
+      return new FilterCodec("Lucene60", Codec.getDefault()) {
+        @Override
+        public PointsFormat pointsFormat() {
+          return new PointsFormat() {
+            @Override
+            public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
+              int maxPointsInLeafNode = 1024;
+              double maxMBSortInHeap = 1024.0;
+              return new Lucene60PointsWriter(writeState, maxPointsInLeafNode, maxMBSortInHeap);
+            }
 
-    return new FilterCodec("Lucene60", Codec.getDefault()) {
-      @Override
-      public PointsFormat pointsFormat() {
-        return new PointsFormat() {
-          @Override
-          public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
-            int maxPointsInLeafNode = 1024;
-            double maxMBSortInHeap = 1024.0;
-            return new Lucene60PointsWriter(writeState, maxPointsInLeafNode, maxMBSortInHeap);
-          }
-
-          @Override
-          public PointsReader fieldsReader(SegmentReadState readState) throws IOException {
-            return new Lucene60PointsReader(readState);
-          }
-        };
-      }
-    };
+            @Override
+            public PointsReader fieldsReader(SegmentReadState readState) throws IOException {
+              return new Lucene60PointsReader(readState);
+            }
+          };
+        }
+      };
+    } else {
+      return Codec.forName("Lucene60");
+    }
   }
-
 
   private static void queryIndex() throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
@@ -403,9 +409,14 @@ public class IndexAndSearchOpenStreetMaps {
   public static void main(String[] args) throws IOException, InterruptedException {
     int count = 0;
     boolean reindex = false;
+    boolean fastReindex = false;
     for(String arg : args) {
       if (arg.equals("-reindex")) {
         reindex = true;
+        fastReindex = true;
+      } else if (arg.equals("-reindexSlow")) {
+        reindex = true;
+        fastReindex = false;
       } else if (arg.equals("-points")) {
         useLatLonPoint = true;
         count++;
@@ -415,6 +426,8 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (arg.equals("-geo3d")) {
         useGeo3D = true;
         count++;
+      } else {
+        throw new IllegalArgumentException("unknown command line option \"" + arg + "\"");
       }
     }
     if (count == 0) {
@@ -429,9 +442,10 @@ public class IndexAndSearchOpenStreetMaps {
     } else {
       System.out.println("Using geopoint");
     }
+    System.out.println("Index path: " + getName(0));
 
     if (reindex) {
-      createIndex();
+      createIndex(fastReindex);
     }
     queryIndex();
   }

@@ -17,20 +17,6 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Locale;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.PointsFormat;
@@ -69,6 +55,20 @@ import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 // javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
@@ -177,9 +177,7 @@ public class IndexAndSearchOpenStreetMaps {
                     if (useGeoPoint) {
                       doc.add(new GeoPointField("geo", lat, lon, Field.Store.NO));
                     } else if (useGeo3D) {
-                      lat = toRadians(lat);
-                      lon = toRadians(lon);
-                      doc.add(new Geo3DPoint("point", lat, lon));
+                      doc.add(new Geo3DPoint("point", Math.toRadians(lat), Math.toRadians(lon)));
                     } else {
                       doc.add(new LatLonPoint("point", lat, lon));
                     }
@@ -324,30 +322,52 @@ public class IndexAndSearchOpenStreetMaps {
               double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
 
               //Query q = new PointInRectQuery("point", lat, latEnd, lon, lonEnd);
-              double distance = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
+              double distanceMeters = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
               Query q;
               double centerLat = (lat+latEnd)/2.0;
               double centerLon = (lon+lonEnd)/2.0;
               if (useGeo3D) {
-                GeoPoint p1 = new GeoPoint(PlanetModel.WGS84, toRadians(lat), toRadians(lon));
-                GeoPoint p2 = new GeoPoint(PlanetModel.WGS84, toRadians(latEnd), toRadians(lonEnd));
+                /*
+                GeoPoint p1 = new GeoPoint(PlanetModel.WGS84, Math.toRadians(lat), Math.toRadians(lon));
+                GeoPoint p2 = new GeoPoint(PlanetModel.WGS84, Math.toRadians(latEnd), Math.toRadians(lonEnd));
                 double radiusAngle = p1.arcDistance(p2)/2.0;
                 GeoPoint center = PlanetModel.WGS84.bisection(p1, p2);
                 GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, center.getLatitude(), center.getLongitude(), radiusAngle);
-                //GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, toRadians(centerLat), toRadians(centerLon), radiusAngle);
+                //GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, Math.toRadians(centerLat), Math.toRadians(centerLon), radiusAngle);
                 q = Geo3DPoint.newShapeQuery("point", shape);
+                */
+
+                //double EARTH_MEAN_RADIUS_METERS = 6_371_008.7714;
+
+                // SEMIMAJOR_AXIS:
+                /*
+                double EARTH_RADIUS_METERS = 6_378_137.0;
+
+                double distanceRadians = distanceMeters/EARTH_RADIUS_METERS;
+
+                GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, Math.toRadians(centerLat), Math.toRadians(centerLon),
+                                                                distanceRadians);
+                if (iter == 0) {
+                  System.out.println("radians: " + distanceRadians);
+                }
+                //GeoShape shape = GeoCircleFactory.makeGeoCircle(PlanetModel.WGS84, Math.toRadians(centerLat), Math.toRadians(centerLon), 0.001);
+                q = Geo3DPoint.newShapeQuery("point", shape);
+                */
+
+                q = Geo3DPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+              
               } else if (useLatLonPoint) {
-                q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distance);
+                q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else {
-                q = new GeoPointDistanceQuery("geo", centerLat, centerLon, distance);
+                q = new GeoPointDistanceQuery("geo", centerLat, centerLon, distanceMeters);
               }
               
               //long t0 = System.nanoTime();
               for(IndexSearcher s : searchers) {
                 int hitCount = s.count(q);
                 totHits += hitCount;
-                if (false && iter == 0) {
-                  System.out.println("lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distance + " hits: " + hitCount);
+                if (iter == 0) {
+                  System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
                 }
               }
 
@@ -414,9 +434,5 @@ public class IndexAndSearchOpenStreetMaps {
       createIndex();
     }
     queryIndex();
-  }
-
-  private static double toRadians(double degrees) {
-    return Math.PI*(degrees/360.0);
   }
 }

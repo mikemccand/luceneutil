@@ -335,7 +335,7 @@ public class IndexAndSearchOpenStreetMaps {
                 //System.out.println("poly lats: " + Arrays.toString(poly[0]));
                 //System.out.println("poly lons: " + Arrays.toString(poly[1]));
                 if (useGeo3D) {
-                  System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
+                  //System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
                   q = Geo3DPoint.newPolygonQuery("point", poly[0], poly[1]);
                 } else if (useLatLonPoint) {
                   q = LatLonPoint.newPolygonQuery("point", poly[0], poly[1]);
@@ -347,7 +347,7 @@ public class IndexAndSearchOpenStreetMaps {
                 break;
               case "box":
                 if (useGeo3D) {
-                  q = Geo3DPoint.newBBoxQuery("point", lat, latEnd, lon, lonEnd);
+                  q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                 } else if (useLatLonPoint) {
                   q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                 } else if (useGeoPoint) {

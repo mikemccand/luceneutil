@@ -125,40 +125,56 @@ public class IndexAndSearchOpenStreetMaps {
       if (line.startsWith("count=") == false) {
         throw new AssertionError();
       }
-      int polyCount = Integer.parseInt(line.substring(6, line.indexOf(' ')));
+      // Count is the number of polygons the query has:
+      int count = Integer.parseInt(line.substring(6, line.indexOf(' ')));
       List<Polygon> polys = new ArrayList<>();
-      for(int i=0;i<polyCount;i++) {
+      for(int i=0;i<count;i++) {
         line = reader.readLine();      
+        // How many polygons (if this is > 1, the first poly is the real one, and
+        // all others are hole-polys that are subtracted):
         if (line.startsWith("  poly count=") == false) {
           throw new AssertionError();
         }
-        int vertexCount = Integer.parseInt(line.substring(13));
-        double[] lats = new double[vertexCount];
-        double[] lons = new double[vertexCount];
-        line = reader.readLine();      
-        if (line.startsWith("    lats ") == false) {
-          throw new AssertionError();
-        }
-        String[] parts = line.substring(9).split(" ");
-        if (parts.length != vertexCount) {
-          throw new AssertionError();
-        }
-        for(int j=0;j<vertexCount;j++) {
-          lats[j] = Double.parseDouble(parts[j]);
-        }
+        int polyCount = Integer.parseInt(line.substring(13));
+        List<Polygon> polyPlusHoles = new ArrayList<>();
+        for(int j=0;j<polyCount;j++) {
+          line = reader.readLine();      
+          if (line.startsWith("    vertex count=") == false) {
+            System.out.println("GOT: " + line);
+            throw new AssertionError();
+          }
+          
+          int vertexCount = Integer.parseInt(line.substring(17));
+          double[] lats = new double[vertexCount];
+          double[] lons = new double[vertexCount];
+          line = reader.readLine();      
+          if (line.startsWith("      lats ") == false) {
+            throw new AssertionError();
+          }
+          String[] parts = line.substring(11).split(" ");
+          if (parts.length != vertexCount) {
+            throw new AssertionError();
+          }
+          for(int k=0;k<vertexCount;k++) {
+            lats[k] = Double.parseDouble(parts[k]);
+          }
         
-        line = reader.readLine();      
-        if (line.startsWith("    lons ") == false) {
-          throw new AssertionError();
+          line = reader.readLine();      
+          if (line.startsWith("      lons ") == false) {
+            throw new AssertionError();
+          }
+          parts = line.substring(11).split(" ");
+          if (parts.length != vertexCount) {
+            throw new AssertionError();
+          }
+          for(int k=0;k<vertexCount;k++) {
+            lons[k] = Double.parseDouble(parts[k]);
+          }
+          polyPlusHoles.add(new Polygon(lats, lons));
         }
-        parts = line.substring(9).split(" ");
-        if (parts.length != vertexCount) {
-          throw new AssertionError();
-        }
-        for(int j=0;j<vertexCount;j++) {
-          lons[j] = Double.parseDouble(parts[j]);
-        }
-        polys.add(new Polygon(lats, lons));
+        Polygon firstPoly = polyPlusHoles.get(0);
+        Polygon[] holes = polyPlusHoles.subList(1, polyPlusHoles.size()).toArray(new Polygon[polyPlusHoles.size()-1]);
+        polys.add(new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons(), holes));
       }
       Query q;
       if (useLatLonPoint) {

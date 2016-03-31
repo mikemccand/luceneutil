@@ -86,8 +86,8 @@ public class IndexAndSearchOpenStreetMaps {
   static boolean useGeoPoint = false;
   static boolean useGeo3D = false;
   static boolean useLatLonPoint = false;
-  static final boolean SMALL = true;
-  static final int NUM_PARTS = SMALL ? 1 : 2;
+  static boolean SMALL = true;
+  static int NUM_PARTS;
 
   private static String getName(int part) {
     String name = "/b/osm" + part;
@@ -259,7 +259,7 @@ public class IndexAndSearchOpenStreetMaps {
                       }
                       lines[i] = line;
                     }
-                    if (finalPart == 0 && totalCount.get() >= 2000000000) {
+                    if (finalPart == 0 && totalCount.get()+count >= 2000000000) {
                       finished.set(true);
                     }
                   }
@@ -596,6 +596,8 @@ public class IndexAndSearchOpenStreetMaps {
       if (arg.equals("-reindex")) {
         reindex = true;
         fastReindex = true;
+      } else if (arg.equals("-full")) {
+        SMALL = false;
       } else if (arg.equals("-reindexSlow")) {
         reindex = true;
         fastReindex = false;
@@ -643,6 +645,7 @@ public class IndexAndSearchOpenStreetMaps {
     } else if (count > 1) {
       throw new IllegalArgumentException("must specify exactly one of -points, -geopoint or -geo3d; got more than one");
     }
+    NUM_PARTS = SMALL ? 1 : 2;
     if (useGeo3D) {
       System.out.println("Using geo3d");
     } else if (useLatLonPoint) {

@@ -26,7 +26,9 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,6 +55,8 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TotalHitCountCollector;
@@ -61,6 +65,7 @@ import org.apache.lucene.spatial.geopoint.search.GeoPointDistanceQuery;
 import org.apache.lucene.spatial.geopoint.search.GeoPointInBBoxQuery;
 import org.apache.lucene.spatial.geopoint.search.GeoPointInPolygonQuery;
 import org.apache.lucene.spatial.util.GeoUtils;
+import org.apache.lucene.spatial.util.Polygon;
 import org.apache.lucene.spatial3d.Geo3DPoint;
 import org.apache.lucene.spatial3d.geom.GeoCircleFactory;
 import org.apache.lucene.spatial3d.geom.GeoPoint;
@@ -101,6 +106,72 @@ public class IndexAndSearchOpenStreetMaps {
       name += ".large";
     }
     return name;
+  }
+
+  // NOTE: use geoJSONToJava.py to convert the geojson file to simple text file:
+  private static List<Query> readPolygonQueries(String fileName) throws IOException {
+    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT);
+    int BUFFER_SIZE = 1 << 16;     // 64K
+    InputStream is = Files.newInputStream(Paths.get(fileName));
+    BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
+    List<Query> result = new ArrayList<>();
+    while (true) {
+      String line = reader.readLine();      
+      if (line == null) {
+        break;
+      }
+      if (line.startsWith("count=") == false) {
+        throw new AssertionError();
+      }
+      int polyCount = Integer.parseInt(line.substring(6, line.indexOf(' ')));
+      List<Polygon> polys = new ArrayList<>();
+      for(int i=0;i<polyCount;i++) {
+        line = reader.readLine();      
+        if (line.startsWith("  poly count=") == false) {
+          throw new AssertionError();
+        }
+        int vertexCount = Integer.parseInt(line.substring(13));
+        double[] lats = new double[vertexCount];
+        double[] lons = new double[vertexCount];
+        line = reader.readLine();      
+        if (line.startsWith("    lats ") == false) {
+          throw new AssertionError();
+        }
+        String[] parts = line.substring(9).split(" ");
+        if (parts.length != vertexCount) {
+          throw new AssertionError();
+        }
+        for(int j=0;j<vertexCount;j++) {
+          lats[j] = Double.parseDouble(parts[j]);
+        }
+        
+        line = reader.readLine();      
+        if (line.startsWith("    lons ") == false) {
+          throw new AssertionError();
+        }
+        parts = line.substring(9).split(" ");
+        if (parts.length != vertexCount) {
+          throw new AssertionError();
+        }
+        for(int j=0;j<vertexCount;j++) {
+          lons[j] = Double.parseDouble(parts[j]);
+        }
+        polys.add(new Polygon(lats, lons));
+      }
+      Query q;
+      if (useLatLonPoint) {
+        q = LatLonPoint.newPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
+      } else if (useGeoPoint) {
+        q = new GeoPointInPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
+      } else {
+        throw new AssertionError();
+      }
+      result.add(q);
+    }
+
+    return result;
   }
 
   private static void createIndex(boolean fast) throws IOException, InterruptedException {
@@ -262,7 +333,7 @@ public class IndexAndSearchOpenStreetMaps {
     }
   }
 
-  private static void queryIndex(String queryClass, int gons) throws IOException {
+  private static void queryIndex(String queryClass, int gons, String polyFile) throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
     long sizeOnDisk = 0;
@@ -291,99 +362,133 @@ public class IndexAndSearchOpenStreetMaps {
     System.out.println("READER MB: " + (bytes/1024./1024.));
     System.out.println("maxDoc=" + maxDoc);
 
-    // London, UK:
-    int STEPS = 5;
-    double MIN_LAT = 51.0919106;
-    double MAX_LAT = 51.6542719;
-    double MIN_LON = -0.3867282;
-    double MAX_LON = 0.8492337;
-    double bestQPS = Double.NEGATIVE_INFINITY;
-    for(int iter=0;iter<100;iter++) {
-      long tStart = System.nanoTime();
-      long totHits = 0;
-      int queryCount = 0;
-
-      for(int latStep=0;latStep<STEPS;latStep++) {
-        double lat = MIN_LAT + latStep * (MAX_LAT - MIN_LAT) / STEPS;
-        for(int lonStep=0;lonStep<STEPS;lonStep++) {
-          double lon = MIN_LON + lonStep * (MAX_LON - MIN_LON) / STEPS;
-          for(int latStepEnd=latStep+1;latStepEnd<=STEPS;latStepEnd++) {
-            double latEnd = MIN_LAT + latStepEnd * (MAX_LAT - MIN_LAT) / STEPS;
-            for(int lonStepEnd=lonStep+1;lonStepEnd<=STEPS;lonStepEnd++) {
-              double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
-
-              double distanceMeters = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
-              double centerLat = (lat+latEnd)/2.0;
-              double centerLon = (lon+lonEnd)/2.0;
-
-              Query q = null;
-
-              switch(queryClass) {
-              case "distance":
-                if (useGeo3D) {
-                  q = Geo3DPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
-                } else if (useLatLonPoint) {
-                  q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
-                } else if (useGeoPoint) {
-                  q = new GeoPointDistanceQuery("point", centerLat, centerLon, distanceMeters);
-                } else {
-                  throw new AssertionError();
-                }
-                break;
-              case "poly":
-                double[][] poly = makeRegularPoly(centerLat, centerLon, distanceMeters, gons);
-                //System.out.println("poly lats: " + Arrays.toString(poly[0]));
-                //System.out.println("poly lons: " + Arrays.toString(poly[1]));
-                if (useGeo3D) {
-                  //System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
-                  q = Geo3DPoint.newPolygonQuery("point", poly[0], poly[1]);
-                } else if (useLatLonPoint) {
-                  q = LatLonPoint.newPolygonQuery("point", poly[0], poly[1]);
-                } else if (useGeoPoint) {
-                  q = new GeoPointInPolygonQuery("point", poly[0], poly[1]);
-                } else {
-                  throw new AssertionError();
-                }
-                break;
-              case "box":
-                if (useGeo3D) {
-                  q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
-                } else if (useLatLonPoint) {
-                  q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
-                } else if (useGeoPoint) {
-                  q = new GeoPointInBBoxQuery("point", lat, latEnd, lon, lonEnd);
-                } else {
-                  throw new AssertionError();
-                }
-                break;
-              default:
-                throw new AssertionError();
-              }
-              
-              //long t0 = System.nanoTime();
-              for(IndexSearcher s : searchers) {
-                int hitCount = s.count(q);
-                totHits += hitCount;
-                if (false && iter == 0) {
-                  System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
-                }
-              }
-
-              queryCount++;
+    if (queryClass.equals("polyFile")) {
+      BooleanQuery.setMaxClauseCount(100000);
+      List<Query> queries = readPolygonQueries(polyFile);
+      double bestQPS = Double.NEGATIVE_INFINITY;
+      for(int iter=0;iter<100;iter++) {
+        long tStart = System.nanoTime();
+        long totHits = 0;
+        int queryCount = 0;
+        for(Query q : queries) {
+          for(IndexSearcher s : searchers) {
+            int hitCount = s.count(q);
+            totHits += hitCount;
+            if (false && iter == 0) {
+              System.out.println("q=" + q);
             }
           }
+          queryCount++;
+        }
+
+        long tEnd = System.nanoTime();
+        double elapsedSec = (tEnd-tStart)/1000000000.0;
+        double qps = queryCount / elapsedSec;
+        System.out.println(String.format(Locale.ROOT,
+                                         "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         iter, qps, elapsedSec, queryCount, totHits));
+        if (qps > bestQPS) {
+          System.out.println("  ***");
+          bestQPS = qps;
         }
       }
 
-      long tEnd = System.nanoTime();
-      double elapsedSec = (tEnd-tStart)/1000000000.0;
-      double qps = queryCount / elapsedSec;
-      System.out.println(String.format(Locale.ROOT,
-                                       "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
-                                       iter, qps, elapsedSec, queryCount, totHits));
-      if (qps > bestQPS) {
-        System.out.println("  ***");
-        bestQPS = qps;
+    } else {
+
+      // Create regularly spaced shapes in a grid around London, UK:
+      int STEPS = 5;
+      double MIN_LAT = 51.0919106;
+      double MAX_LAT = 51.6542719;
+      double MIN_LON = -0.3867282;
+      double MAX_LON = 0.8492337;
+      double bestQPS = Double.NEGATIVE_INFINITY;
+      for(int iter=0;iter<100;iter++) {
+        long tStart = System.nanoTime();
+        long totHits = 0;
+        int queryCount = 0;
+
+        for(int latStep=0;latStep<STEPS;latStep++) {
+          double lat = MIN_LAT + latStep * (MAX_LAT - MIN_LAT) / STEPS;
+          for(int lonStep=0;lonStep<STEPS;lonStep++) {
+            double lon = MIN_LON + lonStep * (MAX_LON - MIN_LON) / STEPS;
+            for(int latStepEnd=latStep+1;latStepEnd<=STEPS;latStepEnd++) {
+              double latEnd = MIN_LAT + latStepEnd * (MAX_LAT - MIN_LAT) / STEPS;
+              for(int lonStepEnd=lonStep+1;lonStepEnd<=STEPS;lonStepEnd++) {
+                double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
+
+                double distanceMeters = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
+                double centerLat = (lat+latEnd)/2.0;
+                double centerLon = (lon+lonEnd)/2.0;
+
+                Query q = null;
+
+                switch(queryClass) {
+                case "distance":
+                  if (useGeo3D) {
+                    q = Geo3DPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                  } else if (useLatLonPoint) {
+                    q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                  } else if (useGeoPoint) {
+                    q = new GeoPointDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                  } else {
+                    throw new AssertionError();
+                  }
+                  break;
+                case "poly":
+                  double[][] poly = makeRegularPoly(centerLat, centerLon, distanceMeters, gons);
+                  //System.out.println("poly lats: " + Arrays.toString(poly[0]));
+                  //System.out.println("poly lons: " + Arrays.toString(poly[1]));
+                  if (useGeo3D) {
+                    //System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
+                    q = Geo3DPoint.newPolygonQuery("point", poly[0], poly[1]);
+                  } else if (useLatLonPoint) {
+                    q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                  } else if (useGeoPoint) {
+                    q = new GeoPointInPolygonQuery("point", poly[0], poly[1]);
+                  } else {
+                    throw new AssertionError();
+                  }
+                  break;
+                case "box":
+                  if (useGeo3D) {
+                    q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                  } else if (useLatLonPoint) {
+                    q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                  } else if (useGeoPoint) {
+                    q = new GeoPointInBBoxQuery("point", lat, latEnd, lon, lonEnd);
+                  } else {
+                    throw new AssertionError();
+                  }
+                  break;
+                default:
+                  throw new AssertionError();
+                }
+              
+                //long t0 = System.nanoTime();
+                for(IndexSearcher s : searchers) {
+                  int hitCount = s.count(q);
+                  totHits += hitCount;
+                  if (false && iter == 0) {
+                    System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
+                  }
+                }
+
+                queryCount++;
+              }
+            }
+          }
+        }
+
+        long tEnd = System.nanoTime();
+        double elapsedSec = (tEnd-tStart)/1000000000.0;
+        double qps = queryCount / elapsedSec;
+        System.out.println(String.format(Locale.ROOT,
+                                         "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         iter, qps, elapsedSec, queryCount, totHits));
+        if (qps > bestQPS) {
+          System.out.println("  ***");
+          bestQPS = qps;
+        }
       }
     }
 
@@ -458,7 +563,7 @@ public class IndexAndSearchOpenStreetMaps {
 
   private static String setQueryClass(String currentValue, String newValue) {
     if (currentValue != null) {
-      throw new IllegalArgumentException("specify only one of -poly, -distance, -box");
+      throw new IllegalArgumentException("specify only one of -poly, -polyFile, -distance, -box");
     }
     return newValue;
   }
@@ -468,6 +573,7 @@ public class IndexAndSearchOpenStreetMaps {
     boolean reindex = false;
     boolean fastReindex = false;
     String queryClass = null;
+    String polyFile = null;
     int gons = 0;
     for(int i=0;i<args.length;i++) {
       String arg = args[i];
@@ -486,6 +592,14 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (arg.equals("-geo3d")) {
         useGeo3D = true;
         count++;
+      } else if (arg.equals("-polyFile")) {
+        queryClass = setQueryClass(queryClass, "polyFile");
+        if (i + 1 < args.length) {
+          polyFile = args[i+1];
+          i++;
+        } else {
+          throw new IllegalArgumentException("missing file argument to -polyFile");
+        }
       } else if (arg.equals("-poly")) {
         queryClass = setQueryClass(queryClass, "poly");
         if (i + 1 < args.length) {
@@ -495,7 +609,7 @@ public class IndexAndSearchOpenStreetMaps {
           }
           i++;
         } else {
-          throw new IllegalArgumentException("missing gons argument to poly");
+          throw new IllegalArgumentException("missing gons argument to -poly");
         }
       } else if (arg.equals("-box")) {
         queryClass = setQueryClass(queryClass, "box");
@@ -525,6 +639,6 @@ public class IndexAndSearchOpenStreetMaps {
     if (reindex) {
       createIndex(fastReindex);
     }
-    queryIndex(queryClass, gons);
+    queryIndex(queryClass, gons, polyFile);
   }
 }

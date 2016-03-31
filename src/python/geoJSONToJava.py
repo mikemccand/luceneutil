@@ -1,5 +1,11 @@
 import json
 
+# get shapes_simplified_low.zip from: http://download.geonames.org/export/dump/
+
+# nice poly explanation: http://esri.github.io/geometry-api-java/doc/Polygon.html
+
+# rm LatLonPointPoly*.java; python src/python/geoJSONToJava.py ; javac -cp /l/trunk/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/sandbox/lucene-sandbox-7.0.0-SNAPSHOT.jar LatLonPointPoly*.java
+
 geoIDs = {}
 
 with open('/x/tmp/downloads/shapes_simplified_low.txt') as f:
@@ -40,14 +46,11 @@ with open('/lucenedata/geonames/allCountries.txt') as f:
       # print('%s -> %s' % (geoID, tup[1]))
       geoIDs[tup[0]][0] = tup[1]
 
-count = 0
-
+f = open('polys.txt', 'w')
 for geoID, (name, polys) in geoIDs.items():
-  print
-  print('// %s: %s: %d polys' % (geoID, name, len(polys)))
-  print('BooleanQuery.Builder b%d = new BooleanQuery.Builder();' % count)
+  f.write('count=%d %s %s\n' % (len(polys), name, geoID))
   for poly in polys:
-    print('b%d.add(LatLonPoint.newPolygonQuery("point", new double[] {%s}, new double[] {%s}), BooleanClause.Occur.SHOULD);' % \
-          (count, ', '.join(str(x[0]) for x in poly), ', '.join(str(x[1]) for x in poly)))
-  print('BooleanQuery q%d = b%d.build();' % (count, count))
-  count += 1
+    f.write('  poly count=%d\n' % len(poly))
+    f.write('    lats %s\n' % ' '.join(str(x[0]) for x in poly))
+    f.write('    lons %s\n' % ' '.join(str(x[1]) for x in poly))
+f.close()

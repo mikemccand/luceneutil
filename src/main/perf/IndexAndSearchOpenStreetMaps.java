@@ -33,6 +33,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.zip.GZIPInputStream;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.FilterCodec;
@@ -44,6 +45,8 @@ import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.geo.GeoUtils;
+import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -51,21 +54,23 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.spatial.geopoint.document.GeoPointField;
 import org.apache.lucene.spatial.geopoint.search.GeoPointDistanceQuery;
 import org.apache.lucene.spatial.geopoint.search.GeoPointInBBoxQuery;
 import org.apache.lucene.spatial.geopoint.search.GeoPointInPolygonQuery;
-import org.apache.lucene.spatial.util.GeoUtils;
-import org.apache.lucene.spatial.util.Polygon;
 import org.apache.lucene.spatial3d.Geo3DPoint;
 import org.apache.lucene.spatial3d.geom.GeoCircleFactory;
 import org.apache.lucene.spatial3d.geom.GeoPoint;
@@ -78,6 +83,10 @@ import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
+
+// convert geojson to poly file using src/python/geoJSONToJava.py
+//
+// e.g. use -polyFile /l/util/src/python/countries.geojson.out.txt.gz 
 
 // javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
@@ -115,6 +124,9 @@ public class IndexAndSearchOpenStreetMaps {
         .onUnmappableCharacter(CodingErrorAction.REPORT);
     int BUFFER_SIZE = 1 << 16;     // 64K
     InputStream is = Files.newInputStream(Paths.get(fileName));
+    if (fileName.endsWith(".gz")) {
+      is = new GZIPInputStream(is);
+    }
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
     List<Query> result = new ArrayList<>();
     while (true) {
@@ -379,8 +391,44 @@ public class IndexAndSearchOpenStreetMaps {
     System.out.println("maxDoc=" + maxDoc);
 
     if (queryClass.equals("polyFile")) {
-      BooleanQuery.setMaxClauseCount(100000);
       List<Query> queries = readPolygonQueries(polyFile);
+
+      // Uncomment to find the lost points!!
+
+      /*
+      BooleanQuery.Builder b = new BooleanQuery.Builder();
+      b.add(new MatchAllDocsQuery(), BooleanClause.Occur.MUST);
+      for(Query q : queries) {
+        b.add(q, BooleanClause.Occur.MUST_NOT);
+      }
+      searchers[0].search(b.build(), new SimpleCollector() {
+          private int markerCount;
+          private SortedNumericDocValues docValues;
+
+          @Override
+          protected void doSetNextReader(LeafReaderContext context) throws IOException {
+            docValues = context.reader().getSortedNumericDocValues("point");
+          }
+
+          @Override
+          public boolean needsScores() {
+            return false;
+          }
+
+          @Override
+          public void collect(int doc) {
+            docValues.setDocument(doc);
+            int count = docValues.count();
+            for (int i = 0; i < count; i++) {
+              long encoded = docValues.valueAt(i);
+              double docLatitude = LatLonPoint.decodeLatitude((int)(encoded >> 32));
+              double docLongitude = LatLonPoint.decodeLongitude((int)(encoded & 0xFFFFFFFF));
+              System.out.println("        WE.marker([" + docLatitude + ", " + docLongitude + "]).addTo(earth);");
+            }
+          }
+        });
+      */
+
       double bestQPS = Double.NEGATIVE_INFINITY;
       for(int iter=0;iter<100;iter++) {
         long tStart = System.nanoTime();

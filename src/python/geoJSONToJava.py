@@ -10,20 +10,80 @@ import json
 
 geoIDs = {}
 
-with open('/l/util/src/python/shapes_simplified_low.txt') as f:
-  f.readline()
-  for line in f.readlines():
-    tup = line.strip().split('\t')
-    assert len(tup) == 2
+if False:
+  with open('/l/util/src/python/shapes_simplified_low.txt') as f:
+    f.readline()
+    for line in f.readlines():
+      tup = line.strip().split('\t')
+      assert len(tup) == 2
 
-    geoID, s = tup
+      geoID, s = tup
+      polys = []
+      geoIDs[geoID] = [None, polys]
+
+      shape = json.loads(s)
+
+      coords = shape['coordinates']
+
+      if shape['type'] == 'Polygon':
+        #print('%s poly: %s' % (geoID, len(coords[0])))
+        l = []
+        polys.append(l)
+        for subPoly in coords:
+          l2 = []
+          l.append(l2)
+          for lon, lat in subPoly:
+            l2.append((lat, lon))
+      elif shape['type'] == 'MultiPolygon':
+        #print('%s multi: %s' % (geoID, len(coords)))
+        for poly in coords:
+          l = []
+          polys.append(l)
+          for subPoly in poly:
+            l2 = []
+            l.append(l2)
+            for lon, lat in subPoly:
+              l2.append((lat, lon))
+      else:
+        assert false, 'got type %s' % shape['type']
+
+  # Give names to the geo ids:
+  with open('/lucenedata/geonames/allCountries.txt') as f:
+
+    for line in f.readlines():
+      tup = line.split('\t')
+      if tup[0] in geoIDs:
+        # print('%s -> %s' % (geoID, tup[1]))
+        geoIDs[tup[0]][0] = tup[1]
+
+  f = open('/l/util/src/python/shapes_simplified_low.out.txt', 'w')
+  for geoID, (name, polys) in geoIDs.items():
+    f.write('count=%d %s %s\n' % (len(polys), name, geoID))
+    for poly in polys:
+      f.write('  poly count=%d\n' % len(poly))
+      for subPoly in poly:
+        f.write('    vertex count=%d\n' % len(subPoly))
+        f.write('      lats %s\n' % ' '.join(str(x[0]) for x in subPoly))
+        f.write('      lons %s\n' % ' '.join(str(x[1]) for x in subPoly))
+  f.close()
+  
+else:
+
+  geoID = 0
+  
+  # from https://github.com/datasets/geo-countries/blob/master/data/countries.geojson
+  j = json.loads(open('/x/tmp/countries.geojson.txt').read())
+  for x in j['features']:
+
     polys = []
-    geoIDs[geoID] = [None, polys]
 
-    shape = json.loads(s)
+    geoIDs[geoID] = [x['properties']['ADMIN'], polys]
+    geoID += 1
+
+    shape = x['geometry']
 
     coords = shape['coordinates']
-    
+
     if shape['type'] == 'Polygon':
       #print('%s poly: %s' % (geoID, len(coords[0])))
       l = []
@@ -46,22 +106,13 @@ with open('/l/util/src/python/shapes_simplified_low.txt') as f:
     else:
       assert false, 'got type %s' % shape['type']
 
-# Give names to the geo ids:
-with open('/lucenedata/geonames/allCountries.txt') as f:
-  
-  for line in f.readlines():
-    tup = line.split('\t')
-    if tup[0] in geoIDs:
-      # print('%s -> %s' % (geoID, tup[1]))
-      geoIDs[tup[0]][0] = tup[1]
-
-f = open('/l/util/src/python/shapes_simplified_low.out.txt', 'w')
-for geoID, (name, polys) in geoIDs.items():
-  f.write('count=%d %s %s\n' % (len(polys), name, geoID))
-  for poly in polys:
-    f.write('  poly count=%d\n' % len(poly))
-    for subPoly in poly:
-      f.write('    vertex count=%d\n' % len(subPoly))
-      f.write('      lats %s\n' % ' '.join(str(x[0]) for x in subPoly))
-      f.write('      lons %s\n' % ' '.join(str(x[1]) for x in subPoly))
-f.close()
+  f = open('/x/tmp/countries.geojson.out.txt', 'w')
+  for geoID, (name, polys) in geoIDs.items():
+    f.write('count=%d %s %s\n' % (len(polys), name.encode('ascii', errors='replace'), geoID))
+    for poly in polys:
+      f.write('  poly count=%d\n' % len(poly))
+      for subPoly in poly:
+        f.write('    vertex count=%d\n' % len(subPoly))
+        f.write('      lats %s\n' % ' '.join(str(x[0]) for x in subPoly))
+        f.write('      lons %s\n' % ' '.join(str(x[1]) for x in subPoly))
+  f.close()

@@ -72,7 +72,7 @@ with open(logFileName, 'w') as log:
       indexTimeSec = 0.0
       forceMergeTimeSec = 0.0
       while True:
-        line = p.stdout.readline()
+        line = p.stdout.readline().decode('utf-8')
         if len(line) == 0:
           break
         line = line.rstrip()

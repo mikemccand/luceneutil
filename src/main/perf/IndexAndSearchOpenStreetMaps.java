@@ -390,6 +390,8 @@ public class IndexAndSearchOpenStreetMaps {
     System.out.println("READER MB: " + (bytes/1024./1024.));
     System.out.println("maxDoc=" + maxDoc);
 
+    double bestQPS = Double.NEGATIVE_INFINITY;
+
     if (queryClass.equals("polyFile")) {
       List<Query> queries = readPolygonQueries(polyFile);
 
@@ -429,7 +431,6 @@ public class IndexAndSearchOpenStreetMaps {
         });
       */
 
-      double bestQPS = Double.NEGATIVE_INFINITY;
       for(int iter=0;iter<100;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
@@ -465,8 +466,7 @@ public class IndexAndSearchOpenStreetMaps {
       double MAX_LAT = 51.6542719;
       double MIN_LON = -0.3867282;
       double MAX_LON = 0.8492337;
-      double bestQPS = Double.NEGATIVE_INFINITY;
-      for(int iter=0;iter<100;iter++) {
+      for(int iter=0;iter<20;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
         int queryCount = 0;
@@ -555,6 +555,7 @@ public class IndexAndSearchOpenStreetMaps {
         }
       }
     }
+    System.out.println("BEST QPS: " + bestQPS);
 
     for(IndexSearcher s : searchers) {
       s.getIndexReader().close();

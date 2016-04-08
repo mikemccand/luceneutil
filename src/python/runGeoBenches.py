@@ -8,9 +8,10 @@ import time
 reTotHits = re.compile('totHits=(\d+)$')
 
 def printResults(results, stats, maxDoc):
+  print()
   print('Results on %2fM points:' % (maxDoc/1000000.))
 
-  print
+  print()
 
   if '-reindex' in sys.argv:
     print('||Approach||Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
@@ -25,7 +26,7 @@ def printResults(results, stats, maxDoc):
         readerHeapMB, indexSizeGB = stats[approach][:2]
         print('|%s|%.2f|%.2f|' % (approach, indexSizeGB, readerHeapMB))
     
-  print
+  print()
   print('||Shape||Approach||QPS||Hit count||')
   for shape in ('distance', 'box', 'poly 10'):
     for approach in ('geo3d', 'points', 'geopoint'):
@@ -49,7 +50,7 @@ didReIndex = set()
 
 t0 = time.time()
 
-logFileName = 'geoBenchLog.txt'
+logFileName = '/l/logs/geoBenchLog.txt'
 print('\nNOTE: logging all output to %s\n' % logFileName)
 
 with open(logFileName, 'w') as log:
@@ -85,7 +86,7 @@ with open(logFileName, 'w') as log:
             raise RuntimeError('total hits changed from %s to %s' % (totHits, x))
         log.write('%7.1fs: %s, %s: %s\n' % (time.time()-t0, approach, shape, line))
         doPrintLine = False
-        if line.find('...') != -1 or line.find('ITER') != -1:
+        if line.find('...') != -1 or line.find('ITER') != -1 or line.find('***') != -1:
           doPrintLine = True
         if line.startswith('BEST QPS: '):
           doPrintLine = True

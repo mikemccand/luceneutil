@@ -6,7 +6,7 @@ import json
 
 # nice poly explanation: http://esri.github.io/geometry-api-java/doc/Polygon.html
 
-# rm LatLonPointPoly*.java; python src/python/geoJSONToJava.py ; javac -cp /l/trunk/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/sandbox/lucene-sandbox-7.0.0-SNAPSHOT.jar LatLonPointPoly*.java
+# python src/python/geoJSONToJava.py ; javac -cp /l/trunk/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:/l/trunk/lucene/build/sandbox/lucene-sandbox-7.0.0-SNAPSHOT.jar LatLonPointPoly*.java
 
 geoIDs = {}
 

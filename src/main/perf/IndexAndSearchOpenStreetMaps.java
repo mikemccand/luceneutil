@@ -45,16 +45,21 @@ import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;
+import org.apache.lucene.geo.Rectangle;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.PointValues.IntersectVisitor;
+import org.apache.lucene.index.PointValues.Relation;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.SerialMergeScheduler;
@@ -83,6 +88,11 @@ import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
+
+import static org.apache.lucene.geo.GeoEncodingUtils.decodeLatitude;
+import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
+import static org.apache.lucene.geo.GeoEncodingUtils.encodeLatitude;
+import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
 
 // convert geojson to poly file using src/python/geoJSONToJava.py
 //
@@ -200,6 +210,87 @@ public class IndexAndSearchOpenStreetMaps {
     }
 
     return result;
+  }
+
+  /** Returns true if a (inclusive) fully contains b (inclusive) */
+  private static boolean contains(Rectangle a, Rectangle b) {
+    return a.minLat <= b.minLat && a.maxLat >= b.maxLat && a.minLon <= b.minLon && a.maxLon >= b.maxLon;
+  }
+
+  private static void plotBKD(IndexReader reader) throws IOException {
+    List<LeafReaderContext> leaves = reader.leaves();
+    if (leaves.size() != 1) {
+      throw new IllegalArgumentException("reader has " + leaves.size() + " leaves");
+    }
+
+    LeafReader leafReader = leaves.get(0).reader();
+
+    final List<Rectangle> stack = new ArrayList<>();
+
+    // Gather all leaf cells:
+    List<Rectangle> leafCells = new ArrayList<>();
+    leafReader.getPointValues().intersect("point", new IntersectVisitor() {
+        private byte[] lastMinPackedValue;
+        private byte[] lastMaxPackedValue;
+
+        @Override
+        public void visit(int docID) throws IOException {
+          throw new AssertionError();
+        }
+
+        @Override
+        public void visit(int docID, byte[] packedValue) throws IOException {
+          /*
+          if (lastMinPackedValue != null) {
+
+            double minLat = decodeLatitude(lastMinPackedValue, 0);
+            double minLon = decodeLongitude(lastMinPackedValue, Integer.BYTES);
+            double maxLat = decodeLatitude(lastMaxPackedValue, 0);
+            double maxLon = decodeLongitude(lastMaxPackedValue, Integer.BYTES);
+
+            leafCells.add(new Rectangle(minLat, maxLat, minLon, maxLon));
+            lastMinPackedValue = null;
+          }
+          */
+        }
+
+        @Override
+        public Relation compare(byte[] minPackedValue, byte[] maxPackedValue) {
+          lastMinPackedValue = minPackedValue.clone();
+          lastMaxPackedValue = maxPackedValue.clone();
+
+          double minLat = decodeLatitude(lastMinPackedValue, 0);
+          double minLon = decodeLongitude(lastMinPackedValue, Integer.BYTES);
+          double maxLat = decodeLatitude(lastMaxPackedValue, 0);
+          double maxLon = decodeLongitude(lastMaxPackedValue, Integer.BYTES);
+
+          Rectangle r = new Rectangle(minLat, maxLat, minLon, maxLon);
+
+          // Pop stack:
+          while (stack.size() > 0 && contains(stack.get(stack.size()-1), r) == false) {
+            stack.remove(stack.size()-1);
+            //System.out.println("  pop");
+          }
+
+          // Push stack:
+          stack.add(r);
+          //System.out.println("  push");
+
+          if (stack.size() == 12) {
+            leafCells.add(r);
+          }
+
+          return Relation.CELL_CROSSES_QUERY;
+        }
+      });
+
+    EarthDebugger earth = new EarthDebugger();
+    //System.out.println(leafCells.size() + " leaves:");
+    for(Rectangle leafCell : leafCells) {
+      //System.out.println("  " + leafCell);
+      earth.addRect(leafCell.minLat, leafCell.maxLat, leafCell.minLon, leafCell.maxLon);
+    }
+    System.out.println(earth.finish());
   }
 
   private static void createIndex(boolean fast) throws IOException, InterruptedException {
@@ -373,6 +464,7 @@ public class IndexAndSearchOpenStreetMaps {
         sizeOnDisk += dirs[part].fileLength(name);
       }
     }
+    //plotBKD(searchers[0].getIndexReader());
     System.out.println("INDEX SIZE: " + (sizeOnDisk/1024./1024./1024.) + " GB");
     long bytes = 0;
     long maxDoc = 0;
@@ -391,6 +483,9 @@ public class IndexAndSearchOpenStreetMaps {
     System.out.println("maxDoc=" + maxDoc);
 
     double bestQPS = Double.NEGATIVE_INFINITY;
+
+    // million hits per second:
+    double bestMHPS = Double.NEGATIVE_INFINITY;
 
     if (queryClass.equals("polyFile")) {
       List<Query> queries = readPolygonQueries(polyFile);
@@ -449,12 +544,14 @@ public class IndexAndSearchOpenStreetMaps {
         long tEnd = System.nanoTime();
         double elapsedSec = (tEnd-tStart)/1000000000.0;
         double qps = queryCount / elapsedSec;
+        double mhps = (totHits/1000000.0) / elapsedSec;
         System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
-                                         iter, qps, elapsedSec, queryCount, totHits));
+                                         "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         iter, mhps, qps, elapsedSec, queryCount, totHits));
         if (qps > bestQPS) {
           System.out.println("  ***");
           bestQPS = qps;
+          bestMHPS = mhps;
         }
       }
 
@@ -463,21 +560,30 @@ public class IndexAndSearchOpenStreetMaps {
       for(int iter=0;iter<20;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
+        int count = 0;
         for (Query q : queries) {
+          int hitCount = 0;
           for(IndexSearcher s : searchers) {
-            totHits += s.count(q);
+            hitCount += s.count(q);
           }
+          if (iter == 0) {
+            System.out.println("QUERY " + count + ": " + q + " hits=" + hitCount);
+            count++;
+          }
+          totHits += hitCount;
         }
 
         long tEnd = System.nanoTime();
         double elapsedSec = (tEnd-tStart)/1000000000.0;
         double qps = queries.size() / elapsedSec;
+        double mhps = (totHits/1000000.0) / elapsedSec;
         System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
-                                         iter, qps, elapsedSec, queries.size(), totHits));
+                                         "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         iter, mhps, qps, elapsedSec, queries.size(), totHits));
         if (qps > bestQPS) {
           System.out.println("  ***");
           bestQPS = qps;
+          bestMHPS = mhps;
         }
       }
 
@@ -569,15 +675,18 @@ public class IndexAndSearchOpenStreetMaps {
         long tEnd = System.nanoTime();
         double elapsedSec = (tEnd-tStart)/1000000000.0;
         double qps = queryCount / elapsedSec;
+        double mhps = (totHits/1000000.0) / elapsedSec;
         System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.1f QPS (%.1f sec for %d queries), totHits=%d",
-                                         iter, qps, elapsedSec, queryCount, totHits));
+                                         "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         iter, mhps, qps, elapsedSec, queryCount, totHits));
         if (qps > bestQPS) {
           System.out.println("  ***");
           bestQPS = qps;
+          bestMHPS = mhps;
         }
       }
     }
+    System.out.println("BEST M hits/sec: " + bestMHPS);
     System.out.println("BEST QPS: " + bestQPS);
 
     for(IndexSearcher s : searchers) {
@@ -626,8 +735,10 @@ public class IndexAndSearchOpenStreetMaps {
               //System.out.println("poly lats: " + Arrays.toString(poly[0]));
               //System.out.println("poly lons: " + Arrays.toString(poly[1]));
               if (useGeo3D) {
-                //System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
                 q = Geo3DPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                //GeoPoint point = new GeoPoint(PlanetModel.WGS84, Math.toRadians(centerLat), Math.toRadians(centerLon));
+                //System.out.println("WITHIN?: " + ((PointInGeo3DShapeQuery) q).getShape().isWithin(point));
+                //System.out.println(" --> QUERY: " + q);
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
               } else if (useGeoPoint) {
@@ -665,6 +776,8 @@ public class IndexAndSearchOpenStreetMaps {
    *
    * Do not invoke me across the dateline or a pole!! */
   private static double[][] makeRegularPoly(double centerLat, double centerLon, double radiusMeters, int gons) {
+
+    // System.out.println("MAKE POLY: centerLat=" + centerLat + " centerLon=" + centerLon + " radiusMeters=" + radiusMeters + " gons=" + gons);
 
     double[][] result = new double[2][];
     result[0] = new double[gons+1];
@@ -721,6 +834,9 @@ public class IndexAndSearchOpenStreetMaps {
     // close poly
     result[0][gons] = result[0][0];
     result[1][gons] = result[1][0];
+
+    //System.out.println("  polyLats=" + Arrays.toString(result[0]));
+    //System.out.println("  polyLons=" + Arrays.toString(result[1]));
 
     return result;
   }

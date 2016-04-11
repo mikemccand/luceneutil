@@ -27,19 +27,19 @@ def printResults(results, stats, maxDoc):
         print('|%s|%.2f|%.2f|' % (approach, indexSizeGB, readerHeapMB))
     
   print()
-  print('||Shape||Approach||QPS||Hit count||')
+  print('||Shape||Approach||M hits/sec||QPS||Hit count||')
   for shape in ('distance', 'box', 'poly 10'):
     for approach in ('geo3d', 'points', 'geopoint'):
       tup = shape, approach
       if tup in results:
-        qps, totHits = results[tup]
-        print('|%s|%s|%.2f|%d|' % (shape, approach, qps, totHits))
+        qps, mhps, totHits = results[tup]
+        print('|%s|%s|%.2f|%d|' % (shape, approach, mhps, qps, totHits))
       else:
-        print('|%s|%s|||' % (shape, approach))
+        print('|%s|%s||||' % (shape, approach))
   
 # nocommit should we "ant jar"?
 
-if os.system('javac -cp build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java'):
+if os.system('javac -cp build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java'):
   raise RuntimeError('compile failed')
 
 results = {}
@@ -64,7 +64,7 @@ with open(logFileName, 'w') as log:
       else:
         extra = ''
 
-      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach, shape, extra), shell=True, stdout=subprocess.PIPE)
+      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach, shape, extra), shell=True, stdout=subprocess.PIPE)
 
       totHits = None
       indexSizeGB = None
@@ -90,8 +90,11 @@ with open(logFileName, 'w') as log:
           doPrintLine = True
         if line.startswith('BEST QPS: '):
           doPrintLine = True
-          results[(shape, approach)] = (float(line[10:]), int(totHits))
+          results[(shape, approach)] = (float(line[10:]), bestMHPS, int(totHits))
           pickle.dump(results, open('results.pk', 'wb'))
+        if line.startswith('BEST M hits/sec: '):
+          doPrintLine = True
+          bestMHPS = float(line[17:])
         if line.startswith('INDEX SIZE: '):
           doPrintLine = True
           indexSizeGB = float(line[12:-3])

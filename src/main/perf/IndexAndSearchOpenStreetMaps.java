@@ -105,6 +105,25 @@ import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
 
 public class IndexAndSearchOpenStreetMaps {
 
+  /** prefix for indexes that will be built */
+  static final String INDEX_LOCATION;
+  /** prefix for data files such as latlon.subsetPlusAllLondon.txt */
+  static final String DATA_LOCATION;
+  static {
+    switch (System.getProperty("user.name")) {
+      case "mike": 
+        INDEX_LOCATION = "/b/osm";
+        DATA_LOCATION = "/lucenedata/open-street-maps/";
+        break;
+      case "rmuir":
+        INDEX_LOCATION = "/data/bkdtest";
+        DATA_LOCATION = "/data/";
+        break;
+      default:
+        throw new UnsupportedOperationException("the benchmark does not know you. please introduce yourself to the code and push");
+    }
+  }
+
   static boolean useGeoPoint = false;
   static boolean useGeo3D = false;
   static boolean useLatLonPoint = false;
@@ -112,7 +131,7 @@ public class IndexAndSearchOpenStreetMaps {
   static int NUM_PARTS;
 
   private static String getName(int part) {
-    String name = "/b/osm" + part;
+    String name = INDEX_LOCATION + part;
     if (useGeoPoint) {
       name += ".postings";
     } else if (useGeo3D) {
@@ -307,9 +326,9 @@ public class IndexAndSearchOpenStreetMaps {
     int BUFFER_SIZE = 1 << 16;     // 64K
     InputStream is;
     if (SMALL) {
-      is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
+      is = Files.newInputStream(Paths.get(DATA_LOCATION, "latlon.subsetPlusAllLondon.txt"));
     } else {
-      is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.txt"));
+      is = Files.newInputStream(Paths.get(DATA_LOCATION, "latlon.txt"));
     }
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 

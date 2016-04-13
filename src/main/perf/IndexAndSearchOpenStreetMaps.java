@@ -98,9 +98,9 @@ import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
 //
 // e.g. use -polyFile /l/util/src/python/countries.geojson.out.txt.gz 
 
-// javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
+// javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
-// rmuir@beast:~/workspace/util$ javac -cp /home/rmuir/workspace/lucene-solr/lucene/build/core/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/sandbox/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial3d/classes/java src/main/perf/IndexAndSearchOpenStreetMaps.java
+// rmuir@beast:~/workspace/util$ javac -cp /home/rmuir/workspace/lucene-solr/lucene/build/core/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/sandbox/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial3d/classes/java src/main/perf/IndexAndSearchOpenStreetMaps.java src/main/perf/RandomQuery.java
 // rmuir@beast:~/workspace/util$ java -cp /home/rmuir/workspace/lucene-solr/lucene/build/core/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/sandbox/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial3d/classes/java:src/main perf.IndexAndSearchOpenStreetMaps
 
 public class IndexAndSearchOpenStreetMaps {
@@ -476,7 +476,7 @@ public class IndexAndSearchOpenStreetMaps {
     }
   }
 
-  private static void queryIndex(String queryClass, int gons, String polyFile, boolean preBuildQueries) throws IOException {
+  private static void queryIndex(String queryClass, int gons, String polyFile, boolean preBuildQueries, Double filterPercent) throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
     long sizeOnDisk = 0;
@@ -681,6 +681,13 @@ public class IndexAndSearchOpenStreetMaps {
                   throw new AssertionError();
                 }
               
+                // TODO: do this somewhere else?
+                if (filterPercent != null) {
+                  BooleanQuery.Builder builder = new BooleanQuery.Builder();
+                  builder.add(q, BooleanClause.Occur.MUST);
+                  builder.add(new RandomQuery(filterPercent), BooleanClause.Occur.FILTER);
+                  q = builder.build();
+                }
                 //System.out.println("\nRUN QUERY " + q);
                 //long t0 = System.nanoTime();
                 for(IndexSearcher s : searchers) {
@@ -877,6 +884,7 @@ public class IndexAndSearchOpenStreetMaps {
     int count = 0;
     boolean reindex = false;
     boolean fastReindex = false;
+    Double filterPercent = null;
     String queryClass = null;
     String polyFile = null;
     int gons = 0;
@@ -925,9 +933,22 @@ public class IndexAndSearchOpenStreetMaps {
         queryClass = setQueryClass(queryClass, "box");
       } else if (arg.equals("-distance")) {
         queryClass = setQueryClass(queryClass, "distance");
+      } else if (arg.equals("-filter")) {
+	if (i + 1 < args.length) {
+          filterPercent = Double.parseDouble(args[i+1]);
+          if (Double.isNaN(filterPercent) || filterPercent < 0 || filterPercent > 100) {
+            throw new IllegalArgumentException("filter percent must be [0 .. 100]; got " + filterPercent);
+          }
+          i++;
+        } else {
+          throw new IllegalArgumentException("missing percentage argument to -filter");
+        }
       } else {
         throw new IllegalArgumentException("unknown command line option \"" + arg + "\"");
       }
+    }
+    if (preBuildQueries && filterPercent != null) {
+      throw new IllegalArgumentException("teach me to do this crazy combination first");
     }
     if (queryClass == null) {
       throw new IllegalArgumentException("must specify exactly one of -box, -poly gons or -distance; got none");
@@ -950,6 +971,6 @@ public class IndexAndSearchOpenStreetMaps {
     if (reindex) {
       createIndex(fastReindex);
     }
-    queryIndex(queryClass, gons, polyFile, preBuildQueries);
+    queryIndex(queryClass, gons, polyFile, preBuildQueries, filterPercent);
   }
 }

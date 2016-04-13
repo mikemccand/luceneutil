@@ -45,7 +45,7 @@ import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
-import org.apache.lucene.geo.EarthDebugger;
+//import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.geo.Rectangle;
@@ -217,6 +217,7 @@ public class IndexAndSearchOpenStreetMaps {
     return a.minLat <= b.minLat && a.maxLat >= b.maxLat && a.minLon <= b.minLon && a.maxLon >= b.maxLon;
   }
 
+  /*
   private static void plotBKD(IndexReader reader) throws IOException {
     List<LeafReaderContext> leaves = reader.leaves();
     if (leaves.size() != 1) {
@@ -251,7 +252,7 @@ public class IndexAndSearchOpenStreetMaps {
             leafCells.add(new Rectangle(minLat, maxLat, minLon, maxLon));
             lastMinPackedValue = null;
           }
-          */
+          * /
         }
 
         @Override
@@ -292,6 +293,7 @@ public class IndexAndSearchOpenStreetMaps {
     }
     System.out.println(earth.finish());
   }
+*/
 
   private static void createIndex(boolean fast) throws IOException, InterruptedException {
 
@@ -526,7 +528,7 @@ public class IndexAndSearchOpenStreetMaps {
         });
       */
 
-      for(int iter=0;iter<100;iter++) {
+      for(int iter=0;iter<20;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
         int queryCount = 0;
@@ -567,7 +569,7 @@ public class IndexAndSearchOpenStreetMaps {
             hitCount += s.count(q);
           }
           if (iter == 0) {
-            System.out.println("QUERY " + count + ": " + q + " hits=" + hitCount);
+            //System.out.println("QUERY " + count + ": " + q + " hits=" + hitCount);
             count++;
           }
           totHits += hitCount;
@@ -657,6 +659,7 @@ public class IndexAndSearchOpenStreetMaps {
                   throw new AssertionError();
                 }
               
+                //System.out.println("\nRUN QUERY " + q);
                 //long t0 = System.nanoTime();
                 for(IndexSearcher s : searchers) {
                   int hitCount = s.count(q);
@@ -665,8 +668,8 @@ public class IndexAndSearchOpenStreetMaps {
                     System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
                   }
                 }
-
                 queryCount++;
+                //throw new RuntimeException("now stop");
               }
             }
           }

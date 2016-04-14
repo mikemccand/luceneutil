@@ -94,14 +94,27 @@ import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.encodeLatitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
 
-// convert geojson to poly file using src/python/geoJSONToJava.py
+
+// STEPS:
 //
-// e.g. use -polyFile /l/util/src/python/countries.geojson.out.txt.gz 
+//   * Download http://home.apache.org/~mikemccand/latlon.subsetPlusAllLondon.txt.lzma (496 MB) ... this is "all points inside London, UK"
+//     plus "2.5 % of all points around the world" from the ~September 2015 export of OpenStreetMaps corpus
+//
+//   * Uncompress it (lzma -d /path/to/...) (1.9 GB)
+//
+//   * cd /path/to/lucene, and go into lucene subdir and run "ant jar"
+//
+//   * tweak the commands below to match your classpath, then run with options like "-geo3d -poly 100 -reindex"
 
 // javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java; java -cp /l/util/src/main:build/core/classes/java:build/sandbox/classes/java perf.IndexAndSearchOpenStreetMaps
 
 // rmuir@beast:~/workspace/util$ javac -cp /home/rmuir/workspace/lucene-solr/lucene/build/core/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/sandbox/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial3d/classes/java src/main/perf/IndexAndSearchOpenStreetMaps.java src/main/perf/RandomQuery.java
 // rmuir@beast:~/workspace/util$ java -cp /home/rmuir/workspace/lucene-solr/lucene/build/core/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/sandbox/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial/classes/java:/home/rmuir/workspace/lucene-solr/lucene/build/spatial3d/classes/java:src/main perf.IndexAndSearchOpenStreetMaps
+
+// convert geojson to poly file using src/python/geoJSONToJava.py
+//
+// e.g. use -polyFile /l/util/src/python/countries.geojson.out.txt.gz 
+
 
 public class IndexAndSearchOpenStreetMaps {
 

@@ -45,6 +45,7 @@ import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.document.NearestHit;
 //import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;
@@ -67,9 +68,11 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.spatial.geopoint.document.GeoPointField;
@@ -93,7 +96,6 @@ import static org.apache.lucene.geo.GeoEncodingUtils.decodeLatitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.encodeLatitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
-
 
 // STEPS:
 //
@@ -330,7 +332,7 @@ public class IndexAndSearchOpenStreetMaps {
   }
 */
 
-  private static void createIndex(boolean fast) throws IOException, InterruptedException {
+  private static void createIndex(boolean fast, boolean doForceMerge) throws IOException, InterruptedException {
 
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
@@ -446,9 +448,11 @@ public class IndexAndSearchOpenStreetMaps {
       System.out.println("done commit");
       long t1 = System.nanoTime();
       System.out.println(((t1-t0)/1000000000.0) + " sec to index part " + part);
-      w.forceMerge(1);
-      long t2 = System.nanoTime();
-      System.out.println(((t2-t1)/1000000000.0) + " sec to force merge part " + part);
+      if (doForceMerge) {
+        w.forceMerge(1);
+        long t2 = System.nanoTime();
+        System.out.println(((t2-t1)/1000000000.0) + " sec to force merge part " + part);
+      }
       w.close();
     }
 
@@ -489,7 +493,7 @@ public class IndexAndSearchOpenStreetMaps {
     }
   }
 
-  private static void queryIndex(String queryClass, int gons, String polyFile, boolean preBuildQueries, Double filterPercent) throws IOException {
+  private static void queryIndex(String queryClass, int gons, int nearestTopN, String polyFile, boolean preBuildQueries, Double filterPercent) throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
     long sizeOnDisk = 0;
@@ -635,6 +639,7 @@ public class IndexAndSearchOpenStreetMaps {
       for(int iter=0;iter<20;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
+        double totNearestDistance = 0.0;
         int queryCount = 0;
 
         for(int latStep=0;latStep<STEPS;latStep++) {
@@ -649,7 +654,7 @@ public class IndexAndSearchOpenStreetMaps {
                 double distanceMeters = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
                 double centerLat = (lat+latEnd)/2.0;
                 double centerLon = (lon+lonEnd)/2.0;
-
+                ScoreDoc[] nearestHits = null;
                 Query q = null;
 
                 switch(queryClass) {
@@ -690,8 +695,28 @@ public class IndexAndSearchOpenStreetMaps {
                     throw new AssertionError();
                   }
                   break;
+                case "nearest":
+                  if (useLatLonPoint) {
+                    if (searchers.length != 1) {
+                      // TODO
+                      throw new AssertionError();
+                    }
+                    nearestHits = LatLonPoint.nearest(searchers[0], "point", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, nearestTopN).scoreDocs;
+                    if (false && iter == 0) {
+                      System.out.println("\n" + nearestHits.length + " nearest:");
+                      for(ScoreDoc hit : nearestHits) {
+                        System.out.println("  " + ((FieldDoc) hit).fields[0]);
+                      }
+                    }
+                    for(ScoreDoc hit : nearestHits) {
+                      totNearestDistance += (Double) ((FieldDoc) hit).fields[0];
+                    }
+                  } else {
+                    throw new AssertionError();
+                  }
+                  break;
                 default:
-                  throw new AssertionError();
+                  throw new AssertionError("unknown queryClass " + queryClass);
                 }
               
                 // TODO: do this somewhere else?
@@ -701,14 +726,19 @@ public class IndexAndSearchOpenStreetMaps {
                   builder.add(new RandomQuery(filterPercent), BooleanClause.Occur.FILTER);
                   q = builder.build();
                 }
-                //System.out.println("\nRUN QUERY " + q);
-                //long t0 = System.nanoTime();
-                for(IndexSearcher s : searchers) {
-                  int hitCount = s.count(q);
-                  totHits += hitCount;
-                  if (false && iter == 0) {
-                    System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
+                if (q != null) {
+                  //System.out.println("\nRUN QUERY " + q);
+                  //long t0 = System.nanoTime();
+                  for(IndexSearcher s : searchers) {
+                    int hitCount = s.count(q);
+                    totHits += hitCount;
+                    if (false && iter == 0) {
+                      System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
+                    }
                   }
+                } else {
+                  assert nearestHits != null;
+                  totHits += nearestHits.length;
                 }
                 queryCount++;
                 //throw new RuntimeException("now stop");
@@ -721,9 +751,15 @@ public class IndexAndSearchOpenStreetMaps {
         double elapsedSec = (tEnd-tStart)/1000000000.0;
         double qps = queryCount / elapsedSec;
         double mhps = (totHits/1000000.0) / elapsedSec;
-        System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
-                                         iter, mhps, qps, elapsedSec, queryCount, totHits));
+        if (queryClass.equals("nearest")) {
+          System.out.println(String.format(Locale.ROOT,
+                                           "ITER %d: %.1f QPS (%.1f sec for %d queries), totNearestDistance=%.10f",
+                                           iter, qps, elapsedSec, queryCount, totNearestDistance));
+        } else {
+          System.out.println(String.format(Locale.ROOT,
+                                           "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                           iter, mhps, qps, elapsedSec, queryCount, totHits));
+        }
         if (qps > bestQPS) {
           System.out.println("  ***");
           bestQPS = qps;
@@ -901,17 +937,18 @@ public class IndexAndSearchOpenStreetMaps {
     String queryClass = null;
     String polyFile = null;
     int gons = 0;
+    int nearestTopN = 0;
     boolean preBuildQueries = false;
+    boolean forceMerge = false;
     for(int i=0;i<args.length;i++) {
       String arg = args[i];
       if (arg.equals("-reindex")) {
         reindex = true;
-        fastReindex = true;
       } else if (arg.equals("-full")) {
         SMALL = false;
-      } else if (arg.equals("-reindexSlow")) {
+      } else if (arg.equals("-reindexFast")) {
         reindex = true;
-        fastReindex = false;
+        fastReindex = true;
       } else if (arg.equals("-points")) {
         useLatLonPoint = true;
         count++;
@@ -942,6 +979,17 @@ public class IndexAndSearchOpenStreetMaps {
         } else {
           throw new IllegalArgumentException("missing gons argument to -poly");
         }
+      } else if (arg.equals("-nearest")) {
+        queryClass = setQueryClass(queryClass, "nearest");
+        if (i + 1 < args.length) {
+          nearestTopN = Integer.parseInt(args[i+1]);
+          if (nearestTopN < 1) {
+            throw new IllegalArgumentException("nearest topN must be >= 1; got " + nearestTopN);
+          }
+          i++;
+        } else {
+          throw new IllegalArgumentException("missing topN argument to -nearest");
+        }
       } else if (arg.equals("-box")) {
         queryClass = setQueryClass(queryClass, "box");
       } else if (arg.equals("-distance")) {
@@ -956,6 +1004,8 @@ public class IndexAndSearchOpenStreetMaps {
         } else {
           throw new IllegalArgumentException("missing percentage argument to -filter");
         }
+      } else if (arg.equals("-forceMerge")) {
+        forceMerge = true;
       } else {
         throw new IllegalArgumentException("unknown command line option \"" + arg + "\"");
       }
@@ -964,7 +1014,15 @@ public class IndexAndSearchOpenStreetMaps {
       throw new IllegalArgumentException("teach me to do this crazy combination first");
     }
     if (queryClass == null) {
-      throw new IllegalArgumentException("must specify exactly one of -box, -poly gons or -distance; got none");
+      throw new IllegalArgumentException("must specify exactly one of -box, -poly gons, -distance or -nearest; got none");
+    }
+    if (queryClass.equals("nearest")) {
+      if (preBuildQueries) {
+        throw new IllegalArgumentException("teach me to do this crazy combination first");
+      }
+      if (useLatLonPoint == false) {
+        throw new IllegalArgumentException("teach me to do this crazy combination first");
+      }
     }
     if (count == 0) {
       throw new IllegalArgumentException("must specify exactly one of -points, -geopoint or -geo3d; got none");
@@ -982,8 +1040,8 @@ public class IndexAndSearchOpenStreetMaps {
     System.out.println("Index path: " + getName(0));
 
     if (reindex) {
-      createIndex(fastReindex);
+      createIndex(fastReindex, forceMerge);
     }
-    queryIndex(queryClass, gons, polyFile, preBuildQueries, filterPercent);
+    queryIndex(queryClass, gons, nearestTopN, polyFile, preBuildQueries, filterPercent);
   }
 }

@@ -45,7 +45,6 @@ import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
-import org.apache.lucene.document.NearestHit;
 //import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;

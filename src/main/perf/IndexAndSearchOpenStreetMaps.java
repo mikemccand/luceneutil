@@ -73,6 +73,8 @@ import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.SimpleCollector;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.spatial.geopoint.document.GeoPointField;
 import org.apache.lucene.spatial.geopoint.search.GeoPointDistanceQuery;
@@ -492,7 +494,7 @@ public class IndexAndSearchOpenStreetMaps {
     }
   }
 
-  private static void queryIndex(String queryClass, int gons, int nearestTopN, String polyFile, boolean preBuildQueries, Double filterPercent) throws IOException {
+  private static void queryIndex(String queryClass, int gons, int nearestTopN, String polyFile, boolean preBuildQueries, Double filterPercent, boolean doDistanceSort) throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
     long sizeOnDisk = 0;
@@ -725,14 +727,24 @@ public class IndexAndSearchOpenStreetMaps {
                   builder.add(new RandomQuery(filterPercent), BooleanClause.Occur.FILTER);
                   q = builder.build();
                 }
+
+                
                 if (q != null) {
-                  //System.out.println("\nRUN QUERY " + q);
-                  //long t0 = System.nanoTime();
-                  for(IndexSearcher s : searchers) {
-                    int hitCount = s.count(q);
-                    totHits += hitCount;
-                    if (false && iter == 0) {
-                      System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
+                  if (doDistanceSort) {
+                    Sort sort = new Sort(LatLonPoint.newDistanceSort("point", centerLat, centerLon));
+                    for(IndexSearcher s : searchers) {
+                      TopFieldDocs hits = s.search(q, 10, sort);
+                      totHits += hits.totalHits;
+                    }
+                  } else {
+                    //System.out.println("\nRUN QUERY " + q);
+                    //long t0 = System.nanoTime();
+                    for(IndexSearcher s : searchers) {
+                      int hitCount = s.count(q);
+                      totHits += hitCount;
+                      if (false && iter == 0) {
+                        System.out.println("q=" + q + " lat=" + centerLat + " lon=" + centerLon + " distanceMeters=" + distanceMeters + " hits: " + hitCount);
+                      }
                     }
                   }
                 } else {
@@ -939,6 +951,7 @@ public class IndexAndSearchOpenStreetMaps {
     int nearestTopN = 0;
     boolean preBuildQueries = false;
     boolean forceMerge = false;
+    boolean doDistanceSort = false;
     for(int i=0;i<args.length;i++) {
       String arg = args[i];
       if (arg.equals("-reindex")) {
@@ -957,6 +970,8 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (arg.equals("-geo3d")) {
         useGeo3D = true;
         count++;
+      } else if (arg.equals("-sort")) {
+        doDistanceSort = true;
       } else if (arg.equals("-preBuildQueries")) {
         preBuildQueries = true;
       } else if (arg.equals("-polyFile")) {
@@ -1015,6 +1030,14 @@ public class IndexAndSearchOpenStreetMaps {
     if (queryClass == null) {
       throw new IllegalArgumentException("must specify exactly one of -box, -poly gons, -distance or -nearest; got none");
     }
+    if (doDistanceSort) {
+      if (preBuildQueries) {
+        throw new IllegalArgumentException("teach me to do this crazy combination first");
+      }
+      if (useLatLonPoint == false) {
+        throw new IllegalArgumentException("teach me to do this crazy combination first");
+      }
+    }
     if (queryClass.equals("nearest")) {
       if (preBuildQueries) {
         throw new IllegalArgumentException("teach me to do this crazy combination first");
@@ -1041,6 +1064,6 @@ public class IndexAndSearchOpenStreetMaps {
     if (reindex) {
       createIndex(fastReindex, forceMerge);
     }
-    queryIndex(queryClass, gons, nearestTopN, polyFile, preBuildQueries, filterPercent);
+    queryIndex(queryClass, gons, nearestTopN, polyFile, preBuildQueries, filterPercent, doDistanceSort);
   }
 }

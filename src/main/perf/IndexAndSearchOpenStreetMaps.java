@@ -272,7 +272,7 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (useGeoPoint) {
         q = new GeoPointInPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
       } else {
-        throw new AssertionError();
+        q = Geo3DPoint.newPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
       }
       result.add(q);
     }

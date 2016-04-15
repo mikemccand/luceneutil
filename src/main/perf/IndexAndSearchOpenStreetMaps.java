@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
@@ -165,6 +166,12 @@ public class IndexAndSearchOpenStreetMaps {
     return name;
   }
 
+  /** Only used to compute bbox for all polygons loaded from the -polyFile */
+  private static double minLat = Double.POSITIVE_INFINITY;
+  private static double maxLat = Double.NEGATIVE_INFINITY;
+  private static double minLon = Double.POSITIVE_INFINITY;
+  private static double maxLon = Double.NEGATIVE_INFINITY;
+        
   // NOTE: use geoJSONToJava.py to convert the geojson file to simple text file:
   private static List<Query> readPolygonQueries(String fileName) throws IOException {
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
@@ -177,6 +184,9 @@ public class IndexAndSearchOpenStreetMaps {
     }
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
     List<Query> result = new ArrayList<>();
+    //EarthDebugger earth = new EarthDebugger(51.45677607571096, 0.13580354718348125, 100000.0);
+    int totalVertexCount = 0;
+
     while (true) {
       String line = reader.readLine();      
       if (line == null) {
@@ -197,10 +207,11 @@ public class IndexAndSearchOpenStreetMaps {
         }
         int polyCount = Integer.parseInt(line.substring(13));
         List<Polygon> polyPlusHoles = new ArrayList<>();
+        double sumLat = 0.0;
+        double sumLon = 0.0;
         for(int j=0;j<polyCount;j++) {
           line = reader.readLine();      
           if (line.startsWith("    vertex count=") == false) {
-            System.out.println("GOT: " + line);
             throw new AssertionError();
           }
           
@@ -217,6 +228,9 @@ public class IndexAndSearchOpenStreetMaps {
           }
           for(int k=0;k<vertexCount;k++) {
             lats[k] = Double.parseDouble(parts[k]);
+            sumLat += lats[k];
+            minLat = Math.min(minLat, lats[k]);
+            maxLat = Math.max(maxLat, lats[k]);
           }
         
           line = reader.readLine();      
@@ -229,13 +243,29 @@ public class IndexAndSearchOpenStreetMaps {
           }
           for(int k=0;k<vertexCount;k++) {
             lons[k] = Double.parseDouble(parts[k]);
+            sumLon += lons[k];
+            minLon = Math.min(minLon, lons[k]);
+            maxLon = Math.max(maxLon, lons[k]);
           }
           polyPlusHoles.add(new Polygon(lats, lons));
+          totalVertexCount += vertexCount;
         }
+
         Polygon firstPoly = polyPlusHoles.get(0);
         Polygon[] holes = polyPlusHoles.subList(1, polyPlusHoles.size()).toArray(new Polygon[polyPlusHoles.size()-1]);
-        polys.add(new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons(), holes));
+        Polygon poly = new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons(), holes);
+        /*
+        if (earth != null && holes.length > 0) {
+          for(Polygon hole : holes) {
+            earth.addPolygon(hole, "#ff0000");
+          }
+          //earth = null;
+        }
+        */
+
+        polys.add(poly);
       }
+
       Query q;
       if (useLatLonPoint) {
         q = LatLonPoint.newPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
@@ -246,6 +276,13 @@ public class IndexAndSearchOpenStreetMaps {
       }
       result.add(q);
     }
+    System.out.println("Total vertex count: " + totalVertexCount);
+
+    /*
+    try (PrintWriter out = new PrintWriter("/x/tmp/londonpoly.html")) {
+      out.println(earth.finish());
+    }
+    */
 
     return result;
   }
@@ -566,6 +603,20 @@ public class IndexAndSearchOpenStreetMaps {
             }
           }
         });
+      */
+
+      /*
+      {
+        Query q = LatLonPoint.newBoxQuery("point", minLat, maxLat, minLon, maxLon);
+        int totHits = 0;
+                           
+        for(IndexSearcher s : searchers) {
+          int hitCount = s.count(q);
+          totHits += hitCount;
+        }
+
+        System.out.println("Poly file bbox total hits: " + totHits);
+      }
       */
 
       for(int iter=0;iter<20;iter++) {
@@ -974,6 +1025,10 @@ public class IndexAndSearchOpenStreetMaps {
         doDistanceSort = true;
       } else if (arg.equals("-preBuildQueries")) {
         preBuildQueries = true;
+      } else if (arg.equals("-polyMedium")) {
+        // London boroughs:
+        queryClass = setQueryClass(queryClass, "polyFile");
+        polyFile = DATA_LOCATION + "/london.boroughs.poly.txt.gz";
       } else if (arg.equals("-polyFile")) {
         queryClass = setQueryClass(queryClass, "polyFile");
         if (i + 1 < args.length) {

@@ -122,6 +122,8 @@ import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
 
 public class IndexAndSearchOpenStreetMaps {
 
+  private static final int ITERS = 20;
+
   /** prefix for indexes that will be built */
   static final String INDEX_LOCATION;
   /** prefix for data files such as latlon.subsetPlusAllLondon.txt */
@@ -651,7 +653,7 @@ public class IndexAndSearchOpenStreetMaps {
       }
       */
 
-      for(int iter=0;iter<20;iter++) {
+      for(int iter=0;iter<ITERS;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
         int queryCount = 0;
@@ -682,7 +684,7 @@ public class IndexAndSearchOpenStreetMaps {
 
     } else if (preBuildQueries) {
       List<Query> queries = makeQueries(queryClass, gons);
-      for(int iter=0;iter<20;iter++) {
+      for(int iter=0;iter<ITERS;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
         int count = 0;
@@ -720,7 +722,7 @@ public class IndexAndSearchOpenStreetMaps {
       double MAX_LAT = 51.6542719;
       double MIN_LON = -0.3867282;
       double MAX_LON = 0.8492337;
-      for(int iter=0;iter<20;iter++) {
+      for(int iter=0;iter<ITERS;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
         double totNearestDistance = 0.0;

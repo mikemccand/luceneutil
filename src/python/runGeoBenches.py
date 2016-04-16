@@ -3,9 +3,14 @@ import pickle
 import subprocess
 import os
 import re
+import datetime
 import time
 
 reTotHits = re.compile('totHits=(\d+)$')
+
+GEO_LOGS_DIR = '/l/logs.nightly/geo'
+
+nightly = '-nightly' in sys.argv
 
 def printResults(results, stats, maxDoc):
   print()
@@ -37,8 +42,10 @@ def printResults(results, stats, maxDoc):
       else:
         print('|%s|%s||||' % (shape, approach))
 
-if '-resultsFile' in sys.argv:
-  resultsFileName = sys.argv[sys.argv.index('-resultsFile'+1)]
+if nightly:
+  start = datetime.datetime.now()
+  timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
+  resultsFileName = '%s/%s.pk' % (GEO_LOGS_DIR, timeStamp)
 else:
   resultsFileName = 'geo.results.pk'
   
@@ -55,8 +62,13 @@ didReIndex = set()
 
 t0 = time.time()
 
-logFileName = '/l/logs/geoBenchLog.txt'
-print('\nNOTE: logging all output to %s\n' % logFileName)
+if nightly:
+  logFileName = '%s/%s.log.txt' % (GEO_LOGS_DIR, timeStamp)
+else:
+  logFileName = '/l/logs/geoBenchLog.txt'
+
+print('git head revision %s' % os.popen('git rev-parse HEAD').read().strip())
+print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName, resultsFileName))
 
 # TODO: filters
 with open(logFileName, 'w') as log:
@@ -147,3 +159,8 @@ with open(logFileName, 'w') as log:
         raise RuntimeError('maxDoc changed from %d to %d' % (themaxDoc, maxDoc))
 
       printResults(results, stats, maxDoc)
+
+if nightly:
+  os.system('bzip2 --best %s' % logFileName)
+  
+print('Took %.1f sec to run all geo benchmarks' % (time.time()-t0))

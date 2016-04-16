@@ -28,18 +28,23 @@ def printResults(results, stats, maxDoc):
     
   print()
   print('||Shape||Approach||M hits/sec||QPS||Hit count||')
-  for shape in ('distance', 'box', 'poly 10'):
+  for shape in ('distance', 'box', 'poly 10', 'nearest 10', 'sort'):
     for approach in ('geo3d', 'points', 'geopoint'):
       tup = shape, approach
       if tup in results:
         qps, mhps, totHits = results[tup]
-        print('|%s|%s|%.2f|%d|' % (shape, approach, mhps, qps, totHits))
+        print('|%s|%s|%.2f|%.2f|%d|' % (shape, approach, mhps, qps, totHits))
       else:
         print('|%s|%s||||' % (shape, approach))
+
+if '-resultsFile' in sys.argv:
+  resultsFileName = sys.argv[sys.argv.index('-resultsFile'+1)]
+else:
+  resultsFileName = 'geo.results.pk'
   
 # nocommit should we "ant jar"?
 
-if os.system('javac -cp build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java'):
+if os.system('javac -cp build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java'):
   raise RuntimeError('compile failed')
 
 results = {}
@@ -53,18 +58,33 @@ t0 = time.time()
 logFileName = '/l/logs/geoBenchLog.txt'
 print('\nNOTE: logging all output to %s\n' % logFileName)
 
+# TODO: filters
 with open(logFileName, 'w') as log:
 
-  for shape in ('distance', 'box', 'poly 10'):
-    for approach in ('geopoint', 'points', 'geo3d'):
+  for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10'):
+    for approach in ('points', 'geopoint', 'geo3d'):
+    #for approach in ('points',):
+
+      if shape == 'nearest 10' and approach != 'points':
+        # KNN only implemented for LatLonPoint now
+        continue
+
+      if shape == 'sort' and approach != 'points':
+        # distance sort only implemented for LatLonPoint now
+        continue
 
       if '-reindex' in sys.argv and approach not in didReIndex:
-        extra = ' -reindexSlow'
+        extra = ' -reindex'
         didReIndex.add(approach)
       else:
         extra = ''
 
-      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach, shape, extra), shell=True, stdout=subprocess.PIPE)
+      if shape == 'sort':
+        shapeCmd = 'sort -box'
+      else:
+        shapeCmd = shape
+
+      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach, shapeCmd, extra), shell=True, stdout=subprocess.PIPE)
 
       totHits = None
       indexSizeGB = None
@@ -91,7 +111,7 @@ with open(logFileName, 'w') as log:
         if line.startswith('BEST QPS: '):
           doPrintLine = True
           results[(shape, approach)] = (float(line[10:]), bestMHPS, int(totHits))
-          pickle.dump(results, open('results.pk', 'wb'))
+          pickle.dump(results, open(resultsFileName, 'wb'))
         if line.startswith('BEST M hits/sec: '):
           doPrintLine = True
           bestMHPS = float(line[17:])

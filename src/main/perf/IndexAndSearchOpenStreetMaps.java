@@ -847,8 +847,8 @@ public class IndexAndSearchOpenStreetMaps {
         double mhps = (totHits/1000000.0) / elapsedSec;
         if (queryClass.equals("nearest")) {
           System.out.println(String.format(Locale.ROOT,
-                                           "ITER %d: %.1f QPS (%.1f sec for %d queries), totNearestDistance=%.10f",
-                                           iter, qps, elapsedSec, queryCount, totNearestDistance));
+                                           "ITER %d: %.1f QPS (%.1f sec for %d queries), totNearestDistance=%.10f, totHits=%d",
+                                           iter, qps, elapsedSec, queryCount, totNearestDistance, maxDoc));
         } else {
           System.out.println(String.format(Locale.ROOT,
                                            "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",

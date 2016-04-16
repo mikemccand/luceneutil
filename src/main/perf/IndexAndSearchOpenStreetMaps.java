@@ -247,13 +247,45 @@ public class IndexAndSearchOpenStreetMaps {
             minLon = Math.min(minLon, lons[k]);
             maxLon = Math.max(maxLon, lons[k]);
           }
+
+          //System.out.println("check poly");
+
+          /*
+          int dupCount = 0;
+          for(int k=1;k<vertexCount;k++) {
+            if (lats[k] == lats[k-1] && lons[k] == lons[k-1]) {
+              dupCount++;
+            }
+          }
+          if (dupCount != 0) {
+            System.out.println("  dedup to remove " + dupCount + " duplicate points");
+            double[] newLats = new double[lats.length-dupCount];
+            double[] newLons = new double[lons.length-dupCount];
+            newLats[0] = lats[0];
+            newLons[0] = lons[0];
+            int upto = 1;
+            for(int k=1;k<lats.length;k++) {
+              if (lats[k] != lats[k-1] || lons[k] != lons[k-1]) {
+                newLats[upto] = lats[k];
+                newLons[upto] = lons[k];
+                upto++;
+              }
+            }
+            lats = newLats;
+            lons = newLons;
+          }
+          */
+
           polyPlusHoles.add(new Polygon(lats, lons));
           totalVertexCount += vertexCount;
         }
 
         Polygon firstPoly = polyPlusHoles.get(0);
         Polygon[] holes = polyPlusHoles.subList(1, polyPlusHoles.size()).toArray(new Polygon[polyPlusHoles.size()-1]);
+
         Polygon poly = new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons(), holes);
+
+        //Polygon poly = new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons());
         /*
         if (earth != null && holes.length > 0) {
           for(Polygon hole : holes) {

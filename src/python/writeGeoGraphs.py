@@ -1,3 +1,4 @@
+import os
 import datetime
 import pickle
 
@@ -80,6 +81,15 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
     f.write('    + "%s\\n"\n' % ','.join(l))
   writeGraphFooter(f, chartID, chartTitle, yLabel)
   f.write('</script>')
+
+def loadResults():
+  for name in os.listdir('/l/logs.nightly/geo'):
+    if name.endswith('.pk'):
+      year, month, day, hour, minute, second = (int(x) for x in name[:-3].split('.'))
+      results = pickle.loads(open('/l/logs.nightly/geo/%s' % name, 'rb').read())
+      print('%s: %s' % (name, results))
+
+results = loadResults()
 
 with open('/x/tmp/test.html', 'w') as f:
   f.write('''<!DOCTYPE html>

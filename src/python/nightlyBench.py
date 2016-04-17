@@ -540,7 +540,7 @@ def run():
     iters = 30
     for i in range(iters):
       try:
-        runCommand('git pull -u > %s/gitupdate.log' % runLogDir)
+        runCommand('git checkout master; git pull -u > %s/gitupdate.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)

@@ -82,14 +82,15 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
   writeGraphFooter(f, chartID, chartTitle, yLabel)
   f.write('</script>')
 
-def loadResults():
+def loadAllResults():
+  allResults = {}
   for name in os.listdir('/l/logs.nightly/geo'):
     if name.endswith('.pk'):
+      print('load results: %s' % name)
       year, month, day, hour, minute, second = (int(x) for x in name[:-3].split('.'))
       results = pickle.loads(open('/l/logs.nightly/geo/%s' % name, 'rb').read())
-      print('%s: %s' % (name, results))
-
-results = loadResults()
+      allResults[datetime.datetime(year, month, day, hour, minute, second)] = results
+  return allResults
 
 with open('/x/tmp/test.html', 'w') as f:
   f.write('''<!DOCTYPE html>
@@ -119,14 +120,27 @@ with open('/x/tmp/test.html', 'w') as f:
 <p>On each chart, you can click + drag (vertically or horizontally) to zoom in and then shift + drag to move around.</p>
     ''')
 
-  t0 = datetime.datetime(year=2016, month=4, day=2)
-  t1 = t0 + datetime.timedelta(days=1)
-  t2 = t1 + datetime.timedelta(days=1)
-  data = {
-    'Points2D': {t0: 5.0, t1: 6.0, t2: 6.5}
-    }
+  byQuery = {}
+  for timeStamp, (stats, results) in loadAllResults().items():
+    for tup in results.keys():
+      if tup[0] not in byQuery:
+        byQuery[tup[0]] = {}
+        
+      key = tup[1]
+      if key not in byQuery[tup[0]]:
+        byQuery[tup[0]][key] = {}
 
-  writeOneGraph(data, 'search', 'Distance filter', 'QPS')
+      qps, mhps, totHits = results[tup]
+      if tup[0] == 'nearest 10':
+        metric = qps
+      else:
+        metric = mhps
+      byQuery[tup[0]][key][timeStamp] = metric
+
+  for key in 'distance', 'poly 10', 'box', 'nearest 10', 'sort':
+    data = byQuery[key]
+    print('write graph for %s' % key)
+    writeOneGraph(data, 'search-%s' % key, key, 'MHPS')
 
   f.write('''
 </body>

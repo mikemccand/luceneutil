@@ -45,9 +45,16 @@ def printResults(results, stats, maxDoc):
       else:
         print('|%s|%s||||' % (shape, approach))
 
+haveNearest = True
+nearestArrives = datetime.datetime(year=2016, month=4, day=14)
+
 if nightly:
   if '-timeStamp' in sys.argv:
     timeStamp = sys.argv[sys.argv.index('-timeStamp')+1]
+    year, month, day, hour, minute, second = (int(x) for x in timeStamp.split('.'))
+    timeStampDateTime = datetime.datetime(year, month, day, hour, minute, second)
+    if timeStampDateTime < nearestArrives:
+      haveNearest = False
   else:
     start = datetime.datetime.now()
     timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
@@ -81,6 +88,10 @@ with open(logFileName, 'w') as log:
 
   for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10'):
     for approach in ('points', 'geopoint', 'geo3d'):
+
+      if shape == 'nearest 10' and not haveNearest:
+        # we are back-testing, and got back before nearest was pushed
+        continue
 
       if shape == 'nearest 10' and approach != 'points':
         # KNN only implemented for LatLonPoint now

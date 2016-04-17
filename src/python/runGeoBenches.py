@@ -12,6 +12,9 @@ GEO_LOGS_DIR = '/l/logs.nightly/geo'
 
 nightly = '-nightly' in sys.argv
 
+if nightly and '-reindex' not in sys.argv:
+  sys.argv.append('-reindex')
+
 def printResults(results, stats, maxDoc):
   print()
   print('Results on %2fM points:' % (maxDoc/1000000.))
@@ -43,8 +46,11 @@ def printResults(results, stats, maxDoc):
         print('|%s|%s||||' % (shape, approach))
 
 if nightly:
-  start = datetime.datetime.now()
-  timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
+  if '-timeStamp' in sys.argv:
+    timeStamp = sys.argv[sys.argv.index('-timeStamp')+1]
+  else:
+    start = datetime.datetime.now()
+    timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
   resultsFileName = '%s/%s.pk' % (GEO_LOGS_DIR, timeStamp)
 else:
   resultsFileName = 'geo.results.pk'
@@ -75,7 +81,6 @@ with open(logFileName, 'w') as log:
 
   for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10'):
     for approach in ('points', 'geopoint', 'geo3d'):
-    #for approach in ('points',):
 
       if shape == 'nearest 10' and approach != 'points':
         # KNN only implemented for LatLonPoint now
@@ -123,7 +128,7 @@ with open(logFileName, 'w') as log:
         if line.startswith('BEST QPS: '):
           doPrintLine = True
           results[(shape, approach)] = (float(line[10:]), bestMHPS, int(totHits))
-          pickle.dump(results, open(resultsFileName, 'wb'))
+          pickle.dump((stats, results), open(resultsFileName, 'wb'))
         if line.startswith('BEST M hits/sec: '):
           doPrintLine = True
           bestMHPS = float(line[17:])

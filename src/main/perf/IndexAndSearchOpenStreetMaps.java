@@ -132,8 +132,12 @@ public class IndexAndSearchOpenStreetMaps {
         INDEX_LOCATION = "/data/bkdtest";
         DATA_LOCATION = "/data/";
         break;
+      case "kawright":
+        INDEX_LOCATION = "c:\\data\\bkdtest";
+        DATA_LOCATION = "c:\\data\\";
+        break;
       default:
-        throw new UnsupportedOperationException("the benchmark does not know you. please introduce yourself to the code and push");
+        throw new UnsupportedOperationException("the benchmark does not know you, "+System.getProperty("user.name")+". please introduce yourself to the code and push");
     }
   }
 

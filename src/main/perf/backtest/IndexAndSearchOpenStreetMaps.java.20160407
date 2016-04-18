@@ -94,10 +94,10 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
 
-import static org.apache.lucene.geo.GeoEncodingUtils.decodeLatitude;
-import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
-import static org.apache.lucene.geo.GeoEncodingUtils.encodeLatitude;
-import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
+import static org.apache.lucene.document.LatLonPoint.decodeLatitude;
+import static org.apache.lucene.document.LatLonPoint.decodeLongitude;
+import static org.apache.lucene.document.LatLonPoint.encodeLatitude;
+import static org.apache.lucene.document.LatLonPoint.encodeLongitude;
 
 // STEPS:
 //
@@ -138,12 +138,8 @@ public class IndexAndSearchOpenStreetMaps {
         INDEX_LOCATION = "/data/bkdtest";
         DATA_LOCATION = "/data/";
         break;
-      case "kawright":
-        INDEX_LOCATION = "c:\\data\\bkdtest";
-        DATA_LOCATION = "c:\\data\\";
-        break;
       default:
-        throw new UnsupportedOperationException("the benchmark does not know you, "+System.getProperty("user.name")+". please introduce yourself to the code and push");
+        throw new UnsupportedOperationException("the benchmark does not know you. please introduce yourself to the code and push");
     }
   }
 
@@ -791,7 +787,8 @@ public class IndexAndSearchOpenStreetMaps {
                       // TODO
                       throw new AssertionError();
                     }
-                    nearestHits = LatLonPoint.nearest(searchers[0], "point", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, nearestTopN).scoreDocs;
+                    //nearestHits = LatLonPoint.nearest(searchers[0], "point", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, nearestTopN).scoreDocs;
+                    nearestHits = null;
                     if (false && iter == 0) {
                       System.out.println("\n" + nearestHits.length + " nearest:");
                       for(ScoreDoc hit : nearestHits) {

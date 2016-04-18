@@ -540,7 +540,7 @@ def run():
     iters = 30
     for i in range(iters):
       try:
-        runCommand('git pull -u > %s/gitupdate.log' % runLogDir)
+        runCommand('git checkout master; git pull -u > %s/gitupdate.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
@@ -1020,6 +1020,7 @@ def writeCheckIndexTimeHTML():
     w = f.write
     header(w, 'Lucene nightly CheckIndex time')
     w('<h1>Seconds to run CheckIndex</h1>\n')
+    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
     w('<br>')
     w(getOneGraphHTML('CheckIndexTimeSeconds', chartData, "Seconds", "CheckIndex time (seconds)", errorBars=False))
 
@@ -1124,6 +1125,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   f = open(fileName, 'wb')
   w = f.write
   header(w, title)
+  w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
   w(chartHTML)
   w('\n')
   writeKnownChanges(w)
@@ -1159,6 +1161,7 @@ def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
   w = f.write
   header(w, 'Lucene nightly indexing benchmark')
   w('<h1>Indexing Throughput</h1>\n')
+  w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
   w('<br>')
   w(getOneGraphHTML('MedIndexTime', medChartData, "Plain text GB/hour", "~1 KB Wikipedia English docs", errorBars=False))
 

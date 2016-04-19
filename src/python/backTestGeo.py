@@ -17,7 +17,7 @@ for name in os.listdir(GEO_LOGS_DIR):
   if name.endswith('.log.txt.bz2'):
     tup = list(int(x) for x in name.split('.')[:3])
     date = datetime.date(year=tup[0], month=tup[1], day=tup[2])
-    print('already done: %s' % date)
+    #print('already done: %s' % date)
     datesTested.add(date)
 
 then = datetime.datetime.now()

@@ -46,15 +46,17 @@ def printResults(results, stats, maxDoc):
         print('|%s|%s||||' % (shape, approach))
 
 haveNearest = True
-nearestArrives = datetime.datetime(year=2016, month=4, day=14)
+haveGeo3DNewPolyAPI = True
 
 if nightly:
   if '-timeStamp' in sys.argv:
     timeStamp = sys.argv[sys.argv.index('-timeStamp')+1]
     year, month, day, hour, minute, second = (int(x) for x in timeStamp.split('.'))
     timeStampDateTime = datetime.datetime(year, month, day, hour, minute, second)
-    if timeStampDateTime < nearestArrives:
+    if timeStampDateTime < datetime.datetime(year=2016, month=4, day=14):
       haveNearest = False
+    if timeStampDateTime < datetime.datetime(year=2016, month=4, day=5):
+      haveGeo3DNewPolyAPI = False
   else:
     start = datetime.datetime.now()
     timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
@@ -91,6 +93,10 @@ with open(logFileName, 'w') as log:
 
       if shape == 'nearest 10' and not haveNearest:
         # we are back-testing, and got back before nearest was pushed
+        continue
+
+      if shape == 'poly 10' and approach == 'geo3d' and not haveGeo3DNewPolyAPI:
+        # we are back-testing, and got back before geo3d had the .newPolygonQuery API
         continue
 
       if shape == 'nearest 10' and approach != 'points':

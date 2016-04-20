@@ -59,3 +59,7 @@ To run the benchmark you first test like this:
 cd $LUCENE_BENCH_HOME/util
 python src/python/localrun.py -source wikimedium10k
 ```
+
+# Running the geo benchmark
+
+This one is different and self-contained. Read the command-line examples at the top of src/main/perf/IndexAndSearchOpenStreetMaps.java

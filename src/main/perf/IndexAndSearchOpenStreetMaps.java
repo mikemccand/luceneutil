@@ -726,6 +726,29 @@ public class IndexAndSearchOpenStreetMaps {
       double MAX_LAT = 51.6542719;
       double MIN_LON = -0.3867282;
       double MAX_LON = 0.8492337;
+      
+      // makeRegularPoly has insanely slow math, so make the double[]'s here.
+      // we still form the query inside the benchmark loop (e.g. to account for preprocessing)
+      ArrayList<double[][]> polys = new ArrayList<double[][]>(225);
+      if ("poly".equals(queryClass)) {
+        for(int latStep=0;latStep<STEPS;latStep++) {
+          double lat = MIN_LAT + latStep * (MAX_LAT - MIN_LAT) / STEPS;
+          for(int lonStep=0;lonStep<STEPS;lonStep++) {
+            double lon = MIN_LON + lonStep * (MAX_LON - MIN_LON) / STEPS;
+            for(int latStepEnd=latStep+1;latStepEnd<=STEPS;latStepEnd++) {
+              double latEnd = MIN_LAT + latStepEnd * (MAX_LAT - MIN_LAT) / STEPS;
+              for(int lonStepEnd=lonStep+1;lonStepEnd<=STEPS;lonStepEnd++) {
+                double lonEnd = MIN_LON + lonStepEnd * (MAX_LON - MIN_LON) / STEPS;
+                double distanceMeters = SloppyMath.haversinMeters(lat, lon, latEnd, lonEnd)/2.0;
+                double centerLat = (lat+latEnd)/2.0;
+                double centerLon = (lon+lonEnd)/2.0;
+                polys.add(makeRegularPoly(centerLat, centerLon, distanceMeters, gons));
+              }
+            }
+          }
+        }
+      }
+
       for(int iter=0;iter<ITERS;iter++) {
         long tStart = System.nanoTime();
         long totHits = 0;
@@ -760,7 +783,7 @@ public class IndexAndSearchOpenStreetMaps {
                   }
                   break;
                 case "poly":
-                  double[][] poly = makeRegularPoly(centerLat, centerLon, distanceMeters, gons);
+                  double[][] poly = polys.get(queryCount);
                   //System.out.println("poly lats: " + Arrays.toString(poly[0]));
                   //System.out.println("poly lons: " + Arrays.toString(poly[1]));
                   if (useGeo3D) {

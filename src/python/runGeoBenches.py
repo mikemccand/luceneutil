@@ -36,7 +36,7 @@ def printResults(results, stats, maxDoc):
     
   print()
   print('||Shape||Approach||M hits/sec||QPS||Hit count||')
-  for shape in ('distance', 'box', 'poly 10', 'nearest 10', 'sort'):
+  for shape in ('distance', 'box', 'poly 10', 'polyMedium', 'nearest 10', 'sort'):
     for approach in ('geo3d', 'points', 'geopoint'):
       tup = shape, approach
       if tup in results:
@@ -88,7 +88,7 @@ print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName,
 # TODO: filters
 with open(logFileName, 'w') as log:
 
-  for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10'):
+  for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10', 'polyMedium'):
     for approach in ('points', 'geopoint', 'geo3d'):
 
       if shape == 'nearest 10' and not haveNearest:
@@ -105,6 +105,9 @@ with open(logFileName, 'w') as log:
 
       if shape == 'sort' and approach != 'points':
         # distance sort only implemented for LatLonPoint now
+        continue
+
+      if shape == 'polyMedium' and approach == 'geo3d':
         continue
 
       if '-reindex' in sys.argv and approach not in didReIndex:

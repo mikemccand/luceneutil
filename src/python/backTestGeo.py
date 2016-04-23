@@ -21,7 +21,6 @@ for name in os.listdir(GEO_LOGS_DIR):
     datesTested.add(date)
 
 then = datetime.datetime.now()
-then -= oneDay
 
 while True:
   ts = '%04d-%02d-%02d %02d:%02d:%02d' % (then.year, then.month, then.day, then.hour, then.minute, then.second)

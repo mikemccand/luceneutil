@@ -8,7 +8,9 @@ nextGraph = 300
 
 KNOWN_CHANGES = (
   ('2016-04-14', 'LUCENE-7214: remove two-phase support from 2D points distance query', 'LatLonPoint'),
-  ('2016-04-22', 'LUCENE-7249: polygon queries should use the grid\'s relate during recursion', 'LatLonPoint'),
+  ('2016-04-22', 'LUCENE-7239: polygon queries now use an interval tree for fast point-in-polygon testing', 'LatLonPoint'),
+  ('2016-04-23', 'LUCENE-7249: polygon queries should use the interval tree for fast relate during recursion', 'LatLonPoint'),
+  ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),
 )
 
 def toString(timeStamp):
@@ -28,10 +30,19 @@ def writeGraphHeader(f, id):
 <div id="chart_%s_labels" style="width: 250px; position: absolute; right: 0px; top: %spx"></div>''' % (id, id, nextGraph, id, nextGraph+30))
   nextGraph += 550
 
-def writeGraphFooter(f, id, title, yLabel):
+def writeGraphFooter(f, id, title, yLabel, series):
+
+  colors = []
+  if 'Geo3D' in series:
+    colors.append('#DD1E2F')
+  if 'GeoPoint' in series:
+    colors.append('#EBB035')
+  if 'LatLonPoint' in series:
+    colors.append('#06A2CB')
+    
   f.write(''',
 { "title": "<a href=\'#%s\'><font size=+2>%s</font></a>",
-  "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+  "colors": %s,
   "includeZero": true,
   "xlabel": "Date",
   "ylabel": "%s",
@@ -45,7 +56,7 @@ def writeGraphFooter(f, id, title, yLabel):
   //"drawPoints": true,
   }
   );
-''' % (id, title, yLabel, id))
+''' % (id, title, colors, yLabel, id))
 
 def writeOneGraph(data, chartID, chartTitle, yLabel):
   writeGraphHeader(f, chartID)
@@ -58,9 +69,10 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
       document.getElementById("chart_%s"),
   ''' % chartID)
 
-  series = data.keys()
+  series = list(data.keys())
+  series.sort()
   
-  headers = ['Date'] + list(series)
+  headers = ['Date'] + series
 
   allTimes = set()
   for seriesName, points in data.items():
@@ -86,7 +98,7 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
       else:
         l.append('')
     f.write('    + "%s\\n"\n' % ','.join(l))
-  writeGraphFooter(f, chartID, chartTitle, yLabel)
+  writeGraphFooter(f, chartID, chartTitle, yLabel, series)
   writeAnnots(f, chartTimes, KNOWN_CHANGES, 'LatLonPoint')
   f.write('</script>')
 
@@ -158,7 +170,7 @@ def writeAnnots(f, chartTimes, annots, defaultSeries):
 
     idx = bisect.bisect_left(l, timeStamp)
     
-    if idx is not None:
+    if idx is not None and idx < len(l):
       # This is the timestamp, on or after when the annot was, that exists in the particular
       # series we are annotating:
       bestTimeStamp = l[idx]

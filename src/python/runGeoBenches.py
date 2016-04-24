@@ -88,8 +88,11 @@ print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName,
 # TODO: filters
 with open(logFileName, 'w') as log:
 
-  for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10', 'polyMedium'):
+  for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10', 'polyMedium', 'polyRussia'):
     for approach in ('points', 'geopoint', 'geo3d'):
+
+      if shape == 'polyRussia' and approach != 'points':
+        continue
 
       if shape == 'nearest 10' and not haveNearest:
         # we are back-testing, and got back before nearest was pushed

@@ -2,6 +2,7 @@ import bisect
 import os
 import datetime
 import pickle
+import pysftp
 
 nextGraph = 300
 
@@ -30,7 +31,7 @@ def writeGraphHeader(f, id):
 def writeGraphFooter(f, id, title, yLabel):
   f.write(''',
 { "title": "<a href=\'#%s\'><font size=+2>%s</font></a>",
-  //"colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+  "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
   "includeZero": true,
   "xlabel": "Date",
   "ylabel": "%s",
@@ -85,7 +86,6 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
       else:
         l.append('')
     f.write('    + "%s\\n"\n' % ','.join(l))
-  print('chart times %s' % chartTimes)
   writeGraphFooter(f, chartID, chartTitle, yLabel)
   writeAnnots(f, chartTimes, KNOWN_CHANGES, 'LatLonPoint')
   f.write('</script>')
@@ -182,13 +182,18 @@ def loadAllResults():
   allResults = {}
   for name in os.listdir('/l/logs.nightly/geo'):
     if name.endswith('.pk'):
-      print('load results: %s' % name)
+      #print('load results: %s' % name)
       year, month, day, hour, minute, second = (int(x) for x in name[:-3].split('.'))
       results = pickle.loads(open('/l/logs.nightly/geo/%s' % name, 'rb').read())
       allResults[datetime.datetime(year, month, day, hour, minute, second)] = results
   return allResults
 
-with open('/x/tmp/test.html', 'w') as f:
+def add(data, key, timeStamp, value):
+  if key not in data:
+    data[key] = {}
+  data[key][timeStamp] = value
+
+with open('/x/tmp/geobench.html', 'w') as f:
   f.write('''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -213,11 +218,20 @@ with open('/x/tmp/test.html', 'w') as f:
 <h2>Lucene Geo benchmarks</h2>
 <p>Below are the results of the Lucene nightly geo benchmarks based on the <a href="https://git-wip-us.apache.org/repos/asf/lucene-solr.git">master</a> branch as of that point in time.</p>
 <p>This test indexes a 6.1M point subset exported from the full (as of 3/7/2016) 3.2B point <a href="http://openstreetmaps.org">OpenStreetMaps corpus</a>, including every point inside London, UK, and 2.5% of the remaining points, using three different approaches, and then tests search and sorting performance of various shapes.  The London boroughs polygons <a href="http://data.london.gov.uk/2011-boundary-files">come from here</a> (33 polygons, average 5.6K vertices).</p>
-<p>On each chart, you can click + drag (vertically or horizontally) to zoom in and then shift + drag to move around, and hover over an annotation to see known changes.</p>
+<p>On each chart, you can click + drag (vertically or horizontally) to zoom in and then shift + drag to move around, and double-click to reset.  Hover over an annotation to see known changes.</p>
     ''')
 
   byQuery = {}
+  indexKDPS = {}
+  readerHeapMB = {}
+  indexMB = {}
+  maxDoc = 60844404
   for timeStamp, (stats, results) in loadAllResults().items():
+    for approach in stats.keys():
+      add(indexKDPS, prettyName(approach), timeStamp, maxDoc/stats[approach][2]/1000.0)
+      add(readerHeapMB, prettyName(approach), timeStamp, stats[approach][0])
+      add(indexMB, prettyName(approach), timeStamp, stats[approach][1]*1024)
+      
     for tup in results.keys():
       if tup[0] not in byQuery:
         byQuery[tup[0]] = {}
@@ -235,7 +249,7 @@ with open('/x/tmp/test.html', 'w') as f:
 
   for key in 'distance', 'poly 10', 'polyMedium', 'box', 'nearest 10', 'sort':
     data = byQuery[key]
-    print('write graph for %s' % key)
+    #print('write graph for %s' % key)
     if key == 'distance':
       title = 'Distance Filter'
     elif key == 'poly 10':
@@ -252,7 +266,15 @@ with open('/x/tmp/test.html', 'w') as f:
       raise RuntimeError('unknown chart %s' % key)
     writeOneGraph(data, 'search-%s' % key, title, 'MHPS')
 
+  writeOneGraph(indexKDPS, 'index-times', 'Indexing K docs/sec', 'K docs/sec')
+  writeOneGraph(readerHeapMB, 'reader-heap', 'Searcher Heap Usage', 'MB')
+  writeOneGraph(indexMB, 'index-size', 'Index Size', 'MB')
+
   f.write('''
 </body>
 </html>
 ''')
+
+with pysftp.Connection('home.apache.org', username='mikemccand') as c:
+  with c.cd('public_html'):
+    c.put('/x/tmp/geobench.html', 'geobench.html')

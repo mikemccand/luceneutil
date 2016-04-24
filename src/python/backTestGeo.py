@@ -38,4 +38,5 @@ while True:
     run('git clean -xfd')
     run('ant jar')
     run('python3 -u /l/util/src/python/runGeoBenches.py -nightly -timeStamp %s' % (ts.replace('-', '.').replace(':', '.').replace(' ', '.')))
+    run('python3 -u /l/util/src/python/writeGeoGraphs.py')
   then -= oneDay

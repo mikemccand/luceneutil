@@ -540,7 +540,7 @@ def run():
     iters = 30
     for i in range(iters):
       try:
-        runCommand('git checkout master; git pull -u > %s/gitupdate.log' % runLogDir)
+        runCommand('git checkout master; git pull -u origin master > %s/gitupdate.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
@@ -557,11 +557,11 @@ def run():
 
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     #runCommand('%s cleanup' % constants.SVN_EXE)
-    runCommand('%s clean -fd' % constants.GIT_EXE)
+    runCommand('%s clean -xfd' % constants.GIT_EXE)
     for i in range(iters):
       try:
         #runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-        runCommand('%s pull -u > %s/update.log' % (constants.GIT_EXE, runLogDir))
+        runCommand('%s checkout master; %s pull -u origin master > %s/update.log' % (constants.GIT_EXE, constants.GIT_EXE, runLogDir))
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)

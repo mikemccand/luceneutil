@@ -57,8 +57,12 @@ if True:
         # print('%s -> %s' % (geoID, tup[1]))
         geoIDs[tup[0]][0] = tup[1]
 
+  withCounts = [(len(x[1][1]), x) for x in geoIDs.items()]
+  withCounts.sort(reverse=True)
+
   f = open('/l/util/src/python/shapes_simplified_low.out.txt', 'w')
-  for geoID, (name, polys) in geoIDs.items():
+  #for geoID, (name, polys) in geoIDs.items():
+  for ign, (geoID, (name, polys)) in withCounts[:10]:
     f.write('count=%d %s %s\n' % (len(polys), name, geoID))
     for poly in polys:
       f.write('  poly count=%d\n' % len(poly))

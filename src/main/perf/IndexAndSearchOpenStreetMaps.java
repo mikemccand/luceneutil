@@ -153,7 +153,7 @@ public class IndexAndSearchOpenStreetMaps {
   static boolean SMALL = true;
   static int NUM_PARTS;
 
-  private static String getName(int part) {
+  private static String getName(int part, boolean doDistanceSort) {
     String name = INDEX_LOCATION + part;
     if (useGeoPoint) {
       name += ".postings";
@@ -161,6 +161,9 @@ public class IndexAndSearchOpenStreetMaps {
       name += ".geo3d";
     } else if (useLatLonPoint) {
       name += ".points";
+      if (doDistanceSort) {
+        name += ".withdvs";
+      }
     } else {
       throw new AssertionError();
     }
@@ -408,7 +411,7 @@ public class IndexAndSearchOpenStreetMaps {
   }
 */
 
-  private static void createIndex(boolean fast, boolean doForceMerge) throws IOException, InterruptedException {
+  private static void createIndex(boolean fast, boolean doForceMerge, boolean doDistanceSort) throws IOException, InterruptedException {
 
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
@@ -436,7 +439,7 @@ public class IndexAndSearchOpenStreetMaps {
     AtomicLong totalCount = new AtomicLong();
 
     for(int part=0;part<NUM_PARTS;part++) {
-      Directory dir = FSDirectory.open(Paths.get(getName(part)));
+      Directory dir = FSDirectory.open(Paths.get(getName(part, doDistanceSort)));
 
       IndexWriterConfig iwc = new IndexWriterConfig(null);
       iwc.setCodec(getCodec(fast));
@@ -574,7 +577,7 @@ public class IndexAndSearchOpenStreetMaps {
     Directory[] dirs = new Directory[NUM_PARTS];
     long sizeOnDisk = 0;
     for(int part=0;part<NUM_PARTS;part++) {
-      dirs[part] = FSDirectory.open(Paths.get(getName(part)));
+      dirs[part] = FSDirectory.open(Paths.get(getName(part, doDistanceSort)));
       searchers[part] = new IndexSearcher(DirectoryReader.open(dirs[part]));
       searchers[part].setQueryCache(null);
       for(String name : dirs[part].listAll()) {
@@ -1179,10 +1182,10 @@ public class IndexAndSearchOpenStreetMaps {
     } else {
       System.out.println("Using geopoint");
     }
-    System.out.println("Index path: " + getName(0));
+    System.out.println("Index path: " + getName(0, doDistanceSort));
 
     if (reindex) {
-      createIndex(fastReindex, forceMerge);
+      createIndex(fastReindex, forceMerge, doDistanceSort);
     }
     queryIndex(queryClass, gons, nearestTopN, polyFile, preBuildQueries, filterPercent, doDistanceSort);
   }

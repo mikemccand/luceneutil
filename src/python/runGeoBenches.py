@@ -36,7 +36,7 @@ def printResults(results, stats, maxDoc):
     
   print()
   print('||Shape||Approach||M hits/sec||QPS||Hit count||')
-  for shape in ('distance', 'box', 'poly 10', 'polyMedium', 'nearest 10', 'sort'):
+  for shape in ('distance', 'box', 'poly 10', 'polyMedium', 'polyRussia', 'nearest 10', 'sort'):
     for approach in ('geo3d', 'points', 'geopoint'):
       tup = shape, approach
       if tup in results:
@@ -110,16 +110,21 @@ with open(logFileName, 'w') as log:
         # KNN only implemented for LatLonPoint now
         continue
 
-      if shape == 'sort' and approach != 'points':
+      if shape == 'sort' and approach not in ('points', 'geopoint'):
         # distance sort only implemented for LatLonPoint now
         continue
 
       if shape == 'polyMedium' and approach == 'geo3d':
         continue
 
-      if '-reindex' in sys.argv and approach not in didReIndex:
+      if shape == 'sort' and approach == 'points':
+        indexKey = 'points-dvs'
+      else:
+        indexKey = approach
+
+      if '-reindex' in sys.argv and indexKey not in didReIndex:
         extra = ' -reindex'
-        didReIndex.add(approach)
+        didReIndex.add(indexKey)
       else:
         extra = ''
 

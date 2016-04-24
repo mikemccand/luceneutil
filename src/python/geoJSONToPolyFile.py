@@ -10,8 +10,9 @@ import json
 
 geoIDs = {}
 
-if False:
-  with open('/l/util/src/python/shapes_simplified_low.txt') as f:
+if True:
+  # from http://download.geonames.org/export/dump/
+  with open('/x/tmp/shapes_simplified_low.txt') as f:
     f.readline()
     for line in f.readlines():
       tup = line.strip().split('\t')

@@ -11,6 +11,7 @@ KNOWN_CHANGES = (
   ('2016-04-22', 'LUCENE-7239: polygon queries now use an interval tree for fast point-in-polygon testing', 'LatLonPoint'),
   ('2016-04-23', 'LUCENE-7249: polygon queries should use the interval tree for fast relate during recursion', 'LatLonPoint'),
   ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),
+  ('2016-04-15', 'LUCENE-7221: speed up large polygons', 'Geo3D'),
 )
 
 def toString(timeStamp):
@@ -245,19 +246,20 @@ with open('/x/tmp/geobench.html', 'w') as f:
       add(indexMB, prettyName(approach), timeStamp, stats[approach][1]*1024)
       
     for tup in results.keys():
-      if tup[0] not in byQuery:
-        byQuery[tup[0]] = {}
-        
-      key = prettyName(tup[1])
-      if key not in byQuery[tup[0]]:
-        byQuery[tup[0]][key] = {}
+      shape, approach = tup
 
+      if shape == 'poly 10' and approach == 'geo3d' and timeStamp < datetime.datetime(year=2016, month=4, day=9):
+        continue
+      
+      if shape not in byQuery:
+        byQuery[shape] = {}
+        
       qps, mhps, totHits = results[tup]
-      if tup[0] == 'nearest 10':
+      if shape == 'nearest 10':
         metric = qps
       else:
         metric = mhps
-      byQuery[tup[0]][key][timeStamp] = metric
+      add(byQuery[shape], prettyName(approach), timeStamp, metric)
 
   for key in 'distance', 'poly 10', 'polyMedium', 'box', 'nearest 10', 'sort':
     data = byQuery[key]

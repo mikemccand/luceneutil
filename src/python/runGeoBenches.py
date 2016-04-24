@@ -47,6 +47,7 @@ def printResults(results, stats, maxDoc):
 
 haveNearest = True
 haveGeo3DNewPolyAPI = True
+haveGeo3DPoly = False
 
 if nightly:
   if '-timeStamp' in sys.argv:
@@ -57,6 +58,9 @@ if nightly:
       haveNearest = False
     if timeStampDateTime < datetime.datetime(year=2016, month=4, day=5):
       haveGeo3DNewPolyAPI = False
+    if timeStampDateTime < datetime.datetime(year=2016, month=4, day=9):
+      # something badly wrong before this...
+      haveGeo3DPoly = False
   else:
     start = datetime.datetime.now()
     timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
@@ -98,7 +102,7 @@ with open(logFileName, 'w') as log:
         # we are back-testing, and got back before nearest was pushed
         continue
 
-      if shape == 'poly 10' and approach == 'geo3d' and not haveGeo3DNewPolyAPI:
+      if shape == 'poly 10' and approach == 'geo3d' and (not haveGeo3DNewPolyAPI or not haveGeo3DPoly):
         # we are back-testing, and got back before geo3d had the .newPolygonQuery API
         continue
 

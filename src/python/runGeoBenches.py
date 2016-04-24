@@ -118,7 +118,7 @@ with open(logFileName, 'w') as log:
         continue
 
       if shape == 'sort' and approach == 'points':
-        indexKey = 'points-dvs'
+        indexKey = 'points-withdvs'
       else:
         indexKey = approach
 
@@ -172,6 +172,7 @@ with open(logFileName, 'w') as log:
           readerHeapMB = float(line[11:])
         if line.startswith('maxDoc='):
           maxDoc = int(line[7:])
+          doPrintLine = True
         i = line.find(' sec to index part ')
         if i != -1:
           doPrintLine = True
@@ -184,16 +185,19 @@ with open(logFileName, 'w') as log:
         if doPrintLine:
           print('%7.1fs: %s, %s: %s' % (time.time()-t0, approach, shape, line))
 
+      if maxDoc is None:
+        raise RuntimeError('did not see maxDoc')
+
       tup = readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec
-      if approach not in stats:
-        stats[approach] = tup
-      elif stats[approach][:2] != tup[:2]:
-        raise RuntimeError('stats changed for %s: %s vs %s' % (approach, stats[approach], tup))
+      if indexKey not in stats:
+        stats[indexKey] = tup
+      elif stats[indexKey][:2] != tup[:2]:
+        raise RuntimeError('stats changed for %s: %s vs %s' % (indexKey, stats[indexKey], tup))
 
       if theMaxDoc is None:
         theMaxDoc = maxDoc
       elif maxDoc != theMaxDoc:
-        raise RuntimeError('maxDoc changed from %d to %d' % (themaxDoc, maxDoc))
+        raise RuntimeError('maxDoc changed from %s to %s' % (theMaxDoc, maxDoc))
 
       printResults(results, stats, maxDoc)
 

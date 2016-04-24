@@ -1157,9 +1157,6 @@ public class IndexAndSearchOpenStreetMaps {
       if (preBuildQueries) {
         throw new IllegalArgumentException("teach me to do this crazy combination first");
       }
-      if (useLatLonPoint == false) {
-        throw new IllegalArgumentException("teach me to do this crazy combination first");
-      }
     }
     if (queryClass.equals("nearest")) {
       if (preBuildQueries) {

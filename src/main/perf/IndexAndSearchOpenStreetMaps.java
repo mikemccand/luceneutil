@@ -101,8 +101,8 @@ import static org.apache.lucene.geo.GeoEncodingUtils.encodeLongitude;
 
 // STEPS:
 //
-//   * Download http://home.apache.org/~mikemccand/latlon.subsetPlusAllLondon.txt.lzma (496 MB) ... this is "all points inside London, UK"
-//     plus "2.5 % of all points around the world" from the ~September 2015 export of OpenStreetMaps corpus
+//   * Download all files from http://home.apache.org/~mikemccand/geobench and place in a local directory ... this is "all points inside London, UK"
+//     plus "2.5 % of all points around the world" from the ~September 2015 export of OpenStreetMaps corpus, plus two polygon files
 //
 //   * Uncompress it (lzma -d /path/to/...) (1.9 GB)
 //
@@ -677,7 +677,7 @@ public class IndexAndSearchOpenStreetMaps {
         double qps = queryCount / elapsedSec;
         double mhps = (totHits/1000000.0) / elapsedSec;
         System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
                                          iter, mhps, qps, elapsedSec, queryCount, totHits));
         if (qps > bestQPS) {
           System.out.println("  ***");
@@ -709,7 +709,7 @@ public class IndexAndSearchOpenStreetMaps {
         double qps = queries.size() / elapsedSec;
         double mhps = (totHits/1000000.0) / elapsedSec;
         System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                         "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
                                          iter, mhps, qps, elapsedSec, queries.size(), totHits));
         if (qps > bestQPS) {
           System.out.println("  ***");
@@ -876,11 +876,11 @@ public class IndexAndSearchOpenStreetMaps {
         double mhps = (totHits/1000000.0) / elapsedSec;
         if (queryClass.equals("nearest")) {
           System.out.println(String.format(Locale.ROOT,
-                                           "ITER %d: %.1f QPS (%.1f sec for %d queries), totNearestDistance=%.10f, totHits=%d",
+                                           "ITER %d: %.2f QPS (%.2f sec for %d queries), totNearestDistance=%.10f, totHits=%d",
                                            iter, qps, elapsedSec, queryCount, totNearestDistance, maxDoc));
         } else {
           System.out.println(String.format(Locale.ROOT,
-                                           "ITER %d: %.1f M hits/sec, %.1f QPS (%.1f sec for %d queries), totHits=%d",
+                                           "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
                                            iter, mhps, qps, elapsedSec, queryCount, totHits));
         }
         if (qps > bestQPS) {
@@ -1090,6 +1090,10 @@ public class IndexAndSearchOpenStreetMaps {
         // London boroughs:
         queryClass = setQueryClass(queryClass, "polyFile");
         polyFile = DATA_LOCATION + "/london.boroughs.poly.txt.gz";
+      } else if (arg.equals("-polyRussia")) {
+        // Just the one Russia Federation polygon from geonames shapes_simplified_low.txt
+        queryClass = setQueryClass(queryClass, "polyFile");
+        polyFile = DATA_LOCATION + "/russia.poly.txt.gz";
       } else if (arg.equals("-polyFile")) {
         queryClass = setQueryClass(queryClass, "polyFile");
         if (i + 1 < args.length) {

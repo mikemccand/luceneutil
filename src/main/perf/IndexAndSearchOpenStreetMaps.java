@@ -45,6 +45,7 @@ import org.apache.lucene.codecs.lucene60.Lucene60PointsReader;
 import org.apache.lucene.codecs.lucene60.Lucene60PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.LatLonDocValuesField;
 import org.apache.lucene.document.LatLonPoint;
 //import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
@@ -497,6 +498,9 @@ public class IndexAndSearchOpenStreetMaps {
                       doc.add(new Geo3DPoint("point", lat, lon));
                     } else {
                       doc.add(new LatLonPoint("point", lat, lon));
+                      if (doDistanceSort) {
+                        doc.add(new LatLonDocValuesField("point", lat, lon));
+                      }
                     }
                     w.addDocument(doc);
                     long x = totalCount.incrementAndGet();
@@ -846,7 +850,7 @@ public class IndexAndSearchOpenStreetMaps {
                 
                 if (q != null) {
                   if (doDistanceSort) {
-                    Sort sort = new Sort(LatLonPoint.newDistanceSort("point", centerLat, centerLon));
+                    Sort sort = new Sort(LatLonDocValuesField.newDistanceSort("point", centerLat, centerLon));
                     for(IndexSearcher s : searchers) {
                       TopFieldDocs hits = s.search(q, 10, sort);
                       totHits += hits.totalHits;

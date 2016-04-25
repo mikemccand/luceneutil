@@ -12,6 +12,8 @@ KNOWN_CHANGES = (
   ('2016-04-23', 'LUCENE-7249: polygon queries should use the interval tree for fast relate during recursion', 'LatLonPoint'),
   ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),
   ('2016-04-15', 'LUCENE-7221: speed up large polygons', 'Geo3D'),
+  ('2016-04-25', 'LUCENE-7240: don\'t use doc values with LatLonPoint unless sorting is needed', 'LatLonPoint'),
+  ('2016-04-25', 'Implement grow() for polygon queries', 'LatLonPoint'),
 )
 
 def toString(timeStamp):
@@ -33,6 +35,8 @@ def writeGraphHeader(f, id):
 
 def writeGraphFooter(f, id, title, yLabel, series):
 
+  # "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+
   colors = []
   if 'Geo3D' in series:
     colors.append('#DD1E2F')
@@ -40,6 +44,8 @@ def writeGraphFooter(f, id, title, yLabel, series):
     colors.append('#EBB035')
   if 'LatLonPoint' in series:
     colors.append('#06A2CB')
+  if 'LatLonPoint+DV' in series:
+    colors.append('#218559')
     
   f.write(''',
 { "title": "<a href=\'#%s\'><font size=+2>%s</font></a>",
@@ -52,9 +58,9 @@ def writeGraphFooter(f, id, title, yLabel, series):
   "labelsDiv": "chart_%s_labels",
   "labelsSeparateLines": true,
   "legend": "always",
-  //"clickCallback": onClick,
+  "clickCallback": onClick,
   //"drawPointCallback": drawPoint,
-  //"drawPoints": true,
+  "drawPoints": true,
   }
   );
 ''' % (id, title, colors, yLabel, id))
@@ -106,6 +112,8 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
 def prettyName(approach):
   if approach == 'points':
     return 'LatLonPoint'
+  elif approach == 'points-withdvs':
+    return 'LatLonPoint+DV'
   elif approach == 'geopoint':
     return 'GeoPoint'
   elif approach == 'geo3d':
@@ -226,6 +234,28 @@ with open('/x/tmp/geobench.html', 'w') as f:
     font-family: Helvetica !important;
   }
 </style>
+
+<script type="text/javascript">
+
+  // surely there is a format operator I could use instead ;)
+  function zp(num,count) {
+    var ret = num + '';
+    while(ret.length < count) {
+      ret = "0" + ret;
+    }
+    return ret;
+  }
+  
+  function onClick(ev, msec, pts) {
+    var d = new Date(msec);
+    var key = d.getFullYear() + "-" + zp(1+d.getMonth(), 2) + "-" + zp(d.getDate(), 2);
+    key += " " + zp(d.getHours(), 2) + ":" + zp(d.getMinutes(), 2) + ":" + zp(d.getSeconds(), 2);
+    gitHash = gitHashes[key];
+
+    top.location = "https://git-wip-us.apache.org/repos/asf?p=lucene-solr.git;a=log;h=" + gitHash;
+  }
+</script>
+
 </head>
 <body>
 <h2>Lucene Geo benchmarks</h2>
@@ -239,7 +269,11 @@ with open('/x/tmp/geobench.html', 'w') as f:
   readerHeapMB = {}
   indexMB = {}
   maxDoc = 60844404
-  for timeStamp, (stats, results) in loadAllResults().items():
+  gitHashes = {}
+  for timeStamp, (gitRev, stats, results) in loadAllResults().items():
+
+    gitHashes[toString(timeStamp)] = gitRev
+    
     for approach in stats.keys():
       add(indexKDPS, prettyName(approach), timeStamp, maxDoc/stats[approach][2]/1000.0)
       add(readerHeapMB, prettyName(approach), timeStamp, stats[approach][0])
@@ -261,7 +295,15 @@ with open('/x/tmp/geobench.html', 'w') as f:
         metric = mhps
       add(byQuery[shape], prettyName(approach), timeStamp, metric)
 
+  f.write('<script type="text/javascript">\n')
+  f.write('  var gitHashes = {};\n')
+  for key, value in gitHashes.items():
+    f.write('  gitHashes["%s"] = "%s";\n' % (key, value))
+  f.write('</script>\n')
+
   for key in 'distance', 'poly 10', 'polyMedium', 'box', 'nearest 10', 'sort', 'polyRussia':
+    if key not in byQuery:
+      continue
     data = byQuery[key]
     #print('write graph for %s' % key)
     if key == 'distance':

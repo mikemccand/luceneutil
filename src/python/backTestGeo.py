@@ -26,14 +26,13 @@ while True:
   ts = '%04d-%02d-%02d %02d:%02d:%02d' % (then.year, then.month, then.day, then.hour, then.minute, then.second)
   tsDate = datetime.date(year=then.year, month=then.month, day=then.day)
   print('\n%s TEST: %s' % (datetime.datetime.now(), ts))
+  oldSrc = '/l/util/src/main/perf/backtest/IndexAndSearchOpenStreetMaps.java.%04d%02d%02d' % (then.year, then.month, then.day)
+  if os.path.exists(oldSrc):
+    print('  switch to %s' % oldSrc)
+    shutil.copy(oldSrc, '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java')
   if tsDate in datesTested:
     print('  already done')
   else:
-    oldSrc = '/l/util/src/main/perf/backtest/IndexAndSearchOpenStreetMaps.java.%04d%02d%02d' % (then.year, then.month, then.day)
-    print('check oldSrc %s' % oldSrc)
-    if os.path.exists(oldSrc):
-      print('  switch to %s' % oldSrc)
-      shutil.copy(oldSrc, '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java')
     run('git checkout `git rev-list -1 --before="%s" master`' % ts)
     run('git clean -xfd')
     run('ant jar')

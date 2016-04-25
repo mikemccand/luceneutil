@@ -86,16 +86,17 @@ if nightly:
 else:
   logFileName = '/l/logs/geoBenchLog.txt'
 
-print('git head revision %s' % os.popen('git rev-parse HEAD').read().strip())
+rev = os.popen('git rev-parse HEAD').read().strip()
+print('git head revision %s' % rev)
 print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName, resultsFileName))
 
 # TODO: filters
 with open(logFileName, 'w') as log:
-
+  log.write('\ngit head revision %s' % rev)
   for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10', 'polyMedium', 'polyRussia'):
     for approach in ('points', 'geopoint', 'geo3d'):
 
-      if shape == 'polyRussia' and approach != 'points':
+      if shape == 'polyRussia' and approach not in ('geopoint', 'points'):
         continue
 
       if shape == 'nearest 10' and not haveNearest:
@@ -160,7 +161,7 @@ with open(logFileName, 'w') as log:
         if line.startswith('BEST QPS: '):
           doPrintLine = True
           results[(shape, approach)] = (float(line[10:]), bestMHPS, int(totHits))
-          pickle.dump((stats, results), open(resultsFileName, 'wb'))
+          pickle.dump((rev, stats, results), open(resultsFileName, 'wb'))
         if line.startswith('BEST M hits/sec: '):
           doPrintLine = True
           bestMHPS = float(line[17:])

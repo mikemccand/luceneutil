@@ -111,7 +111,8 @@ with open(logFileName, 'w') as log:
         # KNN only implemented for LatLonPoint now
         continue
 
-      if shape == 'sort' and approach not in ('points', 'geopoint'):
+      #if shape == 'sort' and approach not in ('points', 'geopoint'):
+      if shape == 'sort' and approach != 'points':
         # distance sort only implemented for LatLonPoint now
         continue
 

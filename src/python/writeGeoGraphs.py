@@ -7,11 +7,12 @@ import pysftp
 nextGraph = 300
 
 KNOWN_CHANGES = (
+  ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),
   ('2016-04-14', 'LUCENE-7214: remove two-phase support from 2D points distance query', 'LatLonPoint'),
+  ('2016-04-15', 'LUCENE-7221: speed up large polygons', 'Geo3D'),
+  ('2016-04-19', 'LUCENE-7229: improve Polygon.relate for faster tree traversal/grid construction', 'LatLonPoint'),
   ('2016-04-22', 'LUCENE-7239: polygon queries now use an interval tree for fast point-in-polygon testing', 'LatLonPoint'),
   ('2016-04-23', 'LUCENE-7249: polygon queries should use the interval tree for fast relate during recursion', 'LatLonPoint'),
-  ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),
-  ('2016-04-15', 'LUCENE-7221: speed up large polygons', 'Geo3D'),
   ('2016-04-25', 'LUCENE-7240: don\'t use doc values with LatLonPoint unless sorting is needed', 'LatLonPoint'),
   ('2016-04-25', 'Implement grow() for polygon queries', 'LatLonPoint'),
 )

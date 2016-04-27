@@ -249,6 +249,7 @@ class Competitor(object):
       'LocalTaskSource.java',
       'OpenDirectory.java',
       'PKLookupTask.java',
+      'PointsPKLookupTask.java',
       'PerfUtils.java',
       'RandomQuery.java',
       'RemoteTaskSource.java',

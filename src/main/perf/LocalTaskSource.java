@@ -60,9 +60,17 @@ class LocalTaskSource implements TaskSource {
     if (doPKLookup) {
       final int numPKTasks = (int) Math.min(maxDoc/6000., numTaskPerCat);
       final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
+      final Set<Integer> pkSeenIntIDs = new HashSet<Integer>();
       for(int idx=0;idx<numPKTasks;idx++) {
         prunedTasks.add(new PKLookupTask(maxDoc, staticRandom, 4000, pkSeenIDs, idx));
+        //prunedTasks.add(new PointsPKLookupTask(maxDoc, staticRandom, 4000, pkSeenIntIDs, idx));
       }
+      /*
+      final Set<BytesRef> pkSeenSingleIDs = new HashSet<BytesRef>();
+      for(int idx=0;idx<numPKTasks*100;idx++) {
+        prunedTasks.add(new SinglePKLookupTask(maxDoc, staticRandom, pkSeenSingleIDs, idx));
+      }
+      */
     }
 
     tasks = new ArrayList<Task>();

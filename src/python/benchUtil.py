@@ -289,6 +289,26 @@ class PKLookupTask:
   def __hash__(self):
     return hash(self.pkOrd)
 
+class PointsPKLookupTask:
+  cat = 'PointsPKLookup'
+
+  def verifySame(self, other, verifyScores):
+    # already "verified" in search perf test, ie, that the docID
+    # returned in fact has the id that was asked for
+    pass
+
+  def __str__(self):
+    return 'PointsPK%s' % self.pkOrd
+
+  def __eq__(self, other):
+    if not isinstance(other, PointsPKLookupTask):
+      return False
+    else:
+      return self.pkOrd == other.pkOrd
+
+  def __hash__(self):
+    return hash(self.pkOrd)
+
 def collapseDups(hits):
   newHits = []
   for id, v in hits:
@@ -488,6 +508,11 @@ def parseResults(resultsFiles):
 
       elif line.startswith('TASK: PK'):
         task = PKLookupTask()
+        task.pkOrd = rePKOrd.search(line).group(1)
+        task.msec = float(f.readline().strip().split()[0])
+        task.threadID = int(f.readline().strip().split()[1])
+      elif line.startswith('TASK: PointsPK'):
+        task = PointsPKLookupTask()
         task.pkOrd = rePKOrd.search(line).group(1)
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])

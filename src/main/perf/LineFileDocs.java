@@ -205,6 +205,7 @@ public class LineFileDocs implements Closeable {
     final NumericDocValuesField lastModNDV; 
     final Field body;
     final Field id;
+    final Field idPoint;
     final Field date;
     //final NumericDocValuesField dateMSec;
     //final LongField rand;
@@ -263,6 +264,9 @@ public class LineFileDocs implements Closeable {
 
       id = new Field("id", "", StringField.TYPE_STORED);
       doc.add(id);
+
+      idPoint = new IntPoint("id", 0);
+      doc.add(idPoint);
 
       date = new Field("date", "", StringField.TYPE_STORED);
       doc.add(date);
@@ -355,6 +359,8 @@ public class LineFileDocs implements Closeable {
     final String dateString = line.substring(1+spot, spot2);
     doc.date.setStringValue(dateString);
     doc.id.setStringValue(intToID(myID));
+
+    doc.idPoint.setIntValue(myID);
 
     doc.datePos.setIndex(0);
     final Date date = doc.dateParser.parse(dateString, doc.datePos);

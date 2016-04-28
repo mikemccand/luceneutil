@@ -24,47 +24,43 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
-final class PKLookupTask extends Task {
-  private final BytesRef[] ids;
+final class PointsPKLookupTask extends Task {
+  private final int[] ids;
   private final int[] answers;
   private final int ord;
 
   @Override
   public String getCategory() {
-    return "PKLookup";
+    return "PointsPKLookup";
   }
 
-  private PKLookupTask(PKLookupTask other) {
+  private PointsPKLookupTask(PointsPKLookupTask other) {
     ids = other.ids;
     ord = other.ord;
     answers = new int[ids.length];
     Arrays.fill(answers, -1);
   }
 
-  public PKLookupTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
+  public PointsPKLookupTask(int maxDoc, Random random, int count, Set<Integer> seen, int ord) {
     this.ord = ord;
-    ids = new BytesRef[count];
+    ids = new int[count];
     answers = new int[count];
     Arrays.fill(answers, -1);
     int idx = 0;
     while(idx < count) {
-      final BytesRef id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
-      /*
-        if (idx == 0) {
-        id = new BytesRef("000013688");
-        } else {
-        id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
-        }
-      */
+      final int id = random.nextInt(maxDoc);
       if (!seen.contains(id)) {
         seen.add(id);
         ids[idx++] = id;
@@ -74,7 +70,7 @@ final class PKLookupTask extends Task {
 
   @Override
   public Task clone() {
-    return new PKLookupTask(this);
+    return new PointsPKLookupTask(this);
   }
 
   @Override
@@ -83,44 +79,41 @@ final class PKLookupTask extends Task {
     final IndexSearcher searcher = state.mgr.acquire();
     try {
       final List<LeafReaderContext> subReaders = searcher.getIndexReader().leaves();
-      IndexState.PKLookupState[] pkStates = new IndexState.PKLookupState[subReaders.size()];
+      IndexState.PointsPKLookupState[] pkStates = new IndexState.PointsPKLookupState[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
         LeafReaderContext ctx = subReaders.get(subIDX);
-        ThreadLocal<IndexState.PKLookupState> states = state.pkLookupStates.get(ctx.reader().getCoreCacheKey());
+        ThreadLocal<IndexState.PointsPKLookupState> states = state.pointsPKLookupStates.get(ctx.reader().getCoreCacheKey());
         // NPE here means you are trying to use this task on a newly refreshed NRT reader!
-        IndexState.PKLookupState pkState = states.get();
+        IndexState.PointsPKLookupState pkState = states.get();
         if (pkState == null) {
-          pkState = new IndexState.PKLookupState(ctx.reader(), "id");
+          pkState = new IndexState.PointsPKLookupState(ctx.reader(), "id");
           states.set(pkState);
         }
         pkStates[subIDX] = pkState;
       }
-
       for(int idx=0;idx<ids.length;idx++) {
         int base = 0;
-        final BytesRef id = ids[idx];
+        final int id = ids[idx];
         for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
-          IndexState.PKLookupState pkState = pkStates[subIDX];
-          //System.out.println("\nTASK: sub=" + sub);
-          //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
-          if (pkState.termsEnum.seekExact(id)) { 
-            //System.out.println("  found!");
-            PostingsEnum docs = pkState.termsEnum.postings(pkState.postingsEnum, 0);
-            assert docs != null;
-            int docID = DocIdSetIterator.NO_MORE_DOCS;
-            for (int d = docs.nextDoc(); d != DocIdSetIterator.NO_MORE_DOCS; d = docs.nextDoc()) {
-              if (pkState.liveDocs == null || pkState.liveDocs.get(d)) {
-                docID = d;
-                break;
-              }
-            }
-            if (docID != DocIdSetIterator.NO_MORE_DOCS) {
-              answers[idx] = base + docID;
-              break;
-            }
+          IndexState.PointsPKLookupState pkState = pkStates[subIDX];
+          pkState.visitor.reset(id);
+          pkState.bkdReader.intersect(pkState.state);
+          if (pkState.visitor.answer != -1) {
+            answers[idx] = base + pkState.visitor.answer;
+            //System.out.println(id + " -> " + answers[idx]);
+            break;
           }
           base += subReaders.get(subIDX).reader().maxDoc();
         }
+
+        // this approach works, uses public APIs, but is slowish:
+        /*
+        Query q = IntPoint.newExactQuery("id", ids[idx]);
+        TopDocs hits = searcher.search(q, 1);
+        if (hits.totalHits == 1) {
+          answers[idx] = hits.scoreDocs[0].doc;
+        }
+        */
       }
     } finally {
       state.mgr.release(searcher);
@@ -129,7 +122,7 @@ final class PKLookupTask extends Task {
 
   @Override
   public String toString() {
-    return "PK" + ord + "[" + ids.length + "]";
+    return "PointsPK" + ord + "[" + ids.length + "]";
   }
 
   @Override
@@ -144,23 +137,14 @@ final class PKLookupTask extends Task {
     for(int idx=0;idx<ids.length;idx++) {
 
       if (answers[idx] == -1) {
-        if (!state.hasDeletions) {
-          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
+        if (state.hasDeletions == false) {
+          throw new RuntimeException("PointsPKLookup: idPoints=" + ids[idx]+ " failed to find a matching document");
         } else {
           // TODO: we should verify that these are in fact
           // the deleted docs...
           continue;
         }
       }
-
-      /*
-      final int id = LineFileDocs.idToInt(ids[idx]);
-      //System.out.println("  " + id + " -> " + answers[idx]);
-      final int actual = state.docIDToID[answers[idx]];
-      if (actual != id) {
-        throw new RuntimeException("PKLookup: id=" + LineFileDocs.intToID(id) + " returned doc with id=" + LineFileDocs.intToID(actual) + " docID=" + answers[idx]);
-      }
-      */
     }
   }
 }

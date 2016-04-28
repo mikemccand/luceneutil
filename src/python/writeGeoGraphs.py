@@ -16,6 +16,8 @@ KNOWN_CHANGES = (
   ('2016-04-25', 'LUCENE-7240: don\'t use doc values with LatLonPoint unless sorting is needed', 'LatLonPoint'),
   ('2016-04-25', 'Implement grow() for polygon queries', 'LatLonPoint'),
   ('2016-04-26', 'LUCENE-7251: speed up polygons with many sub-polygons', 'LatLonPoint'),
+  ('2016-04-27', 'LUCENE-7254: optimization: pick a sparse or non-sparse bit set up front for collection', 'LatLonPoint'),
+  ('2016-04-28', 'LUCENE-7249: optimization: remove per-hit add instruction', 'LatLonPoint'),
 )
 
 def toString(timeStamp):
@@ -324,6 +326,12 @@ with open('/x/tmp/geobench.html', 'w') as f:
       title = 'Box Filter, Sort by Distance'
     else:
       raise RuntimeError('unknown chart %s' % key)
+    if key == 'sort':
+      try:
+        # This data is a lie ... was running GeoPoint box query but doing messed up sort as if LatLonDVField had been used at indexing time:
+        del data['GeoPoint']
+      except KeyError:
+        pass
     writeOneGraph(data, 'search-%s' % key, title, 'MHPS')
 
   writeOneGraph(indexKDPS, 'index-times', 'Indexing K docs/sec', 'K docs/sec')

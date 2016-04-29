@@ -92,6 +92,7 @@ final class PointsPKLookupTask extends Task {
         pkStates[subIDX] = pkState;
       }
       for(int idx=0;idx<ids.length;idx++) {
+        /*
         int base = 0;
         final int id = ids[idx];
         for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
@@ -105,6 +106,7 @@ final class PointsPKLookupTask extends Task {
           }
           base += subReaders.get(subIDX).reader().maxDoc();
         }
+        */
 
         // this approach works, uses public APIs, but is slowish:
         /*

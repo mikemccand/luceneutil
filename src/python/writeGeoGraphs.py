@@ -7,9 +7,11 @@ import pysftp
 nextGraph = 300
 
 KNOWN_CHANGES = (
+  ('2016-03-29', 'LUCENE-7147: more accurate disjoint check for distance filters', 'LatLonPoint'),
   ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),
   ('2016-04-14', 'LUCENE-7214: remove two-phase support from 2D points distance query', 'LatLonPoint'),
   ('2016-04-15', 'LUCENE-7221: speed up large polygons', 'Geo3D'),
+  ('2016-04-15', 'LUCENE-7069: add nearest neighbor search to LatLonPoint', 'LatLonPoint'),
   ('2016-04-19', 'LUCENE-7229: improve Polygon.relate for faster tree traversal/grid construction', 'LatLonPoint'),
   ('2016-04-22', 'LUCENE-7239: polygon queries now use an interval tree for fast point-in-polygon testing', 'LatLonPoint'),
   ('2016-04-23', 'LUCENE-7249: polygon queries should use the interval tree for fast relate during recursion', 'LatLonPoint'),
@@ -17,6 +19,7 @@ KNOWN_CHANGES = (
   ('2016-04-25', 'Implement grow() for polygon queries', 'LatLonPoint'),
   ('2016-04-26', 'LUCENE-7251: speed up polygons with many sub-polygons', 'LatLonPoint'),
   ('2016-04-27', 'LUCENE-7254: optimization: pick a sparse or non-sparse bit set up front for collection', 'LatLonPoint'),
+  ('2016-04-28', 'LUCENE-7249: optimization: remove per-hit add instruction', 'LatLonPoint'),
   ('2016-04-28', 'LUCENE-7249: optimization: remove per-hit add instruction', 'LatLonPoint'),
 )
 
@@ -69,7 +72,7 @@ def writeGraphFooter(f, id, title, yLabel, series):
   );
 ''' % (id, title, colors, yLabel, id))
 
-def writeOneGraph(data, chartID, chartTitle, yLabel):
+def writeOneGraph(data, chartID, chartTitle, yLabel, allTimes):
   writeGraphHeader(f, chartID)
 
   f.write('''
@@ -84,14 +87,6 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
   series.sort()
   
   headers = ['Date'] + series
-
-  allTimes = set()
-  for seriesName, points in data.items():
-    for timeStamp, point in points.items():
-      allTimes.add(timeStamp)
-
-  allTimes = list(allTimes)
-  allTimes.sort()
 
   # Records valid timestamps by series:
   chartTimes = {}
@@ -110,6 +105,7 @@ def writeOneGraph(data, chartID, chartTitle, yLabel):
         l.append('')
     f.write('    + "%s\\n"\n' % ','.join(l))
   writeGraphFooter(f, chartID, chartTitle, yLabel, series)
+  print('writeAnnots for %s' % chartTitle)
   writeAnnots(f, chartTimes, KNOWN_CHANGES, 'LatLonPoint')
   f.write('</script>')
 
@@ -167,7 +163,7 @@ def writeAnnots(f, chartTimes, annots, defaultSeries):
       hour = min = sec = 0
     timeStamp = datetime.datetime(year=year, month=month, day=day, hour=hour, minute=min, second=sec)
 
-    if timeStamp < firstTimeStamp:
+    if timeStamp < firstTimeStamp - datetime.timedelta(days=1):
       # If this annot is from before this chart started, skip it:
       # print('skip annot %s %s: %s' % (date, series, reason))
       continue
@@ -274,9 +270,11 @@ with open('/x/tmp/geobench.html', 'w') as f:
   indexMB = {}
   maxDoc = 60844404
   gitHashes = {}
+  allTimes = set()
   for timeStamp, (gitRev, stats, results) in loadAllResults().items():
 
     gitHashes[toString(timeStamp)] = gitRev
+    allTimes.add(timeStamp)
     
     for approach in stats.keys():
       add(indexKDPS, prettyName(approach), timeStamp, maxDoc/stats[approach][2]/1000.0)
@@ -305,6 +303,9 @@ with open('/x/tmp/geobench.html', 'w') as f:
     f.write('  gitHashes["%s"] = "%s";\n' % (key, value))
   f.write('</script>\n')
 
+  allTimes = list(allTimes)
+  allTimes.sort()
+
   for key in 'distance', 'poly 10', 'polyMedium', 'box', 'nearest 10', 'sort', 'polyRussia':
     if key not in byQuery:
       continue
@@ -332,11 +333,11 @@ with open('/x/tmp/geobench.html', 'w') as f:
         del data['GeoPoint']
       except KeyError:
         pass
-    writeOneGraph(data, 'search-%s' % key, title, 'MHPS')
+    writeOneGraph(data, 'search-%s' % key, title, 'M hits/sec', allTimes)
 
-  writeOneGraph(indexKDPS, 'index-times', 'Indexing K docs/sec', 'K docs/sec')
-  writeOneGraph(readerHeapMB, 'reader-heap', 'Searcher Heap Usage', 'MB')
-  writeOneGraph(indexMB, 'index-size', 'Index Size', 'MB')
+  writeOneGraph(indexKDPS, 'index-times', 'Indexing K docs/sec', 'K docs/sec', allTimes)
+  writeOneGraph(readerHeapMB, 'reader-heap', 'Searcher Heap Usage', 'MB', allTimes)
+  writeOneGraph(indexMB, 'index-size', 'Index Size', 'MB', allTimes)
 
   f.write('''
 </body>

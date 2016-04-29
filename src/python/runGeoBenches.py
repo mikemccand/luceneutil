@@ -49,6 +49,7 @@ haveNearest = True
 haveRussia = True
 haveGeo3DNewPolyAPI = True
 haveGeo3DPoly = False
+haveGeo3D = True
 
 if nightly:
   if '-timeStamp' in sys.argv:
@@ -64,6 +65,9 @@ if nightly:
       haveGeo3DPoly = False
     if timeStampDateTime < datetime.datetime(year=2016, month=4, day=15):
       haveRussia = False
+    haveFullPolygon = os.path.exists('/l/trunk.nightly/lucene/core/src/java/org/apache/lucene/geo/Polygon.java') or \
+                      os.path.exists('/l/trunk.nightly/lucene/spatial/src/java/org/apache/lucene/util/Polygon.java')
+    haveGeo3D = 'newDistanceQuery' in open('/l/trunk.nightly/lucene/spatial3d/src/java/org/apache/lucene/spatial3d/Geo3DPoint.java').read()
   else:
     start = datetime.datetime.now()
     timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)        
@@ -98,6 +102,12 @@ with open(logFileName, 'w') as log:
   log.write('\ngit head revision %s' % rev)
   for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10', 'polyMedium', 'polyRussia'):
     for approach in ('points', 'geopoint', 'geo3d'):
+
+      if approach == 'geo3d' and not haveGeo3D:
+        continue
+
+      if not haveFullPolygon and shape in ('polyMedium', 'polyRussia'):
+        continue
 
       if shape == 'polyRussia' and (not haveRussia or approach not in ('geopoint', 'points')):
         continue

@@ -50,6 +50,7 @@ haveRussia = True
 haveGeo3DNewPolyAPI = True
 haveGeo3DPoly = False
 haveGeo3D = True
+haveFullPolygon = True
 
 if nightly:
   if '-timeStamp' in sys.argv:

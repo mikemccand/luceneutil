@@ -314,7 +314,7 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (useGeoPoint) {
         q = new GeoPointInPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
       } else {
-        q = Geo3DPoint.newPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
+        q = Geo3DPoint.newLargePolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
       }
       result.add(q);
     }
@@ -795,7 +795,7 @@ public class IndexAndSearchOpenStreetMaps {
                   //System.out.println("poly lons: " + Arrays.toString(poly[1]));
                   if (useGeo3D) {
                     //System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
-                    q = Geo3DPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                    q = Geo3DPoint.newLargePolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useGeoPoint) {
@@ -946,7 +946,7 @@ public class IndexAndSearchOpenStreetMaps {
               //System.out.println("poly lats: " + Arrays.toString(poly[0]));
               //System.out.println("poly lons: " + Arrays.toString(poly[1]));
               if (useGeo3D) {
-                q = Geo3DPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                q = Geo3DPoint.newLargePolygonQuery("point", new Polygon(poly[0], poly[1]));
                 //GeoPoint point = new GeoPoint(PlanetModel.WGS84, Math.toRadians(centerLat), Math.toRadians(centerLon));
                 //System.out.println("WITHIN?: " + ((PointInGeo3DShapeQuery) q).getShape().isWithin(point));
                 //System.out.println(" --> QUERY: " + q);

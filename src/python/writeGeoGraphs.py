@@ -7,6 +7,7 @@ import pysftp
 nextGraph = 300
 
 KNOWN_CHANGES = (
+  ('2016-03-22', 'LUCENE-7130: fold recent LatLonPoint optimizations into GeoPoint', 'GeoPoint'),
   ('2016-03-29', 'LUCENE-7147: more accurate disjoint check for distance filters', 'LatLonPoint'),
   ('2016-03-31', 'LUCENE-7150: add common shape query APIs to geo3d', 'Geo3D'),
   ('2016-04-11', 'LUCENE-7199: speed up how polygon\'s sideness is computed', 'Geo3D'),

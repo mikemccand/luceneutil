@@ -1066,6 +1066,7 @@ def writeIndexHTML(searchChartData, days):
   w('<p>See more details in <a href="http://blog.mikemccandless.com/2011/04/catching-slowdowns-in-lucene.html">this blog post</a>.</p>')
   w('<b>Results:</b>')
   w('<br>')
+  w('<br>&nbsp;&nbsp;<a href="../geobench.html">Geo spatial benchmarks</a>')
   w('<br>&nbsp;&nbsp;<a href="antcleantest.html">Time to run "ant clean test" in lucene directory</a>')
   w('<br>&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
   w('<br>&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')

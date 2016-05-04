@@ -184,7 +184,7 @@ public class IndexAndSearchOpenStreetMaps {
   private static double maxLon = Double.NEGATIVE_INFINITY;
         
   // NOTE: use geoJSONToJava.py to convert the geojson file to simple text file:
-  private static List<Query> readPolygonQueries(String fileName) throws IOException {
+  private static List<Polygon[]> readPolygons(String fileName) throws IOException {
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT);
@@ -194,7 +194,7 @@ public class IndexAndSearchOpenStreetMaps {
       is = new GZIPInputStream(is);
     }
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
-    List<Query> result = new ArrayList<>();
+    List<Polygon[]> result = new ArrayList<>();
     //EarthDebugger earth = new EarthDebugger(51.45677607571096, 0.13580354718348125, 100000.0);
     int totalVertexCount = 0;
 
@@ -294,30 +294,10 @@ public class IndexAndSearchOpenStreetMaps {
         Polygon firstPoly = polyPlusHoles.get(0);
         Polygon[] holes = polyPlusHoles.subList(1, polyPlusHoles.size()).toArray(new Polygon[polyPlusHoles.size()-1]);
 
-        Polygon poly = new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons(), holes);
-
-        //Polygon poly = new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons());
-        /*
-        if (earth != null && holes.length > 0) {
-          for(Polygon hole : holes) {
-            earth.addPolygon(hole, "#ff0000");
-          }
-          //earth = null;
-        }
-        */
-
-        polys.add(poly);
+        polys.add(new Polygon(firstPoly.getPolyLats(), firstPoly.getPolyLons(), holes));
       }
 
-      Query q;
-      if (useLatLonPoint) {
-        q = LatLonPoint.newPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
-      } else if (useGeoPoint) {
-        q = new GeoPointInPolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
-      } else {
-        q = Geo3DPoint.newLargePolygonQuery("point", polys.toArray(new Polygon[polys.size()]));
-      }
-      result.add(q);
+      result.add(polys.toArray(new Polygon[polys.size()]));
     }
     System.out.println("Total vertex count: " + totalVertexCount);
 
@@ -577,6 +557,60 @@ public class IndexAndSearchOpenStreetMaps {
     }
   }
 
+  /** One normally need not clone a Polygon (it's a read only holder class), but we do this here just to keep the benchmark honest, by
+   *  including Polygon construction cost in measuring search run time. */
+  private static Polygon[] clonePolygon(Polygon[] polies) {
+    Polygon[] newPolies = new Polygon[polies.length];
+    for(int i=0;i<polies.length;i++) {
+      Polygon poly = polies[i];
+      Polygon[] holes = poly.getHoles();
+      if (holes.length > 0) {
+        holes = clonePolygon(holes);
+      }
+      newPolies[i] = new Polygon(poly.getPolyLats(), poly.getPolyLons(), holes);
+    }
+    return newPolies;
+  }
+
+  private static double[] runQueries(IndexSearcher[] searchers, List<Query> queries) throws IOException {
+    double bestQPS = Double.NEGATIVE_INFINITY;
+
+    // million hits per second:
+    double bestMHPS = Double.NEGATIVE_INFINITY;
+
+    for(int iter=0;iter<ITERS;iter++) {
+      long tStart = System.nanoTime();
+      long totHits = 0;
+      int count = 0;
+      for (Query q : queries) {
+        int hitCount = 0;
+        for(IndexSearcher s : searchers) {
+          hitCount += s.count(q);
+        }
+        if (iter == 0) {
+          //System.out.println("QUERY " + count + ": " + q + " hits=" + hitCount);
+          count++;
+        }
+        totHits += hitCount;
+      }
+
+      long tEnd = System.nanoTime();
+      double elapsedSec = (tEnd-tStart)/1000000000.0;
+      double qps = queries.size() / elapsedSec;
+      double mhps = (totHits/1000000.0) / elapsedSec;
+      System.out.println(String.format(Locale.ROOT,
+                                       "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
+                                       iter, mhps, qps, elapsedSec, queries.size(), totHits));
+      if (qps > bestQPS) {
+        System.out.println("  ***");
+        bestQPS = qps;
+        bestMHPS = mhps;
+      }
+    }
+
+    return new double[] {bestQPS, bestMHPS};
+  }
+
   private static void queryIndex(String queryClass, int gons, int nearestTopN, String polyFile, boolean preBuildQueries, Double filterPercent, boolean doDistanceSort) throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
@@ -598,9 +632,11 @@ public class IndexAndSearchOpenStreetMaps {
       maxDoc += r.maxDoc();
       for(LeafReaderContext ctx : r.leaves()) {
         CodecReader cr = (CodecReader) ctx.reader();
+        /*
         for(Accountable acc : cr.getChildResources()) {
           System.out.println("  " + Accountables.toString(acc));
         }
+        */
         bytes += cr.ramBytesUsed();
       }
     }
@@ -613,7 +649,9 @@ public class IndexAndSearchOpenStreetMaps {
     double bestMHPS = Double.NEGATIVE_INFINITY;
 
     if (queryClass.equals("polyFile")) {
-      List<Query> queries = readPolygonQueries(polyFile);
+
+      // TODO: only load the double[][] here, so that we includ the cost of making Polygon and Query in each iteration!!
+      List<Polygon[]> polygons = readPolygons(polyFile);
 
       // Uncomment to find the lost points!!
 
@@ -665,68 +703,78 @@ public class IndexAndSearchOpenStreetMaps {
       }
       */
 
-      for(int iter=0;iter<ITERS;iter++) {
-        long tStart = System.nanoTime();
-        long totHits = 0;
-        int queryCount = 0;
-        for(Query q : queries) {
-          for(IndexSearcher s : searchers) {
-            int hitCount = s.count(q);
-            totHits += hitCount;
-            if (false && iter == 0) {
-              System.out.println("q=" + q);
-            }
+      if (preBuildQueries) {
+        System.out.println("\nUsing pre-built polygon queries, loaded from file " + polyFile);
+        List<Query> queries = new ArrayList<>();
+        for(Polygon[] multiPolygon : polygons) {
+          Query q;
+          if (useLatLonPoint) {
+            q = LatLonPoint.newPolygonQuery("point", multiPolygon);
+          } else if (useGeoPoint) {
+            q = new GeoPointInPolygonQuery("point", multiPolygon);
+          } else {
+            q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
           }
-          queryCount++;
+          queries.add(q);
         }
 
-        long tEnd = System.nanoTime();
-        double elapsedSec = (tEnd-tStart)/1000000000.0;
-        double qps = queryCount / elapsedSec;
-        double mhps = (totHits/1000000.0) / elapsedSec;
-        System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
-                                         iter, mhps, qps, elapsedSec, queryCount, totHits));
-        if (qps > bestQPS) {
-          System.out.println("  ***");
-          bestQPS = qps;
-          bestMHPS = mhps;
+        double[] result = runQueries(searchers, queries);
+        bestQPS = result[0];
+        bestMHPS = result[1];
+
+      } else {
+
+        System.out.println("\nUsing on-the-fly polygon queries, loaded from file " + polyFile);
+
+        for(int iter=0;iter<ITERS;iter++) {
+          long tStart = System.nanoTime();
+          long totHits = 0;
+          int queryCount = 0;
+          for(Polygon[] multiPolygon : polygons) {
+
+            // We do this to keep the benchmark honest, so any construction cost of a polygon is included in our run time measure:
+            multiPolygon = clonePolygon(multiPolygon);
+
+            Query q;
+            if (useLatLonPoint) {
+              q = LatLonPoint.newPolygonQuery("point", multiPolygon);
+            } else if (useGeoPoint) {
+              q = new GeoPointInPolygonQuery("point", multiPolygon);
+            } else {
+              q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
+            }
+
+            for(IndexSearcher s : searchers) {
+              int hitCount = s.count(q);
+              totHits += hitCount;
+            }
+            queryCount++;
+          }
+
+          long tEnd = System.nanoTime();
+          double elapsedSec = (tEnd-tStart)/1000000000.0;
+          double qps = queryCount / elapsedSec;
+          double mhps = (totHits/1000000.0) / elapsedSec;
+          System.out.println(String.format(Locale.ROOT,
+                                           "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
+                                           iter, mhps, qps, elapsedSec, queryCount, totHits));
+          if (qps > bestQPS) {
+            System.out.println("  ***");
+            bestQPS = qps;
+            bestMHPS = mhps;
+          }
         }
       }
 
     } else if (preBuildQueries) {
-      List<Query> queries = makeQueries(queryClass, gons);
-      for(int iter=0;iter<ITERS;iter++) {
-        long tStart = System.nanoTime();
-        long totHits = 0;
-        int count = 0;
-        for (Query q : queries) {
-          int hitCount = 0;
-          for(IndexSearcher s : searchers) {
-            hitCount += s.count(q);
-          }
-          if (iter == 0) {
-            //System.out.println("QUERY " + count + ": " + q + " hits=" + hitCount);
-            count++;
-          }
-          totHits += hitCount;
-        }
+      System.out.println("\nUsing pre-built queries");
 
-        long tEnd = System.nanoTime();
-        double elapsedSec = (tEnd-tStart)/1000000000.0;
-        double qps = queries.size() / elapsedSec;
-        double mhps = (totHits/1000000.0) / elapsedSec;
-        System.out.println(String.format(Locale.ROOT,
-                                         "ITER %d: %.2f M hits/sec, %.2f QPS (%.2f sec for %d queries), totHits=%d",
-                                         iter, mhps, qps, elapsedSec, queries.size(), totHits));
-        if (qps > bestQPS) {
-          System.out.println("  ***");
-          bestQPS = qps;
-          bestMHPS = mhps;
-        }
-      }
+      double[] result = runQueries(searchers, makeQueries(queryClass, gons));
+      bestQPS = result[0];
+      bestMHPS = result[1];
 
     } else {
+      System.out.println("\nUsing on-the-fly queries");
 
       // Create regularly spaced shapes in a grid around London, UK:
       int STEPS = 5;
@@ -1185,11 +1233,11 @@ public class IndexAndSearchOpenStreetMaps {
     }
     NUM_PARTS = SMALL ? 1 : 2;
     if (useGeo3D) {
-      System.out.println("Using geo3d");
+      System.out.println("\nUsing geo3d");
     } else if (useLatLonPoint) {
-      System.out.println("Using points");
+      System.out.println("\nUsing points");
     } else {
-      System.out.println("Using geopoint");
+      System.out.println("\nUsing geopoint");
     }
     System.out.println("Index path: " + getName(0, doDistanceSort));
 

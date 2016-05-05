@@ -48,7 +48,7 @@ def printResults(results, stats, maxDoc):
 haveNearest = True
 haveRussia = True
 haveGeo3DNewPolyAPI = True
-haveGeo3DPoly = False
+haveGeo3DPoly = True
 haveGeo3D = True
 haveFullPolygon = True
 
@@ -128,9 +128,6 @@ with open(logFileName, 'w') as log:
       #if shape == 'sort' and approach not in ('points', 'geopoint'):
       if shape == 'sort' and approach != 'points':
         # distance sort only implemented for LatLonPoint now
-        continue
-
-      if shape == 'polyMedium' and approach == 'geo3d':
         continue
 
       if shape == 'sort' and approach == 'points':

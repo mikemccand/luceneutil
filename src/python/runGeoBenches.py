@@ -146,7 +146,12 @@ with open(logFileName, 'w') as log:
       else:
         shapeCmd = shape
 
-      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach, shapeCmd, extra), shell=True, stdout=subprocess.PIPE)
+      if approach == 'geo3d' and shape.startswith('poly') and shape != 'poly 10':
+        approach2 = 'geo3dlarge'
+      else:
+        approach2 = approach
+
+      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach2, shapeCmd, extra), shell=True, stdout=subprocess.PIPE)
 
       totHits = None
       indexSizeGB = None

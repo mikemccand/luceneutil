@@ -707,13 +707,15 @@ public class IndexAndSearchOpenStreetMaps {
         System.out.println("\nUsing pre-built polygon queries, loaded from file " + polyFile);
         List<Query> queries = new ArrayList<>();
         for(Polygon[] multiPolygon : polygons) {
-          Query q;
+          Query q = null;
           if (useLatLonPoint) {
             q = LatLonPoint.newPolygonQuery("point", multiPolygon);
           } else if (useGeoPoint) {
             q = new GeoPointInPolygonQuery("point", multiPolygon);
-          } else {
+          } else if (useGeo3DLarge) {
             q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
+          } else if (useGeo3D) {
+            q = Geo3DPoint.newPolygonQuery("point", multiPolygon);
           }
           queries.add(q);
         }

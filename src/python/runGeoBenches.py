@@ -101,7 +101,7 @@ print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName,
 # TODO: filters
 with open(logFileName, 'w') as log:
   log.write('\ngit head revision %s' % rev)
-  for shape in ('nearest 10', 'sort', 'distance', 'box', 'poly 10', 'polyMedium', 'polyRussia'):
+  for shape in ('polyRussia', 'polyMedium', 'poly 10', 'nearest 10', 'sort', 'distance', 'box'):
     for approach in ('points', 'geopoint', 'geo3d'):
 
       if approach == 'geo3d' and not haveGeo3D:
@@ -110,7 +110,7 @@ with open(logFileName, 'w') as log:
       if not haveFullPolygon and shape in ('polyMedium', 'polyRussia'):
         continue
 
-      if shape == 'polyRussia' and (not haveRussia or approach not in ('geopoint', 'points')):
+      if shape == 'polyRussia' and not haveRussia:
         continue
 
       if shape == 'nearest 10' and not haveNearest:

@@ -18,35 +18,6 @@ package perf;
  */
 
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.en.EnglishAnalyzer;
-import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.util.CharArraySet;
-import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene60.Lucene60Codec;
-import org.apache.lucene.facet.FacetsConfig;
-import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
-import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
-import org.apache.lucene.index.ConcurrentMergeScheduler;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.LogByteSizeMergePolicy;
-import org.apache.lucene.index.LogDocMergePolicy;
-import org.apache.lucene.index.LogMergePolicy;
-import org.apache.lucene.index.NoDeletionPolicy;
-import org.apache.lucene.index.NoMergePolicy;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.SerialMergeScheduler;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TieredMergePolicy;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.InfoStream;
-import org.apache.lucene.util.PrintStreamInfoStream;
-import org.apache.lucene.util.Version;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -56,6 +27,39 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.lucene62.Lucene62Codec;
+import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
+import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogByteSizeMergePolicy;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.LogMergePolicy;
+import org.apache.lucene.index.MergePolicy;
+import org.apache.lucene.index.MergeScheduler;
+import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.SegmentInfos;
+import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.Version;
 
 import perf.IndexThreads.Mode;
 
@@ -72,6 +76,49 @@ public final class Indexer {
     } finally {
       stats.stopStatistics();
     }
+  }
+
+  private static MergeScheduler getMergeScheduler(AtomicBoolean indexingFailed, boolean useCMS, int maxConcurrentMerges) {
+    if (useCMS) {
+      ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
+          @Override
+          protected void handleMergeException(Directory dir, Throwable exc) {
+            System.out.println("ERROR: CMS hit exception during merging; aborting...");
+            indexingFailed.set(true);
+            exc.printStackTrace(System.out);
+            super.handleMergeException(dir, exc);
+          }
+        };
+      cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
+      return cms;
+    } else {
+      // Gives better repeatability because if you use CMS, the order in which the merges complete can impact how the merge policy later
+      // picks merges so you can easily get a very different index structure when you are comparing two indices:
+      return new SerialMergeScheduler();
+    }
+  }
+
+  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS) {
+
+    MergePolicy mp;
+    if (mergePolicy.equals("LogDocMergePolicy")) {
+      mp = new LogDocMergePolicy();
+      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
+    } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
+      mp = new LogByteSizeMergePolicy();
+      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
+    } else if (mergePolicy.equals("NoMergePolicy")) {
+      mp = NoMergePolicy.INSTANCE;
+    } else if (mergePolicy.equals("TieredMergePolicy")) {
+      final TieredMergePolicy tmp = new TieredMergePolicy();
+      //tmp.setMaxMergedSegmentMB(1000000.0);
+      tmp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
+      mp = tmp;
+    } else {
+      throw new RuntimeException("unknown MergePolicy " + mergePolicy);
+    }
+
+    return mp;
   }
 
   private static void _main(String[] clArgs) throws Exception {
@@ -122,6 +169,29 @@ public final class Indexer {
 
     final boolean doForceMerge = args.getFlag("-forceMerge");
     final boolean verbose = args.getFlag("-verbose");
+    
+    String indexSortField = null;
+    SortField.Type indexSortType = null;
+
+    if (args.hasArg("-indexSort")) {
+      indexSortField = args.getString("-indexSort");
+
+      int i = indexSortField.indexOf(':');
+      if (i == -1) {
+        throw new IllegalArgumentException("-indexSort should have form field:type; got: " + indexSortField);
+      }
+      String typeString = indexSortField.substring(i+1, indexSortField.length());
+      if (typeString.equals("long")) {
+        indexSortType = SortField.Type.LONG;
+      } else if (typeString.equals("string")) {
+        indexSortType = SortField.Type.STRING;
+      } else {
+        throw new IllegalArgumentException("-indexSort can only handle 'long' sort; got: " + typeString);
+      }
+      indexSortField = indexSortField.substring(0, i);
+    } else {
+      indexSortType = null;
+    }
 
     final double ramBufferSizeMB = args.getDouble("-ramBufferMB");
     final int maxBufferedDocs = args.getInt("-maxBufferedDocs");
@@ -222,6 +292,10 @@ public final class Indexer {
 
     final IndexWriterConfig iwc = new IndexWriterConfig(a);
 
+    if (indexSortField != null) {
+      iwc.setIndexSort(new Sort(new SortField(indexSortField, indexSortType)));
+    }
+
     if (mode == Mode.UPDATE) {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
     } else {
@@ -236,54 +310,15 @@ public final class Indexer {
 
     final AtomicBoolean indexingFailed = new AtomicBoolean();
 
-    // Increase number of concurrent merges since we are on SSD:
-    if (useCMS) {
-      ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
-          @Override
-          protected void handleMergeException(Directory dir, Throwable exc) {
-            System.out.println("ERROR: CMS hit exception during merging; aborting...");
-            indexingFailed.set(true);
-            exc.printStackTrace(System.out);
-            super.handleMergeException(dir, exc);
-          }
-        };
-      iwc.setMergeScheduler(cms);
-      cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
-    } else {
-      // Gives better repeatability because if you use CMS, the order in which the merges complete can impact how the merge policy later
-      // picks merges so you can easily get a very different index structure when you are comparing two indices:
-      iwc.setMergeScheduler(new SerialMergeScheduler());
-    }
-
-    final LogMergePolicy mp;
-    if (mergePolicy.equals("LogDocMergePolicy")) {
-      mp = new LogDocMergePolicy();
-    } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
-      mp = new LogByteSizeMergePolicy();
-    } else if (mergePolicy.equals("NoMergePolicy")) {
-      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
-      mp = null;
-    } else if (mergePolicy.equals("TieredMergePolicy")) {
-      final TieredMergePolicy tmp = new TieredMergePolicy();
-      iwc.setMergePolicy(tmp);
-      //tmp.setMaxMergedSegmentMB(1000000.0);
-      tmp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
-      mp = null;
-    } else {
-      throw new RuntimeException("unknown MergePolicy " + mergePolicy);
-    }
-
-    if (mp != null) {
-      iwc.setMergePolicy(mp);
-      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
-    }
+    iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges));
+    iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
 
     // Keep all commit points:
     if (doDeletions || doForceMerge) {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Codec codec = new Lucene60Codec() {
+    final Codec codec = new Lucene62Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
@@ -368,8 +403,19 @@ public final class Indexer {
 
     final long t2;
     if (waitForMerges) {
-      w.close();
-      w = new IndexWriter(dir, new IndexWriterConfig(a));
+      w.close();        
+      IndexWriterConfig iwc2 = new IndexWriterConfig(a);
+      iwc2.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges));
+      iwc2.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
+      iwc2.setCodec(codec);
+      iwc2.setUseCompoundFile(useCFS);
+      iwc2.setMaxBufferedDocs(maxBufferedDocs);
+      iwc2.setRAMBufferSizeMB(ramBufferSizeMB);
+      if (indexSortField != null) {
+        iwc2.setIndexSort(new Sort(new SortField(indexSortField, indexSortType)));
+      }
+      
+      w = new IndexWriter(dir, iwc2);
       t2 = System.currentTimeMillis();
       System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
     } else {

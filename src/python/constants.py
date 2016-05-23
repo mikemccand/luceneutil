@@ -44,6 +44,8 @@ WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
 
 # 33332620 docs in enwiki-20120502-lines-1k.txt'
 # 6726515 docs in enwiki-20120502-lines.txt
+# enwiki-20110115-lines.txt has 5982049 docs
+# enwiki-20110115-lines-1k-fixed.txt has 27625038 docs
 # enwiki-20120502-lines-1k.txt has 33332620 docs
 # enwiki-20120502-lines.txt has 6726515 docs
 # enwiki-20130102-lines.txt has 6647577 docs

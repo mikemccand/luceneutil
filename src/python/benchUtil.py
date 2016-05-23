@@ -798,6 +798,12 @@ class RunAlgs:
       if index.bodyStoredFields:
         w('-store')
 
+      if index.waitForCommit:
+        w('-waitForCommit')
+
+      if index.disableIOThrottle:
+        w('-disableIOThrottle')
+
       cmd = ' '.join(cmd)
 
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
@@ -1151,13 +1157,21 @@ class RunAlgs:
         w('|%.2f|%.2f|%.2f|%.2f' %
           (qpsBase, qpsStdDevBase, qpsCmp, qpsStdDevCmp))
       elif html:
-        p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
-        p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
+        if qpsBase == 0.0:
+          p1 = '(n/a%)'
+          p2 = '(n/a%)'
+        else:
+          p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
+          p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
         w('<td>%.1f</td><td>%s</td><td>%.1f</td><td>%s</td>' %
           (qpsBase, p1, qpsCmp, p2))
       else:
-        p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
-        p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
+        if qpsBase == 0.0:
+          p1 = '(n/a%)'
+          p2 = '(n/a%)'
+        else:
+          p1 = '(%.1f%%)' % (100*qpsStdDevBase/qpsBase)
+          p2 = '(%.1f%%)' % (100*qpsStdDevCmp/qpsBase)
         w('%12.2f%12s%12.2f%12s' % (qpsBase, p1, qpsCmp, p2))
 
       if qpsBase == 0.0:

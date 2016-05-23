@@ -364,14 +364,13 @@ KNOWN_CHANGES = [
 DEBUG = '-debug' in sys.argv
 
 if DEBUG:
-  NIGHTLY_DIR = 'clean2.svn'
+  NIGHTLY_DIR = 'trunk'
 else:
   NIGHTLY_DIR = 'trunk.nightly'
 
 DIR_IMPL = 'MMapDirectory'
 
-# TODO: tune for AMD box
-INDEXING_RAM_BUFFER_MB = 350
+INDEXING_RAM_BUFFER_MB = 2048
 
 COUNTS_PER_CAT = 5
 TASK_REPEAT_COUNT = 50
@@ -391,7 +390,7 @@ if DEBUG:
   JVM_COUNT = 3
 
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
-reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)$', re.MULTILINE)
+reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)', re.MULTILINE)
 reSVNRev = re.compile(r'revision (.*?)\.')
 reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
 
@@ -433,14 +432,23 @@ def buildIndex(r, runLogDir, desc, index, logFile):
 
   s = open('%s/%s' % (runLogDir, logFile)).read()
   bytesIndexed = int(reBytesIndexed.search(s).group(1))
-  indexAtClose = reIndexAtClose.search(s).group(1)
+  m = reIndexAtClose.search(s)
+  if m is not None:
+    indexAtClose = m.group(1)
+  else:
+    # we have no index when we don't -waitForCommit
+    indexAtClose = None
   indexTimeSec = int(reIndexingTime.search(s).group(1))/1000.0
 
   message('  took %.1f sec' % indexTimeSec)
 
-  # run checkIndex
-  checkLogFileName = '%s/checkIndex.%s' % (runLogDir, logFile)
-  checkIndex(r, indexPath, checkLogFileName)
+  if '(fast)' in desc:
+    # don't run checkIndex: we rollback in the end
+    pass
+  else:
+    # checkIndex
+    checkLogFileName = '%s/checkIndex.%s' % (runLogDir, logFile)
+    checkIndex(r, indexPath, checkLogFileName)
 
   return indexPath, indexTimeSec, bytesIndexed, indexAtClose
 
@@ -506,7 +514,7 @@ def run():
 
   if DEBUG:
     # Must re-direct all logs so we don't overwrite the "production" run's logs:
-    constants.LOGS_DIR = '/lucene/clean2.svn/lucene/benchmark'
+    constants.LOGS_DIR = '/l/trunk/lucene/benchmark'
     MEDIUM_INDEX_NUM_DOCS /= 100
     BIG_INDEX_NUM_DOCS /= 100
 
@@ -598,9 +606,27 @@ def run():
                                   postingsFormat='Lucene50',
                                   numThreads=constants.INDEX_NUM_THREADS,
                                   directory=DIR_IMPL,
-                                  idFieldPostingsFormat='Memory',
+                                  idFieldPostingsFormat='Lucene50',
                                   ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                   waitForMerges=False,
+                                  waitForCommit=False,
+                                  disableIOThrottle=True,
+                                  grouping=False,
+                                  verbose=False,
+                                  mergePolicy='TieredMergePolicy',
+                                  maxConcurrentMerges=3,
+                                  useCMS=True)
+
+  nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
+                                  analyzer='StandardAnalyzerNoStopWords',
+                                  postingsFormat='Lucene50',
+                                  numThreads=constants.INDEX_NUM_THREADS,
+                                  directory=DIR_IMPL,
+                                  idFieldPostingsFormat='Lucene50',
+                                  ramBufferMB=INDEXING_RAM_BUFFER_MB,
+                                  waitForMerges=True,
+                                  waitForCommit=True,
+                                  disableIOThrottle=True,
                                   grouping=False,
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
@@ -617,9 +643,11 @@ def run():
                                postingsFormat='Lucene50',
                                numThreads=constants.INDEX_NUM_THREADS,
                                directory=DIR_IMPL,
-                               idFieldPostingsFormat='Memory',
+                               idFieldPostingsFormat='Lucene50',
                                ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                waitForMerges=False,
+                               waitForCommit=False,
+                               disableIOThrottle=True,
                                grouping=False,
                                verbose=False,
                                mergePolicy='TieredMergePolicy',
@@ -653,6 +681,8 @@ def run():
   message('medIndexAtClose %s' % atClose)
   
   # 2: NRT test
+  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
+  message('nrtMedIndexAtClose %s' % atClose)
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram

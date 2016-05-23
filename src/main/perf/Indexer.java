@@ -78,7 +78,7 @@ public final class Indexer {
     }
   }
 
-  private static MergeScheduler getMergeScheduler(AtomicBoolean indexingFailed, boolean useCMS, int maxConcurrentMerges) {
+  private static MergeScheduler getMergeScheduler(AtomicBoolean indexingFailed, boolean useCMS, int maxConcurrentMerges, boolean disableIOThrottle) {
     if (useCMS) {
       ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
           @Override
@@ -90,6 +90,9 @@ public final class Indexer {
           }
         };
       cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
+      if (disableIOThrottle) {
+        cms.disableAutoIOThrottle();
+      }
       return cms;
     } else {
       // Gives better repeatability because if you use CMS, the order in which the merges complete can impact how the merge policy later
@@ -200,6 +203,7 @@ public final class Indexer {
     final boolean doDeletions = args.getFlag("-deletions");
     final boolean printDPS = args.getFlag("-printDPS");
     final boolean waitForMerges = args.getFlag("-waitForMerges");
+    final boolean waitForCommit = args.getFlag("-waitForCommit");
     final String mergePolicy = args.getString("-mergePolicy");
     final Mode mode;
     final boolean doUpdate = args.getFlag("-update");
@@ -224,6 +228,23 @@ public final class Indexer {
     final boolean addDVFields = args.getFlag("-dvfields");
     final boolean doRandomCommit = args.getFlag("-randomCommit");
     final boolean useCMS = args.getFlag("-useCMS");
+    final boolean disableIOThrottle = args.getFlag("-disableIOThrottle");
+
+    if (waitForCommit == false && waitForMerges) {
+      throw new RuntimeException("pass -waitForCommit if you pass -waitForMerges");
+    }
+
+    if (waitForCommit == false && doForceMerge) {
+      throw new RuntimeException("pass -waitForCommit if you pass -forceMerge");
+    }
+
+    if (waitForCommit == false && doDeletions) {
+      throw new RuntimeException("pass -waitForCommit if you pass -deletions");
+    }
+
+    if (useCMS == false && disableIOThrottle) {
+      throw new RuntimeException("-disableIOThrottle only makes sense with -useCMS");
+    }
 
     final double nrtEverySec;
     if (args.hasArg("-nrtEverySec")) {
@@ -263,6 +284,8 @@ public final class Indexer {
     System.out.println("Default postings format: " + defaultPostingsFormat);
     System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
     System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
+    System.out.println("Wait for commit: " + (waitForCommit ? "yes" : "no"));
+    System.out.println("IO throttle: " + (disableIOThrottle ? "no" : "yes"));
     System.out.println("Merge policy: " + mergePolicy);
     System.out.println("Mode: " + mode);
     if (mode == Mode.UPDATE) {
@@ -310,7 +333,7 @@ public final class Indexer {
 
     final AtomicBoolean indexingFailed = new AtomicBoolean();
 
-    iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges));
+    iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
     iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
 
     // Keep all commit points:
@@ -401,11 +424,12 @@ public final class Indexer {
       throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
     }
 
-    final long t2;
+    final Map<String,String> commitData = new HashMap<String,String>();
+
     if (waitForMerges) {
       w.close();        
       IndexWriterConfig iwc2 = new IndexWriterConfig(a);
-      iwc2.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges));
+      iwc2.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
       iwc2.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
       iwc2.setCodec(codec);
       iwc2.setUseCompoundFile(useCFS);
@@ -416,29 +440,33 @@ public final class Indexer {
       }
       
       w = new IndexWriter(dir, iwc2);
-      t2 = System.currentTimeMillis();
+      long t2 = System.currentTimeMillis();
       System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
-    } else {
-      t2 = System.currentTimeMillis();
     }
 
-    final Map<String,String> commitData = new HashMap<String,String>();
-    commitData.put("userData", "multi");
-    w.setCommitData(commitData);
-    w.commit();
-    final long t3 = System.currentTimeMillis();
-    System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
+    if (waitForCommit) {
+      commitData.put("userData", "multi");
+      w.setCommitData(commitData);
+      long t2 = System.currentTimeMillis();
+      w.commit();
+      long t3 = System.currentTimeMillis();
+      System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
+    } else {
+      w.rollback();
+      w = null;
+    }
 
     if (doForceMerge) {
+      long forceMergeStartMSec = System.currentTimeMillis();
       w.forceMerge(1);
-      final long t4 = System.currentTimeMillis();
-      System.out.println("\nIndexer: force merge done (took " + (t4-t3) + " msec)");
+      long forceMergeEndMSec = System.currentTimeMillis();
+      System.out.println("\nIndexer: force merge done (took " + (forceMergeEndMSec-forceMergeStartMSec) + " msec)");
 
       commitData.put("userData", "single");
       w.setCommitData(commitData);
       w.commit();
       final long t5 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit single done (took " + (t5-t4) + " msec)");
+      System.out.println("\nIndexer: commit single done (took " + (t5-forceMergeEndMSec) + " msec)");
     }
 
     if (doDeletions) {
@@ -476,17 +504,27 @@ public final class Indexer {
     }
 
     final long tCloseStart = System.currentTimeMillis();
-    if (waitForMerges == false) {
-      w.rollback();
-    } else {
+    if (w != null) {
       w.close();
+      w = null;
     }
-    System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
-    System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
+    if (waitForCommit) {
+      System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
+      System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
+    }
+      
     dir.close();
     final long tFinal = System.currentTimeMillis();
-    System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
     System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
-    System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./((tFinal-t0)/3600000.)) + " GB/hour plain text");
+
+    final long indexingTime;
+    if (waitForCommit) {
+      indexingTime = tFinal - t0;
+      System.out.println("\nIndexer: finished (" + indexingTime + " msec)");
+    } else {
+      indexingTime = t1 - t0;
+      System.out.println("\nIndexer: finished (" + indexingTime + " msec), excluding commit");
+    }
+    System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./(indexingTime/3600000.)) + " GB/hour plain text");
   }
 }

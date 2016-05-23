@@ -76,6 +76,7 @@ class IndexThreads {
 
     for(int thread=0;thread<numThreads;thread++) {
       threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode, groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener, nrtEverySec, randomDocIDMax);
+      threads[thread].setName("Index #" + thread);
       threads[thread].start();
     }
 
@@ -380,7 +381,9 @@ class IndexThreads {
             }
 
             if ((docCount % 10000) == 0) {
-              System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+              long nowMS = System.currentTimeMillis();
+              double dps = docCount / ((nowMS - tStart)/1000.0);
+              System.out.println(String.format(Locale.ROOT, "Indexer: %d docs (%.1f sec); %.1f docs/sec", docCount, (nowMS - tStart)/1000.0, dps));
             }
 
             if (mode == Mode.UPDATE) {

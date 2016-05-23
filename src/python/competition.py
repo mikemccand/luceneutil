@@ -95,6 +95,8 @@ class Index(object):
                verbose = False,
                printDPS = False,
                waitForMerges = True,
+               waitForCommit = True,
+               disableIOThrottle = False,
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
@@ -133,6 +135,8 @@ class Index(object):
     self.verbose = verbose
     self.printDPS = printDPS
     self.waitForMerges = waitForMerges
+    self.waitForCommit = waitForCommit
+    self.disableIOThrottle = disableIOThrottle
     self.idFieldPostingsFormat = idFieldPostingsFormat
     self.bodyTermVectors = bodyTermVectors
     self.bodyStoredFields = bodyStoredFields

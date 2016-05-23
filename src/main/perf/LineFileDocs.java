@@ -20,11 +20,11 @@ package perf;
 // FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
 
 import org.apache.lucene.document.BinaryDocValuesField;
-import org.apache.lucene.document.IntPoint;
-import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
@@ -35,6 +35,7 @@ import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.UnicodeUtil;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -42,6 +43,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -51,11 +58,20 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LineFileDocs implements Closeable {
 
+  // sentinel:
+  private final static Object END = new Object();
+
+  private final AtomicInteger nextID = new AtomicInteger();
+
   private BufferedReader reader;
+  private SeekableByteChannel channel;
   private final static int BUFFER_SIZE = 1 << 16;     // 64K
   private final boolean doRepeat;
   private final String path;
@@ -69,11 +85,15 @@ public class LineFileDocs implements Closeable {
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
+  private final BlockingQueue<Object> queue = new ArrayBlockingQueue<>(1024);
+  private final Thread readerThread;
+  private final boolean isBinary;
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
                       boolean addDVFields) throws IOException {
     this.path = path;
+    this.isBinary = path.endsWith(".bin");
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
     this.bodyPostingsOffsets = bodyPostingsOffsets;
@@ -84,6 +104,70 @@ public class LineFileDocs implements Closeable {
     this.facetsConfig = facetsConfig;
     this.addDVFields = addDVFields;
     open();
+    readerThread = new Thread() {
+        @Override
+        public void run() {
+          try {
+            readDocs();
+          } catch (Throwable t) {
+            throw new RuntimeException(t);
+          }
+        }
+      };
+    readerThread.setName("LineFileDocs reader");
+    readerThread.setDaemon(true);
+    readerThread.start();
+  }
+
+  private void readDocs() throws Exception {
+    if (isBinary) {
+      byte[] headerBytes = new byte[4];
+      ByteBuffer header = ByteBuffer.wrap(headerBytes);
+      header.order(ByteOrder.LITTLE_ENDIAN);
+      while (true) {
+        header.position(0);
+        int x = channel.read(header);
+        if (x == -1) {
+          if (doRepeat) {
+            close();
+            open();
+            x = channel.read(header);            
+          } else {
+            break;
+          }
+        }
+          
+        if (x != 4) {
+          throw new RuntimeException("expected 4 header bytes but read " + x);
+        }
+        int length = header.getInt(0);
+        //System.out.println("len=" + length);
+        ByteBuffer buffer = ByteBuffer.wrap(new byte[length]);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        x = channel.read(buffer);
+        if (x != length) {
+          throw new RuntimeException("expected " + length + " document bytes but read " + x);
+        }
+        queue.put(buffer);
+      }
+    } else {
+      while (true) {
+        String line = reader.readLine();
+        if (line == null) {
+          if (doRepeat) {
+            close();
+            open();
+            line = reader.readLine();
+          } else {
+            break;
+          }
+        }
+        queue.put(line);
+      }
+    }
+    for(int i=0;i<128;i++) {
+      queue.put(END);
+    }
   }
 
   public long getBytesIndexed() {
@@ -91,48 +175,52 @@ public class LineFileDocs implements Closeable {
   }
 
   private void open() throws IOException {
-    InputStream is = new FileInputStream(path);
-    reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
-    String firstLine = reader.readLine();
-    if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-      if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body") &&
-          !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
-        throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
-      }
-      if (facetFields.isEmpty() == false) {
-        String[] fields = firstLine.split("\t");
-        if (fields.length > 4) {
-          extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
-          System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
+    if (isBinary) {
+      channel = Files.newByteChannel(Paths.get(path), StandardOpenOption.READ);      
+    } else {
+      InputStream is = new FileInputStream(path);
+      reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
+      String firstLine = reader.readLine();
+      if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
+        if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body") &&
+            !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
+          throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+        }
+        if (facetFields.isEmpty() == false) {
+          String[] fields = firstLine.split("\t");
+          if (fields.length > 4) {
+            extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
+            System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
 
-          List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
+            List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
 
-          // Verify facet fields now:
-          for(String field : facetFields) {
-            if (!field.equals("Date") && !extraFacetFieldsList.contains(field)) {
-              throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
+            // Verify facet fields now:
+            for(String field : facetFields) {
+              if (!field.equals("Date") && !extraFacetFieldsList.contains(field)) {
+                throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
+              }
             }
-          }
-        } else {
-          // Verify facet fields now:
-          for(String field : facetFields) {
-            if (!field.equals("Date")) {
-              throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
+          } else {
+            // Verify facet fields now:
+            for(String field : facetFields) {
+              if (!field.equals("Date")) {
+                throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
+              }
             }
           }
         }
+        // Skip header
+      } else {
+        // Old format: no header
+        reader.close();
+        is = new FileInputStream(path);
+        reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
       }
-      // Skip header
-    } else {
-      // Old format: no header
-      reader.close();
-      is = new FileInputStream(path);
-      reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
     }
   }
 
   @Override
-	public synchronized void close() throws IOException {
+  public synchronized void close() throws IOException {
     if (reader != null) {
       reader.close();
       reader = null;
@@ -312,72 +400,104 @@ public class LineFileDocs implements Closeable {
     return doc2;
   }
 
-  private int readCount;
-
-  //private final Random rand = new Random(17);
-
   @SuppressWarnings({"rawtypes", "unchecked"})
   public Document nextDoc(DocState doc) throws IOException {
+    Object o;
+    try {
+      o = queue.take();
+    } catch (InterruptedException ie) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(ie);
+    }
+    if (o == END) {
+      return null;
+    }
+
+    long msecSinceEpoch;
+    int timeSec;
+    int spot3;
     String line;
-    final int myID;
-    synchronized(this) {
-      myID = readCount++;
-      line = reader.readLine();
-      if (line == null) {
-        if (doRepeat) {
-          close();
-          open();
-          line = reader.readLine();
-        } else {
-          return null;
-        }
+    String title;
+    String body;
+    
+    if (isBinary) {
+
+      ByteBuffer buffer = (ByteBuffer) o;
+
+      int titleLenBytes = buffer.getInt(0);
+      msecSinceEpoch  = buffer.getLong(4);
+      timeSec  = buffer.getInt(12);
+      byte[] bytes = buffer.array();
+
+      char[] titleChars = new char[titleLenBytes];
+      int titleLenChars = UnicodeUtil.UTF8toUTF16(bytes, 16, titleLenBytes, titleChars);
+      title = new String(titleChars, 0, titleLenChars);
+      //System.out.println("title: " + title);
+
+      int bodyLenBytes = bytes.length - 16 - titleLenBytes;
+      char[] bodyChars = new char[bodyLenBytes];
+      int bodyLenChars = UnicodeUtil.UTF8toUTF16(bytes, 16+titleLenBytes, bodyLenBytes, bodyChars);
+      body = new String(bodyChars, 0, bodyLenChars);
+
+      spot3 = 0;
+      line = null;
+      
+    } else {
+    
+      line = (String) o;
+
+      int spot = line.indexOf(SEP);
+      if (spot == -1) {
+        throw new RuntimeException("line: [" + line + "] is in an invalid format !");
       }
+      int spot2 = line.indexOf(SEP, 1 + spot);
+      if (spot2 == -1) {
+        throw new RuntimeException("line: [" + line + "] is in an invalid format !");
+      }
+      spot3 = line.indexOf(SEP, 1 + spot2);
+      if (spot3 == -1) {
+        spot3 = line.length();
+      }
+
+      body = line.substring(1+spot2, spot3);
+
+      title = line.substring(0, spot);
+      
+      final String dateString = line.substring(1+spot, spot2);
+      doc.date.setStringValue(dateString);
+      doc.datePos.setIndex(0);
+      final Date date = doc.dateParser.parse(dateString, doc.datePos);
+      if (date == null) {
+        System.out.println("FAILED: " + dateString);
+      }
+      //doc.dateMSec.setLongValue(date.getTime());
+
+      //doc.rand.setLongValue(rand.nextInt(10000));
+
+      doc.dateCal.setTime(date);
+      msecSinceEpoch = doc.dateCal.getTimeInMillis();
+      timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
     }
 
-    int spot = line.indexOf(SEP);
-    if (spot == -1) {
-      throw new RuntimeException("line: [" + line + "] is in an invalid format !");
-    }
-    int spot2 = line.indexOf(SEP, 1 + spot);
-    if (spot2 == -1) {
-      throw new RuntimeException("line: [" + line + "] is in an invalid format !");
-    }
-    int spot3 = line.indexOf(SEP, 1 + spot2);
-    if (spot3 == -1) {
-      spot3 = line.length();
-    }
-    bytesIndexed.addAndGet(spot3);
+    final int myID = nextID.getAndIncrement();
 
-    doc.body.setStringValue(line.substring(1+spot2, spot3));
-    final String title = line.substring(0, spot);
+    bytesIndexed.addAndGet(body.length() + title.length());
+    doc.body.setStringValue(body);
     doc.title.setStringValue(title);
     if (addDVFields) {
       //doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
       doc.titleTokenized.setStringValue(title);
     }
-    final String dateString = line.substring(1+spot, spot2);
-    doc.date.setStringValue(dateString);
     doc.id.setStringValue(intToID(myID));
 
     doc.idPoint.setIntValue(myID);
 
-    doc.datePos.setIndex(0);
-    final Date date = doc.dateParser.parse(dateString, doc.datePos);
-    if (date == null) {
-      System.out.println("FAILED: " + dateString);
-    }
-    //doc.dateMSec.setLongValue(date.getTime());
-
-    //doc.rand.setLongValue(rand.nextInt(10000));
-
-    doc.dateCal.setTime(date);
     if (addDVFields) {
-      doc.lastModNDV.setLongValue(doc.dateCal.getTimeInMillis());
+      doc.lastModNDV.setLongValue(msecSinceEpoch);
     }
 
-    final int sec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-    doc.timeSec.setIntValue(sec);
+    doc.timeSec.setIntValue(timeSec);
 
     if (facetFields.isEmpty() == false) {
       FacetField dateFacetField = new FacetField("Date",

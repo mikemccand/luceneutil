@@ -143,6 +143,10 @@ public class IndexAndSearchOpenStreetMaps {
         INDEX_LOCATION = "c:\\data\\bkdtest";
         DATA_LOCATION = "c:\\data\\";
         break;
+      case "jpountz":
+        INDEX_LOCATION = "/data/lucene/bkdtest";
+        DATA_LOCATION = "/data/lucene/data";
+        break;
       default:
         throw new UnsupportedOperationException("the benchmark does not know you, "+System.getProperty("user.name")+". please introduce yourself to the code and push");
     }

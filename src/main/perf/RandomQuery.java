@@ -96,17 +96,11 @@ public class RandomQuery extends Query {
 
   @Override
   public int hashCode() {
-    int h = super.hashCode();
-    h = 31 * h + new Double(fractionKeep).hashCode();
-    return h;
+    return 31 * classHash() + new Double(fractionKeep).hashCode();
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (super.equals(obj) == false) {
-      return false;
-    }
-    RandomQuery that = (RandomQuery) obj;
-    return fractionKeep == that.fractionKeep;
+    return sameClassAs(obj) && fractionKeep == ((RandomQuery) obj).fractionKeep;
   }
 }

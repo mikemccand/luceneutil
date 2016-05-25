@@ -353,6 +353,10 @@ KNOWN_CHANGES = [
   ('2016-05-23',
    'Fix silly benchmark bottlenecks; increase indexing heap to 8 GB; increase indexing buffer to 2 GB; increase indexing threads to 20; use default postings format for all fields; do not wait for commit in the end (just rollback); turn off merge IO throttling',
    '<a href="https://github.com/mikemccand/luceneutil/commit/b24e28dd1bf9a9fcacd693c4162d5ebb03d4afe1">Fix silly benchmark bottlenecks and re-tune for high indexing throughput</a>'),
+
+  ('2016-05-25',
+   'Fix another benchmark bottleneck for 1 KB docs',
+   'Fix another benchmark bottleneck for 1 KB docs'),
    ]
 
 # TODO

@@ -22,7 +22,7 @@ KNOWN_CHANGES = (
   ('2016-04-26', 'LUCENE-7251: speed up polygons with many sub-polygons', 'LatLonPoint'),
   ('2016-04-27', 'LUCENE-7254: optimization: pick a sparse or non-sparse bit set up front for collection', 'LatLonPoint'),
   ('2016-04-28', 'LUCENE-7249: optimization: remove per-hit add instruction', 'LatLonPoint'),
-  ('2016-04-28', 'LUCENE-7249: optimization: remove per-hit add instruction', 'LatLonPoint'),
+  ('2016-05-31', 'LUCENE-7306: use radix sort rather than quicksort', 'LatLonPoint'),
 )
 
 def toString(timeStamp):

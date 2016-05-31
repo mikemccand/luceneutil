@@ -88,6 +88,7 @@ public class LineFileDocs implements Closeable {
   private final BlockingQueue<Object> queue = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
   private final boolean isBinary;
+  private final ThreadLocal<ByteBuffer> nextDocs = new ThreadLocal<>();
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
@@ -148,6 +149,7 @@ public class LineFileDocs implements Closeable {
         if (x != length) {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
+        buffer.position(0);
         queue.put(buffer);
       }
     } else {
@@ -402,16 +404,6 @@ public class LineFileDocs implements Closeable {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   public Document nextDoc(DocState doc) throws IOException {
-    Object o;
-    try {
-      o = queue.take();
-    } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(ie);
-    }
-    if (o == END) {
-      return null;
-    }
 
     long msecSinceEpoch;
     int timeSec;
@@ -422,28 +414,61 @@ public class LineFileDocs implements Closeable {
     
     if (isBinary) {
 
-      ByteBuffer buffer = (ByteBuffer) o;
+      ByteBuffer buffer = nextDocs.get();
+      if (buffer == null || buffer.position() == buffer.limit()) {
+        /*
+        System.out.println("  prev buffer=" + buffer);
+        if (buffer != null) {
+          System.out.println("    pos=" + buffer.position() + " vs limit=" + buffer.limit());
+        }
+        */
 
-      int titleLenBytes = buffer.getInt(0);
-      msecSinceEpoch  = buffer.getLong(4);
-      timeSec  = buffer.getInt(12);
+        Object o;
+        try {
+          o = queue.take();
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(ie);
+        }
+        if (o == END) {
+          return null;
+        }
+        buffer = (ByteBuffer) o;
+        nextDocs.set(buffer);
+        //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
+      }
+
+      int titleLenBytes = buffer.getInt();
+      int bodyLenBytes = buffer.getInt();
+      //System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes);
+      msecSinceEpoch  = buffer.getLong();
+      timeSec  = buffer.getInt();
       byte[] bytes = buffer.array();
 
       char[] titleChars = new char[titleLenBytes];
-      int titleLenChars = UnicodeUtil.UTF8toUTF16(bytes, 16, titleLenBytes, titleChars);
+      int titleLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position(), titleLenBytes, titleChars);
       title = new String(titleChars, 0, titleLenChars);
       //System.out.println("title: " + title);
 
-      int bodyLenBytes = bytes.length - 16 - titleLenBytes;
       char[] bodyChars = new char[bodyLenBytes];
-      int bodyLenChars = UnicodeUtil.UTF8toUTF16(bytes, 16+titleLenBytes, bodyLenBytes, bodyChars);
+      int bodyLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes, bodyLenBytes, bodyChars);
       body = new String(bodyChars, 0, bodyLenChars);
+      buffer.position(buffer.position() + titleLenBytes + bodyLenBytes);
 
       spot3 = 0;
       line = null;
       
     } else {
-    
+      Object o;
+      try {
+        o = queue.take();
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(ie);
+      }
+      if (o == END) {
+        return null;
+      }
       line = (String) o;
 
       int spot = line.indexOf(SEP);

@@ -1,12 +1,17 @@
 import struct
 import sys
 import datetime
+import io
+
+# python3 -u src/python/buildBinaryLineDocs.py /lucenedata/enwiki/enwiki-20110115-lines-1k-fixed.txt /l/data/enwiki-20110115-lines-1k-fixed.bin 
 
 epoch = datetime.datetime.utcfromtimestamp(0)
 
 with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as fOut:
   # skip header
   first = True
+  pending = io.BytesIO()
+  pendingDocCount = 0
   while True:
     line = f.readline()
     if len(line) == 0:
@@ -34,7 +39,19 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
     totalLength = len(titleBytes)+len(bodyBytes)+16
     #print('len=%s' % totalLength)
     #print('HERE: %s, offset=%s' % (struct.pack('i', totalLength), fOut.tell()))
+
+    pending.write(struct.pack('iili', len(titleBytes), len(bodyBytes), msecSinceEpoch, timeSec))
+    pending.write(titleBytes)
+    pending.write(bodyBytes)
+    pendingDocCount += 1
     
-    fOut.write(struct.pack('iili', totalLength, len(titleBytes), msecSinceEpoch, timeSec))
-    fOut.write(titleBytes)
-    fOut.write(bodyBytes)
+    if pending.tell() > 64*1024:
+      #print('%d docs in %.1f KB chunk' % (pendingDocCount, pending.tell()/1024.))
+      fOut.write(struct.pack('i', pending.tell()))
+      fOut.write(pending.getbuffer())
+      pending = io.BytesIO()
+      pendingDocCount = 0
+
+  if pending.tell() > 0:
+    fOut.write(struct.pack('i', pending.tell()))
+    fOut.write(pending.getbuffer())

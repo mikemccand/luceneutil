@@ -358,7 +358,7 @@ KNOWN_CHANGES = [
    'Fix another benchmark bottleneck for 1 KB docs',
    'Fix another benchmark bottleneck for 1 KB docs'),
 
-  ('2016-06-14',
+  ('2016-06-13',
    'LUCENE-7330: Speed up conjunctions',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-7330">LUCENE-7330: Speed up conjunctions</a>'),
    ]

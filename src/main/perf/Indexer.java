@@ -446,7 +446,7 @@ public final class Indexer {
 
     if (waitForCommit) {
       commitData.put("userData", "multi");
-      w.setCommitData(commitData);
+      w.setLiveCommitData(commitData.entrySet());
       long t2 = System.currentTimeMillis();
       w.commit();
       long t3 = System.currentTimeMillis();
@@ -463,7 +463,7 @@ public final class Indexer {
       System.out.println("\nIndexer: force merge done (took " + (forceMergeEndMSec-forceMergeStartMSec) + " msec)");
 
       commitData.put("userData", "single");
-      w.setCommitData(commitData);
+      w.setLiveCommitData(commitData.entrySet());
       w.commit();
       final long t5 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit single done (took " + (t5-forceMergeEndMSec) + " msec)");
@@ -487,7 +487,7 @@ public final class Indexer {
       System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
       commitData.put("userData", doForceMerge ? "delsingle" : "delmulti");
-      w.setCommitData(commitData);
+      w.setLiveCommitData(commitData.entrySet());
       w.commit();
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");

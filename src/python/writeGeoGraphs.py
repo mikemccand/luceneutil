@@ -5,6 +5,7 @@ import pickle
 import pysftp
 
 nextGraph = 300
+graphCount = 0
 
 KNOWN_CHANGES = (
   ('2016-03-22', 'LUCENE-7130: fold recent LatLonPoint optimizations into GeoPoint', 'GeoPoint'),
@@ -36,10 +37,24 @@ def toString(timeStamp):
 
 def writeGraphHeader(f, id):
   global nextGraph
+  global graphCount
+
+  graphCount += 1
+
+  idNoSpace = id.replace(' ', '_')
+
   f.write('''
-<a name="%s"></a>
+<a name="%s" id="%s"></a>
+<style>
+  a#%s {
+    display: block;
+    position: relative;
+    top: %spx;
+    visibility: hidden;
+  }
+</style>
 <div id="chart_%s" style="height:500px; position: absolute; left: 0px; right: 260px; top: %spx"></div>
-<div id="chart_%s_labels" style="width: 250px; position: absolute; right: 0px; top: %spx"></div>''' % (id, id, nextGraph, id, nextGraph+30))
+<div id="chart_%s_labels" style="width: 250px; position: absolute; right: 0px; top: %spx"></div>''' % (idNoSpace, idNoSpace, idNoSpace, nextGraph-210-0*graphCount, id, nextGraph, id, nextGraph+30))
   nextGraph += 550
 
 def writeGraphFooter(f, id, title, yLabel, series):
@@ -56,6 +71,8 @@ def writeGraphFooter(f, id, title, yLabel, series):
   if 'LatLonPoint+DV' in series:
     colors.append('#218559')
     
+  idNoSpace = id.replace(' ', '_')
+
   f.write(''',
 { "title": "<a href=\'#%s\'><font size=+2>%s</font></a>",
   "colors": %s,
@@ -72,7 +89,7 @@ def writeGraphFooter(f, id, title, yLabel, series):
   "drawPoints": true,
   }
   );
-''' % (id, title, colors, yLabel, id))
+''' % (idNoSpace, title, colors, yLabel, id))
 
 def writeOneGraph(data, chartID, chartTitle, yLabel, allTimes):
   writeGraphHeader(f, chartID)

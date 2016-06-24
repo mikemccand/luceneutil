@@ -856,7 +856,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useGeoPoint) {
-                    q = new GeoPointInPolygonQuery("point", poly[0], poly[1]);
+                    q = new GeoPointInPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else {
                     throw new AssertionError();
                   }
@@ -1012,7 +1012,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
               } else if (useGeoPoint) {
-                q = new GeoPointInPolygonQuery("point", poly[0], poly[1]);
+                q = new GeoPointInPolygonQuery("point", new Polygon(poly[0], poly[1]));
               } else {
                 throw new AssertionError();
               }

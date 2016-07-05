@@ -24,6 +24,7 @@ KNOWN_CHANGES = (
   ('2016-04-27', 'LUCENE-7254: optimization: pick a sparse or non-sparse bit set up front for collection', 'LatLonPoint'),
   ('2016-04-28', 'LUCENE-7249: optimization: remove per-hit add instruction', 'LatLonPoint'),
   ('2016-05-30-22-00-00', 'LUCENE-7306: use radix sort rather than quicksort', 'LatLonPoint'),
+  ('2016-07-04', 'LUCENE-7351: compress doc ids', 'LatLonPoint'),
 )
 
 def toString(timeStamp):

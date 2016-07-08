@@ -295,7 +295,6 @@ class TaskParser {
           throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
         }
         Builder b = new BooleanQuery.Builder();
-        b.setDisableCoord(((BooleanQuery) query).isCoordDisabled());
         b.setMinimumNumberShouldMatch(minShouldMatch);
         for (BooleanClause clause : ((BooleanQuery) query)) {
           b.add(clause);

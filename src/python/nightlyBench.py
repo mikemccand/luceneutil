@@ -361,6 +361,10 @@ KNOWN_CHANGES = [
   ('2016-06-13',
    'LUCENE-7330: Speed up conjunctions',
    '<a href="https://issues.apache.org/jira/browse/LUCENE-7330">LUCENE-7330: Speed up conjunctions</a>'),
+
+  ('2016-07-11',
+   'Upgrade beast2 OS from Ubuntu 15.04 to 16.04',
+   'Upgrade beast2 OS from Ubuntu 15.04 to 16.04'),
    ]
 
 # TODO

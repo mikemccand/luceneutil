@@ -560,7 +560,7 @@ def run():
     iters = 30
     for i in range(iters):
       try:
-        runCommand('git checkout master; git pull -u origin master > %s/gitupdate.log' % runLogDir)
+        runCommand('git checkout master; git pull origin master > %s/gitupdate.log' % runLogDir)
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
@@ -570,7 +570,7 @@ def run():
           raise RuntimeError('git pull failed: %s' % s)
         break
     else:
-      raise RuntimeError('failed to run git pull -u after %d tries' % iters)
+      raise RuntimeError('failed to run git pull after %d tries' % iters)
 
     os.chdir(constants.BENCH_BASE_DIR)
     luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
@@ -591,7 +591,7 @@ def run():
         print 'LUCENE rev is %s' % luceneRev
         break
     else:
-      raise RuntimeError('failed to run git pull -u after %d tries' % iters)
+      raise RuntimeError('failed to run git pull after %d tries' % iters)
 
     print 'luceneutil rev is %s' % luceneUtilRev
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()

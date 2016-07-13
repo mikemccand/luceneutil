@@ -455,7 +455,6 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig);
 
     final QueryParser queryParser = new QueryParser("body", a);
-    queryParser.setLowercaseExpandedTerms(false);
     TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, doStoredLoads);
 
     final TaskSource tasks;

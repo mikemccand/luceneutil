@@ -78,7 +78,12 @@ else:
   
 # nocommit should we "ant jar"?
 
-if os.system('javac -cp build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java'):
+if nightly:
+  sources = '/l/util.nightly/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util.nightly/src/main/perf/RandomQuery.java'
+else:
+  sources = '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java'
+
+if os.system('javac -cp build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java %s' % sources):
   raise RuntimeError('compile failed')
 
 results = {}
@@ -151,7 +156,12 @@ with open(logFileName, 'w') as log:
       else:
         approach2 = approach
 
-      p = subprocess.Popen('java -Xmx10g -cp /l/util/src/main:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (approach2, shapeCmd, extra), shell=True, stdout=subprocess.PIPE)
+      if nightly:
+        utilSrcDir = '/l/util.nightly/src/main'
+      else:
+        utilSrcDir = '/l/util/src/main'
+        
+      p = subprocess.Popen('java -Xmx10g -cp %s:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra), shell=True, stdout=subprocess.PIPE)
 
       totHits = None
       indexSizeGB = None

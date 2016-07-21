@@ -27,6 +27,7 @@ KNOWN_CHANGES = (
   ('2016-07-04', 'LUCENE-7351: compress doc ids', 'LatLonPoint'),
   ('2016-07-11', 'Upgrade beast2 OS from Ubuntu 15.04 to 16.04'),
   ('2016-07-12', 'LUCENE-7371: use run-length compression for points (BKD) values'),
+  ('2016-07-16', 'Upgrade Linux kernel from 4.4.x to 4.6.x'),
 )
 
 def toString(timeStamp):

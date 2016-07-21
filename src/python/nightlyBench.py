@@ -365,7 +365,11 @@ KNOWN_CHANGES = [
   ('2016-07-11',
    'Upgrade beast2 OS from Ubuntu 15.04 to 16.04',
    'Upgrade beast2 OS from Ubuntu 15.04 to 16.04'),
-   ]
+
+  ('2016-07-16',
+   'Upgrade beast2 kernel from 4.4.x to 4.6.x',
+   'Upgrade beast2 kernel from 4.4.x to 4.6.x'),
+]
 
 # TODO
 #   - need a tiny docs test?  catch per-doc overhead regressions...

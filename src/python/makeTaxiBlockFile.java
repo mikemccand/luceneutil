@@ -15,3 +15,4 @@ with open('/lucenedata/nyc-taxi-data/alltaxis.csv', 'rb') as f, open('/lucenedat
       fOut.write(('%d %d\n' % (pendingByteCount, len(pending))).encode('utf-8'))
       fOut.write(b''.join(pending))
       pending.clear()
+      pendingByteCount = 0

@@ -545,8 +545,7 @@ public class IndexAndSearchOpenStreetMaps {
             @Override
             public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
               int maxPointsInLeafNode = 1024;
-              double maxMBSortInHeap = 1024.0;
-              return new Lucene60PointsWriter(writeState, maxPointsInLeafNode, maxMBSortInHeap);
+              return new Lucene60PointsWriter(writeState, maxPointsInLeafNode);
             }
 
             @Override

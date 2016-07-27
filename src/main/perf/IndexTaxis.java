@@ -46,7 +46,13 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
-// javac -cp ../build/core/classes/java IndexTaxis.java ; java -cp ../build/core/classes/java:. IndexTaxis /b/taxisjava 6 /lucenedata/nyc-taxi-data/alltaxis.csv.blocks 
+// See README.nyctaxis for the chunked docs source
+
+// First: cd to /foo/bar/baz/lucene-solr-clone/lucene
+
+// Then: ant clean jar"
+
+// Then: javac -cp build/core/classes/java /l/util/src/main/perf/IndexTaxis.java ; java -cp build/core/classes/java:/l/util/src/main/perf IndexTaxis /c/taxisjava 1 /lucenedata/nyc-taxi-data/alltaxis.25M.csv.blocks 
 
 public class IndexTaxis {
 
@@ -54,7 +60,7 @@ public class IndexTaxis {
   private static final int COMMA = (byte) ',';
   private static final byte[] header = new byte[128];
 
-  static final long startNS = System.nanoTime();
+  static long startNS;
 
   private static class Chunk {
     public final byte[] bytes;
@@ -160,7 +166,7 @@ public class IndexTaxis {
   }
 
   /** Index all documents contained in one chunk */
-  static void indexOneChunk(String[] fields, Chunk chunk, IndexWriter w, int startByte, AtomicInteger docCounter, AtomicLong bytesCounter) throws IOException {
+  static void indexOneChunk(String[] fields, Chunk chunk, IndexWriter w, AtomicInteger docCounter, AtomicLong bytesCounter) throws IOException {
 
     Document doc = new Document();
     byte[] bytes = chunk.bytes;
@@ -171,10 +177,10 @@ public class IndexTaxis {
         @Override
         public Iterator<Document> iterator() {
           return new Iterator<Document>() {
-            private int i = startByte;
+            private int i;
             private Document nextDoc;
             private boolean nextSet;
-            private int lastLineStart = startByte;
+            private int lastLineStart;
             private int chunkDocCount;
 
             @Override
@@ -246,32 +252,33 @@ public class IndexTaxis {
     //System.out.println("NOW SET INFO STREAM");
     iwc.setRAMBufferSizeMB(1024.);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     //((ConcurrentMergeScheduler) iwc.getMergeScheduler()).disableAutoIOThrottle();
 
     final IndexWriter w = new IndexWriter(dir, iwc);
 
     BufferedInputStream docs = new BufferedInputStream(Files.newInputStream(docsPath, StandardOpenOption.READ));
 
-    final Chunk firstChunk = readChunk(docs);
-
     // parse the header fields
     List<String> fieldsList = new ArrayList<>();
-    int lastFieldStart = 0;
-    int chunkStartByte = 0;
-    for(int i=0;i<firstChunk.bytes.length;i++) {
-      byte b = firstChunk.bytes[i];
+    StringBuilder builder = new StringBuilder();
+    while (true) {
+      int x = docs.read();
+      if (x == -1) {
+        throw new IllegalArgumentException("hit EOF while trying to read CSV header; are you sure you have the right CSV file!");
+      }
+      byte b = (byte) x;
       if (b == NEWLINE) {
-        fieldsList.add(new String(firstChunk.bytes, lastFieldStart, i-lastFieldStart, StandardCharsets.UTF_8));
-        chunkStartByte = i+1;
+        fieldsList.add(builder.toString());
         break;
       } else if (b == COMMA) {
-        fieldsList.add(new String(firstChunk.bytes, lastFieldStart, i-lastFieldStart, StandardCharsets.UTF_8));
-        lastFieldStart = i+1;
+        fieldsList.add(builder.toString());
+        builder.setLength(0);
+      } else {
+        // this is OK because headers are all ascii:
+        builder.append((char) b);
       }
     }
-
-    final int finalStartByte = chunkStartByte;
 
     final String[] fields = fieldsList.toArray(new String[fieldsList.size()]);
 
@@ -279,6 +286,8 @@ public class IndexTaxis {
 
     final AtomicInteger docCounter = new AtomicInteger();
     final AtomicLong bytesCounter = new AtomicLong();
+
+    startNS = System.nanoTime();    
 
     for(int i=0;i<threadCount;i++) {
       final int threadID = i;
@@ -293,15 +302,12 @@ public class IndexTaxis {
           }
 
           private void _run() throws IOException {
-            if (threadID == 0) {
-              indexOneChunk(fields, firstChunk, w, finalStartByte, docCounter, bytesCounter);
-            }
             while (true) {
               Chunk chunk = readChunk(docs);
               if (chunk == null) {
                 break;
               }
-              indexOneChunk(fields, chunk, w, 0, docCounter, bytesCounter);
+              indexOneChunk(fields, chunk, w, docCounter, bytesCounter);
             }
           }
         };

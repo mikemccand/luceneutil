@@ -54,7 +54,7 @@ import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
-// javac -cp /l/1dkd/lucene/build/core/classes/java:/l/1dkd/lucene/build/sandbox/classes/java IndexAndSearchOpenStreetMaps1D.java; java -cp /l/1dkd/lucene/build/core/classes/java:/l/1dkd/lucene/build/sandbox/classes/java:. IndexAndSearchOpenStreetMaps1D
+// javac -cp build/core/classes/java:build/sandbox/classes/java /l/util/src/main/perf/IndexAndSearchOpenStreetMaps1D.java; java -cp build/core/classes/java:build/sandbox/classes/java:/l/util/src/main/perf IndexAndSearchOpenStreetMaps1D
 
 public class IndexAndSearchOpenStreetMaps1D {
 
@@ -72,7 +72,7 @@ public class IndexAndSearchOpenStreetMaps1D {
     InputStream is = Files.newInputStream(Paths.get("/lucenedata/open-street-maps/latlon.subsetPlusAllLondon.txt"));
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, decoder), BUFFER_SIZE);
 
-    Directory dir = FSDirectory.open(Paths.get("/b/tmp/bkdtest1d" + (USE_NF ? "_nf" : "")));
+    Directory dir = FSDirectory.open(Paths.get("/c/tmp/bkdtest1d" + (USE_NF ? "_nf" : "")));
 
     IndexWriterConfig iwc = new IndexWriterConfig(null);
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
@@ -110,7 +110,7 @@ public class IndexAndSearchOpenStreetMaps1D {
         System.out.println(count + "...");
       }
     }
-    w.forceMerge(1);
+    //w.forceMerge(1);
     w.commit();
     System.out.println(w.maxDoc() + " total docs");
 

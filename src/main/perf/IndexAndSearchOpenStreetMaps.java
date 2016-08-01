@@ -94,6 +94,7 @@ import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
+import org.apache.lucene.util.bkd.BKDWriter;
 
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLatitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
@@ -545,7 +546,7 @@ public class IndexAndSearchOpenStreetMaps {
             @Override
             public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
               int maxPointsInLeafNode = 1024;
-              return new Lucene60PointsWriter(writeState, maxPointsInLeafNode);
+              return new Lucene60PointsWriter(writeState, maxPointsInLeafNode, BKDWriter.DEFAULT_MAX_MB_SORT_IN_HEAP);
             }
 
             @Override

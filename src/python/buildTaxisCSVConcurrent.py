@@ -70,10 +70,15 @@ def loadDocs(jobs, id, csvHeaders):
       #print('headers in: %s' % headers);
       datetimes = []
       strings = []
+      fareAmountIndex = -1
+      fareAmountDestIndex = -1      
       for i in range(len(headers)):
         headers[i] = normalize[headers[i].strip().lower()]
         if headers[i].endswith('_date_time'):
           datetimes.append((i, csvHeaders.index(headers[i])))
+        elif headers[i] == 'fare_amount':
+          fareAmountIndex = i
+          fareAmountDestIndex = csvHeaders.index('fare_amount')
         else:
           strings.append((i, csvHeaders.index(headers[i])))
 
@@ -83,9 +88,24 @@ def loadDocs(jobs, id, csvHeaders):
           continue
         csvRow = [''] * len(csvHeaders)
         csvRow[cabColorIndex] = cabColor
+        if fareAmountIndex != -1:
+          try:
+            v = float(row[fareAmountIndex])
+          except ValueError:
+            print('skip bogus fare_amount: %s' % row[fareAmountIndex])
+          else:
+            # convert to its simpler string, e.g. 10.619999999999999 becomes 10.62
+            csvRow[fareAmountDestIndex] = '%s' % v
         for src, target in strings:
           if row[src] != '':
-            csvRow[target] = row[src]
+            try:
+              v = float(row[src])
+            except ValueError:
+              v = row[src]
+            else:
+              # convert double to their simpler string, e.g. 10.619999999999999 becomes 10.62
+              v = '%s' % v
+            csvRow[target] = v
         for src, target in datetimes:
           if row[src] != '':
             try:
@@ -135,7 +155,7 @@ if __name__ == '__main__':
     if fileName.endswith('.csv') and fileName != 'alltaxis.csv':
       jobs.put(fileName)
 
-  cpuCount = 36
+  cpuCount = multiprocessing.cpu_count()
   
   print('%d files to process, using %d processes' % (jobs.qsize(), cpuCount))
 
@@ -148,6 +168,4 @@ if __name__ == '__main__':
 
   for i in range(cpuCount):
     p.join()
-    
-
   

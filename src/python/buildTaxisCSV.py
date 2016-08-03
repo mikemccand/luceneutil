@@ -59,7 +59,7 @@ def loadDocs():
 
   yield ','.join(csvHeaders)
   
-  for fileName in os.listdir(CSV_DIR)::
+  for fileName in os.listdir(CSV_DIR):
     if fileName.endswith('.csv') and fileName != 'alltaxis.csv':
       print('file %s' % fileName, file=sys.stderr)
       cabColor = fileName.split('_')[0]

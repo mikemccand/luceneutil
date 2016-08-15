@@ -28,7 +28,6 @@ import re
 import threading
 import subprocess
 import json
-import benchUtil
 
 # NOTE
 #   - only works in the module's working directory,
@@ -58,20 +57,41 @@ osName = common.osName
 # JAVA_ARGS = '-Xmx8g -Xms8g'
 JAVA_ARGS = '-Xmx512m -Xms512m'
 
+def getArg(argName, default, hasArg=True):
+  try:
+    idx = sys.argv.index(argName)
+  except ValueError:
+    v = default
+  else:
+    if hasArg:
+      v = sys.argv[idx+1]
+      del sys.argv[idx:idx+2]
+      try:
+        sys.argv.index(argName)
+      except ValueError:
+        # ok
+        pass
+      else:
+        raise RuntimeError('argument %s appears more than once' % argName)
+    else:
+      v = True
+      del sys.argv[idx]
+  return v
+
 def error(message):
   beep()
-  print('ERROR: %s' % message)
-  print
+  print(('ERROR: %s' % message))
+  print()
   sys.exit(1)
 
 def beep():
-  print '\a\a\a'  
+  print('\a\a\a')  
 
 reRepro = re.compile('NOTE: reproduce with(.*?)$', re.MULTILINE)
 reDefines = re.compile('-D(.*?)=(.*?)(?: |$)')
 def printReproLines(logFileName, iters):
-  with open(logFileName, 'rb') as f:
-    print
+  with open(logFileName, 'r') as f:
+    print()
     while True:
       line = f.readline()
       if line == '':
@@ -101,7 +121,7 @@ def parseReproLine(line, iters):
     elif k == 'tests.multiplier':
       mult = v
     else:
-      print 'WARNING: don\'t know how to repro k/v=%s' % str(x)
+      print('WARNING: don\'t know how to repro k/v=%s' % str(x))
 
   extra = []
   if codec is not None:
@@ -117,49 +137,49 @@ def parseReproLine(line, iters):
   if iters != 1:
     s = s.strip() + ' -iters %s' % iters
     
-  print('\n%s\n' % s)
+  print(('\n%s\n' % s))
 
 tup = os.path.split(os.getcwd())
 
 sub = os.path.split(tup[0])[0]
 sub = os.path.split(sub)[1]
 
-logDirName = benchUtil.getArg('-logDir', '%s/lucene/build' % ROOT)
+logDirName = getArg('-logDir', '%s/lucene/build' % ROOT)
 
-doCompile = not benchUtil.getArg('-noc', False, False)
-doLog = not benchUtil.getArg('-nolog', False, False)
-jvmCount = int(benchUtil.getArg('-jvms', 1))
+doCompile = not getArg('-noc', False, False)
+doLog = not getArg('-nolog', False, False)
+jvmCount = int(getArg('-jvms', 1))
 
 if jvmCount != 1:
   doLog = True
   
 if doLog:
-  print '\nLogging to dir %s' % logDirName
+  print('\nLogging to dir %s' % logDirName)
 
 if not os.path.exists(logDirName):      
   os.makedirs(logDirName)
 
-onlyOnce = benchUtil.getArg('-once', False, False)
-mult = int(benchUtil.getArg('-mult', 1))
-locale = benchUtil.getArg('-locale', None)
-postingsFormat = benchUtil.getArg('-pf', 'random')
-codec = benchUtil.getArg('-codec', 'random')
-sim = benchUtil.getArg('-sim', 'random')
-dir = benchUtil.getArg('-dir', 'random')
-monsters = benchUtil.getArg('-monsters', False, False)
-verbose = benchUtil.getArg('-verbose', False, False)
-iters = int(benchUtil.getArg('-iters', 1))
-seed = benchUtil.getArg('-seed', None)
-dvFormat = benchUtil.getArg('-dvFormat', None)
-nightly = benchUtil.getArg('-nightly', None, False)
-keepLogs = benchUtil.getArg('-keeplogs', False, False)
-slow = benchUtil.getArg('-slow', True, False)
+onlyOnce = getArg('-once', False, False)
+mult = int(getArg('-mult', 1))
+locale = getArg('-locale', None)
+postingsFormat = getArg('-pf', 'random')
+codec = getArg('-codec', 'random')
+sim = getArg('-sim', 'random')
+dir = getArg('-dir', 'random')
+monsters = getArg('-monsters', False, False)
+verbose = getArg('-verbose', False, False)
+iters = int(getArg('-iters', 1))
+seed = getArg('-seed', None)
+dvFormat = getArg('-dvFormat', None)
+nightly = getArg('-nightly', None, False)
+keepLogs = getArg('-keeplogs', False, False)
+slow = getArg('-slow', True, False)
 # -Dtests.heapsize=XXX if running ant
-heap = benchUtil.getArg('-heap', None, True)
+heap = getArg('-heap', None, True)
 if heap is not None:
   JAVA_ARGS = JAVA_ARGS.replace('512m', heap)
 
-testTmpDir = benchUtil.getArg('-tmpDir', None)
+testTmpDir = getArg('-tmpDir', None)
 if testTmpDir is None:
   testTmpDir = '%s/lucene/build/core/test' % ROOT
 else:
@@ -170,7 +190,7 @@ else:
 # sys.argv also contains the name of the script, so if it's 
 # length is 1, it means no test was specified
 if len(sys.argv) == 1:
-  print '\nERROR: no test specified\n'
+  print('\nERROR: no test specified\n')
   sys.exit(1)
 
 tests = []
@@ -182,7 +202,7 @@ for test in sys.argv[1:]:
   elif not test.startswith('org.'):
     tup = common.locateTest(test)
     if tup is None:
-      print '\nERROR: cannot find test class %s.java\n' % test
+      print('\nERROR: cannot find test class %s.java\n' % test)
       sys.exit(1)
     testClass, testMethod = tup
     tests.append((testClass, testMethod))
@@ -191,14 +211,14 @@ OLD_JUNIT = os.path.exists('lib/junit-3.8.2.jar')
 
 if doCompile:
   # Compile, but only send output to stdout if it fails:
-  print 'Compile...'
+  print('Compile...')
   try:
     if os.getcwd().endswith('lucene'):
       res = os.system('%s compile-core compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
     else:
       res = os.system('%s compile-test > %s/compile.log 2>&1' % (constants.ANT_EXE, logDirName))
     if res:
-      print open('%s/compile.log' % logDirName, 'rb').read()
+      print(open('%s/compile.log' % logDirName, 'r').read())
       sys.exit(1)
   finally:
     os.remove('%s/compile.log' % logDirName)
@@ -215,11 +235,11 @@ def nextIter(threadID, logFileName, secLastIter):
   global iter
   
   with iterLock:
-    print
+    print('')
     if logFileName is None:
-      print '%s [%d, jvm %d, %5.1fs]:' % (datetime.datetime.now(), iter, threadID, secLastIter)
+      print('%s [%d, jvm %d, %5.1fs]:' % (datetime.datetime.now(), iter, threadID, secLastIter))
     else:
-      print '%s [%d, jvm %d, %5.1fs]: %s' % (datetime.datetime.now(), iter, threadID, secLastIter, logFileName)
+      print('%s [%d, jvm %d, %5.1fs]: %s' % (datetime.datetime.now(), iter, threadID, secLastIter, logFileName))
     iter += 1
     return iter
 
@@ -230,7 +250,7 @@ def eventToLog(eventsFileIn, fileOut):
   """
 
   r = re.compile('^    "chunk": "(.*?)"$')
-  with open(eventsFileIn, 'rb') as f:
+  with open(eventsFileIn, 'r') as f:
     with open(fileOut, 'wb') as fOut:
       while True:
         line = f.readline()
@@ -341,7 +361,7 @@ def _run(threadID):
           f.write('RUN: %s\n\n' % command)
         command += ' >> %s 2>&1' % logFileName
       else:
-        print('RUN: %s\n\n' % command)
+        print(('RUN: %s\n\n' % command))
 
       # print('command: %s' % command)
 
@@ -354,7 +374,7 @@ def _run(threadID):
       os.makedirs(TEST_TEMP_DIR)
 
       if False and first:
-        print '  RUN: %s' % command
+        print('  RUN: %s' % command)
         first = False
 
       t0 = time.time()
@@ -382,7 +402,7 @@ def _run(threadID):
           if line.find('OK (0 tests)') != -1:
             noTestsRun = True
             break
-          print line.rstrip()
+          print(line.rstrip())
           if p.returncode is not None:
             break
 
@@ -416,9 +436,9 @@ def _run(threadID):
             ignored = True
           elif obj[0] == 'TEST_IGNORED_ASSUMPTION':
             if not onlyOnce:
-              print('\n  TEST SKIPPED: %s' % obj[1]['failure']['message'])
+              print(('\n  TEST SKIPPED: %s' % obj[1]['failure']['message']))
             else:
-              print('\n  TEST SKIPPED: %s' % obj[1]['failure']['trace'])
+              print(('\n  TEST SKIPPED: %s' % obj[1]['failure']['trace']))
             ignored = True
           elif obj[0] == 'TEST_FINISHED':
             testName = None
@@ -426,10 +446,10 @@ def _run(threadID):
               testCount += 1
           elif obj[0] == 'TEST_FAILURE':
             if doLog:
-              print '\nERROR: test %s failed; see %s' % (testName, logFileName)
+              print('\nERROR: test %s failed; see %s' % (testName, logFileName))
             else:
-              print '\nERROR: test %s failed' % testName
-              print obj[1]['failure']['trace']
+              print('\nERROR: test %s failed' % testName)
+              print(obj[1]['failure']['trace'])
             failCount += 1
             failed = True
           elif obj[0] == 'APPEND_STDERR':
@@ -443,7 +463,7 @@ def _run(threadID):
 
         if not sawTest:
           # No tests matched:
-          print
+          print()
           if ignoreCount != 0:
             error('all test cases were marked @Ignore')
           else:
@@ -453,9 +473,9 @@ def _run(threadID):
 
       if res:
         if logFileName is None:
-          print '  FAILED'
+          print('  FAILED')
         else:
-          print '  FAILED [log %s]' % logFileName
+          print('  FAILED [log %s]' % logFileName)
           
         if doLog:
           printReproLines(logFileName, iters)
@@ -473,7 +493,7 @@ def _run(threadID):
             print('  WARNING: no test actually ran, due to an Assume or @Ignore/@Nightly/@Slow/etc.')
       else:
         if onlyOnce and not USE_JUNIT and not failed:
-          print('  OK [%d tests]\n' % testCount)
+          print(('  OK [%d tests]\n' % testCount))
         if doLog and USE_JUNIT:
           if not keepLogs:
             pass
@@ -487,7 +507,7 @@ def _run(threadID):
 print('\nRun test(s)...')
 if jvmCount > 1:
   threads = []
-  for threadID in xrange(jvmCount):
+  for threadID in range(jvmCount):
     t = threading.Thread(target=run, args=(threadID,))
     t.start()
     threads.append(t)

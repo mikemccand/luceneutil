@@ -369,6 +369,14 @@ KNOWN_CHANGES = [
   ('2016-07-16',
    'Upgrade beast2 kernel from 4.4.x to 4.6.x',
    'Upgrade beast2 kernel from 4.4.x to 4.6.x'),
+
+  ('2016-08-17',
+   'Upgrade beast2 kernel from 4.6.x to 4.7.0',
+   'Upgrade beast2 kernel from 4.6.x to 4.7.0'),
+
+  ('2016-09-04',
+   'Upgrade beast2 kernel from 4.7.0 to 4.7.2',
+   'Upgrade beast2 kernel from 4.7.0 to 4.7.2'),
 ]
 
 # TODO

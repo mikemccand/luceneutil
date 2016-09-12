@@ -4,7 +4,7 @@ import datetime
 import pickle
 import pysftp
 
-nextGraph = 300
+nextGraph = 500
 graphCount = 0
 
 KNOWN_CHANGES = (
@@ -284,9 +284,11 @@ with open('/x/tmp/geobench.html', 'w') as f:
 </head>
 <body>
 <h2>Lucene Geo benchmarks</h2>
+<div style="min-width: 800px">
 <p>Below are the results of the Lucene nightly geo benchmarks based on the <a href="https://git-wip-us.apache.org/repos/asf/lucene-solr.git">master</a> branch as of that point in time.</p>
 <p>This test indexes a 60.8M point subset exported from the full (as of 3/7/2016) 3.2B point <a href="http://openstreetmaps.org">OpenStreetMaps corpus</a>, including every point inside London, UK, and 2.5% of the remaining points, using three different approaches, and then tests search and sorting performance of various shapes.  The London boroughs polygons <a href="http://data.london.gov.uk/2011-boundary-files">come from here</a> (33 polygons, average 5.6K vertices).</p>
 <p>On each chart, you can click + drag (vertically or horizontally) to zoom in and then shift + drag to move around, and double-click to reset.  Hover over an annotation to see known changes.  Click on a point to see the exact source git revision that was run.</p>
+</div>
     ''')
 
   byQuery = {}

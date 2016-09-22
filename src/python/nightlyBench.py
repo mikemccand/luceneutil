@@ -377,6 +377,11 @@ KNOWN_CHANGES = [
   ('2016-09-04',
    'Upgrade beast2 kernel from 4.7.0 to 4.7.2',
    'Upgrade beast2 kernel from 4.7.0 to 4.7.2'),
+
+  ('2016-09-21',
+   'LUCENE-7407: Change doc values from random access to iterator API',
+   'LUCENE-7407: Change doc values from random access to iterator API',
+   ),
 ]
 
 # TODO

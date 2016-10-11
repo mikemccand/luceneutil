@@ -161,7 +161,7 @@ with open(logFileName, 'w') as log:
       else:
         utilSrcDir = '/l/util/src/main'
         
-      p = subprocess.Popen('java -Xmx10g -cp %s:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra), shell=True, stdout=subprocess.PIPE)
+      p = subprocess.Popen('java -Xmx10g -cp %s:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
       totHits = None
       indexSizeGB = None

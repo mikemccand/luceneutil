@@ -20,34 +20,27 @@ package perf;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.apache.lucene.codecs.lucene60.Lucene60PointsReader;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PointValues.IntersectVisitor;
 import org.apache.lucene.index.PointValues.Relation;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ReferenceManager;
-import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.bkd.BKDReader.IntersectState;
 import org.apache.lucene.util.bkd.BKDReader;
@@ -160,7 +153,7 @@ class IndexState {
 
     public PointsPKLookupState(LeafReader reader, String fieldName) throws IOException {
       visitor = new PKIntersectVisitor();
-      bkdReader = ((Lucene60PointsReader) reader.getPointValues()).getBKDReader(fieldName);
+      bkdReader = ((BKDReader) reader.getPointValues(fieldName));
       state = bkdReader.getIntersectState(visitor);
       liveDocs = reader.getLiveDocs();
     }

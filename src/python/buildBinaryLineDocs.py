@@ -8,7 +8,6 @@ import io
 epoch = datetime.datetime.utcfromtimestamp(0)
 
 with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as fOut:
-  # skip header
   first = True
   pending = io.BytesIO()
   pendingDocCount = 0
@@ -17,6 +16,7 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
     if len(line) == 0:
       break
     if first:
+      # skip header
       first = False
       if line.startswith('FIELDS_HEADER_INDICATOR'):
         print('skip header')

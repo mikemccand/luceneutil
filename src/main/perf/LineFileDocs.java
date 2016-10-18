@@ -455,6 +455,8 @@ public class LineFileDocs implements Closeable {
       body = new String(bodyChars, 0, bodyLenChars);
       buffer.position(buffer.position() + titleLenBytes + bodyLenBytes);
 
+      doc.dateCal.setTimeInMillis(msecSinceEpoch);      
+
       spot3 = 0;
       line = null;
       

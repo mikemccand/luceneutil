@@ -90,12 +90,6 @@ KNOWN_CHANGES = [
    Added TermQuery, grouping by fields with 100, 10K, 1M unique values.
    """),
 
-  ('2011-05-14',
-   'Add TermQuery with grouping',
-   """
-   Added TermQuery, grouping by fields with 100, 10K, 1M unique values.
-   """),
-
   ('2011-06-03',
    'Add single-pass grouping',
    """
@@ -355,8 +349,8 @@ KNOWN_CHANGES = [
    '<a href="https://github.com/mikemccand/luceneutil/commit/b24e28dd1bf9a9fcacd693c4162d5ebb03d4afe1">Fix silly benchmark bottlenecks and re-tune for high indexing throughput</a>'),
 
   ('2016-05-25',
-   'Fix another benchmark bottleneck for 1 KB docs',
-   'Fix another benchmark bottleneck for 1 KB docs'),
+   'Fix another benchmark bottleneck for 1 KB docs (but this added a bug in TermDateFacets, fixed on 10/18)',
+   'Fix another benchmark bottleneck for 1 KB docs (but this added a bug in TermDateFacets, fixed on 10/18)'),
 
   ('2016-06-13',
    'LUCENE-7330: Speed up conjunctions',
@@ -381,6 +375,11 @@ KNOWN_CHANGES = [
   ('2016-09-21',
    'LUCENE-7407: Change doc values from random access to iterator API',
    'LUCENE-7407: Change doc values from random access to iterator API',
+   ),
+
+  ('2016-10-18',
+   'Fix silly TermDateFacets bug causing single date facet to be indexed for all docs, added on 5/25',
+   'Fix silly TermDateFacets bug causing single date facet to be indexed for all docs, added on 5/25',
    ),
 ]
 
@@ -975,12 +974,14 @@ def makeGraphs():
               continue
           searchChartData[cat].append('%s,%.3f,%.3f' % (timeStampString, avgQPS*qpsMult, stdDevQPS*qpsMult))
 
+      label = 0
       for date, desc, fullDesc in KNOWN_CHANGES:
         if timeStampString.startswith(date):
-          # print('add annot %s' % desc)
-          annotations.append((date, timeStampString, desc, fullDesc))
-          KNOWN_CHANGES.remove((date, desc, fullDesc))
-          
+          #print('timestamp %s: add annot %s' % (timeStampString, desc))
+          annotations.append((date, timeStampString, desc, fullDesc, label))
+          #KNOWN_CHANGES.remove((date, desc, fullDesc))
+        label += 1
+
   sort(medIndexChartData)
   sort(bigIndexChartData)
   for k, v in searchChartData.items():
@@ -1215,7 +1216,7 @@ def writeKnownChanges(w):
   w('<b>Known changes:</b>')
   w('<ul>')
   label = 0
-  for date, timestamp, desc, fullDesc in annotations:
+  for date, timestamp, desc, fullDesc, label in annotations:
     w('<li><p><b>%s</b> (%s): %s</p>' % (getLabel(label), date, fullDesc))
     label += 1
   w('</ul>')
@@ -1313,9 +1314,15 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   w(onClickJS)
   w('  g_%s = new Dygraph(' % id)
   w('    document.getElementById("%s"),' % id)
+  seenTimeStamps = set()
   for s in data[:-1]:
     w('    "%s\\n" +' % s)
-  w('    "%s\\n",' % data[-1])
+    timeStamp = s[:s.find(',')]
+    seenTimeStamps.add(timeStamp)
+  s = data[-1]
+  w('    "%s\\n",' % s)
+  timeStamp = s[:s.find(',')]
+  seenTimeStamps.add(timeStamp)
   options = []
   options.append('title: "%s"' % title)
   options.append('xlabel: "Date"')
@@ -1348,8 +1355,17 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
       w('    {valueRange:[0,%.3f], title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY*1.25, title, yLabel))
   w('  );')
   w('  g_%s.setAnnotations([' % id)
-  label = 0
-  for date, timestamp, desc, fullDesc in annotations:
+  descDedup = set()
+  for date, timestamp, desc, fullDesc, label in annotations:
+    # if this annot's timestamp was not seen in this chart, skip it:
+    if timestamp not in seenTimeStamps:
+      continue
+
+    # if the same description on the same date was already added to this chart, skip it:
+    tup = (desc, date)
+    if tup in descDedup:
+      continue
+    descDedup.add(tup)
     if 'JIT/GC' not in title or label >= 33:
       w('    {')
       w('      series: "%s",' % series)
@@ -1358,7 +1374,6 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
       w('      width: 20,')
       w('      text: "%s",' % desc)
       w('    },')
-    label += 1
   w('  ]);')
   w('</script>')
 

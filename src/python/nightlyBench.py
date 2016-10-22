@@ -694,7 +694,11 @@ def run():
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Memory',
                         mergePolicy='LogDocMergePolicy',
-                        facets = (('Date',),),
+                        facets = (('taxonomy:Date', 'Date'),
+                                  ('taxonomy:Month', 'Month'),
+                                  ('taxonomy:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Month', 'Month'),
+                                  ('sortedset:DayOfYear', 'DayOfYear')))
                         maxConcurrentMerges=3,
                         addDVFields=True)
 

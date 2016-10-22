@@ -107,6 +107,14 @@ public class IndexTaxis {
   }
 
   static void addOneField(Document doc, String fieldName, String rawValue) {
+    // nocommit
+    /*
+    if (fieldName.equals("pick_up_lat")) {
+      double value = Double.parseDouble(rawValue);
+      doc.add(new DoublePoint(fieldName, value));
+      doc.add(new SortedNumericDocValuesField(fieldName, NumericUtils.doubleToSortableLong(value)));
+    }
+    */
     switch(fieldName) {
     case "vendor_id":
     case "cab_color":

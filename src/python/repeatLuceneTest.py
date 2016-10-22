@@ -361,8 +361,9 @@ def _run(threadID):
           f.write('RUN: %s\n\n' % command)
         command += ' >> %s 2>&1' % logFileName
       else:
-        print(('RUN: %s\n\n' % command))
-
+        #print('RUN: %s\n\n' % command)
+        pass
+        
       # print('command: %s' % command)
 
       if os.path.exists(TEST_TEMP_DIR):

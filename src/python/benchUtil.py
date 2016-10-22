@@ -213,7 +213,7 @@ class SearchTask:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, groups1[docIDX][0], groups2[docIDX][0]))
 
     if self.facets != other.facets:
-      if True:
+      if False:
         print
         print '***WARNING*** facet diffs: %s: %s vs %s'% (self, self.facets, other.facets)
         print
@@ -230,13 +230,15 @@ class SearchTask:
       s += ' [sort=%s]' % self.sort
     if self.groupField is not None:
       s += ' [groupField=%s]' % self.groupField
+    if self.facets is not None:
+      s += ' [facets=%s]' % self.facets
     return s
 
   def __eq__(self, other):
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter and type(self.facets) == type(other.facets)
+      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter and self.facets == other.facets
 
   def __hash__(self):
     return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
@@ -319,8 +321,8 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+)$')
-reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
+reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+) facets=(.*?)$')
+reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
 reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=([0-9]+)$')
 reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
@@ -367,7 +369,7 @@ def parseResults(resultsFiles):
         else:
           m = reSearchTaskOld.match(line[6:])
           if m is not None:
-            cat, task.query, sort, hitCount = m.groups()
+            cat, task.query, sort, hitCount, facets = m.groups()
             filter = None
           else:
             cat = None
@@ -439,7 +441,7 @@ def parseResults(resultsFiles):
           else:
             m = reSearchGroupTaskOld.match(line[6:])
             if m is not None:
-              cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
+              cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount, facets = m.groups()
               filter = None
 
           if cat is not None:
@@ -778,7 +780,7 @@ class RunAlgs:
       if index.facets is not None:
         for tup in index.facets:
           w('-facets')
-          w(tup[0])
+          w('"%s"' % ';'.join(tup))
         w('-facetDVFormat %s' % index.facetDVFormat)
         
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
@@ -949,6 +951,11 @@ class RunAlgs:
     command.append(c.directory)
     command.append('-indexPath')
     command.append(nameToIndexPath(c.index.getName()))
+    if c.index.facets is not None:
+      for tup in c.index.facets:
+        command.append('-facets')
+        command.append(';'.join(tup))
+    
     command.append('-analyzer')
     command.append(c.analyzer)
     command.append('-taskSource')

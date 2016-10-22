@@ -17,6 +17,12 @@ package perf;
  * limitations under the License.
  */
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.facet.FacetResult;
@@ -24,6 +30,8 @@ import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Collector;
@@ -49,12 +57,6 @@ import org.apache.lucene.search.highlight.TextFragment;
 import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.vectorhighlight.FieldQuery;
 import org.apache.lucene.util.BytesRef;
-
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 final class SearchTask extends Task {
   private final String category;
@@ -186,8 +188,6 @@ final class SearchTask extends Task {
           FacetsCollector fc = new FacetsCollector();
           hits = FacetsCollector.search(searcher, q, 10, fc);
           long t0 = System.nanoTime();
-
-          Facets mainFacets = null;
           for(String request : facetRequests) {
             if (request.startsWith("range:")) {
               int i = request.indexOf(':', 6);
@@ -209,9 +209,18 @@ final class SearchTask extends Task {
               }
               LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
               facetResults.add(facets.getTopChildren(ranges.length, field));
-            } else {
-              Facets facets = new FastTaxonomyFacetCounts(state.taxoReader, state.facetsConfig, fc);
+            } else if (request.endsWith(".taxonomy")) {
+              // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
+              Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request).indexFieldName, state.taxoReader, state.facetsConfig, fc);
               facetResults.add(facets.getTopChildren(10, request));
+            } else if (request.endsWith(".sortedset")) {
+              // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
+              SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request).indexFieldName);
+              SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState, fc);
+              facetResults.add(facets.getTopChildren(10, request));
+            } else {
+              // should have been prevented higher up:
+              throw new AssertionError("unknown facet method \"" + state.facetFields.get(request) + "\"");
             }
           }
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
@@ -359,6 +368,14 @@ final class SearchTask extends Task {
         return false;
       }
 
+      //System.out.println("COMPARE: this=" + this + " other=" + other);
+
+      if (facetRequests != null && facetRequests.equals(otherSearchTask.facetRequests) == false) {
+        return false;
+      } else if (otherSearchTask.facetRequests != null) {
+        return false;
+      }
+
       return true;
     } else {
       return false;
@@ -373,6 +390,9 @@ final class SearchTask extends Task {
     }
     if (group != null) {
       hashCode ^= group.hashCode();
+    }
+    if (facetRequests != null) {
+      hashCode ^= facetRequests.hashCode();
     }
     hashCode *= topN;
     return hashCode;
@@ -435,7 +455,7 @@ final class SearchTask extends Task {
       (group == null ? " hits=" + (hits==null ? "null" : hits.totalHits) :
        " groups=" + (singlePassGroup ?
                      (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
-                     (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount)));
+                     (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount))) + " facets=" + facetRequests;
   }
 
   @Override

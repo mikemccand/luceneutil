@@ -24,6 +24,8 @@ import java.util.Map;
 
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.sortedset.DefaultSortedSetDocValuesReaderState;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
@@ -57,16 +59,20 @@ class IndexState {
   public final boolean hasDeletions;
   public final TaxonomyReader taxoReader;
   public final FacetsConfig facetsConfig;
+  // maps facet dimension to method (sortedset, taxonomy)
+  public final Map<String,Integer> facetFields;
   public final Map<Object, ThreadLocal<PKLookupState>> pkLookupStates = new HashMap<>();
   public final Map<Object, ThreadLocal<PointsPKLookupState>> pointsPKLookupStates = new HashMap<>();
+  private SortedSetDocValuesReaderState sortedSetReaderState;
 
   public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker,
-                    String hiliteImpl, FacetsConfig facetsConfig) throws IOException {
+                    String hiliteImpl, FacetsConfig facetsConfig, Map<String,Integer> facetFields) throws IOException {
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;
     this.taxoReader = taxoReader;
     this.facetsConfig = facetsConfig;
+    this.facetFields = facetFields;
     
     groupEndQuery = new TermQuery(new Term("groupend", "x"));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
@@ -95,6 +101,20 @@ class IndexState {
     } finally {
       mgr.release(searcher);
     }
+  }
+
+  private final Map<String,SortedSetDocValuesReaderState> ssdvFacetStates = new HashMap<>();
+
+  public synchronized SortedSetDocValuesReaderState getSortedSetReaderState(String facetGroupField) throws IOException {
+    SortedSetDocValuesReaderState result = ssdvFacetStates.get(facetGroupField);
+    if (result == null) {
+      IndexSearcher searcher = mgr.acquire();
+      result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField);
+      // NOTE: do not release the acquired searcher here!  Really we should have a close() in this class where we release...
+      ssdvFacetStates.put(facetGroupField, result);
+    }
+
+    return result;
   }
 
   /** Holds re-used thread-private classes for postings primary key lookup for one LeafReader */

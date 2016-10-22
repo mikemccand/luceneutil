@@ -39,8 +39,8 @@ public class TokenizeFile {
     // 64 KB buffer
     InputStream is = new FileInputStream(wikiLinesFile);
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), 1 << 16);
-    //Tokenizer ts = new SimplePatternTokenizer("[^ \t\r\n]+");
-    Tokenizer ts = new PatternTokenizer(Pattern.compile("[^ \t\r\n]+"), 0);
+    Tokenizer ts = new SimplePatternTokenizer("[^ \t\r\n]+");
+    //Tokenizer ts = new PatternTokenizer(Pattern.compile("[^ \t\r\n]+"), 0);
     CharTermAttribute termAtt = ts.addAttribute(CharTermAttribute.class);
     long hashSum = 0;
     int tokenCount = 0;

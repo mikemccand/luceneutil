@@ -128,13 +128,53 @@ public final class Indexer {
 
     Args args = new Args(clArgs);
 
-    // EG: -facets Date -facets characterCount ...
+    // EG: -facets taxonomy;Date -facets taxonomy;Month -facets sortedset:facetGroupField;Month
     FacetsConfig facetsConfig = new FacetsConfig();
-    facetsConfig.setHierarchical("Date", true);
-    final Set<String> facetFields = new HashSet<String>();
+    facetsConfig.setHierarchical("Date.taxonomy", true);
+
+    // all unique facet group fields ($facet alone, by default):
+    final Set<String> facetFields = new HashSet<>();
+
+    // facet dim name -> facet method flag
+    final Map<String,Integer> facetDimMethods = new HashMap<>();
     if (args.hasArg("-facets")) {
       for(String arg : args.getStrings("-facets")) {
-        facetFields.add(arg);
+        String[] dims = arg.split(";");
+        String facetGroupField;
+        String facetMethod;
+        if (dims[0].equals("taxonomy") || dims[0].equals("sortedset")) {
+          // method --> use the default facet field for this group
+          facetGroupField = FacetsConfig.DEFAULT_INDEX_FIELD_NAME;
+          facetMethod = dims[0];
+        } else {
+          // method:indexFieldName --> use a custom facet field for this group
+          int i = dims[0].indexOf(":");
+          if (i == -1) {
+            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
+          }
+          facetMethod = dims[0].substring(0, i);
+          if (facetMethod.equals("taxonomy") == false && facetMethod.equals("sortedset") == false) {
+            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
+          }
+          facetGroupField = dims[0].substring(i+1);
+        }
+        facetFields.add(facetGroupField);
+        for(int i=1;i<dims.length;i++) {
+          int flag;
+          if (facetDimMethods.containsKey(dims[i])) {
+            flag = facetDimMethods.get(dims[i]);
+          } else {
+            flag = 0;
+          }
+          if (facetMethod.equals("taxonomy")) {
+            flag |= 1;
+            facetsConfig.setIndexFieldName(dims[i] + ".taxonomy", facetGroupField + ".taxonomy");
+          } else {
+            flag |= 2;
+            facetsConfig.setIndexFieldName(dims[i] + ".sortedset", facetGroupField + ".sortedset");
+          }
+          facetDimMethods.put(dims[i], flag);
+        }
       }
     }
 
@@ -297,6 +337,7 @@ public final class Indexer {
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
     System.out.println("Facet DV Format: " + facetDVFormatName);
+    System.out.println("Facet dimension methods: " + facetDimMethods);
     System.out.println("Facet fields: " + facetFields);
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
@@ -356,10 +397,8 @@ public final class Indexer {
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
-          if (facetFields.contains(field) || field.equals("$facets")) {
+          if (facetFields.contains(field)) {
             return facetsDVFormat;
-            //} else if (field.equals("$facets_sorted_doc_values")) {
-            //return diskDVFormat;
           } else {
             // Use default DVFormat for all else:
             // System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
@@ -387,7 +426,7 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetFields, facetsConfig, addDVFields);
+    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetDimMethods, facetsConfig, addDVFields);
 
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;

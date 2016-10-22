@@ -19,24 +19,6 @@ package perf;
 
 // FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
 
-import org.apache.lucene.document.BinaryDocValuesField;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.IntPoint;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.facet.FacetField;
-import org.apache.lucene.facet.FacetsConfig;
-import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
-import org.apache.lucene.index.IndexOptions;
-import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.UnicodeUtil;
-
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -49,6 +31,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.DateFormatSymbols;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -57,11 +40,31 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.lucene.document.BinaryDocValuesField;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.TextField;
+import org.apache.lucene.facet.FacetField;
+import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
+import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
+import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.UnicodeUtil;
 
 public class LineFileDocs implements Closeable {
 
@@ -81,7 +84,8 @@ public class LineFileDocs implements Closeable {
   private final AtomicLong bytesIndexed = new AtomicLong();
   private final boolean doClone;
   private final TaxonomyWriter taxoWriter;
-  private final Set<String> facetFields;
+  // maps field name to 1 (taxonomy) | 2 (sorted set)
+  private final Map<String,Integer> facetFields;
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
@@ -89,10 +93,11 @@ public class LineFileDocs implements Closeable {
   private final Thread readerThread;
   private final boolean isBinary;
   private final ThreadLocal<ByteBuffer> nextDocs = new ThreadLocal<>();
+  private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
-                      boolean doClone, TaxonomyWriter taxoWriter, Set<String> facetFields, FacetsConfig facetsConfig,
-                      boolean addDVFields) throws IOException {
+                      boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
+                      FacetsConfig facetsConfig, boolean addDVFields) throws IOException {
     this.path = path;
     this.isBinary = path.endsWith(".bin");
     this.storeBody = storeBody;
@@ -104,6 +109,7 @@ public class LineFileDocs implements Closeable {
     this.facetFields = facetFields;
     this.facetsConfig = facetsConfig;
     this.addDVFields = addDVFields;
+    
     open();
     readerThread = new Thread() {
         @Override
@@ -197,15 +203,15 @@ public class LineFileDocs implements Closeable {
             List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
 
             // Verify facet fields now:
-            for(String field : facetFields) {
-              if (!field.equals("Date") && !extraFacetFieldsList.contains(field)) {
+            for(String field : facetFields.keySet()) {
+              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false && !extraFacetFieldsList.contains(field)) {
                 throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
               }
             }
           } else {
             // Verify facet fields now:
-            for(String field : facetFields) {
-              if (!field.equals("Date")) {
+            for(String field : facetFields.keySet()) {
+              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false) {
                 throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
               }
             }
@@ -291,6 +297,8 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field titleDV;
+    final Field monthDV;
+    final Field dayOfYearDV;
     //final BinaryDocValuesField titleBDV;
     final NumericDocValuesField lastModNDV; 
     final Field body;
@@ -320,15 +328,19 @@ public class LineFileDocs implements Closeable {
       	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
       	doc.add(titleDV);
       	
-      	//titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
-      	//doc.add(titleBDV);
-      	
       	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
       	doc.add(lastModNDV);
+
+        monthDV = new SortedDocValuesField("month", new BytesRef(""));
+      	doc.add(monthDV);
+        
+        dayOfYearDV = new SortedDocValuesField("dayOfYear", new BytesRef(""));
+      	doc.add(dayOfYearDV);
       } else {
       	titleDV = null;
-      	//titleBDV = null;
       	lastModNDV = null;
+        monthDV = null;
+        dayOfYearDV = null;
       }
       
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
@@ -500,7 +512,7 @@ public class LineFileDocs implements Closeable {
       //doc.dateMSec.setLongValue(date.getTime());
 
       //doc.rand.setLongValue(rand.nextInt(10000));
-
+      //System.out.println("DATE: " + date);
       doc.dateCal.setTime(date);
       msecSinceEpoch = doc.dateCal.getTimeInMillis();
       timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
@@ -515,6 +527,8 @@ public class LineFileDocs implements Closeable {
       //doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
       doc.titleTokenized.setStringValue(title);
+      doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));
+      doc.dayOfYearDV.setBytesValue(new BytesRef(Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
     }
     doc.id.setStringValue(intToID(myID));
 
@@ -527,15 +541,39 @@ public class LineFileDocs implements Closeable {
     doc.timeSec.setIntValue(timeSec);
 
     if (facetFields.isEmpty() == false) {
-      FacetField dateFacetField = new FacetField("Date",
-                                                 ""+doc.dateCal.get(Calendar.YEAR),
-                                                 ""+doc.dateCal.get(Calendar.MONTH),
-                                                 ""+doc.dateCal.get(Calendar.DAY_OF_MONTH));
-
       Document doc2 = cloneDoc(doc.doc);
 
-      if (facetFields.contains("Date")) {
-        doc2.add(dateFacetField);
+      if (facetFields.containsKey("Date")) {
+        int flag = facetFields.get("Date");
+        if ((flag & 1) != 0) {
+          doc2.add(new FacetField("Date.taxonomy",
+                                  ""+doc.dateCal.get(Calendar.YEAR),
+                                  ""+doc.dateCal.get(Calendar.MONTH),
+                                  ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
+        }
+        if ((flag & 2) != 0) {
+          throw new IllegalArgumentException("Date field can only be indexed as taxonomy facets, not sortedset, because it is hierarchical");
+        }
+      }
+
+      if (facetFields.containsKey("Month")) {
+        int flag = facetFields.get("Month");
+        if ((flag & 1) != 0) {
+          doc2.add(new FacetField("Month.taxonomy", months[doc.dateCal.get(Calendar.MONTH)]));
+        }
+        if ((flag & 2) != 0) {
+          doc2.add(new SortedSetDocValuesFacetField("Month.sortedset", months[doc.dateCal.get(Calendar.MONTH)]));
+        }
+      }
+
+      if (facetFields.containsKey("DayOfYear")) {
+        int flag = facetFields.get("DayOfYear");
+        if ((flag & 1) != 0) {
+          doc2.add(new FacetField("DayOfYearMonth.taxonomy", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
+        }
+        if ((flag & 2) != 0) {
+          doc2.add(new SortedSetDocValuesFacetField("DayOfYear.sortedset", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
+        }
       }
 
       if (extraFacetFields != null) {
@@ -543,7 +581,7 @@ public class LineFileDocs implements Closeable {
         
         for(int i=0;i<extraFacetFields.length;i++) {
           String extraFieldName = extraFacetFields[i];
-          if (facetFields.contains(extraFieldName)) {
+          if (facetFields.containsKey(extraFieldName)) {
             if (extraFieldName.equals("categories")) {
               for (String cat : extraValues[i].split("\\|")) {
                 // TODO: scary how taxo writer writes a

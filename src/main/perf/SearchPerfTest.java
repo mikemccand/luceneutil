@@ -28,19 +28,21 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene70.Lucene70Codec;
@@ -436,7 +438,53 @@ public class SearchPerfTest {
     //System.out.println("searcher=" + searcher);
 
     FacetsConfig facetsConfig = new FacetsConfig();
-    facetsConfig.setHierarchical("Date", true);
+    facetsConfig.setHierarchical("Date.taxonomy", true);
+
+    // all unique facet group fields ($facet alone, by default):
+    final Set<String> facetFields = new HashSet<>();
+
+    // facet dim name -> facet method
+    final Map<String,Integer> facetDimMethods = new HashMap<>();
+    if (args.hasArg("-facets")) {
+      for(String arg : args.getStrings("-facets")) {
+        String[] dims = arg.split(";");
+        String facetGroupField;
+        String facetMethod;
+        if (dims[0].equals("taxonomy") || dims[0].equals("sortedset")) {
+          // method --> use the default facet field for this group
+          facetGroupField = FacetsConfig.DEFAULT_INDEX_FIELD_NAME;
+          facetMethod = dims[0];
+        } else {
+          // method:indexFieldName --> use a custom facet field for this group
+          int i = dims[0].indexOf(":");
+          if (i == -1) {
+            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
+          }
+          facetMethod = dims[0].substring(0, i);
+          if (facetMethod.equals("taxonomy") == false && facetMethod.equals("sortedset") == false) {
+            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
+          }
+          facetGroupField = dims[0].substring(i+1);
+        }
+        facetFields.add(facetGroupField);
+        for(int i=1;i<dims.length;i++) {
+          int flag;
+          if (facetDimMethods.containsKey(dims[i])) {
+            flag = facetDimMethods.get(dims[i]);
+          } else {
+            flag = 0;
+          }
+          if (facetMethod.equals("taxonomy")) {
+            flag |= 1;
+            facetsConfig.setIndexFieldName(dims[i]+".taxonomy", facetGroupField + ".taxonomy");
+          } else {
+            flag |= 2;
+            facetsConfig.setIndexFieldName(dims[i]+".sortedset", facetGroupField + ".sortedset");
+          }
+          facetDimMethods.put(dims[i], flag);
+        }
+      }
+    }
 
     TaxonomyReader taxoReader;
     Path taxoPath = Paths.get(args.getString("-indexPath"), "facets");
@@ -452,7 +500,7 @@ public class SearchPerfTest {
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig);
+    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     final QueryParser queryParser = new QueryParser("body", a);
     TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, doStoredLoads);

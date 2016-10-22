@@ -698,7 +698,7 @@ def run():
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
                                   ('sortedset:Month', 'Month'),
-                                  ('sortedset:DayOfYear', 'DayOfYear')))
+                                  ('sortedset:DayOfYear', 'DayOfYear')),
                         maxConcurrentMerges=3,
                         addDVFields=True)
 
@@ -715,7 +715,7 @@ def run():
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
   medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
   message('medIndexAtClose %s' % atClose)
-  
+
   # 2: NRT test
   nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
   message('nrtMedIndexAtClose %s' % atClose)

@@ -569,7 +569,7 @@ public class LineFileDocs implements Closeable {
       if (facetFields.containsKey("DayOfYear")) {
         int flag = facetFields.get("DayOfYear");
         if ((flag & 1) != 0) {
-          doc2.add(new FacetField("DayOfYearMonth.taxonomy", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
+          doc2.add(new FacetField("DayOfYear.taxonomy", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
         }
         if ((flag & 2) != 0) {
           doc2.add(new SortedSetDocValuesFacetField("DayOfYear.sortedset", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));

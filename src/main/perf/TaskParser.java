@@ -48,6 +48,8 @@ class TaskParser {
   private final QueryParser queryParser;
   private final String fieldName;
   private final Sort titleDVSort;
+  private final Sort monthDVSort; // Month of the "last modified timestamp", SORTED doc values
+  private final Sort dayOfYearDVSort; // Day of the year of the "last modified timestamp", NUMERIC doc values
   private final Sort lastModNDVSort;
   private final int topN;
   private final Random random;
@@ -67,6 +69,8 @@ class TaskParser {
     this.doStoredLoads = doStoredLoads;
     this.state = state;
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
+    monthDVSort = new Sort(new SortField("monthSortedDV", SortField.Type.STRING));
+    dayOfYearDVSort = new Sort(new SortField("dayOfYearNumericDV", SortField.Type.INT));
     lastModNDVSort = new Sort(new SortField("lastModNDV", SortField.Type.LONG));
   }
 
@@ -259,6 +263,14 @@ class TaskParser {
         throw new IllegalArgumentException("use titledvsort instead");
       } else if (text.startsWith("titledvsort//")) {
         sort = titleDVSort;
+        query = queryParser.parse(text.substring(13, text.length()));
+        group = null;
+      } else if (text.startsWith("monthdvsort//")) {
+        sort = monthDVSort;
+        query = queryParser.parse(text.substring(13, text.length()));
+        group = null;
+      } else if (text.startsWith("dayofyeardvsort//")) {
+        sort = dayOfYearDVSort;
         query = queryParser.parse(text.substring(13, text.length()));
         group = null;
       } else if (text.startsWith("lastmodndvsort//")) {

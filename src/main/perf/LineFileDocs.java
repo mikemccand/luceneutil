@@ -331,10 +331,10 @@ public class LineFileDocs implements Closeable {
       	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
       	doc.add(lastModNDV);
 
-        monthDV = new SortedDocValuesField("month", new BytesRef(""));
+        monthDV = new SortedDocValuesField("monthSortedDV", new BytesRef(""));
       	doc.add(monthDV);
         
-        dayOfYearDV = new SortedDocValuesField("dayOfYear", new BytesRef(""));
+        dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
       	doc.add(dayOfYearDV);
       } else {
       	titleDV = null;
@@ -528,7 +528,7 @@ public class LineFileDocs implements Closeable {
       doc.titleDV.setBytesValue(new BytesRef(title));
       doc.titleTokenized.setStringValue(title);
       doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));
-      doc.dayOfYearDV.setBytesValue(new BytesRef(Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
+      doc.dayOfYearDV.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
     }
     doc.id.setStringValue(intToID(myID));
 

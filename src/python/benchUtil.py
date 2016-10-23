@@ -386,8 +386,12 @@ def parseResults(resultsFiles):
             task.sort = 'Title'
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">'):
             task.sort = 'DateTime'
+          elif sort == '<string: "monthSortedDV">':
+            task.sort = 'Month'
+          elif sort == '<int: "dayOfYearNumericDV">':
+            task.sort = 'DayOfYear'
           elif sort != 'null':
-            raise RuntimeError('could not parse sort: ' % sort)
+            raise RuntimeError('could not parse sort: %s' % sort)
           else:
             task.sort = None
 

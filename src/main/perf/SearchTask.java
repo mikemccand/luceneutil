@@ -483,7 +483,7 @@ final class SearchTask extends Task {
           FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
           final Object v = hit.fields[0];
           final String vs;
-          if (v instanceof Long) {
+          if (v instanceof Number) {
             vs = v.toString();
           } else if (v == null) {
             vs = "null";

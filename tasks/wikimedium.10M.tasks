@@ -10189,3 +10189,8 @@ Respell: 20000
 Fuzzy1: 2010a~1
 Fuzzy2: 2010a~2
 Respell: 2010a
+BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
+BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
+BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
+BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
+BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset

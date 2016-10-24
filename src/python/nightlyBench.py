@@ -1015,8 +1015,7 @@ def makeGraphs():
   # publish
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
-  # nocommit
-  if False and not DEBUG:
+  if not DEBUG:
     #runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
     pushReports()
 

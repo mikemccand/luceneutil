@@ -1002,11 +1002,12 @@ def makeGraphs():
 
   for k, v in searchChartData.items()[:]:
     # Graph does not render right with only one value:
-    if len(v) > 2:
+    if len(v) > 1:
       writeOneGraphHTML('Lucene %s queries/sec' % taskRename.get(k, k),
                         '%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, k),
                         getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
     else:
+      print('skip %s: %s' % (k, len(v)))
       del searchChartData[k]
 
   writeIndexHTML(searchChartData, days)
@@ -1014,7 +1015,8 @@ def makeGraphs():
   # publish
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
-  if not DEBUG:
+  # nocommit
+  if False and not DEBUG:
     #runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
     pushReports()
 
@@ -1115,15 +1117,20 @@ def header(w, title):
   w('<style type="text/css">')
   w('BODY { font-family:verdana; }')
   w('</style>')
-  w('<script type="text/javascript" src="dygraph-combined.js"></script>\n')
+  w('<script type="text/javascript" src="dygraph-combined-dev.js"></script>\n')
   w('</head>')
   w('<body>')
   
 def footer(w):
   w('<br><em>[last updated: %s; send questions to <a href="mailto:lucene@mikemccandless.com">Mike McCandless</a>]</em>' % now())
+  w('</div>')
   w('</body>')
   w('</html>')
 
+def writeOneLine(w, seen, cat, desc):
+  seen.add(cat)
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="%s.html">%s</a>' % (cat, desc))
+  
 def writeIndexHTML(searchChartData, days):
   f = open('%s/index.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
@@ -1132,31 +1139,87 @@ def writeIndexHTML(searchChartData, days):
   w('Each night, an <a href="https://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.')
   w('<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>')
   w('<p>See more details in <a href="http://blog.mikemccandless.com/2011/04/catching-slowdowns-in-lucene.html">this blog post</a>.</p>')
-  w('<b>Results:</b>')
-  w('<br>')
-  w('<br>&nbsp;&nbsp;<a href="../geobench.html">Geo spatial benchmarks</a>')
-  w('<br>&nbsp;&nbsp;<a href="antcleantest.html">Time to run "ant clean test" in lucene directory</a>')
-  w('<br>&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
-  w('<br>&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
-  w('<br>&nbsp;&nbsp;<a href="nrt.html">Near-real-time latency</a>')
-  w('<br>&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
+
+  done = set()
+
+  w('<br><br><b>Indexing:</b>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="nrt.html">Near-real-time refresh latency</a>')
+
+  w('<br><br><b>BooleanQuery:</b>')
+  writeOneLine(w, done, 'AndHighHigh', '+high-freq +high-freq')
+  writeOneLine(w, done, 'AndHighMed', '+high-freq +medium-freq')
+  writeOneLine(w, done, 'OrHighHigh', 'high-freq high-freq')
+  writeOneLine(w, done, 'OrHighMed', 'high-freq medium-freq')
+  writeOneLine(w, done, 'AndHighOrMedMed', '+high-freq +(medium-freq medium-freq)')
+  writeOneLine(w, done, 'AndMedOrHighHigh', '+medium-freq +(high-freq high-freq)')
+
+  w('<br><br><b>Proximity queries:</b>')
+  writeOneLine(w, done, 'Phrase', 'Exact phrase')
+  writeOneLine(w, done, 'SloppyPhrase', 'Sloppy (~4) phrase')
+  writeOneLine(w, done, 'SpanNear', 'Span near (~10)')
+
+  w('<br><br><b>FuzzyQuery:</b>')
+  writeOneLine(w, done, 'Fuzzy1', 'Edit distance 1')
+  writeOneLine(w, done, 'Fuzzy2', 'Edit distance 2')
+
+  w('<br><br><b>Other queries:</b>')
+  writeOneLine(w, done, 'Term', 'TermQuery')
+  writeOneLine(w, done, 'Respell', 'Respell (DirectSpellChecker)')
+  writeOneLine(w, done, 'PKLookup', 'Primary key lookup')
+  writeOneLine(w, done, 'Wildcard', 'WildcardQuery')  
+  writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')  
+  writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')  
+  
+  w('<br><br><b>Faceting:</b>')
+  writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')
+  writeOneLine(w, done, 'BrowseDateTaxoFacets', 'All dates hierarchy')
+  writeOneLine(w, done, 'BrowseMonthTaxoFacets', 'All months')
+  writeOneLine(w, done, 'BrowseMonthSSDVFacets', 'All months (doc values)')
+  writeOneLine(w, done, 'BrowseDayOfYearTaxoFacets', 'All dayOfYear')
+  writeOneLine(w, done, 'BrowseDayOfYearSSDVFacets', 'All dayOfYear (doc values)')
+
+  w('<br><br><b>Sorting (on TermQuery):</b>')
+  writeOneLine(w, done, 'TermDTSort', 'Date/time (long, high cardinality)')
+  writeOneLine(w, done, 'TermTitleSort', 'Title (string, high cardinality)')
+  writeOneLine(w, done, 'TermMonthSort', 'Month (string, low cardinality)')
+  writeOneLine(w, done, 'TermDayOfYearSort', 'Day of year (int, medium cardinality)')
+
+  w('<br><br><b>Grouping (on TermQuery):</b>')
+  writeOneLine(w, done, 'TermGroup100', '100 groups')
+  writeOneLine(w, done, 'TermGroup10K', '10K groups')
+  writeOneLine(w, done, 'TermGroup1M', '1M groups')
+  writeOneLine(w, done, 'TermBGroup1M', '1M groups (two pass block grouping)')
+  writeOneLine(w, done, 'TermBGroup1M1P', '1M groups (single pass block grouping)')
+
+  w('<br><br><b>Others:</b>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="../geobench.html">Geo spatial benchmarks</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"ant clean test" time in lucene</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
+  
   l = searchChartData.keys()
   lx = []
   for s in l:
-    v = taskRename.get(s, s)
-    lx.append((v, '<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % \
-               (htmlEscape(s), htmlEscape(v))))
+    if s not in done:
+      done.add(s)
+      v = taskRename.get(s, s)
+      lx.append((v, '<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % \
+                 (htmlEscape(s), htmlEscape(v))))
   lx.sort()
   for ign, s in lx:
     w(s)
-  w('<br><br>')
-  w('<b>Details by day</b>:')
-  w('<br>')
-  days.sort()
-  for t in days:
-    timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (t.year, t.month, t.day, t.hour, t.minute, t.second)
-    timeStamp2 = '%s %02d/%02d/%04d' % (t.strftime('%a'), t.month, t.day, t.year)
-    w('<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % (timeStamp, timeStamp2))
+
+  if False:
+    w('<br><br>')
+    w('<b>Details by day</b>:')
+    w('<br>')
+    days.sort()
+    for t in days:
+      timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (t.year, t.month, t.day, t.hour, t.minute, t.second)
+      timeStamp2 = '%s %02d/%02d/%04d' % (t.strftime('%a'), t.month, t.day, t.year)
+      w('<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % (timeStamp, timeStamp2))
+
   w('<br><br>')
   footer(w)
 
@@ -1216,6 +1279,8 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   f.close()
 
 def writeKnownChanges(w):
+  # closed in footer()
+  w('<div style="position: absolute; top: 77%">\n')
   w('<br>')
   w('<b>Known changes:</b>')
   w('<ul>')
@@ -1313,7 +1378,11 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   l = []
   w = l.append
   series = data[0].split(',')[1]
-  w('<div id="%s" style="width:800px;height:400px"></div>' % id)
+  w('<style type="text/css">\n')
+  w('  position: absolute;\n')
+  w('  left: 10px;\n')
+  w('</style>\n')
+  w('<div id="%s" style="height:70%%; width: 98%%"></div>' % id)
   w('<script type="text/javascript">')
   w(onClickJS)
   w('  g_%s = new Dygraph(' % id)
@@ -1330,6 +1399,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   options = []
   options.append('title: "%s"' % title)
   options.append('xlabel: "Date"')
+  options.append('colors: ["#218559", "#192823", "#B0A691", "#06A2CB", "#EBB035", "#DD1E2F"]')
   options.append('ylabel: "%s"' % yLabel)
   options.append('labelsKMB: true')
   options.append('labelsSeparateLines: true')
@@ -1348,7 +1418,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
     options.append('errorBars: true')
     options.append('sigma: 1')
 
-  options.append('showRoller: true')
+  options.append('showRoller: false')
 
   w('    {%s}' % ', '.join(options))
     

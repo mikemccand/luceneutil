@@ -381,6 +381,11 @@ KNOWN_CHANGES = [
    'Fix silly TermDateFacets bug causing single date facet to be indexed for all docs, added on 5/25',
    'Fix silly TermDateFacets bug causing single date facet to be indexed for all docs, added on 5/25',
    ),
+
+  ('2016-10-24',
+   'LUCENE-7462: give doc values an advanceExact API',
+   'LUCENE-7462: give doc values an advanceExact API',
+   ),
 ]
 
 # TODO
@@ -389,8 +394,6 @@ KNOWN_CHANGES = [
 #   - nrt
 #     - chart all reopen times by time...?
 #     - chart over-time mean/stddev reopen time
-#   - add annotations, over time, when Lucene fixes/breaks stuff
-#   - put graphs all on one page...?
 #   - maybe multiple queries on one graph...?
 
 DEBUG = '-debug' in sys.argv
@@ -1432,7 +1435,9 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
   for date, timestamp, desc, fullDesc, label in annotations:
     # if this annot's timestamp was not seen in this chart, skip it:
     if timestamp not in seenTimeStamps:
+      #print('SKIP: %s, %s, %s:%s' % (timestamp, desc, id, getLabel(label)))
       continue
+    #print('KEEP: %s, %s, %s:%s' % (timestamp, desc, id, getLabel(label)))
 
     # if the same description on the same date was already added to this chart, skip it:
     tup = (desc, date)

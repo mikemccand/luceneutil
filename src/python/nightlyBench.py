@@ -1280,9 +1280,9 @@ def writeOneGraphHTML(title, fileName, chartHTML):
   footer(w)
   f.close()
 
-def writeKnownChanges(w):
+def writeKnownChanges(w, pctOffset=77):
   # closed in footer()
-  w('<div style="position: absolute; top: 77%">\n')
+  w('<div style="position: absolute; top: %d%%">\n' % pctOffset)
   w('<br>')
   w('<b>Known changes:</b>')
   w('<ul>')
@@ -1296,24 +1296,23 @@ def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
   f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
   header(w, 'Lucene nightly indexing benchmark')
-  w('<h1>Indexing Throughput</h1>\n')
   w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
   w('<br>')
-  w(getOneGraphHTML('MedIndexTime', medChartData, "Plain text GB/hour", "~1 KB Wikipedia English docs", errorBars=False))
+  w(getOneGraphHTML('MedIndexTime', medChartData, "Plain text GB/hour", "~1 KB Wikipedia English docs", errorBars=False, pctOffset=10))
 
   w('<br>')
   w('<br>')
   w('<br>')
-  w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs", errorBars=False))
+  w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs", errorBars=False, pctOffset=80))
   w('\n')
 
   w('<br>')
   w('<br>')
   w('<br>')
-  w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False))
+  w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False, pctOffset=150))
   w('\n')
 
-  writeKnownChanges(w)
+  writeKnownChanges(w, pctOffset=227)
 
   w('<br><br>')
   w('<b>Notes</b>:\n')
@@ -1376,14 +1375,17 @@ onClickJS = '''
   }
 '''
 
-def getOneGraphHTML(id, data, yLabel, title, errorBars=True):
+def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   l = []
   w = l.append
   series = data[0].split(',')[1]
-  w('<style type="text/css">\n')
-  w('  position: absolute;\n')
-  w('  left: 10px;\n')
-  w('</style>\n')
+  w('<style type="text/css">')
+  w('  #%s {\n' % id)
+  w('    position: absolute;')
+  w('    left: 10px;')
+  w('    top: %d%%;' % pctOffset)
+  w('  }')
+  w('</style>')
   w('<div id="%s" style="height:70%%; width: 98%%"></div>' % id)
   w('<script type="text/javascript">')
   w(onClickJS)

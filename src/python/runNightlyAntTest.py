@@ -83,6 +83,15 @@ def writeGraph():
     w('<title>Minutes for "ant clean test" in lucene</title>')
     w('<style type="text/css">')
     w('BODY { font-family:verdana; }')
+    w('#chart_ant_clean_test_time {\n')
+    w('  position: absolute;\n')
+    w('  left: 10px;\n')
+    w('}\n')
+    w('#chart_ant_clean_test_time_labels {\n')
+    w('  position: absolute;\n')
+    w('  left: 100px;\n')
+    w('  top: 100px;\n')
+    w('}\n')
     w('</style>')
     w('<script type="text/javascript" src="dygraph-combined.js"></script>\n')
     w('</head>')
@@ -91,7 +100,7 @@ def writeGraph():
     w('''
     <a name="antcleantest"></a>
     <table><tr>
-    <td><div id="chart_ant_clean_test_time" style="width:800px; height:500px"></div></td>
+    <td><div id="chart_ant_clean_test_time" style="height:70%; width: 98%"></div></td>
     <td><br><br><div id="chart_ant_clean_test_time_labels" style="width:250px; height:500px"></div></td>
     </tr></table>
     <script type="text/javascript">
@@ -101,8 +110,11 @@ def writeGraph():
         document.getElementById("chart_ant_clean_test_time"),
     ''')
 
-    headers = ['Date', 'Count (thousands)', 'Time (minutes)']
-    w('    "%s\\n"\n' % ','.join(headers))
+    if False:
+      headers = ['Date', 'Count (thousands)', 'Time (minutes)']
+      w('    "%s\\n"\n' % ','.join(headers))
+    else:
+      w('    ""\n')
 
     for date, totalTests, seconds in results:
       w('    + "%4d-%02d-%02d,%s,%s,%.2f\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0, float(totalTests)/(seconds/60.0)/1000.))
@@ -151,11 +163,14 @@ def writeGraph():
       w(']);});\n')
 
     w('</script>')
+    w('<div style="position: absolute; top: 77%">\n')
     w('<br><em>[last updated: %s; send questions to <a href="mailto:lucene@mikemccandless.com">Mike McCandless</a>]</em>' % datetime.datetime.now())
+    w('</div>')
     w('</body>')
     w('</html>')
 
-  shutil.copy('/x/tmp/antcleantest.html', '%s/antcleantest.html' % constants.NIGHTLY_REPORTS_DIR)
+  if constants.NIGHTLY_REPORTS_DIR != '/x/tmp':
+    shutil.copy('/x/tmp/antcleantest.html', '%s/antcleantest.html' % constants.NIGHTLY_REPORTS_DIR)
 
 def getLabel(label):
   if label < 26:

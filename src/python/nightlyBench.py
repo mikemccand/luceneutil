@@ -1407,9 +1407,16 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   options.append('ylabel: "%s"' % yLabel)
   options.append('labelsKMB: true')
   options.append('labelsSeparateLines: true')
-  options.append('labelsDivWidth: 700')
+  #options.append('labelsDivWidth: "50%"')
   options.append('clickCallback: doClick')
   options.append("labelsDivStyles: {'background-color': 'transparent'}")
+
+  # show past 2 years by default:
+  start = datetime.datetime.now() - datetime.timedelta(days=2*365)
+  end = datetime.datetime.now() + datetime.timedelta(days=2)
+  options.append('dateWindow: [Date.parse("%s/%s/%s"), Date.parse("%s/%s/%s")]' % \
+                 (start.year, start.month, start.day,
+                  end.year, end.month, end.day))
   if False:
     if errorBars:
       maxY = max([float(x.split(',')[1])+float(x.split(',')[2]) for x in data[1:]])

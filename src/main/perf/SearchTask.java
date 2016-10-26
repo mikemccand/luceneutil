@@ -17,12 +17,6 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.facet.FacetResult;
@@ -37,6 +31,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
@@ -57,6 +52,12 @@ import org.apache.lucene.search.highlight.TextFragment;
 import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.vectorhighlight.FieldQuery;
 import org.apache.lucene.util.BytesRef;
+
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 final class SearchTask extends Task {
   private final String category;
@@ -183,6 +184,27 @@ final class SearchTask extends Task {
           // nocommit todo
           hits = null;
           facetResults = null;
+        } else if (q instanceof MatchAllDocsQuery) {
+          facetResults = new ArrayList<FacetResult>();
+          long t0 = System.nanoTime();
+          for(String request : facetRequests) {
+            if (request.startsWith("range:")) {
+              throw new AssertionError("fix me!");
+            } else if (request.endsWith(".taxonomy")) {
+              // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
+              Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request).indexFieldName, searcher.getIndexReader(), state.taxoReader, state.facetsConfig);
+              facetResults.add(facets.getTopChildren(10, request));
+            } else if (request.endsWith(".sortedset")) {
+              // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
+              SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request).indexFieldName);
+              SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState);
+              facetResults.add(facets.getTopChildren(10, request));
+            } else {
+              // should have been prevented higher up:
+              throw new AssertionError("unknown facet method \"" + state.facetFields.get(request) + "\"");
+            }
+          }
+          getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         } else {
           facetResults = new ArrayList<FacetResult>();
           FacetsCollector fc = new FacetsCollector();
@@ -492,7 +514,7 @@ final class SearchTask extends Task {
           }
           out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " " + s.getSort()[0].getField() + "=" + vs);
         }
-      } else {
+      } else if (hits != null) {
         for(ScoreDoc hit : hits.scoreDocs) {
           out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " score=" + hit.score);
         }

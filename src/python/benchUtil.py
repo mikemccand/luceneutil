@@ -321,9 +321,9 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=([0-9]+) facets=(.*?)$')
+reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+) facets=(.*?)$')
 reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
-reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=([0-9]+)$')
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+)$')
 reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
@@ -381,7 +381,10 @@ def parseResults(resultsFiles):
           task.filter = filter
           # print 'CAT %s' % cat
 
-          task.hitCount = int(hitCount)
+          if hitCount == 'null':
+            task.hitCount = 0
+          else:
+            task.hitCount = int(hitCount)
           if sort == '<string: "title">' or sort == '<string: "titleDV">':
             task.sort = 'Title'
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">'):

@@ -628,6 +628,12 @@ def run():
     print 'lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip()
 
   print 'Java command-line: %s' % constants.JAVA_COMMAND
+  try:
+    s = open('/sys/kernel/mm/transparent_hugepage/enabled').read()
+  except:
+    print('Unable to read /sys/kernel/mm/transparent_hugepage/enabled')
+  else:
+    print('transparent_hugepages: %s' % s)
   
   runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
 

@@ -388,8 +388,8 @@ KNOWN_CHANGES = [
    ),
 
   ('2016-10-26',
-   'LUCENE-7519: optimize computing browse-only facets',
-   'LUCENE-7519: optimize computing browse-only facets',
+   'LUCENE-7519: optimize computing browse-only facets, LUCENE-7489: Remove one layer of abstraction in binary doc values and single-valued numerics',
+   'LUCENE-7519: optimize computing browse-only facets, LUCENE-7489: Remove one layer of abstraction in binary doc values and single-valued numerics',
    ),
 ]
 

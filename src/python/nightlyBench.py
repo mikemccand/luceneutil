@@ -386,6 +386,11 @@ KNOWN_CHANGES = [
    'LUCENE-7462: give doc values an advanceExact API',
    'LUCENE-7462: give doc values an advanceExact API',
    ),
+
+  ('2016-10-26',
+   'LUCENE-7519: optimize computing browse-only facets',
+   'LUCENE-7519: optimize computing browse-only facets',
+   ),
 ]
 
 # TODO
@@ -1243,7 +1248,13 @@ taskRename = {
   'AndHighMed': 'BooleanQuery (AND, high freq, medium freq term)',
   'OrHighHigh': 'BooleanQuery (OR, high freq, high freq term)',
   'OrHighMed': 'BooleanQuery (OR, high freq, medium freq term)',
-  'Wildcard': 'WildcardQuery'}
+  'Wildcard': 'WildcardQuery',
+  'BrowseDayOfYearTaxoFacets': 'All flat taxonomy facet counts for last-modified day-of-year',
+  'BrowseMonthTaxoFacets': 'All flat taxonomy facet counts for last-modified month',
+  'BrowseDateTaxoFacets': 'All hierarchical taxonomy facet counts for last-modified year/month/day',
+  'BrowseDayOfYearSSDVFacets': 'All flat sorted-set doc values facet counts for last-modified day-of-year',
+  'BrowseMonthSSDVFacets': 'All flat sorted-set doc values facet counts for last-modified month',
+  }
 
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')

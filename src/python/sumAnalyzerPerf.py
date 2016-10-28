@@ -78,9 +78,16 @@ with open('analyzers.html', 'w') as f:
   <head>
   <script type="text/javascript"
     src="dygraph-combined.js"></script>
+    <style type="text/css">
+    #chart {
+      position: absolute;
+      left: 10px;
+      top: 5%;
+    }
+    </style>
   </head>
   <body>
-  <div id="chart" style="width:800px; height:500px"></div>
+  <div id="chart" style="height:70%; width:98%"></div>
   <script type="text/javascript">
     g = new Dygraph(
 

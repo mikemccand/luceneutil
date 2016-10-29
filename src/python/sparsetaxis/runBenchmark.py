@@ -1,3 +1,4 @@
+import shutil
 import pickle
 import time
 import re
@@ -146,14 +147,15 @@ def main():
   else:
     logDir = '%s/logs' % rootDir
 
-  for subDir in ('data', 'logs', 'indices'):
+  for subDir in ('data', 'indices'):
     if not os.path.exists('%s/%s' % (rootDir, subDir)):
-      os.makedirs('%s/%s' % (rootDir, subDir))
+      makedirs('%s/%s' % (rootDir, subDir))
+  if not os.path.exists(logDir):
+    makedirs(logDir)
 
   downloadDocumentsSource('%s/data' % rootDir)
 
-  # nocommit
-  if False:
+  if True:
     cwd = os.getcwd()
     if not os.path.exists(args.luceneMaster):
       raise RuntimeError('%s default lucene master clone does not exist; please specify -luceneMaster')
@@ -168,8 +170,7 @@ def main():
 
   results = []
 
-  # nocommit
-  if False:
+  if True:
     cpuCount = int(3*multiprocessing.cpu_count()/4.)
     print('\nIndex "fast" nonsparse with %d threads...' % cpuCount)
     fastIndexPath, sizeOnDiskBytes = runIndexing(args, cpuCount, 'nonsparse')
@@ -201,7 +202,6 @@ def main():
     print('  took %.1f sec' % sec)
     results.append(sec)
 
-    print(results)
   else:
     nonSparseIndexPath = '/l/taxisroot/sparseTaxis/indices/index.1threads.nonsparse'
     sparseIndexPath = '/l/taxisroot/sparseTaxis/indices/index.1threads.sparse'

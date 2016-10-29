@@ -155,11 +155,16 @@ def main():
 
   downloadDocumentsSource('%s/data' % rootDir)
 
+  results = []
+
   if True:
     cwd = os.getcwd()
     if not os.path.exists(args.luceneMaster):
-      raise RuntimeError('%s default lucene master clone does not exist; please specify -luceneMaster')
+      raise RuntimeError('%s default lucene master clone does not exist; please specify -luceneMaster' % args.luceneMaster)
     os.chdir('%s/lucene/core' % args.luceneMaster)
+    luceneRev = os.popen('git rev-parse HEAD').read().strip()
+    print('Lucene git hash: %s' % luceneRev)
+    results.append(luceneRev)
     print('\nCompile lucene core...')
     run('ant clean jar', '%s/antclean.jar.log' % logDir)
     os.chdir(cwd)
@@ -168,10 +173,8 @@ def main():
   run('javac -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar %s/../../main/perf/IndexTaxis.java %s/../../main/perf/SearchTaxis.java' % \
       (args.luceneMaster, luceneUtilPythonPath, luceneUtilPythonPath))
 
-  results = []
-
   if True:
-    cpuCount = int(3*multiprocessing.cpu_count()/4.)
+    cpuCount = min(16, int(3*multiprocessing.cpu_count()/4.))
     print('\nIndex "fast" nonsparse with %d threads...' % cpuCount)
     fastIndexPath, sizeOnDiskBytes = runIndexing(args, cpuCount, 'nonsparse')
     print('  index is %.2f GB' % toGB(sizeOnDiskBytes))

@@ -317,6 +317,7 @@ public class IndexTaxis {
     if (threadCount == 1) {
       // 555 segment structure for 50M docs:
       iwc.setMaxBufferedDocs(90090);
+      iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
       iwc.setMergeScheduler(new SerialMergeScheduler());
       iwc.setMergePolicy(new LogDocMergePolicy());
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));

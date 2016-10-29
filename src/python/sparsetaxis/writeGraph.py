@@ -1,11 +1,22 @@
+import pickle
+import os
 import re
+
+CHANGES = [
+  ('2016-10-17',
+   'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
+  ('2016-10-18',
+   'LUCENE-7501: Save one byte in heap per BKD index node in the 1D case'),
+  ('2016-10-24',
+   'LUCENE-7462: Give doc values an advanceExact method'),
+  ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
 reFlushTime = re.compile(r': flush time ([.0-9]+) msec')
 reDocsPerMB = re.compile('newFlushedSize.*? docs/MB=([.,0-9]+)$')
 reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
         
-def indexStats(indexLog):
+def extractIndexStats(indexLog):
   mergeTimesSec = {}
   flushTimeSec = 0
   docsPerMB = 0
@@ -40,8 +51,11 @@ def indexStats(indexLog):
       
   return float(lastDPSMatch.group(3)), mergeTimesSec, flushTimeSec, docsPerMB/flushCount
 
+def msecToQPS(x):
+  return 1000/x
+
 reHits = re.compile('T(.) (.): ([0-9]+) hits in ([.0-9]+) msec')
-def searchStats(searchLog):
+def extractSearchStats(searchLog):
   
   heapBytes = None
   byThread = {}
@@ -79,6 +93,190 @@ def searchStats(searchLog):
   y = byColor['y']
   results.append(y[len(y)//2])
 
-  return results
+  return tuple(results)
 
-print(searchStats('/l/taxisroot/sparseTaxis/logs/searchSparse.log'))
+def toGB(x):
+  return x/1024./1024./1024.
+
+def toMB(x):
+  return x/1024./1024.
+
+reDateTime = re.compile(r'(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)')
+
+def main():
+
+  allResults = []
+
+  l = os.listdir('/l/logs.nightly/taxis')
+  l.sort()
+
+  indexSizeData = []
+  indexDPSData = []
+  checkIndexTimeData = []
+  flushTimesData = []
+  searcherHeapMBData = []
+  searchQPSData = []
+  docsPerMBData = []
+
+  gitHashes = []
+  
+  for fileName in l:
+    if os.path.exists('/l/logs.nightly/taxis/%s/results.pk' % fileName):
+      results = pickle.loads(open('/l/logs.nightly/taxis/%s/results.pk' % fileName, 'rb').read())
+
+      # load results written directly by the benchmarker:
+      luceneRev, nonSparseDiskBytes, sparseDiskBytes, nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec = results
+
+      gitHashes.append(luceneRev)
+
+      # parse logs for more details results:
+      logResultsFileName = '/l/logs.nightly/taxis/%s/logResults.pk' % fileName
+      if os.path.exists(logResultsFileName):
+        sparseIndexStats, nonSparseIndexStats, sparseSearchStats, nonSparseSearchStats = pickle.loads(open(logResultsFileName, 'rb').read())
+      else:
+        sparseIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.sparse.log' % fileName)
+        nonSparseIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.nonsparse.log' % fileName)
+
+        sparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchSparse.log' % fileName)
+        nonSparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchNonSparse.log' % fileName)
+        open(logResultsFileName, 'wb').write(pickle.dumps((sparseIndexStats, nonSparseIndexStats, sparseSearchStats, nonSparseSearchStats)))
+                                             
+      m = reDateTime.match(fileName)
+
+      indexSizeData.append((m.groups(), toGB(nonSparseDiskBytes), toGB(sparseDiskBytes)))
+      indexDPSData.append((m.groups(), nonSparseIndexStats[0]/1000., sparseIndexStats[0]/1000.))
+      checkIndexTimeData.append((m.groups(), nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec))
+      flushTimesData.append((m.groups(), nonSparseIndexStats[2], sparseIndexStats[2]))
+      searcherHeapMBData.append((m.groups(), toMB(nonSparseSearchStats[0]), toMB(sparseSearchStats[0])))
+      searchQPSData.append((m.groups(),
+                            msecToQPS(nonSparseSearchStats[1]),
+                            msecToQPS(nonSparseSearchStats[2]),
+                            msecToQPS(sparseSearchStats[1]),
+                            msecToQPS(sparseSearchStats[2])))
+      docsPerMBData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000.))
+
+      allResults.append((m.groups(),
+                         nonSparseDiskBytes,
+                         sparseDiskBytes,
+                         nonSparseCheckIndexTimeSec,
+                         sparseCheckIndexTimeSec) +
+                        nonSparseIndexStats +
+                        sparseIndexStats +
+                        nonSparseSearchStats +
+                        sparseSearchStats)
+
+      date = '%s-%s-%s' % m.groups()[:3]
+      for i in range(len(CHANGES)):
+        if len(CHANGES[i]) == 2 and CHANGES[i][0] == date:
+          CHANGES[i] += ('%s-%s-%s %s:%s:%s' % m.groups(),)
+
+  with open('/x/tmp/sparseResults.html', 'w') as f:
+    f.write('''
+<html>
+<head>
+<script type="text/javascript" src="dygraph-combined.js"></script>
+<script type="text/javascript">
+''')
+    f.write('gitHashes = %s;\n' % repr(gitHashes))
+    f.write('''
+function onPointClick(e, p) {
+  if (p.idx > 0) {
+    top.location = "https://github.com/apache/lucene-solr/compare/" + gitHashes[p.idx-1] + "..." + gitHashes[p.idx];
+  } else {
+    top.location = "https://github.com/apache/lucene-solr/commit/" + gitHashes[p.idx];
+  }
+}
+</script>
+</head>
+<body>
+''')
+
+    writeOneGraph(f, indexSizeData, 'index_size', 'Index size (GB)')
+    writeOneGraph(f, indexDPSData, 'index_throughput', 'Indexing rate 1 thread (K docs/sec)')
+    writeOneGraph(f, docsPerMBData, 'index_docs_per_mb', 'Docs per MB RAM at flush (K docs)')
+    writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (sec)')
+    writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (sec)')
+    writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
+    writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery, sort by longitude (QPS)',
+                  ('Date', 'Green cab (non-sparse)', 'Yellow cab (non-sparse)', 'Green cab (sparse)', 'Yellow cab (sparse)'))
+
+    f.write('</body>\n</html>\n')
+
+topPct = 5
+
+def getLabel(label):
+  if label < 26:
+    s = chr(65+label)
+  else:
+    s = '%s%s' % (chr(65+(label//26 - 1)), chr(65 + (label%26)))
+  return s
+
+def writeOneGraph(f, data, id, title, headers=None):
+  global topPct
+  
+  f.write('''
+<style type="text/css">
+#%s {
+  position: absolute;
+  left: 10px;
+  top: %d%%;
+}
+</style>
+''' % (id, topPct))
+
+  topPct += 75
+
+  if headers is None:
+    headers = ['Date', 'Non-sparse', 'Sparse']
+
+  f.write('''
+<div id="%s" style="height:70%%; width:98%%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("%s"),
+  "%s\\n"
+''' % (id, id, ','.join(headers)))
+
+  for timestamp, *values in data:
+    f.write('  + "%s-%s-%s %s:%s:%s' % timestamp)
+    f.write(',%s\\n"\n' % ','.join([str(x) for x in values]))
+
+  f.write('''
+  , { "title": "<a href=\'#%s\'><font size=+2>%s</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "xlabel": "Date",
+    "ylabel": "%s",
+    "pointClickCallback": onPointClick,
+    "labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 3,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 5,
+    "strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "hideOverlayOnMouseOut": false,
+    "legend": "always",
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+  });
+  ''' % (id, title, title))
+
+  f.write('g.ready(function() {g.setAnnotations([')
+  for i in range(len(CHANGES)):
+    change = CHANGES[i]
+    if len(change) == 3:
+      timeStamp = change[2]
+      f.write('{series: "%s", x: "%s", shortText: "%s", text: "%s"},\n' % \
+              (headers[2], timeStamp, getLabel(i), change[1].replace('"', '\\"')))
+  f.write(']);});\n')
+
+  f.write('</script>\n')
+
+if __name__ == '__main__':
+  main()

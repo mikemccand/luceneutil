@@ -23,10 +23,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -35,153 +40,171 @@ import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.SortedSetDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LogDocMergePolicy;
+import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
-// See README.nyctaxis for the chunked docs source
-
 // First: cd to /foo/bar/baz/lucene-solr-clone/lucene
 
 // Then: ant clean jar"
 
-// Then: javac -cp build/core/classes/java /l/util/src/main/perf/IndexTaxis.java ; java -cp build/core/classes/java:/l/util/src/main/perf IndexTaxis /c/taxisjava 1 /lucenedata/nyc-taxi-data/alltaxis.25M.csv.blocks 
+// Then: javac -cp build/core/classes/java /l/util/src/main/perf/IndexTaxis.java
+
+// rm -rf /b/taxis.sparse; javac -cp build/core/classes/java /l/util/src/main/perf/IndexTaxis.java; java -cp build/core/classes/java:/l/util/src/main perf.IndexTaxis /b/taxis.nonsparse 4 /l/data/mergedSubset.sparse.csv.blocks
 
 public class IndexTaxis {
 
   private static final int NEWLINE = (byte) '\n';
   private static final int COMMA = (byte) ',';
-  private static final byte[] header = new byte[128];
+  private static final byte[] header = new byte[Integer.BYTES];
 
   static long startNS;
 
-  private static class Chunk {
-    public final byte[] bytes;
-    public final int docCount;
-
-    public Chunk(byte[] bytes, int docCount) {
-      this.bytes = bytes;
-      this.docCount = docCount;
-    }
-  }
-
-  private synchronized static Chunk readChunk(BufferedInputStream docs) throws IOException {
+  private synchronized static byte[] readChunk(BufferedInputStream docs) throws IOException {
     int count = docs.read(header, 0, header.length);
     if (count == -1) {
       // end
       return null;
     }
 
-    int upto = 0;
-    while (upto < header.length) {
-      if (header[upto] == NEWLINE) {
-        break;
-      }
-      upto++;
-    }
-    if (upto == header.length) {
-      throw new AssertionError();
-    }
-    String[] parts = new String(header, 0, upto, StandardCharsets.UTF_8).split(" ");
-    if (parts.length != 2) {
-      throw new AssertionError();
-    }
-    int byteCount = Integer.parseInt(parts[0]);
-    int docCount = Integer.parseInt(parts[1]);
+    int byteCount = (header[0]&0xff) + ((header[1]&0xff)<<8) + ((header[2]&0xff)<<16) + ((header[3]&0xff)<<24);
     byte[] chunk = new byte[byteCount];
-    int fragment = header.length-upto-1;
-    System.arraycopy(header, upto+1, chunk, 0, fragment);
-    count = docs.read(chunk, fragment, chunk.length - fragment);
-    if (count != chunk.length - fragment) {
+    count = docs.read(chunk, 0, byteCount);
+    if (count != byteCount) {
       throw new AssertionError();
     }
-    return new Chunk(chunk, docCount);
+    return chunk;
   }
 
-  static void addOneField(Document doc, String fieldName, String rawValue) {
-    // nocommit
-    /*
-    if (fieldName.equals("pick_up_lat")) {
-      double value = Double.parseDouble(rawValue);
-      doc.add(new DoublePoint(fieldName, value));
-      doc.add(new SortedNumericDocValuesField(fieldName, NumericUtils.doubleToSortableLong(value)));
-    }
-    */
-    switch(fieldName) {
+  static void addOneField(Document doc, SimpleDateFormat dateParser, ParsePosition parsePosition, Field reuseField, Field reuseField2, String rawValue) {
+    switch(reuseField.name()) {
     case "vendor_id":
-    case "cab_color":
+    case "green_vendor_id":
+    case "yellow_vendor_id":
     case "payment_type":
+    case "green_payment_type":
+    case "yellow_payment_type":
     case "trip_type":
-    case "rate_code":
+    case "green_trip_type":
+    case "yellow_trip_type":
+    case "rate_code_id":
+    case "green_rate_code_id":
+    case "yellow_rate_code_id":
     case "store_and_fwd_flag":
-      doc.add(new StringField(fieldName, rawValue, Field.Store.NO));
-      doc.add(new SortedSetDocValuesField(fieldName, new BytesRef(rawValue)));
+    case "green_store_and_fwd_flag":
+    case "yellow_store_and_fwd_flag": {
+      reuseField.setStringValue(rawValue);
+      doc.add(reuseField);
+      reuseField2.setBytesValue(new BytesRef(rawValue));
+      doc.add(reuseField2);
       break;
-    case "vendor_name":
-      doc.add(new TextField(fieldName, rawValue, Field.Store.NO));
-      break;
-    case "pick_up_date_time":
-    case "drop_off_date_time":
-      {
-        long value = Long.parseLong(rawValue);
-        doc.add(new LongPoint(fieldName, value));
-        doc.add(new SortedNumericDocValuesField(fieldName, value));
+    }
+    case "pickup_datetime":
+    case "green_pickup_datetime":
+    case "yellow_pickup_datetime":
+    case "dropoff_datetime":
+    case "green_dropoff_datetime":
+    case "yellow_dropoff_datetime": {
+      parsePosition.setIndex(0);
+      Date date = dateParser.parse(rawValue, parsePosition);
+      if (parsePosition.getErrorIndex() != -1) {
+        throw new IllegalArgumentException("could not parse field \"" + reuseField.name() + "\" as date: rawValue=" + rawValue);
       }
+      if (parsePosition.getIndex() != rawValue.length()) {
+        throw new IllegalArgumentException("could not parse field \"" + reuseField.name() + "\" as date: rawValue=" + rawValue);
+      }
+      long v = date.getTime();
+      reuseField.setLongValue(v);
+      doc.add(reuseField);
+      reuseField2.setLongValue(v);
+      doc.add(reuseField2);
       break;
+    }
     case "passenger_count":
-      {
-        int value = Integer.parseInt(rawValue);
-        doc.add(new IntPoint(fieldName, value));
-        doc.add(new SortedNumericDocValuesField(fieldName, value));
-      }
+    case "green_passenger_count":
+    case "yellow_passenger_count": {
+      int v = Integer.parseInt(rawValue);
+      reuseField.setIntValue(v);
+      doc.add(reuseField);
+      reuseField2.setLongValue(v);
+      doc.add(reuseField2);
       break;
+    }
     case "trip_distance":
-    case "pick_up_lat":
-    case "pick_up_lon":
-    case "drop_off_lat":
-    case "drop_off_lon":
+    case "green_trip_distance":
+    case "yellow_trip_distance":
+    case "pickup_latitude":
+    case "green_pickup_latitude":
+    case "yellow_pickup_latitude":
+    case "pickup_longitude":
+    case "green_pickup_longitude":
+    case "yellow_pickup_longitude":
+    case "dropoff_latitude":
+    case "green_dropoff_latitude":
+    case "yellow_dropoff_latitude":
+    case "dropoff_longitude":
+    case "green_dropoff_longitude":
+    case "yellow_dropoff_longitude":
     case "fare_amount":
+    case "green_fare_amount":
+    case "yellow_fare_amount":
     case "surcharge":
+    case "green_surcharge":
+    case "yellow_surcharge":
     case "mta_tax":
+    case "green_mta_tax":
+    case "yellow_mta_tax":
     case "extra":
+    case "green_extra":
+    case "yellow_extra":
     case "ehail_fee":
+    case "green_ehail_fee":
+    case "yellow_ehail_fee":
     case "improvement_surcharge":
+    case "green_improvement_surcharge":
+    case "yellow_improvement_surcharge":
     case "tip_amount":
+    case "green_tip_amount":
+    case "yellow_tip_amount":
     case "tolls_amount":
+    case "green_tolls_amount":
+    case "yellow_tolls_amount":
     case "total_amount":
-      {
-        double value;
-        try {
-          value = Double.parseDouble(rawValue);
-        } catch (NumberFormatException nfe) {
-          System.out.println("WARNING: failed to parse \"" + rawValue + "\" as double for field \"" + fieldName + "\"");
-          return;
-        }
-        doc.add(new DoublePoint(fieldName, value));
-        doc.add(new SortedNumericDocValuesField(fieldName, NumericUtils.doubleToSortableLong(value)));
-      }
+    case "green_total_amount":
+    case "yellow_total_amount": {
+      double v = Double.parseDouble(rawValue);
+      reuseField.setDoubleValue(v);
+      doc.add(reuseField);
+      reuseField2.setLongValue(Double.doubleToRawLongBits(v));
+      doc.add(reuseField2);
       break;
+    }
     default:
-      throw new AssertionError("failed to handle field \"" + fieldName + "\"");
+      throw new AssertionError("failed to handle field \"" + reuseField.name() + "\"");
     }
   }
 
   /** Index all documents contained in one chunk */
-  static void indexOneChunk(String[] fields, Chunk chunk, IndexWriter w, AtomicInteger docCounter, AtomicLong bytesCounter) throws IOException {
-
-    Document doc = new Document();
-    byte[] bytes = chunk.bytes;
-    if (bytes[bytes.length-1] != NEWLINE) {
+  static void indexOneChunk(SimpleDateFormat dateParser, ParsePosition parsePosition,
+                            Field[][] reuseFields, Field[][] reuseFields2, Document reuseDoc, Field cabColorField, byte[] chunk,
+                            IndexWriter w, AtomicInteger docCounter, AtomicLong bytesCounter) throws IOException {
+    //System.out.println("CHUNK: " + chunk.length + " bytes");
+    String s = new String(chunk, 0, chunk.length);
+    if (s.charAt(s.length()-1) != '\n') {
       throw new AssertionError();
     }
+
     w.addDocuments(new Iterable<Document>() {
         @Override
         public Iterator<Document> iterator() {
@@ -212,22 +235,40 @@ public class IndexTaxis {
             }
 
             private void setNextDoc() {
-              Document doc = new Document();
+              reuseDoc.clear();
+              if (i == s.length()) {
+                return;
+              }              
               int fieldUpto = 0;
+              char color = s.charAt(i++);
+              if (s.charAt(i++) != ':') {
+                throw new IllegalArgumentException("expected ':' but saw '" + s.charAt(i-1));
+              }
+              cabColorField.setStringValue(Character.toString(color));
+              reuseDoc.add(cabColorField);
+              int colorFieldIndex;
+              if (color == 'g') {
+                colorFieldIndex = 0;
+              } else if (color == 'y') {
+                colorFieldIndex = 1;
+              } else {
+                throw new IllegalArgumentException("expected color 'g' or 'y' but got '" + color + "'");
+              }
+              Field[] colorReuseFields = reuseFields[colorFieldIndex];
+              Field[] colorReuseFields2 = reuseFields2[colorFieldIndex];
               int lastFieldStart = i;
-              for(;i<bytes.length;i++) {
-                byte b = bytes[i];
-                if (b == NEWLINE || b == COMMA) {
+              while (true) {
+                char c = s.charAt(i);
+                if (c == '\n' || c == ',') {
                   if (i > lastFieldStart) {
-                    String s = new String(bytes, lastFieldStart, i-lastFieldStart, StandardCharsets.UTF_8);
-                    addOneField(doc, fields[fieldUpto], s);
+                    addOneField(reuseDoc, dateParser, parsePosition, colorReuseFields[fieldUpto], colorReuseFields2[fieldUpto], s.substring(lastFieldStart, i));
                   }
-                  if (b == NEWLINE) {
-                    if (fieldUpto != fields.length-1) {
-                      throw new AssertionError("fieldUpto=" + fieldUpto + " vs fields.length-1=" + (fields.length-1));
+                  if (c == '\n') {
+                    if (fieldUpto != colorReuseFields.length-1) {
+                      throw new AssertionError("fieldUpto=" + fieldUpto + " vs fields.length-1=" + (colorReuseFields.length-1));
                     }
                     chunkDocCount++;
-                    this.nextDoc = doc;
+                    this.nextDoc = reuseDoc;
                     int x = docCounter.incrementAndGet();
                     long y = bytesCounter.addAndGet((i+1) - lastLineStart);
                     if (x % 100000 == 0) {
@@ -243,6 +284,7 @@ public class IndexTaxis {
                   }
                   lastFieldStart = i+1;
                 }
+                i++;
               }
               // System.out.println("chunk doc count: " + chunkDocCount);
             }
@@ -256,13 +298,31 @@ public class IndexTaxis {
     Directory dir = FSDirectory.open(indexPath);
     int threadCount = Integer.parseInt(args[1]);
     Path docsPath = Paths.get(args[2]);
+    String sparseOrNot = args[3];
+
+    final boolean sparse;
+    if (sparseOrNot.equals("sparse")) {
+      sparse = true;
+    } else if (sparseOrNot.equals("nonsparse")) {
+      sparse = false;
+    } else {
+      throw new IllegalArgumentException("expected 'sparse' or 'nonsparse' but saw " + sparseOrNot);
+    }
 
     IndexWriterConfig iwc = new IndexWriterConfig();
     //System.out.println("NOW SET INFO STREAM");
-    iwc.setRAMBufferSizeMB(1024.);
+
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
-    //((ConcurrentMergeScheduler) iwc.getMergeScheduler()).disableAutoIOThrottle();
+
+    if (threadCount == 1) {
+      // 555 segment structure for 50M docs:
+      iwc.setMaxBufferedDocs(90090);
+      iwc.setMergeScheduler(new SerialMergeScheduler());
+      iwc.setMergePolicy(new LogDocMergePolicy());
+      iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    } else {
+      iwc.setRAMBufferSizeMB(1024.);
+    }
 
     final IndexWriter w = new IndexWriter(dir, iwc);
 
@@ -311,12 +371,116 @@ public class IndexTaxis {
           }
 
           private void _run() throws IOException {
+
+            SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
+            dateParser.setTimeZone(TimeZone.getTimeZone("UTC"));
+            ParsePosition parsePosition = new ParsePosition(0);
+            
+            // Setup fields & document to reuse
+            final Field[][] reuseFields = new Field[2][];
+            final Field[][] reuseFields2 = new Field[2][];
+
+            // green's fields:
+            reuseFields[0] = new Field[fields.length];
+            reuseFields2[0] = new Field[fields.length];
+
+            // yellow's fields:
+            reuseFields[1] = new Field[fields.length];
+            reuseFields2[1] = new Field[fields.length];
+
+            
+            for(int i=0;i<fields.length;i++) {
+              String fieldName = fields[i];
+              switch(fieldName) {
+              case "cab_color":
+              case "vendor_id":
+              case "payment_type":
+              case "trip_type":
+              case "rate_code_id":
+              case "store_and_fwd_flag": {
+                if (sparse) {
+                  reuseFields[0][i] = new StringField("green_" + fieldName, "", Field.Store.NO);
+                  reuseFields2[0][i] = new SortedSetDocValuesField("green_" + fieldName, new BytesRef());
+                  reuseFields[1][i] = new StringField("yellow_" + fieldName, "", Field.Store.NO);
+                  reuseFields2[1][i] = new SortedSetDocValuesField("yellow_" + fieldName, new BytesRef());
+                } else {
+                  reuseFields[0][i] = new StringField(fieldName, "", Field.Store.NO);
+                  reuseFields2[0][i] = new SortedSetDocValuesField(fieldName, new BytesRef());
+                  reuseFields[1][i] = reuseFields[0][i];
+                  reuseFields2[1][i] = reuseFields2[0][i];
+                }
+                break;
+              }
+              case "pickup_datetime":
+              case "dropoff_datetime": {
+                if (sparse) {
+                  reuseFields[0][i] = new LongPoint("green_" + fieldName, 0);
+                  reuseFields2[0][i] = new NumericDocValuesField("green_" + fieldName, 0);
+                  reuseFields[1][i] = new LongPoint("yellow_" + fieldName, 0);
+                  reuseFields2[1][i] = new NumericDocValuesField("yellow_" + fieldName, 0);
+                } else {
+                  reuseFields[0][i] = new LongPoint(fieldName, 0);
+                  reuseFields2[0][i] = new NumericDocValuesField(fieldName, 0);
+                  reuseFields[1][i] = reuseFields[0][i];
+                  reuseFields2[1][i] = reuseFields2[0][i];
+                }
+                break;
+              }
+              case "passenger_count": {
+                if (sparse) {
+                  reuseFields[0][i] = new IntPoint("green_" + fieldName, 0);
+                  reuseFields2[0][i] = new NumericDocValuesField("green_" + fieldName, 0);
+                  reuseFields[1][i] = new IntPoint("yellow_" + fieldName, 0);
+                  reuseFields2[1][i] = new NumericDocValuesField("yellow_" + fieldName, 0);
+                } else {
+                  reuseFields[0][i] = new IntPoint(fieldName, 0);
+                  reuseFields2[0][i] = new NumericDocValuesField(fieldName, 0);
+                  reuseFields[1][i] = reuseFields[0][i];
+                  reuseFields2[1][i] = reuseFields2[0][i];
+                }
+                break;
+              }
+              case "trip_distance":
+              case "pickup_latitude":
+              case "pickup_longitude":
+              case "dropoff_latitude":
+              case "dropoff_longitude":
+              case "fare_amount":
+              case "surcharge":
+              case "mta_tax":
+              case "extra":
+              case "ehail_fee":
+              case "improvement_surcharge":
+              case "tip_amount":
+              case "tolls_amount":
+              case "total_amount": {
+                if (sparse) {
+                  reuseFields[0][i] = new DoublePoint("green_" + fieldName, 0.0);
+                  reuseFields2[0][i] = new NumericDocValuesField("green_" + fieldName, 0);
+                  reuseFields[1][i] = new DoublePoint("yellow_" + fieldName, 0.0);
+                  reuseFields2[1][i] = new NumericDocValuesField("yellow_" + fieldName, 0);
+                } else {
+                  reuseFields[0][i] = new DoublePoint(fieldName, 0.0);
+                  reuseFields2[0][i] = new NumericDocValuesField(fieldName, 0);
+                  reuseFields[1][i] = reuseFields[0][i];
+                  reuseFields2[1][i] = reuseFields2[0][i];
+                }
+                break;
+              }
+              default:
+                throw new AssertionError("failed to handle field \"" + fieldName + "\"");
+              }
+            }
+
+            Field cabColorField = new StringField("cab_color", "", Field.Store.NO);
+            Document reuseDoc = new Document();
+            
             while (true) {
-              Chunk chunk = readChunk(docs);
+              byte[] chunk = readChunk(docs);
               if (chunk == null) {
                 break;
               }
-              indexOneChunk(fields, chunk, w, docCounter, bytesCounter);
+              indexOneChunk(dateParser, parsePosition, reuseFields, reuseFields2, reuseDoc, cabColorField, chunk, w, docCounter, bytesCounter);
             }
           }
         };
@@ -326,9 +490,14 @@ public class IndexTaxis {
     for(int i=0;i<threadCount;i++) {
       threads[i].join();
     }
-    System.out.println("Indexing done; now close");
 
-    w.close();
+    if (threadCount == 1) {
+      System.out.println("Indexing done; now close");
+      w.close();
+    } else {
+      System.out.println("Indexing done; now rollback");
+      w.rollback();
+    }
     docs.close();
   }
 }

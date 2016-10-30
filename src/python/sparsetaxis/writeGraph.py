@@ -57,7 +57,7 @@ def extractIndexStats(indexLog):
 def msecToQPS(x):
   return 1000/x
 
-reHits = re.compile('T(.) (.): ([0-9]+) hits in ([.0-9]+) msec')
+reHits = re.compile('T(.) (.) sort=(.*?): ([0-9]+) hits in ([.0-9]+) msec')
 def extractSearchStats(searchLog):
   
   heapBytes = None
@@ -74,29 +74,37 @@ def extractSearchStats(searchLog):
       else:
         m = reHits.match(line)
         if m is not None:
-          threadID, color, hitCount, msec = m.groups()
+          threadID, color, sortDesc, hitCount, msec = m.groups()
           if threadID not in byThread:
             byThread[threadID] = []
-          byThread[threadID].append((color, int(hitCount), float(msec)))
+          if sortDesc == 'null':
+            sortDesc = None
+          else:
+            sortDesc = 'longitude'
+          byThread[threadID].append((color, sortDesc, int(hitCount), float(msec)))
 
-  byColor = {'y': [], 'g': []}
+  byColor = {('y', None): [],
+             ('y', 'longitude'): [],
+             ('g', None): [],
+             ('g', 'longitude'): []}
   for threadID, results in byThread.items():
     # discard warmup
     results = results[10:]
-    for color, hitCount, msec in results:
-      byColor[color].append(msec)
+    for color, sortDesc, hitCount, msec in results:
+      byColor[(color, sortDesc)].append(msec)
 
-  results = [heapBytes]
-  byColor['g'].sort()
-  byColor['y'].sort()
+  allResults = [heapBytes]
+  for l in byColor.values():
+    l.sort()
 
-  g = byColor['g']
-  results.append(g[len(g)//2])
-
-  y = byColor['y']
-  results.append(y[len(y)//2])
-
-  return tuple(results)
+  for color in 'g', 'y':
+    for sort in None, 'longitude':
+      l = byColor[(color, sort)]
+      l.sort()
+      # median result:
+      allResults.append(l[len(l)//2])
+      
+  return tuple(allResults)
 
 def toGB(x):
   return x/1024./1024./1024.
@@ -128,6 +136,7 @@ def main():
   checkIndexTimeData = []
   flushTimesData = []
   searcherHeapMBData = []
+  searchSortQPSData = []
   searchQPSData = []
   docsPerMBData = []
   dvMergeTimesData = []
@@ -161,11 +170,16 @@ def main():
       checkIndexTimeData.append((m.groups(), nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec))
       flushTimesData.append((m.groups(), nonSparseIndexStats[2], sparseIndexStats[2]))
       searcherHeapMBData.append((m.groups(), toMB(nonSparseSearchStats[0]), toMB(sparseSearchStats[0])))
+      searchSortQPSData.append((m.groups(),
+                                msecToQPS(nonSparseSearchStats[2]),
+                                msecToQPS(nonSparseSearchStats[4]),
+                                msecToQPS(sparseSearchStats[2]),
+                                msecToQPS(sparseSearchStats[4])))
       searchQPSData.append((m.groups(),
                             msecToQPS(nonSparseSearchStats[1]),
-                            msecToQPS(nonSparseSearchStats[2]),
+                            msecToQPS(nonSparseSearchStats[3]),
                             msecToQPS(sparseSearchStats[1]),
-                            msecToQPS(sparseSearchStats[2])))
+                            msecToQPS(sparseSearchStats[3])))
       docsPerMBData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000.))
       dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0]))
 
@@ -235,8 +249,10 @@ html * {
     writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (sec)')
     writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (sec)')
     writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
-    writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery, sort by longitude (QPS)',
-                  ('Date', 'Green cab (non-sparse)', 'Yellow cab (non-sparse)', 'Green cab (sparse)', 'Yellow cab (sparse)'))
+    writeOneGraph(f, searchSortQPSData, 'search_sort_qps', 'TermQuery, sort by longitude (QPS)',
+                  ('Date', 'Yellow cab (non-sparse)', 'Green cab (non-sparse)', 'Yellow cab (sparse)', 'Green cab (sparse)'))
+    writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery (QPS)',
+                  ('Date', 'Yellow cab (non-sparse)', 'Green cab (non-sparse)', 'Yellow cab (sparse)', 'Green cab (sparse)'))
 
     f.write('</body>\n</html>\n')
 
@@ -281,9 +297,11 @@ def writeOneGraph(f, data, id, title, headers=None):
     f.write('  + "%s-%s-%s %s:%s:%s' % timestamp)
     f.write(',%s\\n"\n' % ','.join([str(x) for x in values]))
 
-  if id == 'search_qps':
+  if id == 'search_sort_qps':
     # fix the value axis so the legend doesn't obscure the series:
-    otherOptions = '    "valueRange": [0.0, 11.5],'
+    otherOptions = '    "valueRange": [0.0, 29],'
+  elif id == 'search_qps':
+    otherOptions = '    "valueRange": [0.0, 50],'
   else:
     otherOptions = ''
   

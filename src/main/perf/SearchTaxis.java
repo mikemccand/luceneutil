@@ -87,14 +87,24 @@ public class SearchTaxis {
         }
               
         Query query = new TermQuery(new Term("cab_color", color));
-        Sort sort = new Sort(new SortField(sortField, SortField.Type.DOUBLE));
+        Sort sort;
+        if (random.nextBoolean()) {
+          sort = new Sort(new SortField(sortField, SortField.Type.DOUBLE));
+        } else {
+          sort = null;
+        }
 
         long t0 = System.nanoTime();
-        TopDocs hits = searcher.search(query, 10, sort);
+        TopDocs hits;
+        if (sort == null) {
+          hits = searcher.search(query, 10);
+        } else {
+          hits = searcher.search(query, 10, sort);
+        }
         long t1 = System.nanoTime();
 
         synchronized(printLock) {
-          System.out.println("T" + threadID + " " + color + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
+          System.out.println("T" + threadID + " " + color + " sort=" + sort + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
         }
       }
     }

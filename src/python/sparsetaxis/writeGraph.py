@@ -1,8 +1,11 @@
+import datetime
 import pickle
 import os
 import re
 
 CHANGES = [
+  ('2016-10-04',
+   'LUCENE-7474: Doc values writers should use sparse encoding'),
   ('2016-10-17',
    'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
   ('2016-10-18',
@@ -101,10 +104,20 @@ def toGB(x):
 def toMB(x):
   return x/1024./1024.
 
+def toDateTime(parts):
+  parts = (int(x) for x in parts)
+  return datetime.datetime(*parts)
+
 reDateTime = re.compile(r'(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)')
 
+def toMSEpoch(dt):
+  epoch = datetime.datetime.utcfromtimestamp(0)
+  return 1000. * (dt - epoch).total_seconds()
+  
 def main():
 
+  global dateWindow
+  
   allResults = []
 
   l = os.listdir('/l/logs.nightly/taxis')
@@ -117,7 +130,7 @@ def main():
   searcherHeapMBData = []
   searchQPSData = []
   docsPerMBData = []
-
+  dvMergeTimesData = []
   gitHashes = []
   
   for fileName in l:
@@ -154,6 +167,7 @@ def main():
                             msecToQPS(sparseSearchStats[1]),
                             msecToQPS(sparseSearchStats[2])))
       docsPerMBData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000.))
+      dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0]))
 
       allResults.append((m.groups(),
                          nonSparseDiskBytes,
@@ -170,11 +184,18 @@ def main():
         if len(CHANGES[i]) == 2 and CHANGES[i][0] == date:
           CHANGES[i] += ('%s-%s-%s %s:%s:%s' % m.groups(),)
 
+  startDateTime = toDateTime(indexSizeData[0][0])
+  endDateTime = toDateTime(indexSizeData[-1][0])
+  sixHours = datetime.timedelta(hours=6)
+
+  # This way it's clear we are seeing the whole date range:
+  dateWindow = (toMSEpoch(startDateTime - sixHours), toMSEpoch(endDateTime + sixHours))
+
   with open('/x/tmp/sparseResults.html', 'w') as f:
     f.write('''
 <html>
 <head>
-<script type="text/javascript" src="dygraph-combined.js"></script>
+<script type="text/javascript" src="dygraph-combined-dev.js"></script>
 <script type="text/javascript">
 ''')
     f.write('gitHashes = %s;\n' % repr(gitHashes))
@@ -187,6 +208,11 @@ function onPointClick(e, p) {
   }
 }
 </script>
+<style type="text/css">
+.dygraph-legend > span.highlight { border: 1px solid grey}
+
+.dygraph-legend > span.highlight { display: inline; }
+</style>
 </head>
 <body>
 ''')
@@ -196,6 +222,7 @@ function onPointClick(e, p) {
     writeOneGraph(f, docsPerMBData, 'index_docs_per_mb', 'Docs per MB RAM at flush (K docs)')
     writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (sec)')
     writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (sec)')
+    writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (sec)')
     writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
     writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery, sort by longitude (QPS)',
                   ('Date', 'Green cab (non-sparse)', 'Yellow cab (non-sparse)', 'Green cab (sparse)', 'Yellow cab (sparse)'))
@@ -230,7 +257,7 @@ def writeOneGraph(f, data, id, title, headers=None):
     headers = ['Date', 'Non-sparse', 'Sparse']
 
   f.write('''
-<div id="%s" style="height:70%%; width:98%%"></div>
+<div id="%s" style="height:70%%; width:95%%"></div>
 <script type="text/javascript">
   g = new Dygraph(
 
@@ -243,14 +270,22 @@ def writeOneGraph(f, data, id, title, headers=None):
     f.write('  + "%s-%s-%s %s:%s:%s' % timestamp)
     f.write(',%s\\n"\n' % ','.join([str(x) for x in values]))
 
+  if id == 'search_qps':
+    # fix the value axis so the legend doesn't obscure the series:
+    otherOptions = '    "valueRange": [0.0, 11.5],'
+  else:
+    otherOptions = ''
+  
+
   f.write('''
   , { "title": "<a href=\'#%s\'><font size=+2>%s</font></a>",
     // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
     "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
     "xlabel": "Date",
     "ylabel": "%s",
     "pointClickCallback": onPointClick,
-    "labelsDivWidth": 500,
+    //"labelsDivWidth": 500,
     "labelsSeparateLines": true,
     "pointSize": 3,
     "gridLineColor": "#BBB",
@@ -258,14 +293,19 @@ def writeOneGraph(f, data, id, title, headers=None):
     "highlightCircleSize": 5,
     "strokeWidth": 2.0,
     "connectSeparatedPoints": true,
-    "hideOverlayOnMouseOut": false,
-    "legend": "always",
     "drawPoints": true,
     "includeZero": true,
     "axisLabelColor": "#555",
     "axisLineColor": "#555",
+    "dateWindow": [%s, %s],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+    %s
   });
-  ''' % (id, title, title))
+  ''' % (id, title, title, dateWindow[0], dateWindow[1], otherOptions))
 
   f.write('g.ready(function() {g.setAnnotations([')
   for i in range(len(CHANGES)):

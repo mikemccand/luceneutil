@@ -90,8 +90,9 @@ class TaxiReader:
     self.headersToIndex = []
     for i, header in enumerate(headers):
       header = header.strip().lower()
-      header = headerMap[header]
-      self.headersToIndex.append((i, self.globalHeaders.index(header)))
+      if header in headerHap:
+        header = headerMap[header]
+        self.headersToIndex.append((i, self.globalHeaders.index(header)))
 
   def next(self):
     try:
@@ -114,7 +115,11 @@ class TaxiReader:
     return row
 
 
-globalHeaders = list(headerMap.values())
+globalHeaders = list(set(headerMap.values()))
+
+# These fields only show up in green, so even in the non-sparse case, they are sparse, so we don't include them:
+globalHeaders.remove('trip_type')
+globalHeaders.remove('ehail_fee')
 
 globalHeaders.sort()
 print('headers:')

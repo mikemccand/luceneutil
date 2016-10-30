@@ -174,10 +174,11 @@ def main():
       (args.luceneMaster, luceneUtilPythonPath, luceneUtilPythonPath))
 
   if True:
-    cpuCount = min(16, int(3*multiprocessing.cpu_count()/4.))
-    print('\nIndex "fast" nonsparse with %d threads...' % cpuCount)
-    fastIndexPath, sizeOnDiskBytes = runIndexing(args, cpuCount, 'nonsparse')
-    print('  index is %.2f GB' % toGB(sizeOnDiskBytes))
+    if False:
+      cpuCount = min(16, int(3*multiprocessing.cpu_count()/4.))
+      print('\nIndex "fast" nonsparse with %d threads...' % cpuCount)
+      fastIndexPath, sizeOnDiskBytes = runIndexing(args, cpuCount, 'nonsparse')
+      print('  index is %.2f GB' % toGB(sizeOnDiskBytes))
 
     print('\nIndex "slow" nonsparse with 1 thread, SMS...')
     nonSparseIndexPath, sizeOnDiskBytes = runIndexing(args, 1, 'nonsparse')

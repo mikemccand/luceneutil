@@ -21,7 +21,7 @@ def toGB(x):
   return x/1024./1024./1024.
 
 def downloadDocumentsSource(dataDir):
-  fileName = '50M.subset.nyctaxis.csv.blocks'
+  fileName = '20M.subset.nyctaxis.csv.blocks'
   destFileName = '%s/%s' % (dataDir, fileName)
   if not os.path.exists(destFileName):
     urlSource = 'http://home.apache.org/~mikemccand/%s.bz2' % fileName
@@ -68,7 +68,7 @@ def run(command, logFile=None):
 reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
 def runIndexing(args, cpuCount, sparseOrNot):
 
-  docsSource = '%s/data/50M.subset.nyctaxis.csv.blocks' % rootDir
+  docsSource = '%s/data/20M.subset.nyctaxis.csv.blocks' % rootDir
 
   indexPath = '%s/indices/index.%dthreads.%s' % (rootDir, cpuCount, sparseOrNot)
   if os.path.exists(indexPath):

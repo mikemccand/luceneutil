@@ -90,8 +90,8 @@ class TaxiReader:
     self.headersToIndex = []
     for i, header in enumerate(headers):
       header = header.strip().lower()
-      if header in headerHap:
-        header = headerMap[header]
+      header = headerMap[header]
+      if header in self.globalHeaders:
         self.headersToIndex.append((i, self.globalHeaders.index(header)))
 
   def next(self):
@@ -139,7 +139,7 @@ print('yellowDropoffHeader=%s' % yellowDropoffHeader)
 green = TaxiReader('green', globalHeaders)
 yellow = TaxiReader('yellow', globalHeaders)
 
-fileNameOut = '50M.mergedSubset.csv'
+fileNameOut = '20M.mergedSubset.csv'
 
 with open('/lucenedata/nyc-taxi-data/%s' % fileNameOut, 'w', encoding='utf-8') as fOut:
   fOut.write(','.join(globalHeaders) + '\n')
@@ -151,7 +151,7 @@ with open('/lucenedata/nyc-taxi-data/%s' % fileNameOut, 'w', encoding='utf-8') a
   yellowCount = 0
   greenCount = 0
 
-  while docCount < 50000000:
+  while docCount < 20000000:
     if compareByTime('green', nextGreenRide, 'yellow', nextYellowRide) <= 0:
       fOut.write('g:' + (','.join(nextGreenRide) + '\n'))
       x = green.next()
@@ -183,7 +183,7 @@ for ign, s in sparseness:
   print('  %s' % s)
 
 '''
-44154129 yellow, 5845871 green
+17699826 yellow, 2300174 green
    100.0% vendor_id
    100.0% trip_distance
    100.0% total_amount
@@ -203,8 +203,4 @@ for ign, s in sparseness:
    100.0% dropoff_longitude
    100.0% dropoff_latitude
    100.0% dropoff_datetime
-    11.7% trip_type
-    11.7% ehail_fee
-     0.0% pickup_datetime
-     0.0% dropoff_datetime
 '''

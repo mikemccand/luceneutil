@@ -9,7 +9,7 @@ CHANGES = [
   ('2016-10-17',
    'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
   ('2016-10-18',
-   'LUCENE-7501: Save one byte in heap per BKD index node in the 1D case'),
+   'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
   ('2016-10-24',
    'LUCENE-7462: Give doc values an advanceExact method'),
   ]
@@ -209,6 +209,17 @@ function onPointClick(e, p) {
 }
 </script>
 <style type="text/css">
+a:hover * {
+  text-decoration: underline;
+}
+
+html * {
+  #font-size: 1em !important;
+  text-decoration: none;
+  #color: #000 !important;
+  font-family: Verdana !important;
+}
+
 .dygraph-legend > span.highlight { border: 1px solid grey}
 
 .dygraph-legend > span.highlight { display: inline; }

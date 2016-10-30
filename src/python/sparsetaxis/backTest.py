@@ -10,6 +10,7 @@ def run(cmd):
 
 os.chdir('/l/sparseTaxis/sparseTaxis/lucene.master/lucene')
 run('git checkout master')
+run('git pull origin master')
 
 commits = []
 with os.popen('git log --format=fuller', 'r') as f:

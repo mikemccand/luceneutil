@@ -17,6 +17,8 @@ import urllib.request
 
 luceneUtilPythonPath = os.path.split(os.path.abspath(__file__))[0]
 
+JAVA_CMD = 'java -server -Xbatch -Xmx2g -Xms2g -XX:-TieredCompilation -XX:+HeapDumpOnOutOfMemoryError -Xbatch'
+
 def toGB(x):
   return x/1024./1024./1024.
 
@@ -75,8 +77,8 @@ def runIndexing(args, cpuCount, sparseOrNot):
     print('  remove old index at %s' % indexPath)
     shutil.rmtree(indexPath)
 
-  command = 'java -Xmx2g -Xms2g -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.IndexTaxis %s %d %s %s' % \
-            (args.luceneMaster, luceneUtilPythonPath, indexPath, cpuCount, docsSource, sparseOrNot)
+  command = '%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.IndexTaxis %s %d %s %s' % \
+            (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, indexPath, cpuCount, docsSource, sparseOrNot)
 
   logFile = '%s/index.%dthreads.%s.log' % (logDir, cpuCount, sparseOrNot)
 
@@ -192,16 +194,16 @@ def main():
 
     print('\nCheckIndex nonsparse')
     t0 = time.time()
-    run('java -Xmx2g -Xms2g -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar org.apache.lucene.index.CheckIndex %s' % \
-        (args.luceneMaster, nonSparseIndexPath), '%s/checkIndexNonSparse.log' % logDir)
+    run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar org.apache.lucene.index.CheckIndex %s' % \
+        (JAVA_CMD, args.luceneMaster, nonSparseIndexPath), '%s/checkIndexNonSparse.log' % logDir)
     sec = time.time() - t0
     print('  took %.1f sec' % sec)
     results.append(sec)
 
     print('\nCheckIndex sparse')
     t0 = time.time()
-    run('java -Xmx2g -Xms2g -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar org.apache.lucene.index.CheckIndex %s' % \
-        (args.luceneMaster, sparseIndexPath), '%s/checkIndexSparse.log' % logDir)
+    run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar org.apache.lucene.index.CheckIndex %s' % \
+        (JAVA_CMD, args.luceneMaster, sparseIndexPath), '%s/checkIndexSparse.log' % logDir)
     sec = time.time() - t0
     print('  took %.1f sec' % sec)
     results.append(sec)
@@ -211,12 +213,12 @@ def main():
     sparseIndexPath = '/l/taxisroot/sparseTaxis/indices/index.1threads.sparse'
 
   print('\nSearch nonsparse...')
-  run('java -Xmx2g -Xms2g -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.SearchTaxis %s nonsparse' % \
-      (args.luceneMaster, luceneUtilPythonPath, nonSparseIndexPath), '%s/searchNonSparse.log' % logDir)
+  run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.SearchTaxis %s nonsparse' % \
+      (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, nonSparseIndexPath), '%s/searchNonSparse.log' % logDir)
 
   print('\nSearch sparse...')
-  run('java -Xmx2g -Xms2g -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.SearchTaxis %s sparse' % \
-      (args.luceneMaster, luceneUtilPythonPath, sparseIndexPath), '%s/searchSparse.log' % logDir)
+  run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.SearchTaxis %s sparse' % \
+      (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, sparseIndexPath), '%s/searchSparse.log' % logDir)
 
   open('%s/results.pk' % logDir, 'wb').write(pickle.dumps(results))
   

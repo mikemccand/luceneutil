@@ -391,6 +391,19 @@ KNOWN_CHANGES = [
    'LUCENE-7519: optimize computing browse-only facets, LUCENE-7489: Remove one layer of abstraction in binary doc values and single-valued numerics',
    'LUCENE-7519: optimize computing browse-only facets, LUCENE-7489: Remove one layer of abstraction in binary doc values and single-valued numerics',
    ),
+
+  ('2016-10-27',
+   'Re-enable transparent huge pages in Linux',
+   'Re-enable transparent huge pages in Linux',
+   ),
+
+  ('2016-10-31',
+   'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory for e.g. CheckIndex',
+   'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory for e.g. CheckIndex'),
+
+  ('2016-11-02',
+   'LUCENE-7135: Fixed this issue so we use MMapDirectory again',
+   'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
 ]
 
 # TODO

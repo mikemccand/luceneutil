@@ -1,3 +1,5 @@
+import re
+import mailbox
 import shutil
 import datetime
 import os
@@ -12,49 +14,106 @@ os.chdir('/l/sparseTaxis/sparseTaxis/lucene.master/lucene')
 run('git checkout master')
 run('git pull origin master')
 
-commits = []
-with os.popen('git log --format=fuller', 'r') as f:
-  while True:
-    line = f.readline()
-    if len(line) == 0:
-      break
-    line = line.rstrip()
-    if line.startswith('commit '):
-      commitHash = line[7:]
-      # Author
-      f.readline()
-      # AuthorDate
-      f.readline()
-      # Committer
-      f.readline()
-      # Committer
-      line = f.readline()
-      if line.startswith('CommitDate: '):
-        s = line[12:].strip()
-        commitTime = datetime.datetime.strptime(s, '%a %b %d %H:%M:%S %Y %z')
-        #if len(commits) > 0 and commitTime > commits[-1][1]:
-        #  print('wrong order: %s -> %s vs %s, %s' % (s, commitTime, commits[-1][1], commits[-1]))
-        commits.append((commitHash, datetime.datetime(*commitTime.utctimetuple()[:6])))
-        #print('got: %s, %s' % (commitHash, commitTime))
+def findCommitsToTest():
+  # Get the lucene-commits mbox archives, e.g.:
+  #
+  #   wget http://mail-archives.apache.org/mod_mbox/lucene-commits/201611.mbox
 
-dateStart = datetime.datetime(2016, 9, 15)
+  reMaster = re.compile('^  refs/heads/master ([0-9a-f]+) -> ([0-9a-f]+)$', re.MULTILINE)
+
+  print('  parse commit hashes from lucene-commits mbox archives...')
+  
+  # master commit hashes pushed
+  masterCommits = set()
+
+  for month in 8, 9, 10, 11:
+
+    m = mailbox.mbox('/lucenedata/apache-lucene-commits-mbox/2016%02d.mbox' % month)
+
+    for message in m:
+      p = message.get_payload()
+      if type(p) is str:
+        p = [p]
+      for x in p:
+        matches = reMaster.findall(str(x))
+        for fromHash, toHash in matches:
+          #print("fromHash %s" % fromHash)
+          masterCommits.add(toHash)
+
+  masterCommitsAndTimes = []
+
+  # now match up those commit hashes we found in the emails, to timestamps:
+
+  print('  match to timestamps...')
+
+  with os.popen('git log --format=fuller --parents', 'r') as f:
+
+    line = f.readline().strip()
+
+    commits = {}
+    childCount = {}
+    firstCommit = None
+
+    while True:
+      #print("got: %s" % line)
+      tup = line.split()
+      if tup[0] != 'commit':
+        raise RuntimeError('expected commit but saw %s' % line)
+
+      hash = tup[1]
+      if hash in commits:
+        raise RuntimeError('duplicate commit hash %s' % hash)
+      parentHashes = tup[2:]
+      if len(parentHashes) not in (0, 1, 2):
+        raise RuntimeError('expected 0 or 1 or 2 parents but saw %s' % line)
+      author = f.readline().strip()
+      if author.startswith('Merge: '):
+        author = f.readline().strip()
+      authorDate = f.readline().strip()
+      commitUser = f.readline().strip()
+      commitDate = f.readline()[11:].strip()
+      comments = []
+
+      commits[hash] = (commitUser, commitDate, parentHashes, comments)
+
+      f.readline()
+      while True:
+        line = f.readline()
+        if line == '':
+          break
+        if line.rstrip().startswith('commit '):
+          break
+        comments.append(line)
+
+      if firstCommit is None:
+        firstCommit = hash
+
+      if hash[:9] in masterCommits:
+        # parse commit time, and convert to UTC
+        t = datetime.datetime.strptime(commitDate, '%a %b %d %H:%M:%S %Y %z')
+        t = datetime.datetime(*t.utctimetuple()[:6])
+        masterCommitsAndTimes.append((t, hash))
+
+      if line == '':
+        break
+
+  print('found %d commit + times vs %d commits only' % (len(masterCommitsAndTimes), len(masterCommits)))
+  
+  masterCommitsAndTimes.sort(reverse=True)
+  return [(y, x) for x, y in masterCommitsAndTimes]
+
+commits = findCommitsToTest()
 
 upto = 0
-lastTestedDate = None
 timeToCommitIndex = {}
-while True:
 
-  hash, commitTimeStamp = commits[upto]
+for upto, (hash, commitTimeStamp) in enumerate(commits):
 
   timestamp = datetime.datetime(*commitTimeStamp.utctimetuple()[:6])
 
   print('%s -> %s' % (timestamp, upto))
   timeToCommitIndex[timestamp] = upto
-  upto += 1
 
-  if timestamp < dateStart:
-    del commits[upto:]
-    break
 
 timesAlreadyDone = set()
 for name in os.listdir(TAXIS_LOGS_DIR):
@@ -97,8 +156,6 @@ def getTimesToTest():
 
     yield totalMaxMinTimestamp
           
-
-lastTestedDate = None
 
 for timestamp in getTimesToTest():
 

@@ -4,14 +4,13 @@ import os
 import re
 
 CHANGES = [
-  ('2016-10-04',
-   'LUCENE-7474: Doc values writers should use sparse encoding'),
-  ('2016-10-17',
-   'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
-  ('2016-10-18',
-   'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
-  ('2016-10-24 08:51:23',
-   'LUCENE-7462: Give doc values an advanceExact method')
+  ('2016-09-22', 'LUCENE-7407: Switch doc values to iterator API'),
+  ('2016-10-04', 'LUCENE-7474: Doc values writers should use sparse encoding'),
+  ('2016-10-17', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
+  ('2016-10-18', 'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
+  ('2016-10-24 08:51:23', 'LUCENE-7462: Give doc values an advanceExact method'),
+  ('2016-10-31', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
+  ('2016-11-02', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')

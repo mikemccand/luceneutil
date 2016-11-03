@@ -21,13 +21,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Random;
 
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
@@ -70,25 +75,65 @@ public class SearchTaxis {
       for(int i=0;i<iters;i++) {
         String color;
         String sortField;
-        if (random.nextBoolean()) {
+
+        switch(random.nextInt(4)) {
+        
+        case 0:
+          // TermQuery on yellow cabs
           color = "y";
           if (sparse) {
             sortField = "yellow_pickup_longitude";
           } else {
             sortField = "pickup_longitude";
           }
-        } else {
+          break;
+
+        case 1:
+          // TermQuery on green cabs
           color = "g";
           if (sparse) {
             sortField = "green_pickup_longitude";
           } else {
             sortField = "pickup_longitude";
           }
+          break;
+
+        case 2:
+          // BooleanQuery on both cabs (all docs)
+          color = "both";
+          sortField = null;
+          break;
+          
+        case 3:
+          // Point range query
+          color = "neither";
+          sortField = null;
+          break;
+
+        default:
+          throw new AssertionError();
         }
               
-        Query query = new TermQuery(new Term("cab_color", color));
+        Query query;
+        if (color.equals("both")) {
+          BooleanQuery.Builder builder = new BooleanQuery.Builder();
+          builder.add(new TermQuery(new Term("cab_color", "y")), BooleanClause.Occur.SHOULD);
+          builder.add(new TermQuery(new Term("cab_color", "g")), BooleanClause.Occur.SHOULD);
+          query = builder.build();
+        } else if (color.equals("neither")) {
+          if (sparse) {
+            BooleanQuery.Builder builder = new BooleanQuery.Builder();
+            builder.add(DoublePoint.newRangeQuery("green_pickup_latitude", 40.75, 40.9), BooleanClause.Occur.SHOULD);
+            builder.add(DoublePoint.newRangeQuery("yellow_pickup_latitude", 40.75, 40.9), BooleanClause.Occur.SHOULD);
+            query = builder.build();
+          } else {
+            query = DoublePoint.newRangeQuery("pickup_latitude", 40.75, 40.9);
+          }
+        } else {
+          query = new TermQuery(new Term("cab_color", color));
+        }
         Sort sort;
-        if (random.nextBoolean()) {
+        if (sortField != null && random.nextBoolean()) {
           sort = new Sort(new SortField(sortField, SortField.Type.DOUBLE));
         } else {
           sort = null;
@@ -104,7 +149,11 @@ public class SearchTaxis {
         long t1 = System.nanoTime();
 
         synchronized(printLock) {
-          System.out.println("T" + threadID + " " + color + " sort=" + sort + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
+          System.out.println("T" + threadID + " " + query + " sort=" + sort + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
+          for(ScoreDoc hit : hits.scoreDocs) {
+            Document doc = searcher.doc(hit.doc);
+            System.out.println("  " + hit.doc + " " + hit.score + ": " + doc.getFields().size() + " fields");
+          }
         }
       }
     }
@@ -147,7 +196,7 @@ public class SearchTaxis {
 
     Thread[] threads = new Thread[2];
     for(int i=0;i<threads.length;i++) {
-      threads[i] = new SearchThread(i, sparse, searcher, 100, printLock, random);
+      threads[i] = new SearchThread(i, sparse, searcher, 200, printLock, new Random(random.nextLong()));
       threads[i].start();
     }
 

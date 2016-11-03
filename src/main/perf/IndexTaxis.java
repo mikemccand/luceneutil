@@ -401,12 +401,12 @@ public class IndexTaxis {
               case "rate_code_id":
               case "store_and_fwd_flag": {
                 if (sparse) {
-                  reuseFields[0][i] = new StringField("green_" + fieldName, "", Field.Store.NO);
+                  reuseFields[0][i] = new StringField("green_" + fieldName, "", Field.Store.YES);
                   reuseFields2[0][i] = new SortedSetDocValuesField("green_" + fieldName, new BytesRef());
-                  reuseFields[1][i] = new StringField("yellow_" + fieldName, "", Field.Store.NO);
+                  reuseFields[1][i] = new StringField("yellow_" + fieldName, "", Field.Store.YES);
                   reuseFields2[1][i] = new SortedSetDocValuesField("yellow_" + fieldName, new BytesRef());
                 } else {
-                  reuseFields[0][i] = new StringField(fieldName, "", Field.Store.NO);
+                  reuseFields[0][i] = new StringField(fieldName, "", Field.Store.YES);
                   reuseFields2[0][i] = new SortedSetDocValuesField(fieldName, new BytesRef());
                   reuseFields[1][i] = reuseFields[0][i];
                   reuseFields2[1][i] = reuseFields2[0][i];

@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -41,6 +42,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.SortedSetDocValuesField;
 import org.apache.lucene.document.StringField;
@@ -49,6 +51,8 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
@@ -197,7 +201,7 @@ public class IndexTaxis {
 
   /** Index all documents contained in one chunk */
   static void indexOneChunk(SimpleDateFormat dateParser, ParsePosition parsePosition,
-                            Field[][] reuseFields, Field[][] reuseFields2, Document reuseDoc, Field cabColorField, byte[] chunk,
+                            Field[][] reuseFields, Field[][] reuseFields2, Document reuseDoc, Field cabColorField, Field cabColorDVField, byte[] chunk,
                             IndexWriter w, AtomicInteger docCounter, AtomicLong bytesCounter) throws IOException {
     //System.out.println("CHUNK: " + chunk.length + " bytes");
     String s = new String(chunk, 0, chunk.length);
@@ -214,6 +218,7 @@ public class IndexTaxis {
             private boolean nextSet;
             private int lastLineStart;
             private int chunkDocCount;
+            private final BytesRef colorBytesRef = new BytesRef(1);
 
             @Override
             public boolean hasNext() {
@@ -246,6 +251,9 @@ public class IndexTaxis {
               }
               cabColorField.setStringValue(Character.toString(color));
               reuseDoc.add(cabColorField);
+              colorBytesRef.bytes[0] = (byte) color;
+              cabColorDVField.setBytesValue(colorBytesRef);
+              reuseDoc.add(cabColorDVField);
               int colorFieldIndex;
               if (color == 'g') {
                 colorFieldIndex = 0;
@@ -299,6 +307,7 @@ public class IndexTaxis {
     int threadCount = Integer.parseInt(args[1]);
     Path docsPath = Paths.get(args[2]);
     String sparseOrNot = args[3];
+    String sortOrNot = args[4];
 
     final boolean sparse;
     if (sparseOrNot.equals("sparse")) {
@@ -306,7 +315,16 @@ public class IndexTaxis {
     } else if (sparseOrNot.equals("nonsparse")) {
       sparse = false;
     } else {
-      throw new IllegalArgumentException("expected 'sparse' or 'nonsparse' but saw " + sparseOrNot);
+      throw new IllegalArgumentException("sparseOrNot: expected 'sparse' or 'nonsparse' but saw " + sparseOrNot);
+    }
+
+    final boolean sorted;
+    if (sortOrNot.equals("True")) {
+      sorted = true;
+    } else if (sortOrNot.equals("False")) {
+      sorted = false;
+    } else {
+      throw new IllegalArgumentException("sortOrNot: expected 'true' or 'false' but saw " + sortOrNot);
     }
 
     IndexWriterConfig iwc = new IndexWriterConfig();
@@ -324,6 +342,10 @@ public class IndexTaxis {
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     } else {
       iwc.setRAMBufferSizeMB(1024.);
+    }
+
+    if (sorted) {
+      iwc.setIndexSort(new Sort(new SortField("cab_color", SortField.Type.STRING)));
     }
 
     final IndexWriter w = new IndexWriter(dir, iwc);
@@ -357,6 +379,7 @@ public class IndexTaxis {
 
     final AtomicInteger docCounter = new AtomicInteger();
     final AtomicLong bytesCounter = new AtomicLong();
+    final AtomicBoolean failed = new AtomicBoolean();
 
     startNS = System.nanoTime();    
 
@@ -368,6 +391,7 @@ public class IndexTaxis {
             try {
               _run();
             } catch (Exception e) {
+              failed.set(true);
               throw new RuntimeException(e);
             }
           }
@@ -394,7 +418,6 @@ public class IndexTaxis {
             for(int i=0;i<fields.length;i++) {
               String fieldName = fields[i];
               switch(fieldName) {
-              case "cab_color":
               case "vendor_id":
               case "payment_type":
               case "trip_type":
@@ -402,12 +425,12 @@ public class IndexTaxis {
               case "store_and_fwd_flag": {
                 if (sparse) {
                   reuseFields[0][i] = new StringField("green_" + fieldName, "", Field.Store.YES);
-                  reuseFields2[0][i] = new SortedSetDocValuesField("green_" + fieldName, new BytesRef());
+                  reuseFields2[0][i] = new SortedDocValuesField("green_" + fieldName, new BytesRef());
                   reuseFields[1][i] = new StringField("yellow_" + fieldName, "", Field.Store.YES);
-                  reuseFields2[1][i] = new SortedSetDocValuesField("yellow_" + fieldName, new BytesRef());
+                  reuseFields2[1][i] = new SortedDocValuesField("yellow_" + fieldName, new BytesRef());
                 } else {
                   reuseFields[0][i] = new StringField(fieldName, "", Field.Store.YES);
-                  reuseFields2[0][i] = new SortedSetDocValuesField(fieldName, new BytesRef());
+                  reuseFields2[0][i] = new SortedDocValuesField(fieldName, new BytesRef());
                   reuseFields[1][i] = reuseFields[0][i];
                   reuseFields2[1][i] = reuseFields2[0][i];
                 }
@@ -475,6 +498,7 @@ public class IndexTaxis {
             }
 
             Field cabColorField = new StringField("cab_color", "", Field.Store.NO);
+            Field cabColorDVField = new SortedDocValuesField("cab_color", new BytesRef());
             Document reuseDoc = new Document();
             
             while (true) {
@@ -482,7 +506,7 @@ public class IndexTaxis {
               if (chunk == null) {
                 break;
               }
-              indexOneChunk(dateParser, parsePosition, reuseFields, reuseFields2, reuseDoc, cabColorField, chunk, w, docCounter, bytesCounter);
+              indexOneChunk(dateParser, parsePosition, reuseFields, reuseFields2, reuseDoc, cabColorField, cabColorDVField, chunk, w, docCounter, bytesCounter);
             }
           }
         };
@@ -501,5 +525,9 @@ public class IndexTaxis {
       w.rollback();
     }
     docs.close();
+
+    if (failed.get()) {
+      throw new RuntimeException("indexing failed");
+    }
   }
 }

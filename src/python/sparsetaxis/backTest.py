@@ -174,6 +174,6 @@ for timestamp in getTimesToTest():
 
   run('git checkout %s > /dev/null 2>&1' % hash)
   run('git clean -xfd')
-  run('python3 -u /l/util/src/python/sparsetaxis/runBenchmark.py -rootDir /l/sparseTaxis -logDir %s -luceneMaster /l/sparseTaxis/sparseTaxis/lucene.master' % logDir)
+  run('python3 -u /l/util/src/python/sparsetaxis/runBenchmark.py -rootDir /l/sparseTaxis -logDir %s -luceneMaster /l/sparseTaxis/sparseTaxis/lucene.master -luceneMaster70 /l/trunk' % logDir)
   run('python3 -u /l/util/src/python/sparsetaxis/writeGraph.py')
 

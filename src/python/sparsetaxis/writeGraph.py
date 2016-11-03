@@ -4,6 +4,7 @@ import os
 import re
 
 CHANGES = [
+  ('2016-08-03', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
   ('2016-09-22', 'LUCENE-7407: Switch doc values to iterator API'),
   ('2016-10-04', 'LUCENE-7474: Doc values writers should use sparse encoding'),
   ('2016-10-17', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
@@ -277,6 +278,19 @@ html * {
 <body>
 ''')
 
+    f.write('''
+<style type="text/css">
+#summary {
+  position: absolute;
+  left: 10px;
+  top: %3%%;
+}
+</style>
+<div id="summary" style="height:17%%; width:95%%">
+This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a> in both a sparse and dense way.  Green taxi rides are ~11.5% sparse and yellow are ~88.5% sparse.
+</div>
+''')
+
     writeOneGraph(f, indexSizeData, 'index_size', 'Index size (GB)')
     writeOneGraph(f, indexDPSData, 'index_throughput', 'Indexing rate 1 thread (K docs/sec)')
     writeOneGraph(f, docsPerMBData, 'index_docs_per_mb', 'Docs per MB RAM at flush (K docs)')
@@ -285,15 +299,15 @@ html * {
     writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (sec)')
     writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
     writeOneGraph(f, searchSortQPSData, 'search_sort_qps', 'TermQuery, sort by longitude (QPS)',
-                  ('Date', 'Green cab (non-sparse)', 'Green cab (sparse)', 'Yellow cab (non-sparse)', 'Yellow cab (sparse)'))
+                  ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Yellow cab (dense)', 'Yellow cab (sparse)'))
     writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery (QPS)',
-                  ('Date', 'Green cab (non-sparse)', 'Green cab (sparse)', 'Yellow cab (non-sparse)', 'Yellow cab (sparse)'))
+                  ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Yellow cab (dense)', 'Yellow cab (sparse)'))
     writeOneGraph(f, searchBQQPSData, 'search_bq_qps', 'BooleanQuery SHOULD + SHOULD (QPS)')
     writeOneGraph(f, searchRangeQPSData, 'search_range_qps', 'Pickup latitude range (QPS)')
 
     f.write('</body>\n</html>\n')
 
-topPct = 5
+topPct = 20
 
 def getLabel(label):
   if label < 26:
@@ -315,13 +329,13 @@ def writeOneGraph(f, data, id, title, headers=None):
 </style>
 ''' % (id, topPct))
 
-  topPct += 75
+  topPct += 55
 
   if headers is None:
-    headers = ['Date', 'Non-sparse', 'Sparse']
+    headers = ['Date', 'Dense', 'Sparse']
 
   f.write('''
-<div id="%s" style="height:70%%; width:95%%"></div>
+<div id="%s" style="height:50%%; width:95%%"></div>
 <script type="text/javascript">
   g = new Dygraph(
 
@@ -340,9 +354,9 @@ def writeOneGraph(f, data, id, title, headers=None):
         if maxValue is None or x > maxValue:
           maxValue = x
 
-  if id in ('search_qps', 'search_sort_qps'):
+  if True or id in ('search_qps', 'search_sort_qps'):
     # fix the value axis so the legend doesn't obscure the series:
-    otherOptions = '    "valueRange": [0.0, %s],' % int(maxValue+3)
+    otherOptions = '    "valueRange": [0.0, %s],' % int(1.30*maxValue)
   else:
     otherOptions = ''
   

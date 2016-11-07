@@ -218,7 +218,7 @@ public class IndexTaxis {
             private boolean nextSet;
             private int lastLineStart;
             private int chunkDocCount;
-            private final BytesRef colorBytesRef = new BytesRef(1);
+            private final BytesRef colorBytesRef = new BytesRef(new byte[1]);
 
             @Override
             public boolean hasNext() {

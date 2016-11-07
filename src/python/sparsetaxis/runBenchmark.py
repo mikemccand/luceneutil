@@ -9,6 +9,7 @@ import argparse
 import urllib.request
 
 # TODO
+#  - fix queries to take advantage of the sorted index!  lucene does not do this auto-magically for you, today...
 #  - back test
 #  - nightly
 #    - git pull lucene, luceneutil
@@ -78,7 +79,12 @@ def runIndexing(args, cpuCount, sparseOrNot, sortOrNot):
 
   docsSource = '%s/data/20M.subset.nyctaxis.csv.blocks' % rootDir
 
-  indexPath = '%s/indices/index.%dthreads.%s' % (rootDir, cpuCount, sparseOrNot)
+  if sortOrNot:
+    sortDesc = '.sorted'
+  else:
+    sortDesc = ''
+
+  indexPath = '%s/indices/index.%dthreads.%s%s' % (rootDir, cpuCount, sparseOrNot, sortDesc)
   if os.path.exists(indexPath):
     print('  remove old index at %s' % indexPath)
     shutil.rmtree(indexPath)
@@ -86,7 +92,7 @@ def runIndexing(args, cpuCount, sparseOrNot, sortOrNot):
   command = '%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.IndexTaxis %s %d %s %s %s' % \
             (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, indexPath, cpuCount, docsSource, sparseOrNot, sortOrNot)
 
-  logFile = '%s/index.%dthreads.%s.log' % (logDir, cpuCount, sparseOrNot)
+  logFile = '%s/index.%dthreads.%s%s.log' % (logDir, cpuCount, sparseOrNot, sortDesc)
 
   warm(docsSource)
   
@@ -142,7 +148,6 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('-rootDir', help='directory where documents source files and indices are stored', default='.')
   parser.add_argument('-luceneMaster', help='directory where lucene\'s master is cloned', default='./lucene.master')
-  parser.add_argument('-luceneMaster70', help='directory where lucene\'s master, with 7.0 codec, is cloned', default='./lucene.master')
   parser.add_argument('-logDir', help='where to write all indexing and searching logs')
   args = parser.parse_args()
   args.rootDir = os.path.abspath(args.rootDir)
@@ -177,31 +182,16 @@ def main():
     print('\nCompile lucene core...')
     run('ant clean jar', '%s/antclean.jar.log' % logDir)
 
-    if args.luceneMaster70 != args.luceneMaster:
-      if not os.path.exists(args.luceneMaster70):
-        raise RuntimeError('%s default 7.0 lucene master clone does not exist; please specify -luceneMaster70' % args.luceneMaster70)
-      os.chdir('%s/lucene/core' % args.luceneMaster70)
-      luceneRev = os.popen('git rev-parse HEAD').read().strip()
-      print('Lucene 7.0 git hash: %s' % luceneRev)
-      results.append(luceneRev)
-      print('\nCompile lucene core...')
-      run('ant clean jar', '%s/antclean70.jar.log' % logDir)
-
-    os.chdir('%s/lucene/backward-codecs' % args.luceneMaster70)
-    print('\nCompile lucene backward-codecs...')
-    run('ant clean jar', '%s/antclean70.backward-codecs.jar.log' % logDir)
-      
     os.chdir(cwd)
 
   print('\nCompile java benchmark sources...')
-  run('javac -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar %s/../../main/perf/IndexTaxis.java %s/../../main/perf/SearchTaxis.java' % \
-      (args.luceneMaster, luceneUtilPythonPath, luceneUtilPythonPath))
-  run('javac -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar %s/../../main/perf/DiskUsage.java' % \
-      (args.luceneMaster70, luceneUtilPythonPath))
 
-  for sparse, sort in (('nonsparse', False),
+  run('javac -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar %s/../../main/perf/IndexTaxis.java %s/../../main/perf/SearchTaxis.java %s/../../main/perf/DiskUsage.java' % \
+      (args.luceneMaster, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))
+
+  for sparse, sort in (('sparse', True),
                        ('sparse', False),
-                       ('sparse', True)):
+                       ('nonsparse', False)):
     if sort:
       desc = '%s-sorted' % sparse
     else:
@@ -226,15 +216,15 @@ def main():
       extra = ' -Djava.io.tmpdir=/mnt/ramdisk'
     else:
       extra = ''
-    run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/lucene/build/backward-codecs/lucene-backward-codecs-7.0.0-SNAPSHOT.jar:%s/../../main%s perf.DiskUsage %s' % \
-        (JAVA_CMD, args.luceneMaster70, args.luceneMaster70, luceneUtilPythonPath, extra, indexPath), '%s/diskUsage%s.log' % (logDir, desc))
+    run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main%s perf.DiskUsage %s' % \
+        (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, extra, indexPath), '%s/diskUsage%s.log' % (logDir, desc))
     sec = time.time() - t0
     print('  took %.1f sec' % sec)
     results.append(sec)
 
     print('\nSearch %s...' % desc)
-    run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.SearchTaxis %s nonsparse' % \
-        (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, indexPath), '%s/search%s.log' % (logDir, desc))
+    run('%s -cp %s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/../../main perf.SearchTaxis %s %s' % \
+        (JAVA_CMD, args.luceneMaster, luceneUtilPythonPath, indexPath, sparse), '%s/search%s.log' % (logDir, desc))
 
   open('%s/results.pk' % logDir, 'wb').write(pickle.dumps(results))
   

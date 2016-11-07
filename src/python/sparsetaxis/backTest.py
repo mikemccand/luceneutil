@@ -3,6 +3,7 @@ import mailbox
 import shutil
 import datetime
 import os
+import writeGraph
 
 TAXIS_LOGS_DIR = '/l/logs.nightly/taxis'
 
@@ -92,28 +93,32 @@ def findCommitsToTest():
         # parse commit time, and convert to UTC
         t = datetime.datetime.strptime(commitDate, '%a %b %d %H:%M:%S %Y %z')
         t = datetime.datetime(*t.utctimetuple()[:6])
-        masterCommitsAndTimes.append((t, hash))
+        masterCommitsAndTimes.append((t, hash, ''.join(comments).rstrip()))
 
       if line == '':
         break
 
+  # This was pushed along with another change but we want to separately test them if possible:
+  masterCommitsAndTimes.append((datetime.datetime(2016, 8, 3, 12, 34, 6),
+                                '234ea3ef8954325923f4e85c5c0aa72c3bb15baa',
+                                'LUCENE-7403: Use blocks of exactly maxPointsInLeafNodes values in the 1D case.'))
+
   print('found %d commit + times vs %d commits only' % (len(masterCommitsAndTimes), len(masterCommits)))
   
   masterCommitsAndTimes.sort(reverse=True)
-  return [(y, x) for x, y in masterCommitsAndTimes]
+  return [(y, x, z) for x, y, z in masterCommitsAndTimes]
 
 commits = findCommitsToTest()
 
 upto = 0
 timeToCommitIndex = {}
 
-for upto, (hash, commitTimeStamp) in enumerate(commits):
+for upto, (hash, commitTimeStamp, comments) in enumerate(commits):
 
   timestamp = datetime.datetime(*commitTimeStamp.utctimetuple()[:6])
 
-  print('%s -> %s' % (timestamp, upto))
+  print('%s -> %s, %s\n%s' % (timestamp, upto, hash, comments))
   timeToCommitIndex[timestamp] = upto
-
 
 timesAlreadyDone = set()
 for name in os.listdir(TAXIS_LOGS_DIR):
@@ -131,11 +136,19 @@ def getTimesToTest():
   gaps, and eventually all commits in the range.
   """
 
+  # First, make sure we test all explicitly annotated commits in the graph:
+  for timestampString, desc in writeGraph.CHANGES:
+    t = datetime.datetime.strptime(timestampString, '%Y-%m-%d %H:%M:%S')
+    if t not in timeToCommitIndex:
+      raise RuntimeError('timestamp %s is missing from commits but is in CHANGES: %s' % (t, desc))
+    if t not in timesAlreadyDone:
+      yield t
+
   while True:
 
     totalMaxMinTimestamp = None
     totalMaxMinDistance = None
-    for hash, timestamp in commits:
+    for hash, timestamp, comment in commits:
 
       if timestamp in timesAlreadyDone:
         continue
@@ -159,7 +172,7 @@ def getTimesToTest():
 
 for timestamp in getTimesToTest():
 
-  hash, commitTimeStamp = commits[timeToCommitIndex[timestamp]]
+  hash, commitTimeStamp, comment = commits[timeToCommitIndex[timestamp]]
 
   utc = commitTimeStamp.utctimetuple()
 
@@ -174,6 +187,19 @@ for timestamp in getTimesToTest():
 
   run('git checkout %s > /dev/null 2>&1' % hash)
   run('git clean -xfd')
-  run('python3 -u /l/util/src/python/sparsetaxis/runBenchmark.py -rootDir /l/sparseTaxis -logDir %s -luceneMaster /l/sparseTaxis/sparseTaxis/lucene.master -luceneMaster70 /l/trunk' % logDir)
+
+  luceneMaster = '/l/sparseTaxis/sparseTaxis/lucene.master'
+
+  if os.path.exists('%s/lucene/core/src/java/org/apache/lucene/codecs/lucene70' % luceneMaster):
+    print('  use DiskUsage.70.java')
+    shutil.copy('/l/util/src/main/perf/DiskUsage.70.java', '/l/util/src/main/perf/DiskUsage.java')
+  elif 'DocIdSetIterator' in open('%s/lucene/core/src/java/org/apache/lucene/index/NumericDocValues.java' % luceneMaster).read():
+    print('  use DiskUsage.62.java')
+    shutil.copy('/l/util/src/main/perf/DiskUsage.62.java', '/l/util/src/main/perf/DiskUsage.java')
+  else:
+    print('  use DiskUsage.62.pre-iterators.java')
+    shutil.copy('/l/util/src/main/perf/DiskUsage.62.pre-iterators.java', '/l/util/src/main/perf/DiskUsage.java')
+  
+  run('python3 -u /l/util/src/python/sparsetaxis/runBenchmark.py -rootDir /l/sparseTaxis -logDir %s -luceneMaster %s' % (logDir, luceneMaster))
   run('python3 -u /l/util/src/python/sparsetaxis/writeGraph.py')
 

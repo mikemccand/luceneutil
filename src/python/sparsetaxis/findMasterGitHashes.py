@@ -21,7 +21,7 @@ masterCommits = set()
 
 for month in 8, 9, 10, 11:
 
-  m = mailbox.mbox('2016%02d.mbox' % month)
+  m = mailbox.mbox('/lucenedata/apache-lucene-commits-mbox/2016%02d.mbox' % month)
 
   for message in m:
     p = message.get_payload()
@@ -82,6 +82,7 @@ with os.popen('git log --format=fuller --parents', 'r') as f:
       t = datetime.datetime.strptime(commitDate, '%a %b %d %H:%M:%S %Y %z')
       t = datetime.datetime(*t.utctimetuple()[:6])
       masterCommitsAndTimes.append((t, hash))
+      print('hash %s\n  %s' % (hash, '\n'.join(comments)))
 
     if line == '':
       break

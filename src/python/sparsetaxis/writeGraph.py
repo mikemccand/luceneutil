@@ -2,16 +2,19 @@ import datetime
 import pickle
 import os
 import re
+import pysftp
 
 CHANGES = [
-  ('2016-08-03', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
-  ('2016-09-22', 'LUCENE-7407: Switch doc values to iterator API'),
-  ('2016-10-04', 'LUCENE-7474: Doc values writers should use sparse encoding'),
-  ('2016-10-17', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
-  ('2016-10-18', 'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
+  ('2016-08-03 12:34:06', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
+  ('2016-08-03 12:35:48', 'LUCENE-7399: Speed up flush of points'),
+  ('2016-08-12 17:54:33', 'LUCENE-7409: improve MockDirectoryWrapper\'s IndexInput to detect if a clone is being used after its parent was closed'),
+  ('2016-09-21 13:41:41', 'LUCENE-7407: Switch doc values to iterator API'),
+  ('2016-10-04 17:00:53', 'LUCENE-7474: Doc values writers should use sparse encoding'),
+  ('2016-10-17 07:28:20', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
+  ('2016-10-18 13:05:50', 'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
   ('2016-10-24 08:51:23', 'LUCENE-7462: Give doc values an advanceExact method'),
-  ('2016-10-31', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
-  ('2016-11-02', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
+  ('2016-10-31 00:04:37', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
+  ('2016-11-02 10:48:29', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
@@ -119,6 +122,51 @@ def extractSearchStats(searchLog):
   # heap, green-no-sort, green-longitude-sort, yellow-no-sort, yellow-longitude-sort
   return tuple(allResults)
 
+def extractDiskUsageStats(logFileName):
+
+  with open(logFileName, 'r') as f:
+    # skip "analyzing..." header
+    f.readline()
+    # skip "retrieving per-field..." header
+    f.readline()
+    # skip total_disk
+    f.readline()
+    # skip num docs
+    line = f.readline()
+    if not line.startswith('num docs:'):
+      raise RuntimeError('unexpected line from disk usage log: %s' % line)
+
+    mbByPart = {}
+
+    while True:
+      line = f.readline()
+      line = line.strip()
+      if line == '':
+        break
+      what, size = line.split(':')
+      mb = int(size.strip().replace(',', ''))/1024./1024.
+      mbByPart[what] = mb
+
+    while True:
+      line = f.readline()
+      if '====' in line:
+        break
+
+    mbByField = {}
+
+    while True:
+      line = f.readline()
+      if line == '':
+        break
+      line = line.strip()
+      tup = line.split()
+      fieldName = tup[0]
+      totMB = int(tup[1].replace(',', ''))/1024./1024.
+      mbByField[fieldName] = totMB
+
+    return mbByPart, mbByField
+      
+
 def toGB(x):
   return x/1024./1024./1024.
 
@@ -145,6 +193,8 @@ def main():
   l.sort()
 
   indexSizeData = []
+  indexSizePartsData = []
+  indexSizePerFieldData = []
   indexDPSData = []
   checkIndexTimeData = []
   flushTimesData = []
@@ -162,47 +212,90 @@ def main():
       results = pickle.loads(open('/l/logs.nightly/taxis/%s/results.pk' % fileName, 'rb').read())
 
       # load results written directly by the benchmarker:
-      luceneRev, nonSparseDiskBytes, sparseDiskBytes, nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec = results
+      luceneRev, nonSparseDiskBytes, nonSparseCheckIndexTimeSec, nonSparseDiskUsageTimeSec, \
+                 sparseDiskBytes, sparseCheckIndexTimeSec, sparseDiskUsageTimeSec, \
+                 sparseSortedDiskBytes, sparseSortedCheckIndexTimeSec, sparseSortedDiskUsageTimeSec, \
+                 = results
 
       gitHashes.append(luceneRev)
 
       # parse logs for more details results:
       logResultsFileName = '/l/logs.nightly/taxis/%s/logResults.pk' % fileName
       if os.path.exists(logResultsFileName):
-        sparseIndexStats, nonSparseIndexStats, sparseSearchStats, nonSparseSearchStats = pickle.loads(open(logResultsFileName, 'rb').read())
+        sparseIndexStats, nonSparseIndexStats, sparseSortedIndexStats, \
+                          sparseSearchStats, nonSparseSearchStats, sparseSortedSearchStats, \
+                          sparseDiskUsageStats, nonSparseDiskUsageStats, sparseSortedDiskUsageStats, \
+                          = pickle.loads(open(logResultsFileName, 'rb').read())
       else:
         sparseIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.sparse.log' % fileName)
         nonSparseIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.nonsparse.log' % fileName)
+        sparseSortedIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.sparse.sorted.log' % fileName)
 
-        sparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchSparse.log' % fileName)
-        nonSparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchNonSparse.log' % fileName)
-        open(logResultsFileName, 'wb').write(pickle.dumps((sparseIndexStats, nonSparseIndexStats, sparseSearchStats, nonSparseSearchStats)))
+        sparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.log' % fileName)
+        nonSparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.log' % fileName)
+        sparseSortedSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.log' % fileName)
+
+        sparseDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagesparse.log' % fileName)
+        nonSparseDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagenonsparse.log' % fileName)
+        sparseSortedDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagesparse-sorted.log' % fileName)
+
+        open(logResultsFileName, 'wb').write(pickle.dumps((sparseIndexStats, nonSparseIndexStats, sparseSortedIndexStats,
+                                                           sparseSearchStats, nonSparseSearchStats, sparseSortedSearchStats,
+                                                           sparseDiskUsageStats, nonSparseDiskUsageStats, sparseSortedDiskUsageStats)))
                                              
       m = reDateTime.match(fileName)
 
-      indexSizeData.append((m.groups(), toGB(nonSparseDiskBytes), toGB(sparseDiskBytes)))
-      indexDPSData.append((m.groups(), nonSparseIndexStats[0]/1000., sparseIndexStats[0]/1000.))
-      checkIndexTimeData.append((m.groups(), nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec))
-      flushTimesData.append((m.groups(), nonSparseIndexStats[2], sparseIndexStats[2]))
-      searcherHeapMBData.append((m.groups(), toMB(nonSparseSearchStats[0]), toMB(sparseSearchStats[0])))
+      x = [m.groups()]
+      #for part in ('stored fields', 'term vectors', 'norms', 'docvalues', 'postings', 'prox', 'points', 'terms'):
+      for part in ('docvalues', 'points'):
+        x.append(nonSparseDiskUsageStats[0][part])
+        x.append(sparseDiskUsageStats[0][part])
+        x.append(sparseSortedDiskUsageStats[0][part])
+      indexSizePartsData.append(tuple(x))
+
+      x = [m.groups()]
+      for fieldName in ('dropoff_latitude', 'fare_amount', 'dropoff_datetime'):
+        for stats in (nonSparseDiskUsageStats, sparseDiskUsageStats, sparseSortedDiskUsageStats):
+          if fieldName in stats[1]:
+            mb = stats[1][fieldName]
+          else:
+            mb = stats[1]['green_' + fieldName] + stats[1]['yellow_' + fieldName]
+          x.append(mb)
+      indexSizePerFieldData.append(tuple(x))
+
+      indexSizeData.append((m.groups(), toGB(nonSparseDiskBytes), toGB(sparseDiskBytes), toGB(sparseSortedDiskBytes)))
+      indexDPSData.append((m.groups(), nonSparseIndexStats[0]/1000., sparseIndexStats[0]/1000., sparseSortedIndexStats[0]/1000.))
+      checkIndexTimeData.append((m.groups(), nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec, sparseSortedCheckIndexTimeSec))
+      flushTimesData.append((m.groups(), nonSparseIndexStats[2], sparseIndexStats[2], sparseSortedIndexStats[2]))
+      docsPerMBData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000., sparseSortedIndexStats[3]/1000.))
+      dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
+
+      searcherHeapMBData.append((m.groups(),
+                                 toMB(nonSparseSearchStats[0]),
+                                 toMB(sparseSearchStats[0]),
+                                 toMB(sparseSortedSearchStats[0])))
       searchSortQPSData.append((m.groups(),
                                 msecToQPS(nonSparseSearchStats[2]),
                                 msecToQPS(sparseSearchStats[2]),
+                                msecToQPS(sparseSortedSearchStats[2]),
                                 msecToQPS(nonSparseSearchStats[4]),
-                                msecToQPS(sparseSearchStats[4])))
+                                msecToQPS(sparseSearchStats[4]),
+                                msecToQPS(sparseSortedSearchStats[4])))
       searchQPSData.append((m.groups(),
                             msecToQPS(nonSparseSearchStats[1]),
                             msecToQPS(sparseSearchStats[1]),
+                            msecToQPS(sparseSortedSearchStats[1]),
                             msecToQPS(nonSparseSearchStats[3]),
-                            msecToQPS(sparseSearchStats[3])))
+                            msecToQPS(sparseSearchStats[3]),
+                            msecToQPS(sparseSortedSearchStats[3])));
       searchBQQPSData.append((m.groups(),
                               msecToQPS(nonSparseSearchStats[5]),
-                              msecToQPS(sparseSearchStats[5])))
+                              msecToQPS(sparseSearchStats[5]),
+                              msecToQPS(sparseSortedSearchStats[5])))
       searchRangeQPSData.append((m.groups(),
                                  msecToQPS(nonSparseSearchStats[6]),
-                                 msecToQPS(sparseSearchStats[6])))
-      docsPerMBData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000.))
-      dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0]))
+                                 msecToQPS(sparseSearchStats[6]),
+                                 msecToQPS(sparseSortedSearchStats[6])))
 
       allResults.append((m.groups(),
                          nonSparseDiskBytes,
@@ -287,11 +380,18 @@ html * {
 }
 </style>
 <div id="summary" style="height:17%%; width:95%%">
-This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a> in both a sparse and dense way.  Green taxi rides are ~11.5% sparse and yellow are ~88.5% sparse.
+This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a>, in both a sparse and dense way.  Green taxi rides make up ~11.5% of the 20 M documents, and yellow are ~88.5%.  See <a href="">this blog post</a> for details.<p>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details; click on a data point to see its source code changes.
 </div>
 ''')
 
     writeOneGraph(f, indexSizeData, 'index_size', 'Index size (GB)')
+    writeOneGraph(f, indexSizePartsData, 'index_size_parts', 'Index size by part (MB)',
+                  ('Date', 'Doc values (dense)', 'Doc values (sparse)', 'Doc values (sparse-sorted)',
+                   'Points (dense)', 'Points (sparse)', 'Points (sparse-sorted)'))
+    writeOneGraph(f, indexSizePerFieldData, 'index_size_by_field', 'Index size by field (MB)',
+                  ('Date', 'Dropoff latitude (dense)', 'Dropoff latitude (sparse)', 'Dropoff latitude (sparse-sorted)',
+                   'Fare amount (dense)', 'Fare amount (sparse)', 'Fare amount (sparse-sorted)',
+                   'Dropoff datetime (dense)', 'Dropoff datetime (sparse)', 'Dropoff datetime (sparse-sorted)'))
     writeOneGraph(f, indexDPSData, 'index_throughput', 'Indexing rate 1 thread (K docs/sec)')
     writeOneGraph(f, docsPerMBData, 'index_docs_per_mb', 'Docs per MB RAM at flush (K docs)')
     writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (sec)')
@@ -299,13 +399,17 @@ This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov
     writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (sec)')
     writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
     writeOneGraph(f, searchSortQPSData, 'search_sort_qps', 'TermQuery, sort by longitude (QPS)',
-                  ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Yellow cab (dense)', 'Yellow cab (sparse)'))
+                  ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Green cab (sparse-sorted)', 'Yellow cab (dense)', 'Yellow cab (sparse)', 'Yellow cab (sparse-sorted)'))
     writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery (QPS)',
-                  ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Yellow cab (dense)', 'Yellow cab (sparse)'))
+                  ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Green cab (sparse-sorted)', 'Yellow cab (dense)', 'Yellow cab (sparse)', 'Yellow cab (sparse-sorted)'))
     writeOneGraph(f, searchBQQPSData, 'search_bq_qps', 'BooleanQuery SHOULD + SHOULD (QPS)')
     writeOneGraph(f, searchRangeQPSData, 'search_range_qps', 'Pickup latitude range (QPS)')
 
     f.write('</body>\n</html>\n')
+
+  with pysftp.Connection('home.apache.org', username='mikemccand') as c:
+    with c.cd('public_html/lucenebench'):
+      c.put('/x/tmp/sparseResults.html', 'sparseResults.html')
 
 topPct = 20
 
@@ -332,7 +436,7 @@ def writeOneGraph(f, data, id, title, headers=None):
   topPct += 55
 
   if headers is None:
-    headers = ['Date', 'Dense', 'Sparse']
+    headers = ('Date', 'Dense', 'Sparse', 'Sparse (sorted)')
 
   f.write('''
 <div id="%s" style="height:50%%; width:95%%"></div>
@@ -371,11 +475,11 @@ def writeOneGraph(f, data, id, title, headers=None):
     "pointClickCallback": onPointClick,
     //"labelsDivWidth": 500,
     "labelsSeparateLines": true,
-    "pointSize": 3,
+    "pointSize": 2,
     "gridLineColor": "#BBB",
     "colorSaturation": 0.5,
-    "highlightCircleSize": 5,
-    "strokeWidth": 2.0,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
     "connectSeparatedPoints": true,
     "drawPoints": true,
     "includeZero": true,
@@ -401,6 +505,7 @@ def writeOneGraph(f, data, id, title, headers=None):
   f.write(']);});\n')
 
   f.write('</script>\n')
-
+  
 if __name__ == '__main__':
   main()
+  #print(extractIndexStats('/l/logs.nightly/taxis/2016.11.02.21.06.27/index.1threads.sparse.sorted.log'))

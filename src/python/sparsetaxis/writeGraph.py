@@ -5,8 +5,8 @@ import re
 import pysftp
 
 CHANGES = [
-  ('2016-07-07 08:02:29', 'LUCENE-7369: Similarity.coord and BooleanQuery.disableCoord are removed'),
   ('2016-07-04 07:13:41', 'LUCENE-7351: Doc id compression for dimensional points'),
+  ('2016-07-07 08:02:29', 'LUCENE-7369: Similarity.coord and BooleanQuery.disableCoord are removed'),
   ('2016-07-12 15:57:56', 'LUCENE-7371: Better compression of dimensional points values'),
   ('2016-07-29 08:23:54', 'LUCENE-7396: speed up flush of points'),
   ('2016-08-03 12:34:06', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
@@ -24,13 +24,15 @@ CHANGES = [
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
 reFlushTime = re.compile(r': flush time ([.0-9]+) msec')
-reDocsPerMB = re.compile('newFlushedSize.*? docs/MB=([.,0-9]+)$')
+reFlushPostings = re.compile(r'flush postings as segment .*? numDocs=(\d+)$')
+reDocsPerMB = re.compile('ramUsed=([.,0-9]+) MB newFlushedSize.*? docs/MB=([.,0-9]+)$')
 reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
 
 def extractIndexStats(indexLog):
   mergeTimesSec = {}
   flushTimeSec = 0
-  docsPerMB = 0
+  docsPerMBRAM = 0
+  docsPerMBDisk = 0
   flushCount = 0
   lastDPSMatch = None
   with open(indexLog, 'r', encoding='utf-8') as f:
@@ -52,15 +54,20 @@ def extractIndexStats(indexLog):
       m = reFlushTime.search(line)
       if m is not None:
         flushTimeSec += float(m.group(1))/1000.
+      m = reFlushPostings.search(line)
+      if m is not None:
+        flushDocCount = int(m.group(1))
       m = reDocsPerMB.search(line)
       if m is not None:
-        docsPerMB += float(m.group(1).replace(',', ''))
+        ramUsed = float(m.group(1).replace(',', ''))
+        docsPerMBRAM += flushDocCount/ramUsed
+        docsPerMBDisk += float(m.group(2).replace(',', ''))
         flushCount += 1
       m = reIndexingRate.search(line)
       if m is not None:
         lastDPSMatch = m
       
-  return float(lastDPSMatch.group(3)), mergeTimesSec, flushTimeSec, docsPerMB/flushCount
+  return float(lastDPSMatch.group(3)), mergeTimesSec, flushTimeSec, docsPerMBRAM/flushCount, docsPerMBDisk/flushCount
 
 def msecToQPS(x):
   return 1000./x
@@ -226,7 +233,8 @@ def main():
   searchQPSData = []
   searchBQQPSData = []
   searchRangeQPSData = []
-  docsPerMBData = []
+  docsPerMBRAMData = []
+  docsPerMBDiskData = []
   dvMergeTimesData = []
   gitHashes = []
   
@@ -290,7 +298,8 @@ def main():
       indexDPSData.append((m.groups(), nonSparseIndexStats[0]/1000., sparseIndexStats[0]/1000., sparseSortedIndexStats[0]/1000.))
       checkIndexTimeData.append((m.groups(), nonSparseCheckIndexTimeSec, sparseCheckIndexTimeSec, sparseSortedCheckIndexTimeSec))
       flushTimesData.append((m.groups(), nonSparseIndexStats[2], sparseIndexStats[2], sparseSortedIndexStats[2]))
-      docsPerMBData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000., sparseSortedIndexStats[3]/1000.))
+      docsPerMBRAMData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000., sparseSortedIndexStats[3]/1000.))
+      docsPerMBDiskData.append((m.groups(), nonSparseIndexStats[4]/1000., sparseIndexStats[4]/1000., sparseSortedIndexStats[4]/1000.))
       dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
 
       searcherHeapMBData.append((m.groups(),
@@ -422,7 +431,8 @@ This benchmark indexes and searches a 20 M document subset of the <a href="http:
                    'Fare amount (dense)', 'Fare amount (sparse)', 'Fare amount (sparse-sorted)',
                    'Dropoff datetime (dense)', 'Dropoff datetime (sparse)', 'Dropoff datetime (sparse-sorted)'))
     writeOneGraph(f, indexDPSData, 'index_throughput', 'Indexing rate 1 thread (K docs/sec)')
-    writeOneGraph(f, docsPerMBData, 'index_docs_per_mb', 'Docs per MB RAM at flush (K docs)')
+    writeOneGraph(f, docsPerMBRAMData, 'index_docs_per_mb_ram', 'Docs per MB RAM at flush (K docs)')
+    writeOneGraph(f, docsPerMBDiskData, 'index_docs_per_mb_disk', 'Docs per MB Disk at flush (K docs)')
     writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (Seconds)')
     writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (Seconds)')
     writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (Seconds)')

@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field;
@@ -327,7 +328,9 @@ public class IndexTaxis {
       throw new IllegalArgumentException("sortOrNot: expected 'true' or 'false' but saw " + sortOrNot);
     }
 
-    IndexWriterConfig iwc = new IndexWriterConfig();
+    // Pass analyzer explicitly, even though we've switched to StandardAnalyzer by default, so when we back-test to before that default
+    // change, this compiles:
+    IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
     //System.out.println("NOW SET INFO STREAM");
 
     iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);

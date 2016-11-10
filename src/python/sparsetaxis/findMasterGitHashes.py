@@ -19,7 +19,7 @@ reMaster = re.compile('^  refs/heads/master ([0-9a-f]+) -> ([0-9a-f]+)$', re.MUL
 # master commit hashes pushed
 masterCommits = set()
 
-for month in 8, 9, 10, 11:
+for month in 6, 7, 8, 9, 10, 11:
 
   m = mailbox.mbox('/lucenedata/apache-lucene-commits-mbox/2016%02d.mbox' % month)
 

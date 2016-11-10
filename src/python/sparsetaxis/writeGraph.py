@@ -5,6 +5,10 @@ import re
 import pysftp
 
 CHANGES = [
+  ('2016-07-07 08:02:29', 'LUCENE-7369: Similarity.coord and BooleanQuery.disableCoord are removed'),
+  ('2016-07-04 07:13:41', 'LUCENE-7351: Doc id compression for dimensional points'),
+  ('2016-07-12 15:57:56', 'LUCENE-7371: Better compression of dimensional points values'),
+  ('2016-07-29 08:23:54', 'LUCENE-7396: speed up flush of points'),
   ('2016-08-03 12:34:06', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
   ('2016-08-03 12:35:48', 'LUCENE-7399: Speed up flush of points'),
   ('2016-08-12 17:54:33', 'LUCENE-7409: improve MockDirectoryWrapper\'s IndexInput to detect if a clone is being used after its parent was closed'),
@@ -12,6 +16,7 @@ CHANGES = [
   ('2016-10-04 17:00:53', 'LUCENE-7474: Doc values writers should use sparse encoding'),
   ('2016-10-17 07:28:20', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
   ('2016-10-18 13:05:50', 'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
+  ('2016-10-18 14:08:29', 'LUCENE-7489: Wrap only once in case GCD compression is used'),
   ('2016-10-24 08:51:23', 'LUCENE-7462: Give doc values an advanceExact method'),
   ('2016-10-31 00:04:37', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
   ('2016-11-02 10:48:29', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
@@ -21,7 +26,7 @@ reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
 reFlushTime = re.compile(r': flush time ([.0-9]+) msec')
 reDocsPerMB = re.compile('newFlushedSize.*? docs/MB=([.,0-9]+)$')
 reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
-        
+
 def extractIndexStats(indexLog):
   mergeTimesSec = {}
   flushTimeSec = 0
@@ -61,9 +66,11 @@ def msecToQPS(x):
   return 1000./x
 
 reHits = re.compile('T(.) (.*?) sort=(.*?): ([0-9]+) hits in ([.0-9]+) msec')
+reHeapUsagePart = re.compile(r'^  ([a-z ]+) \[.*?\]: ([0-9.]+) (.B)$')
 def extractSearchStats(searchLog):
   
   heapBytes = None
+  heapBytesByPart = {}
   byThread = {}
   
   with open(searchLog, 'r', encoding='utf-8') as f:
@@ -71,7 +78,7 @@ def extractSearchStats(searchLog):
       line = f.readline()
       if line == '':
         break
-      line = line.strip()
+      line = line.rstrip()
       if line.startswith('HEAP: '):
         heapBytes = int(line[6:])
       else:
@@ -85,6 +92,21 @@ def extractSearchStats(searchLog):
           else:
             sortDesc = 'longitude'
           byThread[threadID].append((queryDesc, sortDesc, int(hitCount), float(msec)))
+        else:
+          m = reHeapUsagePart.match(line)
+          if m is not None:
+            part, size, unit = m.groups()
+            size = float(size)
+            if unit == 'GB':
+              size *= 1024*1024*1024
+            elif unit == 'MB':
+              size *= 1024*1024
+            elif unit == 'KB':
+              size *= 1024
+            else:
+              raise RuntimeError('uhandled unit %s' % unit)
+            heapBytesByPart[part] = heapBytesByPart.get(part, 0.0) + size
+            
 
   byQuerySort = {}
   for threadID, results in byThread.items():
@@ -96,7 +118,7 @@ def extractSearchStats(searchLog):
         byQuerySort[tup] = []
       byQuerySort[tup].append(msec)
 
-  allResults = [heapBytes]
+  allResults = [heapBytes, heapBytesByPart]
   # TODO: also "both colors" (all docs) and "latitude point range"
   for key in (('cab_color:g', None),
               ('cab_color:g', 'longitude'),
@@ -199,6 +221,7 @@ def main():
   checkIndexTimeData = []
   flushTimesData = []
   searcherHeapMBData = []
+  searcherHeapMBPartData = []
   searchSortQPSData = []
   searchQPSData = []
   searchBQQPSData = []
@@ -274,28 +297,33 @@ def main():
                                  toMB(nonSparseSearchStats[0]),
                                  toMB(sparseSearchStats[0]),
                                  toMB(sparseSortedSearchStats[0])))
+      x = [m.groups()]
+      for part in 'postings', 'docvalues', 'stored fields', 'points':
+        for stats in nonSparseSearchStats, sparseSearchStats, sparseSortedSearchStats:
+          x.append(toMB(stats[1][part]))
+      searcherHeapMBPartData.append(tuple(x))
       searchSortQPSData.append((m.groups(),
-                                msecToQPS(nonSparseSearchStats[2]),
-                                msecToQPS(sparseSearchStats[2]),
-                                msecToQPS(sparseSortedSearchStats[2]),
-                                msecToQPS(nonSparseSearchStats[4]),
-                                msecToQPS(sparseSearchStats[4]),
-                                msecToQPS(sparseSortedSearchStats[4])))
+                                msecToQPS(nonSparseSearchStats[3]),
+                                msecToQPS(sparseSearchStats[3]),
+                                msecToQPS(sparseSortedSearchStats[3]),
+                                msecToQPS(nonSparseSearchStats[5]),
+                                msecToQPS(sparseSearchStats[5]),
+                                msecToQPS(sparseSortedSearchStats[5])))
       searchQPSData.append((m.groups(),
-                            msecToQPS(nonSparseSearchStats[1]),
-                            msecToQPS(sparseSearchStats[1]),
-                            msecToQPS(sparseSortedSearchStats[1]),
-                            msecToQPS(nonSparseSearchStats[3]),
-                            msecToQPS(sparseSearchStats[3]),
-                            msecToQPS(sparseSortedSearchStats[3])));
+                            msecToQPS(nonSparseSearchStats[2]),
+                            msecToQPS(sparseSearchStats[2]),
+                            msecToQPS(sparseSortedSearchStats[2]),
+                            msecToQPS(nonSparseSearchStats[4]),
+                            msecToQPS(sparseSearchStats[4]),
+                            msecToQPS(sparseSortedSearchStats[4])));
       searchBQQPSData.append((m.groups(),
-                              msecToQPS(nonSparseSearchStats[5]),
-                              msecToQPS(sparseSearchStats[5]),
-                              msecToQPS(sparseSortedSearchStats[5])))
+                              msecToQPS(nonSparseSearchStats[6]),
+                              msecToQPS(sparseSearchStats[6]),
+                              msecToQPS(sparseSortedSearchStats[6])))
       searchRangeQPSData.append((m.groups(),
-                                 msecToQPS(nonSparseSearchStats[6]),
-                                 msecToQPS(sparseSearchStats[6]),
-                                 msecToQPS(sparseSortedSearchStats[6])))
+                                 msecToQPS(nonSparseSearchStats[7]),
+                                 msecToQPS(sparseSearchStats[7]),
+                                 msecToQPS(sparseSortedSearchStats[7])))
 
       allResults.append((m.groups(),
                          nonSparseDiskBytes,
@@ -321,7 +349,7 @@ def main():
       
     for tup in allResults:
       pointDateTime = datetime.datetime(*(int(x) for x in tup[0]))
-      if lastDateTime is not None and pointDateTime > changeDateTime:
+      if lastDateTime is not None and pointDateTime >= changeDateTime:
         CHANGES[i] += ('%s-%s-%s %s:%s:%s' % tup[0],)
         #print('%s -> %s' % (CHANGES[i][0], CHANGES[i][2]))
         break
@@ -338,6 +366,7 @@ def main():
     f.write('''
 <html>
 <head>
+<title>Sparse Lucene benchmarks</title>
 <script type="text/javascript" src="dygraph-combined-dev.js"></script>
 <script type="text/javascript">
 ''')
@@ -380,7 +409,7 @@ html * {
 }
 </style>
 <div id="summary" style="height:17%%; width:95%%">
-This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a>, in both a sparse and dense way.  Green taxi rides make up ~11.5% of the 20 M documents, and yellow are ~88.5%.  See <a href="">this blog post</a> for details.<p>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details; click on a data point to see its source code changes.
+This benchmark indexes and searches a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a>, in both a sparse and dense way.  Green taxi rides make up ~11.5% of the 20 M documents, and yellow are ~88.5%.  See <a href="">this blog post</a> for details.<p>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details; click on a data point to see its source code changes.
 </div>
 ''')
 
@@ -394,22 +423,30 @@ This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov
                    'Dropoff datetime (dense)', 'Dropoff datetime (sparse)', 'Dropoff datetime (sparse-sorted)'))
     writeOneGraph(f, indexDPSData, 'index_throughput', 'Indexing rate 1 thread (K docs/sec)')
     writeOneGraph(f, docsPerMBData, 'index_docs_per_mb', 'Docs per MB RAM at flush (K docs)')
-    writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (sec)')
-    writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (sec)')
-    writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (sec)')
+    writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (Seconds)')
+    writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (Seconds)')
+    writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (Seconds)')
     writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
+    writeOneGraph(f, searcherHeapMBPartData, 'searcher_heap_parts', 'Searcher heap used by part (MB)',
+                  ('Date',
+                   'Postings (dense)', 'Postings (sparse)', 'Postings (sparse-sorted)',
+                   'Doc values (dense)', 'Doc values (sparse)', 'Doc values (sparse-sorted)',
+                   'Stored fields (dense)', 'Stored fields (sparse)', 'Stored fields (sparse-sorted)',
+                   'Points (dense)', 'Points (sparse)', 'Points (sparse-sorted)'))
     writeOneGraph(f, searchSortQPSData, 'search_sort_qps', 'TermQuery, sort by longitude (QPS)',
                   ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Green cab (sparse-sorted)', 'Yellow cab (dense)', 'Yellow cab (sparse)', 'Yellow cab (sparse-sorted)'))
     writeOneGraph(f, searchQPSData, 'search_qps', 'TermQuery (QPS)',
                   ('Date', 'Green cab (dense)', 'Green cab (sparse)', 'Green cab (sparse-sorted)', 'Yellow cab (dense)', 'Yellow cab (sparse)', 'Yellow cab (sparse-sorted)'))
-    writeOneGraph(f, searchBQQPSData, 'search_bq_qps', 'BooleanQuery SHOULD + SHOULD (QPS)')
+    writeOneGraph(f, searchBQQPSData, 'search_bq_qps', 'BooleanQuery SHOULD green + SHOULD yellow (QPS)')
     writeOneGraph(f, searchRangeQPSData, 'search_range_qps', 'Pickup latitude range (QPS)')
 
     f.write('</body>\n</html>\n')
 
-  with pysftp.Connection('home.apache.org', username='mikemccand') as c:
-    with c.cd('public_html/lucenebench'):
-      c.put('/x/tmp/sparseResults.html', 'sparseResults.html')
+  if True:
+    print('Copy charts up...')
+    with pysftp.Connection('home.apache.org', username='mikemccand') as c:
+      with c.cd('public_html/lucenebench'):
+        c.put('/x/tmp/sparseResults.html', 'sparseResults.html')
 
 topPct = 20
 
@@ -420,8 +457,13 @@ def getLabel(label):
     s = '%s%s' % (chr(65+(label//26 - 1)), chr(65 + (label%26)))
   return s
 
+reTitleAndUnits = re.compile(r'(.*?) \((.*?)\)')
+
 def writeOneGraph(f, data, id, title, headers=None):
   global topPct
+
+  m = reTitleAndUnits.match(title)
+  title, units = m.groups()
   
   f.write('''
 <style type="text/css">
@@ -493,7 +535,7 @@ def writeOneGraph(f, data, id, title, headers=None):
     },
     %s
   });
-  ''' % (id, title, title, dateWindow[0], dateWindow[1], otherOptions))
+  ''' % (id, title, units, dateWindow[0], dateWindow[1], otherOptions))
 
   f.write('g.ready(function() {g.setAnnotations([')
   for i in range(len(CHANGES)):

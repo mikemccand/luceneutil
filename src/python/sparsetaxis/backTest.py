@@ -27,7 +27,7 @@ def findCommitsToTest():
   # master commit hashes pushed
   masterCommits = set()
 
-  for month in 8, 9, 10, 11:
+  for month in 6, 7, 8, 9, 10, 11:
 
     m = mailbox.mbox('/lucenedata/apache-lucene-commits-mbox/2016%02d.mbox' % month)
 
@@ -103,6 +103,11 @@ def findCommitsToTest():
                                 '234ea3ef8954325923f4e85c5c0aa72c3bb15baa',
                                 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNodes values in the 1D case.'))
 
+  # So was this one:
+  masterCommitsAndTimes.append((datetime.datetime(2016, 7, 4, 7, 13, 41),
+                                'd66e9935c39ed859659de46d3d5cfb66f2279bd4',
+                                'LUCENE-7351: Doc id compression for points'))
+
   print('found %d commit + times vs %d commits only' % (len(masterCommitsAndTimes), len(masterCommits)))
   
   masterCommitsAndTimes.sort(reverse=True)
@@ -141,6 +146,9 @@ def getTimesToTest():
     t = datetime.datetime.strptime(timestampString, '%Y-%m-%d %H:%M:%S')
     if t not in timeToCommitIndex:
       raise RuntimeError('timestamp %s is missing from commits but is in CHANGES: %s' % (t, desc))
+
+  for timestampString, desc in writeGraph.CHANGES:
+    t = datetime.datetime.strptime(timestampString, '%Y-%m-%d %H:%M:%S')
     if t not in timesAlreadyDone:
       yield t
 
@@ -196,9 +204,12 @@ for timestamp in getTimesToTest():
   elif 'DocIdSetIterator' in open('%s/lucene/core/src/java/org/apache/lucene/index/NumericDocValues.java' % luceneMaster).read():
     print('  use DiskUsage.62.java')
     shutil.copy('/l/util/src/main/perf/DiskUsage.62.java', '/l/util/src/main/perf/DiskUsage.java')
-  else:
+  elif os.path.exists('%s/lucene/core/src/java/org/apache/lucene/codecs/lucene62' % luceneMaster):
     print('  use DiskUsage.62.pre-iterators.java')
     shutil.copy('/l/util/src/main/perf/DiskUsage.62.pre-iterators.java', '/l/util/src/main/perf/DiskUsage.java')
+  else:
+    print('  use DiskUsage.60.java')
+    shutil.copy('/l/util/src/main/perf/DiskUsage.60.java', '/l/util/src/main/perf/DiskUsage.java')
   
   run('python3 -u /l/util/src/python/sparsetaxis/runBenchmark.py -rootDir /l/sparseTaxis -logDir %s -luceneMaster %s' % (logDir, luceneMaster))
   run('python3 -u /l/util/src/python/sparsetaxis/writeGraph.py')

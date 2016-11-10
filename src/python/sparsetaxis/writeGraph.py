@@ -11,7 +11,7 @@ CHANGES = [
   ('2016-07-29 08:23:54', 'LUCENE-7396: speed up flush of points'),
   ('2016-08-03 12:34:06', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
   ('2016-08-03 12:35:48', 'LUCENE-7399: Speed up flush of points, v2'),
-  ('2016-08-12 17:54:33', 'LUCENE-7409: improve MockDirectoryWrapper\'s IndexInput to detect if a clone is being used after its parent was closed'),
+  ('2016-08-12 17:54:33', 'LUCENE-7409: improve MMapDirectory\'s IndexInput to detect if a clone is being used after its parent was closed'),
   ('2016-09-21 13:41:41', 'LUCENE-7407: Switch doc values to iterator API'),
   ('2016-10-04 17:00:53', 'LUCENE-7474: Doc values writers should use sparse encoding'),
   ('2016-10-17 07:28:20', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),

@@ -20,6 +20,7 @@ CHANGES = [
   ('2016-10-24 08:51:23', 'LUCENE-7462: Give doc values an advanceExact method'),
   ('2016-10-31 00:04:37', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
   ('2016-11-02 10:48:29', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
+  ('2016-11-10 13:04:15', 'LUCENE-7545: Dense norms/doc-values should not consume memory for the IW buffer'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
@@ -211,12 +212,20 @@ reDateTime = re.compile(r'(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)')
 def toMSEpoch(dt):
   epoch = datetime.datetime.utcfromtimestamp(0)
   return 1000. * (dt - epoch).total_seconds()
+
+def getFastest(searchStats, index):
+  minMS = None
+  for stats in searchStats:
+    msec = stats[index]
+    if minMS is None or msec < minMS:
+      minMS = msec
+  return minMS
   
 def main():
 
   global dateWindow
   
-  allResults = []
+  allTimes = []
 
   l = os.listdir('/l/logs.nightly/taxis')
   l.sort()
@@ -262,9 +271,24 @@ def main():
         nonSparseIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.nonsparse.log' % fileName)
         sparseSortedIndexStats = extractIndexStats('/l/logs.nightly/taxis/%s/index.1threads.sparse.sorted.log' % fileName)
 
-        sparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.log' % fileName)
-        nonSparseSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.log' % fileName)
-        sparseSortedSearchStats = extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.log' % fileName)
+        searchLog = '/l/logs.nightly/taxis/%s/searchsparse.log' % fileName
+        if os.path.exists(searchLog):
+          sparseSearchStats = [extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.log' % fileName)]
+          nonSparseSearchStats = [extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.log' % fileName)]
+          sparseSortedSearchStats = [extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.log' % fileName)]
+        else:
+          upto = 0
+          sparseSearchStats = []
+          nonSparseSearchStats = []
+          sparseSortedSearchStats = []
+          while True:
+            searchLog = '/l/logs.nightly/taxis/%s/searchsparse.%d.log' % (fileName, upto)
+            if not os.path.exists(searchLog):
+              break
+            sparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.log' % fileName))
+            nonSparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.log' % fileName))
+            sparseSortedSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.log' % fileName))
+            
 
         sparseDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagesparse.log' % fileName)
         nonSparseDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagenonsparse.log' % fileName)
@@ -303,46 +327,38 @@ def main():
       dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
 
       searcherHeapMBData.append((m.groups(),
-                                 toMB(nonSparseSearchStats[0]),
-                                 toMB(sparseSearchStats[0]),
-                                 toMB(sparseSortedSearchStats[0])))
+                                 toMB(nonSparseSearchStats[0][0]),
+                                 toMB(sparseSearchStats[0][0]),
+                                 toMB(sparseSortedSearchStats[0][0])))
       x = [m.groups()]
       for part in 'postings', 'docvalues', 'stored fields', 'points':
         for stats in nonSparseSearchStats, sparseSearchStats, sparseSortedSearchStats:
-          x.append(toMB(stats[1][part]))
+          x.append(toMB(stats[0][1][part]))
       searcherHeapMBPartData.append(tuple(x))
       searchSortQPSData.append((m.groups(),
-                                msecToQPS(nonSparseSearchStats[3]),
-                                msecToQPS(sparseSearchStats[3]),
-                                msecToQPS(sparseSortedSearchStats[3]),
-                                msecToQPS(nonSparseSearchStats[5]),
-                                msecToQPS(sparseSearchStats[5]),
-                                msecToQPS(sparseSortedSearchStats[5])))
+                                msecToQPS(getFastest(nonSparseSearchStats, 3)),
+                                msecToQPS(getFastest(sparseSearchStats, 3)),
+                                msecToQPS(getFastest(sparseSortedSearchStats, 3)),
+                                msecToQPS(getFastest(nonSparseSearchStats, 5)),
+                                msecToQPS(getFastest(sparseSearchStats, 5)),
+                                msecToQPS(getFastest(sparseSortedSearchStats, 5))))
       searchQPSData.append((m.groups(),
-                            msecToQPS(nonSparseSearchStats[2]),
-                            msecToQPS(sparseSearchStats[2]),
-                            msecToQPS(sparseSortedSearchStats[2]),
-                            msecToQPS(nonSparseSearchStats[4]),
-                            msecToQPS(sparseSearchStats[4]),
-                            msecToQPS(sparseSortedSearchStats[4])));
+                            msecToQPS(getFastest(nonSparseSearchStats, 2)),
+                            msecToQPS(getFastest(sparseSearchStats, 2)),
+                            msecToQPS(getFastest(sparseSortedSearchStats, 2)),
+                            msecToQPS(getFastest(nonSparseSearchStats, 4)),
+                            msecToQPS(getFastest(sparseSearchStats, 4)),
+                            msecToQPS(getFastest(sparseSortedSearchStats, 4))));
       searchBQQPSData.append((m.groups(),
-                              msecToQPS(nonSparseSearchStats[6]),
-                              msecToQPS(sparseSearchStats[6]),
-                              msecToQPS(sparseSortedSearchStats[6])))
+                              msecToQPS(getFastest(nonSparseSearchStats, 6)),
+                              msecToQPS(getFastest(sparseSearchStats, 6)),
+                              msecToQPS(getFastest(sparseSortedSearchStats, 6))))
       searchRangeQPSData.append((m.groups(),
-                                 msecToQPS(nonSparseSearchStats[7]),
-                                 msecToQPS(sparseSearchStats[7]),
-                                 msecToQPS(sparseSortedSearchStats[7])))
+                                 msecToQPS(getFastest(nonSparseSearchStats, 7)),
+                                 msecToQPS(getFastest(sparseSearchStats, 7)),
+                                 msecToQPS(getFastest(sparseSortedSearchStats, 7))))
 
-      allResults.append((m.groups(),
-                         nonSparseDiskBytes,
-                         sparseDiskBytes,
-                         nonSparseCheckIndexTimeSec,
-                         sparseCheckIndexTimeSec) +
-                        nonSparseIndexStats +
-                        sparseIndexStats +
-                        nonSparseSearchStats +
-                        sparseSearchStats)
+      allTimes.append(m.groups())
 
   # attach each known change to the next datapoint after that change's timestamp:
   lastDateTime = None
@@ -356,10 +372,10 @@ def main():
 
     changeDateTime = datetime.datetime(*x1)
       
-    for tup in allResults:
-      pointDateTime = datetime.datetime(*(int(x) for x in tup[0]))
+    for tup in allTimes:
+      pointDateTime = datetime.datetime(*(int(x) for x in tup))
       if lastDateTime is not None and pointDateTime >= changeDateTime:
-        CHANGES[i] += ('%s-%s-%s %s:%s:%s' % tup[0],)
+        CHANGES[i] += ('%s-%s-%s %s:%s:%s' % tup,)
         #print('%s -> %s' % (CHANGES[i][0], CHANGES[i][2]))
         break
       lastDateTime = pointDateTime
@@ -452,7 +468,8 @@ This benchmark indexes and searches a 20 M document subset of the <a href="http:
 
     f.write('</body>\n</html>\n')
 
-  if True:
+  # nocommit
+  if False:
     print('Copy charts up...')
     with pysftp.Connection('home.apache.org', username='mikemccand') as c:
       with c.cd('public_html/lucenebench'):

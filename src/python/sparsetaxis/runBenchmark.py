@@ -178,10 +178,14 @@ def main():
     print('Lucene git hash: %s' % luceneRev)
     results.append(luceneRev)
     print('\nCompile lucene core...')
-    run('ant clean jar', '%s/antclean.jar.log' % logDir)
-    print('\nCompile lucene analysis/common...')
-    os.chdir('%s/lucene/analysis/common' % args.luceneMaster)
-    run('ant clean jar', '%s/antclean.jar.log' % logDir)
+    # nocommit
+    #run('ant clean jar', '%s/antclean.jar.log' % logDir)
+    run('ant jar', '%s/antclean.jar.log' % logDir)
+    # nocommit
+    if False:
+      print('\nCompile lucene analysis/common...')
+      os.chdir('%s/lucene/analysis/common' % args.luceneMaster)
+      run('ant clean jar', '%s/antclean.jar.log' % logDir)
 
     os.chdir(cwd)
 
@@ -224,9 +228,10 @@ def main():
     print('  took %.1f sec' % sec)
     results.append(sec)
 
-    print('\nSearch %s...' % desc)
-    run('%s -cp %s perf.SearchTaxis %s %s' % \
-        (JAVA_CMD, classPath, indexPath, sparse), '%s/search%s.log' % (logDir, desc))
+    for iter in range(5):
+      print('\nSearch %s iter %s...' % (desc, iter))
+      run('%s -cp %s perf.SearchTaxis %s %s' % \
+          (JAVA_CMD, classPath, indexPath, sparse), '%s/search%s.%s.log' % (logDir, desc, iter))
 
   open('%s/results.pk' % logDir, 'wb').write(pickle.dumps(results))
   

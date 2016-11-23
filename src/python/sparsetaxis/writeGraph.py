@@ -468,8 +468,7 @@ This benchmark indexes and searches a 20 M document subset of the <a href="http:
 
     f.write('</body>\n</html>\n')
 
-  # nocommit
-  if False:
+  if True:
     print('Copy charts up...')
     with pysftp.Connection('home.apache.org', username='mikemccand') as c:
       with c.cd('public_html/lucenebench'):

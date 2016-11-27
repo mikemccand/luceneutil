@@ -21,6 +21,7 @@ CHANGES = [
   ('2016-10-31 00:04:37', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
   ('2016-11-02 10:48:29', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
   ('2016-11-10 13:04:15', 'LUCENE-7545: Dense norms/doc-values should not consume memory for the IW buffer'),
+  ('2016-11-23 00:00:00', 'Take best of 5 JVM runs for each search benchmark to reduce noise'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')

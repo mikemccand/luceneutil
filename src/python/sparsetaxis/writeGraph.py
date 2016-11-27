@@ -285,10 +285,10 @@ def main():
             searchLog = '/l/logs.nightly/taxis/%s/searchsparse.%d.log' % (fileName, upto)
             if not os.path.exists(searchLog):
               break
-            sparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.log' % fileName))
-            nonSparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.log' % fileName))
-            sparseSortedSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.log' % fileName))
-            
+            sparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.%s.log' % (fileName, upto)))
+            nonSparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.%s.log' % (fileName, upto)))
+            sparseSortedSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.%s.log' % (fileName, upto)))
+            upto += 1
 
         sparseDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagesparse.log' % fileName)
         nonSparseDiskUsageStats = extractDiskUsageStats('/l/logs.nightly/taxis/%s/diskUsagenonsparse.log' % fileName)

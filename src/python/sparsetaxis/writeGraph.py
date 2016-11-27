@@ -418,6 +418,10 @@ html * {
   font-family: Verdana !important;
 }
 
+.dygraph-legend {
+  font-size: 30% !important;
+}
+
 .dygraph-legend > span.highlight { border: 1px solid grey}
 
 .dygraph-legend > span.highlight { display: inline; }

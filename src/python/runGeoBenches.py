@@ -107,7 +107,7 @@ print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName,
 with open(logFileName, 'w') as log:
   log.write('\ngit head revision %s' % rev)
   for shape in ('polyRussia', 'polyMedium', 'poly 10', 'nearest 10', 'sort', 'distance', 'box'):
-    for approach in ('points', 'geopoint', 'geo3d'):
+    for approach in ('points', 'geo3d', 'geopoint'):
 
       if approach == 'geo3d' and not haveGeo3D:
         continue

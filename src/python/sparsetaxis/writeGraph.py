@@ -419,7 +419,7 @@ html * {
 }
 
 .dygraph-legend {
-  font-size: 30% !important;
+  font-size: 70% !important;
 }
 
 .dygraph-legend > span.highlight { border: 1px solid grey}

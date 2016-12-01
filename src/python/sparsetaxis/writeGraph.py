@@ -25,6 +25,7 @@ CHANGES = [
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
+reTotMergeTime = re.compile(r': merge time (\d+) msec for (\d+) docs')
 reFlushTime = re.compile(r': flush time ([.0-9]+) msec')
 reFlushPostings = re.compile(r'flush postings as segment .*? numDocs=(\d+)$')
 reDocsPerMB = re.compile('ramUsed=([.,0-9]+) MB newFlushedSize.*? docs/MB=([.,0-9]+)$')
@@ -34,6 +35,8 @@ def extractIndexStats(indexLog):
   mergeTimesSec = {}
   flushTimeSec = 0
   docsPerMBRAM = 0
+  totMergeTimeMS = 0
+  totMergeDocs = 0
   docsPerMBDisk = 0
   flushCount = 0
   lastDPSMatch = None
@@ -53,6 +56,10 @@ def extractIndexStats(indexLog):
         l = mergeTimesSec[part]
         l[0] += msec/1000.0
         l[1] += docCount
+      m = reTotMergeTime.search(line)
+      if m is not None:
+        totMergeTimeMS += float(m.group(1))
+        totMergeDocs += int(m.group(2))
       m = reFlushTime.search(line)
       if m is not None:
         flushTimeSec += float(m.group(1))/1000.
@@ -68,7 +75,8 @@ def extractIndexStats(indexLog):
       m = reIndexingRate.search(line)
       if m is not None:
         lastDPSMatch = m
-      
+
+  mergeTimesSec['total'] = (totMergeTimeMS/1000.0, totMergeDocs)
   return float(lastDPSMatch.group(3)), mergeTimesSec, flushTimeSec, docsPerMBRAM/flushCount, docsPerMBDisk/flushCount
 
 def msecToQPS(x):
@@ -246,6 +254,7 @@ def main():
   docsPerMBRAMData = []
   docsPerMBDiskData = []
   dvMergeTimesData = []
+  totMergeTimesData = []
   gitHashes = []
   
   for fileName in l:
@@ -326,6 +335,7 @@ def main():
       docsPerMBRAMData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000., sparseSortedIndexStats[3]/1000.))
       docsPerMBDiskData.append((m.groups(), nonSparseIndexStats[4]/1000., sparseIndexStats[4]/1000., sparseSortedIndexStats[4]/1000.))
       dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
+      totMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['total'][0], sparseIndexStats[1]['total'][0], sparseSortedIndexStats[1]['total'][0]))
 
       searcherHeapMBData.append((m.groups(),
                                  toMB(nonSparseSearchStats[0][0]),
@@ -457,6 +467,7 @@ This benchmark indexes and searches a 20 M document subset of the <a href="http:
     writeOneGraph(f, checkIndexTimeData, 'check_index_time', 'CheckIndex time (Seconds)')
     writeOneGraph(f, flushTimesData, 'flush_times', 'New segment flush time (Seconds)')
     writeOneGraph(f, dvMergeTimesData, 'dv_merge_times', 'Doc values merge time (Seconds)')
+    writeOneGraph(f, totMergeTimesData, 'tot_merge_times', 'Merge time (Seconds)')
     writeOneGraph(f, searcherHeapMBData, 'searcher_heap', 'Searcher heap used (MB)')
     writeOneGraph(f, searcherHeapMBPartData, 'searcher_heap_parts', 'Searcher heap used by part (MB)',
                   ('Date',

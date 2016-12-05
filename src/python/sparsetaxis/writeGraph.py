@@ -22,6 +22,7 @@ CHANGES = [
   ('2016-11-02 10:48:29', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
   ('2016-11-10 13:04:15', 'LUCENE-7545: Dense norms/doc-values should not consume memory for the IW buffer'),
   ('2016-11-23', 'Take best of 5 JVM runs for each search benchmark to reduce noise'),
+  ('2016-12-04', 'LUCENE-7563: Compress the in-memory BKD points index'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')

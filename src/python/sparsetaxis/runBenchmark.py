@@ -22,7 +22,8 @@ import urllib.request
 
 luceneUtilPythonPath = os.path.split(os.path.abspath(__file__))[0]
 
-JAVA_CMD = 'java -server -Xbatch -Xmx2g -Xms2g -XX:-TieredCompilation -XX:+HeapDumpOnOutOfMemoryError -Xbatch'
+#JAVA_CMD = 'java -server -Xbatch -Xmx2g -Xms2g -XX:-TieredCompilation -XX:+HeapDumpOnOutOfMemoryError'
+JAVA_CMD = 'java -server -Xmx2g -Xms2g -XX:+HeapDumpOnOutOfMemoryError'
 
 def toGB(x):
   return x/1024./1024./1024.

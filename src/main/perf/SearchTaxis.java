@@ -19,6 +19,8 @@ package perf;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.lucene.document.Document;
@@ -50,15 +52,14 @@ public class SearchTaxis {
     final boolean sparse;
     final IndexSearcher searcher;
     final int iters;
-    final Object printLock;
     final Random random;
+    public final List<String> results = new ArrayList<>();
     
-    public SearchThread(int threadID, boolean sparse, IndexSearcher searcher, int iters, Object printLock, Random random) {
+    public SearchThread(int threadID, boolean sparse, IndexSearcher searcher, int iters, Random random) {
       this.threadID = threadID;
       this.sparse = sparse;
       this.searcher = searcher;
       this.iters = iters;
-      this.printLock = printLock;
       this.random = random;
     }
     
@@ -147,7 +148,13 @@ public class SearchTaxis {
           hits = searcher.search(query, 10, sort);
         }
         long t1 = System.nanoTime();
+        results.add("T" + threadID + " " + query + " sort=" + sort + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
+        for(ScoreDoc hit : hits.scoreDocs) {
+          Document doc = searcher.doc(hit.doc);
+          results.add("  " + hit.doc + " " + hit.score + ": " + doc.getFields().size() + " fields");
+        }
 
+        /*
         synchronized(printLock) {
           System.out.println("T" + threadID + " " + query + " sort=" + sort + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
           for(ScoreDoc hit : hits.scoreDocs) {
@@ -155,6 +162,7 @@ public class SearchTaxis {
             System.out.println("  " + hit.doc + " " + hit.score + ": " + doc.getFields().size() + " fields");
           }
         }
+        */
       }
     }
   }
@@ -191,16 +199,25 @@ public class SearchTaxis {
 
     Random random = new Random(17);
 
-    Object printLock = new Object();
 
-    Thread[] threads = new Thread[2];
+    /*
+    SearchThread[] threads = new SearchThread[2];
     for(int i=0;i<threads.length;i++) {
-      threads[i] = new SearchThread(i, sparse, searcher, 400, printLock, new Random(random.nextLong()));
+      threads[i] = new SearchThread(i, sparse, searcher, 2000, new Random(random.nextLong()));
       threads[i].start();
     }
 
-    for(Thread thread : threads) {
+    for(SearchThread thread : threads) {
       thread.join();
+    }
+    */
+    SearchThread[] threads = new SearchThread[] {new SearchThread(0, sparse, searcher, 1000, new Random(random.nextLong()))};
+    threads[0].run();
+    
+    for(SearchThread thread : threads) {
+      for(String line : thread.results) {
+        System.out.println(line);
+      }
     }
 
     IOUtils.close(reader, dir);

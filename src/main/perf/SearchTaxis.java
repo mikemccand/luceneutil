@@ -202,7 +202,7 @@ public class SearchTaxis {
 
     SearchThread[] threads = new SearchThread[2];
     for(int i=0;i<threads.length;i++) {
-      threads[i] = new SearchThread(i, sparse, searcher, 2000, new Random(random.nextLong()));
+      threads[i] = new SearchThread(i, sparse, searcher, 500, new Random(random.nextLong()));
       threads[i].start();
     }
 

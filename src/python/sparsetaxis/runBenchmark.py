@@ -229,7 +229,8 @@ def main():
     print('  took %.1f sec' % sec)
     results.append(sec)
 
-    for iter in range(5):
+    #for iter in range(5):
+    for iter in range(1):
       print('\nSearch %s iter %s...' % (desc, iter))
       run('%s -cp %s perf.SearchTaxis %s %s' % \
           (JAVA_CMD, classPath, indexPath, sparse), '%s/search%s.%s.log' % (logDir, desc, iter))

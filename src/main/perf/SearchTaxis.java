@@ -200,7 +200,6 @@ public class SearchTaxis {
     Random random = new Random(17);
 
 
-    /*
     SearchThread[] threads = new SearchThread[2];
     for(int i=0;i<threads.length;i++) {
       threads[i] = new SearchThread(i, sparse, searcher, 2000, new Random(random.nextLong()));
@@ -210,9 +209,11 @@ public class SearchTaxis {
     for(SearchThread thread : threads) {
       thread.join();
     }
-    */
+
+    /*
     SearchThread[] threads = new SearchThread[] {new SearchThread(0, sparse, searcher, 1000, new Random(random.nextLong()))};
     threads[0].run();
+    */
     
     for(SearchThread thread : threads) {
       for(String line : thread.results) {

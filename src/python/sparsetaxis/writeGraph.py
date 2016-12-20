@@ -26,6 +26,7 @@ CHANGES = [
   ('2016-12-07', 'LUCENE-7583: buffer small leaf-block writes in BKDWriter'),
   ('2016-12-11', 'Re-enable JVM\'s background and tiered compilation'),
   ('2016-12-15', 'LUCENE-7589: Prevent outliers from raising number of doc-values bits for all documents'),
+  ('2016-12-20', 'LUCENE-7579: Sort segments on flush, not merge'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')

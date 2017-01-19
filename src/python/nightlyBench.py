@@ -404,6 +404,10 @@ KNOWN_CHANGES = [
   ('2016-11-02',
    'LUCENE-7135: Fixed this issue so we use MMapDirectory again',
    'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
+
+  ('2017-01-18',
+   'LUCENE-7641: Speed up point ranges that match most documents',
+   'LUCENE-7641: Speed up point ranges that match most documents'),
 ]
 
 # TODO

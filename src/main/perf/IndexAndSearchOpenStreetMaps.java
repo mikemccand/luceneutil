@@ -157,6 +157,7 @@ public class IndexAndSearchOpenStreetMaps {
   static boolean useGeo3D = false;
   static boolean useGeo3DLarge = false;
   static boolean useLatLonPoint = false;
+  static boolean useDocValues = false;
   static boolean SMALL = true;
   static int NUM_PARTS;
 
@@ -171,6 +172,8 @@ public class IndexAndSearchOpenStreetMaps {
       if (doDistanceSort) {
         name += ".withdvs";
       }
+    } else if (useDocValues) {
+      name += ".docvalues";
     } else {
       throw new AssertionError();
     }
@@ -482,6 +485,8 @@ public class IndexAndSearchOpenStreetMaps {
                       doc.add(new GeoPointField("point", lat, lon, Field.Store.NO));
                     } else if (useGeo3D || useGeo3DLarge) {
                       doc.add(new Geo3DPoint("point", lat, lon));
+                    } else if (useDocValues) {
+                      doc.add(new LatLonDocValuesField("point", lat, lon));
                     } else {
                       doc.add(new LatLonPoint("point", lat, lon));
                       if (doDistanceSort) {
@@ -783,7 +788,7 @@ public class IndexAndSearchOpenStreetMaps {
       System.out.println("\nUsing on-the-fly queries");
 
       // Create regularly spaced shapes in a grid around London, UK:
-      int STEPS = 5;
+      int STEPS = useDocValues ? 2 : 5;
       double MIN_LAT = 51.0919106;
       double MAX_LAT = 51.6542719;
       double MIN_LON = -0.3867282;
@@ -838,6 +843,8 @@ public class IndexAndSearchOpenStreetMaps {
                     q = Geo3DPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                  } else if (useDocValues) {
+                    q = LatLonDocValuesField.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else if (useGeoPoint) {
                     q = new GeoPointDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else {
@@ -866,6 +873,8 @@ public class IndexAndSearchOpenStreetMaps {
                     q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                  } else if (useDocValues) {
+                    q = LatLonDocValuesField.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useGeoPoint) {
                     q = new GeoPointInBBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else {
@@ -994,6 +1003,8 @@ public class IndexAndSearchOpenStreetMaps {
                 q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else if (useGeoPoint) {
                 q = new GeoPointDistanceQuery("point", centerLat, centerLon, distanceMeters);
+              } else if (useDocValues) {
+                q = LatLonDocValuesField.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else {
                 throw new AssertionError();
               }
@@ -1024,6 +1035,8 @@ public class IndexAndSearchOpenStreetMaps {
                 q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else if (useGeoPoint) {
                 q = new GeoPointInBBoxQuery("point", lat, latEnd, lon, lonEnd);
+              } else if (useDocValues) {
+                q = LatLonDocValuesField.newBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else {
                 throw new AssertionError();
               }
@@ -1142,6 +1155,9 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (arg.equals("-points")) {
         useLatLonPoint = true;
         count++;
+      } else if (arg.equals("-dv")) {
+        useDocValues = true;
+        count++;
       } else if (arg.equals("-geopoint")) {
         useGeoPoint = true;
         count++;
@@ -1242,6 +1258,8 @@ public class IndexAndSearchOpenStreetMaps {
       System.out.println("\nUsing geo3d");
     } else if (useLatLonPoint) {
       System.out.println("\nUsing points");
+    } else if (useDocValues) {
+      System.out.println("\nUsing doc values");
     } else {
       System.out.println("\nUsing geopoint");
     }

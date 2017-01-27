@@ -33,6 +33,7 @@ KNOWN_CHANGES = (
   ('2016-09-21', 'LUCENE-7407: Change doc values from random access to iterator API'),
   ('2016-11-01', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
   ('2016-11-03', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
+  ('2017-01-27', 'LUCENE-7656: Speed up LatLonPointDistanceQuery by dividing the bounding box around the circle into smaller boxes and precomputing their relation with the distance query'),
 )
 
 def toString(timeStamp):

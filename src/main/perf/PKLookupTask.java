@@ -86,7 +86,7 @@ final class PKLookupTask extends Task {
       IndexState.PKLookupState[] pkStates = new IndexState.PKLookupState[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
         LeafReaderContext ctx = subReaders.get(subIDX);
-        ThreadLocal<IndexState.PKLookupState> states = state.pkLookupStates.get(ctx.reader().getCoreCacheKey());
+        ThreadLocal<IndexState.PKLookupState> states = state.pkLookupStates.get(ctx.reader().getCoreCacheHelper().getKey());
         // NPE here means you are trying to use this task on a newly refreshed NRT reader!
         IndexState.PKLookupState pkState = states.get();
         if (pkState == null) {

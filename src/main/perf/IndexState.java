@@ -95,8 +95,8 @@ class IndexState {
       hasDeletions = searcher.getIndexReader().hasDeletions();
 
       for(LeafReaderContext ctx : searcher.getIndexReader().leaves()) {
-        pkLookupStates.put(ctx.reader().getCoreCacheKey(), new ThreadLocal<PKLookupState>());
-        pointsPKLookupStates.put(ctx.reader().getCoreCacheKey(), new ThreadLocal<PointsPKLookupState>());
+        pkLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupState>());
+        pointsPKLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PointsPKLookupState>());
       }
     } finally {
       mgr.release(searcher);

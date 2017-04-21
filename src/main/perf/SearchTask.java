@@ -37,13 +37,15 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
+import org.apache.lucene.search.grouping.AllGroupsCollector;
 import org.apache.lucene.search.grouping.BlockGroupingCollector;
+import org.apache.lucene.search.grouping.FirstPassGroupingCollector;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
+import org.apache.lucene.search.grouping.SecondPassGroupingCollector;
+import org.apache.lucene.search.grouping.TermGroupSelector;
 import org.apache.lucene.search.grouping.TopGroups;
-import org.apache.lucene.search.grouping.term.TermAllGroupsCollector;
-import org.apache.lucene.search.grouping.term.TermFirstPassGroupingCollector;
-import org.apache.lucene.search.grouping.term.TermSecondPassGroupingCollector;
+import org.apache.lucene.search.grouping.TopGroupsCollector;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
@@ -147,13 +149,13 @@ final class SearchTask extends Task {
 
         } else {
           //System.out.println("GB: " + group);
-          final TermFirstPassGroupingCollector c1 = new TermFirstPassGroupingCollector(group, Sort.RELEVANCE, 10);
+          final FirstPassGroupingCollector<BytesRef> c1 = new FirstPassGroupingCollector(new TermGroupSelector(group), Sort.RELEVANCE, 10);
 
           final Collector c;
-          final TermAllGroupsCollector allGroupsCollector;
+          final AllGroupsCollector<BytesRef> allGroupsCollector;
           // Turn off AllGroupsCollector for now -- it's very slow:
           if (false && doCountGroups) {
-            allGroupsCollector = new TermAllGroupsCollector(group);
+            allGroupsCollector = new AllGroupsCollector(new TermGroupSelector(group));
             //c = MultiCollector.wrap(allGroupsCollector, c1);
             c = c1;
           } else {
@@ -165,7 +167,7 @@ final class SearchTask extends Task {
 
           final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
           if (topGroups != null) {
-            final TermSecondPassGroupingCollector c2 = new TermSecondPassGroupingCollector(group, topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true, true, true);
+            final TopGroupsCollector<BytesRef> c2 = new TopGroupsCollector<>(new TermGroupSelector(group), topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true, true, true);
             searcher.search(q, c2);
             groupsResultTerms = c2.getTopGroups(0);
             if (allGroupsCollector != null) {

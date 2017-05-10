@@ -454,7 +454,7 @@ html * {
 }
 </style>
 <div id="summary" style="height:17%%; width:95%%">
-This benchmark indexes and searches a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a>, in both a sparse and dense way.  Green taxi rides make up ~11.5% of the 20 M documents, and yellow are ~88.5%.  See <a href="">this blog post</a> for details.<p>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details; click on a data point to see its source code changes.
+This benchmark indexes and searches a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a>, in both a sparse and dense way.  Green taxi rides make up ~11.5% of the 20 M documents, and yellow are ~88.5%.  See <a href="https://www.elastic.co/blog/sparse-versus-dense-document-values-with-apache-lucene">this blog post</a> for details.<p>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details; click on a data point to see its source code changes.
 </div>
 ''')
 

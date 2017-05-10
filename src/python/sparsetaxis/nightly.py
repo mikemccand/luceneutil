@@ -3,7 +3,7 @@ import datetime
 
 now = datetime.datetime.now()
 
-os.chdir('/l/sparseTaxis.nightly/sparseTaxis/lucene.master/')
+os.chdir('/l/sparseTaxis/sparseTaxis/lucene.master/')
 if os.system('git checkout master'):
   raise RuntimeError('git checkout master failed')
 

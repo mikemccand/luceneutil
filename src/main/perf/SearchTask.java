@@ -313,6 +313,7 @@ final class SearchTask extends Task {
       //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
     } else {
       // TODO: why is this one finding 2 frags when the others find 1?
+      /*
       String[] frags = indexState.postingsHighlighter.highlight(indexState.textFieldName, query, searcher, hits, 2);
       //System.out.println("  q=" + query + ": hilite time: " + ((t1-t0)/1000000.0));
       for(int hit=0;hit<frags.length;hit++) {
@@ -325,6 +326,8 @@ final class SearchTask extends Task {
           totHiliteHash += frag.hashCode();
         }
       }
+      */
+      // TODO: switch to UnifiedHighlighter
     }
     long t1 = System.nanoTime();
     hiliteMsec = (t1-t0)/1000000.0;

@@ -38,7 +38,6 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.postingshighlight.PostingsHighlighter;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.Bits;
@@ -53,7 +52,6 @@ class IndexState {
   public final Query groupEndQuery;
   public final FastVectorHighlighter fastHighlighter;
   public final boolean useHighlighter;
-  public final PostingsHighlighter postingsHighlighter;
   public final String textFieldName;
   //public int[] docIDToID;
   public final boolean hasDeletions;
@@ -78,15 +76,11 @@ class IndexState {
     if (hiliteImpl.equals("FastVectorHighlighter")) {
       fastHighlighter = new FastVectorHighlighter(true, true);
       useHighlighter = false;
-      postingsHighlighter = null;
     } else if (hiliteImpl.equals("PostingsHighlighter")) {
-      fastHighlighter = null;
-      useHighlighter = false;
-      postingsHighlighter = new PostingsHighlighter();
+      throw new IllegalArgumentException("fix me!  switch to UnifiedHighlighter");
     } else if (hiliteImpl.equals("Highlighter")) {
       fastHighlighter = null;
       useHighlighter = true;
-      postingsHighlighter = null;
     } else {
       throw new IllegalArgumentException("unrecognized -hiliteImpl \"" + hiliteImpl + "\"");
     }

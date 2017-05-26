@@ -381,7 +381,7 @@ public class NRTPerfTest {
 		}
 
 		final DirectSpellChecker spellChecker = new DirectSpellChecker();
-		final IndexState indexState = new IndexState(manager, null, field, spellChecker, "PostingsHighlighter", null, null);
+		final IndexState indexState = new IndexState(manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
 		final QueryParser qp = new QueryParser(field, analyzer);
 		TaskParser taskParser = new TaskParser(indexState, qp, field, 10, random, true);
 		final TaskSource tasks = new RandomTaskSource(taskParser, tasksFile, random) {

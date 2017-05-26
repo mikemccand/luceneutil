@@ -340,7 +340,11 @@ def main():
       docsPerMBRAMData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000., sparseSortedIndexStats[3]/1000.))
       docsPerMBDiskData.append((m.groups(), nonSparseIndexStats[4]/1000., sparseIndexStats[4]/1000., sparseSortedIndexStats[4]/1000.))
       dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
-      totMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['total'][0], sparseIndexStats[1]['total'][0], sparseSortedIndexStats[1]['total'][0]))
+      try:
+        totMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['total'][0], sparseIndexStats[1]['total'][0], sparseSortedIndexStats[1]['total'][0]))
+      except:
+        print('FAILED for %s' % fileName)
+        raise
 
       searcherHeapMBData.append((m.groups(),
                                  toMB(nonSparseSearchStats[0][0]),

@@ -118,7 +118,7 @@ class IndexState {
     public final Bits liveDocs;
 
     public PKLookupState(LeafReader reader, String field) throws IOException {
-      termsEnum = reader.fields().terms(field).iterator();
+      termsEnum = reader.terms(field).iterator();
       termsEnum.seekCeil(new BytesRef(""));
       postingsEnum = termsEnum.postings(null, 0);
       liveDocs = reader.getLiveDocs();

@@ -273,7 +273,7 @@ final class SearchTask extends Task {
         */
       }
       if (hits != null) {
-        totalHitCount = hits.totalHits;
+        totalHitCount = (int) hits.totalHits;
 
         if (doStoredLoads) {
           for (int i = 0; i < hits.scoreDocs.length; i++) {

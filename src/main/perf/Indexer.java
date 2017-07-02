@@ -459,8 +459,23 @@ public final class Indexer {
     if (threads.failed.get()) {
       throw new RuntimeException("exceptions during indexing");
     }
-    if (mode != Mode.UPDATE && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
-      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
+
+    // Very tricky: if the line file docs source is binary, and you use multiple threads, and you use grouping fields, then the doc count
+    // may not match:
+    boolean countShouldMatch;
+
+    if (docCountLimit == -1) {
+      countShouldMatch = false;
+    } else if (mode == Mode.UPDATE) {
+      countShouldMatch = false;
+    } else if (lineFileDocs.isBinary && numThreads > 1 && addGroupingFields) {
+      countShouldMatch = false;
+    } else {
+      countShouldMatch = true;
+    }
+
+    if (countShouldMatch && w.maxDoc() != docCountLimit) {
+      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.maxDoc()) + ")");
     }
 
     final Map<String,String> commitData = new HashMap<String,String>();

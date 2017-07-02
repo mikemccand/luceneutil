@@ -91,7 +91,7 @@ public class LineFileDocs implements Closeable {
   private final boolean addDVFields;
   private final BlockingQueue<Object> queue = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
-  private final boolean isBinary;
+  final boolean isBinary;
   private final ThreadLocal<ByteBuffer> nextDocs = new ThreadLocal<>();
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
 

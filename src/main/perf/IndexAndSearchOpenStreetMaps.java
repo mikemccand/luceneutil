@@ -831,7 +831,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else if (useDocValues) {
-                    q = LatLonDocValuesField.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                    q = LatLonDocValuesField.newSlowDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else {
                     throw new AssertionError();
                   }
@@ -857,7 +857,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useDocValues) {
-                    q = LatLonDocValuesField.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                    q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else {
                     throw new AssertionError();
                   }
@@ -983,7 +983,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else if (useDocValues) {
-                q = LatLonDocValuesField.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                q = LatLonDocValuesField.newSlowDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else {
                 throw new AssertionError();
               }
@@ -1011,7 +1011,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else if (useDocValues) {
-                q = LatLonDocValuesField.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else {
                 throw new AssertionError();
               }

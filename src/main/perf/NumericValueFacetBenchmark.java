@@ -46,15 +46,17 @@ public class NumericValueFacetBenchmark {
     for(int iter=0;iter<100;iter++) {
       long t0 = System.nanoTime();
       int hitCount;
-      if (false) {
-        LongValueFacetCounts counts = new LongValueFacetCounts("field", r, false);
-        hitCount = r.maxDoc();
+      if (true) {
+        //LongValueFacetCounts counts = new LongValueFacetCounts("field", r, false);
+        LongValueFacetCounts counts = new LongValueFacetCounts("field", LongValuesSource.fromLongField("field"), r);
+        FacetResult facets = counts.getAllChildrenSortByValue();        
+        hitCount = ((Number) facets.value).intValue();
       } else {
         FacetsCollector fc = new FacetsCollector();
         //s.search(new MatchAllDocsQuery(), fc);
-        s.search(IntPoint.newRangeQuery("i", 0, 9999999), fc);
-        LongValueFacetCounts counts = new LongValueFacetCounts("field", LongValuesSource.fromLongField("field"), fc);
-        //LongValueFacetCounts counts = new LongValueFacetCounts("field", fc);
+        s.search(IntPoint.newRangeQuery("i", 0, 24999999), fc);
+        //LongValueFacetCounts counts = new LongValueFacetCounts("field", LongValuesSource.fromLongField("field"), fc);
+        LongValueFacetCounts counts = new LongValueFacetCounts("field", fc, false);
         FacetResult facets = counts.getAllChildrenSortByValue();
         hitCount = ((Number) facets.value).intValue();
       }

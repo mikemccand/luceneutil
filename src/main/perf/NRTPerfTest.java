@@ -76,7 +76,7 @@ import perf.IndexThreads.Mode;
 
 public class NRTPerfTest {
 
-	static final class MergedReaderWarmer extends IndexWriter.IndexReaderWarmer {
+	static final class MergedReaderWarmer implements IndexWriter.IndexReaderWarmer {
 
 		private final String field;
 

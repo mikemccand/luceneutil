@@ -408,6 +408,10 @@ KNOWN_CHANGES = [
   ('2017-01-18',
    'LUCENE-7641: Speed up point ranges that match most documents',
    'LUCENE-7641: Speed up point ranges that match most documents'),
+
+  ('2017-10-27',
+   'LUCENE-7997: BM25 to use doubles instead of floats',
+   'LUCENE-7997: BM25 to use doubles instead of floats'),
 ]
 
 # TODO

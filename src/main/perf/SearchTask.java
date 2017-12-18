@@ -34,6 +34,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
@@ -139,7 +140,7 @@ final class SearchTask extends Task {
 
       if (group != null) {
         if (singlePassGroup) {
-          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createNormalizedWeight(state.groupEndQuery, false));
+          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createNormalizedWeight(state.groupEndQuery, ScoreMode.COMPLETE_NO_SCORES));
           searcher.search(q, c);
           groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10, true);
 

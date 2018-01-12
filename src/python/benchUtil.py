@@ -138,7 +138,7 @@ def nameToIndexPath(name):
 class SearchTask:
   # TODO: subclass SearchGroupTask
 
-  def verifySame(self, other, verifyScores):
+  def verifySame(self, other, verifyScores, verifyCounts):
     if not isinstance(other, SearchTask):
       self.fail('not a SearchTask (%s)' % other)
     if self.query != other.query:
@@ -151,8 +151,10 @@ class SearchTask:
         if self.expandedTermCount != other.expandedTermCount:
           print 'WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount)
           # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
-      if self.hitCount != other.hitCount:
+
+      if verifyCounts and self.hitCount != other.hitCount:
         self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
+
       if len(self.hits) != len(other.hits):
         self.fail('wrong top hit count: %s vs %s' % (len(self.hits), len(other.hits)))
 
@@ -162,21 +164,22 @@ class SearchTask:
         hitsSelf = collapseDups(self.hits)
         hitsOther = collapseDups(other.hits)
 
-        if len(hitsSelf) != len(hitsOther):
+        if verifyCounts and len(hitsSelf) != len(hitsOther):
           self.fail('self=%s: wrong collapsed hit count: %s vs %s\n  %s vs %s\n  %s vs %s' % (self, len(hitsSelf), len(hitsOther), hitsSelf, hitsOther, self.hits, other.hits))
 
-        for i in xrange(len(hitsSelf)):
-          if hitsSelf[i][1] != hitsOther[i][1]:
-            if False:
-              if abs(float(hitsSelf[i][1])-float(hitsOther[i][1])) > MAX_SCORE_DIFF:
-                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+        if verifyScores:
+          for i in xrange(len(hitsSelf)):
+            if hitsSelf[i][1] != hitsOther[i][1]:
+              if False:
+                if abs(float(hitsSelf[i][1])-float(hitsOther[i][1])) > MAX_SCORE_DIFF:
+                  self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+                else:
+                  print 'WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
+                        (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1])
               else:
-                print 'WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
-                      (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1])
-            else:
-              self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
-          if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
-            self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+            if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
+              self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
     else:
       # groups
       if self.groupCount != other.groupCount:
@@ -247,7 +250,7 @@ class SearchTask:
 class RespellTask:
   cat = 'Respell'
 
-  def verifySame(self, other, verifyScores):
+  def verifySame(self, other, verifyScores, verifyCounts):
     if not isinstance(other, RespellTask):
       self.fail('not a RespellTask')
     if self.term != other.term:
@@ -274,7 +277,7 @@ class RespellTask:
 class PKLookupTask:
   cat = 'PKLookup'
 
-  def verifySame(self, other, verifyScores):
+  def verifySame(self, other, verifyScores, verifyCounts):
     # already "verified" in search perf test, ie, that the docID
     # returned in fact has the id that was asked for
     pass
@@ -294,7 +297,7 @@ class PKLookupTask:
 class PointsPKLookupTask:
   cat = 'PointsPKLookup'
 
-  def verifySame(self, other, verifyScores):
+  def verifySame(self, other, verifyScores, verifyCounts):
     # already "verified" in search perf test, ie, that the docID
     # returned in fact has the id that was asked for
     pass
@@ -691,12 +694,13 @@ def run(cmd, logFile=None, indent='    '):
 
 class RunAlgs:
 
-  def __init__(self, javaCommand, verifyScores):
+  def __init__(self, javaCommand, verifyScores, verifyCounts):
     self.logCounter = 0
     self.results = []
     self.compiled = set()
     self.javaCommand = javaCommand
     self.verifyScores = verifyScores
+    self.verifyCounts = verifyCounts
     print
     print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % javaCommand).read()
     
@@ -1084,7 +1088,7 @@ class RunAlgs:
     cmpRawResults, heapCmp = parseResults(cmpLogFiles)
 
     # make sure they got identical results
-    cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores)
+    cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores, self.verifyCounts)
 
     baseResults = collateResults(baseRawResults)
     cmpResults = collateResults(cmpRawResults)
@@ -1164,7 +1168,7 @@ class RunAlgs:
       else:
         significant = False
 
-      if baseTotHitCount != cmpTotHitCount:
+      if self.verifyCounts and baseTotHitCount != cmpTotHitCount:
         warnings.append('cat=%s: hit counts differ: %s vs %s' % (desc, baseTotHitCount, cmpTotHitCount))
 
       if jira:
@@ -1318,7 +1322,7 @@ def fixupFuzzy(query):
       query = query.replace('~%s' % fuzzOrig, '~%s.0' % editDistance)
   return query
 
-def tasksToMap(taskIters, verifyScores):
+def tasksToMap(taskIters, verifyScores, verifyCounts):
   d = {}
   if len(taskIters) > 0:
     for task in taskIters[0]:
@@ -1330,16 +1334,16 @@ def tasksToMap(taskIters, verifyScores):
           raise RuntimeError('tasks differ from one iteration to the next: task=%s' % str(task))
         else:
           # Make sure same task returned same results w/in this run:
-          task.verifySame(d[task], verifyScores)
+          task.verifySame(d[task], verifyScores, verifyCounts)
   return d
     
-def compareHits(r1, r2, verifyScores):
+def compareHits(r1, r2, verifyScores, verifyCounts):
 
   # TODO: must also compare facet results
 
   # Carefully compare, allowing for the addition of new tasks:
-  d1 = tasksToMap(r1, verifyScores)
-  d2 = tasksToMap(r2, verifyScores)
+  d1 = tasksToMap(r1, verifyScores, verifyCounts)
+  d2 = tasksToMap(r2, verifyScores, verifyCounts)
 
   checked = 0
   onlyInD1 = 0
@@ -1347,7 +1351,7 @@ def compareHits(r1, r2, verifyScores):
   for task in d1.keys():
     if task in d2:
       try:
-        task.verifySame(d2.get(task), verifyScores)
+        task.verifySame(d2.get(task), verifyScores, verifyCounts)
       except RuntimeError, re:
         errors.append(str(re))
       checked += 1

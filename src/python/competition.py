@@ -279,6 +279,7 @@ class Competition(object):
   def __init__(self, cold=False,
                printCharts=False,
                verifyScores=True,
+               verifyCounts=True,
                remoteHost=None,
                # Pass fixed randomSeed so separate runs are comparable (pick the same tasks):
                randomSeed=None,
@@ -293,6 +294,7 @@ class Competition(object):
     self.benchSearch = benchSearch
     self.benchIndex = True
     self.verifyScores = verifyScores
+    self.verifyCounts = verifyCounts
     self.onlyTaskPatterns = None
     self.notTaskPatterns = None
     # TODO: not implemented yet
@@ -376,7 +378,8 @@ class Competition(object):
 
     searchBench.run(id, base, challenger, coldRun = self.cold, doCharts = self.printCharts,
                     search = self.benchSearch, index = self.benchIndex,
-                    verifyScores = self.verifyScores, taskPatterns = (self.onlyTaskPatterns, self.notTaskPatterns), randomSeed = self.randomSeed)
+                    verifyScores = self.verifyScores, verifyCounts = self.verifyCounts,
+                    taskPatterns = (self.onlyTaskPatterns, self.notTaskPatterns), randomSeed = self.randomSeed)
     return self
 
   def clearCompetitors(self):

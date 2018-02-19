@@ -412,6 +412,10 @@ KNOWN_CHANGES = [
   ('2017-10-27',
    'LUCENE-7997: BM25 to use doubles instead of floats',
    'LUCENE-7997: BM25 to use doubles instead of floats'),
+
+  ('2018-01-31',
+   'LUCENE-4198: Allow codecs to index term impacts',
+   'LUCENE-4198: Allow codecs to index term impacts'),
 ]
 
 # TODO

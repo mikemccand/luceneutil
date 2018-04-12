@@ -140,7 +140,7 @@ final class SearchTask extends Task {
 
       if (group != null) {
         if (singlePassGroup) {
-          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createNormalizedWeight(state.groupEndQuery, ScoreMode.COMPLETE_NO_SCORES));
+          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createWeight(searcher.rewrite(state.groupEndQuery), ScoreMode.COMPLETE_NO_SCORES, 1));
           searcher.search(q, c);
           groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10, true);
 

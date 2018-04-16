@@ -31,14 +31,14 @@ if '-ea' in sys.argv:
 
 osName = common.osName
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, taskPatterns=None, randomSeed=None):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None):
   competitors = [challenger, base]
 
   if randomSeed is None:
     raise RuntimeError('missing randomSeed')
 
   #verifyScores = False
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
   if '-noc' not in sys.argv:
     print
     print 'Compile:'

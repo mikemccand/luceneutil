@@ -858,9 +858,18 @@ class RunAlgs:
     path = checkoutToPath(checkout)
     cp = []
     version = getLuceneVersion(checkout)
-    buildPath = '%s/lucene/build/core/classes' % path
-    cp.append('%s/java' % buildPath)
-    cp.append('%s/test' % buildPath)
+
+    # We use the jar file for the core JAR to leverage the MR JAR
+    core_jar_file = None
+    for filename in os.listdir('%s/lucene/build/core' % path):
+      if filename.startswith('lucene-core-') and filename.endswith('.jar'):
+        core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
+        break
+    if core_jar_file is None:
+      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+
+    cp.append(core_jar_file)
+    cp.append('%s/lucene/build/core/classes/test' % path)
     cp.append('%s/lucene/build/sandbox/classes/java' % path)
     cp.append('%s/lucene/build/misc/classes/java' % path)
     cp.append('%s/lucene/build/facet/classes/java' % path)
@@ -900,7 +909,13 @@ class RunAlgs:
     try:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
-        for module in ('core', 'suggest', 'highlighter', 'misc',
+        # for core we build a JAR in order to benefit from the MR JAR stuff
+        for module in ['core']:
+          modulePath = '%s/lucene/%s' % (checkoutPath, module)
+          os.chdir(modulePath)
+          print '  %s...' % modulePath
+          run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+        for module in ('suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
           modulePath = '%s/lucene/%s' % (checkoutPath, module)

@@ -859,7 +859,7 @@ class RunAlgs:
     cp = []
     version = getLuceneVersion(checkout)
 
-    # We use the jar file for the core JAR to leverage the MR JAR
+    # We use the jar file for core to leverage the MR JAR
     core_jar_file = None
     for filename in os.listdir('%s/lucene/build/core' % path):
       if filename.startswith('lucene-core-') and filename.endswith('.jar'):

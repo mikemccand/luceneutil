@@ -662,7 +662,7 @@ def run():
   
   runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
 
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
 
   comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
                                  taskCountPerCat=COUNTS_PER_CAT)

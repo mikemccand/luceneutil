@@ -163,7 +163,7 @@ if __name__ == '__main__':
   
   c = competition.Competitor('base', constants.TRUNK_CHECKOUT)
  
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, False, False)
   r.compile(c)
   r.makeIndex(c.name, index, False)
 

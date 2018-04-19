@@ -117,7 +117,7 @@ def main():
   comp = competition.Competition()
   index = comp.newIndex(NIGHTLY_DIR, mediumSource)
   c = comp.competitor(id, NIGHTLY_DIR, index=index)
-  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True)
+  r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
   r.compile(c)
 
 def sendEmail(emailAddress, message):

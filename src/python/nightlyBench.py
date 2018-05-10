@@ -731,7 +731,7 @@ def run():
                         postingsFormat='Lucene50',
                         numThreads=1,
                         directory=DIR_IMPL,
-                        idFieldPostingsFormat='Memory',
+                        idFieldPostingsFormat='Lucene50',
                         mergePolicy='LogDocMergePolicy',
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),

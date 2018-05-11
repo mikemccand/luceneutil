@@ -311,11 +311,7 @@ public class NRTPerfTest {
 		final Codec codec = new Lucene70Codec() {
 			@Override
 			public PostingsFormat getPostingsFormatForField(String field) {
-				if (field.equals("id")) {
-					return PostingsFormat.forName("Memory");
-				} else {
-					return PostingsFormat.forName("Lucene50");
-				}
+                          return PostingsFormat.forName("Lucene50");
 			}
 
 			private final DocValuesFormat direct = DocValuesFormat.forName("Direct");

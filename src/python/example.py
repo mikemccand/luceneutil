@@ -23,7 +23,12 @@ if __name__ == '__main__':
   sourceData = competition.sourceData()
   comp =  competition.Competition()
 
-  index = comp.newIndex('trunk', sourceData)
+  index = comp.newIndex('trunk', sourceData,
+                        facets = (('taxonomy:Date', 'Date'),
+                                  ('taxonomy:Month', 'Month'),
+                                  ('taxonomy:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Month', 'Month'),
+                                  ('sortedset:DayOfYear', 'DayOfYear')))
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'trunk',
                   index = index)

@@ -47,6 +47,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonDocValuesField;
 import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.search.LatLonPointPrototypeQueries;
 //import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;
@@ -868,7 +869,7 @@ public class IndexAndSearchOpenStreetMaps {
                       // TODO
                       throw new AssertionError();
                     }
-                    nearestHits = LatLonPoint.nearest(searchers[0], "point", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, nearestTopN).scoreDocs;
+                    nearestHits = LatLonPointPrototypeQueries.nearest(searchers[0], "point", (lat+latEnd)/2.0, (lon+lonEnd)/2.0, nearestTopN).scoreDocs;
                     if (false && iter == 0) {
                       System.out.println("\n" + nearestHits.length + " nearest:");
                       for(ScoreDoc hit : nearestHits) {

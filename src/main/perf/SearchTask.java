@@ -142,7 +142,7 @@ final class SearchTask extends Task {
         if (singlePassGroup) {
           final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createWeight(searcher.rewrite(state.groupEndQuery), ScoreMode.COMPLETE_NO_SCORES, 1));
           searcher.search(q, c);
-          groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10, true);
+          groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10);
 
           if (doHilite) {
             hilite(groupsResultBlock, state, searcher);
@@ -166,9 +166,9 @@ final class SearchTask extends Task {
           
           searcher.search(q, c);
 
-          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
+          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0);
           if (topGroups != null) {
-            final TopGroupsCollector<BytesRef> c2 = new TopGroupsCollector<>(new TermGroupSelector(group), topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true, true, true);
+            final TopGroupsCollector<BytesRef> c2 = new TopGroupsCollector<>(new TermGroupSelector(group), topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true);
             searcher.search(q, c2);
             groupsResultTerms = c2.getTopGroups(0);
             if (allGroupsCollector != null) {

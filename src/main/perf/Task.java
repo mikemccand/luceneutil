@@ -20,8 +20,6 @@ package perf;
 import java.io.IOException;
 import java.io.PrintStream;
 
-import org.apache.lucene.search.TotalHits;
-
 // Abstract class representing a single task (one query,
 // one batch of PK lookups, on respell).  Each Task
 // instance is executed and results are recorded in it and
@@ -31,7 +29,7 @@ abstract class Task {
 
   public int taskID;
 
-  public TotalHits totalHitCount;
+  public int totalHitCount;
 
   public long recvTimeNS;
 

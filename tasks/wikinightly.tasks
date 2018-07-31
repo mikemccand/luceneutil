@@ -53,11 +53,26 @@ SloppyPhrase: "in an"~4 # freq=181581
 SloppyPhrase: "nomination when"~4 # freq=55609
 SloppyPhrase: "one of"~4 # freq=587897
 SloppyPhrase: "was also"~4 # freq=163302
+SpanNear: near//see the # freq=52117
+SpanNear: near//states american # freq=52681
+SpanNear: near//the modern # freq=37712
+SpanNear: near//when it # freq=63385
+SpanNear: near//your nomination # freq=55938
 Term: 0 # freq=708472
 Term: names # freq=402762
 Term: nbsp # freq=492778
 Term: part # freq=588644
 Term: st # freq=306811
+BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
+BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
+BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
+BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
+BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
+TermDateFacets: 0 +facets:Date.taxonomy # freq=708472
+TermDateFacets: names +facets:Date.taxonomy # freq=402762
+TermDateFacets: nbsp +facets:Date.taxonomy # freq=492778
+TermDateFacets: part +facets:Date.taxonomy # freq=588644
+TermDateFacets: st +facets:Date.taxonomy # freq=306811
 TermDateTimeSort: lastmodndvsort//0 # freq=708472
 TermDateTimeSort: lastmodndvsort//names # freq=402762
 TermDateTimeSort: lastmodndvsort//nbsp # freq=492778

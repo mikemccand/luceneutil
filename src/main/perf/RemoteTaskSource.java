@@ -30,8 +30,6 @@ import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import org.apache.lucene.search.TotalHits;
-
 // Serves up tasks from remote client
 class RemoteTaskSource extends Thread implements TaskSource {
   private final ServerSocket serverSocket;
@@ -140,7 +138,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
   }
 
   @Override
-  public void taskDone(Task task, long queueTimeNS, TotalHits totalHitCount) throws IOException {
+  public void taskDone(Task task, long queueTimeNS, int totalHitCount) throws IOException {
     if (out != null) {
       try {
         // NOTE: can cause NPE here (we are not sync'd)

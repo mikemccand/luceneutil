@@ -13361,6 +13361,12 @@ OrNotHighLow: -do necessities # freq=511178 freq=1195
 OrHighNotLow: do -necessities # freq=511178 freq=1195
 OrNotHighLow: -had halfback # freq=1246743 freq=1205
 OrHighNotLow: had -halfback # freq=1246743 freq=1205
+BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
+BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
+BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
+BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
+BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
+
 HighTermDayOfYearSort: dayofyeardvsort//ref # freq=3793973
 HighTermDayOfYearSort: dayofyeardvsort//http # freq=3493581
 HighTermDayOfYearSort: dayofyeardvsort//from # freq=3224339

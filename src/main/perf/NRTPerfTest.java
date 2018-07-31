@@ -22,10 +22,14 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,13 +54,13 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.NRTCachingDirectory;
 import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.util.Version;
 
 import perf.IndexThreads.Mode;
 
@@ -207,7 +211,7 @@ public class NRTPerfTest {
 		}
 
 		@Override
-		public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {}
+		public void taskDone(Task task, long queueTimeNS, int toalHitCount) {}
 	}
 
 	static final AtomicInteger currentQT = new AtomicInteger();
@@ -378,7 +382,7 @@ public class NRTPerfTest {
 		TaskParser taskParser = new TaskParser(indexState, qp, field, 10, random, true);
 		final TaskSource tasks = new RandomTaskSource(taskParser, tasksFile, random) {
 			@Override
-			public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
+			public void taskDone(Task task, long queueTimeNS, int toalHitCount) {
 				searchesByTime[currentQT.get()].incrementAndGet();
 			}
 		};

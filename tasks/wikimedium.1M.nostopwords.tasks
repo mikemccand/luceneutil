@@ -10232,11 +10232,6 @@ Respell: 25000
 Fuzzy1: marne~1
 Fuzzy2: marne~2
 Respell: marne
-BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
-BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
-BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
-BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
-BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
 HighTermDayOfYearSort: dayofyeardvsort//ref # freq=541190
 HighTermDayOfYearSort: dayofyeardvsort//http # freq=389790
 HighTermDayOfYearSort: dayofyeardvsort//from # freq=359428

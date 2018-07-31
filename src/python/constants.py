@@ -49,7 +49,7 @@ WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
 # enwiki-20120502-lines-1k.txt has 33332620 docs
 # enwiki-20120502-lines.txt has 6726515 docs
 # enwiki-20130102-lines.txt has 6647577 docs
-WIKI_BIG_DOCS_COUNT = 6726515
+WIKI_BIG_DOCS_COUNT = 6647577
 
 #WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
 
@@ -91,7 +91,7 @@ if 'ANALYZER' in locals():
 #DEFAULTS
 
 POSTINGS_FORMAT_DEFAULT='Lucene50'
-ID_FIELD_POSTINGS_FORMAT_DEFAULT='Memory'
+ID_FIELD_POSTINGS_FORMAT_DEFAULT='Lucene50'
 FACET_FIELD_DV_FORMAT_DEFAULT='Lucene70'
 ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='BM25Similarity'

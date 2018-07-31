@@ -27,7 +27,6 @@ import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
-import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
@@ -38,12 +37,12 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
+import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.grouping.AllGroupsCollector;
 import org.apache.lucene.search.grouping.BlockGroupingCollector;
 import org.apache.lucene.search.grouping.FirstPassGroupingCollector;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
-import org.apache.lucene.search.grouping.SecondPassGroupingCollector;
 import org.apache.lucene.search.grouping.TermGroupSelector;
 import org.apache.lucene.search.grouping.TopGroups;
 import org.apache.lucene.search.grouping.TopGroupsCollector;
@@ -142,7 +141,7 @@ final class SearchTask extends Task {
         if (singlePassGroup) {
           final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createWeight(searcher.rewrite(state.groupEndQuery), ScoreMode.COMPLETE_NO_SCORES, 1));
           searcher.search(q, c);
-          groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10, true);
+          groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10);
 
           if (doHilite) {
             hilite(groupsResultBlock, state, searcher);
@@ -166,9 +165,9 @@ final class SearchTask extends Task {
           
           searcher.search(q, c);
 
-          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0, true);
+          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0);
           if (topGroups != null) {
-            final TopGroupsCollector<BytesRef> c2 = new TopGroupsCollector<>(new TermGroupSelector(group), topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true, true, true);
+            final TopGroupsCollector<BytesRef> c2 = new TopGroupsCollector<>(new TermGroupSelector(group), topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true);
             searcher.search(q, c2);
             groupsResultTerms = c2.getTopGroups(0);
             if (allGroupsCollector != null) {
@@ -274,7 +273,7 @@ final class SearchTask extends Task {
         */
       }
       if (hits != null) {
-        totalHitCount = (int) hits.totalHits;
+        totalHitCount = hits.totalHits;
 
         if (doStoredLoads) {
           for (int i = 0; i < hits.scoreDocs.length; i++) {
@@ -284,7 +283,7 @@ final class SearchTask extends Task {
         }
 
       } else if (groupsResultBlock != null) {
-        totalHitCount = groupsResultBlock.totalHitCount;
+        totalHitCount = new TotalHits(groupsResultBlock.totalHitCount, TotalHits.Relation.EQUAL_TO);
       }
     } catch (Throwable t) {
       System.out.println("EXC: " + q);
@@ -434,14 +433,14 @@ final class SearchTask extends Task {
     if (group != null) {
       if (singlePassGroup) {
         for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-          sum += groupDocs.totalHits;
+          sum += groupDocs.totalHits.value;
           for(ScoreDoc hit : groupDocs.scoreDocs) {
             sum = sum * PRIME + hit.doc;
           }
         }
       } else {
         for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-          sum += groupDocs.totalHits;
+          sum += groupDocs.totalHits.value;
           for(ScoreDoc hit : groupDocs.scoreDocs) {
             sum = sum * PRIME + hit.doc;
             if (hit instanceof FieldDoc) {
@@ -456,7 +455,7 @@ final class SearchTask extends Task {
         }
       }
     } else {
-      sum = hits.totalHits;
+      sum = hits.totalHits.value;
       for(ScoreDoc hit : hits.scoreDocs) {
         //System.out.println("  " + hit.doc);
         sum = sum * PRIME + hit.doc;

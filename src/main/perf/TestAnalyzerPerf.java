@@ -133,7 +133,7 @@ public class TestAnalyzerPerf {
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
       Tokenizer src = new WhitespaceTokenizer();
-      TokenStream tok = new EdgeNGramTokenFilter(src, 1, 3);
+      TokenStream tok = new EdgeNGramTokenFilter(src, 1, 3, false);
       return new TokenStreamComponents(src, tok);
     }
   }

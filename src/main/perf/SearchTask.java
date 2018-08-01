@@ -479,7 +479,7 @@ final class SearchTask extends Task {
   @Override
   public String toString() {
     return "cat=" + category + " q=" + q + " s=" + s + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
-      (group == null ? " hits=" + (hits==null ? "null" : hits.totalHits) :
+      (group == null ? " hits=" + (hits==null ? "null" : hits.totalHits.value + (hits.totalHits.relation == TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO ? "+" : "")) :
        " groups=" + (singlePassGroup ?
                      (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
                      (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount))) + " facets=" + facetRequests;

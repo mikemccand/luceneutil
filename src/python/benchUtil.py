@@ -324,10 +324,10 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+) facets=(.*?)$')
-reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
-reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+)$')
-reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
+reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\+?) facets=(.*?)$')
+reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\+?)$')
+reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
@@ -385,9 +385,9 @@ def parseResults(resultsFiles):
           # print 'CAT %s' % cat
 
           if hitCount == 'null':
-            task.hitCount = 0
+            task.hitCount = "0"
           else:
-            task.hitCount = int(hitCount)
+            task.hitCount = hitCount
           if sort == '<string: "title">' or sort == '<string: "titleDV">':
             task.sort = 'Title'
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">'):
@@ -646,7 +646,7 @@ def agg(iters, cat, name):
           
       if isinstance(task, SearchTask):
         if task.groupField is None:
-          totHitCount += task.hitCount
+          totHitCount = sum_hit_count(totHitCount, task.hitCount)
         else:
           for group in task.groups:
             totHitCount += group[1]
@@ -669,6 +669,19 @@ def agg(iters, cat, name):
     
   return accumMS, totHitCount
 
+def sum_hit_count(hc1, hc2):
+  lower_bound = False
+  if isinstance(hc1, basestring) and hc1.endswith('+'):
+    lower_bound = True
+    hc1 = int(hc1[:-1])
+  else:
+    hc1 = int(hc1)
+  if isinstance(hc2, basestring) and hc2.endswith('+'):
+    lower_bound = True
+    hc2 = int(hc2[:-1])
+  else:
+    hc2 = int(hc2)
+  return str(hc1+hc2) + (lower_bound and "+" or "")
 
 def stats(l):
   sum = 0

@@ -79,6 +79,7 @@ import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.spatial3d.Geo3DPoint;
 import org.apache.lucene.spatial3d.geom.GeoCircleFactory;
 import org.apache.lucene.spatial3d.geom.GeoPoint;
@@ -901,7 +902,12 @@ public class IndexAndSearchOpenStreetMaps {
                     Sort sort = new Sort(LatLonDocValuesField.newDistanceSort("point", centerLat, centerLon));
                     for(IndexSearcher s : searchers) {
                       TopFieldDocs hits = s.search(q, 10, sort);
-                      totHits += hits.totalHits;
+                      if (hits.totalHits.relation != TotalHits.Relation.EQUAL_TO) {
+                    	  // IndexSearcher can never optimize top-hits collection in that case,
+                    	  // se we should get accurate hit counts
+                    	  throw new AssertionError();
+                      }
+                      totHits += hits.totalHits.value;
                     }
                   } else {
                     //System.out.println("\nRUN QUERY " + q);

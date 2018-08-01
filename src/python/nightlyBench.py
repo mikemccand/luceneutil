@@ -416,6 +416,27 @@ KNOWN_CHANGES = [
   ('2018-01-31',
    'LUCENE-4198: Allow codecs to index term impacts',
    'LUCENE-4198: Allow codecs to index term impacts'),
+
+  ('2018-02-20',
+   'LUCENE-8153: CheckIndex spends less time checking impacts',
+   'LUCENE-8153: CheckIndex spends less time checking impacts'),
+
+  ('2018-05-02',
+   'LUCENE-8279: CheckIndex now cross-checks terms with norms',
+   'LUCENE-8279: CheckIndex now cross-checks terms with norms'),
+
+  ('2018-05-25',
+   'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)',
+   'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)'),
+
+  ('2018-08-01',
+   'LUCENE-8312: Fixed regression with non-scoring term queries',
+   'LUCENE-8312: Fixed regression with non-scoring term queries'),
+
+  ('2018-08-01',
+   'LUCENE-8060: Stop counting total hits by default',
+   'LUCENE-8060: Stop counting total hits by default'),
+
 ]
 
 # TODO

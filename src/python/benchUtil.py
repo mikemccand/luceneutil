@@ -332,7 +332,7 @@ reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
 rePKOrd = re.compile(r'PK(.*?)\[')
-reOneGroup = re.compile('group=(.*?) totalHits=(.*?) hits groupRelevance=(.*?)$', re.DOTALL)
+reOneGroup = re.compile('group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$', re.DOTALL)
 reHeap = re.compile('HEAP: ([0-9]+)$')
 
 def parseResults(resultsFiles):

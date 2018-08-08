@@ -94,6 +94,10 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
 import org.apache.lucene.util.bkd.BKDWriter;
 
+import org.apache.lucene.document.LatLonShape;
+import org.apache.lucene.document.Field;
+
+
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLatitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.encodeLatitude;
@@ -146,12 +150,17 @@ public class IndexAndSearchOpenStreetMaps {
         INDEX_LOCATION = "/data/lucene/bkdtest";
         DATA_LOCATION = "/data/lucene/data";
         break;
+      case "ivera":
+        INDEX_LOCATION = "/data/bkdtest";
+        DATA_LOCATION = "/data/";
+        break;
       default:
         throw new UnsupportedOperationException("the benchmark does not know you, "+System.getProperty("user.name")+". please introduce yourself to the code and push");
     }
   }
 
   static boolean useGeo3D = false;
+  static boolean useShape = false;
   static boolean useGeo3DLarge = false;
   static boolean useLatLonPoint = false;
   static boolean useDocValues = false;
@@ -169,7 +178,9 @@ public class IndexAndSearchOpenStreetMaps {
       }
     } else if (useDocValues) {
       name += ".docvalues";
-    } else {
+    } else if (useShape) {
+      name += ".shape";
+    }  else {
       throw new AssertionError();
     }
     if (SMALL) {
@@ -480,7 +491,12 @@ public class IndexAndSearchOpenStreetMaps {
                       doc.add(new Geo3DPoint("point", lat, lon));
                     } else if (useDocValues) {
                       doc.add(new LatLonDocValuesField("point", lat, lon));
-                    } else {
+                    } else if (useShape) {
+                      Field[] fields = LatLonShape.createIndexableFields("point", lat, lon);
+                      for (Field f : fields) {
+                        doc.add(f);
+                      }
+                    }  else {
                       doc.add(new LatLonPoint("point", lat, lon));
                       if (doDistanceSort) {
                         doc.add(new LatLonDocValuesField("point", lat, lon));
@@ -849,6 +865,8 @@ public class IndexAndSearchOpenStreetMaps {
                     q = Geo3DPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                  } else if (useShape) {
+                    q = LatLonShape.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else {
                     throw new AssertionError();
                   }
@@ -858,6 +876,8 @@ public class IndexAndSearchOpenStreetMaps {
                     q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                  } else if (useShape) {
+                    q = LatLonShape.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useDocValues) {
                     q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else {
@@ -1143,6 +1163,9 @@ public class IndexAndSearchOpenStreetMaps {
       } else if (arg.equals("-geo3d")) {
         useGeo3D = true;
         count++;
+      } else if (arg.equals("-shapes")) {
+        useShape = true;
+        count++;
       } else if (arg.equals("-geo3dlarge")) {
         useGeo3DLarge = true;
         count++;
@@ -1228,15 +1251,17 @@ public class IndexAndSearchOpenStreetMaps {
       }
     }
     if (count == 0) {
-      throw new IllegalArgumentException("must specify exactly one of -points or -geo3d; got none");
+      throw new IllegalArgumentException("must specify exactly one of -points, -shapes, -dv, -geo3d or -geo3dlarge; got none");
     } else if (count > 1) {
-      throw new IllegalArgumentException("must specify exactly one of -points or -geo3d; got more than one");
+      throw new IllegalArgumentException("must specify exactly one of -points, -shapes, -dv, -geo3d or -geo3dlarge; got more than one");
     }
     NUM_PARTS = SMALL ? 1 : 2;
     if (useGeo3D) {
       System.out.println("\nUsing geo3d");
     } else if (useLatLonPoint) {
       System.out.println("\nUsing points");
+    } else if (useShape) {
+      System.out.println("\nUsing shapes");
     } else if (useDocValues) {
       System.out.println("\nUsing doc values");
     } else {

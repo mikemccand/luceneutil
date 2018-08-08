@@ -705,6 +705,8 @@ def run(cmd, logFile=None, indent='    '):
       print open(logFile).read()
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
 
+reCoreJar = re.compile('lucene-core-[0-9]\.[0-9]\.[0-9](?:-SNAPSHOT)?\.jar')
+
 class RunAlgs:
 
   def __init__(self, javaCommand, verifyScores, verifyCounts):
@@ -875,7 +877,7 @@ class RunAlgs:
     # We use the jar file for core to leverage the MR JAR
     core_jar_file = None
     for filename in os.listdir('%s/lucene/build/core' % path):
-      if filename.startswith('lucene-core-') and filename.endswith('.jar'):
+      if reCoreJar.match(filename) is not None:
         core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
         break
     if core_jar_file is None:

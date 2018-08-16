@@ -866,7 +866,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useShape) {
-                    q = LatLonShape.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                    q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, new Polygon(poly[0], poly[1]));
                   } else {
                     throw new AssertionError();
                   }
@@ -877,7 +877,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useShape) {
-                    q = LatLonShape.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                    q = LatLonShape.newBoxQuery("point", LatLonShape.QueryRelation.INTERSECTS, lat, latEnd, lon, lonEnd);
                   } else if (useDocValues) {
                     q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else {
@@ -1029,7 +1029,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
               } else if (useShape) {
-                q = LatLonShape.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, new Polygon(poly[0], poly[1]));
               } else {
                 throw new AssertionError();
               }
@@ -1042,7 +1042,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useDocValues) {
                 q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else if (useShape) {
-                q = LatLonShape.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                q = LatLonShape.newBoxQuery("point", LatLonShape.QueryRelation.INTERSECTS, lat, latEnd, lon, lonEnd);
               } else {
                 throw new AssertionError();
               }

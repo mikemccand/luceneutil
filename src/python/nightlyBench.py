@@ -425,6 +425,10 @@ KNOWN_CHANGES = [
    'LUCENE-8279: CheckIndex now cross-checks terms with norms',
    'LUCENE-8279: CheckIndex now cross-checks terms with norms'),
 
+  ('2018-05-11',
+   'Primary key now indexed with the default codec instead of the specialized "Memory" postings format',
+   'Primary key now indexed with the default codec instead of the specialized "Memory" postings format'),
+
   ('2018-05-25',
    'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)',
    'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)'),
@@ -436,6 +440,10 @@ KNOWN_CHANGES = [
   ('2018-08-01',
    'LUCENE-8060: Stop counting total hits by default',
    'LUCENE-8060: Stop counting total hits by default'),
+
+  ('2018-08-18',
+   'LUCENE-8448: Propagate min competitive score to sub clauses',
+   'LUCENE-8448: Propagate min competitive score to sub clauses'),
 
 ]
 

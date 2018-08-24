@@ -37,7 +37,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene70.Lucene70Codec;
+import org.apache.lucene.codecs.lucene80.Lucene80Codec;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -304,7 +304,7 @@ public class NRTPerfTest {
 		conf.setRAMBufferSizeMB(256.0);
 		//iwc.setMergeScheduler(ms);
 
-		final Codec codec = new Lucene70Codec() {
+		final Codec codec = new Lucene80Codec() {
 			@Override
 			public PostingsFormat getPostingsFormatForField(String field) {
                           return PostingsFormat.forName("Lucene50");

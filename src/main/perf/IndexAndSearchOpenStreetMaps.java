@@ -553,7 +553,7 @@ public class IndexAndSearchOpenStreetMaps {
 
   private static Codec getCodec(boolean fast) {
     if (fast) {
-      return new FilterCodec("Lucene70", Codec.getDefault()) {
+      return new FilterCodec("Lucene80", Codec.getDefault()) {
         @Override
         public PointsFormat pointsFormat() {
           return new PointsFormat() {
@@ -571,7 +571,7 @@ public class IndexAndSearchOpenStreetMaps {
         }
       };
     } else {
-      return Codec.forName("Lucene70");
+      return Codec.forName("Lucene80");
     }
   }
 

@@ -433,11 +433,11 @@ KNOWN_CHANGES = [
    'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)',
    'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)'),
 
-  ('2018-08-01',
+  ('2018-08-07',
    'LUCENE-8312: Fixed regression with non-scoring term queries',
    'LUCENE-8312: Fixed regression with non-scoring term queries'),
 
-  ('2018-08-01',
+  ('2018-08-07',
    'LUCENE-8060: Stop counting total hits by default',
    'LUCENE-8060: Stop counting total hits by default'),
 

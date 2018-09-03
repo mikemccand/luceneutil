@@ -426,8 +426,8 @@ KNOWN_CHANGES = [
    'LUCENE-8279: CheckIndex now cross-checks terms with norms'),
 
   ('2018-05-11',
-   'Primary key now indexed with the default codec instead of the specialized "Memory" postings format',
-   'Primary key now indexed with the default codec instead of the specialized "Memory" postings format'),
+   'Primary key now indexed with the default codec instead of the specialized Memory postings format',
+   'Primary key now indexed with the default codec instead of the specialized Memory postings format'),
 
   ('2018-05-25',
    'LUCENE-8312: Leverage impacts for SynonymQuery (introduced regression for non-scoring term queries)',

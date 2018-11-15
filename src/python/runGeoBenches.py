@@ -23,13 +23,13 @@ def printResults(results, stats, maxDoc):
 
   if '-reindex' in sys.argv:
     print('||Approach||Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
-    for approach in ('geo3d', 'points', 'geopoint'):
+    for approach in ('geo3d', 'points', 'geopoint', 'shapes'):
       if approach in stats:
         readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats[approach]
         print('|%s|%.1fs|%.1fs|%.2f|%.2f|' % (approach, indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
   else:
     print('||Approach||Index size (GB)||Reader heap (MB)||')
-    for approach in ('geo3d', 'points', 'geopoint'):
+    for approach in ('geo3d', 'points', 'geopoint', 'shapes'):
       if approach in stats:
         readerHeapMB, indexSizeGB = stats[approach][:2]
         print('|%s|%.2f|%.2f|' % (approach, indexSizeGB, readerHeapMB))
@@ -37,7 +37,7 @@ def printResults(results, stats, maxDoc):
   print()
   print('||Shape||Approach||M hits/sec||QPS||Hit count||')
   for shape in ('distance', 'box', 'poly 10', 'polyMedium', 'polyRussia', 'nearest 10', 'sort'):
-    for approach in ('geo3d', 'points', 'geopoint'):
+    for approach in ('geo3d', 'points', 'geopoint', 'shapes'):
       tup = shape, approach
       if tup in results:
         qps, mhps, totHits = results[tup]
@@ -107,7 +107,7 @@ print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName,
 with open(logFileName, 'w') as log:
   log.write('\ngit head revision %s' % rev)
   for shape in ('polyRussia', 'polyMedium', 'poly 10', 'nearest 10', 'sort', 'distance', 'box'):
-    for approach in ('points', 'geo3d'):
+    for approach in ('points', 'geo3d', 'shapes'):
 
       if approach == 'geo3d' and not haveGeo3D:
         continue

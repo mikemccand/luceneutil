@@ -149,6 +149,8 @@ def prettyName(approach):
     return 'GeoPoint'
   elif approach == 'geo3d':
     return 'Geo3D'
+  elif approach == 'shapes':
+    return "LatLonShape"
   else:
     raise RuntimeError('unhandled approach %s' % approach)
 

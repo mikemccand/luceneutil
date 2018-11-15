@@ -148,7 +148,7 @@ public class IndexAndSearchOpenStreetMaps {
         break;
       case "jpountz":
         INDEX_LOCATION = "/data/lucene/bkdtest";
-        DATA_LOCATION = "/data/lucene/data";
+        DATA_LOCATION = "/home/jpountz/local/lucene/data";
         break;
       case "ivera":
         INDEX_LOCATION = "/data/bkdtest";
@@ -732,6 +732,10 @@ public class IndexAndSearchOpenStreetMaps {
             q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
           } else if (useGeo3D) {
             q = Geo3DPoint.newPolygonQuery("point", multiPolygon);
+          } else if (useShape) {
+            q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, multiPolygon);
+          } else {
+            throw new AssertionError();
           }
           queries.add(q);
         }
@@ -756,8 +760,12 @@ public class IndexAndSearchOpenStreetMaps {
             Query q;
             if (useLatLonPoint) {
               q = LatLonPoint.newPolygonQuery("point", multiPolygon);
-            } else {
+            } else if (useShape) {
+              q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, multiPolygon);
+            } else if (useGeo3D) {
               q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
+            } else {
+              throw new AssertionError();
             }
 
             for(IndexSearcher s : searchers) {

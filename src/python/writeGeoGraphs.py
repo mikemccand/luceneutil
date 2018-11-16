@@ -82,6 +82,8 @@ def writeGraphFooter(f, id, title, yLabel, series):
     colors.append('#06A2CB')
   if 'LatLonPoint+DV' in series:
     colors.append('#218559')
+  if 'LatLonShape' in series:
+    colors.append('#8A2BE2')
     
   idNoSpace = id.replace(' ', '_')
 

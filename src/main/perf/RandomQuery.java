@@ -85,7 +85,7 @@ public class RandomQuery extends Query {
           }
 
         };
-        return new ConstantScoreScorer(this, score(), iterator);
+        return new ConstantScoreScorer(this, score(), ScoreMode.COMPLETE, iterator);
       }
 
       @Override

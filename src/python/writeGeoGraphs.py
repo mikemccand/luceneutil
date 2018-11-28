@@ -36,6 +36,7 @@ KNOWN_CHANGES = (
   ('2017-01-27', 'LUCENE-7656: Speed up LatLonPointDistanceQuery by dividing the bounding box around the circle into a grid of smaller boxes and precomputing their relation with the distance query'),
   ('2017-01-31', 'LUCENE-7661: Speed up LatLonPointInPolygonQuery by dividing the bounding box around the polygons into a grid of smaller boxes and precomputing their relation with the polygon'),
   ('2018-11-03', 'LUCENE-8554: Check if either end of a segment is contained in the target rectangle before applying the determinant formula'),
+  ('2018-11-27', 'LUCENE-8562: Speed up merging segments of points with data dimensions by only sorting on the indexed dimensions'),
 )
 
 def toString(timeStamp):

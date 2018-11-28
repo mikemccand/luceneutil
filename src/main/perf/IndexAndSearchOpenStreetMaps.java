@@ -762,7 +762,7 @@ public class IndexAndSearchOpenStreetMaps {
               q = LatLonPoint.newPolygonQuery("point", multiPolygon);
             } else if (useShape) {
               q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, multiPolygon);
-            } else if (useGeo3D) {
+            } else if (useGeo3D || useGeo3DLarge) {
               q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
             } else {
               throw new AssertionError();

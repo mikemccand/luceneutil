@@ -344,7 +344,7 @@ def parseResults(resultsFiles):
     if not os.path.exists(resultsFile):
       continue
 
-    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 3072:
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 10*1024:
       raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
     
     # print 'parse %s' % resultsFile

@@ -336,7 +336,7 @@ public class SearchPerfTest {
         });
       
       writer = new IndexWriter(dir, iwc);
-      System.out.println("Initial writer.maxDoc()=" + writer.maxDoc());
+      System.out.println("Initial writer.maxDoc()=" + writer.getDocStats().maxDoc);
 
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
@@ -380,7 +380,7 @@ public class SearchPerfTest {
                   if (ramDir != null) {
                     System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes in RAMDir; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
                                                      (System.currentTimeMillis() - startMS)/1000.0, ramDir.ramBytesUsed(),
-                                                     writer.maxDoc(), s.getIndexReader().maxDoc(), s.getIndexReader().numDocs()));
+                                                     writer.getDocStats().maxDoc, s.getIndexReader().maxDoc(), s.getIndexReader().numDocs()));
                     //String[] l = ramDir.listAll();
                     //Arrays.sort(l);
                     //for(String f : l) {
@@ -389,7 +389,7 @@ public class SearchPerfTest {
                   } else {
                     System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
                                                      (System.currentTimeMillis() - startMS)/1000.0,
-                                                     writer.maxDoc(), s.getIndexReader().maxDoc(),
+                                                     writer.getDocStats().maxDoc, s.getIndexReader().maxDoc(),
                                                      s.getIndexReader().numDocs()));
                   }
                 } finally {

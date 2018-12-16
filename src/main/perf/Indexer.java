@@ -413,7 +413,7 @@ public final class Indexer {
 
     IndexWriter w = new IndexWriter(dir, iwc);
 
-    System.out.println("Index has " + w.maxDoc() + " docs");
+    System.out.println("Index has " + w.getDocStats().maxDoc + " docs");
 
     final TaxonomyWriter taxoWriter;
     if (facetFields.isEmpty() == false) {
@@ -454,7 +454,7 @@ public final class Indexer {
     threads.stop();
 
     final long t1 = System.currentTimeMillis();
-    System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.maxDoc() + " docs");
+    System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.getDocStats().maxDoc + " docs");
     // if we update we can not tell how many docs
     if (threads.failed.get()) {
       throw new RuntimeException("exceptions during indexing");
@@ -474,8 +474,8 @@ public final class Indexer {
       countShouldMatch = true;
     }
 
-    if (countShouldMatch && w.maxDoc() != docCountLimit) {
-      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.maxDoc()) + ")");
+    if (countShouldMatch && w.getDocStats().maxDoc != docCountLimit) {
+      throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.getDocStats().maxDoc) + ")");
     }
 
     final Map<String,String> commitData = new HashMap<String,String>();
@@ -527,7 +527,9 @@ public final class Indexer {
       final long t5 = System.currentTimeMillis();
       // Randomly delete 5% of the docs
       final Set<Integer> deleted = new HashSet<Integer>();
-      final int maxDoc = w.maxDoc();
+      IndexWriter.DocStats docStats = w.getDocStats();
+      final int maxDoc = docStats.maxDoc;
+      final int numDocs = docStats.numDocs;
       final int toDeleteCount = (int) (maxDoc * 0.05);
       System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
       while(deleted.size() < toDeleteCount) {
@@ -546,8 +548,8 @@ public final class Indexer {
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
 
-      if (doUpdate || w.numDocs() != maxDoc - toDeleteCount) {
-        throw new RuntimeException("count mismatch: w.numDocs()=" + w.numDocs() + " but expected " + (maxDoc - toDeleteCount));
+      if (doUpdate || numDocs != maxDoc - toDeleteCount) {
+        throw new RuntimeException("count mismatch: w.numDocs()=" + numDocs + " but expected " + (maxDoc - toDeleteCount));
       }
     }
 

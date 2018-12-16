@@ -360,8 +360,9 @@ public class NRTPerfTest {
 				docsIndexedByTime[idx].incrementAndGet();
 			}
 		};
+        IndexWriter.DocStats stats = w.getDocStats();
 		IndexThreads indexThreads = new IndexThreads(random, w, new AtomicBoolean(false), docs, numIndexThreads, -1, false, false, mode,
-                                                             (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, w.maxDoc());
+                                                             (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, stats.maxDoc);
 
 		// NativePosixUtil.mlockTermsDict(startR, "id");
 		final SearcherManager manager = new SearcherManager(w, null);

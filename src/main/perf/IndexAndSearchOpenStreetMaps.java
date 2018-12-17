@@ -526,7 +526,7 @@ public class IndexAndSearchOpenStreetMaps {
         thread.join();
       }
 
-      System.out.println("Part " + part + " is done: w.maxDoc()=" + w.maxDoc());
+      System.out.println("Part " + part + " is done: w.getDocStats().maxDoc =" + w.getDocStats().maxDoc);
       w.commit();
       System.out.println("done commit");
       long t1 = System.nanoTime();

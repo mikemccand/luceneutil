@@ -68,7 +68,6 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NRTCachingDirectory;
-import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
@@ -181,13 +180,7 @@ public class SearchPerfTest {
       }
       */
 
-    final RAMDirectory ramDir;
     dir0 = od.open(Paths.get(dirPath));
-    if (dir0 instanceof RAMDirectory) {
-      ramDir = (RAMDirectory) dir0;
-    } else {
-      ramDir = null;
-    }
 
     // TODO: NativeUnixDir?
 
@@ -279,7 +272,7 @@ public class SearchPerfTest {
         InfoStream.setDefault(new PrintStreamInfoStream(System.out));
       }
       
-      if (!dirImpl.equals("RAMDirectory") && !dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
+      if (!dirImpl.equals("RAMExceptDirectPostingsDirectory")) {
         System.out.println("Wrap NRTCachingDirectory");
         dir0 = new NRTCachingDirectory(dir0, 20, 400.0);
       }
@@ -293,10 +286,6 @@ public class SearchPerfTest {
 
       // TODO: also RAMDirExceptDirect...?  need to
       // ... block deletes against wrapped FSDir?
-      if (dirImpl.equals("RAMDirectory")) {
-        // Let IW remove files only referenced by starting commit:
-        iwc.setIndexDeletionPolicy(new KeepNoCommitsDeletionPolicy());
-      }
       
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening writer on commit=" + commit);
@@ -377,21 +366,10 @@ public class SearchPerfTest {
                 reopenCount++;
                 IndexSearcher s = mgr.acquire();
                 try {
-                  if (ramDir != null) {
-                    System.out.println(String.format(Locale.ENGLISH, "%.1fs: index: %d bytes in RAMDir; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
-                                                     (System.currentTimeMillis() - startMS)/1000.0, ramDir.ramBytesUsed(),
-                                                     writer.getDocStats().maxDoc, s.getIndexReader().maxDoc(), s.getIndexReader().numDocs()));
-                    //String[] l = ramDir.listAll();
-                    //Arrays.sort(l);
-                    //for(String f : l) {
-                    //System.out.println("  " + f + ": " + ramDir.fileLength(f));
-                    //}
-                  } else {
-                    System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
-                                                     (System.currentTimeMillis() - startMS)/1000.0,
-                                                     writer.getDocStats().maxDoc, s.getIndexReader().maxDoc(),
-                                                     s.getIndexReader().numDocs()));
-                  }
+                  System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
+                                                   (System.currentTimeMillis() - startMS)/1000.0,
+                                                   writer.getDocStats().maxDoc, s.getIndexReader().maxDoc(),
+                                                   s.getIndexReader().numDocs()));
                 } finally {
                   mgr.release(s);
                 }

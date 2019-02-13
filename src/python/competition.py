@@ -207,6 +207,7 @@ class Competitor(object):
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
                loadStoredFields = False,
+               concurrentSegReads = False,
                javacCommand = constants.JAVAC_EXE):
     self.name = name
     self.checkout = checkout
@@ -227,6 +228,7 @@ class Competitor(object):
     self.pk = pk
     self.loadStoredFields = loadStoredFields
     self.javacCommand = javacCommand
+    self.concurrentSegReads = concurrentSegReads
 
   def compile(self, cp):
     root = benchUtil.checkoutToUtilPath(self.checkout)

@@ -35,6 +35,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
@@ -70,6 +74,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NRTCachingDirectory;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.Version;
@@ -190,9 +195,16 @@ public class SearchPerfTest {
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
+    final boolean doConcurrentSegmentReads = args.getFlag("-concurrentSegReads");
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
 
+    int cores = Runtime.getRuntime().availableProcessors();
+    ExecutorService tempExecutorService = new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>(),
+            new NamedThreadFactory("ConcurrentSegReads"));
+
+    final ExecutorService executorService = doConcurrentSegmentReads ? tempExecutorService : null; 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
     // any random pct filters:
@@ -215,6 +227,7 @@ public class SearchPerfTest {
     System.out.println("topN " + topN);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
+    System.out.println("Concurrent segment reads is " + doConcurrentSegmentReads);
  
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
@@ -316,7 +329,7 @@ public class SearchPerfTest {
           public void warm(LeafReader reader) throws IOException {
             final long t0 = System.currentTimeMillis();
             //System.out.println("DO WARM: " + reader);
-            IndexSearcher s = new IndexSearcher(reader);
+            IndexSearcher s = createIndexSearcher(reader, doConcurrentSegmentReads, executorService);
             s.setQueryCache(null); // don't bench the cache
             s.search(new TermQuery(new Term(fieldName, "united")), 10);
             final long t1 = System.currentTimeMillis();
@@ -337,7 +350,7 @@ public class SearchPerfTest {
       mgr = new SearcherManager(writer, new SearcherFactory() {
           @Override
           public IndexSearcher newSearcher(IndexReader reader, IndexReader previous) {
-            IndexSearcher s = new IndexSearcher(reader);
+            IndexSearcher s = createIndexSearcher(reader, doConcurrentSegmentReads, executorService);
             s.setQueryCache(null); // don't bench the cache
             s.setSimilarity(sim);
             return s;
@@ -394,11 +407,12 @@ public class SearchPerfTest {
         // open last commit
         reader = DirectoryReader.open(dir);
       }
-      IndexSearcher s = new IndexSearcher(reader);
+
+      IndexSearcher s = createIndexSearcher(reader, doConcurrentSegmentReads, executorService);
       s.setQueryCache(null); // don't bench the cache
       s.setSimilarity(sim);
       System.out.println("maxDoc=" + reader.maxDoc() + " numDocs=" + reader.numDocs() + " %tg deletes=" + (100.*reader.maxDoc()/reader.numDocs()));
-      
+
       mgr = new SingleIndexSearcher(s);
     }
 
@@ -595,4 +609,13 @@ public class SearchPerfTest {
     out.close();
   }
 
+  private static IndexSearcher createIndexSearcher(IndexReader reader, boolean doConcurrentReads, ExecutorService executorService) {
+
+      if (doConcurrentReads) {
+          assert(executorService != null);
+          return new IndexSearcher(reader, executorService);
+      }
+
+      return new IndexSearcher(reader);
+  }
 }

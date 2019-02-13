@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import competition
+import sys
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
 # Baseline here is ../trunk versus ../patch
@@ -24,16 +25,24 @@ if __name__ == '__main__':
   comp =  competition.Competition()
 
   index = comp.newIndex('trunk', sourceData)
+
+  // Warning -- Do not break the order of arguments
+  // TODO -- Fix the following by using argparser
+  if len(sys.argv) > 3 and sys.argv[3] == '-concurrentSegReads':
+    concurrentSegmentReads = True
+  else:
+    concurrentSegmentReads = False
+
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'trunk',
-                  index = index)
+                  index = index, concurrentSegReads = concurrentSegmentReads)
 
   # use the same index here
   # create a competitor named my_modified_version with sources in the ../patch folder
   # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
   # while the codec that is used for running this competitor is taken from this competitor.
   comp.competitor('my_modified_version', 'patch',
-                  index = index)
+                  index = index, concurrentSegReads = concurrentSegmentReads)
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("trunk_vs_patch")

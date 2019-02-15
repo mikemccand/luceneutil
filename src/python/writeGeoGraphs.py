@@ -40,6 +40,7 @@ KNOWN_CHANGES = (
   ('2018-12-19', 'LUCENE-8581: Change LatLonShape encoding to use 4 BYTES Per Dimension', 'LatLonShape'),
   ('2019-01-15', 'LUCENE-8623: Decrease I/O pressure when merging high dimensional points'),
   ('2019-02-08', 'LUCENE-8673: Use radix partitioning when merging dimensional points'),
+  ('2019-02-12', 'LUCENE-8687: Optimise radix partitioning for points on heap'),
 )
 
 def toString(timeStamp):

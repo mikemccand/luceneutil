@@ -139,6 +139,7 @@ class SendTasks:
     queueTimeStats = RollingStats(100)
     totalTimeStats = RollingStats(100)
     actualQPSStats = RollingStats(5)
+    latenciesInMS = []
     
     while True:
       result = ''
@@ -167,6 +168,7 @@ class SendTasks:
       latencyMS = (endTime-taskStartTime)*1000
       queueTimeStats.add(queueTimeMS)
       totalTimeStats.add(latencyMS)
+      latenciesInMS.append(latencyMS)
       self.results.add(taskString.strip(),
                        totalHitCount,
                        taskStartTime-startTime,
@@ -178,6 +180,14 @@ class SendTasks:
         pctDone = 100.0*(now - startTime) / self.runTimeSec
         if pctDone > 100.0:
           pctDone = 100.0
+
+        latenciesInMS.sort()
+
+        self.out.write('p0: ' + str(latenciesInMS[0]))
+        self.out.write('p50: ' + str(latenciesInMS[(len(latenciesInMS)-1)/2]))
+        self.out.write('p90: ' + str(times[int((len(latenciesInMS)-1)*0.9)]))
+        self.out.write('p100: ' + str(times[len(latenciesInMS)-1]))
+
         self.out.write('%6.1f s: %5.1f%%: %5.1f qps in; %5.1f qps out; %6.1f/%6.1f ms [%d, %d]\n' % \
                        (now - startTime, pctDone,
                         self.taskID/(now-startTime),

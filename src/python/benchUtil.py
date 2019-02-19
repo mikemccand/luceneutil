@@ -540,6 +540,27 @@ def parseResults(resultsFiles):
 
   return taskIters, heaps
 
+# Collect task latencies segregated by categories across all the runs of the task
+# This allows calculating P50, P90, P99 and P100 latencies per task
+def collateTaskLatencies(resultIters):
+  iters = []
+  for results in resultIters:
+    byCat = {}
+    iters.append(byCat)
+    for task in results:
+      if isinstance(task, SearchTask):
+        key = task.cat, task.sort
+      else:
+        key = task.cat
+
+      if key not in byCat:
+        byCat[key] = ([])
+
+      l = byCat[key]
+      l.append(task.msec)
+
+  return iters
+
 def collateResults(resultIters):
   iters = []
   for results in resultIters:
@@ -983,6 +1004,11 @@ class RunAlgs:
     else:
       doSort = ''
 
+    if c.concurrentSearches:
+      doConcurrentSegmentReads = '-concurrentSearches'
+    else:
+      doConcurrentSegmentReads = ''
+
     command = []
     command.extend(c.javaCommand.split())
     command.append('-classpath')
@@ -1011,6 +1037,8 @@ class RunAlgs:
     command.append(str(c.competition.taskCountPerCat))
     if c.doSort:
       command.append('-sort')
+    if c.concurrentSearches:
+      command.append('-concurrentSearches')
     command.append('-staticSeed')
     command.append(str(staticSeed))
     command.append('-seed')
@@ -1040,7 +1068,7 @@ class RunAlgs:
           (c.javaCommand, cp, c.directory,
           nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
           c.numThreads, c.competition.taskRepeatCount,
-          c.competition.taskCountPerCat, doSort, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
+          c.competition.taskCountPerCat, doSort, doConcurrentSegmentReads, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
       command += ' -topN 10'
       if filter is not None:
         command += ' %s %.2f' % filter
@@ -1055,7 +1083,6 @@ class RunAlgs:
     t0 = time.time()
     print '      run: %s' % ' '.join(command)
     #p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)    
-    #print 'command %s' % command
     p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     if DO_PERF:
@@ -1112,6 +1139,31 @@ class RunAlgs:
       logFiles.append(logFile)
     return logFiles
 
+  def computeTaskLatencies(self, inputList, catSet):
+    resultLatencyMetrics = {}
+    for currentRecord in inputList:
+      for currentKey in currentRecord.keys():
+        catSet.add(currentKey)
+        currentCatLatencies = currentRecord[currentKey]
+        currentCatLatencies.sort()
+
+        resultLatencyMetrics[currentKey] = ({})
+        currentLatencyMetricsDict = resultLatencyMetrics[currentKey]
+
+        currentP0 = currentCatLatencies[0]
+        currentP50 = currentCatLatencies[(len(currentCatLatencies)-1)/2]
+        currentP90 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.9)]
+        currentP99 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.99)]
+        currentP100 = currentCatLatencies[len(currentCatLatencies)-1]
+
+        currentLatencyMetricsDict['p0'] = currentP0
+        currentLatencyMetricsDict['p50'] = currentP50
+        currentLatencyMetricsDict['p90'] = currentP90
+        currentLatencyMetricsDict['p99'] = currentP99
+        currentLatencyMetricsDict['p100'] = currentP100
+    return resultLatencyMetrics
+
+
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
     baseRawResults, heapBase = parseResults(baseLogFiles)
@@ -1122,6 +1174,9 @@ class RunAlgs:
 
     baseResults = collateResults(baseRawResults)
     cmpResults = collateResults(cmpRawResults)
+
+    baseTaskLatencies = collateTaskLatencies(baseRawResults)
+    cmpTaskLatencies = collateTaskLatencies(cmpRawResults)
 
     cats = set()
     for l in (baseResults, cmpResults):
@@ -1278,6 +1333,22 @@ class RunAlgs:
       print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
                         
     w = writer
+
+    catSet = set()
+
+    baseLatencyMetrics = computeTaskLatencies(baseTaskLatencies, catSet)
+    cmpLatencyMetrics = computeTaskLatencies(cmpTaskLatencies, catSet)
+
+    for currentCat in catSet:
+      currentBaseMetrics = baseLatencyMetrics[currentCat] 
+      currentCmpMetrics = cmpLatencyMetrics[currentCat]
+      pctP50 = 100*(currentCmpMetrics['p50'] - currentBaseMetrics['p50'])/currentBaseMetrics['p50']
+      pctP90 = 100*(currentCmpMetrics['p90'] - currentBaseMetrics['p90'])/currentBaseMetrics['p90']
+      pctP99 = 100*(currentCmpMetrics['p99'] - currentBaseMetrics['p99'])/currentBaseMetrics['p99']
+      pctP100 = 100*(currentCmpMetrics['p100'] - currentBaseMetrics['p100'])/currentBaseMetrics['p100']
+      print ('||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s' %
+        (currentCat, currentBaseMetrics['p50'], currentCmpMetrics['p50'], pctP50, currentBaseMetrics['p90'], currentCmpMetrics['p90'], pctP90,
+         currentBaseMetrics['p99'], currentCmpMetrics['p99'], pctP99, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100))
 
     if jira:
       w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %

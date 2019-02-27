@@ -445,6 +445,10 @@ KNOWN_CHANGES = [
    'LUCENE-8448: Propagate min competitive score to sub clauses',
    'LUCENE-8448: Propagate min competitive score to sub clauses'),
 
+  ('2018-11-19',
+   'LUCENE-8464: ConstantScoreScorer now implements setMinCompetitiveScore',
+   'LUCENE-8464: ConstantScoreScorer now implements setMinCompetitiveScore'),
+
 ]
 
 # TODO

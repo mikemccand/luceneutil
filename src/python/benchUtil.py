@@ -876,14 +876,14 @@ class RunAlgs:
 
     # We use the jar file for core to leverage the MR JAR
     core_jar_file = None
-    for filename in os.listdir('%s/lucene/build/core' % path):
-      if reCoreJar.match(filename) is not None:
-        core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
-        break
-    if core_jar_file is None:
-      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+    #for filename in os.listdir('%s/lucene/build/core' % path):
+    #  if reCoreJar.match(filename) is not None:
+    #    core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
+    #    break
+    #if core_jar_file is None:
+    #  raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
 
-    cp.append(core_jar_file)
+    #cp.append(core_jar_file)
     cp.append('%s/lucene/build/core/classes/test' % path)
     cp.append('%s/lucene/build/sandbox/classes/java' % path)
     cp.append('%s/lucene/build/misc/classes/java' % path)
@@ -929,17 +929,22 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)
           os.chdir(modulePath)
           print '  %s...' % modulePath
-          run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          #run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
-          modulePath = '%s/lucene/%s' % (checkoutPath, module)
-          classesPath = '%s/lucene/build/%s/classes/java' % (checkoutPath, module)
+           modulePath = '%s/lucene/%s' % (checkoutPath, module)
+           os.chdir(modulePath)
+           print '  %s...' % modulePath
+           #run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+
+          #modulePath = '%s/lucene/%s' % (checkoutPath, module)
+          #classesPath = '%s/lucene/build/%s/classes/java' % (checkoutPath, module)
           # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
-          if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
-            print '  %s...' % modulePath
-            os.chdir(modulePath)
-            run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          #if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
+          #  print '  %s...' % modulePath
+          ##  os.chdir(modulePath)
+          #  #run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
 
       print '  %s' % path
       os.chdir(path)      

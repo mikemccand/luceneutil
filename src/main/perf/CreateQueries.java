@@ -447,6 +447,7 @@ public class CreateQueries {
       queriesOut.write("HighPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       queriesOut.write("HighSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       queriesOut.write("HighSpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("HighOrderedIntervals: ordered//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       upto++;
       counter++;
       if (counter >= NUM_QUERIES) {
@@ -465,6 +466,7 @@ public class CreateQueries {
       queriesOut.write("MedPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       queriesOut.write("MedSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       queriesOut.write("MedSpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("MedOrderedIntervals: ordered//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       upto++;
       counter++;
       if (counter >= NUM_QUERIES) {
@@ -483,6 +485,7 @@ public class CreateQueries {
       queriesOut.write("LowPhrase: \"" + tf.term.utf8ToString() + "\" # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       queriesOut.write("LowSloppyPhrase: \"" + tf.term.utf8ToString() + "\"~4 # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       queriesOut.write("LowSpanNear: near//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
+      queriesOut.write("LowOrderedIntervals: ordered//" + tf.term.utf8ToString() + " # freq=" + tf.df + "|" + df1 + "|" + df2 + "\n");
       upto++;
       counter++;
       if (counter >= NUM_QUERIES) {

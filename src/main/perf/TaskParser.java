@@ -36,7 +36,8 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
-
+import org.apache.lucene.search.intervals.Intervals;
+import org.apache.lucene.search.intervals.IntervalQuery;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -193,7 +194,22 @@ class TaskParser {
         doHilite = false;
       }
 
-      if (text.startsWith("near//")) {
+
+      if (text.startsWith("ordered//")) {
+        final int spot3 = text.indexOf(' ');
+        if (spot3 == -1) {
+          throw new RuntimeException("failed to parse query=" + text);
+        }
+        query = new IntervalQuery(fieldName,
+          Intervals.maxwidth(10,
+            Intervals.ordered(
+              Intervals.term(text.substring(9, spot3)),
+              Intervals.term(text.substring(spot3+1).trim())
+            )
+        ));
+        sort = null;
+        group = null;
+      } else if (text.startsWith("near//")) {
         final int spot3 = text.indexOf(' ');
         if (spot3 == -1) {
           throw new RuntimeException("failed to parse query=" + text);

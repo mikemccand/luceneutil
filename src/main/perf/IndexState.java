@@ -42,7 +42,6 @@ import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.FutureArrays;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.bkd.BKDReader.IntersectState;
 import org.apache.lucene.util.bkd.BKDReader;
@@ -149,10 +148,10 @@ class IndexState {
 
     @Override
     public Relation compare(byte[] minPackedValue, byte[] maxPackedValue) {
-      if (FutureArrays.compareUnsigned(targetValue, 0, Integer.BYTES, minPackedValue, 0, Integer.BYTES) < 0) {
+      if (Arrays.compareUnsigned(targetValue, 0, Integer.BYTES, minPackedValue, 0, Integer.BYTES) < 0) {
         return Relation.CELL_OUTSIDE_QUERY;
       }
-      if (FutureArrays.compareUnsigned(targetValue, 0, Integer.BYTES, maxPackedValue, 0, Integer.BYTES) > 0) {
+      if (Arrays.compareUnsigned(targetValue, 0, Integer.BYTES, maxPackedValue, 0, Integer.BYTES) > 0) {
         return Relation.CELL_OUTSIDE_QUERY;
       }
       return Relation.CELL_CROSSES_QUERY;

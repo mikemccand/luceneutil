@@ -6,9 +6,9 @@
 # The ASF licenses this file to You under the Apache License, Version 2.0
 # (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -600,9 +600,9 @@ def runNRTTest(r, indexPath, runLogDir):
 
   min, max, mean, stdDev = stats.getStats(times)
   message('NRT reopen time (msec) mean=%.4f stdDev=%.4f' % (mean, stdDev))
-  
+
   checkIndex(r, indexPath, '%s/checkIndex.nrt.log' % runLogDir)
-  
+
   return mean, stdDev
 
 def run():
@@ -692,7 +692,7 @@ def run():
     print('Unable to read /sys/kernel/mm/transparent_hugepage/enabled')
   else:
     print('transparent_hugepages: %s' % s)
-  
+
   runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
@@ -779,7 +779,7 @@ def run():
                       index=index,
                       directory=DIR_IMPL,
                       commitPoint='multi')
-  
+
   #c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
   if REAL:
@@ -827,7 +827,7 @@ def run():
   if REAL:
     resultsNow = []
     for iter in xrange(JVM_COUNT):
-      seed = rand.randint(-10000000, 1000000)      
+      seed = rand.randint(-10000000, 1000000)
       resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
   else:
     resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in xrange(20)]
@@ -835,7 +835,7 @@ def run():
   resultsPrev = []
 
   searchResults = searchHeap = None
-  
+
   for fname in resultsNow:
     prevFName = fname + '.prev'
     if os.path.exists(prevFName):
@@ -965,7 +965,7 @@ def makeGraphs():
 
       tup = cPickle.loads(open(resultsFile).read())
       # print 'RESULTS: %s' % resultsFile
-      
+
       timeStamp, \
                  medNumDocs, medIndexTimeSec, medBytesIndexed, \
                  bigNumDocs, bigIndexTimeSec, bigBytesIndexed, \
@@ -984,7 +984,7 @@ def makeGraphs():
         searchHeaps = tup[11]
       else:
         searchHeaps = None
-        
+
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
                          timeStamp.month,
@@ -1117,7 +1117,7 @@ def writeCheckIndexTimeHTML():
     if os.path.exists('%s/%s/results.debug.pk' % (constants.NIGHTLY_LOG_DIR, subDir)):
       # Skip debug runs
       continue
-    
+
     tup = subDir.split('.')
     if len(tup) != 6:
       #print('skip %s' % subDir)
@@ -1126,7 +1126,7 @@ def writeCheckIndexTimeHTML():
     if tup[:3] == ['2015', '04', '04']:
       # Hide disastrously slow CheckIndex time after auto-prefix first landed
       continue
-    
+
     if os.path.exists(checkIndexTimeFile):
       # Already previously computed & cached:
       seconds = int(open(checkIndexTimeFile, 'r').read())
@@ -1157,7 +1157,7 @@ def writeCheckIndexTimeHTML():
     #print("tup %s" % tup)
     chartData.append('%s-%s-%s %s:%s:%s,%s' % (tuple(tup) + (seconds,)))
     #print("added %s" % chartData[-1])
-                
+
   with open('%s/checkIndexTime.html' % constants.NIGHTLY_REPORTS_DIR, 'wb') as f:
     w = f.write
     header(w, 'Lucene nightly CheckIndex time')
@@ -1181,7 +1181,7 @@ def writeCheckIndexTimeHTML():
     w('</ul>')
     w('<br><a href="index.html">Back to all results</a><br>')
     footer(w)
-    
+
 def header(w, title):
   w('<html>')
   w('<head>')
@@ -1192,7 +1192,7 @@ def header(w, title):
   w('<script type="text/javascript" src="dygraph-combined-dev.js"></script>\n')
   w('</head>')
   w('<body>')
-  
+
 def footer(w):
   w('<br><em>[last updated: %s; send questions to <a href="mailto:lucene@mikemccandless.com">Mike McCandless</a>]</em>' % now())
   w('</div>')
@@ -1202,7 +1202,7 @@ def footer(w):
 def writeOneLine(w, seen, cat, desc):
   seen.add(cat)
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="%s.html">%s</a>' % (cat, desc))
-  
+
 def writeIndexHTML(searchChartData, days):
   f = open('%s/index.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
   w = f.write
@@ -1231,6 +1231,7 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'Phrase', 'Exact phrase')
   writeOneLine(w, done, 'SloppyPhrase', 'Sloppy (~4) phrase')
   writeOneLine(w, done, 'SpanNear', 'Span near (~10)')
+  writeOneLine(w, done, 'IntervalsOrdered', 'Ordered intervals (MAXWIDTH/10)')
 
   w('<br><br><b>FuzzyQuery:</b>')
   writeOneLine(w, done, 'Fuzzy1', 'Edit distance 1')
@@ -1240,10 +1241,10 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'Term', 'TermQuery')
   writeOneLine(w, done, 'Respell', 'Respell (DirectSpellChecker)')
   writeOneLine(w, done, 'PKLookup', 'Primary key lookup')
-  writeOneLine(w, done, 'Wildcard', 'WildcardQuery')  
-  writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')  
-  writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')  
-  
+  writeOneLine(w, done, 'Wildcard', 'WildcardQuery')
+  writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')
+  writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')
+
   w('<br><br><b>Faceting:</b>')
   writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')
   writeOneLine(w, done, 'BrowseDateTaxoFacets', 'All dates hierarchy')
@@ -1270,7 +1271,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparseResults.html">Sparse vs dense doc values performance on NYC taxi ride corpus</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"ant clean test" time in lucene</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
-  
+
   l = searchChartData.keys()
   lx = []
   for s in l:
@@ -1310,6 +1311,7 @@ taskRename = {
   'Phrase': 'PhraseQuery (exact)',
   'SloppyPhrase': 'PhraseQuery (sloppy)',
   'SpanNear': 'SpanNearQuery',
+  'IntervalsOrdered': 'IntervalsQuery (ordered)',
   'AndHighHigh': 'BooleanQuery (AND, high freq, high freq term)',
   'AndHighMed': 'BooleanQuery (AND, high freq, medium freq term)',
   'OrHighHigh': 'BooleanQuery (OR, high freq, high freq term)',
@@ -1397,7 +1399,7 @@ def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
   w('  <li> Test does <b>not wait for merges on close</b> (calls <tt>IW.close(false)</tt>)')
   w('  <li> Analyzer is <tt>StandardAnalyzer</tt>, but we <b>index all stop words</b>')
   w('  <li> Test indexes full <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English XML export</a> (1/15/2011), from a pre-created line file (one document per line), on a different drive from the one that stores the index')
-  w('  <li> %d indexing threads\n' % constants.INDEX_NUM_THREADS)  
+  w('  <li> %d indexing threads\n' % constants.INDEX_NUM_THREADS)
   w('  <li> %s MB RAM buffer\n' % INDEXING_RAM_BUFFER_MB)
   w('  <li> Java command-line: <tt>%s</tt>\n' % constants.JAVA_COMMAND)
   w('  <li> Java version: <tt>%s</tt>\n' % htmlEscape(os.popen('java -version 2>&1').read().strip()))
@@ -1418,7 +1420,7 @@ def writeNRTHTML(nrtChartData):
   w('<br>')
   w(getOneGraphHTML('NRT', nrtChartData, "Milliseconds", "Time (msec) to open a new reader", errorBars=True))
   writeKnownChanges(w)
-  
+
   w('<b>Notes</b>:\n')
   w('<ul>\n')
   w('  <li> Test starts from full Wikipedia index, then use <tt>IW.updateDocument</tt> (so we stress deletions)')
@@ -1501,7 +1503,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
       maxY = max([float(x.split(',')[1]) for x in data[1:]])
     options.append('valueRange:[0,%.3f]' % (maxY*1.25))
   #options.append('includeZero: true')
-                 
+
   if errorBars:
     options.append('errorBars: true')
     options.append('sigma: 1')
@@ -1509,7 +1511,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   options.append('showRoller: false')
 
   w('    {%s}' % ', '.join(options))
-    
+
   if 0:
     if errorBars:
       w('    {errorBars: true, valueRange:[0,%.3f], sigma:1, title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY*1.25, title, yLabel))
@@ -1597,7 +1599,7 @@ if __name__ == '__main__':
     if not DEBUG and REAL:
       import socket
       sendEmail('mail@mikemccandless.com', 'Nightly Lucene bench FAILED (%s)' % socket.gethostname(), '')
-    
+
 # scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs
 
 # TO CLEAN
@@ -1605,4 +1607,3 @@ if __name__ == '__main__':
 #   - rm -rf /lucene/logs.nightly/*
 #   - rm -rf /lucene/reports.nightly/*
 #   - rm -f /lucene/trunk.nightly/modules/benchmark/*.x
-

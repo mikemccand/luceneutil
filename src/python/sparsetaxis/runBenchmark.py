@@ -23,7 +23,7 @@ import urllib.request
 luceneUtilPythonPath = os.path.split(os.path.abspath(__file__))[0]
 
 #JAVA_CMD = 'java -server -Xbatch -Xmx2g -Xms2g -XX:-TieredCompilation -XX:+HeapDumpOnOutOfMemoryError'
-JAVA_CMD = 'java -server -Xmx2g -Xms2g -XX:+HeapDumpOnOutOfMemoryError'
+JAVA_CMD = 'java -server -Xmx2g -Xms2g -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError'
 
 def toGB(x):
   return x/1024./1024./1024.
@@ -195,7 +195,7 @@ def main():
   classPath = '%s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/lucene/build/analysis/common/lucene-analyzers-common-7.0.0-SNAPSHOT.jar:%s/../../main' % \
               (args.luceneMaster, args.luceneMaster, luceneUtilPythonPath)
 
-  run('javac -cp %s %s/../../main/perf/SearchTaxis.java %s/../../main/perf/IndexTaxis.java %s/../../main/perf/DiskUsage.java' % (classPath, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))
+  run('javac -XX:+UseParallelGC -cp %s %s/../../main/perf/SearchTaxis.java %s/../../main/perf/IndexTaxis.java %s/../../main/perf/DiskUsage.java' % (classPath, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))
 
   for sparse, sort in (('sparse', True),
                        ('sparse', False),

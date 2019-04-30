@@ -52,6 +52,6 @@ with open(logFile + '.tmp', 'w') as lf:
 run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
 
 print('  now run')
-run('java -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
+run('java -XX:+UseParallelGC -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
 os.rename(logFile+'.tmp', logFile)
 print('  done')

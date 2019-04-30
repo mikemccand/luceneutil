@@ -42,6 +42,8 @@ KNOWN_CHANGES = (
   ('2019-02-08', 'LUCENE-8673: Use radix partitioning when merging dimensional points'),
   ('2019-02-12', 'LUCENE-8687: Optimise radix partitioning for points on heap'),
   ('2019-02-21', 'LUCENE-8699: Change HeapPointWriter to use a single byte array instead to a list of byte arrays'),
+  ('2019-04-23', 'Switched to OpenJDK 11'),
+  ('2019-04-30', 'Switched GC back to ParallelGC (away from default G1GC)'),
 )
 
 def toString(timeStamp):

@@ -449,6 +449,14 @@ KNOWN_CHANGES = [
    'LUCENE-8464: ConstantScoreScorer now implements setMinCompetitiveScore',
    'LUCENE-8464: ConstantScoreScorer now implements setMinCompetitiveScore'),
 
+  ('2019-04-23',
+   'Switched to OpenJDK 11',
+   'Switched to OpenJDK 11'),
+
+  ('2019-04-30',
+   'Switched GC back to ParallelGC (away from default G1GC)',
+   'Switched GC back to ParallelGC (away from default G1GC)'),
+
 ]
 
 # TODO

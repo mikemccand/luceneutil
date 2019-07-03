@@ -457,6 +457,14 @@ KNOWN_CHANGES = [
    'Switched GC back to ParallelGC (away from default G1GC)',
    'Switched GC back to ParallelGC (away from default G1GC)'),
 
+  ('2019-05-24',
+   'LUCENE-8770: Two-phase support in conjunctions',
+   'LUCENE-8770: Two-phase support in conjunctions'),
+
+  ('2019-07-02',
+   'LUCENE-8901: Load freq blocks lazily',
+   'LUCENE-8901: Load freq blocks lazily'),
+
 ]
 
 # TODO

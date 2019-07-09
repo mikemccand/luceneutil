@@ -95,6 +95,7 @@ import org.apache.lucene.util.SloppyMath;
 import org.apache.lucene.util.bkd.BKDWriter;
 
 import org.apache.lucene.document.LatLonShape;
+import org.apache.lucene.document.ShapeField;
 import org.apache.lucene.document.Field;
 
 
@@ -733,7 +734,7 @@ public class IndexAndSearchOpenStreetMaps {
           } else if (useGeo3D) {
             q = Geo3DPoint.newPolygonQuery("point", multiPolygon);
           } else if (useShape) {
-            q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, multiPolygon);
+            q = LatLonShape.newPolygonQuery("point", ShapeField.QueryRelation.INTERSECTS, multiPolygon);
           } else {
             throw new AssertionError();
           }
@@ -761,7 +762,7 @@ public class IndexAndSearchOpenStreetMaps {
             if (useLatLonPoint) {
               q = LatLonPoint.newPolygonQuery("point", multiPolygon);
             } else if (useShape) {
-              q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, multiPolygon);
+              q = LatLonShape.newPolygonQuery("point", ShapeField.QueryRelation.INTERSECTS, multiPolygon);
             } else if (useGeo3D || useGeo3DLarge) {
               q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
             } else {
@@ -874,7 +875,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useShape) {
-                    q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, new Polygon(poly[0], poly[1]));
+                    q = LatLonShape.newPolygonQuery("point", ShapeField.QueryRelation.INTERSECTS, new Polygon(poly[0], poly[1]));
                   } else {
                     throw new AssertionError();
                   }
@@ -885,7 +886,7 @@ public class IndexAndSearchOpenStreetMaps {
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useShape) {
-                    q = LatLonShape.newBoxQuery("point", LatLonShape.QueryRelation.INTERSECTS, lat, latEnd, lon, lonEnd);
+                    q = LatLonShape.newBoxQuery("point", ShapeField.QueryRelation.INTERSECTS, lat, latEnd, lon, lonEnd);
                   } else if (useDocValues) {
                     q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else {
@@ -1037,7 +1038,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
               } else if (useShape) {
-                q = LatLonShape.newPolygonQuery("point", LatLonShape.QueryRelation.INTERSECTS, new Polygon(poly[0], poly[1]));
+                q = LatLonShape.newPolygonQuery("point", ShapeField.QueryRelation.INTERSECTS, new Polygon(poly[0], poly[1]));
               } else {
                 throw new AssertionError();
               }
@@ -1050,7 +1051,7 @@ public class IndexAndSearchOpenStreetMaps {
               } else if (useDocValues) {
                 q = LatLonDocValuesField.newSlowBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else if (useShape) {
-                q = LatLonShape.newBoxQuery("point", LatLonShape.QueryRelation.INTERSECTS, lat, latEnd, lon, lonEnd);
+                q = LatLonShape.newBoxQuery("point", ShapeField.QueryRelation.INTERSECTS, lat, latEnd, lon, lonEnd);
               } else {
                 throw new AssertionError();
               }

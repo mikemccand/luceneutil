@@ -465,6 +465,10 @@ KNOWN_CHANGES = [
    'LUCENE-8901: Load freq blocks lazily',
    'LUCENE-8901: Load freq blocks lazily'),
 
+  ('2019-07-09',
+   'LUCENE-8311: Compute impacts for phrase queries',
+   'LUCENE-8311: Compute impacts for phrase queries'),
+
 ]
 
 # TODO

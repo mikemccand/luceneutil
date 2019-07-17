@@ -253,7 +253,7 @@ class TaskParser {
         List<Query> clauses = new ArrayList<Query>();
         clauses.add(new TermQuery(new Term(fieldName, text.substring(16, spot3))));
         clauses.add(new TermQuery(new Term(fieldName, text.substring(spot3+1).trim())));
-        DisjunctionMaxQuery dismax = new DisjunctionMaxQuery(clauses, 1f);
+        DisjunctionMaxQuery dismax = new DisjunctionMaxQuery(clauses, 0.1f);
         query = dismax;
         sort = null;
         group = null;

@@ -1154,12 +1154,14 @@ class RunAlgs:
         currentP50 = currentCatLatencies[(len(currentCatLatencies)-1)/2]
         currentP90 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.9)]
         currentP99 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.99)]
+        currentP999 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.999)]
         currentP100 = currentCatLatencies[len(currentCatLatencies)-1]
 
         currentLatencyMetricsDict['p0'] = currentP0
         currentLatencyMetricsDict['p50'] = currentP50
         currentLatencyMetricsDict['p90'] = currentP90
         currentLatencyMetricsDict['p99'] = currentP99
+        currentLatencyMetricsDict['p999'] = currentP999
         currentLatencyMetricsDict['p100'] = currentP100
     return resultLatencyMetrics
 
@@ -1336,8 +1338,8 @@ class RunAlgs:
 
     catSet = set()
 
-    baseLatencyMetrics = computeTaskLatencies(baseTaskLatencies, catSet)
-    cmpLatencyMetrics = computeTaskLatencies(cmpTaskLatencies, catSet)
+    baseLatencyMetrics = self.computeTaskLatencies(baseTaskLatencies, catSet)
+    cmpLatencyMetrics = self.computeTaskLatencies(cmpTaskLatencies, catSet)
 
     for currentCat in catSet:
       currentBaseMetrics = baseLatencyMetrics[currentCat] 
@@ -1345,10 +1347,13 @@ class RunAlgs:
       pctP50 = 100*(currentCmpMetrics['p50'] - currentBaseMetrics['p50'])/currentBaseMetrics['p50']
       pctP90 = 100*(currentCmpMetrics['p90'] - currentBaseMetrics['p90'])/currentBaseMetrics['p90']
       pctP99 = 100*(currentCmpMetrics['p99'] - currentBaseMetrics['p99'])/currentBaseMetrics['p99']
+      pctP999 = 100*(currentCmpMetrics['p999'] -
+              currentBaseMetrics['p999'])/currentBaseMetrics['p999']
       pctP100 = 100*(currentCmpMetrics['p100'] - currentBaseMetrics['p100'])/currentBaseMetrics['p100']
-      print ('||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s' %
+      print ('||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s' %
         (currentCat, currentBaseMetrics['p50'], currentCmpMetrics['p50'], pctP50, currentBaseMetrics['p90'], currentCmpMetrics['p90'], pctP90,
-         currentBaseMetrics['p99'], currentCmpMetrics['p99'], pctP99, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100))
+         currentBaseMetrics['p99'], currentCmpMetrics['p99'], pctP99,
+         currentBaseMetrics['p999'], currentCmpMetrics['p999'], pctP999, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100))
 
     if jira:
       w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %

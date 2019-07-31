@@ -26,23 +26,23 @@ if __name__ == '__main__':
 
   index = comp.newIndex('trunk', sourceData)
 
-  // Warning -- Do not break the order of arguments
-  // TODO -- Fix the following by using argparser
+  #Warning -- Do not break the order of arguments
+  #TODO -- Fix the following by using argparser
   if len(sys.argv) > 3 and sys.argv[3] == '-concurrentSearches':
-    concurrentSegmentReads = True
+    concurrentSearches = True
   else:
-    concurrentSegmentReads = False
+    concurrentSearches = False
 
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'trunk',
-                  index = index, concurrentSearches = concurrentSegmentReads)
+                  index = index, concurrentSearches = concurrentSearches)
 
   # use the same index here
   # create a competitor named my_modified_version with sources in the ../patch folder
   # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
   # while the codec that is used for running this competitor is taken from this competitor.
   comp.competitor('my_modified_version', 'patch',
-                  index = index, concurrentSearches = concurrentSegmentReads)
+                  index = index, concurrentSearches = concurrentSearches)
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("trunk_vs_patch")

@@ -186,6 +186,8 @@ class SendTasks:
         self.out.write('p0: ' + str(latenciesInMS[0]))
         self.out.write('p50: ' + str(latenciesInMS[(len(latenciesInMS)-1)/2]))
         self.out.write('p90: ' + str(times[int((len(latenciesInMS)-1)*0.9)]))
+        self.out.write('p99: ' + str(times[int((len(latenciesInMS)-1)*0.99)]))
+        self.out.write('p999: ' + str(times[int((len(latenciesInMS)-1)*0.999)]))
         self.out.write('p100: ' + str(times[len(latenciesInMS)-1]))
 
         self.out.write('%6.1f s: %5.1f%%: %5.1f qps in; %5.1f qps out; %6.1f/%6.1f ms [%d, %d]\n' % \

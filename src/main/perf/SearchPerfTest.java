@@ -195,18 +195,14 @@ public class SearchPerfTest {
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
-    final boolean doConcurrentSegmentReads = args.getFlag("-concurrentSearches");
+    final boolean doConcurrentSearches = args.getFlag("-concurrentSearches");
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
 
     int cores = Runtime.getRuntime().availableProcessors();
 
-    ExecutorService executorService = null;
-    if (doConcurrentSegmentReads) {
-    	executorService = new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>(),
-            new NamedThreadFactory("ConcurrentSearches"));
-    }
+    final ExecutorService executorService = doConcurrentSearches ? new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+            new NamedThreadFactory("ConcurrentSearches")) : null;
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate
@@ -230,7 +226,7 @@ public class SearchPerfTest {
     System.out.println("topN " + topN);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
-    System.out.println("Concurrent segment reads is " + doConcurrentSegmentReads);
+    System.out.println("Concurrent segment reads is " + doConcurrentSearches);
  
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
@@ -580,7 +576,7 @@ public class SearchPerfTest {
       allTasks.clear();
     }
 
-    executorService.shutDown();
+    executorService.shutdownNow();
     mgr.close();
 
     if (taxoReader != null) {
@@ -614,11 +610,6 @@ public class SearchPerfTest {
   }
 
   private static IndexSearcher createIndexSearcher(IndexReader reader, ExecutorService executorService) {
-
-      if (executorService != null) {
-          return new IndexSearcher(reader, executorService);
-      }
-
-      return new IndexSearcher(reader);
+      return new IndexSearcher(reader, executorService);
   }
 }

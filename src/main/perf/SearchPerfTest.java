@@ -201,8 +201,13 @@ public class SearchPerfTest {
 
     int cores = Runtime.getRuntime().availableProcessors();
 
-    final ExecutorService executorService = doConcurrentSearches ? new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-            new NamedThreadFactory("ConcurrentSearches")) : null;
+    final ExecutorService executorService;
+    if (doConcurrentSearches) {
+      executorService = new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+                                               new NamedThreadFactory("ConcurrentSearches"));
+    } else {
+      executorService = null;
+    }
 
     // Used to choose which random subset of tasks we will
     // run, to generate the PKLookup tasks, and to generate

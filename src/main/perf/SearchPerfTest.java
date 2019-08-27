@@ -581,7 +581,10 @@ public class SearchPerfTest {
       allTasks.clear();
     }
 
-    executorService.shutdownNow();
+    if (executorService != null) {
+      executorService.shutdownNow();
+    }
+
     mgr.close();
 
     if (taxoReader != null) {

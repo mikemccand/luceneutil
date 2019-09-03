@@ -44,6 +44,7 @@ KNOWN_CHANGES = (
   ('2019-02-21', 'LUCENE-8699: Change HeapPointWriter to use a single byte array instead to a list of byte arrays'),
   ('2019-04-23', 'Switched to OpenJDK 11'),
   ('2019-04-30', 'Switched GC back to ParallelGC (away from default G1GC)'),
+  ('2019-08-27', 'LUCENE-8955: Move compare logic to IntersectVisitor in NearestNeighbor'),
 )
 
 def toString(timeStamp):

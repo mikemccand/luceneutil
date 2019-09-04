@@ -6,7 +6,7 @@ import re
 import datetime
 import time
 
-#src/python/runGeoBenches.py -compare -reindexFast -ant
+#src/python/runGeoShapeBenches.py -compare -reindex -ant
 
 reTotHits = re.compile('totHits=(\d+)$')
 

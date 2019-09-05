@@ -67,7 +67,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
-//  Example how to compile it:
+//  // STEPS:
+////
+////   * Download index data from http://home.apache.org/~ivera/osmdata.wkt.gz. this is a selection of polygon data  from OpenStreetMaps corpus and place in a local directory;.
+////
+////   * Download polygon  files from http://home.apache.org/~mikemccand/geobench and place in a local directory.
+////
+////   * Uncompress files
+////
+////   * cd /path/to/lucene, and go into lucene subdir and run "ant jar"
+////
+////   * tweak the commands below to match your classpath, then run with options like "-intersects -point -file osmdata.wkt -reindex"
+//
+// Example how to compile it:
 // javac -cp path-to-lucene-solr/lucene/build/test-framework/classes/java:path-to-lucene-solr/lucene/build/codecs/classes/java:path-to-lucene-solr/lucene/build/core/classes/java:path-to-lucene-solr/lucene/build/sandbox/classes/java path-to-luceneutil/src/main/perf/IndexAndSearchShapes.java
 //
 // Example how to run it:

@@ -125,27 +125,27 @@ class TaskParser {
       }
 
       final List<String> facets = new ArrayList<String>();
-      while (true) {
-        int i = text.indexOf(" +facets:");
-        if (i == -1) {
-          break;
-        }
-        int j = text.indexOf(" ", i+1);
-        if (j == -1) {
-          j = text.length();
-        }
-        String facetDim = text.substring(i+9, j);
-        int k = facetDim.indexOf(".");
-        if (k == -1) {
-          throw new IllegalArgumentException("+facet:x should have format Dim.(taxonomy|sortedset); got: " + facetDim);
-        }
-        String s = facetDim.substring(0, k);
-        if (state.facetFields.containsKey(s) == false) {
-          throw new IllegalArgumentException("facetDim " + s + " was not indexed");
-        }
-        facets.add(facetDim);
-        text = text.substring(0, i) + text.substring(j);
-      }
+//      while (true) {
+//        int i = text.indexOf(" +facets:");
+//        if (i == -1) {
+//          break;
+//        }
+//        int j = text.indexOf(" ", i+1);
+//        if (j == -1) {
+//          j = text.length();
+//        }
+//        String facetDim = text.substring(i+9, j);
+//        int k = facetDim.indexOf(".");
+//        if (k == -1) {
+//          throw new IllegalArgumentException("+facet:x should have format Dim.(taxonomy|sortedset); got: " + facetDim);
+//        }
+//        String s = facetDim.substring(0, k);
+//        if (state.facetFields.containsKey(s) == false) {
+//          throw new IllegalArgumentException("facetDim " + s + " was not indexed");
+//        }
+//        facets.add(facetDim);
+//        text = text.substring(0, i) + text.substring(j);
+//      }
 
       final List<String> drillDowns = new ArrayList<String>();
 

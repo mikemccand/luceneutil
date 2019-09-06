@@ -17,55 +17,83 @@ package perf;
  * limitations under the License.
  */
 
-
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import java.nio.file.Paths;
+import java.io.File;
+import java.io.IOException;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
+import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.DocValuesFormat;
-import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene80.Lucene80Codec;
-import org.apache.lucene.facet.FacetsConfig;
-import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
-import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
-import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.LogMergePolicy;
 import org.apache.lucene.index.MergePolicy;
-import org.apache.lucene.index.MergeScheduler;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.InfoStream;
-import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.util._TestUtil;
+import perf.LineFileDocs;
 
-import perf.IndexThreads.Mode;
+import com.foundationdb.lucene.*;
 
-// javac -Xlint:deprecation -cp ../modules/analysis/build/common/classes/java:build/classes/java:build/classes/test-framework:build/classes/test:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
+import com.apple.foundationdb.Database;
+import com.apple.foundationdb.FDB;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
+
+// javac -Xlint:deprecation -cp build/core/classes/java:build/test-framework/classes/java:build/core/classes/test:build/contrib/analyzers/common/classes/java:build/contrib/misc/classes/java perf/Indexer.java perf/LineFileDocs.java
+
+// Usage: dirImpl dirPath analyzer /path/to/line/file numDocs numThreads doFullMerge:yes|no verbose:yes|no ramBufferMB maxBufferedDocs codec doDeletions:yes|no printDPS:yes|no waitForMerges:yes|no mergePolicy doUpdate idFieldUsesPulsingCodec
+
+// EG:
+//
+// java -Xms2g -Xmx2g -server -classpath ".:build/core/classes/java:build/test-framework/classes/java:build/core/classes/test:build/contrib/analyzers/common/classes/java:build/contrib/misc/classes/java" perf.Indexer MMapDirectory "/q/lucene/indices/wikimedium.3x.nightly.nd27.625M/index" StandardAnalyzer /lucene/data/enwiki-20110115-lines-1k-fixed.txt 27625038 1 no no -1 49774 Lucene40 no no yes LogDocMergePolicy no Memory yes no
 
 public final class Indexer {
+
+
+  public static final String DEFAULT_ROOT_PREFIX = "lucene";
+  public static final String DEFAULT_TEST_ROOT_PREFIX = "test_" + DEFAULT_ROOT_PREFIX;
+
+  // NOTE: returned array might have dups
+  private static String[] randomStrings(int count, Random random) {
+    final String[] strings = new String[count];
+    int i = 0;
+    while(i < count) {
+      final String s = "asdfassdfdafdafafdafasda"; //_TestUtil.randomSimpleString(random);
+      if (s.length() >= 7) {
+        strings[i++] = s;
+      }
+    }
+
+    return strings;
+  }
 
   public static void main(String[] clArgs) throws Exception {
 
@@ -78,131 +106,29 @@ public final class Indexer {
     }
   }
 
-  private static MergeScheduler getMergeScheduler(AtomicBoolean indexingFailed, boolean useCMS, int maxConcurrentMerges, boolean disableIOThrottle) {
-    if (useCMS) {
-      ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
-          @Override
-          protected void handleMergeException(Directory dir, Throwable exc) {
-            System.out.println("ERROR: CMS hit exception during merging; aborting...");
-            indexingFailed.set(true);
-            exc.printStackTrace(System.out);
-            super.handleMergeException(dir, exc);
-          }
-        };
-      cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
-      if (disableIOThrottle) {
-        cms.disableAutoIOThrottle();
-      }
-      return cms;
-    } else {
-      // Gives better repeatability because if you use CMS, the order in which the merges complete can impact how the merge policy later
-      // picks merges so you can easily get a very different index structure when you are comparing two indices:
-      return new SerialMergeScheduler();
-    }
-  }
-
-  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS) {
-
-    MergePolicy mp;
-    if (mergePolicy.equals("LogDocMergePolicy")) {
-      mp = new LogDocMergePolicy();
-      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
-    } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
-      mp = new LogByteSizeMergePolicy();
-      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
-    } else if (mergePolicy.equals("NoMergePolicy")) {
-      mp = NoMergePolicy.INSTANCE;
-    } else if (mergePolicy.equals("TieredMergePolicy")) {
-      final TieredMergePolicy tmp = new TieredMergePolicy();
-      //tmp.setMaxMergedSegmentMB(1000000.0);
-      tmp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
-      mp = tmp;
-    } else {
-      throw new RuntimeException("unknown MergePolicy " + mergePolicy);
-    }
-
-    return mp;
-  }
-
   private static void _main(String[] clArgs) throws Exception {
 
     Args args = new Args(clArgs);
 
-    // EG: -facets taxonomy;Date -facets taxonomy;Month -facets sortedset:facetGroupField;Month
-    FacetsConfig facetsConfig = new FacetsConfig();
-    facetsConfig.setHierarchical("Date.taxonomy", true);
-
-    // all unique facet group fields ($facet alone, by default):
-    final Set<String> facetFields = new HashSet<>();
-
-    // facet dim name -> facet method flag
-    final Map<String,Integer> facetDimMethods = new HashMap<>();
-    if (args.hasArg("-facets")) {
-      for(String arg : args.getStrings("-facets")) {
-        String[] dims = arg.split(";");
-        String facetGroupField;
-        String facetMethod;
-        if (dims[0].equals("taxonomy") || dims[0].equals("sortedset")) {
-          // method --> use the default facet field for this group
-          facetGroupField = FacetsConfig.DEFAULT_INDEX_FIELD_NAME;
-          facetMethod = dims[0];
-        } else {
-          // method:indexFieldName --> use a custom facet field for this group
-          int i = dims[0].indexOf(":");
-          if (i == -1) {
-            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
-          }
-          facetMethod = dims[0].substring(0, i);
-          if (facetMethod.equals("taxonomy") == false && facetMethod.equals("sortedset") == false) {
-            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
-          }
-          facetGroupField = dims[0].substring(i+1);
-        }
-        facetFields.add(facetGroupField);
-        for(int i=1;i<dims.length;i++) {
-          int flag;
-          if (facetDimMethods.containsKey(dims[i])) {
-            flag = facetDimMethods.get(dims[i]);
-          } else {
-            flag = 0;
-          }
-          if (facetMethod.equals("taxonomy")) {
-            flag |= 1;
-            facetsConfig.setIndexFieldName(dims[i] + ".taxonomy", facetGroupField + ".taxonomy");
-          } else {
-            flag |= 2;
-            facetsConfig.setIndexFieldName(dims[i] + ".sortedset", facetGroupField + ".sortedset");
-          }
-          facetDimMethods.put(dims[i], flag);
-        }
-      }
-    }
-
     final String dirImpl = args.getString("-dirImpl");
     final String dirPath = args.getString("-indexPath") + "/index";
 
-    final Directory dir;
-    OpenDirectory od = OpenDirectory.get(dirImpl);
+    //final Directory dir = FSDirectory.open(new File(dirPath));
 
-    dir = od.open(Paths.get(dirPath));
+    FDB fdb = FDB.selectAPIVersion(600);
+    Database db = fdb.open();
+
+     FDBDirectory dir = new FDBDirectory(Tuple.from(DEFAULT_TEST_ROOT_PREFIX, "subidr"), db);
 
     final String analyzer = args.getString("-analyzer");
     final Analyzer a;
-    if (analyzer.equals("EnglishAnalyzer")) {
-      a = new EnglishAnalyzer();
-    } else if (analyzer.equals("StandardAnalyzer")) {
-      a = new StandardAnalyzer();
-    } else if (analyzer.equals("StandardAnalyzerNoStopWords")) {
-      a = new StandardAnalyzer(CharArraySet.EMPTY_SET);
-    } else if (analyzer.equals("ShingleStandardAnalyzer")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(),
-                                     2, 2);
-    } else if (analyzer.equals("ShingleStandardAnalyzerNoStopWords")) {
-      a = new ShingleAnalyzerWrapper(new StandardAnalyzer(CharArraySet.EMPTY_SET),
-                                     2, 2);
-    } else {
+    if (analyzer.equals("StandardAnalyzer")) {
+      a = new StandardAnalyzer(Version.LUCENE_46, CharArraySet.EMPTY_SET);
+    }  else {
       throw new RuntimeException("unknown analyzer " + analyzer);
-    } 
+    }
+
+    final boolean doFullMerge = false;
 
     final String lineFile = args.getString("-lineDocsFile");
 
@@ -212,29 +138,8 @@ public final class Indexer {
 
     final boolean doForceMerge = args.getFlag("-forceMerge");
     final boolean verbose = args.getFlag("-verbose");
-    
+
     String indexSortField = null;
-    SortField.Type indexSortType = null;
-
-    if (args.hasArg("-indexSort")) {
-      indexSortField = args.getString("-indexSort");
-
-      int i = indexSortField.indexOf(':');
-      if (i == -1) {
-        throw new IllegalArgumentException("-indexSort should have form field:type; got: " + indexSortField);
-      }
-      String typeString = indexSortField.substring(i+1, indexSortField.length());
-      if (typeString.equals("long")) {
-        indexSortType = SortField.Type.LONG;
-      } else if (typeString.equals("string")) {
-        indexSortType = SortField.Type.STRING;
-      } else {
-        throw new IllegalArgumentException("-indexSort can only handle 'long' sort; got: " + typeString);
-      }
-      indexSortField = indexSortField.substring(0, i);
-    } else {
-      indexSortType = null;
-    }
 
     final double ramBufferSizeMB = args.getDouble("-ramBufferMB");
     final int maxBufferedDocs = args.getInt("-maxBufferedDocs");
@@ -245,19 +150,8 @@ public final class Indexer {
     final boolean waitForMerges = args.getFlag("-waitForMerges");
     final boolean waitForCommit = args.getFlag("-waitForCommit");
     final String mergePolicy = args.getString("-mergePolicy");
-    final Mode mode;
     final boolean doUpdate = args.getFlag("-update");
-    if (doUpdate) {
-      mode = Mode.UPDATE;
-    } else {
-      mode = Mode.valueOf(args.getString("-mode", "add").toUpperCase(Locale.ROOT));
-    }
-    int randomDocIDMax;
-    if (mode == Mode.UPDATE) {
-      randomDocIDMax = args.getInt("-randomDocIDMax");
-    } else {
-      randomDocIDMax = -1;
-    }
+
     final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
     final boolean addGroupingFields = args.getFlag("-grouping");
     final boolean useCFS = args.getFlag("-cfs");
@@ -270,21 +164,21 @@ public final class Indexer {
     final boolean useCMS = args.getFlag("-useCMS");
     final boolean disableIOThrottle = args.getFlag("-disableIOThrottle");
 
-    if (waitForCommit == false && waitForMerges) {
-      throw new RuntimeException("pass -waitForCommit if you pass -waitForMerges");
-    }
+    //if (waitForCommit == false && waitForMerges) {
+    //  throw new RuntimeException("pass -waitForCommit if you pass -waitForMerges");
+    //}
 
-    if (waitForCommit == false && doForceMerge) {
-      throw new RuntimeException("pass -waitForCommit if you pass -forceMerge");
-    }
+    //if (waitForCommit == false && doForceMerge) {
+    //  throw new RuntimeException("pass -waitForCommit if you pass -forceMerge");
+    //}
 
-    if (waitForCommit == false && doDeletions) {
-      throw new RuntimeException("pass -waitForCommit if you pass -deletions");
-    }
+    //if (waitForCommit == false && doDeletions) {
+    //  throw new RuntimeException("pass -waitForCommit if you pass -deletions");
+    //}
 
-    if (useCMS == false && disableIOThrottle) {
-      throw new RuntimeException("-disableIOThrottle only makes sense with -useCMS");
-    }
+    //if (useCMS == false && disableIOThrottle) {
+     // throw new RuntimeException("-disableIOThrottle only makes sense with -useCMS");
+    //}
 
     final double nrtEverySec;
     if (args.hasArg("-nrtEverySec")) {
@@ -298,18 +192,13 @@ public final class Indexer {
     final boolean repeatDocs = args.getFlag("-repeatDocs");
 
     final String facetDVFormatName;
-    if (facetFields.isEmpty()) {
-      facetDVFormatName = "Lucene80";
-    } else {
-      facetDVFormatName = args.getString("-facetDVFormat");
-    }
 
     if (addGroupingFields && docCountLimit == -1) {
-    	a.close();
+      a.close();
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
     }
 
-    args.check();
+    //args.check();
 
     System.out.println("Dir: " + dirImpl);
     System.out.println("Index path: " + dirPath);
@@ -327,18 +216,12 @@ public final class Indexer {
     System.out.println("Wait for commit: " + (waitForCommit ? "yes" : "no"));
     System.out.println("IO throttle: " + (disableIOThrottle ? "no" : "yes"));
     System.out.println("Merge policy: " + mergePolicy);
-    System.out.println("Mode: " + mode);
-    if (mode == Mode.UPDATE) {
-      System.out.println("DocIDMax: " + randomDocIDMax);
-    }
     System.out.println("ID field postings format: " + idFieldPostingsFormat);
     System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
     System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
     System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
     System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
-    System.out.println("Facet DV Format: " + facetDVFormatName);
-    System.out.println("Facet dimension methods: " + facetDimMethods);
-    System.out.println("Facet fields: " + facetFields);
+    //System.out.println("Facet DV Format: " + facetDVFormatName);
     System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
     System.out.println("Max concurrent merges: " + maxConcurrentMerges);
     System.out.println("Add DocValues fields: " + addDVFields);
@@ -349,187 +232,158 @@ public final class Indexer {
       System.out.println("Open & close NRT reader every: never");
     }
     System.out.println("Repeat docs: " + repeatDocs);
-    
-    if (verbose) {
-      InfoStream.setDefault(new PrintStreamInfoStream(System.out));
-    }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(a);
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_46, a);
 
-    if (indexSortField != null) {
-      iwc.setIndexSort(new Sort(new SortField(indexSortField, indexSortType)));
-    }
-
-    if (mode == Mode.UPDATE) {
-      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+    if (doUpdate) {
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     } else {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     }
 
     iwc.setMaxBufferedDocs(maxBufferedDocs);
     iwc.setRAMBufferSizeMB(ramBufferSizeMB);
+    iwc.setCodec(new FDBCodec());
 
-    // So flushed segments do/don't use CFS:
-    iwc.setUseCompoundFile(useCFS);
+    final Random random = new Random(17);
+    final AtomicInteger groupBlockIndex;
+    if (addGroupingFields) {
+      IndexThread.group100 = randomStrings(100, random);
+      IndexThread.group10K = randomStrings(10000, random);
+      IndexThread.group100K = randomStrings(100000, random);
+      IndexThread.group1M = randomStrings(1000000, random);
+      groupBlockIndex = new AtomicInteger();
+    } else {
+      groupBlockIndex = null;
+    }
 
-    final AtomicBoolean indexingFailed = new AtomicBoolean();
+    final LogMergePolicy mp;
+    if (mergePolicy.equals("LogDocMergePolicy")) {
+      mp = new LogDocMergePolicy();
+    } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
+      mp = new LogByteSizeMergePolicy();
+    } else if (mergePolicy.equals("NoMergePolicy")) {
+      final MergePolicy nmp = useCFS ? NoMergePolicy.COMPOUND_FILES : NoMergePolicy.NO_COMPOUND_FILES;
+      iwc.setMergePolicy(nmp);
+      mp = null;
+    } else if (mergePolicy.equals("TieredMergePolicy")) {
+      final TieredMergePolicy tmp = new TieredMergePolicy();
+      iwc.setMergePolicy(tmp);
+      tmp.setMaxMergedSegmentMB(1000000.0);
+      //tmp.setUseCompoundFile(useCFS);
+      tmp.setNoCFSRatio(1.0);
+      mp = null;
+      //    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
+      //      mp = new BalancedSegmentMergePolicy();
+    } else {
+      throw new RuntimeException("unknown MergePolicy " + mergePolicy);
+    }
 
-    iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
-    iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
+    if (mp != null) {
+      iwc.setMergePolicy(mp);
+      //mp.setUseCompoundFile(useCFS);
+      mp.setNoCFSRatio(1.0);
+    }
 
     // Keep all commit points:
-    if (doDeletions || doForceMerge) {
-      iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
-    }
-    
-    final Codec codec = new Lucene80Codec() {
-        @Override
-        public PostingsFormat getPostingsFormatForField(String field) {
-          return PostingsFormat.forName(field.equals("id") ?
-                                        idFieldPostingsFormat : defaultPostingsFormat);
-        }
+    iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
 
-        private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName(facetDVFormatName);
-        //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
-        //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
-//        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
-        private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
-
-        @Override
-        public DocValuesFormat getDocValuesFormatForField(String field) {
-          if (facetFields.contains(field)) {
-            return facetsDVFormat;
+    /*
+    final Codec codec = new Lucene40Codec() {
+      @Override
+      public PostingsFormat getPostingsFormatForField(String field) {
+        if (field.equals("id")) {
+          if (idFieldCodec.equals("Pulsing40")) {
+            return PostingsFormat.forName("Pulsing40");
+          } else if (idFieldCodec.equals("Memory")) {
+            return PostingsFormat.forName("Memory");
+          } else if (idFieldCodec.equals("Lucene40")) {
+            return PostingsFormat.forName("Lucene40");
           } else {
-            // Use default DVFormat for all else:
-            // System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
-            return super.getDocValuesFormatForField(field);
+            throw new RuntimeException("unknown id field codec " + idFieldCodec);
           }
+        } else {
+          return PostingsFormat.forName(defaultPostingsFormat);
         }
-      };
+      }
+    };
 
     iwc.setCodec(codec);
+    */
 
     System.out.println("IW config=" + iwc);
+    final IndexWriter w = new IndexWriter(dir, iwc);
 
-    IndexWriter w = new IndexWriter(dir, iwc);
-
-    System.out.println("Index has " + w.getDocStats().maxDoc + " docs");
-
-    final TaxonomyWriter taxoWriter;
-    if (facetFields.isEmpty() == false) {
-      taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
-                                               IndexWriterConfig.OpenMode.CREATE);
-    } else {
-      taxoWriter = null;
+    if (verbose) {
+      //InfoStream.setDefault(new PrintStreamInfoStream(System.out));
+      //w.setInfoStream(System.out);
     }
-
-    // Fixed seed so group field values are always consistent:
-    final Random random = new Random(17);
-
-    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetDimMethods, facetsConfig, addDVFields);
-
-    float docsPerSecPerThread = -1f;
-    //float docsPerSecPerThread = 100f;
-
-    IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
-                                            randomDocIDMax);
+    final LineFileDocs docs = new LineFileDocs(lineFile, false);
 
     System.out.println("\nIndexer: start");
     final long t0 = System.currentTimeMillis();
-
-    threads.start();
-
-    while (!threads.done() && indexingFailed.get() == false) {
-      Thread.sleep(100);
-      
-      // Commits once per minute on average:
-      if (doRandomCommit && random.nextInt(600) == 17) {
-        System.out.println("Indexer: now commit");
-        long commitStartNS = System.nanoTime();
-        w.commit();
-        System.out.println(String.format(Locale.ROOT, "Indexer: commit took %.1f msec", (System.nanoTime()-commitStartNS)/1000000.));
-      }
+    final Thread[] threads = new Thread[numThreads];
+    final AtomicInteger count = new AtomicInteger();
+    for(int thread=0;thread<numThreads;thread++) {
+      threads[thread] = new IndexThread(w, docs, docCountLimit, count, doUpdate, groupBlockIndex);
+      threads[thread].start();
     }
-
-    threads.stop();
+    AtomicBoolean stop = null;
+    IngestRatePrinter printer = null;
+    if (printDPS) {
+      stop = new AtomicBoolean(false);
+      printer = new IngestRatePrinter(count, stop);
+      printer.start();
+    }
+    for(int thread=0;thread<numThreads;thread++) {
+      threads[thread].join();
+    }
+    if (printer != null) {
+      stop.getAndSet(true);
+      printer.join();
+    }
+    docs.close();
 
     final long t1 = System.currentTimeMillis();
-    System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.getDocStats().maxDoc + " docs");
+    System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.maxDoc() + " docs");
     // if we update we can not tell how many docs
-    if (threads.failed.get()) {
-      throw new RuntimeException("exceptions during indexing");
+    if (!doUpdate && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
+      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
     }
 
-    // Very tricky: if the line file docs source is binary, and you use multiple threads, and you use grouping fields, then the doc count
-    // may not match:
-    boolean countShouldMatch;
-
-    if (docCountLimit == -1) {
-      countShouldMatch = false;
-    } else if (mode == Mode.UPDATE) {
-      countShouldMatch = false;
-    } else if (lineFileDocs.isBinary && numThreads > 1 && addGroupingFields) {
-      countShouldMatch = false;
+    final long t2;
+    if (waitForMerges) {
+      w.waitForMerges();
+      t2 = System.currentTimeMillis();
+      System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
     } else {
-      countShouldMatch = true;
-    }
-
-    if (countShouldMatch && w.getDocStats().maxDoc != docCountLimit) {
-      throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.getDocStats().maxDoc) + ")");
+      t2 = System.currentTimeMillis();
     }
 
     final Map<String,String> commitData = new HashMap<String,String>();
+    commitData.put("userData", "multi");
+    w.setCommitData(commitData);
+    w.commit();
+    final long t3 = System.currentTimeMillis();
+    System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
 
-    if (waitForMerges) {
-      w.close();        
-      IndexWriterConfig iwc2 = new IndexWriterConfig(a);
-      iwc2.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
-      iwc2.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
-      iwc2.setCodec(codec);
-      iwc2.setUseCompoundFile(useCFS);
-      iwc2.setMaxBufferedDocs(maxBufferedDocs);
-      iwc2.setRAMBufferSizeMB(ramBufferSizeMB);
-      if (indexSortField != null) {
-        iwc2.setIndexSort(new Sort(new SortField(indexSortField, indexSortType)));
-      }
-      
-      w = new IndexWriter(dir, iwc2);
-      long t2 = System.currentTimeMillis();
-      System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
-    }
-
-    if (waitForCommit) {
-      commitData.put("userData", "multi");
-      w.setLiveCommitData(commitData.entrySet());
-      long t2 = System.currentTimeMillis();
-      w.commit();
-      long t3 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
-    } else {
-      w.rollback();
-      w = null;
-    }
-
-    if (doForceMerge) {
-      long forceMergeStartMSec = System.currentTimeMillis();
+    if (doFullMerge) {
       w.forceMerge(1);
-      long forceMergeEndMSec = System.currentTimeMillis();
-      System.out.println("\nIndexer: force merge done (took " + (forceMergeEndMSec-forceMergeStartMSec) + " msec)");
+      final long t4 = System.currentTimeMillis();
+      System.out.println("\nIndexer: full merge done (took " + (t4-t3) + " msec)");
 
       commitData.put("userData", "single");
-      w.setLiveCommitData(commitData.entrySet());
+      w.setCommitData(commitData);
       w.commit();
       final long t5 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit single done (took " + (t5-forceMergeEndMSec) + " msec)");
+      System.out.println("\nIndexer: commit single done (took " + (t5-t4) + " msec)");
     }
 
     if (doDeletions) {
       final long t5 = System.currentTimeMillis();
       // Randomly delete 5% of the docs
       final Set<Integer> deleted = new HashSet<Integer>();
-      IndexWriter.DocStats docStats = w.getDocStats();
-      final int maxDoc = docStats.maxDoc;
-      final int numDocs = docStats.numDocs;
+      final int maxDoc = w.maxDoc();
       final int toDeleteCount = (int) (maxDoc * 0.05);
       System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
       while(deleted.size() < toDeleteCount) {
@@ -542,45 +396,232 @@ public final class Indexer {
       final long t6 = System.currentTimeMillis();
       System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
-      commitData.put("userData", doForceMerge ? "delsingle" : "delmulti");
-      w.setLiveCommitData(commitData.entrySet());
+      commitData.put("userData", doFullMerge ? "delsingle" : "delmulti");
+      w.setCommitData(commitData);
       w.commit();
       final long t7 = System.currentTimeMillis();
       System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
 
-      if (doUpdate || numDocs != maxDoc - toDeleteCount) {
-        throw new RuntimeException("count mismatch: w.numDocs()=" + numDocs + " but expected " + (maxDoc - toDeleteCount));
+      if (doUpdate || w.numDocs() != maxDoc - toDeleteCount) {
+        throw new RuntimeException("count mismatch: w.numDocs()=" + w.numDocs() + " but expected " + (maxDoc - toDeleteCount));
       }
     }
 
-    if (taxoWriter != null) {
-      System.out.println("Taxonomy has " + taxoWriter.getSize() + " ords");
-      taxoWriter.commit();
-      taxoWriter.close();
-    }
+    // TODO: delmulti isn't done if doFullMerge is yes: we have to go back and open the multi commit point and do deletes against it:
 
+    /*
+    if (doFullMerge) {
+      final int maxDoc2 = w.maxDoc();
+      final int expected = doDeletions ? maxDoc : maxDoc - toDeleteCount;
+      if (maxDoc2 != expected {
+        throw new RuntimeException("count mismatch: w.maxDoc()=" + w.maxDoc() + " but expected " + expected);
+      }
+      final int toDeleteCount2 = (int) (maxDoc2 * 0.05);
+      System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
+      while(deleted.size() < toDeleteCount) {
+        final int id = rand.nextInt(maxDoc);
+        if (!deleted.contains(id)) {
+          deleted.add(id);
+          w.deleteDocuments(new Term("id", LineFileDocs.intToID(id)));
+        }
+      }
+      final long t8 = System.currentTimeMillis();
+      System.out.println("\nIndexer: deletes done (took " + (t8-t7) + " msec)");
+
+      commitData.put("userData", "delsingle");
+      w.commit(commitData);
+      final long t9 = System.currentTimeMillis();
+      System.out.println("\nIndexer: commit delsingle done (took " + (t9-t8) + " msec)");
+    }
+    */
+
+    System.out.println("\nIndexer: at close: " + w.segString());
     final long tCloseStart = System.currentTimeMillis();
-    if (w != null) {
-      w.close();
-      w = null;
-    }
-    if (waitForCommit) {
-      System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
-      System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
-    }
-      
+    w.close(waitForMerges);
+    System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     dir.close();
     final long tFinal = System.currentTimeMillis();
-    System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
+    System.out.println("\nIndexer: finished (" + (tFinal-t0) + " msec)");
+    System.out.println("\nIndexer: net bytes indexed " + docs.getBytesIndexed());
+    System.out.println("\nIndexer: " + (docs.getBytesIndexed()/1024./1024./1024./((tFinal-t0)/3600000.)) + " GB/hour plain text");
+  }
 
-    final long indexingTime;
-    if (waitForCommit) {
-      indexingTime = tFinal - t0;
-      System.out.println("\nIndexer: finished (" + indexingTime + " msec)");
-    } else {
-      indexingTime = t1 - t0;
-      System.out.println("\nIndexer: finished (" + indexingTime + " msec), excluding commit");
+  private static class IngestRatePrinter extends Thread {
+
+    private final AtomicInteger count;
+    private final AtomicBoolean stop;
+    public IngestRatePrinter(AtomicInteger count, AtomicBoolean stop){
+      this.count = count;
+      this.stop = stop;
     }
-    System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./(indexingTime/3600000.)) + " GB/hour plain text");
+
+    public void run() {
+      long time = System.currentTimeMillis();
+      System.out.println("startIngest: " + time);
+      final long start = time;
+      int lastCount = count.get();
+      while(!stop.get()) {
+        try {
+          Thread.sleep(200);
+        } catch(Exception ex) {
+        }
+        int numDocs = count.get();
+
+        double current = numDocs - lastCount;
+        long now = System.currentTimeMillis();
+        double seconds = (now-time) / 1000.0d;
+        System.out.println("ingest: " + (current / seconds) + " " + (now - start));
+        time = now;
+        lastCount = numDocs;
+      }
+    }
+  }
+
+  // TODO: is there a pre-existing way to do this!!!
+  static Document cloneDoc(Document doc1) {
+    return doc1;
+  }
+
+  private static class IndexThread extends Thread {
+    public static String[] group100;
+    public static String[] group100K;
+    public static String[] group10K;
+    public static String[] group1M;
+    private final LineFileDocs docs;
+    private final int numTotalDocs;
+    private final IndexWriter w;
+    private final AtomicInteger count;
+    private final AtomicInteger groupBlockIndex;
+    private final boolean doUpdate;
+
+    public IndexThread(IndexWriter w, LineFileDocs docs, int numTotalDocs, AtomicInteger count, boolean doUpdate, AtomicInteger groupBlockIndex) {
+      this.w = w;
+      this.docs = docs;
+      this.numTotalDocs = numTotalDocs;
+      this.count = count;
+      this.doUpdate = doUpdate;
+      this.groupBlockIndex = groupBlockIndex;
+    }
+
+    @Override
+    public void run() {
+      final LineFileDocs.DocState docState = docs.newDocState();
+      final Field idField = docState.id;
+      final long tStart = System.currentTimeMillis();
+      Term delTerm = null;
+      final Field group100Field;
+      final Field group100KField;
+      final Field group10KField;
+      final Field group1MField;
+      final Field groupBlockField;
+      final Field groupEndField;
+      if (group100 != null) {
+        group100Field = new Field("group100", "", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
+        docState.doc.add(group100Field);
+        group10KField = new Field("group10K", "", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
+        docState.doc.add(group10KField);
+        group100KField = new Field("group100K", "", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
+        docState.doc.add(group100KField);
+        group1MField = new Field("group1M", "", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
+        docState.doc.add(group1MField);
+        groupBlockField = new Field("groupblock", "", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
+        docState.doc.add(groupBlockField);
+        // Binary marker field:
+        groupEndField = new Field("groupend", "x", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS);
+      } else {
+        group100Field = null;
+        group100KField = null;
+        group10KField = null;
+        group1MField = null;
+        groupBlockField = null;
+        groupEndField = null;
+      }
+
+      try {
+        if (group100 != null) {
+
+          // Add docs in blocks:
+
+          final String[] groupBlocks;
+          if (numTotalDocs >= 5000000) {
+            groupBlocks = group1M;
+          } else if (numTotalDocs >= 500000) {
+            groupBlocks = group100K;
+          } else {
+            groupBlocks = group10K;
+          }
+          final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
+
+          final List<Document> docsGroup = new ArrayList<Document>();
+          while(true) {
+            final int groupCounter = groupBlockIndex.getAndIncrement();
+            if (groupCounter >= groupBlocks.length) {
+              break;
+            }
+            final int numDocs;
+            if (groupCounter == groupBlocks.length-1) {
+              // Put all remaining docs in this group
+              numDocs = 10000;
+            } else {
+              // This will toggle between X and X+1 docs,
+              // converging over time on average to the
+              // floating point docsPerGroupBlock:
+              numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
+            }
+            groupBlockField.setStringValue(groupBlocks[groupCounter]);
+            for(int docCount=0;docCount<numDocs;docCount++) {
+              final Document doc = docs.nextDoc(docState);
+              if (doc == null) {
+                break;
+              }
+              final int id = LineFileDocs.idToInt(idField.stringValue());
+              if (id >= numTotalDocs) {
+                break;
+              }
+              if (((1+id) % 1000000) == 0) {
+                System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+              }
+              group100Field.setStringValue(group100[id%100]);
+              group10KField.setStringValue(group10K[id%10000]);
+              group100KField.setStringValue(group100K[id%100000]);
+              group1MField.setStringValue(group1M[id%1000000]);
+              docsGroup.add(cloneDoc(doc));
+            }
+            final int docCount = docsGroup.size();
+            docsGroup.get(docCount-1).add(groupEndField);
+            //System.out.println("nd=" + docCount);
+            if (docCount > 0) {
+              w.addDocuments(docsGroup);
+              count.addAndGet(docCount);
+              docsGroup.clear();
+            } else {
+              break;
+            }
+          }
+        } else {
+
+          while(true) {
+            final Document doc = docs.nextDoc(docState);
+            if (doc == null) {
+              break;
+            }
+            final int id = LineFileDocs.idToInt(idField.stringValue());
+            if (numTotalDocs != -1 && id >= numTotalDocs) {
+              break;
+            }
+            if (((1+id) % 1000000) == 0) {
+              System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
+            }
+            if (doUpdate) {
+              delTerm = new Term("id", idField.stringValue());
+            }
+            w.updateDocument(delTerm, doc);
+            count.incrementAndGet();
+          }
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 }

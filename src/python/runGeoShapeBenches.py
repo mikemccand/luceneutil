@@ -24,7 +24,7 @@ BASELINE_LUCENE_DIR = '/Users/ivera/projects/lucene-solr/lucene'
 fileName = "osmdata.wkt"
 
 shapes = ('point', 'box', 'poly 10', 'polyMedium', 'polyRussia')
-ops = ( 'intersects','within', 'disjoint')
+ops = ('within', 'disjoint', 'intersects')
 
 compareRun = '-compare' in sys.argv
 
@@ -36,16 +36,12 @@ def printResults(results, stats, maxDoc):
 
   if '-reindex' in sys.argv:
     print('Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
-    for op in ops:
-          if op in stats:
-            readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats[op]
-            print('|%.1fs|%.1fs|%.2f|%.2f|' % (indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
+    readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats['reindex']
+    print('|%.1fs|%.1fs|%.2f|%.2f|' % (indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
   else:
     print('||Index size (GB)||Reader heap (MB)||')
-    for op in ops:
-              if op in stats:
-                  readerHeapMB, indexSizeGB = stats[op][:2]
-                  print('|%.2f|%.2f|' % (indexSizeGB, readerHeapMB))
+    readerHeapMB, indexSizeGB = stats['reindex'][:2]
+    print('|%.2f|%.2f|' % (indexSizeGB, readerHeapMB))
 
   print()
   print('||Shape||Operation||M hits/sec||QPS||Hit count||')
@@ -234,7 +230,7 @@ with open(logFileName, 'w') as log:
   log.write('\ngit head revision %s' % rev)
   for op in ops:
     for shape in shapes:
-      indexKey = op
+      indexKey = 'reindex'
       tup =[None, None, None, None]
       maxDoc = execute(results, tup, didReIndex, indexKey, log, GEO_LUCENE_DIR, False)
 

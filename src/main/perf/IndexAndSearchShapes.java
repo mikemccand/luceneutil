@@ -50,6 +50,7 @@ import org.apache.lucene.geo.SimpleWKTShapeParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 
+import org.apache.lucene.index.PointValues;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,7 +86,6 @@ import java.util.zip.GZIPInputStream;
 // Example how to run it:
 // java -Xmx10g -cp path-to-luceneutil/src/main:path-to-lucene-solr/lucene/build/test-framework/classes/java:path-to-lucene-solr/lucene/build/codecs/classes/java:path-to-lucene-solr/lucene/build/core/classes/java:path-to-lucene-solr/lucene/build/sandbox/classes/java perf.IndexAndSearchShapes -intersects -point -file osmdata.wkt
 
-
 public class IndexAndSearchShapes {
 
     private static final int ITERS = 10;
@@ -106,6 +106,7 @@ public class IndexAndSearchShapes {
     }
 
     static int NUM_PARTS = 1;
+    static final String FIELD = "shape";
 
 
     private static String getName(int part, String fileName, boolean isDev) {
@@ -231,7 +232,7 @@ public class IndexAndSearchShapes {
 
         int NUM_THREADS;
         if (fast) {
-            NUM_THREADS = 4;
+            NUM_THREADS = Runtime.getRuntime().availableProcessors() / 2;
         } else {
             NUM_THREADS = 1;
         }
@@ -244,7 +245,6 @@ public class IndexAndSearchShapes {
             org.apache.lucene.store.Directory dir = org.apache.lucene.store.FSDirectory.open(Paths.get(getName(part, fileName, isDev)));
 
             org.apache.lucene.index.IndexWriterConfig iwc = new org.apache.lucene.index.IndexWriterConfig(null);
-            iwc.setCodec(getCodec(fast));
             iwc.setOpenMode(org.apache.lucene.index.IndexWriterConfig.OpenMode.CREATE);
             if (fast) {
                 ((org.apache.lucene.index.TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(Double.POSITIVE_INFINITY);
@@ -292,7 +292,7 @@ public class IndexAndSearchShapes {
                                         Document doc = new Document();
                                         Object shape = SimpleWKTShapeParser.parse(lines[i]);
                                         //System.out.println(lines[i]);
-                                        Field[] fields = createIndexableFields("shape", shape);
+                                        Field[] fields = createIndexableFields(FIELD, shape);
                                         for (Field field : fields) {
                                             doc.add(field);
                                         }
@@ -357,30 +357,6 @@ public class IndexAndSearchShapes {
         }
     }
 
-    private static Codec getCodec(boolean fast) {
-        if (fast) {
-            return new FilterCodec("Lucene80", Codec.getDefault()) {
-                @Override
-                public PointsFormat pointsFormat() {
-                    return new PointsFormat() {
-                        @Override
-                        public PointsWriter fieldsWriter(org.apache.lucene.index.SegmentWriteState writeState) throws IOException {
-                            int maxPointsInLeafNode = 1024;
-                            return new org.apache.lucene.codecs.lucene60.Lucene60PointsWriter(writeState, maxPointsInLeafNode, org.apache.lucene.util.bkd.BKDWriter.DEFAULT_MAX_MB_SORT_IN_HEAP);
-                        }
-
-                        @Override
-                        public PointsReader fieldsReader(org.apache.lucene.index.SegmentReadState readState) throws IOException {
-                            return new org.apache.lucene.codecs.lucene60.Lucene60PointsReader(readState);
-                        }
-                    };
-                }
-            };
-        } else {
-            return Codec.forName("Lucene80");
-        }
-    }
-
     /** One normally need not clone a Polygon (it's a read only holder class), but we do this here just to keep the benchmark honest, by
      *  including Polygon construction cost in measuring search run time. */
     private static Polygon[] clonePolygon(Polygon[] polies) {
@@ -411,16 +387,22 @@ public class IndexAndSearchShapes {
         System.out.println("INDEX SIZE: " + (sizeOnDisk/1024./1024./1024.) + " GB");
         long bytes = 0;
         long maxDoc = 0;
+        long numPoints = 0;
         for(IndexSearcher s : searchers) {
             org.apache.lucene.index.IndexReader r = s.getIndexReader();
             maxDoc += r.maxDoc();
             for(org.apache.lucene.index.LeafReaderContext ctx : r.leaves()) {
                 org.apache.lucene.index.CodecReader cr = (org.apache.lucene.index.CodecReader) ctx.reader();
+                PointValues values = cr.getPointValues(FIELD);
+                if (values != null) {
+                    numPoints += values.size();
+                }
                 bytes += cr.ramBytesUsed();
             }
         }
         System.out.println("READER MB: " + (bytes/1024./1024.));
         System.out.println("maxDoc=" + maxDoc);
+        System.out.println("numPoints=" + numPoints);
 
         double bestQPS = Double.NEGATIVE_INFINITY;
 
@@ -442,7 +424,7 @@ public class IndexAndSearchShapes {
                 for (Polygon[] multiPolygon : polygons) {
                     // We do this to keep the benchmark honest, so any construction cost of a polygon is included in our run time measure:
                     multiPolygon = clonePolygon(multiPolygon);
-                    Query q = LatLonShape.newPolygonQuery("shape", op, multiPolygon);
+                    Query q = LatLonShape.newPolygonQuery(FIELD, op, multiPolygon);
                     for (IndexSearcher s : searchers) {
                         int hitCount = s.count(q);
                         totHits += hitCount;
@@ -520,13 +502,13 @@ public class IndexAndSearchShapes {
                                 switch(queryClass) {
                                     case "poly":
                                         double[][] poly = polys.get(queryCount);
-                                        q = LatLonShape.newPolygonQuery("shape", op, new Polygon(poly[0], poly[1]));
+                                        q = LatLonShape.newPolygonQuery(FIELD, op, new Polygon(poly[0], poly[1]));
                                         break;
                                     case "box":
-                                        q = LatLonShape.newBoxQuery("shape", op, lat, latEnd, lon, lonEnd);
+                                        q = LatLonShape.newBoxQuery(FIELD, op, lat, latEnd, lon, lonEnd);
                                         break;
                                     case "point":
-                                        q = LatLonShape.newBoxQuery("shape", op, lat, lat, lon, lon);
+                                        q = LatLonShape.newBoxQuery(FIELD, op, lat, lat, lon, lon);
                                         break;
                                     default:
                                         throw new AssertionError("unknown queryClass " + queryClass);
@@ -675,7 +657,7 @@ public class IndexAndSearchShapes {
                     throw new IllegalArgumentException("missing file name argument to -file");
                 }
             } else if (arg.equals("-intersects")) {
-               op = ShapeField.QueryRelation.INTERSECTS;
+                op = ShapeField.QueryRelation.INTERSECTS;
             } else if (arg.equals("-within")) {
                 op = ShapeField.QueryRelation.WITHIN;
             } else if (arg.equals("-disjoint")) {

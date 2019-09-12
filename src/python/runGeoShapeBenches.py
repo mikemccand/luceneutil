@@ -34,7 +34,7 @@ def printResults(results, stats, maxDoc):
 
   print()
 
-  if '-reindex' in sys.argv:
+  if '-reindex' in sys.argv or '-reindexFast' in sys.argv:
     print('Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
     readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats['reindex']
     print('|%.1fs|%.1fs|%.2f|%.2f|' % (indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
@@ -162,6 +162,8 @@ def execute(results, tup, didReindexParam, indexKey, log, basedir, dev):
     if line.startswith('READER MB: '):
       doPrintLine = True
       readerHeapMB = float(line[11:])
+    if line.startswith('numPoints='):
+      doPrintLine = True
     if line.startswith('maxDoc='):
       maxDoc = int(line[7:])
       doPrintLine = True
@@ -188,7 +190,7 @@ def antCompile(basedir):
      raise RuntimeError('cannot change working directory: %s' % basedir)
  print 'ant compile on %s...' %basedir
  if os.system('ant compile > %s/compile.log' % GEO_LOGS_DIR):
-     raise RuntimeError('ant compile failed > %s/compile.log' % GEO_LOGS_DIR)
+     raise RuntimeError('ant compile failed > %s/shapeCompile.log' % GEO_LOGS_DIR)
  if os.chdir(GEO_UTIL_DIR):
      raise RuntimeError('cannot change working directory: %s' % GEO_LOGS_DIR)
 
@@ -219,7 +221,7 @@ didReIndexBase = set()
 
 t0 = time.time()
 
-logFileName = '%s/geoBenchLog.txt' % (GEO_LOGS_DIR)
+logFileName = '%s/geoShapeBenchLog.txt' % (GEO_LOGS_DIR)
 
 rev = os.popen('git rev-parse HEAD').read().strip()
 print('git head revision %s' % rev)

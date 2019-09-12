@@ -393,7 +393,7 @@ public final class Indexer {
         //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
 //        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
-        private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
+        //private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {

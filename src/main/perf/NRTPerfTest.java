@@ -304,13 +304,14 @@ public class NRTPerfTest {
 		conf.setRAMBufferSizeMB(256.0);
 		//iwc.setMergeScheduler(ms);
 
+                /*
 		final Codec codec = new Lucene80Codec() {
 			@Override
 			public PostingsFormat getPostingsFormatForField(String field) {
                           return PostingsFormat.forName("Lucene50");
 			}
 
-			private final DocValuesFormat direct = DocValuesFormat.forName("Direct");
+                        private final DocValuesFormat direct = DocValuesFormat.forName("Direct");
 			@Override
 			public DocValuesFormat getDocValuesFormatForField(String field) {
 				return direct;
@@ -318,6 +319,7 @@ public class NRTPerfTest {
 		};
 
 		conf.setCodec(codec);
+                */
 
 		/*
     iwc.setMergePolicy(new LogByteSizeMergePolicy());

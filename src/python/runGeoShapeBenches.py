@@ -72,19 +72,15 @@ def printCompareResults(results, stats, maxDoc, resultsBase, statsBase):
   if '-reindex' in sys.argv or '-reindexFast' in sys.argv:
     print('Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
     print('||Dev||Base||Diff ||Dev  ||Base  ||diff   ||Dev||Base||Diff||Dev||Base||Diff ||')
-    for op in ops:
-      if op in stats:
-        readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats[op]
-        readerHeapMBBase, indexSizeGBBase, indexTimeSecBase, forceMergeTimeSecBase = statsBase[op]
-        print('|%.1fs|%.1fs|%2.f%%|%.1fs|%.1fs|%2.f%%|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexTimeSec, indexTimeSecBase, computeDiff(indexTimeSec, indexTimeSecBase), forceMergeTimeSec, forceMergeTimeSecBase, computeDiff(forceMergeTimeSec, forceMergeTimeSecBase), indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
+    readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats['LatLonShape']
+    readerHeapMBBase, indexSizeGBBase, indexTimeSecBase, forceMergeTimeSecBase = statsBase['LatLonShape']
+    print('|%.1fs|%.1fs|%2.f%%|%.1fs|%.1fs|%2.f%%|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexTimeSec, indexTimeSecBase, computeDiff(indexTimeSec, indexTimeSecBase), forceMergeTimeSec, forceMergeTimeSecBase, computeDiff(forceMergeTimeSec, forceMergeTimeSecBase), indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
   else:
     print('||Index size (GB)||Reader heap (MB)||')
     print('||Dev||Base||Diff||Dev||Base||Diff ||')
-    for op in ops:
-      if op in stats:
-        readerHeapMB, indexSizeGB = stats[op][:2]
-        readerHeapMBBase, indexSizeGBBase = statsBase[op][:2]
-        print('|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
+    readerHeapMB, indexSizeGB = stats['LatLonShape'][:2]
+    readerHeapMBBase, indexSizeGBBase = statsBase['LatLonShape'][:2]
+    print('|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
 
   print()
   print('||Approach||Shape||M hits/sec      ||QPS            ||Hit count      ||')

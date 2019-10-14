@@ -10,7 +10,16 @@ import time
 
 reTotHits = re.compile('totHits=(\d+)$')
 
-GEO_LOGS_DIR = '/data/geo'
+nightly = '-nightly' in sys.argv
+compareRun = '-compare' in sys.argv
+
+if nightly and compareRun:
+  raise RuntimeError('cannot run nightly job with compare flag')
+
+if nightly and '-reindex' not in sys.argv:
+  sys.argv.append('-reindex')
+
+
 
 ####################
 # Add here your paths
@@ -18,15 +27,17 @@ GEO_LOGS_DIR = '/data/geo'
 GEO_UTIL_DIR ='/Users/ivera/forks/luceneutil_cleanfork'
 GEO_LUCENE_DIR = '/Users/ivera/forks/lucene-solr-fork/lucene'
 BASELINE_LUCENE_DIR = '/Users/ivera/projects/lucene-solr/lucene'
+GEO_LOGS_DIR = '/data/geo/'
 #######
 # add your file name, it needs to be under your data directory (see IndexAndSearchShapes.java)
 #######
 fileName = "osmdata.wkt"
 
-shapes = ('point', 'box', 'poly 10', 'polyMedium', 'polyRussia')
+approaches = ('LatLonShape',)
 ops = ('within', 'disjoint', 'intersects')
+shapes = ('point', 'box', 'poly 10', 'polyMedium', 'polyRussia')
 
-compareRun = '-compare' in sys.argv
+
 
 def printResults(results, stats, maxDoc):
   print()
@@ -35,22 +46,22 @@ def printResults(results, stats, maxDoc):
   print()
 
   if '-reindex' in sys.argv or '-reindexFast' in sys.argv:
-    print('Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
-    readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats['reindex']
-    print('|%.1fs|%.1fs|%.2f|%.2f|' % (indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
+    print('||Approach||Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
+    readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats['LatLonShape']
+    print('%s|%.1fs|%.1fs|%.2f|%.2f|' % ('LatLonShape', indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
   else:
     print('||Index size (GB)||Reader heap (MB)||')
     readerHeapMB, indexSizeGB = stats['reindex'][:2]
     print('|%.2f|%.2f|' % (indexSizeGB, readerHeapMB))
 
   print()
-  print('||Shape||Operation||M hits/sec||QPS||Hit count||')
+  print('||Approach||Shape||Operation||M hits/sec||QPS||Hit count||')
   for shape in shapes:
     for op in ops:
       tup = shape, op
       if tup in results:
         qps, mhps, totHits = results[tup]
-        print('|%s|%s|%.2f|%.2f|%d|' % (shape, op, mhps, qps, totHits))
+        print('|%s|%s|%s|%.2f|%.2f|%d|' % ('LatLonShape',shape, op, mhps, qps, totHits))
 
 def printCompareResults(results, stats, maxDoc, resultsBase, statsBase):
   print()
@@ -61,19 +72,15 @@ def printCompareResults(results, stats, maxDoc, resultsBase, statsBase):
   if '-reindex' in sys.argv or '-reindexFast' in sys.argv:
     print('Index time (sec)||Force merge time (sec)||Index size (GB)||Reader heap (MB)||')
     print('||Dev||Base||Diff ||Dev  ||Base  ||diff   ||Dev||Base||Diff||Dev||Base||Diff ||')
-    for op in ops:
-      if op in stats:
-        readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats[op]
-        readerHeapMBBase, indexSizeGBBase, indexTimeSecBase, forceMergeTimeSecBase = statsBase[op]
-        print('|%.1fs|%.1fs|%2.f%%|%.1fs|%.1fs|%2.f%%|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexTimeSec, indexTimeSecBase, computeDiff(indexTimeSec, indexTimeSecBase), forceMergeTimeSec, forceMergeTimeSecBase, computeDiff(forceMergeTimeSec, forceMergeTimeSecBase), indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
+    readerHeapMB, indexSizeGB, indexTimeSec, forceMergeTimeSec = stats['LatLonShape']
+    readerHeapMBBase, indexSizeGBBase, indexTimeSecBase, forceMergeTimeSecBase = statsBase['LatLonShape']
+    print('|%.1fs|%.1fs|%2.f%%|%.1fs|%.1fs|%2.f%%|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexTimeSec, indexTimeSecBase, computeDiff(indexTimeSec, indexTimeSecBase), forceMergeTimeSec, forceMergeTimeSecBase, computeDiff(forceMergeTimeSec, forceMergeTimeSecBase), indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
   else:
     print('||Index size (GB)||Reader heap (MB)||')
     print('||Dev||Base||Diff||Dev||Base||Diff ||')
-    for op in ops:
-      if op in stats:
-        readerHeapMB, indexSizeGB = stats[op][:2]
-        readerHeapMBBase, indexSizeGBBase = statsBase[op][:2]
-        print('|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
+    readerHeapMB, indexSizeGB = stats['LatLonShape'][:2]
+    readerHeapMBBase, indexSizeGBBase = statsBase['LatLonShape'][:2]
+    print('|%.2f|%.2f|%2.f%%|%.2f|%.2f|%2.f%%|' % (indexSizeGB, indexSizeGBBase, computeDiff(indexSizeGB, indexSizeGBBase), readerHeapMB, readerHeapMBBase, computeDiff(readerHeapMB, readerHeapMBBase)))
 
   print()
   print('||Approach||Shape||M hits/sec      ||QPS            ||Hit count      ||')
@@ -188,14 +195,44 @@ def execute(results, tup, didReindexParam, indexKey, log, basedir, dev):
 def antCompile(basedir):
  if os.chdir(basedir):
      raise RuntimeError('cannot change working directory: %s' % basedir)
- print 'ant compile on %s...' %basedir
+ print ('ant compile on %s...' %basedir)
  if os.system('ant compile > %s/compile.log' % GEO_LOGS_DIR):
-     raise RuntimeError('ant compile failed > %s/shapeCompile.log' % GEO_LOGS_DIR)
+     raise RuntimeError('ant compile failed > %s/compile.log' % GEO_LOGS_DIR)
  if os.chdir(GEO_UTIL_DIR):
      raise RuntimeError('cannot change working directory: %s' % GEO_LOGS_DIR)
 
 
-resultsFileName = 'geo.results.pk'
+if nightly:
+  if '-timeStamp' in sys.argv:
+    timeStamp = sys.argv[sys.argv.index('-timeStamp')+1]
+    year, month, day, hour, minute, second = (int(x) for x in timeStamp.split('.'))
+    timeStampDateTime = datetime.datetime(year, month, day, hour, minute, second)
+  else:
+    start = datetime.datetime.now()
+    timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)
+  resultsFileName = '%s/%s.pk' % (GEO_LOGS_DIR, timeStamp)
+else:
+  resultsFileName = 'geo.results.pk'
+
+# nocommit should we "ant jar"?
+
+if nightly:
+  # paths for nightly run
+  GEO_UTIL_DIR = '/l/util.nightly/'
+  GEO_LUCENE_DIR = '/l/trunk.nightly/lucene/'
+  GEO_LOGS_DIR = '/l/logs.nightly/geoshape'
+
+if nightly:
+  logFileName = '%s/%s.log.txt' % (GEO_LOGS_DIR, timeStamp)
+else:
+  logFileName = '%s/geoShapeBenchLog.txt' % (GEO_LOGS_DIR)
+
+os.chdir(GEO_LUCENE_DIR)
+rev = os.popen('git rev-parse HEAD').read().strip()
+print('git head revision %s' % rev)
+print('\nNOTE: logging all output to %s; saving results to %s\n' % (logFileName, resultsFileName))
+
+
 
 # nocommit should we "ant jar"?
 if '-ant' in sys.argv:
@@ -221,7 +258,6 @@ didReIndexBase = set()
 
 t0 = time.time()
 
-logFileName = '%s/geoShapeBenchLog.txt' % (GEO_LOGS_DIR)
 
 rev = os.popen('git rev-parse HEAD').read().strip()
 print('git head revision %s' % rev)
@@ -232,7 +268,7 @@ with open(logFileName, 'w') as log:
   log.write('\ngit head revision %s' % rev)
   for op in ops:
     for shape in shapes:
-      indexKey = 'reindex'
+      indexKey = 'LatLonShape'
       tup =[None, None, None, None]
       maxDoc = execute(results, tup, didReIndex, indexKey, log, GEO_LUCENE_DIR, False)
 
@@ -266,5 +302,8 @@ with open(logFileName, 'w') as log:
 
       else:
         printResults(results, stats, maxDoc)
+
+if nightly:
+  os.system('bzip2 --best %s' % logFileName)
   
 print('Took %.1f sec to run all geo benchmarks' % (time.time()-t0))

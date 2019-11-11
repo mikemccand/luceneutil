@@ -457,6 +457,10 @@ KNOWN_CHANGES = [
    'Switched GC back to ParallelGC (away from default G1GC)',
    'Switched GC back to ParallelGC (away from default G1GC)'),
 
+  ('2019-05-06',
+   'LUCENE-8781: FST lookup performance has been improved in many cases by encoding Arcs using full-sized arrays with gaps',
+   'LUCENE-8781: FST lookup performance has been improved in many cases by encoding Arcs using full-sized arrays with gaps'),
+
   ('2019-05-24',
    'LUCENE-8770: Two-phase support in conjunctions',
    'LUCENE-8770: Two-phase support in conjunctions'),
@@ -468,6 +472,14 @@ KNOWN_CHANGES = [
   ('2019-07-09',
    'LUCENE-8311: Compute impacts for phrase queries',
    'LUCENE-8311: Compute impacts for phrase queries'),
+
+  ('2019-07-26',
+   'LUCENE-8980: Blocktree seekExact now checks min-max range of the segment',
+   'LUCENE-8980: Blocktree seekExact now checks min-max range of the segment'),
+
+  ('2019-10-14',
+   'LUCENE-8920: Disable direct addressing of arcs.',
+   'LUCENE-8920: Disable direct addressing of arcs.'),
 
 ]
 

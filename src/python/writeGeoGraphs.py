@@ -42,9 +42,12 @@ KNOWN_CHANGES = (
   ('2019-02-08', 'LUCENE-8673: Use radix partitioning when merging dimensional points'),
   ('2019-02-12', 'LUCENE-8687: Optimise radix partitioning for points on heap'),
   ('2019-02-21', 'LUCENE-8699: Change HeapPointWriter to use a single byte array instead to a list of byte arrays'),
+  ('2019-04-12', 'LUCENE-8736: Improved line detection'),
   ('2019-04-23', 'Switched to OpenJDK 11'),
   ('2019-04-30', 'Switched GC back to ParallelGC (away from default G1GC)'),
   ('2019-08-27', 'LUCENE-8955: Move compare logic to IntersectVisitor in NearestNeighbor'),
+  ('2019-10-12', 'LUCENE-8928: Compute exact bounds every N splits'),
+  ('2019-10-26', 'LUCENE-8932: Move BKDReader\'s index off-heap when the input is a ByteBufferIndexInput'),
 )
 
 def toString(timeStamp):

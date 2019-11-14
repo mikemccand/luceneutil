@@ -473,13 +473,17 @@ KNOWN_CHANGES = [
    'LUCENE-8311: Compute impacts for phrase queries',
    'LUCENE-8311: Compute impacts for phrase queries'),
 
-  ('2019-07-26',
+  ('2019-09-26',
    'LUCENE-8980: Blocktree seekExact now checks min-max range of the segment',
    'LUCENE-8980: Blocktree seekExact now checks min-max range of the segment'),
 
   ('2019-10-14',
    'LUCENE-8920: Disable direct addressing of arcs.',
    'LUCENE-8920: Disable direct addressing of arcs.'),
+
+  ('2019-11-14',
+   'LUCENE-8920: Re-enable direct addressing of arcs.',
+   'LUCENE-8920: Re-enable direct addressing of arcs.'),
 
 ]
 

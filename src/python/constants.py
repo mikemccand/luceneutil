@@ -90,7 +90,7 @@ if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
-POSTINGS_FORMAT_DEFAULT='Lucene50'
+POSTINGS_FORMAT_DEFAULT='Lucene84'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT=POSTINGS_FORMAT_DEFAULT
 FACET_FIELD_DV_FORMAT_DEFAULT='Lucene80'
 ANALYZER_DEFAULT='StandardAnalyzer'

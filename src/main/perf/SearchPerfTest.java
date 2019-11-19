@@ -49,7 +49,7 @@ import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene80.Lucene80Codec;
+import org.apache.lucene.codecs.lucene84.Lucene84Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
@@ -314,7 +314,7 @@ public class SearchPerfTest {
       //((TieredMergePolicy) iwc.getMergePolicy()).setReclaimDeletesWeight(3.0);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergeAtOnce(4);
 
-      final Codec codec = new Lucene80Codec() {
+      final Codec codec = new Lucene84Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return PostingsFormat.forName(field.equals("id") ?

@@ -485,6 +485,10 @@ KNOWN_CHANGES = [
    'LUCENE-8920: Re-enable direct addressing of arcs.',
    'LUCENE-8920: Re-enable direct addressing of arcs.'),
 
+  ('2019-11-20',
+   'LUCENE-9027: SIMD decompression of postings.',
+   'LUCENE-9027: SIMD decompression of postings.'),
+
 ]
 
 # TODO

@@ -48,6 +48,8 @@ KNOWN_CHANGES = (
   ('2019-08-27', 'LUCENE-8955: Move compare logic to IntersectVisitor in NearestNeighbor'),
   ('2019-10-12', 'LUCENE-8928: Compute exact bounds every N splits'),
   ('2019-10-26', 'LUCENE-8932: Move BKDReader\'s index off-heap when the input is a ByteBufferIndexInput'),
+  ('2020-01-13', 'Switch to OpenJDK 13'),
+  ('2020-01-14', 'Switch to OpenJDK 12'),
 )
 
 def toString(timeStamp):

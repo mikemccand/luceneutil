@@ -493,6 +493,14 @@ KNOWN_CHANGES = [
    'LUCENE-9056: Fewer conditionals in #nextDoc/#advance',
    'LUCENE-9056: Fewer conditionals in #nextDoc/#advance'),
 
+  ('2020-01-13',
+   'Switch to OpenJDK 13',
+   'Switch to OpenJDK 13'),
+
+  ('2020-01-14',
+   'Switch to OpenJDK 12',
+   'Switch to OpenJDK 12'),
+
 ]
 
 # TODO

@@ -29,14 +29,24 @@ KNOWN_CHANGES_ANT_TEST = [
 def runOneDay(logFile):
 
   # nocommit svn up to the timestamp:
-  os.chdir('%s/%s/lucene' % (BASE_DIR, NIGHTLY_DIR))
+  #os.chdir('%s/%s/lucene' % (BASE_DIR, NIGHTLY_DIR))
+  os.chdir('%s/%s' % (BASE_DIR, NIGHTLY_DIR))
 
   print('  ant test log: %s' % logFile)
   open(logFile + '.tmp', 'w').write('svn rev: %s\n\n' % os.popen('svnversion 2>&1').read())
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
+
+  if os.system('git clean -xfd >> %s.tmp 2>&1' % logFile):
+    raise RuntimeError('git clean -xfd failed!')
   
   t0 = time.time()
-  if not os.system('ant clean test -Dtests.jvms=%s >> %s.tmp 2>&1' % (constants.PROCESSOR_COUNT, logFile)):
+  # Goodbye ant, hello gradle!
+  #if not os.system('ant clean test -Dtests.jvms=%s >> %s.tmp 2>&1' % (constants.PROCESSOR_COUNT, logFile)):
+
+  # There is some weird gradle bootstrapping bug: if we do not run this "help" first, then the test run fails w/ cryptic error:
+  os.system('./gradlew help >> %s.tmp 2>&1' % logFile)
+  
+  if not os.system('./gradlew -p lucene test >> %s.tmp 2>&1' % logFile):
     # Success
     t1 = time.time()
     open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))

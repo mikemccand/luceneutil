@@ -7,7 +7,8 @@ import datetime
 import sys
 import constants
 
-reCompletedTestCount = re.compile(r', (\d+) tests')
+reCompletedTestCountGradle = re.compile(r': (\d+) test\(s\)')
+reCompletedTestCountAnt = re.compile(r', (\d+) tests')
 
 DEBUG = False
 
@@ -55,6 +56,13 @@ def runOneDay(logFile):
   else:
     print('FAILED; see %s.tmp' % logFile)
 
+def getTestCount(line, regexp):
+  m = regexp.search(line)
+  if m is not None:
+    return int(m.group(1))
+  else:
+    return -1
+
 def writeGraph():
   logFiles = os.listdir(LOGS_DIR)
   logFiles.sort()
@@ -74,9 +82,18 @@ def writeGraph():
     totalTests = 0
     with open('%s/%s' % (LOGS_DIR, logFile)) as f:
       for line in f.readlines():
-        m = reCompletedTestCount.search(line)
-        if m is not None:
-          totalTests += int(m.group(1))
+
+        testCount = getTestCount(line, reCompletedTestCountGradle)
+        if testCount <= 0:
+          testCount = getTestCount(line, reCompletedTestCountAnt)
+          if testCount < 0:
+            testCount = 0
+          elif 'Tests summary' in line:
+            # do not over-count ant "summary" output lines:
+            testCount = 0
+
+        totalTests += testCount
+        
         if line.startswith('TOTAL SEC: '):
           results.append((timestamp, totalTests, float(line[11:].strip())))
           break

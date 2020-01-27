@@ -1321,7 +1321,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br><br><b>Others:</b>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="../geobench.html">Geo spatial benchmarks</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparseResults.html">Sparse vs dense doc values performance on NYC taxi ride corpus</a>')
-  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"ant clean test" time in lucene</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"gradle -p lucene test" time in lucene</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
 
   l = searchChartData.keys()

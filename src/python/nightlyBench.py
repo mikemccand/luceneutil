@@ -501,6 +501,10 @@ KNOWN_CHANGES = [
    'Switch to OpenJDK 12',
    'Switch to OpenJDK 12'),
 
+  ('2020-01-17',
+   'Move invariant checks of CompetitiveImpactAccumulator under an assert',
+   'Move invariant checks of CompetitiveImpactAccumulator under an assert'),
+
   ('2020-01-24',
    'LUCENE-4702: compress suffix bytes in terms dictionary',
    'LUCENE-4702: compress suffix bytes in terms dictionary'),

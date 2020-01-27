@@ -107,7 +107,7 @@ def writeGraph():
     
     w('<html>')
     w('<head>')
-    w('<title>Minutes for "ant clean test" in lucene</title>')
+    w('<title>Minutes for "gradle -p lucene test" in lucene</title>')
     w('<style type="text/css">')
     w('BODY { font-family:verdana; }')
     w('#chart_ant_clean_test_time {\n')
@@ -147,7 +147,7 @@ def writeGraph():
       w('    + "%4d-%02d-%02d,%s,%s,%.2f\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0, float(totalTests)/(seconds/60.0)/1000.))
 
     w(''',
-    { "title": "Time for \'ant clean test\'",
+    { "title": "Time for \'gradle -p lucene test\'",
       "labels": ["Date", "Count (thousands)", "Minutes", "Tests per minute (thousands)"],
       "series": {
         "Count (thousands)": {

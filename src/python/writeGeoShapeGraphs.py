@@ -42,7 +42,7 @@ def writeGraphHeader(f, id):
 
 def writeGraphFooter(f, id, title, yLabel, series):
 
-  colors = ["#DD1E2F", "#EBB035", "#06A2CB"] #, "#218559"] #, "#B0A691", "#192823"],
+  colors = ["#DD1E2F", "#EBB035", "#06A2CB", "#218559"] #, "#218559"] #, "#B0A691", "#192823"],
 
   #colors = []
   #if 'LatLonShape' in series:
@@ -194,7 +194,6 @@ def loadAllResults():
       year, month, day, hour, minute, second = (int(x) for x in name[:-3].split('.'))
       results = pickle.loads(open('/l/logs.nightly/geoshape/%s' % name, 'rb').read())
       allResults[datetime.datetime(year, month, day, hour, minute, second)] = results
-  print('allResults size = %d' % len(results))
   return allResults
 
 def add(data, key, timeStamp, value):
@@ -202,8 +201,6 @@ def add(data, key, timeStamp, value):
   if key not in data:
     print('key %s is not in data' % key)
     data[key] = {}
-  for k in data:
-    print('k is %s' % k)
   data[key][timeStamp] = value
 
 with open('/tmp/geoshapebench.html', 'w') as f:

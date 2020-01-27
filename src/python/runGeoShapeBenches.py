@@ -34,7 +34,7 @@ GEO_LOGS_DIR = '/data/geo/'
 fileName = "osmdata.wkt"
 
 approaches = ('LatLonShape',)
-ops = ('within', 'disjoint', 'intersects')
+ops = ('intersects', 'contains', 'within', 'disjoint')
 shapes = ('point', 'box', 'poly 10', 'polyMedium', 'polyRussia')
 
 
@@ -203,6 +203,10 @@ def antCompile(basedir):
 
 
 if nightly:
+  # paths for nightly run
+  GEO_UTIL_DIR = '/l/util.nightly/'
+  GEO_LUCENE_DIR = '/l/trunk.nightly/lucene/'
+  GEO_LOGS_DIR = '/l/logs.nightly/geoshape'
   if '-timeStamp' in sys.argv:
     timeStamp = sys.argv[sys.argv.index('-timeStamp')+1]
     year, month, day, hour, minute, second = (int(x) for x in timeStamp.split('.'))
@@ -215,12 +219,6 @@ else:
   resultsFileName = 'geo.results.pk'
 
 # nocommit should we "ant jar"?
-
-if nightly:
-  # paths for nightly run
-  GEO_UTIL_DIR = '/l/util.nightly/'
-  GEO_LUCENE_DIR = '/l/trunk.nightly/lucene/'
-  GEO_LOGS_DIR = '/l/logs.nightly/geoshape'
 
 if nightly:
   logFileName = '%s/%s.log.txt' % (GEO_LOGS_DIR, timeStamp)

@@ -662,6 +662,8 @@ public class IndexAndSearchShapes {
                 op = ShapeField.QueryRelation.WITHIN;
             } else if (arg.equals("-disjoint")) {
                 op = ShapeField.QueryRelation.DISJOINT;
+            } else if (arg.equals("-contains")) {
+                op = ShapeField.QueryRelation.CONTAINS;
             } else if (arg.equals("-polyMedium")) {
                 // London boroughs:
                 queryClass = setQueryClass(queryClass, "polyFile");

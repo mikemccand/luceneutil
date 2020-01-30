@@ -982,12 +982,13 @@ def run():
 
   message('done: total time %s' % (now()-start))
 
-def getGCTimes(subDir):
+reTimeIn = re.compile('^\s*Time in (.*?): (\d+) ms')
+
+def getIndexGCTimes(subDir):
   if not os.path.exists('%s/gcTimes.pk' % subDir):
     times = {}
     print("check %s" % ('%s/logs.tar.bz2' % subDir))
     if os.path.exists('%s/logs.tar.bz2' % subDir):
-      reTimeIn = re.compile('^\s*Time in (.*?): (\d+) ms')
       cmd = 'tar xjf %s/logs.tar.bz2 fastIndexMediumDocs.log' % subDir
       if os.system(cmd):
         raise RuntimeError('%s failed (cwd %s)' % (cmd, os.getcwd()))
@@ -1003,12 +1004,46 @@ def getGCTimes(subDir):
   else:
     return cPickle.loads(open('%s/gcTimes.pk' % subDir, 'rb').read())
 
+reSearchStdoutLog = re.compile(r'nightly\.nightly\.\d+\.stdout')
+
+def getSearchGCTimes(subDir):
+  times = {}
+  #print("check search gc/jit %s" % ('%s/logs.tar.bz2' % subDir))
+  pk_file = '%s/search.gcjit.pk' % subDir
+  if os.path.exists(pk_file):
+    return cPickle.load(open(pk_file))
+  
+  if os.path.exists('%s/logs.tar.bz2' % subDir):
+    with tarfile.open('%s/logs.tar.bz2' % subDir, 'r') as t:
+      for i in range(20):
+        try:
+          info = t.getmember('nightly.nightly.%d.stdout' % i)
+        except KeyError:
+          # we did not always save the .stdout w/ GC/JIT telemetry:
+          break
+        
+        f = t.extractfile(info)
+        try:
+          for line in f.readlines():
+            m = reTimeIn.search(line)
+            if m is not None:
+              print('  GOT MATCH: %s' % line.strip())
+              key = m.group(1)
+              times[key]= times.get(key, 0.0) + float(m.group(2))/1000.
+        finally:
+          f.close()
+
+    open(pk_file, 'wb').write(cPickle.dumps(times))
+    
+  return times
+
 def makeGraphs():
   global annotations
   medIndexChartData = ['Date,GB/hour']
   bigIndexChartData = ['Date,GB/hour']
   nrtChartData = ['Date,Reopen Time (msec)']
-  gcTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
+  gcIndexTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
+  gcSearchTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
   searchChartData = {}
   days = []
   annotations = []
@@ -1059,14 +1094,23 @@ def makeGraphs():
         # Bug in luceneutil made it look like 0 qps on all queries
         continue
 
-      gcTimes = getGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
+      gcIndexTimes = getIndexGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
       s = timeStampString
       for h in 'JIT compilation', 'Young Generation GC', 'Old Generation GC':
-        v = gcTimes.get(h)
+        v = gcIndexTimes.get(h)
         s += ','
         if v is not None:
           s += '%.4f' % v
-      gcTimesChartData.append(s)
+      gcIndexTimesChartData.append(s)
+
+      gcSearchTimes = getSearchGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
+      s = timeStampString
+      for h in 'JIT compilation', 'Young Generation GC', 'Old Generation GC':
+        v = gcIndexTimes.get(h)
+        s += ','
+        if v is not None:
+          s += '%.4f' % v
+      gcSearchTimesChartData.append(s)
 
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
@@ -1124,7 +1168,7 @@ def makeGraphs():
     sort(v)
 
   # Index time, including GC/JIT times
-  writeIndexingHTML(medIndexChartData, bigIndexChartData, gcTimesChartData)
+  writeIndexingHTML(medIndexChartData, bigIndexChartData, gcIndexTimesChartData)
 
   # CheckIndex time
   writeCheckIndexTimeHTML()
@@ -1143,6 +1187,8 @@ def makeGraphs():
       del searchChartData[k]
 
   writeIndexHTML(searchChartData, days)
+
+  writeSearchGCJITHTML(gcSearchTimesChartData)
 
   # publish
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
@@ -1326,6 +1372,7 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'TermBGroup1M1P', '1M groups (single pass block grouping)')
 
   w('<br><br><b>Others:</b>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="search_gc_jit.html">GC/JIT metrics during search benchmarks</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="../geobench.html">Geo spatial benchmarks</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparseResults.html">Sparse vs dense doc values performance on NYC taxi ride corpus</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"gradle -p lucene test" time in lucene</a>')
@@ -1429,6 +1476,17 @@ def writeKnownChanges(w, pctOffset=77):
     w('<li><p><b>%s</b> (%s): %s</p>' % (getLabel(label), date, fullDesc))
     label += 1
   w('</ul>')
+
+def writeSearchGCJITHTML(gcTimesChartData):
+  with open('%s/search_gc_jit.html' % constants.NIGHTLY_REPORTS_DIR, 'wb') as f:
+    w = f.write
+    header(w, 'Lucene search GC/JIT times')
+    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
+    w('<br>')
+    w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times during searching", errorBars=False))
+    w('\n')
+    writeKnownChanges(w, pctOffset=227)
+    footer(w)
 
 def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
   f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')

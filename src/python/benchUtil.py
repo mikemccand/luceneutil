@@ -31,7 +31,7 @@ import signal
 import QPSChart
 import IndexChart
 import subprocess
-  
+
 # Skip the first N runs of a given category (cold) or particular task (hot):
 WARM_SKIP = 3
 
@@ -852,6 +852,10 @@ class RunAlgs:
 
       if index.disableIOThrottle:
         w('-disableIOThrottle')
+
+      if index.indexSort:
+        w('-indexSort')
+        w(index.indexSort)
 
       cmd = ' '.join(cmd)
 

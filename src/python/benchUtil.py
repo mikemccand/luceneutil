@@ -585,7 +585,7 @@ def collateResults(resultIters):
 
   return iters
 
-def agg(iters, cat, name):
+def agg(iters, cat, name, verifyCounts):
 
   bestAvgMS = None
   lastHitCount = None
@@ -679,7 +679,7 @@ def agg(iters, cat, name):
     
     if lastHitCount is None:
       lastHitCount = totHitCount
-    elif totHitCount != lastHitCount:
+    elif verifyCounts and totHitCount != lastHitCount:
       raise RuntimeError('different hit counts: %s vs %s' % (lastHitCount, totHitCount))
 
   if VERBOSE:
@@ -901,35 +901,35 @@ class RunAlgs:
 
     # We use the jar file for core to leverage the MR JAR
     core_jar_file = None
-    for filename in os.listdir('%s/lucene/build/core' % path):
+    for filename in os.listdir('%s/lucene/core/build/libs' % path):
       if reCoreJar.match(filename) is not None:
-        core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
+        core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
         break
     if core_jar_file is None:
-      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+      raise RuntimeError("can't find core JAR file in %s" % ('%s/lucene/core/build/libs' % path))
 
     cp.append(core_jar_file)
-    cp.append('%s/lucene/build/core/classes/test' % path)
-    cp.append('%s/lucene/build/sandbox/classes/java' % path)
-    cp.append('%s/lucene/build/misc/classes/java' % path)
-    cp.append('%s/lucene/build/facet/classes/java' % path)
+    cp.append('%s/lucene/core/build/classes/java/test' % path)
+    cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
+    cp.append('%s/lucene/misc/build/classes/java/main' % path)
+    cp.append('%s/lucene/facet/build/classes/java/main' % path)
     cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
     if version == '4.0':
-      cp.append('%s/lucene/build/analysis/common/classes/java' % path)
-      cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
-      cp.append('%s/lucene/build/queryparser/classes/java' % path)
-      cp.append('%s/lucene/build/grouping/classes/java' % path)
-      cp.append('%s/lucene/build/suggest/classes/java' % path)
-      cp.append('%s/lucene/build/highlighter/classes/java' % path)
-      cp.append('%s/lucene/build/codecs/classes/java' % path)
-      cp.append('%s/lucene/build/queries/classes/java' % path)
+      cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
+      cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
+      cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
+      cp.append('%s/lucene/grouping/build/classes/java/main' % path)
+      cp.append('%s/lucene/suggest/build/classes/java/main' % path)
+      cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
+      cp.append('%s/lucene/codecs/build/classes/java/main' % path)
+      cp.append('%s/lucene/queries/build/classes/java/main' % path)
       self.addJars(cp, '%s/lucene/facet/lib' % path)
     elif version == '3.x':
-      cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
-      cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
+      cp.append('%s/lucene/contrib/analyzers/common/build/classes/java' % path)
+      cp.append('%s/lucene/contrib/spellchecker/build/classes/java' % path)
     else:
-      cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
-      cp.append('%s/build/contrib/spellchecker/classes/java' % path)
+      cp.append('%s/contrib/analyzers/common/build/classes/java' % path)
+      cp.append('%s/contrib/spellchecker/build/classes/java' % path)
 
     # so perf.* is found:
     lib = os.path.join(checkoutToUtilPath(checkout), "lib")
@@ -950,21 +950,20 @@ class RunAlgs:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
         # for core we build a JAR in order to benefit from the MR JAR stuff
+        os.chdir(checkoutPath)
         for module in ['core']:
-          modulePath = '%s/lucene/%s' % (checkoutPath, module)
-          os.chdir(modulePath)
-          print '  %s...' % modulePath
-          run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          print 'compile lucene:core...'
+          run('%s lucene:core:jar' % constants.GRADLEW_EXE, '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
-                       'analysis/common', 'grouping',
+                       'analysis:common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
-          modulePath = '%s/lucene/%s' % (checkoutPath, module)
-          classesPath = '%s/lucene/build/%s/classes/java' % (checkoutPath, module)
-          # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
-          if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
-            print '  %s...' % modulePath
-            os.chdir(modulePath)
-            run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          # Try to be faster; this may miss changes, e.g. a static final constant changed in core that is used in another module:
+          modulePath = '%s/lucene/%s' % (checkoutPath, module.replace(':', '/'))
+          classesPath = '%s/build/classes/java' % (modulePath)
+          lastCompileTime = common.getLatestModTime(classesPath, '.class')
+          if common.getLatestModTime('%s/src/java' % modulePath) > lastCompileTime:
+            print 'compile lucene:%s...' % module
+            run('%s lucene:%s:compileJava' % (constants.GRADLEW_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
 
       print '  %s' % path
       os.chdir(path)      
@@ -1057,6 +1056,7 @@ class RunAlgs:
     command.append(logFile)
     command.append('-topN')
     command.append('10')
+    #command.append('500')
     if filter is not None:
       command.append('-filter')
       command.append('%.2f' % filter)
@@ -1227,8 +1227,8 @@ class RunAlgs:
 
       # baseMS, cmpMS are lists of milli-seconds of the run-time for
       # this task across the N JVMs:
-      baseMS, baseTotHitCount = agg(baseResults, cat, 'base')
-      cmpMS, cmpTotHitCount = agg(cmpResults, cat, 'cmp')
+      baseMS, baseTotHitCount = agg(baseResults, cat, 'base', self.verifyCounts)
+      cmpMS, cmpTotHitCount = agg(cmpResults, cat, 'cmp', self.verifyCounts)
 
       baseQPS = [1000.0/x for x in baseMS]
       cmpQPS = [1000.0/x for x in cmpMS]

@@ -228,8 +228,10 @@ public final class Indexer {
         indexSortType = SortField.Type.LONG;
       } else if (typeString.equals("string")) {
         indexSortType = SortField.Type.STRING;
+      } else if (typeString.equals("int")) {
+        indexSortType = SortField.Type.INT;
       } else {
-        throw new IllegalArgumentException("-indexSort can only handle 'long' sort; got: " + typeString);
+        throw new IllegalArgumentException("-indexSort can only handle {long,int,string} sort; got: " + typeString);
       }
       indexSortField = indexSortField.substring(0, i);
     } else {

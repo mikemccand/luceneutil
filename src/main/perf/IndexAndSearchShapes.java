@@ -508,7 +508,7 @@ public class IndexAndSearchShapes {
                                         q = LatLonShape.newBoxQuery(FIELD, op, lat, latEnd, lon, lonEnd);
                                         break;
                                     case "point":
-                                        q = LatLonShape.newBoxQuery(FIELD, op, lat, lat, lon, lon);
+                                        q = LatLonShape.newPointQuery(FIELD, op, new double[] {lat, lon});
                                         break;
                                     default:
                                         throw new AssertionError("unknown queryClass " + queryClass);

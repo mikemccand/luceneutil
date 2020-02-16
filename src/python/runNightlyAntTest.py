@@ -33,7 +33,7 @@ def runOneDay(logFile):
   #os.chdir('%s/%s/lucene' % (BASE_DIR, NIGHTLY_DIR))
   os.chdir('%s/%s' % (BASE_DIR, NIGHTLY_DIR))
 
-  print('  ant test log: %s' % logFile)
+  print('  gradle test log: %s' % logFile)
   open(logFile + '.tmp', 'w').write('svn rev: %s\n\n' % os.popen('svnversion 2>&1').read())
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
 

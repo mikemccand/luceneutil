@@ -415,7 +415,7 @@ public class SearchPerfTest {
       IndexSearcher s = createIndexSearcher(reader, executorService);
       s.setQueryCache(null); // don't bench the cache
       s.setSimilarity(sim);
-      System.out.println("maxDoc=" + reader.maxDoc() + " numDocs=" + reader.numDocs() + " %tg deletes=" + (100.*reader.maxDoc()/reader.numDocs()));
+      System.out.println("maxDoc=" + reader.maxDoc() + " numDocs=" + reader.numDocs() + " %tg live docs=" + (100.*reader.maxDoc()/reader.numDocs()));
 
       mgr = new SingleIndexSearcher(s);
     }

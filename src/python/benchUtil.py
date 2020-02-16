@@ -105,18 +105,6 @@ def getArg(argName, default, hasArg=True):
       del sys.argv[idx]
   return v
 
-# NOTE: only detects back to 3.0
-def getLuceneVersion(checkout):
-  checkoutPath = checkoutToPath(checkout)
-  if os.path.isdir('%s/contrib/benchmark' % checkoutPath):
-    return '3.0'
-  elif os.path.isdir('%s/lucene/contrib/benchmark' % checkoutPath):
-    return '3.x'
-  elif os.path.isdir('%s/lucene/benchmark' % checkoutPath):
-    return '4.0'
-  else:
-    raise RuntimeError('cannot determine Lucene version for checkout %s' % checkoutPath)
-
 def checkoutToPath(checkout):
   return '%s/%s' % (constants.BASE_DIR, checkout)
 
@@ -897,7 +885,6 @@ class RunAlgs:
   def getClassPath(self, checkout):
     path = checkoutToPath(checkout)
     cp = []
-    version = getLuceneVersion(checkout)
 
     # We use the jar file for core to leverage the MR JAR
     core_jar_file = None
@@ -913,24 +900,29 @@ class RunAlgs:
     cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
     cp.append('%s/lucene/misc/build/classes/java/main' % path)
     cp.append('%s/lucene/facet/build/classes/java/main' % path)
-    cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
-    if version == '4.0':
-      cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
-      cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
-      cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
-      cp.append('%s/lucene/grouping/build/classes/java/main' % path)
-      cp.append('%s/lucene/suggest/build/classes/java/main' % path)
-      cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
-      cp.append('%s/lucene/codecs/build/classes/java/main' % path)
-      cp.append('%s/lucene/queries/build/classes/java/main' % path)
-      self.addJars(cp, '%s/lucene/facet/lib' % path)
-    elif version == '3.x':
-      cp.append('%s/lucene/contrib/analyzers/common/build/classes/java' % path)
-      cp.append('%s/lucene/contrib/spellchecker/build/classes/java' % path)
-    else:
-      cp.append('%s/contrib/analyzers/common/build/classes/java' % path)
-      cp.append('%s/contrib/spellchecker/build/classes/java' % path)
+    cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
+    cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
+    cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
+    cp.append('%s/lucene/grouping/build/classes/java/main' % path)
+    cp.append('%s/lucene/suggest/build/classes/java/main' % path)
+    cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
+    cp.append('%s/lucene/codecs/build/classes/java/main' % path)
+    cp.append('%s/lucene/queries/build/classes/java/main' % path)
+    
+    # self.addJars(cp, '%s/lucene/facet/lib' % path)
 
+    # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
+    # gradle to tell me necessary dependency paths?
+    found = False
+    for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
+      for file in files:
+        if file == 'hppc-0.8.1.jar':
+          cp.append('%s/%s' % (root_path, file))
+          found = True
+
+    if not found:
+      raise RuntimeError('unable to locate hppc-0.8.1.jar dependency for lucene/facet!')
+    
     # so perf.* is found:
     lib = os.path.join(checkoutToUtilPath(checkout), "lib")
     for f in os.listdir(lib):

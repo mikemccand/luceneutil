@@ -46,6 +46,7 @@ import org.apache.lucene.document.ShapeField;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Line;
 import org.apache.lucene.geo.Polygon;
+import org.apache.lucene.geo.Circle;
 import org.apache.lucene.geo.SimpleWKTShapeParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -510,6 +511,10 @@ public class IndexAndSearchShapes {
                                     case "point":
                                         q = LatLonShape.newPointQuery(FIELD, op, new double[] {lat, lon});
                                         break;
+                                    case "distance":
+                                        Circle circle = new Circle(centerLat, centerLon, distanceMeters);
+                                        q = LatLonShape.newDistanceQuery(FIELD, ShapeField.QueryRelation.INTERSECTS, circle);
+                                        break;
                                     default:
                                         throw new AssertionError("unknown queryClass " + queryClass);
                                 }
@@ -695,6 +700,8 @@ public class IndexAndSearchShapes {
                 queryClass = setQueryClass(queryClass, "box");
             } else if (arg.equals("-point")) {
                 queryClass = setQueryClass(queryClass, "point");
+            } else if (arg.equals("-distance")) {
+                queryClass = setQueryClass(queryClass, "distance");
             } else if (arg.equals("-forceMerge")) {
                 forceMerge = true;
             } else {

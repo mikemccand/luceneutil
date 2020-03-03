@@ -35,7 +35,7 @@ fileName = "osmdata.wkt"
 
 approaches = ('LatLonShape',)
 ops = ('intersects', 'contains', 'within', 'disjoint')
-shapes = ('point', 'box', 'poly 10', 'polyMedium', 'polyRussia')
+shapes = ('point', 'box', 'distance', 'poly 10', 'polyMedium', 'polyRussia')
 
 
 
@@ -51,7 +51,7 @@ def printResults(results, stats, maxDoc):
     print('%s|%.1fs|%.1fs|%.2f|%.2f|' % ('LatLonShape', indexTimeSec, forceMergeTimeSec, indexSizeGB, readerHeapMB))
   else:
     print('||Index size (GB)||Reader heap (MB)||')
-    readerHeapMB, indexSizeGB = stats['reindex'][:2]
+    readerHeapMB, indexSizeGB = stats['LatLonShape'][:2]
     print('|%.2f|%.2f|' % (indexSizeGB, readerHeapMB))
 
   print()

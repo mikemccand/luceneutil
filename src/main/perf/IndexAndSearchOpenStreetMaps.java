@@ -52,6 +52,7 @@ import org.apache.lucene.search.LatLonPointPrototypeQueries;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.geo.Rectangle;
+import org.apache.lucene.geo.Circle;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -859,6 +860,9 @@ public class IndexAndSearchOpenStreetMaps {
                     q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else if (useDocValues) {
                     q = LatLonDocValuesField.newSlowDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                  } else if (useShape) {
+                    Circle circle = new Circle(centerLat, centerLon, distanceMeters);
+                    q = LatLonShape.newDistanceQuery("point", ShapeField.QueryRelation.INTERSECTS, circle);
                   } else {
                     throw new AssertionError();
                   }
@@ -1020,6 +1024,9 @@ public class IndexAndSearchOpenStreetMaps {
                 q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else if (useDocValues) {
                 q = LatLonDocValuesField.newSlowDistanceQuery("point", centerLat, centerLon, distanceMeters);
+              } else if (useShape) {
+                Circle circle = new Circle(centerLat, centerLon, distanceMeters);
+                q = LatLonShape.newDistanceQuery("point", ShapeField.QueryRelation.INTERSECTS, circle);
               } else {
                 throw new AssertionError();
               }

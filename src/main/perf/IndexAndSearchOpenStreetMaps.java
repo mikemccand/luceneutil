@@ -731,9 +731,9 @@ public class IndexAndSearchOpenStreetMaps {
           if (useLatLonPoint) {
             q = LatLonPoint.newPolygonQuery("point", multiPolygon);
           } else if (useGeo3DLarge) {
-            q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
+            q = Geo3DPoint.newLargePolygonQuery("point", PlanetModel.WGS84, multiPolygon);
           } else if (useGeo3D) {
-            q = Geo3DPoint.newPolygonQuery("point", multiPolygon);
+            q = Geo3DPoint.newPolygonQuery("point", PlanetModel.WGS84, multiPolygon);
           } else if (useShape) {
             q = LatLonShape.newPolygonQuery("point", ShapeField.QueryRelation.INTERSECTS, multiPolygon);
           } else {
@@ -765,7 +765,7 @@ public class IndexAndSearchOpenStreetMaps {
             } else if (useShape) {
               q = LatLonShape.newPolygonQuery("point", ShapeField.QueryRelation.INTERSECTS, multiPolygon);
             } else if (useGeo3D || useGeo3DLarge) {
-              q = Geo3DPoint.newLargePolygonQuery("point", multiPolygon);
+              q = Geo3DPoint.newLargePolygonQuery("point", PlanetModel.WGS84, multiPolygon);
             } else {
               throw new AssertionError();
             }
@@ -855,7 +855,7 @@ public class IndexAndSearchOpenStreetMaps {
                 switch(queryClass) {
                 case "distance":
                   if (useGeo3D || useGeo3DLarge) {
-                    q = Geo3DPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                    q = Geo3DPoint.newDistanceQuery("point", PlanetModel.WGS84, centerLat, centerLon, distanceMeters);
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
                   } else if (useDocValues) {
@@ -873,9 +873,9 @@ public class IndexAndSearchOpenStreetMaps {
                   //System.out.println("poly lons: " + Arrays.toString(poly[1]));
                   if (useGeo3DLarge) {
                     //System.out.println("POLY:\n  lats=" + Arrays.toString(poly[0]) + "\n  lons=" + Arrays.toString(poly[1]));
-                    q = Geo3DPoint.newLargePolygonQuery("point", new Polygon(poly[0], poly[1]));
+                    q = Geo3DPoint.newLargePolygonQuery("point", PlanetModel.WGS84, new Polygon(poly[0], poly[1]));
                   } else if (useGeo3D) {
-                    q = Geo3DPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                    q = Geo3DPoint.newPolygonQuery("point", PlanetModel.WGS84, new Polygon(poly[0], poly[1]));
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
                   } else if (useShape) {
@@ -886,7 +886,7 @@ public class IndexAndSearchOpenStreetMaps {
                   break;
                 case "box":
                   if (useGeo3D || useGeo3DLarge) {
-                    q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                    q = Geo3DPoint.newBoxQuery("point", PlanetModel.WGS84, lat, latEnd, lon, lonEnd);
                   } else if (useLatLonPoint) {
                     q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
                   } else if (useShape) {
@@ -1019,7 +1019,7 @@ public class IndexAndSearchOpenStreetMaps {
             switch(queryClass) {
             case "distance":
               if (useGeo3D || useGeo3DLarge) {
-                q = Geo3DPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
+                q = Geo3DPoint.newDistanceQuery("point", PlanetModel.WGS84, centerLat, centerLon, distanceMeters);
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newDistanceQuery("point", centerLat, centerLon, distanceMeters);
               } else if (useDocValues) {
@@ -1036,12 +1036,12 @@ public class IndexAndSearchOpenStreetMaps {
               //System.out.println("poly lats: " + Arrays.toString(poly[0]));
               //System.out.println("poly lons: " + Arrays.toString(poly[1]));
               if (useGeo3DLarge) {
-                q = Geo3DPoint.newLargePolygonQuery("point", new Polygon(poly[0], poly[1]));
+                q = Geo3DPoint.newLargePolygonQuery("point", PlanetModel.WGS84, new Polygon(poly[0], poly[1]));
                 //GeoPoint point = new GeoPoint(PlanetModel.WGS84, Math.toRadians(centerLat), Math.toRadians(centerLon));
                 //System.out.println("WITHIN?: " + ((PointInGeo3DShapeQuery) q).getShape().isWithin(point));
                 //System.out.println(" --> QUERY: " + q);
               } else if (useGeo3D) {
-                q = Geo3DPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
+                q = Geo3DPoint.newPolygonQuery("point", PlanetModel.WGS84, new Polygon(poly[0], poly[1]));
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newPolygonQuery("point", new Polygon(poly[0], poly[1]));
               } else if (useShape) {
@@ -1052,7 +1052,7 @@ public class IndexAndSearchOpenStreetMaps {
               break;
             case "box":
               if (useGeo3D || useGeo3DLarge) {
-                q = Geo3DPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
+                q = Geo3DPoint.newBoxQuery("point", PlanetModel.WGS84, lat, latEnd, lon, lonEnd);
               } else if (useLatLonPoint) {
                 q = LatLonPoint.newBoxQuery("point", lat, latEnd, lon, lonEnd);
               } else if (useDocValues) {

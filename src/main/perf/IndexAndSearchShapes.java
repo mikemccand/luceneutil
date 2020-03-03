@@ -513,7 +513,7 @@ public class IndexAndSearchShapes {
                                         break;
                                     case "distance":
                                         Circle circle = new Circle(centerLat, centerLon, distanceMeters);
-                                        q = LatLonShape.newDistanceQuery(FIELD, ShapeField.QueryRelation.INTERSECTS, circle);
+                                        q = LatLonShape.newDistanceQuery(FIELD, op, circle);
                                         break;
                                     default:
                                         throw new AssertionError("unknown queryClass " + queryClass);

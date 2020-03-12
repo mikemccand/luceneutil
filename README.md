@@ -34,7 +34,7 @@ A trunk version of Lucene can be checked out with
 
 ```
 cd $LUCENE_BENCH_HOME
-svn checkout https://svn.apache.org/repos/asf/lucene/dev/trunk lucene_baseline
+git clone https://github.com/apache/lucene-solr.git
 ```
 
 Adjust the command accordingly for `lucene_candidate`.

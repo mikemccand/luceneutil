@@ -24,7 +24,12 @@ if __name__ == '__main__':
   sourceData = competition.sourceData()
   comp =  competition.Competition()
 
-  index = comp.newIndex('trunk', sourceData)
+  index = comp.newIndex('trunk', sourceData,
+                        facets = (('taxonomy:Date', 'Date'),
+                                  ('taxonomy:Month', 'Month'),
+                                  ('taxonomy:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Month', 'Month'),
+                                  ('sortedset:DayOfYear', 'DayOfYear')))
 
   #Warning -- Do not break the order of arguments
   #TODO -- Fix the following by using argparser

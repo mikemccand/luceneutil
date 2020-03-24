@@ -56,7 +56,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.NRTCachingDirectory;
-import org.apache.lucene.store.SimpleFSDirectory;
 
 import perf.IndexThreads.Mode;
 
@@ -281,8 +280,6 @@ public class NRTPerfTest {
 			dir0 = new MMapDirectory(Paths.get(dirPath));
 		} else if (dirImpl.equals("NIOFSDirectory")) {
 			dir0 = new NIOFSDirectory(Paths.get(dirPath));
-		} else if (dirImpl.equals("SimpleFSDirectory")) {
-			dir0 = new SimpleFSDirectory(Paths.get(dirPath));
 		} else {
 			docs.close();
 			throw new RuntimeException("unknown directory impl \"" + dirImpl + "\"");

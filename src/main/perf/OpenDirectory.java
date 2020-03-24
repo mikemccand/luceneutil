@@ -24,7 +24,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
-import org.apache.lucene.store.SimpleFSDirectory;
 
 public abstract class OpenDirectory {
   public abstract Directory open(Path path) throws IOException;
@@ -42,13 +41,6 @@ public abstract class OpenDirectory {
           @Override
           public Directory open(Path path) throws IOException {
             return new NIOFSDirectory(path);
-          }
-        };
-    } else if (dirImpl.equals("SimpleFSDirectory")) {
-      return new OpenDirectory() {
-          @Override
-          public Directory open(Path path) throws IOException {
-            return new SimpleFSDirectory(path);
           }
         };
     } else if (dirImpl.equals("RAMDirectory")) {

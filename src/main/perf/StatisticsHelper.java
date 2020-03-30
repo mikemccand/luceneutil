@@ -84,16 +84,15 @@ public class StatisticsHelper implements Runnable {
 		this.jitCompiler = ManagementFactory.getCompilationMXBean();
 		this.heapMemory = ManagementFactory.getMemoryMXBean();
 
+		// See this (dated) reference:
+		// https://gist.github.com/szegedi/1474365/ebee66b04aa3468b5e3864945dc48fa3e204548a
 		List<MemoryPoolMXBean> memoryPools = ManagementFactory.getMemoryPoolMXBeans();
 		for (MemoryPoolMXBean memoryPool : memoryPools) {
-			if ("PS Eden Space".equals(memoryPool.getName()) || "Par Eden Space".equals(memoryPool.getName())
-					|| "G1 Eden".equals(memoryPool.getName())) {
+			if (memoryPool.getName().contains("Eden")) {
 				youngMemoryPool = memoryPool;
-			} else if ("PS Survivor Space".equals(memoryPool.getName()) || "Par Survivor Space".equals(memoryPool.getName())
-					|| "G1 Survivor".equals(memoryPool.getName())) {
+			} else if (memoryPool.getName().contains("Survivor")) {
 				survivorMemoryPool = memoryPool;
-			} else if ("PS Old Gen".equals(memoryPool.getName()) || "CMS Old Gen".equals(memoryPool.getName())
-					|| "G1 Old Gen".equals(memoryPool.getName())) {
+			} else if (memoryPool.getName().contains("Old Gen")) {
 				oldMemoryPool = memoryPool;
 			}
 		}

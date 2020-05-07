@@ -82,11 +82,11 @@ public final class Indexer {
     if (useCMS) {
       ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
           @Override
-          protected void handleMergeException(Directory dir, Throwable exc) {
+          protected void handleMergeException(Throwable exc) {
             System.out.println("ERROR: CMS hit exception during merging; aborting...");
             indexingFailed.set(true);
             exc.printStackTrace(System.out);
-            super.handleMergeException(dir, exc);
+            super.handleMergeException(exc);
           }
         };
       cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);

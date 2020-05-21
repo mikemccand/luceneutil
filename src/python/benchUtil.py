@@ -6,9 +6,9 @@
 # The ASF licenses this file to You under the Apache License, Version 2.0
 # (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -140,7 +140,7 @@ class SearchTask:
           print 'WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount)
           # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
 
-      if False and verifyCounts and self.hitCount != other.hitCount:
+      if verifyCounts and self.hitCount != other.hitCount:
         self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
 
       if len(self.hits) != len(other.hits):
@@ -210,7 +210,7 @@ class SearchTask:
         print
       else:
         self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
-    
+
   def fail(self, message):
     s = 'query=%s filter=%s sort=%s groupField=%s hitCount=%s' % (self.query, self.filter, self.sort, self.groupField, self.hitCount)
     raise RuntimeError('%s: %s' % (s, message))
@@ -233,8 +233,8 @@ class SearchTask:
 
   def __hash__(self):
     return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
-      
-  
+
+
 class RespellTask:
   cat = 'Respell'
 
@@ -261,7 +261,7 @@ class RespellTask:
   def __hash__(self):
     return hash(self.term)
 
-    
+
 class PKLookupTask:
   cat = 'PKLookup'
 
@@ -334,7 +334,7 @@ def parseResults(resultsFiles):
 
     if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 10*1024:
       raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
-    
+
     # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
     while True:
@@ -384,6 +384,8 @@ def parseResults(resultsFiles):
             task.sort = 'Month'
           elif sort == '<int: "dayOfYearNumericDV">':
             task.sort = 'DayOfYear'
+          elif sort == '<string_val: "titleBDV">':
+            task.sort = 'TitleBinary'
           elif sort != 'null':
             raise RuntimeError('could not parse sort: %s' % sort)
           else:
@@ -400,7 +402,7 @@ def parseResults(resultsFiles):
             if task.facets is not None:
               task.facets.append(line)
               continue
-            
+
             if line.find('expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
@@ -415,7 +417,7 @@ def parseResults(resultsFiles):
             if line.find('getFacetResults time') != -1:
               task.getFacetResultsMsec = float(line.split()[2])
               continue
-            
+
             if line.startswith('HEAP: '):
               m = reHeap.match(line)
               heaps.append(int(m.group(1)))
@@ -580,7 +582,7 @@ def agg(iters, cat, name, verifyCounts):
 
   accumMS = []
   totHitCount = 0
-  
+
   # Iterate over each JVM instance we ran
   for tasksByCat in iters:
 
@@ -633,7 +635,7 @@ def agg(iters, cat, name, verifyCounts):
         print '    after prune:'
         for t in pruned:
           print '      %.4f' % t
-          
+
       if SELECT == 'min':
         sumMS += minMS
         count += 1
@@ -652,7 +654,7 @@ def agg(iters, cat, name, verifyCounts):
         count += 1
       else:
         raise RuntimeError('unrecognized SELECT=%s: should be min, median or mean' % SELECT)
-          
+
       if isinstance(task, SearchTask):
         if task.groupField is None:
           totHitCount = sum_hit_count(totHitCount, task.hitCount)
@@ -664,7 +666,7 @@ def agg(iters, cat, name, verifyCounts):
     # each cat, then this is AvgMS for query in that cat:
     avgMS = sumMS/count
     accumMS.append(avgMS)
-    
+
     if lastHitCount is None:
       lastHitCount = totHitCount
     elif verifyCounts and totHitCount != lastHitCount:
@@ -675,7 +677,7 @@ def agg(iters, cat, name, verifyCounts):
     minValue = min(accumMS)
     #print '  accumMS=%s' % ' '.join(['%5.1f' % x for x in accumMS])
     print '  %s %s: accumMS=%s' % (name, cat[0], ' '.join(['%5.1f' % (100.0*(x-minValue)/minValue) for x in accumMS]))
-    
+
   return accumMS, totHitCount
 
 def sum_hit_count(hc1, hc2):
@@ -727,19 +729,19 @@ class RunAlgs:
     self.verifyCounts = verifyCounts
     print
     print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % javaCommand).read()
-    
+
     print
     if osName not in ('windows', 'cygwin'):
       print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
     else:
       print 'OS:\n%s' % sys.platform
-    
+
     if not os.path.exists(constants.LOGS_DIR):
       os.makedirs(constants.LOGS_DIR)
-    print  
+    print
     print 'LOGS:\n%s' % constants.LOGS_DIR
 
-    
+
   def printEnv(self):
     print
     print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % self.javaCommand).read()
@@ -766,7 +768,7 @@ class RunAlgs:
     s = checkoutToBenchPath(index.checkout)
     print '    cd %s' % s
     os.chdir(s)
-    
+
     try:
 
       cmd = []
@@ -781,13 +783,13 @@ class RunAlgs:
       w('-docCountLimit %s' % index.numDocs)
       w('-threadCount %s' % index.numThreads)
       w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
-      
+
       if index.addDVFields:
         w('-dvfields')
 
       if index.useCMS:
         w('-useCMS')
-        
+
       if index.optimize:
         w('-forceMerge')
 
@@ -817,12 +819,12 @@ class RunAlgs:
           w('-facets')
           w('"%s"' % ';'.join(tup))
         w('-facetDVFormat %s' % index.facetDVFormat)
-        
+
       w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
 
       if index.grouping:
         w('-grouping')
-      
+
       if index.useCFS:
         w('-cfs')
 
@@ -848,7 +850,7 @@ class RunAlgs:
       cmd = ' '.join(cmd)
 
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
-      
+
       print '    log %s' % fullLogFile
 
       t0 = time.time()
@@ -882,8 +884,56 @@ class RunAlgs:
         if f.endswith('.jar'):
           cp.append('%s/%s' % (path, f))
 
+  def getAntClassPath(self, checkout):
+    path = checkoutToPath(checkout)
+    cp = []
+
+    # We use the jar file for core to leverage the MR JAR
+    core_jar_file = None
+    for filename in os.listdir('%s/lucene/build/core' % path):
+      if reCoreJar.match(filename) is not None:
+        core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
+        break
+    if core_jar_file is None:
+      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+
+    cp.append(core_jar_file)
+    cp.append('%s/lucene/build/core/classes/test' % path)
+    cp.append('%s/lucene/build/sandbox/classes/java' % path)
+    cp.append('%s/lucene/build/misc/classes/java' % path)
+    cp.append('%s/lucene/build/facet/classes/java' % path)
+    cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
+    if True or version == '4.0':
+      cp.append('%s/lucene/build/analysis/common/classes/java' % path)
+      cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
+      cp.append('%s/lucene/build/queryparser/classes/java' % path)
+      cp.append('%s/lucene/build/grouping/classes/java' % path)
+      cp.append('%s/lucene/build/suggest/classes/java' % path)
+      cp.append('%s/lucene/build/highlighter/classes/java' % path)
+      cp.append('%s/lucene/build/codecs/classes/java' % path)
+      cp.append('%s/lucene/build/queries/classes/java' % path)
+      self.addJars(cp, '%s/lucene/facet/lib' % path)
+    elif version == '3.x':
+      cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
+      cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
+    else:
+      cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
+      cp.append('%s/build/contrib/spellchecker/classes/java' % path)
+
+    # so perf.* is found:
+    lib = os.path.join(checkoutToUtilPath(checkout), "lib")
+    for f in os.listdir(lib):
+      if f.endswith('.jar'):
+        cp.append(os.path.join(lib, f))
+    cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+
+    return tuple(cp)
+
   def getClassPath(self, checkout):
     path = checkoutToPath(checkout)
+    if not os.path.exists(os.path.join(checkout, 'build.gradle')):
+      return self.getAntClassPath(checkout)
+
     cp = []
 
     # We use the jar file for core to leverage the MR JAR
@@ -893,7 +943,7 @@ class RunAlgs:
         core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
         break
     if core_jar_file is None:
-      raise RuntimeError("can't find core JAR file in %s" % ('%s/lucene/core/build/libs' % path))
+      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
 
     cp.append(core_jar_file)
     cp.append('%s/lucene/core/build/classes/java/test' % path)
@@ -908,7 +958,7 @@ class RunAlgs:
     cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
     cp.append('%s/lucene/codecs/build/classes/java/main' % path)
     cp.append('%s/lucene/queries/build/classes/java/main' % path)
-    
+
     # self.addJars(cp, '%s/lucene/facet/lib' % path)
 
     # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
@@ -922,14 +972,13 @@ class RunAlgs:
 
     if not found:
       raise RuntimeError('unable to locate hppc-0.8.1.jar dependency for lucene/facet!')
-    
+
     # so perf.* is found:
     lib = os.path.join(checkoutToUtilPath(checkout), "lib")
     for f in os.listdir(lib):
       if f.endswith('.jar'):
         cp.append(os.path.join(lib, f))
     cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
-    
     return tuple(cp)
 
   compiledCheckouts = set()
@@ -938,6 +987,8 @@ class RunAlgs:
     path = checkoutToBenchPath(competitor.checkout)
     cwd = os.getcwd()
     checkoutPath = checkoutToPath(competitor.checkout)
+    if not os.path.exists(os.path.join(checkoutPath, 'build.gradle')):
+      return self.antCompile(competitor)
     try:
       if competitor.checkout not in self.compiledCheckouts:
         self.compiledCheckouts.add(competitor.checkout);
@@ -959,7 +1010,7 @@ class RunAlgs:
             run('%s lucene:%s:compileJava' % (constants.GRADLEW_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
 
       print '  %s' % path
-      os.chdir(path)      
+      os.chdir(path)
       if path.endswith('/'):
         path = path[:-1]
 
@@ -967,7 +1018,41 @@ class RunAlgs:
       competitor.compile(cp)
     finally:
       os.chdir(cwd)
-      
+
+  def antCompile(self, competitor):
+    path = checkoutToBenchPath(competitor.checkout)
+    cwd = os.getcwd()
+    checkoutPath = checkoutToPath(competitor.checkout)
+    try:
+      if competitor.checkout not in self.compiledCheckouts:
+        self.compiledCheckouts.add(competitor.checkout);
+        # for core we build a JAR in order to benefit from the MR JAR stuff
+        for module in ['core']:
+          modulePath = '%s/lucene/%s' % (checkoutPath, module)
+          os.chdir(modulePath)
+          print '  %s...' % modulePath
+          run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+        for module in ('suggest', 'highlighter', 'misc',
+                       'analysis/common', 'grouping',
+                       'codecs', 'facet', 'sandbox'):
+          modulePath = '%s/lucene/%s' % (checkoutPath, module)
+          classesPath = '%s/lucene/build/%s/classes/java' % (checkoutPath, module)
+          # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
+          if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
+            print '  %s...' % modulePath
+            os.chdir(modulePath)
+            run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+
+      print '  %s' % path
+      os.chdir(path)
+      if path.endswith('/'):
+        path = path[:-1]
+
+      cp = self.classPathToString(self.getClassPath(competitor.checkout))
+      competitor.compile(cp)
+    finally:
+      os.chdir(cwd)
+
   def classPathToString(self, cp):
     return common.pathsep().join(cp)
 
@@ -1018,7 +1103,7 @@ class RunAlgs:
       for tup in c.index.facets:
         command.append('-facets')
         command.append(';'.join(tup))
-    
+
     command.append('-analyzer')
     command.append(c.analyzer)
     command.append('-taskSource')
@@ -1049,7 +1134,6 @@ class RunAlgs:
     command.append(logFile)
     command.append('-topN')
     command.append('10')
-    #command.append('500')
     if filter is not None:
       command.append('-filter')
       command.append('%.2f' % filter)
@@ -1059,7 +1143,7 @@ class RunAlgs:
       command.append('-pk')
     if c.loadStoredFields:
       command.append('-loadStoredFields')
-    
+
     if False:
       command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
           (c.javaCommand, cp, c.directory,
@@ -1079,7 +1163,7 @@ class RunAlgs:
     print '      log: %s + stdout' % logFile
     t0 = time.time()
     print '      run: %s' % ' '.join(command)
-    #p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)    
+    #p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     if DO_PERF:
@@ -1322,7 +1406,7 @@ class RunAlgs:
                           qpsCmp-qpsStdDevCmp,
                           qpsCmp+qpsStdDevCmp,
                           ))
-      
+
     lines.sort()
     chartData.sort()
     chartData = [x[1:] for x in chartData]
@@ -1330,7 +1414,7 @@ class RunAlgs:
     if QPSChart.supported:
       QPSChart.QPSChart(chartData, 'out.png')
       print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
-                        
+
     w = writer
 
     catSet = set()
@@ -1339,7 +1423,7 @@ class RunAlgs:
     cmpLatencyMetrics = self.computeTaskLatencies(cmpTaskLatencies, catSet)
 
     for currentCat in catSet:
-      currentBaseMetrics = baseLatencyMetrics[currentCat] 
+      currentBaseMetrics = baseLatencyMetrics[currentCat]
       currentCmpMetrics = cmpLatencyMetrics[currentCat]
       pctP50 = 100*(currentCmpMetrics['p50'] - currentBaseMetrics['p50'])/currentBaseMetrics['p50']
       pctP90 = 100*(currentCmpMetrics['p90'] - currentBaseMetrics['p90'])/currentBaseMetrics['p90']
@@ -1439,7 +1523,7 @@ def tasksToMap(taskIters, verifyScores, verifyCounts):
           # Make sure same task returned same results w/in this run:
           task.verifySame(d[task], verifyScores, verifyCounts)
   return d
-    
+
 def compareHits(r1, r2, verifyScores, verifyCounts):
 
   # TODO: must also compare facet results
@@ -1475,7 +1559,7 @@ def compareHits(r1, r2, verifyScores, verifyCounts):
     return None
   else:
     return warnings, errors
-  
+
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 

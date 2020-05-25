@@ -60,6 +60,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 final class SearchTask extends Task {
   private final String category;
@@ -526,10 +527,10 @@ final class SearchTask extends Task {
       }
 
       if (hiliteMsec > 0) {
-        out.println(String.format("  hilite time %.4f msec", hiliteMsec));
+        out.println(String.format(Locale.ROOT, "  hilite time %.4f msec", hiliteMsec));
       }
       if (getFacetResultsMsec > 0) {
-        out.println(String.format("  getFacetResults time %.4f msec", getFacetResultsMsec));
+        out.println(String.format(Locale.ROOT, "  getFacetResults time %.4f msec", getFacetResultsMsec));
       }
 
       if (facetResults != null) {

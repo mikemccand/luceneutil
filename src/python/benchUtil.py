@@ -931,7 +931,7 @@ class RunAlgs:
 
   def getClassPath(self, checkout):
     path = checkoutToPath(checkout)
-    if not os.path.exists(os.path.join(checkout, 'build.gradle')):
+    if not os.path.exists(os.path.join(path, 'build.gradle')):
       return self.getAntClassPath(checkout)
 
     cp = []

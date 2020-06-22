@@ -293,7 +293,7 @@ class TaskParser {
         group = null;
       } else if (text.startsWith("dayofyeardvsort//")) {
         sort = dayOfYearDVSort;
-        query = queryParser.parse(text.substring(13, text.length()));
+        query = queryParser.parse(text.substring(17, text.length()));
         group = null;
       } else if (text.startsWith("lastmodndvsort//")) {
         sort = lastModNDVSort;

@@ -1,3 +1,4 @@
+
 package perf;
 
 /**
@@ -299,8 +300,10 @@ public class LineFileDocs implements Closeable {
     final Field titleDV;
     final Field monthDV;
     final Field dayOfYearDV;
+    final IntPoint dayOfYearIP;
     final BinaryDocValuesField titleBDV;
     final NumericDocValuesField lastModNDV; 
+    final LongPoint lastModLP;
     final Field body;
     final Field id;
     final Field idPoint;
@@ -333,18 +336,24 @@ public class LineFileDocs implements Closeable {
 
       	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
       	doc.add(lastModNDV);
+	lastModLP = new LongPoint("lastModNDV", -1); //points field must have the same name and value as DV field
+	doc.add(lastModLP);
 
         monthDV = new SortedDocValuesField("monthSortedDV", new BytesRef(""));
       	doc.add(monthDV);
-        
-        dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
-      	doc.add(dayOfYearDV);
+	
+	dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
+	doc.add(dayOfYearDV);
+	dayOfYearIP = new IntPoint("dayOfYearNumericDV", 0); //points field must have the same name and value as DV field
+	doc.add(dayOfYearIP);
       } else {
       	titleDV = null;
         titleBDV = null;
       	lastModNDV = null;
+	lastModLP = null;
         monthDV = null;
         dayOfYearDV = null;
+	dayOfYearIP = null;
       }
       
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
@@ -533,6 +542,7 @@ public class LineFileDocs implements Closeable {
       doc.titleTokenized.setStringValue(title);
       doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));
       doc.dayOfYearDV.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
+      doc.dayOfYearIP.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
     }
     doc.id.setStringValue(intToID(myID));
 
@@ -540,6 +550,7 @@ public class LineFileDocs implements Closeable {
 
     if (addDVFields) {
       doc.lastModNDV.setLongValue(msecSinceEpoch);
+      doc.lastModLP.setLongValue(msecSinceEpoch);
     }
 
     doc.timeSec.setIntValue(timeSec);

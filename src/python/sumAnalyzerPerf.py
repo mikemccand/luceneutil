@@ -61,7 +61,7 @@ for fileName in os.listdir(LOGS_ROOT):
             # tot msec, hash, token count
             results[analyzer] = float(m.group(2)), int(m.group(3)), int(m.group(4))
 
-      if len(results) == 5:
+      if len(results) == 6:
         #print("keep %s" % str(results))
         for key in results.keys():
           if key != 'rev':

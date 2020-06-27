@@ -966,12 +966,12 @@ class RunAlgs:
     found = False
     for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
       for file in files:
-        if file == 'hppc-0.8.1.jar':
+        if file == 'hppc-0.8.2.jar':
           cp.append('%s/%s' % (root_path, file))
           found = True
 
     if not found:
-      raise RuntimeError('unable to locate hppc-0.8.1.jar dependency for lucene/facet!')
+      raise RuntimeError('unable to locate hppc-0.8.2.jar dependency for lucene/facet!')
 
     # so perf.* is found:
     lib = os.path.join(checkoutToUtilPath(checkout), "lib")

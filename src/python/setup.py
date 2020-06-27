@@ -17,9 +17,14 @@
 
 import os
 import sys
-import urllib
+PYTHON_MAJOR_VER = sys.version_info.major
+if PYTHON_MAJOR_VER < 3:
+  from urllib import urlretrieve  # python2
+else:
+  from urllib.request import urlretrieve
 import shutil
 import time
+
 
 BASE_URL = 'http://home.apache.org/~mikemccand'
 DATA_FILES = [
@@ -45,16 +50,16 @@ def runSetup(download):
   idx_dir = os.path.join(parent, 'indices')
 
   if not os.path.exists(data_dir):
-    print 'create data directory at %s' % (data_dir)
+    print('create data directory at %s' % (data_dir))
     os.mkdir(data_dir)
   else:
-    print 'data directory already exists %s' % (data_dir)
+    print('data directory already exists %s' % (data_dir))
 
   if not os.path.exists(idx_dir):
     os.mkdir(idx_dir)
-    print 'create indices directory at %s' % (idx_dir)
+    print('create indices directory at %s' % (idx_dir))
   else:
-    print 'indices directory already exists %s' % (idx_dir)
+    print('indices directory already exists %s' % (idx_dir))
 
   pySrcDir = os.path.join(cwd, 'src', 'python')
   local_const = os.path.join(pySrcDir, 'localconstants.py')
@@ -65,30 +70,30 @@ def runSetup(download):
     finally:
       f.close()
   else:
-    print 'localconstants.py already exists - skipping'
+    print('localconstants.py already exists - skipping')
 
   local_run = os.path.join(pySrcDir, 'localrun.py')
   example = os.path.join(pySrcDir, 'example.py')
   if not os.path.exists(local_run):
     shutil.copyfile(example, local_run)
   else:
-    print 'localrun.py already exists - skipping'
+    print('localrun.py already exists - skipping')
     
   if download:
     for filename in DATA_FILES:
       url = '%s/%s' % (BASE_URL, filename)
       target_file = os.path.join(data_dir, filename)
       if os.path.exists(target_file):
-        print 'file %s already exists - skipping' % (target_file)
+        print('file %s already exists - skipping' % (target_file))
       else:
-        print 'download ', url, ' - might take a long time!'
+        print('download ', url, ' - might take a long time!')
         Downloader(url, target_file).download()
-        print ''
-        print 'downloading %s to  %s done ' % (url, target_file)
+        print('')
+        print('downloading %s to  %s done ' % (url, target_file))
       if target_file.endswith('.bz2') or target_file.endswith('.lzma'):
-        print 'NOTE: make sure you decompress %s' % (target_file)
+        print('NOTE: make sure you decompress %s' % (target_file))
 
-  print 'setup successful'
+  print('setup successful')
     
 class Downloader:
   HISTORY_SIZE = 100
@@ -101,19 +106,19 @@ class Downloader:
     Downloader.index = 0
 
   def download(self):
-    urllib.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
+    urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
 
   @staticmethod
   def reporthook(count, block_size, total_size):
     current_time = time.time()
-    current_size = long(count * block_size)
+    current_size = long(count * block_size) if PYTHON_MAJOR_VER < 3 else int(count * block_size)
     last_time = Downloader.times[Downloader.index]
     last_size = Downloader.sizes[Downloader.index]
     delta_size = current_size - last_size
     delta_time = current_time - last_time
     Downloader.times[Downloader.index] = current_time
     Downloader.sizes[Downloader.index] = current_size
-    Downloader.index = (Downloader.index + 1) % Downloader.HISTORY_SIZE;
+    Downloader.index = (Downloader.index + 1) % Downloader.HISTORY_SIZE
 
     speed = float(delta_size) / (1024 * delta_time)
     percent = int(current_size * 100 / total_size)
@@ -126,7 +131,7 @@ class Downloader:
 
 if __name__ == '__main__':
   if '-help' in sys.argv or '--help' in sys.argv:
-    print USAGE
+    print(USAGE)
   else:
     download = '-download' in sys.argv
     runSetup(download)

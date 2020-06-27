@@ -122,7 +122,7 @@ class Index(object):
     self.numDocs = dataSource.numDocs
     self.extraNamePart = extraNamePart
     if ramBufferMB == -1:
-      self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
+      self.maxBufferedDocs = self.numDocs // (SEGS_PER_LEVEL*111)
     else:
       self.maxBufferedDocs = -1
     self.mergePolicy = mergePolicy

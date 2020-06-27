@@ -543,7 +543,7 @@ NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
 
 if DEBUG:
-  NRT_RUN_TIME /= 90
+  NRT_RUN_TIME //= 90
   JVM_COUNT = 3
 
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)

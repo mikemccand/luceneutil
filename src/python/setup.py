@@ -17,14 +17,14 @@
 
 import os
 import sys
-PYTHON_MAJOR_VER = sys.version_info.major
-if PYTHON_MAJOR_VER < 3:
+try:
   from urllib import urlretrieve  # python2
-else:
+except ImportError:
   from urllib.request import urlretrieve
 import shutil
 import time
 
+PYTHON_MAJOR_VER = sys.version_info.major
 
 BASE_URL = 'http://home.apache.org/~mikemccand'
 DATA_FILES = [

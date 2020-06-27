@@ -46,7 +46,7 @@ if __name__ == '__main__':
   # create a competitor named my_modified_version with sources in the ../patch folder
   # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
   # while the codec that is used for running this competitor is taken from this competitor.
-  comp.competitor('my_modified_version', 'lucene_baseline',
+  comp.competitor('my_modified_version', 'lucene_candidate',
                   index = index, concurrentSearches = concurrentSearches)
 
   # start the benchmark - this can take long depending on your index and machines

@@ -19,7 +19,7 @@ import competition
 import sys
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
-# Baseline here is ../lucene_baseline versus ../lucene_baseline
+# Baseline here is ../lucene_baseline versus ../lucene_candidate
 if __name__ == '__main__':
   sourceData = competition.sourceData()
   comp =  competition.Competition()

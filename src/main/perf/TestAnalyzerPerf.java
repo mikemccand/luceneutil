@@ -166,12 +166,20 @@ public class TestAnalyzerPerf {
 
   public static void main(String[] args) throws Exception {
     File wikiLinesFile = new File(args[0]);
-    File jaWikiLinesFile = new File(args[1]);
-    testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(CharArraySet.EMPTY_SET));
-    testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
-    testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
-    testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());
-    testAnalyzer("WordDelimiterFilter", wikiLinesFile, new WDFAnalyzer());
-    testAnalyzer("Japanese", jaWikiLinesFile, new JapaneseAnalyzer());
+    String lang = "en";
+    if (args.length > 1) {
+      lang = args[1];
+    }
+    if (lang.equals("en")) {
+      testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(CharArraySet.EMPTY_SET));
+      testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
+      testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
+      testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());
+      testAnalyzer("WordDelimiterFilter", wikiLinesFile, new WDFAnalyzer());
+    } else if (lang.equals("ja")) {
+      testAnalyzer("Japanese", wikiLinesFile, new JapaneseAnalyzer());
+    } else {
+      throw new IllegalArgumentException("Unknown lang: " + lang);
+    }
   }
 }

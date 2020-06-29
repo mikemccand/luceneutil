@@ -40,6 +40,7 @@ print('Compile...')
 run('ant clean compile > compile.log 2>&1')
 
 logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
+logFileJa = '%s/%s_ja.log' % (LOGS_ROOT, ymd)
 
 with open(logFile + '.tmp', 'w') as lf:
   #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
@@ -49,9 +50,22 @@ with open(logFile + '.tmp', 'w') as lf:
   lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
   os.chdir(LUCENE_ROOT)
 
+with open(logFileJa + '.tmp', 'w') as lf:
+  #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+  lf.write('lucene master version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  os.chdir(constants.BENCH_BASE_DIR)
+  lf.write('git version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
+  os.chdir(LUCENE_ROOT)
+
 run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java:build/analysis/kuromoji/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
 
-print('  now run')
-run('java -XX:+UseParallelGC -cp %s/build:build/core/classes/java:build/analysis/common/classes/java:build/analysis/kuromoji/classes/java perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt /l/data/jawiki-20200620-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
+print('  now run en perf')
+run('java -XX:+UseParallelGC -cp %s/build:build/core/classes/java:build/analysis/common/classes/java:build/analysis/kuromoji/classes/java perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
 os.rename(logFile+'.tmp', logFile)
-print('  done')
+print('  done en ')
+
+print('  now run ja')
+run('java -XX:+UseParallelGC -cp %s/build:build/core/classes/java:build/analysis/common/classes/java:build/analysis/kuromoji/classes/java perf.TestAnalyzerPerf /l/data/jawiki-20200620-lines.txt ja >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFileJa))
+os.rename(logFileJa+'.tmp', logFileJa)
+print('  done ja')

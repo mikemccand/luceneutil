@@ -698,7 +698,7 @@ class SerializedFST:
 
     # reverse bytes in place
     endAddress = len(self.bytes)
-    stopAt = (endAddress - startAddress) / 2
+    stopAt = (endAddress - startAddress) // 2
     upto = 0
     while upto < stopAt:
       # swap

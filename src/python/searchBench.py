@@ -26,6 +26,8 @@ import benchUtil
 import common
 import constants
 
+PYTHON_MAJOR_VER = sys.version_info.major
+
 if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
@@ -40,8 +42,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   #verifyScores = False
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
   if '-noc' not in sys.argv:
-    print
-    print 'Compile:'
+    print()
+    print('Compile:')
     for c in competitors:
       r.compile(c)
   if not search:
@@ -65,8 +67,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         raise RuntimeError('inconsistent taskFile %s vs %s' % (taskFile, c.taskFile))
       if c.index not in seen:
         if not p:
-          print
-          print 'Create indices:'
+          print()
+          print('Create indices:')
           p = True
         seen.add(c.index)
         r.makeIndex(id, c.index, doCharts)
@@ -85,13 +87,13 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       pos, neg = taskPatterns
       if pos is None:
         if neg is None:
-          print '    tasks file: %s' % tasksFile
+          print('    tasks file: %s' % tasksFile)
         else:
-          print '    tasks file: NOT %s from %s' % (','.join(neg), tasksFile)
+          print('    tasks file: NOT %s from %s' % (','.join(neg), tasksFile))
       elif neg is None:
-        print '    tasks file: %s from %s' % (','.join(pos), tasksFile)
+        print('    tasks file: %s from %s' % (','.join(pos), tasksFile))
       else:
-        print '    tasks file: %s, NOT %s from %s' % (','.join(pos), ','.join(neg), tasksFile)
+        print('    tasks file: %s, NOT %s from %s' % (','.join(pos), ','.join(neg), tasksFile))
       newTasksFile = '%s/%s.tasks' % (constants.BENCH_BASE_DIR, os.getpid())
       pos, neg = taskPatterns
       if pos is None:
@@ -126,7 +128,10 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
             if skip:
               continue
 
-        fOut.write(l)
+        if PYTHON_MAJOR_VER < 3:
+          fOut.write(l)
+        else:
+          fOut.write(l.encode('utf-8'))
       f.close()
       fOut.close()
 
@@ -134,7 +139,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         c.tasksFile = newTasksFile
         
     else:
-      print '    tasks file: %s' % c.tasksFile
+      print('    tasks file: %s' % c.tasksFile)
       newTasksFile = None
 
     try:
@@ -142,12 +147,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       results = {}
 
       if constants.JAVA_COMMAND.find(' -ea') != -1:
-        print
-        print 'WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND
-        print
+        print()
+        print('WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND)
+        print()
 
-      print
-      print 'Search:'
+      print()
+      print('Search:')
 
       taskFiles = {}
 
@@ -160,14 +165,14 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           if os.path.exists(fileName):
             os.remove(fileName)
 
-      for iter in xrange(base.competition.jvmCount):
+      for iter in range(base.competition.jvmCount):
 
-        print '  iter %d' % iter
+        print('  iter %d' % iter)
 
         seed = rand.randint(-10000000, 1000000)
 
         for c in competitors:
-          print '    %s:' % c.name
+          print('    %s:' % c.name)
           t0 = time.time()
           if c not in results:
             results[c] = []
@@ -176,8 +181,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                                            filter=None, taskPatterns=taskPatterns) 
           results[c].append(logFile)
 
-        print
-        print 'Report after iter %d:' % iter
+        print()
+        print('Report after iter %d:' % iter)
         #print '  results: %s' % results
         details, cmpDiffs, cmpHeap = r.simpleReport(results[base],
                                                     results[challenger],

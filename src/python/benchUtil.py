@@ -22,7 +22,10 @@ import time
 import os
 import shutil
 import sys
-import cPickle
+try:
+  import cPickle as pickle  # python2
+except ImportError:
+  import pickle
 import datetime
 import constants
 import common
@@ -31,6 +34,8 @@ import signal
 import QPSChart
 import IndexChart
 import subprocess
+
+PYTHON_MAJOR_VER = sys.version_info.major
 
 # Skip the first N runs of a given category (cold) or particular task (hot):
 WARM_SKIP = 3
@@ -123,6 +128,12 @@ def checkoutToUtilPath(checkout):
 def nameToIndexPath(name):
   return '%s/%s' % (constants.INDEX_DIR_BASE, name)
 
+def decode(str_or_bytes):
+  if PYTHON_MAJOR_VER < 3 or isinstance(str_or_bytes, str):
+    return str_or_bytes
+  else:
+    return str_or_bytes.decode('utf-8')
+
 class SearchTask:
   # TODO: subclass SearchGroupTask
 
@@ -137,7 +148,7 @@ class SearchTask:
       if False:
         # TODO: fix SearchPerfTest -- cannot use term count across threads since mutiple threads store in the query
         if self.expandedTermCount != other.expandedTermCount:
-          print 'WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount)
+          print('WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount))
           # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
 
       if verifyCounts and self.hitCount != other.hitCount:
@@ -156,14 +167,14 @@ class SearchTask:
           self.fail('self=%s: wrong collapsed hit count: %s vs %s\n  %s vs %s\n  %s vs %s' % (self, len(hitsSelf), len(hitsOther), hitsSelf, hitsOther, self.hits, other.hits))
 
         if verifyScores:
-          for i in xrange(len(hitsSelf)):
+          for i in range(len(hitsSelf)):
             if hitsSelf[i][1] != hitsOther[i][1]:
               if False:
                 if abs(float(hitsSelf[i][1])-float(hitsOther[i][1])) > MAX_SCORE_DIFF:
                   self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
                 else:
-                  print 'WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
-                        (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1])
+                  print('WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
+                        (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1]))
               else:
                 self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
             if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
@@ -172,7 +183,7 @@ class SearchTask:
       # groups
       if self.groupCount != other.groupCount:
         self.fail('wrong groupCount: cat=%s groupField=%s %s vs %s: self=%s, other=%s' % (self.cat, self.groupField, self.groupCount, other.groupCount, self, other))
-      for groupIDX in xrange(self.groupCount):
+      for groupIDX in range(self.groupCount):
         groupValue1, groupTotHits1, groupTopScore1, groups1 = self.groups[groupIDX]
         groupValue2, groupTotHits2, groupTopScore2, groups2 = other.groups[groupIDX]
 
@@ -205,9 +216,9 @@ class SearchTask:
 
     if self.facets != other.facets:
       if False:
-        print
-        print '***WARNING*** facet diffs: %s: %s vs %s'% (self, self.facets, other.facets)
-        print
+        print()
+        print('***WARNING*** facet diffs: %s: %s vs %s'% (self, self.facets, other.facets))
+        print()
       else:
         self.fail('facets differ: %s vs %s' % (self.facets, other.facets))
 
@@ -339,26 +350,26 @@ def parseResults(resultsFiles):
     f = open(resultsFile, 'rb')
     while True:
       line = f.readline()
-      if line == '':
+      if line == b'':
         break
       line = line.strip()
 
-      if line.startswith('HEAP: '):
-        m = reHeap.match(line)
+      if line.startswith(b'HEAP: '):
+        m = reHeap.match(decode(line))
         heaps.append(int(m.group(1)))
 
-      if line.startswith('TASK: cat='):
+      if line.startswith(b'TASK: cat='):
         task = SearchTask()
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
         task.facets = None
 
-        m = reSearchTask.match(line[6:])
+        m = reSearchTask.match(decode(line[6:]))
 
         if m is not None:
           cat, task.query, sort, filter, hitCount = m.groups()
         else:
-          m = reSearchTaskOld.match(line[6:])
+          m = reSearchTaskOld.match(decode(line[6:]))
           if m is not None:
             cat, task.query, sort, hitCount, facets = m.groups()
             filter = None
@@ -396,50 +407,50 @@ def parseResults(resultsFiles):
 
           while True:
             line = f.readline().strip()
-            if line == '':
+            if line == b'':
               break
 
             if task.facets is not None:
               task.facets.append(line)
               continue
 
-            if line.find('expanded terms') != -1:
+            if line.find(b'expanded terms') != -1:
               task.expandedTermCount = int(line.split()[0])
               continue
-            if line.find('Zing VM Warning') != -1:
+            if line.find(b'Zing VM Warning') != -1:
               continue
-            if line.find('facets') != -1:
+            if line.find(b'facets') != -1:
               task.facets = []
               continue
-            if line.find('hilite time') != -1:
+            if line.find(b'hilite time') != -1:
               task.hiliteMsec = float(line.split()[2])
               continue
-            if line.find('getFacetResults time') != -1:
+            if line.find(b'getFacetResults time') != -1:
               task.getFacetResultsMsec = float(line.split()[2])
               continue
 
-            if line.startswith('HEAP: '):
-              m = reHeap.match(line)
+            if line.startswith(b'HEAP: '):
+              m = reHeap.match(decode(line))
               heaps.append(int(m.group(1)))
               break
 
             if sort == 'null':
-              m = reSearchHitScore.match(line)
+              m = reSearchHitScore.match(decode(line))
               id = int(m.group(1))
               score = m.group(2)
               # score stays a string so we can do "precise" ==
               task.hits.append((id, score))
             else:
-              m = reSearchHitField.match(line)
+              m = reSearchHitField.match(decode(line))
               id = int(m.group(1))
               field = m.group(2)
               task.hits.append((id, field))
         else:
-          m = reSearchGroupTask.match(line[6:])
+          m = reSearchGroupTask.match(decode(line[6:]))
           if m is not None:
             cat, task.query, sort, filter, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount = m.groups()
           else:
-            m = reSearchGroupTaskOld.match(line[6:])
+            m = reSearchGroupTaskOld.match(decode(line[6:]))
             if m is not None:
               cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount, facets = m.groups()
               filter = None
@@ -461,21 +472,21 @@ def parseResults(resultsFiles):
             group = None
             while True:
               line = f.readline().strip()
-              if line == '':
+              if line == b'':
                 break
-              if line.find('Zing VM Warning') != -1:
+              if line.find(b'Zing VM Warning') != -1:
                 continue
-              if line.startswith('HEAP: '):
-                m = reHeap.match(line)
+              if line.startswith(b'HEAP: '):
+                m = reHeap.match(decode(line))
                 heaps.append(int(m.group(1)))
                 break
-              m = reOneGroup.search(line)
+              m = reOneGroup.search(decode(line))
               if m is not None:
                 groupValue, groupTotalHits, groupTopScore = m.groups()
                 group = (groupValue, int(groupTotalHits), float(groupTopScore), [])
                 task.groups.append(group)
                 continue
-              m = reSearchHitScore.search(line)
+              m = reSearchHitScore.search(decode(line))
               if m is not None:
                 doc = int(m.group(1))
                 score = float(m.group(2))
@@ -483,11 +494,11 @@ def parseResults(resultsFiles):
               else:
                 # BUG
                 raise RuntimeError('result parsing failed: line=%s' % line)
-          elif line.find('Zing VM Warning') != -1:
+          elif line.find(b'Zing VM Warning') != -1:
             continue
           else:
             raise RuntimeError('result parsing failed: line=%s' % line)
-      elif line.startswith('TASK: respell'):
+      elif line.startswith(b'TASK: respell'):
         task = RespellTask()
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
@@ -496,31 +507,31 @@ def parseResults(resultsFiles):
         task.hits = []
         while True:
           line = f.readline().strip()
-          if line == '':
+          if line == b'':
             break
-          if line.find('Zing VM Warning') != -1:
+          if line.find(b'Zing VM Warning') != -1:
             continue
-          if line.startswith('HEAP: '):
-            m = reHeap.match(line)
+          if line.startswith(b'HEAP: '):
+            m = reHeap.match(decode(line))
             heaps.append(int(m.group(1)))
             break
-          m = reRespellHit.search(line)
+          m = reRespellHit.search(decode(line))
           suggest, freq, score = m.groups()
           task.hits.append((suggest, int(freq), float(score)))
 
-      elif line.startswith('TASK: PK'):
+      elif line.startswith(b'TASK: PK'):
         task = PKLookupTask()
-        task.pkOrd = rePKOrd.search(line).group(1)
+        task.pkOrd = rePKOrd.search(decode(line)).group(1)
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
-      elif line.startswith('TASK: PointsPK'):
+      elif line.startswith(b'TASK: PointsPK'):
         task = PointsPKLookupTask()
-        task.pkOrd = rePKOrd.search(line).group(1)
+        task.pkOrd = rePKOrd.search(decode(line)).group(1)
         task.msec = float(f.readline().strip().split()[0])
         task.threadID = int(f.readline().strip().split()[1])
       else:
         task = None
-        if line.find('\tat') != -1:
+        if line.find(b'\tat') != -1:
           raise RuntimeError('log has exceptions')
 
       if task is not None:
@@ -539,9 +550,9 @@ def collateTaskLatencies(resultIters):
     iters.append(byCat)
     for task in results:
       if isinstance(task, SearchTask):
-        key = task.cat, task.sort
+        key = (task.cat, task.sort)
       else:
-        key = task.cat
+        key = (task.cat,)
 
       if key not in byCat:
         byCat[key] = ([])
@@ -561,9 +572,9 @@ def collateResults(resultIters):
     iters.append(byCat)
     for task in results:
       if isinstance(task, SearchTask):
-        key = task.cat, task.sort
+        key = (task.cat, task.sort)
       else:
-        key = task.cat
+        key = (task.cat,)
       if key not in byCat:
         byCat[key] = ([], {})
       l, d = byCat[key]
@@ -598,7 +609,7 @@ def agg(iters, cat, name, verifyCounts):
     count = 0
     sumMS = 0.0
     if VERBOSE:
-      print 'AGG: cat=%s' % str(cat)
+      print('AGG: cat=%s' % str(cat))
 
     # Iterate over each category's instances, eg a given category
     # might have 5 different instances:
@@ -606,10 +617,10 @@ def agg(iters, cat, name, verifyCounts):
 
       allMS = [result.msec for result in results]
       if VERBOSE:
-        print '  %s' % task
-        print '    before prune:'
+        print('  %s' % task)
+        print('    before prune:')
         for t in allMS:
-          print '      %.4f' % t
+          print('      %.4f' % t)
 
       # Skip warmup runs
       allMS = allMS[WARM_SKIP:]
@@ -617,14 +628,14 @@ def agg(iters, cat, name, verifyCounts):
       allMS.sort()
       minMS = allMS[0]
       if VERBOSE:
-        print '    after sort:'
+        print('    after sort:')
         for t in allMS:
-          print '      %.4f' % t
+          print('      %.4f' % t)
 
       # Skip slowest SLOW_SKIP_PCT runs:
       skipSlowest = int(len(allMS)*SLOW_SKIP_PCT/100.)
       if VERBOSE:
-        print 'skipSlowest %s' % skipSlowest
+        print('skipSlowest %s' % skipSlowest)
 
       if skipSlowest > 0:
         pruned = allMS[:-skipSlowest]
@@ -632,9 +643,9 @@ def agg(iters, cat, name, verifyCounts):
         pruned = allMS
 
       if VERBOSE:
-        print '    after prune:'
+        print('    after prune:')
         for t in pruned:
-          print '      %.4f' % t
+          print('      %.4f' % t)
 
       if SELECT == 'min':
         sumMS += minMS
@@ -643,13 +654,13 @@ def agg(iters, cat, name, verifyCounts):
         sumMS += sum(pruned)
         count += len(pruned)
       elif SELECT == 'median':
-        mid = len(pruned)/2
+        mid = len(pruned) // 2
         if len(pruned) % 2 == 0:
           median = (pruned[mid-1] + pruned[mid])/2.0
         else:
           median = pruned[mid]
         if VERBOSE:
-          print '  median %.4f' % median
+          print('  median %.4f' % median)
         sumMS += median
         count += 1
       else:
@@ -676,18 +687,19 @@ def agg(iters, cat, name, verifyCounts):
     #accumMS.sort()
     minValue = min(accumMS)
     #print '  accumMS=%s' % ' '.join(['%5.1f' % x for x in accumMS])
-    print '  %s %s: accumMS=%s' % (name, cat[0], ' '.join(['%5.1f' % (100.0*(x-minValue)/minValue) for x in accumMS]))
+    print('  %s %s: accumMS=%s' % (name, cat[0], ' '.join(['%5.1f' % (100.0*(x-minValue)/minValue) for x in accumMS])))
 
   return accumMS, totHitCount
 
 def sum_hit_count(hc1, hc2):
   lower_bound = False
-  if isinstance(hc1, basestring) and hc1.endswith('+'):
+  _type = basestring if PYTHON_MAJOR_VER < 3 else str
+  if isinstance(hc1, _type) and hc1.endswith('+'):
     lower_bound = True
     hc1 = int(hc1[:-1])
   else:
     hc1 = int(hc1)
-  if isinstance(hc2, basestring) and hc2.endswith('+'):
+  if isinstance(hc2, _type) and hc2.endswith('+'):
     lower_bound = True
     hc2 = int(hc2[:-1])
   else:
@@ -708,12 +720,15 @@ def stats(l):
     return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
 
 def run(cmd, logFile=None, indent='    '):
-  print '%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd())
+  print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))
   if logFile is not None:
-    cmd = '%s > "%s" 2>&1' % (cmd, logFile)
-  if os.system(cmd):
+    out = open(logFile, 'wb')
+  else:
+    out = subprocess.STDOUT
+  p = subprocess.Popen(cmd.split(), shell=False, stdout=out, stderr=out, close_fds=True)
+  if p.wait():
     if logFile is not None and os.path.getsize(logFile) < 50*1024:
-      print open(logFile).read()
+      print(open(logFile).read())
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
 
 reCoreJar = re.compile('lucene-core-[0-9]\.[0-9]\.[0-9](?:-SNAPSHOT)?\.jar')
@@ -727,46 +742,46 @@ class RunAlgs:
     self.javaCommand = javaCommand
     self.verifyScores = verifyScores
     self.verifyCounts = verifyCounts
-    print
-    print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % javaCommand).read()
+    print()
+    print('JAVA:\n%s' % os.popen('%s -version 2>&1' % javaCommand).read())
 
-    print
+    print()
     if osName not in ('windows', 'cygwin'):
-      print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
+      print('OS:\n%s' % os.popen('uname -a 2>&1').read())
     else:
-      print 'OS:\n%s' % sys.platform
+      print('OS:\n%s' % sys.platform)
 
     if not os.path.exists(constants.LOGS_DIR):
       os.makedirs(constants.LOGS_DIR)
-    print
-    print 'LOGS:\n%s' % constants.LOGS_DIR
+    print()
+    print('LOGS:\n%s' % constants.LOGS_DIR)
 
 
   def printEnv(self):
-    print
-    print 'JAVA:\n%s' % os.popen('%s -version 2>&1' % self.javaCommand).read()
+    print()
+    print('JAVA:\n%s' % os.popen('%s -version 2>&1' % self.javaCommand).read())
 
     print
     if osName not in ('windows', 'cygwin'):
-      print 'OS:\n%s' % os.popen('uname -a 2>&1').read()
+      print('OS:\n%s' % os.popen('uname -a 2>&1').read())
     else:
-      print 'OS:\n%s' % sys.platform
+      print('OS:\n%s' % sys.platform)
 
   def makeIndex(self, id, index, printCharts=False):
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath) and not index.doUpdate:
-      print '  %s: already exists' % fullIndexPath
+      print('  %s: already exists' % fullIndexPath)
       return fullIndexPath
     elif index.doUpdate:
       if not os.path.exists(fullIndexPath):
         raise RuntimeError('index path does not exists: %s' % fullIndexPath)
-      print '  %s: now update' % fullIndexPath
+      print('  %s: now update' % fullIndexPath)
     else:
-      print '  %s: now create' % fullIndexPath
+      print('  %s: now create' % fullIndexPath)
 
     s = checkoutToBenchPath(index.checkout)
-    print '    cd %s' % s
+    print('    cd %s' % s)
     os.chdir(s)
 
     try:
@@ -851,7 +866,7 @@ class RunAlgs:
 
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
 
-      print '    log %s' % fullLogFile
+      print('    log %s' % fullLogFile)
 
       t0 = time.time()
       run(cmd, fullLogFile)
@@ -863,9 +878,9 @@ class RunAlgs:
       with open(fullLogFile, 'rb') as f:
         while True:
           l = f.readline()
-          if l == '':
+          if l == b'':
             break
-          if l.lower().find('exception in thread') != -1:
+          if l.lower().find(b'exception in thread') != -1:
             raise RuntimeError('unhandled exceptions in log "%s"' % fullLogFile)
 
     except:
@@ -966,12 +981,12 @@ class RunAlgs:
     found = False
     for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
       for file in files:
-        if file == 'hppc-0.8.1.jar':
+        if file == 'hppc-0.8.2.jar':
           cp.append('%s/%s' % (root_path, file))
           found = True
 
     if not found:
-      raise RuntimeError('unable to locate hppc-0.8.1.jar dependency for lucene/facet!')
+      raise RuntimeError('unable to locate hppc-0.8.2.jar dependency for lucene/facet!')
 
     # so perf.* is found:
     lib = os.path.join(checkoutToUtilPath(checkout), "lib")
@@ -995,7 +1010,7 @@ class RunAlgs:
         # for core we build a JAR in order to benefit from the MR JAR stuff
         os.chdir(checkoutPath)
         for module in ['core']:
-          print 'compile lucene:core...'
+          print('compile lucene:core...')
           run('%s lucene:core:jar' % constants.GRADLEW_EXE, '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis:common', 'grouping',
@@ -1006,10 +1021,10 @@ class RunAlgs:
           classesPath = '%s/build/classes/java' % (modulePath)
           lastCompileTime = common.getLatestModTime(classesPath, '.class')
           if common.getLatestModTime('%s/src/java' % modulePath) > lastCompileTime:
-            print 'compile lucene:%s...' % module
+            print('compile lucene:%s...' % module)
             run('%s lucene:%s:compileJava' % (constants.GRADLEW_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
 
-      print '  %s' % path
+      print('  %s' % path)
       os.chdir(path)
       if path.endswith('/'):
         path = path[:-1]
@@ -1030,7 +1045,7 @@ class RunAlgs:
         for module in ['core']:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)
           os.chdir(modulePath)
-          print '  %s...' % modulePath
+          print('  %s...' % modulePath)
           run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
@@ -1039,11 +1054,11 @@ class RunAlgs:
           classesPath = '%s/lucene/build/%s/classes/java' % (checkoutPath, module)
           # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
           if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
-            print '  %s...' % modulePath
+            print('  %s...' % modulePath)
             os.chdir(modulePath)
             run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
 
-      print '  %s' % path
+      print('  %s' % path)
       os.chdir(path)
       if path.endswith('/'):
         path = path[:-1]
@@ -1062,7 +1077,7 @@ class RunAlgs:
 
     if coldRun:
       # flush OS buffer cache
-      print 'Drop buffer caches...'
+      print('Drop buffer caches...')
       if osName == 'linux':
         run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
       elif osName in ('windows', 'cygwin'):
@@ -1160,9 +1175,9 @@ class RunAlgs:
       if c.loadStoredFields:
         command += ' -loadStoredFields'
 
-    print '      log: %s + stdout' % logFile
+    print('      log: %s + stdout' % logFile)
     t0 = time.time()
-    print '      run: %s' % ' '.join(command)
+    print('      run: %s' % ' '.join(command))
     #p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -1181,7 +1196,7 @@ class RunAlgs:
       f = open(logFile + '.stdout', 'wb')
       while True:
         s = p.stdout.readline()
-        if s == '':
+        if s == b'':
           break
         f.write(s)
         f.flush()
@@ -1190,32 +1205,33 @@ class RunAlgs:
       run('sudo kill -INT %s' % p2.pid)
       #os.kill(p2.pid, signal.SIGINT)
       stdout, stderr = p2.communicate()
-      print 'PERF: %s' % fixupPerfOutput(stderr)
+      print('PERF: %s' % fixupPerfOutput(stderr))
     else:
-      f = open(logFile + '.stdout', 'wbu')
+      mode = 'wbu' if PYTHON_MAJOR_VER < 3 else 'wb'
+      f = open(logFile + '.stdout', mode)
       while True:
         s = p.stdout.readline()
-        if s == '':
+        if s == b'':
           break
         f.write(s)
         f.flush()
       f.close()
       if p.wait() != 0:
-        print
-        print 'SearchPerfTest FAILED:'
+        print()
+        print('SearchPerfTest FAILED:')
         s = open(logFile + '.stdout', 'r')
         for line in s.readlines():
-          print line.rstrip()
+          print(line.rstrip())
         raise RuntimeError('SearchPerfTest failed; see log %s.stdout' % logFile)
 
     #run(command, logFile + '.stdout', indent='      ')
-    print '      %.1f s' % (time.time()-t0)
+    print('      %.1f s' % (time.time()-t0))
 
     return logFile
 
   def getSearchLogFiles(self, id, c):
     logFiles = []
-    for iter in xrange(c.competition.jvmCount):
+    for iter in range(c.competition.jvmCount):
       logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
       logFiles.append(logFile)
     return logFiles
@@ -1232,7 +1248,7 @@ class RunAlgs:
         currentLatencyMetricsDict = resultLatencyMetrics[currentKey]
 
         currentP0 = currentCatLatencies[0]
-        currentP50 = currentCatLatencies[(len(currentCatLatencies)-1)/2]
+        currentP50 = currentCatLatencies[(len(currentCatLatencies)-1)//2]
         currentP90 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.9)]
         currentP99 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.99)]
         currentP999 = currentCatLatencies[int((len(currentCatLatencies)-1)*0.999)]
@@ -1280,8 +1296,8 @@ class RunAlgs:
     resultsByCatCmp = {}
 
     for cat in cats:
-
-      if type(cat) is types.TupleType:
+      _type = types.TupleType if PYTHON_MAJOR_VER < 3 else tuple
+      if isinstance(cat, _type):
         if False and cat[1] is not None:
           desc = '%s (sort %s)' % (cat[0], cat[1])
         else:
@@ -1318,13 +1334,13 @@ class RunAlgs:
 
       if VERBOSE:
         if type(cat) is types.TupleType:
-          print 'cat %s' % cat[0]
+          print('cat %s' % cat[0])
         else:
-          print 'cat %s' % cat
-        print '  baseQPS: %s' % ' '.join('%.1f' % x for x in baseQPS)
-        print '    avg %.1f' % avgQPSBase
-        print '  cmpQPS: %s' % ' '.join('%.1f' % x for x in cmpQPS)
-        print '    avg %.1f' % avgQPSCmp
+          print('cat %s' % cat)
+        print('  baseQPS: %s' % ' '.join('%.1f' % x for x in baseQPS))
+        print('    avg %.1f' % avgQPSBase)
+        print('  cmpQPS: %s' % ' '.join('%.1f' % x for x in cmpQPS))
+        print('    avg %.1f' % avgQPSCmp)
 
       qpsBase = avgQPSBase
       qpsCmp = avgQPSCmp
@@ -1413,7 +1429,7 @@ class RunAlgs:
 
     if QPSChart.supported:
       QPSChart.QPSChart(chartData, 'out.png')
-      print 'Chart saved to out.png... (wd: %s)' % os.getcwd()
+      print('Chart saved to out.png... (wd: %s)' % os.getcwd())
 
     w = writer
 
@@ -1431,10 +1447,10 @@ class RunAlgs:
       pctP999 = 100*(currentCmpMetrics['p999'] -
               currentBaseMetrics['p999'])/currentBaseMetrics['p999']
       pctP100 = 100*(currentCmpMetrics['p100'] - currentBaseMetrics['p100'])/currentBaseMetrics['p100']
-      print ('||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s' %
+      print(('||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s' %
         (currentCat, currentBaseMetrics['p50'], currentCmpMetrics['p50'], pctP50, currentBaseMetrics['p90'], currentCmpMetrics['p90'], pctP90,
          currentBaseMetrics['p99'], currentCmpMetrics['p99'], pctP99,
-         currentBaseMetrics['p999'], currentCmpMetrics['p999'], pctP999, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100))
+         currentBaseMetrics['p999'], currentCmpMetrics['p999'], pctP999, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100)))
 
     if jira:
       w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %
@@ -1469,7 +1485,7 @@ class RunAlgs:
       w('</table>')
 
     for w in warnings:
-      print 'WARNING: %s' % w
+      print('WARNING: %s' % w)
 
     return resultsByCatCmp, cmpDiffs, stats(heapCmp)
 
@@ -1493,7 +1509,7 @@ class RunAlgs:
 
   def save(self, name):
     f = open('%s.pk' % name, 'wb')
-    cPickle.dump(self.results, f)
+    pickle.dump(self.results, f)
     f.close()
 
 reFuzzy = re.compile(r'body:(.*?)\~(.*?)$')
@@ -1539,7 +1555,7 @@ def compareHits(r1, r2, verifyScores, verifyCounts):
     if task in d2:
       try:
         task.verifySame(d2.get(task), verifyScores, verifyCounts)
-      except RuntimeError, re:
+      except RuntimeError as re:
         errors.append(str(re))
       checked += 1
     else:

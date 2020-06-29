@@ -19,6 +19,7 @@ import constants
 
 LUCENE_ROOT = '/l/trunk.analyzers.nightly/lucene'
 LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
+LOGS_JA_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers_ja')
 
 def run(cmd):
   print('RUN: %s' % cmd)
@@ -40,7 +41,7 @@ print('Compile...')
 run('ant clean compile > compile.log 2>&1')
 
 logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
-logFileJa = '%s/%s_ja.log' % (LOGS_ROOT, ymd)
+logFileJa = '%s/%s.log' % (LOGS_JA_ROOT, ymd)
 
 with open(logFile + '.tmp', 'w') as lf:
   #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())

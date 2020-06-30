@@ -23,6 +23,7 @@ import org.apache.lucene.analysis.LowerCaseFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.WhitespaceTokenizer;
+import org.apache.lucene.analysis.ja.JapaneseAnalyzer;
 import org.apache.lucene.analysis.miscellaneous.WordDelimiterFilter;
 import org.apache.lucene.analysis.ngram.EdgeNGramTokenFilter;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
@@ -165,10 +166,20 @@ public class TestAnalyzerPerf {
 
   public static void main(String[] args) throws Exception {
     File wikiLinesFile = new File(args[0]);
-    testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(CharArraySet.EMPTY_SET));
-    testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
-    testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
-    testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());
-    testAnalyzer("WordDelimiterFilter", wikiLinesFile, new WDFAnalyzer());
+    String lang = "en";
+    if (args.length > 1) {
+      lang = args[1];
+    }
+    if (lang.equals("en")) {
+      testAnalyzer("Standard", wikiLinesFile, new StandardAnalyzer(CharArraySet.EMPTY_SET));
+      testAnalyzer("LowerCase", wikiLinesFile, new LowerCaseAnalyzer());
+      testAnalyzer("EdgeNGrams", wikiLinesFile, new EdgeNGramsAnalyzer());
+      testAnalyzer("Shingles", wikiLinesFile, new ShinglesAnalyzer());
+      testAnalyzer("WordDelimiterFilter", wikiLinesFile, new WDFAnalyzer());
+    } else if (lang.equals("ja")) {
+      testAnalyzer("Japanese", wikiLinesFile, new JapaneseAnalyzer());
+    } else {
+      throw new IllegalArgumentException("Unknown lang: " + lang);
+    }
   }
 }

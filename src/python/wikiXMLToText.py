@@ -90,7 +90,6 @@ def convert(fIn, fOut):
   # get the root element
   event, root = context.next()
 
-  attrs = {}
   isRedirect = False
   count = 0
 
@@ -106,6 +105,8 @@ def convert(fIn, fOut):
     'subSectionCount',
     'subSubSectionCount',
     'refCount')
+
+  attrs = newAttrs(*('timestamp', 'text', 'title', 'username'))
 
   fOut.write('FIELDS_HEADER_INDICATOR###	%s\n' % ('\t'.join(ATTS)))
   
@@ -133,7 +134,7 @@ def convert(fIn, fOut):
         if count % 100000 == 0:
           print '%d...' % count
         
-      attrs = {}
+      attrs = newAttrs(*('timestamp', 'text', 'title', 'username'))
       isRedirect = False
 
     if tag in ('timestamp', 'text', 'title', 'username'):
@@ -156,6 +157,9 @@ def convert(fIn, fOut):
 
 def get(attrs, *names):
   return [toUTF8(attrs[x]) for x in names]
+
+def newAttrs(*names):
+  return dict((att, '') for att in names)
 
 if __name__ == '__main__':
   f = open(sys.argv[1], 'rb')

@@ -34,6 +34,7 @@ import signal
 import QPSChart
 import IndexChart
 import subprocess
+import shlex
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
@@ -725,7 +726,7 @@ def run(cmd, logFile=None, indent='    '):
     out = open(logFile, 'wb')
   else:
     out = subprocess.STDOUT
-  p = subprocess.Popen(cmd.split(), shell=False, stdout=out, stderr=out, close_fds=True)
+  p = subprocess.Popen(shlex.split(cmd), shell=False, stdout=out, stderr=out, close_fds=True)
   if p.wait():
     if logFile is not None and os.path.getsize(logFile) < 50*1024:
       print(open(logFile).read())

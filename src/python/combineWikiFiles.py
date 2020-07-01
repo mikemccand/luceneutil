@@ -1,32 +1,35 @@
 import sys
 import re
-import htmllib
-
-def unescapeHTML(s):
-  if reHTMLEscape.search(s) is not None:
-    p = htmllib.HTMLParser(None)
-    p.save_bgn()
-    p.feed(s)
-    return p.save_end()
-  else:
-    return s
 
 # Takes plain text output from WikipediaExtractor, and a previously
 # created line file, and just replaces body text with the clean
 # one...
 
+onlyThreeColumns = '-only-three-columns' in sys.argv
+
+if onlyThreeColumns:
+  sys.argv.remove('-only-three-columns')
+
 # Line file docs:
-f1 = open(sys.argv[1], 'rb')
+f1 = open(sys.argv[1], 'r')
 line = f1.readline()
 
 # WikipediaExtractor output:
-f2 = open(sys.argv[2], 'rb')
+f2 = open(sys.argv[2], 'r')
 
-fOut = open(sys.argv[3], 'wb')
+fOut = open(sys.argv[3], 'w')
+
+if onlyThreeColumns:
+  tup = line.strip().split('\t')
+  tup = tup[:3]
+  line = '\t'.join(tup) + '\n'
+
 fOut.write(line)
 
 reTitle = re.compile('title="(.*?)">$')
 reHTMLEscape = re.compile('&.*?;')
+
+lineCount = 0
 
 while True:
   l1 = f1.readline()
@@ -44,12 +47,13 @@ while True:
   if m is None:
     raise RuntimeError('could not find title: %s' % l2)
 
-  #tup[0] = unescapeHTML(tup[0])
-  title = unescapeHTML(m.group(1))
-  #title = m.group(1)
+  #tup[0] = WikipediaExtractor.unescape(tup[0])
+  title = m.group(1)
   
   if title != tup[0]:
-    raise RuntimeError('title mismatch: %s vs %s' % (title, tup[0]))
+    raise RuntimeError('line %d: title mismatch: %s vs %s' % (lineCount, title, tup[0]))
+
+  lineCount += 1
 
   l = []
   while True:
@@ -90,7 +94,7 @@ while True:
   if tup[0].find('(disambiguation)') != -1:
     continue
 
-  PARAGRAPH_SEP = u'\u2029'.encode('utf-8')
+  PARAGRAPH_SEP = u'\u2029'
   #print 'titletype %s' % type(title)
   #print 'texttype %s' % type(text)
   prefix = title + ' ' + PARAGRAPH_SEP
@@ -98,6 +102,9 @@ while True:
     #print 'strip...'
     text = text[len(prefix):].strip()
     tup[2] = text
+
+  if onlyThreeColumns:
+    tup = tup[:3]
     
   fOut.write('\t'.join(tup))
   fOut.write('\n')

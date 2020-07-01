@@ -56,17 +56,13 @@ Options:
 
 import sys
 
-# TODO: messy
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
 import gc
 import getopt
 import urllib
 import re
 import bz2
 import os.path
-from htmlentitydefs import name2codepoint
+from html.entities import entitydefs
 
 
 
@@ -133,12 +129,12 @@ def WikiDocument(out, id, title, text):
     header += PARAGRAPH_SEP
     header = header.encode('utf-8')
     text = clean(text)
-    footer = "\n</doc>"
+    footer = b'\n</doc>\n'
     out.reserve(len(header) + len(text) + len(footer))
-    print >> out, header
+    out.write(header)
     for line in compact(text):
-        print >> out, line.encode('utf-8')
-    print >> out, footer
+        out.write(line.encode('utf-8'))
+    out.write(footer)
 
 def get_url(id, prefix):
     return "%s?curid=%s" % (prefix, id)
@@ -163,44 +159,6 @@ ignoredTags = set([
 placeholder_tags = {'math':'formula', 'code':'codice'}
 
 ##
-# Normalize title
-def normalizeTitle(title):
-  # remove leading whitespace and underscores
-  title = title.strip(' _')
-  # replace sequences of whitespace and underscore chars with a single space
-  title = re.compile(r'[\s_]+').sub(' ', title)
-
-  m = re.compile(r'([^:]*):(\s*)(\S(?:.*))').match(title)
-  if m:
-      prefix = m.group(1)
-      if m.group(2):
-          optionalWhitespace = ' '
-      else:
-          optionalWhitespace = ''
-      rest = m.group(3)
-
-      ns = prefix.capitalize()
-      if ns in acceptedNamespaces:
-          # If the prefix designates a known namespace, then it might be
-          # followed by optional whitespace that should be removed to get
-          # the canonical page name
-          # (e.g., "Category:  Births" should become "Category:Births").
-          title = ns + ":" + rest.capitalize()
-      else:
-          # No namespace, just capitalize first letter.
-	  # If the part before the colon is not a known namespace, then we must
-          # not remove the space after the colon (if any), e.g.,
-          # "3001: The_Final_Odyssey" != "3001:The_Final_Odyssey".
-          # However, to get the canonical page name we must contract multiple
-          # spaces into one, because
-          # "3001:   The_Final_Odyssey" != "3001: The_Final_Odyssey".
-          title = prefix.capitalize() + ":" + optionalWhitespace + rest
-  else:
-      # no namespace, just capitalize first letter
-      title = title.capitalize();
-  return title
-
-##
 # Removes HTML or XML character references and entities from a text string.
 #
 # @param text The HTML (or XML) source text.
@@ -213,11 +171,11 @@ def unescape(text):
         try:
             if text[1] == "#":  # character reference
                 if text[2] == "x":
-                    return unichr(int(code[1:], 16))
+                    return chr(int(code[1:], 16))
                 else:
-                    return unichr(int(code))
+                    return chr(int(code))
             else:               # named entity
-                return unichr(name2codepoint[code])
+                return entitydefs[code]
         except:
             return text # leave as is
 
@@ -477,7 +435,7 @@ def compact(text):
                 title += '.'
             headers[lev] = title
             # drop previous headers
-            for i in headers.keys():
+            for i in list(headers.keys()):
                 if i > lev:
                     del headers[i]
             emptySection = True
@@ -505,7 +463,7 @@ def compact(text):
         elif (line[0] == '(' and line[-1] == ')') or line.strip('.-') == '':
             continue
         elif len(headers):
-            items = headers.items()
+            items = list(headers.items())
             items.sort()
             for (i, v) in items:
                 page.append(v)
@@ -557,9 +515,9 @@ class OutputSplitter:
             os.makedirs(dir_name)
         file_name = os.path.join(dir_name, self.file_name())
         if self.compress:
-            return bz2.BZ2File(file_name + '.bz2', 'w')
+            return bz2.BZ2File(file_name + '.bz2', 'wb')
         else:
-            return open(file_name, 'w')
+            return open(file_name, 'wb')
 
     def dir_name(self):
         char1 = self.dir_index % 26
@@ -592,7 +550,7 @@ def process_data(input, output):
         elif tag == 'id' and not id:
             id = m.group(3)
         elif tag == 'title':
-            title = m.group(3)
+            title = unescape(m.group(3))
         elif tag == 'redirect':
             redirect = True
         elif tag == 'text':
@@ -612,8 +570,8 @@ def process_data(input, output):
             # MKM: I added True or:
             if (True or colon < 0 or title[:colon] in acceptedNamespaces) and \
                     not redirect:
-                print id, title.encode('utf-8')
-                sys.stdout.flush()
+                #print(id, title.encode('utf-8'))
+                #sys.stdout.flush()
                 WikiDocument(output, id, title, ''.join(page))
             id = None
             page = []
@@ -675,7 +633,7 @@ def main():
         elif opt in ('-o', '--output'):
                 output_dir = arg
         elif opt in ('-v', '--version'):
-                print 'WikiExtractor.py version:', version
+                print('WikiExtractor.py version:', version)
                 sys.exit(0)
 
     if len(args) > 0:
@@ -689,7 +647,7 @@ def main():
             print >> sys.stderr, 'Could not create: ', output_dir
             return
 
-    output_splitter = OutputSplitter(compress, file_size, output_dir)
+    output_splitter = OutputSplitter(compress, sys.maxint, file_size, output_dir)
     process_data(sys.stdin, output_splitter)
     output_splitter.close()
 

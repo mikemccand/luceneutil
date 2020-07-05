@@ -206,7 +206,7 @@ with open('analyzers.html', 'w') as f:
           annots.append((year, month, day, analyzer))
 
         mTokPerSec = tokenCount / totMS / 1000.0
-        f.write(',%.1f' % mTokPerSec)
+        f.write(',%.3f' % mTokPerSec)
       else:
         f.write(',')
     f.write('\\n"\n')

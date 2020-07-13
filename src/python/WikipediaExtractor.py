@@ -343,6 +343,7 @@ def clean(text):
 
     # Expand links
     text = wikiLink.sub(make_anchor_tag, text)
+
     # Drop all remaining ones
     text = parametrizedLink.sub('', text)
 
@@ -409,6 +410,7 @@ def clean(text):
     text = re.sub(u'(\[\(Â«) ', r'\1', text)
     text = re.sub(r'\n\W+?\n', '\n', text) # lines with only punctuations
     text = text.replace(',,', ',').replace(',.', '.')
+
     return text
 
 section = re.compile(r'(==+)\s*(.*?)\s*\1')
@@ -647,8 +649,9 @@ def main():
             print >> sys.stderr, 'Could not create: ', output_dir
             return
 
-    output_splitter = OutputSplitter(compress, sys.maxint, file_size, output_dir)
-    process_data(sys.stdin, output_splitter)
+    output_splitter = OutputSplitter(compress, file_size, output_dir)
+    # use sys.stdin.buffer to get binary (utf-8) reads:
+    process_data(sys.stdin.buffer, output_splitter)
     output_splitter.close()
 
 if __name__ == '__main__':

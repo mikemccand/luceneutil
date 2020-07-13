@@ -1,5 +1,6 @@
 import sys
 import re
+import string
 
 # Takes plain text output from WikipediaExtractor, and a previously
 # created line file, and just replaces body text with the clean
@@ -20,7 +21,7 @@ f2 = open(sys.argv[2], 'r')
 fOut = open(sys.argv[3], 'w')
 
 if onlyThreeColumns:
-  tup = line.strip().split('\t')
+  tup = line.strip(string.whitespace).split('\t')
   tup = tup[:3]
   line = '\t'.join(tup) + '\n'
 
@@ -36,10 +37,10 @@ while True:
   if l1 == '':
     break
 
-  tup = l1.strip().split('\t')
+  tup = l1.strip(string.whitespace).split('\t')
   #print tup[0]
   
-  l2 = f2.readline().strip()
+  l2 = f2.readline().strip(string.whitespace)
   if not l2.startswith('<doc id'):
     raise RuntimeError('unexpected line: %s' % l2)
 
@@ -60,7 +61,8 @@ while True:
     l2 = f2.readline()
     if l2.startswith('</doc>'):
       break
-    l.append(l2.strip())
+    # strip only ascii whitespace:
+    l.append(l2.strip(string.whitespace))
 
   text = ' '.join(l)
 
@@ -100,7 +102,7 @@ while True:
   prefix = title + ' ' + PARAGRAPH_SEP
   if text.startswith(prefix):
     #print 'strip...'
-    text = text[len(prefix):].strip()
+    text = text[len(prefix):].strip(string.whitespace)
     tup[2] = text
 
   if onlyThreeColumns:

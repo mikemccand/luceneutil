@@ -181,7 +181,7 @@ def main():
     print('\nCompile lucene core...')
     # nocommit
     #run('ant clean jar', '%s/antclean.jar.log' % logDir)
-    run('ant jar', '%s/antclean.jar.log' % logDir)
+    run('../../gradlew jar', '%s/gradle.jar.log' % logDir)
     # nocommit
     if False:
       print('\nCompile lucene analysis/common...')

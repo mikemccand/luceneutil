@@ -1012,7 +1012,7 @@ class RunAlgs:
         os.chdir(checkoutPath)
         for module in ['core']:
           print('compile lucene:core...')
-          run('%s lucene:core:jar' % constants.GRADLEW_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          run('%s lucene:core:jar' % constants.GRADLE_EXE, '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis:common', 'grouping',
                        'codecs', 'facet', 'sandbox',
@@ -1023,7 +1023,7 @@ class RunAlgs:
           lastCompileTime = common.getLatestModTime(classesPath, '.class')
           if common.getLatestModTime('%s/src/java' % modulePath) > lastCompileTime:
             print('compile lucene:%s...' % module)
-            run('%s lucene:%s:compileJava' % (constants.GRADLEW_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
+            run('%s lucene:%s:compileJava' % (constants.GRADLE_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
 
       print('  %s' % path)
       os.chdir(path)
@@ -1047,7 +1047,7 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)
           os.chdir(modulePath)
           print('  %s...' % modulePath)
-          run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          run('%s jar' % constants.GRADLE_EXE, '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
@@ -1057,7 +1057,7 @@ class RunAlgs:
           if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
             print('  %s...' % modulePath)
             os.chdir(modulePath)
-            run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+            run('%s compileJava' % constants.GRADLE_EXE, '%s/compile.log' % constants.LOGS_DIR)
 
       print('  %s' % path)
       os.chdir(path)

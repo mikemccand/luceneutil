@@ -752,7 +752,7 @@ def run():
   else:
     print('transparent_hugepages: %s' % s)
 
-  runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
+  runCommand('%s clean > clean.log 2>&1' % constants.GRADLE_EXE)
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
 

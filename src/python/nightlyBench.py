@@ -508,6 +508,11 @@ KNOWN_CHANGES = [
   ('2020-01-24',
    'LUCENE-4702: compress suffix bytes in terms dictionary',
    'LUCENE-4702: compress suffix bytes in terms dictionary'),
+
+    ('2020-09-09',
+     'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting',
+     'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting'),
+
 ]
 
 # TODO

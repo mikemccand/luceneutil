@@ -196,9 +196,9 @@ class SearchTask:
                   print('WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
                         (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1]))
               else:
-                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i], hitsOther[i]))
             if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
-              self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+              self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i], hitsOther[i]))
     else:
       # groups
       if self.groupCount != other.groupCount:
@@ -809,7 +809,7 @@ class RunAlgs:
       cmd = []
       cmd += index.javaCommand.split()
       w = lambda *xs : [cmd.append(str(x)) for x in xs]
-      w('-classpath', self.classPathToString(self.getClassPath(index.checkout)))
+      w('-classpath', classPathToString(getClassPath(index.checkout)))
       w('perf.Indexer')
       w('-dirImpl', index.directory)
       w('-indexPath', fullIndexPath)
@@ -922,103 +922,6 @@ class RunAlgs:
         if f.endswith('.jar'):
           cp.append('%s/%s' % (path, f))
 
-  def getAntClassPath(self, checkout):
-    path = checkoutToPath(checkout)
-    cp = []
-
-    # We use the jar file for core to leverage the MR JAR
-    core_jar_file = None
-    for filename in os.listdir('%s/lucene/build/core' % path):
-      if reCoreJar.match(filename) is not None:
-        core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
-        break
-    if core_jar_file is None:
-      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
-
-    cp.append(core_jar_file)
-    cp.append('%s/lucene/build/core/classes/test' % path)
-    cp.append('%s/lucene/build/sandbox/classes/java' % path)
-    cp.append('%s/lucene/build/misc/classes/java' % path)
-    cp.append('%s/lucene/build/facet/classes/java' % path)
-    cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
-    if True or version == '4.0':
-      cp.append('%s/lucene/build/analysis/common/classes/java' % path)
-      cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
-      cp.append('%s/lucene/build/queryparser/classes/java' % path)
-      cp.append('%s/lucene/build/grouping/classes/java' % path)
-      cp.append('%s/lucene/build/suggest/classes/java' % path)
-      cp.append('%s/lucene/build/highlighter/classes/java' % path)
-      cp.append('%s/lucene/build/codecs/classes/java' % path)
-      cp.append('%s/lucene/build/queries/classes/java' % path)
-      self.addJars(cp, '%s/lucene/facet/lib' % path)
-    elif version == '3.x':
-      cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
-      cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
-    else:
-      cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
-      cp.append('%s/build/contrib/spellchecker/classes/java' % path)
-
-    # so perf.* is found:
-    lib = os.path.join(checkoutToUtilPath(checkout), "lib")
-    for f in os.listdir(lib):
-      if f.endswith('.jar'):
-        cp.append(os.path.join(lib, f))
-    cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
-
-    return tuple(cp)
-
-  def getClassPath(self, checkout):
-    path = checkoutToPath(checkout)
-    if not os.path.exists(os.path.join(path, 'build.gradle')):
-      return self.getAntClassPath(checkout)
-
-    cp = []
-
-    # We use the jar file for core to leverage the MR JAR
-    core_jar_file = None
-    for filename in os.listdir('%s/lucene/core/build/libs' % path):
-      if reCoreJar.match(filename) is not None:
-        core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
-        break
-    if core_jar_file is None:
-      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
-
-    cp.append(core_jar_file)
-    cp.append('%s/lucene/core/build/classes/java/test' % path)
-    cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
-    cp.append('%s/lucene/misc/build/classes/java/main' % path)
-    cp.append('%s/lucene/facet/build/classes/java/main' % path)
-    cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
-    cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
-    cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
-    cp.append('%s/lucene/grouping/build/classes/java/main' % path)
-    cp.append('%s/lucene/suggest/build/classes/java/main' % path)
-    cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
-    cp.append('%s/lucene/codecs/build/classes/java/main' % path)
-    cp.append('%s/lucene/queries/build/classes/java/main' % path)
-
-    # self.addJars(cp, '%s/lucene/facet/lib' % path)
-
-    # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
-    # gradle to tell me necessary dependency paths?
-    found = False
-    for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
-      for file in files:
-        if file == 'hppc-0.8.2.jar':
-          cp.append('%s/%s' % (root_path, file))
-          found = True
-
-    if not found:
-      raise RuntimeError('unable to locate hppc-0.8.2.jar dependency for lucene/facet!')
-
-    # so perf.* is found:
-    lib = os.path.join(checkoutToUtilPath(checkout), "lib")
-    for f in os.listdir(lib):
-      if f.endswith('.jar'):
-        cp.append(os.path.join(lib, f))
-    cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
-    return tuple(cp)
-
   compiledCheckouts = set()
 
   def compile(self, competitor):
@@ -1052,7 +955,7 @@ class RunAlgs:
       if path.endswith('/'):
         path = path[:-1]
 
-      cp = self.classPathToString(self.getClassPath(competitor.checkout))
+      cp = classPathToString(getClassPath(competitor.checkout))
       competitor.compile(cp)
     finally:
       os.chdir(cwd)
@@ -1086,13 +989,10 @@ class RunAlgs:
       if path.endswith('/'):
         path = path[:-1]
 
-      cp = self.classPathToString(self.getClassPath(competitor.checkout))
+      cp = classPathToString(getClassPath(competitor.checkout))
       competitor.compile(cp)
     finally:
       os.chdir(cwd)
-
-  def classPathToString(self, cp):
-    return common.pathsep().join(cp)
 
   def runSimpleSearchBench(self, iter, id, c,
                            coldRun, seed, staticSeed,
@@ -1115,7 +1015,7 @@ class RunAlgs:
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
 
-    cp = self.classPathToString(self.getClassPath(c.checkout))
+    cp = classPathToString(getClassPath(c.checkout))
     logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
 
     if c.doSort:
@@ -1165,27 +1065,8 @@ class RunAlgs:
       w('-pk')
     if c.loadStoredFields:
       w('-loadStoredFields')
-    if c.vectorField:
-      w('-vectorField')
-
-    if False:
-      command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
-          (c.javaCommand, cp, c.directory,
-          nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
-          c.numThreads, c.competition.taskRepeatCount,
-          c.competition.taskCountPerCat, doSort, doConcurrentSegmentReads, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
-      command += '-topN'
-      command += '10'
-      if filter is not None:
-        command += '%s %.2f' % filter
-      if c.printHeap:
-        command += '-printHeap'
-      if c.pk:
-        command += '-pk'
-      if c.loadStoredFields:
-        command += '-loadStoredFields'
-      if c.vectorField:
-        command += '-vectorField'
+    if c.vectorDict:
+      w('-vectorDict', c.vectorDict)
 
     print('      log: %s + stdout' % logFile)
     t0 = time.time()
@@ -1363,7 +1244,7 @@ class RunAlgs:
 
         # the "combined" std.dev. is the square root of the average of the two variances.
         # the factor of 2 here cancels out with one below, but is left in for clarity of nomenclature
-        qpsStdDev = math.sqrt((qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp) / 2)
+        qpsStdDev = math.sqrt((qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp) / 2.0)
 
         # t-value is the difference of the means normalized by the combined std.dev.
         if qpsStdDev != 0 and len(baseQPS) != 0:
@@ -1554,6 +1435,106 @@ class RunAlgs:
     pickle.dump(self.results, f)
     f.close()
 
+def getAntClassPath(checkout):
+  path = checkoutToPath(checkout)
+  cp = []
+
+  # We use the jar file for core to leverage the MR JAR
+  core_jar_file = None
+  for filename in os.listdir('%s/lucene/build/core' % path):
+    if reCoreJar.match(filename) is not None:
+      core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
+      break
+  if core_jar_file is None:
+    raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+
+  cp.append(core_jar_file)
+  cp.append('%s/lucene/build/core/classes/test' % path)
+  cp.append('%s/lucene/build/sandbox/classes/java' % path)
+  cp.append('%s/lucene/build/misc/classes/java' % path)
+  cp.append('%s/lucene/build/facet/classes/java' % path)
+  cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
+  if True or version == '4.0':
+    cp.append('%s/lucene/build/analysis/common/classes/java' % path)
+    cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
+    cp.append('%s/lucene/build/queryparser/classes/java' % path)
+    cp.append('%s/lucene/build/grouping/classes/java' % path)
+    cp.append('%s/lucene/build/suggest/classes/java' % path)
+    cp.append('%s/lucene/build/highlighter/classes/java' % path)
+    cp.append('%s/lucene/build/codecs/classes/java' % path)
+    cp.append('%s/lucene/build/queries/classes/java' % path)
+    self.addJars(cp, '%s/lucene/facet/lib' % path)
+  elif version == '3.x':
+    cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
+    cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
+  else:
+    cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
+    cp.append('%s/build/contrib/spellchecker/classes/java' % path)
+
+  # so perf.* is found:
+  lib = os.path.join(checkoutToUtilPath(checkout), "lib")
+  for f in os.listdir(lib):
+    if f.endswith('.jar'):
+      cp.append(os.path.join(lib, f))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+
+  return tuple(cp)
+
+def getClassPath(checkout):
+  path = checkoutToPath(checkout)
+  if not os.path.exists(os.path.join(path, 'build.gradle')):
+    return getAntClassPath(checkout)
+
+  cp = []
+
+  # We use the jar file for core to leverage the MR JAR
+  core_jar_file = None
+  for filename in os.listdir('%s/lucene/core/build/libs' % path):
+    if reCoreJar.match(filename) is not None:
+      core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
+      break
+  if core_jar_file is None:
+    raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
+
+  cp.append(core_jar_file)
+  cp.append('%s/lucene/core/build/classes/java/test' % path)
+  cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
+  cp.append('%s/lucene/misc/build/classes/java/main' % path)
+  cp.append('%s/lucene/facet/build/classes/java/main' % path)
+  cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
+  cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
+  cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
+  cp.append('%s/lucene/grouping/build/classes/java/main' % path)
+  cp.append('%s/lucene/suggest/build/classes/java/main' % path)
+  cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
+  cp.append('%s/lucene/codecs/build/classes/java/main' % path)
+  cp.append('%s/lucene/queries/build/classes/java/main' % path)
+
+  # self.addJars(cp, '%s/lucene/facet/lib' % path)
+
+  # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
+  # gradle to tell me necessary dependency paths?
+  found = False
+  for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
+    for file in files:
+      if file == 'hppc-0.8.2.jar':
+        cp.append('%s/%s' % (root_path, file))
+        found = True
+
+  if not found:
+    raise RuntimeError('unable to locate hppc-0.8.2.jar dependency for lucene/facet!')
+
+  # so perf.* is found:
+  lib = os.path.join(checkoutToUtilPath(checkout), "lib")
+  for f in os.listdir(lib):
+    if f.endswith('.jar'):
+      cp.append(os.path.join(lib, f))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+  return tuple(cp)
+
+def classPathToString(cp):
+  return common.pathsep().join(cp)
+
 reFuzzy = re.compile(r'body:(.*?)\~(.*?)$')
 
 # converts unit~0.7 -> unit~1
@@ -1616,7 +1597,9 @@ def compareHits(r1, r2, verifyScores, verifyCounts):
   if len(warnings) == 0 and len(errors) == 0:
     return None
   else:
-    return warnings, errors
+    inBoth = (len(d1) + len(d2) - onlyInD1 - onlyInD2) / 2
+    overlap = inBoth / float(max(len(d1), len(d2)))
+    return warnings, errors, overlap
 
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')

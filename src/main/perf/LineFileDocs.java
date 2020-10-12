@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -57,6 +58,7 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.VectorField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
@@ -69,7 +71,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static Object END = new Object();
+  private final static LineFileDoc END = new LineFileDoc("END", null);
 
   private final AtomicInteger nextID = new AtomicInteger();
 
@@ -89,15 +91,18 @@ public class LineFileDocs implements Closeable {
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
-  private final BlockingQueue<Object> queue = new ArrayBlockingQueue<>(1024);
+  private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
   final boolean isBinary;
   private final ThreadLocal<ByteBuffer> nextDocs = new ThreadLocal<>();
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
+  private final String vectorFile;
+  private final int vectorDimension;
+  private SeekableByteChannel vectorChannel;
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
-                      FacetsConfig facetsConfig, boolean addDVFields) throws IOException {
+                      FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension) throws IOException {
     this.path = path;
     this.isBinary = path.endsWith(".bin");
     this.storeBody = storeBody;
@@ -109,7 +114,9 @@ public class LineFileDocs implements Closeable {
     this.facetFields = facetFields;
     this.facetsConfig = facetsConfig;
     this.addDVFields = addDVFields;
-    
+    this.vectorFile = vectorFile;
+    this.vectorDimension = vectorDimension;
+
     open();
     readerThread = new Thread() {
         @Override
@@ -138,12 +145,12 @@ public class LineFileDocs implements Closeable {
           if (doRepeat) {
             close();
             open();
-            x = channel.read(header);            
+            x = channel.read(header);
           } else {
             break;
           }
         }
-          
+
         if (x != 4) {
           throw new RuntimeException("expected 4 header bytes but read " + x);
         }
@@ -156,7 +163,7 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(buffer);
+        queue.put(new LineFileDoc(buffer, readVector()));
       }
     } else {
       while (true) {
@@ -170,12 +177,28 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(line);
+        queue.put(new LineFileDoc(line, readVector()));
       }
     }
     for(int i=0;i<128;i++) {
       queue.put(END);
     }
+  }
+
+  private float[] readVector() throws IOException {
+    if (vectorChannel == null) {
+      return null;
+    }
+    float[] vector = new float[vectorDimension];
+    ByteBuffer buffer = ByteBuffer.allocate(vectorDimension * Float.BYTES)
+      .order(ByteOrder.LITTLE_ENDIAN);
+    int n = vectorChannel.read(buffer);
+    if (n != vectorDimension * Float.BYTES) {
+      throw new RuntimeException("expected " + vectorDimension * Float.BYTES + " vector bytes but read " + n);
+    }
+    buffer.position(0);
+    buffer.asFloatBuffer().get(vector);
+    return vector;
   }
 
   public long getBytesIndexed() {
@@ -184,7 +207,7 @@ public class LineFileDocs implements Closeable {
 
   private void open() throws IOException {
     if (isBinary) {
-      channel = Files.newByteChannel(Paths.get(path), StandardOpenOption.READ);      
+      channel = Files.newByteChannel(Paths.get(path), StandardOpenOption.READ);
     } else {
       InputStream is = new FileInputStream(path);
       reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
@@ -225,6 +248,9 @@ public class LineFileDocs implements Closeable {
         reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
       }
     }
+    if (vectorFile != null) {
+      vectorChannel = Files.newByteChannel(Paths.get(vectorFile), StandardOpenOption.READ);
+    }
   }
 
   @Override
@@ -232,6 +258,10 @@ public class LineFileDocs implements Closeable {
     if (reader != null) {
       reader.close();
       reader = null;
+    }
+    if (vectorChannel != null) {
+      vectorChannel.close();
+      vectorChannel = null;
     }
   }
 
@@ -300,7 +330,7 @@ public class LineFileDocs implements Closeable {
     final Field monthDV;
     final Field dayOfYearDV;
     final BinaryDocValuesField titleBDV;
-    final NumericDocValuesField lastModNDV; 
+    final NumericDocValuesField lastModNDV;
     final Field body;
     final Field id;
     final Field idPoint;
@@ -310,6 +340,7 @@ public class LineFileDocs implements Closeable {
     final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
+    final VectorField vector;
 
     // For just y/m/day:
     //final SimpleDateFormat dateParser = new SimpleDateFormat("y/M/d", Locale.US);
@@ -318,16 +349,16 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension) {
       doc = new Document();
-      
+
       title = new StringField("title", "", Field.Store.NO);
       doc.add(title);
 
       if (addDVFields) {
       	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
       	doc.add(titleDV);
-      	
+
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
         doc.add(titleBDV);
 
@@ -336,7 +367,7 @@ public class LineFileDocs implements Closeable {
 
         monthDV = new SortedDocValuesField("monthSortedDV", new BytesRef(""));
       	doc.add(monthDV);
-        
+
         dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
       	doc.add(dayOfYearDV);
       } else {
@@ -346,10 +377,10 @@ public class LineFileDocs implements Closeable {
         monthDV = null;
         dayOfYearDV = null;
       }
-      
+
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
       doc.add(titleTokenized);
-      
+
       FieldType bodyFieldType = new FieldType(TextField.TYPE_NOT_STORED);
       if (storeBody) {
         bodyFieldType.setStored(true);
@@ -385,11 +416,19 @@ public class LineFileDocs implements Closeable {
 
       timeSec = new IntPoint("timesecnum", 0);
       doc.add(timeSec);
+
+      if (vectorDimension > 0) {
+        // create a throwaway vector so the field's type gets the proper dimension
+        vector = new VectorField("vector", new float[vectorDimension]);
+        doc.add(vector);
+      } else {
+        vector = null;
+      }
     }
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, vectorDimension);
   }
 
   // TODO: is there a pre-existing way to do this!!!
@@ -407,6 +446,8 @@ public class LineFileDocs implements Closeable {
         doc2.add(new NumericDocValuesField(f.name(), f.numericValue().longValue()));
       } else if (f instanceof BinaryDocValuesField) {
         doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
+      } else if (f instanceof VectorField) {
+        doc2.add(new VectorField(f.name(), ((VectorField) f).vectorValue()));
       } else {
         Field field2 = new Field(f.name(),
                                  f.stringValue(),
@@ -427,7 +468,7 @@ public class LineFileDocs implements Closeable {
     String line;
     String title;
     String body;
-    
+
     if (isBinary) {
 
       ByteBuffer buffer = nextDocs.get();
@@ -439,17 +480,17 @@ public class LineFileDocs implements Closeable {
         }
         */
 
-        Object o;
+        LineFileDoc lfd;
         try {
-          o = queue.take();
+          lfd = queue.take();
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(ie);
         }
-        if (o == END) {
+        if (lfd == END) {
           return null;
         }
-        buffer = (ByteBuffer) o;
+        buffer = lfd.byteText;
         nextDocs.set(buffer);
         //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
       }
@@ -471,23 +512,23 @@ public class LineFileDocs implements Closeable {
       body = new String(bodyChars, 0, bodyLenChars);
       buffer.position(buffer.position() + titleLenBytes + bodyLenBytes);
 
-      doc.dateCal.setTimeInMillis(msecSinceEpoch);      
+      doc.dateCal.setTimeInMillis(msecSinceEpoch);
 
       spot3 = 0;
       line = null;
-      
+
     } else {
-      Object o;
+      LineFileDoc lfd;
       try {
-        o = queue.take();
+        lfd = queue.take();
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(ie);
       }
-      if (o == END) {
+      if (lfd == END) {
         return null;
       }
-      line = (String) o;
+      line = lfd.stringText;
 
       int spot = line.indexOf(SEP);
       if (spot == -1) {
@@ -505,7 +546,7 @@ public class LineFileDocs implements Closeable {
       body = line.substring(1+spot2, spot3);
 
       title = line.substring(0, spot);
-      
+
       final String dateString = line.substring(1+spot, spot2);
       doc.date.setStringValue(dateString);
       doc.datePos.setIndex(0);
@@ -520,6 +561,9 @@ public class LineFileDocs implements Closeable {
       doc.dateCal.setTime(date);
       msecSinceEpoch = doc.dateCal.getTimeInMillis();
       timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
+      if (doc.vector != null) {
+        doc.vector.setVectorValue(lfd.vector);
+      }
     }
 
     final int myID = nextID.getAndIncrement();
@@ -582,7 +626,7 @@ public class LineFileDocs implements Closeable {
 
       if (extraFacetFields != null) {
         String[] extraValues = line.substring(spot3+1, line.length()).split("\t");
-        
+
         for(int i=0;i<extraFacetFields.length;i++) {
           String extraFieldName = extraFacetFields[i];
           if (facetFields.containsKey(extraFieldName)) {
@@ -631,6 +675,24 @@ public class LineFileDocs implements Closeable {
       return cloneDoc(doc.doc);
     } else {
       return doc.doc;
+    }
+  }
+
+  private static class LineFileDoc {
+    final float[] vector;
+    final String stringText;
+    final ByteBuffer byteText;
+
+    LineFileDoc(String text, float[] vector) {
+      stringText = text;
+      byteText = null;
+      this.vector = vector;
+    }
+
+    LineFileDoc(ByteBuffer bytes, float[] vector) {
+      stringText = null;
+      byteText = bytes;
+      this.vector = vector;
     }
   }
 }

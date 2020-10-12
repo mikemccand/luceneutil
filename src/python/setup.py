@@ -28,9 +28,10 @@ PYTHON_MAJOR_VER = sys.version_info.major
 
 BASE_URL = 'http://home.apache.org/~mikemccand'
 DATA_FILES = [
-  'enwiki-20120502-lines-1k.txt.lzma',
-  'wikimedium500.tasks'
-  ]
+  ('enwiki-20120502-lines-1k.txt.lzma', BASE_URL),
+  ('wikimedium500.tasks', BASE_URL),
+  ('glove.6B.zip', 'http://nlp.stanford.edu/data/glove.6B.zip')
+]
 USAGE= """
 Usage: python setup.py [-download]
 
@@ -80,8 +81,8 @@ def runSetup(download):
     print('localrun.py already exists - skipping')
     
   if download:
-    for filename in DATA_FILES:
-      url = '%s/%s' % (BASE_URL, filename)
+    for filename, base_url in DATA_FILES:
+      url = base_url + '/' + filename
       target_file = os.path.join(data_dir, filename)
       if os.path.exists(target_file):
         print('file %s already exists - skipping' % (target_file))
@@ -90,7 +91,7 @@ def runSetup(download):
         Downloader(url, target_file).download()
         print('')
         print('downloading %s to  %s done ' % (url, target_file))
-      if target_file.endswith('.bz2') or target_file.endswith('.lzma'):
+      if target_file.endswith('.bz2') or target_file.endswith('.lzma') or target_file.endswith('.zip'):
         print('NOTE: make sure you decompress %s' % (target_file))
 
   print('setup successful')

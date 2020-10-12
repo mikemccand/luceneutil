@@ -205,6 +205,15 @@ public final class Indexer {
     } 
 
     final String lineFile = args.getString("-lineDocsFile");
+    String vectorFile;
+    int vectorDimension;
+    if (args.hasArg("-vectorFile")) {
+        vectorFile = args.getString("-vectorFile");
+        vectorDimension = args.getInt("-vectorDimension");
+    } else {
+        vectorFile = null;
+        vectorDimension = 0;
+    }
 
     // -1 means all docs in the line file:
     final int docCountLimit = args.getInt("-docCountLimit");
@@ -317,6 +326,7 @@ public final class Indexer {
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
     System.out.println("Line file: " + lineFile);
+    System.out.println("Vector file: " + vectorFile + ", dim=" + vectorDimension);
     System.out.println("Doc count limit: " + (docCountLimit == -1 ? "all docs" : ""+docCountLimit));
     System.out.println("Threads: " + numThreads);
     System.out.println("Force merge: " + (doForceMerge ? "yes" : "no"));
@@ -428,7 +438,9 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetDimMethods, facetsConfig, addDVFields);
+    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
+                                                 taxoWriter, facetDimMethods, facetsConfig, addDVFields,
+                                                 vectorFile, vectorDimension);
 
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;

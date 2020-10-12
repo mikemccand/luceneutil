@@ -18,7 +18,7 @@ package perf;
  * limitations under the License.
  */
 
-// FIELDS_HEADER_INDICATOR###	title	timestamp	text	username	characterCount	categories	imageCount	sectionCount	subSectionCount	subSubSectionCount	refCount
+// FIELDS_HEADER_INDICATOR###   title   timestamp   text    username    characterCount  categories  imageCount  sectionCount    subSectionCount subSubSectionCount  refCount
 
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -214,8 +214,8 @@ public class LineFileDocs implements Closeable {
       reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
       String firstLine = reader.readLine();
       if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-        if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###	doctitle	docdate	body") &&
-            !firstLine.startsWith("FIELDS_HEADER_INDICATOR###	title	timestamp	text")) {
+        if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody") &&
+            !firstLine.startsWith("FIELDS_HEADER_INDICATOR###\ttitle\ttimestamp\ttext")) {
           throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
         }
         if (facetFields.isEmpty() == false) {
@@ -359,32 +359,32 @@ public class LineFileDocs implements Closeable {
       doc.add(title);
 
       if (addDVFields) {
-      	titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
-      	doc.add(titleDV);
+        titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
+        doc.add(titleDV);
 
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
         doc.add(titleBDV);
 
-      	lastModNDV = new NumericDocValuesField("lastModNDV", -1);
-      	doc.add(lastModNDV);
-	lastModLP = new LongPoint("lastModNDV", -1); //points field must have the same name and value as DV field
-	doc.add(lastModLP);
+        lastModNDV = new NumericDocValuesField("lastModNDV", -1);
+        doc.add(lastModNDV);
+        lastModLP = new LongPoint("lastModNDV", -1); //points field must have the same name and value as DV field
+        doc.add(lastModLP);
 
         monthDV = new SortedDocValuesField("monthSortedDV", new BytesRef(""));
-      	doc.add(monthDV);
+        doc.add(monthDV);
 
         dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
         doc.add(dayOfYearDV);
         dayOfYearIP = new IntPoint("dayOfYearNumericDV", 0); //points field must have the same name and value as DV field
         doc.add(dayOfYearIP);
       } else {
-      	titleDV = null;
+        titleDV = null;
         titleBDV = null;
-      	lastModNDV = null;
-	lastModLP = null;
+        lastModNDV = null;
+        lastModLP = null;
         monthDV = null;
         dayOfYearDV = null;
-	dayOfYearIP = null;
+        dayOfYearIP = null;
       }
 
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
@@ -707,4 +707,3 @@ public class LineFileDocs implements Closeable {
     }
   }
 }
-

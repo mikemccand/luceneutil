@@ -263,7 +263,7 @@ public class SearchPerfTest {
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
     final String vectorField;
-    if (args.hasArg("-vectorField")) {
+    if (args.getFlag("-vectorField")) {
       vectorField = "vector";
     } else {
       vectorField = null;

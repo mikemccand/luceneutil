@@ -726,7 +726,7 @@ def run(cmd, logFile=None, indent='    '):
     out = open(logFile, 'wb')
   else:
     out = subprocess.STDOUT
-  p = subprocess.Popen(shlex.split(cmd), shell=False, stdout=out, stderr=out, close_fds=True)
+  p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
     if logFile is not None and os.path.getsize(logFile) < 50*1024:
       print(open(logFile).read())
@@ -788,17 +788,17 @@ class RunAlgs:
     try:
 
       cmd = []
-      w = cmd.append
-      w(index.javaCommand)
-      w('-classpath "%s"' % self.classPathToString(self.getClassPath(index.checkout)))
+      cmd += index.javaCommand.split()
+      w = lambda *xs : [cmd.append(str(x)) for x in xs]
+      w('-classpath', self.classPathToString(self.getClassPath(index.checkout)))
       w('perf.Indexer')
-      w('-dirImpl %s' % index.directory)
-      w('-indexPath "%s"' % fullIndexPath)
-      w('-analyzer %s' % index.analyzer)
-      w('-lineDocsFile %s' % index.lineDocSource)
-      w('-docCountLimit %s' % index.numDocs)
-      w('-threadCount %s' % index.numThreads)
-      w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
+      w('-dirImpl', index.directory)
+      w('-indexPath', fullIndexPath)
+      w('-analyzer', index.analyzer)
+      w('-lineDocsFile', index.lineDocSource)
+      w('-docCountLimit', index.numDocs)
+      w('-threadCount', index.numThreads)
+      w('-maxConcurrentMerges', index.maxConcurrentMerges)
 
       if index.addDVFields:
         w('-dvfields')
@@ -812,9 +812,9 @@ class RunAlgs:
       if index.verbose:
         w('-verbose')
 
-      w('-ramBufferMB %s' % index.ramBufferMB)
-      w('-maxBufferedDocs %s' % index.maxBufferedDocs)
-      w('-postingsFormat %s' % index.postingsFormat)
+      w('-ramBufferMB', index.ramBufferMB)
+      w('-maxBufferedDocs', index.maxBufferedDocs)
+      w('-postingsFormat', index.postingsFormat)
 
       if index.doDeletions:
         w('-deletions')
@@ -825,18 +825,17 @@ class RunAlgs:
       if index.waitForMerges:
         w('-waitForMerges')
 
-      w('-mergePolicy %s' % index.mergePolicy)
+      w('-mergePolicy', index.mergePolicy)
 
       if index.doUpdate:
         w('-update')
 
       if index.facets is not None:
         for tup in index.facets:
-          w('-facets')
-          w('"%s"' % ';'.join(tup))
-        w('-facetDVFormat %s' % index.facetDVFormat)
+          w('-facets', ';'.join(tup))
+        w('-facetDVFormat', index.facetDVFormat)
 
-      w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
+      w('-idFieldPostingsFormat', index.idFieldPostingsFormat)
 
       if index.grouping:
         w('-grouping')
@@ -860,10 +859,7 @@ class RunAlgs:
         w('-disableIOThrottle')
 
       if index.indexSort:
-        w('-indexSort')
-        w(index.indexSort)
-
-      cmd = ' '.join(cmd)
+        w('-indexSort', index.indexSort)
 
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
 
@@ -1012,7 +1008,7 @@ class RunAlgs:
         os.chdir(checkoutPath)
         for module in ['core']:
           print('compile lucene:core...')
-          run('%s lucene:core:jar' % constants.GRADLE_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          run([constants.GRADLE_EXE, 'lucene:core:jar'], '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis:common', 'grouping',
                        'codecs', 'facet', 'sandbox',
@@ -1023,7 +1019,7 @@ class RunAlgs:
           lastCompileTime = common.getLatestModTime(classesPath, '.class')
           if common.getLatestModTime('%s/src/java' % modulePath) > lastCompileTime:
             print('compile lucene:%s...' % module)
-            run('%s lucene:%s:compileJava' % (constants.GRADLE_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
+            run([constants.GRADLE_EXE, 'lucene:%s:compileJava' % module], '%s/compile.log' % constants.LOGS_DIR)
 
       print('  %s' % path)
       os.chdir(path)
@@ -1047,7 +1043,7 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)
           os.chdir(modulePath)
           print('  %s...' % modulePath)
-          run('%s jar' % constants.GRADLE_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          run([constants.GRADLE_EXE, 'jar'], '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
@@ -1057,7 +1053,7 @@ class RunAlgs:
           if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
             print('  %s...' % modulePath)
             os.chdir(modulePath)
-            run('%s compileJava' % constants.GRADLE_EXE, '%s/compile.log' % constants.LOGS_DIR)
+            run([constants.GRADLE_EXE, 'compileJava'], '%s/compile.log' % constants.LOGS_DIR)
 
       print('  %s' % path)
       os.chdir(path)
@@ -1080,13 +1076,13 @@ class RunAlgs:
       # flush OS buffer cache
       print('Drop buffer caches...')
       if osName == 'linux':
-        run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
+        run(["sudo", "%s/dropCaches.sh" % constants.BENCH_BASE_DIR])
       elif osName in ('windows', 'cygwin'):
         # NOTE: requires you have admin priv
-        run('%s/dropCaches.bat' % constants.BENCH_BASE_DIR)
+        run(['%s/dropCaches.bat' % constants.BENCH_BASE_DIR])
       elif osName == 'osx':
         # NOTE: requires you install OSX CHUD developer package
-        run('/usr/bin/purge')
+        run(['/usr/bin/purge'])
       else:
         raise RuntimeError('do not know how to purge buffer cache on this OS (%s)' % osName)
 
@@ -1107,58 +1103,41 @@ class RunAlgs:
       doConcurrentSegmentReads = ''
 
     command = []
-    command.extend(c.javaCommand.split())
-    command.append('-classpath')
-    command.append(cp)
-    command.append('perf.SearchPerfTest')
-    command.append('-dirImpl')
-    command.append(c.directory)
-    command.append('-indexPath')
-    command.append(nameToIndexPath(c.index.getName()))
+    command += c.javaCommand.split()
+    w = lambda *xs : [command.append(str(x)) for x in xs]
+    w('-classpath', cp)
+    w('perf.SearchPerfTest')
+    w('-dirImpl', c.directory)
+    w('-indexPath', nameToIndexPath(c.index.getName()))
     if c.index.facets is not None:
       for tup in c.index.facets:
-        command.append('-facets')
-        command.append(';'.join(tup))
+        w('-facets', ';'.join(tup))
 
-    command.append('-analyzer')
-    command.append(c.analyzer)
-    command.append('-taskSource')
-    command.append(c.tasksFile)
-    command.append('-searchThreadCount')
-    command.append(str(c.numThreads))
-    command.append('-taskRepeatCount')
-    command.append(str(c.competition.taskRepeatCount))
-    command.append('-field')
-    command.append('body')
-    command.append('-tasksPerCat')
-    command.append(str(c.competition.taskCountPerCat))
+    w('-analyzer', c.analyzer)
+    w('-taskSource', c.tasksFile)
+    w('-searchThreadCount', c.numThreads)
+    w('-taskRepeatCount', c.competition.taskRepeatCount)
+    w('-field', 'body')
+    w('-tasksPerCat', c.competition.taskCountPerCat)
     if c.doSort:
-      command.append('-sort')
+      w('-sort')
     if c.concurrentSearches:
-      command.append('-concurrentSearches')
-    command.append('-staticSeed')
-    command.append(str(staticSeed))
-    command.append('-seed')
-    command.append(str(seed))
-    command.append('-similarity')
-    command.append(c.similarity)
-    command.append('-commit')
-    command.append(c.commitPoint)
-    command.append('-hiliteImpl')
-    command.append(c.hiliteImpl)
-    command.append('-log')
-    command.append(logFile)
-    command.append('-topN')
-    command.append('10')
+      w('-concurrentSearches')
+    w('-staticSeed', staticSeed)
+    w('-seed', seed)
+    w('-similarity', c.similarity)
+    w('-commit', c.commitPoint)
+    w('-hiliteImpl', c.hiliteImpl)
+    w('-log', logFile)
+    w('-topN', '10')
     if filter is not None:
-      command.append('-filter')
-      command.append('%.2f' % filter)
+      w('-filter', '%.2f' % filter)
     if c.printHeap:
-      command.append('-printHeap')
+      w('-printHeap')
     if c.pk:
-      command.append('-pk')
+      w('-pk')
     if c.loadStoredFields:
-      command.append('-loadStoredFields')
+      w('-loadStoredFields')
 
     if False:
       command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
@@ -1203,7 +1182,7 @@ class RunAlgs:
         f.flush()
       f.close()
       p.wait()
-      run('sudo kill -INT %s' % p2.pid)
+      run(['sudo', 'kill', '-INT', p2.pid])
       #os.kill(p2.pid, signal.SIGINT)
       stdout, stderr = p2.communicate()
       print('PERF: %s' % fixupPerfOutput(stderr))

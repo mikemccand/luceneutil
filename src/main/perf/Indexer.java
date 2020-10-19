@@ -36,7 +36,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene87.Lucene87Codec;
+import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -384,7 +384,7 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Codec codec = new Lucene87Codec() {
+    final Codec codec = new Lucene90Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?

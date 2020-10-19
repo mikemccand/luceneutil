@@ -1349,15 +1349,16 @@ class RunAlgs:
         # Student's T-Test is often used for distributions with the same underlying variance and number of samples, but
         # with large number of samples, Student's T distribution approaches a normal distribution
 
-        # the "combined" std.dev. is the square root the geometric mean of the two variances
-        qpsStdDev = math.sqrt(qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp)
+        # the "combined" std.dev. is the square root of the average of the two variances.
+        # the factor of 2 here cancels out with one below, but is left in for clarity of nomenclature
+        qpsStdDev = math.sqrt((qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp) / 2)
 
         # t-value is the difference of the means normalized by the combined std.dev.
-        tValue = abs(qpsCmp - qpsBase) / math.sqrt(qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp / len(baseQPS))
+        tValue = abs(qpsCmp - qpsBase) / (qpsStdDev * math.sqrt(2 / len(baseQPS)))
 
         # then we have tValue = exp(-x/(2 . stddev^2)) and
         # pValue = 1 - 2 * Integral(exp(-x/(2 . stddev^2)) [0 to tValue]) as the probability of the null hypothesis (that the
-        # two means are drawn from the same distribution).
+        # two means are drawn from the same distribution, using a "two-tailed" test).
         # We have no closed form solution for the Gaussian integral, but python has erf() which is its residual
         pValue = 1 - math.erf(tValue / math.sqrt(2))
         # We pick an arbitrary  but typical confidence interval for "significance":

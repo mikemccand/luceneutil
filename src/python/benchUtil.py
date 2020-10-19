@@ -74,21 +74,37 @@ def addFiles(root):
 
 def htmlColor(v):
   if v < 0:
-    return '<font color="red">%d%%</font>' % (-v)
+    return colorFormat(-v, 'html', 'red')
   else:
-    return '<font color="green">%d%%</font>' % v
+    return colorFormat(v, 'html', 'green')
 
 def htmlColor2(v):
+  vstr = '%.1f X' % v
   if v < 1.0:
-    return '<font color="red">%.1f X</font>' % v
+    return colorFormat(vstr, 'html', 'red')
   else:
-    return '<font color="green">%.1f X</font>' % v
+    return colorFormat(vstr, 'html', 'green')
 
 def jiraColor(v):
   if v < 0:
-    return '{color:red}%d%%{color}' % (-v)
+    return colorFormat(-v, 'jira', 'red')
   else:
-    return '{color:green}%d%%{color}' % v
+    return colorFormat(v, 'jira', 'green')
+
+def pValueColor(v, form):
+  vstr = '%.3f' % v
+  if v <= 0.05:
+    return colorFormat(vstr, form, 'green')
+  else:
+    return colorFormat(vstr, form, 'red')
+
+def colorFormat(value, form, color):
+  if form == 'html':
+    return '<font color="{}">{}</font>'.format(color, value)
+  elif form == 'jira':
+    return '{{color:{}}}{}{{color}}'.format(color, value)
+  else:
+    raise RuntimeException("unknown format {}".format(form))
 
 def getArg(argName, default, hasArg=True):
   try:
@@ -1400,9 +1416,9 @@ class RunAlgs:
         w('%16s' % ('%7.1f%% (%4d%% - %4d%%)' % (psAvg, psWorst, psBest)))
 
       if jira:
-        w('|%s' % (jiraColor(pValue)))
+        w('|%s' % pValueColor(pValue, 'jira'))
       elif html:
-        w('<td>%s</td>' % htmlColor2(pValue))
+        w('<td>%s</td>' % pValueColor(pValue, 'html'))
       else:
         w('%6.3f' % pValue)
 

@@ -1145,15 +1145,16 @@ class RunAlgs:
           nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
           c.numThreads, c.competition.taskRepeatCount,
           c.competition.taskCountPerCat, doSort, doConcurrentSegmentReads, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
-      command += ' -topN 10'
+      command += '-topN'
+      command += '10'
       if filter is not None:
-        command += ' %s %.2f' % filter
+        command += '%s %.2f' % filter
       if c.printHeap:
-        command += ' -printHeap'
+        command += '-printHeap'
       if c.pk:
-        command += ' -pk'
+        command += '-pk'
       if c.loadStoredFields:
-        command += ' -loadStoredFields'
+        command += '-loadStoredFields'
 
     print('      log: %s + stdout' % logFile)
     t0 = time.time()
@@ -1326,10 +1327,27 @@ class RunAlgs:
       qpsCmp = avgQPSCmp
 
       # print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
-      # TODO: need a real significance test here
       if qpsStdDevBase != 0 or qpsStdDevCmp != 0:
-        significant = (abs(qpsBase-qpsCmp) / (2*qpsStdDevBase+2*qpsStdDevCmp)) > 0.30
+        assert len(baseQPS) == len(cmpQPS)
+
+        # Student's T-Test is often used for distributions with the same underlying variance and number of samples, but
+        # with large number of samples, Student's T distribution approaches a normal distribution
+
+        # the "combined" std.dev. is the square root the geometric mean of the two variances
+        qpsStdDev = math.sqrt(qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp)
+
+        # t-value is the difference of the means normalized by the combined std.dev.
+        tValue = abs(qpsCmp - qpsBase) / math.sqrt(qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp / len(baseQPS))
+
+        # then we have tValue = exp(-x/(2 . stddev^2)) and
+        # pValue = 1 - 2 * Integral(exp(-x/(2 . stddev^2)) [0 to tValue]) as the probability of the null hypothesis (that the
+        # two means are drawn from the same distribution).
+        # We have no closed form solution for the Gaussian integral, but python has erf() which is its residual
+        pValue = 1 - math.erf(tValue / math.sqrt(2))
+        # We pick an arbitrary  but typical confidence interval for "significance":
+        significant = pValue <= 0.05
       else:
+        pValue = 1.0
         significant = False
 
       if self.verifyCounts and baseTotHitCount != cmpTotHitCount:
@@ -1382,16 +1400,25 @@ class RunAlgs:
         w('%16s' % ('%7.1f%% (%4d%% - %4d%%)' % (psAvg, psWorst, psBest)))
 
       if jira:
+        w('|%s' % (jiraColor(pValue)))
+      elif html:
+        w('<td>%s</td>' % htmlColor2(pValue))
+      else:
+        w('%6.3f' % pValue)
+
+      if jira:
         w('|\n')
       else:
         w('\n')
 
-      if constants.SORT_REPORT_BY == 'pctchange':
+      if constants.SORT_REPORT_BY == 'p-value':
+        sortBy = pValue
+      elif constants.SORT_REPORT_BY == 'pctchange':
         sortBy = psAvg
       elif constants.SORT_REPORT_BY == 'query':
         sortBy = desc
       else:
-        raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
+        raise RuntimeError('invalid result sort %s' % constants.SORT_REPORT_BY)
 
       lines.append((sortBy, ''.join(l0)))
       if True or significant:
@@ -1401,6 +1428,7 @@ class RunAlgs:
                           qpsBase+qpsStdDevBase,
                           qpsCmp-qpsStdDevCmp,
                           qpsCmp+qpsStdDevCmp,
+                          pValue,
                           ))
 
     lines.sort()
@@ -1433,7 +1461,7 @@ class RunAlgs:
          currentBaseMetrics['p999'], currentCmpMetrics['p999'], pctP999, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100)))
 
     if jira:
-      w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %
+      w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||p-value||' %
         (baseDesc, baseDesc, cmpDesc, cmpDesc))
     elif html:
       w('<table>')
@@ -1444,6 +1472,7 @@ class RunAlgs:
       w('<th>QPS %s</th>' % cmpDesc)
       w('<th>StdDev %s</th>' % cmpDesc)
       w('<th>% change</th>')
+      w('<th>p-value</th>')
       w('</tr>')
     else:
       w('%24s' % 'Task')
@@ -1452,6 +1481,7 @@ class RunAlgs:
       w('%12s' % ('QPS %s' % cmpDesc))
       w('%12s' % 'StdDev')
       w('%24s' % 'Pct diff')
+      w('%8s' % 'p-value')
 
     if jira:
       w('||\n')

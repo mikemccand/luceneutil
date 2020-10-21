@@ -31,7 +31,7 @@ if 'BENCH_BASE_DIR' not in globals():
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
-# Word vectors downloaded from http://nlp.stanford.edu/data/glove.6B.zip
+# Word vectors downloaded from http://nlp.stanford.edu/data/glove.6B.zip (823MB download; 2.1GB unzipped)
 # Licensed under Public Domain (http://www.opendatacommons.org/licenses/pddl/1.0/);
 # see https://nlp.stanford.edu/projects/glove/
 # Thanks to Jeffrey Pennington, Richard Socher, and Christopher D. Manning.

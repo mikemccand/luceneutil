@@ -1163,7 +1163,7 @@ class RunAlgs:
     if c.loadStoredFields:
       w('-loadStoredFields')
     if c.vectorField:
-      w('-vectorField', c.vectorField)
+      w('-vectorField')
 
     if False:
       command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
@@ -1183,7 +1183,6 @@ class RunAlgs:
         command += '-loadStoredFields'
       if c.vectorField:
         command += '-vectorField'
-        command += c.vectorField
 
     print('      log: %s + stdout' % logFile)
     t0 = time.time()

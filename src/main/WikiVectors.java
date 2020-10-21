@@ -35,7 +35,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Precompute per-document semantic vectors as the sum (average) of their word vectors.
+ * Precompute per-document semantic vectors as the sum (average) of their word vectors.  This tool
+ * is used to generate document vectors from wiki line documents and a downloaded word embedding
+ * dictionary, as a precursor for indexing vectors in benchmark runs. It's provided for "offline"
+ * (manual) use, and doesn't factor into benchmark execution.
  */
 public class WikiVectors {
 
@@ -145,7 +148,9 @@ public class WikiVectors {
             }
         }
         tokenCount += count;
-        vectorDiv(dvec, count);
+        if (count > 0) {
+          vectorDiv(dvec, count);
+        }
         return dvec;
     }
 

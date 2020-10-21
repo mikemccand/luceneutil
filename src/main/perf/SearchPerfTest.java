@@ -264,7 +264,7 @@ public class SearchPerfTest {
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
     final String vectorField;
     if (args.hasArg("-vectorField")) {
-      vectorField = args.getString("-vectorField");
+      vectorField = "vector";
     } else {
       vectorField = null;
     }

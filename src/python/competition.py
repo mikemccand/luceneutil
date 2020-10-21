@@ -218,7 +218,7 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               vectorField = None,
+               vectorField = False,
                loadStoredFields = False,
                concurrentSearches = False,
                javacCommand = constants.JAVAC_EXE):

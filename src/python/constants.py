@@ -102,8 +102,7 @@ TESTS_LINE_FILE = '/lucene/clean2.svn/lucene/test-framework/src/resources/org/ap
 TESTS_LINE_FILE = '/lucenedata/from_hudson/hudson.enwiki.random.lines.txt'
 #TESTS_LINE_FILE = None
 
-ANT_EXE = 'ant'
-GRADLEW_EXE = './gradlew'
+GRADLE_EXE = './gradlew'
 
 # Set to True to run Linux's "perf stat" tool, but sudo must work w/o a password!
 DO_PERF = False

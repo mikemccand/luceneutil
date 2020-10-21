@@ -508,6 +508,11 @@ KNOWN_CHANGES = [
   ('2020-01-24',
    'LUCENE-4702: compress suffix bytes in terms dictionary',
    'LUCENE-4702: compress suffix bytes in terms dictionary'),
+
+    ('2020-09-09',
+     'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting',
+     'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting'),
+
 ]
 
 # TODO
@@ -543,7 +548,7 @@ NRT_REOPENS_PER_SEC = 1
 JVM_COUNT = 20
 
 if DEBUG:
-  NRT_RUN_TIME /= 90
+  NRT_RUN_TIME //= 90
   JVM_COUNT = 3
 
 reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
@@ -752,7 +757,7 @@ def run():
   else:
     print('transparent_hugepages: %s' % s)
 
-  runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
+  runCommand('%s clean > clean.log 2>&1' % constants.GRADLE_EXE)
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
 

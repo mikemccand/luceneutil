@@ -76,14 +76,12 @@ if nightly:
 else:
   resultsFileName = 'geo.results.pk'
   
-# nocommit should we "ant jar"?
-
 if nightly:
   sources = '/l/util.nightly/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util.nightly/src/main/perf/RandomQuery.java'
 else:
   sources = '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java'
 
-if os.system('javac -cp build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java %s' % sources):
+if os.system('javac -cp test-framework/build/classes/java/main:codecs/build/classes/java/main:core/build/classes/java/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main %s' % sources):
   raise RuntimeError('compile failed')
 
 results = {}
@@ -160,8 +158,11 @@ with open(logFileName, 'w') as log:
         utilSrcDir = '/l/util.nightly/src/main'
       else:
         utilSrcDir = '/l/util/src/main'
+
+      cmd = 'java -XX:+UseParallelGC -Xmx10g -cp %s:test-framework/build/classes/java/main:codecs/build/classes/java/main:codecs/build/resources/main:core/build/classes/java/main:core/build/resources/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra)
+      print('RUN: %s' % cmd)
         
-      p = subprocess.Popen('java -XX:+UseParallelGC -Xmx10g -cp %s:build/test-framework/classes/java:build/codecs/classes/java:build/core/classes/java:build/sandbox/classes/java:build/spatial/classes/java:build/spatial3d/classes/java perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
       totHits = None
       indexSizeGB = None

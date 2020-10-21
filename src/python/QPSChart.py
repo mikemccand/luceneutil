@@ -99,9 +99,9 @@ class QPSChart:
       # draw horizontal bar on the avg
       y = self.qpsToY(avgBase)
       if 0:
-        print 'idx %s' % idx
-        print '  x %s-%s' % (x, x+BAR_WIDTH)
-        print '  y %s' % y
+        print('idx %s' % idx)
+        print('  x %s-%s' % (x, x+BAR_WIDTH))
+        print('  y %s' % y)
       d.rectangle((x,
                    y-1,
                    x + BAR_WIDTH,
@@ -118,9 +118,9 @@ class QPSChart:
       d.line((x+BAR_WIDTH/2-4, y1, x+BAR_WIDTH/2+4, y1), fill='black')
 
       if 0:
-        print '  x %s-%s' % (x, x+BAR_WIDTH)
-        print '  y %s' % y
-        print '  avg %s' % avgCmp
+        print('  x %s-%s' % (x, x+BAR_WIDTH))
+        print('  y %s' % y)
+        print('  avg %s' % avgCmp)
       # TODO: black, if it's "close"?
       if avgCmp < avgBase:
         color = 'red'

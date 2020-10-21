@@ -72,3 +72,49 @@ in `localrun.py`, and use that index in your benchmarks.
 # Running the geo benchmark
 
 This one is different and self-contained. Read the command-line examples at the top of src/main/perf/IndexAndSearchOpenStreetMaps.java
+
+# Creating line doc file from an arbitrary Wikimedia dump data
+
+You can create your own line doc file from an arbitrary Wikimedia dump by following steps.  Note that the `src/python/createJapaneseWikipediaLineDocsFile.py` helper tool does these steps:
+
+1. Download Wikimedia dump (XML) from https://dumps.wikimedia.org/ and decompress it on `$YOUR_DATA_DIR`.
+
+    e.g.:
+    ```
+    bunzip2 -d /data/jawiki/jawiki-20200620-pages-articles-multistream.xml.bz2
+    ```
+
+2. Run `src/python/wikiXMLToText.py` to extract attributes such as title and timestamp from the XML dump.
+
+    e.g.:
+    ```
+    python src/python/wikiXMLToText.py /data/jawiki/jawiki-20200620-pages-articles-multistream.xml /data/jawiki/jawiki-20200620-text.txt
+    ```
+
+3. Run `src/python/WikipediaExtractor.py` to extract cleaned body text from the XML dump. This may take long time!
+
+    e.g.:
+    ```
+    cat /data/jawiki/jawiki-20200620-pages-articles-multistream.xml | python -u src/python/WikipediaExtractor.py -b102400m -o /data/jawiki
+    ```
+
+4a. Combine the outputs of 2. and 3. by running `src/python/combineWikiFiles.py`.
+
+    e.g.:
+    ```
+    python src/python/combineWikiFiles.py /data/jawiki/jawiki-20200620-text.txt /data/jawiki/AA/wiki_00 /data/jawiki/jawiki-20200620-lines.txt
+    ```
+
+4b. (Optional) If you want to strip all but the last three columns from the combined file, pass the `-only-three-columns` to combineWikiFiles.py:
+
+    e.g.:
+    ```
+    python src/python/combineWikiFiles.py /data/jawiki/jawiki-20200620-text.txt /data/jawiki/AA/wiki_00 /data/jawiki/jawiki-20200620-lines.txt -only-three-columns
+    ```
+
+    Alternatively, use the Unix `cut` tool:
+
+    ```
+    # extract titie, timestamp and body text
+    cat /data/jawiki/jawiki-20200620-lines.txt | cut -f1,2,3
+    ```

@@ -74,7 +74,7 @@ def sourceData(key=None):
       key = sys.argv[1+sys.argv.index('-source')]
   if key in DATA:
     return DATA[key]
-  raise RuntimeError('unknown data source (valid keys: %s)' % DATA.keys())
+  raise RuntimeError('unknown data source "%s" (valid keys: %s)' % (key, DATA.keys()))
 
 class Index(object):
 
@@ -122,7 +122,7 @@ class Index(object):
     self.numDocs = dataSource.numDocs
     self.extraNamePart = extraNamePart
     if ramBufferMB == -1:
-      self.maxBufferedDocs = self.numDocs/ (SEGS_PER_LEVEL*111)
+      self.maxBufferedDocs = self.numDocs // (SEGS_PER_LEVEL*111)
     else:
       self.maxBufferedDocs = -1
     self.mergePolicy = mergePolicy
@@ -276,10 +276,12 @@ class Competitor(object):
 
     print('files %s' % files)
     
-    benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))
+    cmd = [self.javacCommand, '-d', buildDir, '-classpath', cp]
+    cmd += files
+    benchUtil.run(cmd, os.path.join(constants.LOGS_DIR, 'compile.log'))
     # copy resources/META-INF
     if os.path.exists(os.path.join(perfSrc, 'resources/*')):
-      benchUtil.run('cp -r %s %s' % (os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/")))
+      benchUtil.run('cp', '-r', os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/"))
 
 class Competition(object):
 

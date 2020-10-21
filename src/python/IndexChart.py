@@ -16,7 +16,7 @@
 try:
   import Gnuplot
 except ImportError:
-  print 'WARNING: Gnuplot module not present; will not make charts'
+  print('WARNING: Gnuplot module not present; will not make charts')
   Gnuplot = None
 
 class IndexChart(object):
@@ -105,7 +105,7 @@ class IndexChart(object):
     x = [sec for _, sec in docs_per_second] 
     y = [docs for docs, sec in docs_per_second]
     if not x:
-      print "not enough data collected for indexing stats - skipping"
+      print("not enough data collected for indexing stats - skipping")
       return
     kw = {'title':'ingest rate', 'with' :'lines'}
     data = Gnuplot.Data(x, y,  **kw)

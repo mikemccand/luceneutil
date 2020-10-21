@@ -19,6 +19,11 @@ import constants
 
 LUCENE_ROOT = '/l/trunk.analyzers.nightly/lucene'
 LOGS_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers')
+LOGS_JA_ROOT = os.path.join(constants.LOGS_DIR, 'analyzers_ja')
+
+for path in (LOGS_ROOT, LOGS_JA_ROOT):
+  if not os.path.exists(path):
+    os.makedirs(path)
 
 def run(cmd):
   print('RUN: %s' % cmd)
@@ -37,9 +42,10 @@ print('\n%s' % ymd)
 run('git clean -xfd')
 run('git pull origin master')
 print('Compile...')
-run('ant clean compile > compile.log 2>&1')
+run('../gradlew clean compileJava > compile.log 2>&1')
 
 logFile = '%s/%s.log' % (LOGS_ROOT, ymd)
+logFileJa = '%s/%s.log' % (LOGS_JA_ROOT, ymd)
 
 with open(logFile + '.tmp', 'w') as lf:
   #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
@@ -49,9 +55,22 @@ with open(logFile + '.tmp', 'w') as lf:
   lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
   os.chdir(LUCENE_ROOT)
 
-run('javac -d %s/build -cp build/core/classes/java:build/analysis/common/classes/java %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
+with open(logFileJa + '.tmp', 'w') as lf:
+  #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
+  lf.write('lucene master version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  os.chdir(constants.BENCH_BASE_DIR)
+  lf.write('git version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
+  os.chdir(LUCENE_ROOT)
 
-print('  now run')
-run('java -XX:+UseParallelGC -cp %s/build:build/core/classes/java:build/analysis/common/classes/java perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
+run('javac -d %s/build -cp core/build/classes/java/main:analysis/common/build/classes/java/main:analysis/kuromoji/build/classes/java/main %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
+
+print('  now run en perf')
+run('java -XX:+UseParallelGC -cp %s/build:core/build/classes/java/main:analysis/common/build/classes/java/main:analysis/kuromoji/build/classes/java/main perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))
 os.rename(logFile+'.tmp', logFile)
-print('  done')
+print('  done en ')
+
+print('  now run ja')
+run('java -XX:+UseParallelGC -cp %s/build:core/build/classes/java/main:analysis/common/build/classes/java/main:analysis/kuromoji/build/classes/java/main:analysis/kuromoji/src/resources perf.TestAnalyzerPerf /l/data/jawiki-20200620-lines.txt ja >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFileJa))
+os.rename(logFileJa+'.tmp', logFileJa)
+print('  done ja')

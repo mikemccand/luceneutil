@@ -12,7 +12,6 @@ import random
 
 # Removes lines like [[wa:Finlande]]
 #reOtherLangs = re.compile(r'^\[\[.*?:.*?\]\]$', re.MULTILINE)
-utf8Encoder = codecs.getencoder('UTF8')
 
 reCategory = re.compile(r'\[\[Category:(.*?)\]\]')
 reFile = re.compile(r'\[\[File:(.*?)\]\]')
@@ -20,9 +19,6 @@ reSection = re.compile('^==([^=]*?)==$', re.MULTILINE)
 reSubSection = re.compile('^===([^=]*?)===$', re.MULTILINE)
 reSubSubSection = re.compile('^====([^=]*?)====$', re.MULTILINE)
 reRef = re.compile('<ref>.*?</ref>')
-
-def toUTF8(s):
-  return utf8Encoder(s)[0]
 
 def extractAttrs(text, attrs):
   attrs['characterCount'] = str(len(text))
@@ -39,8 +35,8 @@ class AllText:
     self.allText = []
 
   def start(self, name):
-    print
-    print 'TEXT: %s' % name
+    print('')
+    print('TEXT: %s' % name)
     self.text = []
     self.name = name
     self.len = 0
@@ -54,7 +50,7 @@ class AllText:
     self.allText[-1][1].append(text)
     t = time.time()
     if t - self.lastPrintTime > 5.0:
-      print '  %.1f MB...' % (self.len/1024./1024.)
+      print('  %.1f MB...' % (self.len/1024./1024.))
       self.lastPrintTime = t
 
   def finish(self, mb):
@@ -88,9 +84,8 @@ def convert(fIn, fOut):
   context = iter(context)
 
   # get the root element
-  event, root = context.next()
+  event, root = context.__next__()
 
-  attrs = {}
   isRedirect = False
   count = 0
 
@@ -107,6 +102,8 @@ def convert(fIn, fOut):
     'subSubSectionCount',
     'refCount')
 
+  attrs = newAttrs(*('timestamp', 'text', 'title', 'username'))
+
   fOut.write('FIELDS_HEADER_INDICATOR###	%s\n' % ('\t'.join(ATTS)))
   
   for evt, elem in context:
@@ -122,18 +119,18 @@ def convert(fIn, fOut):
         fOut.write('\t'.join(atts))
         fOut.write('\n')
         if False:
-          print '%s' % attrs['title']
-          print '  username: %s' % attrs['username']
-          print '  cats: %s' % attrs['categories']
-          print '  charCount: %s' % attrs['characterCount']
-          print '  imageCount: %s' % attrs['imageCount']
-          print '  sections: %s' % attrs['sectionCount']
-          print '  refs: %s' % attrs['refCount']
+          print('%s' % attrs['title'])
+          print('  username: %s' % attrs['username'])
+          print('  cats: %s' % attrs['categories'])
+          print('  charCount: %s' % attrs['characterCount'])
+          print('  imageCount: %s' % attrs['imageCount'])
+          print('  sections: %s' % attrs['sectionCount'])
+          print('  refs: %s' % attrs['refCount'])
         count += 1
         if count % 100000 == 0:
-          print '%d...' % count
+          print('%d...' % count)
         
-      attrs = {}
+      attrs = newAttrs(*('timestamp', 'text', 'title', 'username'))
       isRedirect = False
 
     if tag in ('timestamp', 'text', 'title', 'username'):
@@ -152,10 +149,13 @@ def convert(fIn, fOut):
     # Else massive memory leak:
     root.clear()
 
-  print '%d articles extracted' % count
+  print('%d articles extracted' % count)
 
 def get(attrs, *names):
-  return [toUTF8(attrs[x]) for x in names]
+  return [attrs[x] for x in names]
+
+def newAttrs(*names):
+  return dict((att, '') for att in names)
 
 if __name__ == '__main__':
   f = open(sys.argv[1], 'rb')

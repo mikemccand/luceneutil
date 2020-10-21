@@ -103,8 +103,8 @@ def main():
     else:
       raise RuntimeError('svn update failed')
 
-  runCommand('%s clean > clean.log 2>&1' % constants.ANT_EXE)
-  runCommand('%s compile > compile.log 2>&1' % constants.ANT_EXE)
+  runCommand('%s clean > clean.log 2>&1' % constants.GRADLE_EXE)
+  runCommand('%s compile > compile.log 2>&1' % constants.GRADLE_EXE)
 
   MEDIUM_LINE_FILE = constants.NIGHTLY_MEDIUM_LINE_FILE
   MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS

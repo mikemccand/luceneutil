@@ -91,7 +91,6 @@ class TaskParser {
 
     List<String> facets;
     String text;
-    int minShouldMatch;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
     String group;
@@ -127,7 +126,6 @@ class TaskParser {
     Task buildQueryTask(String input) throws ParseException {
       text = input;
       Query filter = parseFilter();
-      parseMinShouldMatch();
       facets = parseFacets();
       List<String> drillDowns = parseDrillDowns();
       doStoredLoadsTask = TaskParser.this.doStoredLoads;
@@ -135,10 +133,10 @@ class TaskParser {
       String[] taskAndType = parseTaskType(text);
       String taskType = taskAndType[0];
       text = taskAndType[1];
-      Query query = buildQuery(taskType, text);
+      Query query = buildQuery(taskType, text, parseMinShouldMatch());
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
-      return new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoads, facets, doDrillSideways);
+      return new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoadsTask, facets, doDrillSideways);
     }
 
     String[] parseTaskType(String line) {
@@ -202,14 +200,15 @@ class TaskParser {
       return null;
     }
 
-    void parseMinShouldMatch() {
+    int parseMinShouldMatch() {
       final Matcher m2 = minShouldMatchPattern.matcher(text);
-      final int minShouldMatch;
+      int minShouldMatch = 0;
       if (m2.find()) {
         minShouldMatch = Integer.parseInt(m2.group(1));
         // Splice out the minShouldMatch string:
         text = (text.substring(0, m2.start(0)) + text.substring(m2.end(0), text.length())).trim();
       }
+      return minShouldMatch;
     }
 
     List<String> parseFacets() {
@@ -281,7 +280,7 @@ class TaskParser {
       }
     }
 
-    Query buildQuery(String type, String text) throws ParseException {
+    Query buildQuery(String type, String text, int minShouldMatch) throws ParseException {
       Query query;
       switch(type) {
         case "ordered":

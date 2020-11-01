@@ -107,7 +107,9 @@ class Index(object):
                maxConcurrentMerges = 1,  # use 1 for spinning-magnets and 3 for fast SSD
                addDVFields = False,
                name = None,
-               indexSort = None
+               indexSort = None,
+               vectorFile = None,
+               vectorDimension = None
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -146,6 +148,8 @@ class Index(object):
     self.facetDVFormat = facetDVFormat
     self.assignedName = name
     self.indexSort = indexSort
+    self.vectorFile = vectorFile
+    self.vectorDimension = vectorDimension
     
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
@@ -193,6 +197,9 @@ class Index(object):
     if self.indexSort:
       name.append('sort=%s' % self.indexSort)
       
+    if self.vectorFile:
+      name.append('vectors=%d' % self.vectorDimension)
+
     name.append('nd%gM' % (self.numDocs/1000000.0))
     return '.'.join(name)
 
@@ -211,6 +218,7 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
+               vectorField = False,
                loadStoredFields = False,
                concurrentSearches = False,
                javacCommand = constants.JAVAC_EXE):
@@ -232,6 +240,7 @@ class Competitor(object):
     self.hiliteImpl = hiliteImpl
     self.pk = pk
     self.loadStoredFields = loadStoredFields
+    self.vectorField = vectorField
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
 

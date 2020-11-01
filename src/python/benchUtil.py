@@ -822,6 +822,10 @@ class RunAlgs:
       if index.useCMS:
         w('-useCMS')
 
+      if index.vectorFile:
+        w('-vectorFile', index.vectorFile)
+        w('-vectorDimension', index.vectorDimension)
+
       if index.optimize:
         w('-forceMerge')
 
@@ -852,6 +856,9 @@ class RunAlgs:
         w('-facetDVFormat', index.facetDVFormat)
 
       w('-idFieldPostingsFormat', index.idFieldPostingsFormat)
+
+      w('-idFieldPostingsFormat')
+      w(index.idFieldPostingsFormat)
 
       if index.grouping:
         w('-grouping')
@@ -1120,6 +1127,7 @@ class RunAlgs:
 
     command = []
     command += c.javaCommand.split()
+
     w = lambda *xs : [command.append(str(x)) for x in xs]
     w('-classpath', cp)
     w('perf.SearchPerfTest')
@@ -1154,6 +1162,8 @@ class RunAlgs:
       w('-pk')
     if c.loadStoredFields:
       w('-loadStoredFields')
+    if c.vectorField:
+      w('-vectorField')
 
     if False:
       command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
@@ -1171,6 +1181,8 @@ class RunAlgs:
         command += '-pk'
       if c.loadStoredFields:
         command += '-loadStoredFields'
+      if c.vectorField:
+        command += '-vectorField'
 
     print('      log: %s + stdout' % logFile)
     t0 = time.time()

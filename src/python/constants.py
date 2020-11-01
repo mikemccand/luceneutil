@@ -31,6 +31,12 @@ if 'BENCH_BASE_DIR' not in globals():
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
+# Word vectors downloaded from http://nlp.stanford.edu/data/glove.6B.zip (823MB download; 2.1GB unzipped)
+# Licensed under Public Domain (http://www.opendatacommons.org/licenses/pddl/1.0/);
+# see https://nlp.stanford.edu/projects/glove/
+# Thanks to Jeffrey Pennington, Richard Socher, and Christopher D. Manning.
+GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
+
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
 #WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
@@ -84,6 +90,7 @@ SEARCH_NUM_THREADS = 2
 REPRO_COMMAND_START = 'python -u %s/repeatLuceneTest.py -once -verbose -nolog' % BENCH_BASE_DIR
 REPRO_COMMAND_END = ''
 
+#SORT_REPORT_BY = 'p-value'
 SORT_REPORT_BY = 'pctchange'
 #SORT_REPORT_BY = 'query'
 

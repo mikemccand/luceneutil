@@ -55,6 +55,7 @@ class TaskParser {
   private final Sort lastModNDVSort;
   private final int topN;
   private final Random random;
+  private final String vectorField;
   private final boolean doStoredLoads;
   private final IndexState state;
 
@@ -63,11 +64,13 @@ class TaskParser {
                     String fieldName,
                     int topN,
                     Random random,
+                    String vectorField,
                     boolean doStoredLoads) {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.topN = topN;
     this.random = random;
+    this.vectorField = vectorField;
     this.doStoredLoads = doStoredLoads;
     this.state = state;
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
@@ -387,7 +390,7 @@ class TaskParser {
         }
       */
 
-      task = new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoads, facets, doDrillSideways);
+      task = new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoads, facets, vectorField, doDrillSideways);
     }
 
     return task;

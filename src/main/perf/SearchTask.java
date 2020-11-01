@@ -27,6 +27,10 @@ import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.ReaderUtil;
+import org.apache.lucene.index.VectorValues;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
@@ -83,10 +87,11 @@ final class SearchTask extends Task {
   private double hiliteMsec;
   private double getFacetResultsMsec;
   private List<String> facetRequests;
+  private String vectorField;
 
   public SearchTask(String category, Query q, Sort s, String group, int topN,
                     boolean doHilite, boolean doStoredLoads, List<String> facetRequests,
-                    boolean doDrillSideways) {
+                    String vectorField, boolean doDrillSideways) {
     this.category = category;
     this.q = q;
     this.s = s;
@@ -103,15 +108,16 @@ final class SearchTask extends Task {
     this.doHilite = doHilite;
     this.doStoredLoads = doStoredLoads;
     this.facetRequests = facetRequests;
+    this.vectorField = vectorField;
     this.doDrillSideways = doDrillSideways;
   }
 
   @Override
   public Task clone() {
     if (singlePassGroup) {
-      return new SearchTask(category, q, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
+      return new SearchTask(category, q, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
     } else {
-      return new SearchTask(category, q, s, group, topN, doHilite, doStoredLoads, facetRequests, doDrillSideways);
+      return new SearchTask(category, q, s, group, topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
     }
   }
 
@@ -280,6 +286,28 @@ final class SearchTask extends Task {
           for (int i = 0; i < hits.scoreDocs.length; i++) {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
             searcher.doc(scoreDoc.doc);
+          }
+        }
+        if (vectorField != null) {
+          IndexReader reader = searcher.getIndexReader();
+          List<LeafReaderContext> leaves = reader.leaves();
+          List<VectorValues.RandomAccess> perLeafVectors = new ArrayList<>();
+          for (LeafReaderContext ctx : leaves) {
+            VectorValues vectorValues = ctx.reader().getVectorValues(vectorField);
+            if (vectorValues != null) {
+              perLeafVectors.add(vectorValues.randomAccess());
+            } else {
+              perLeafVectors.add(null);
+            }
+          }
+          for (int i = 0; i < hits.scoreDocs.length; i++) {
+            ScoreDoc scoreDoc = hits.scoreDocs[i];
+            int doc = scoreDoc.doc;
+            int segment = ReaderUtil.subIndex(doc, leaves);
+            VectorValues.RandomAccess vectors = perLeafVectors.get(segment);
+            if (vectors != null) {
+              vectors.vectorValue(doc - leaves.get(segment).docBase);
+            }
           }
         }
 

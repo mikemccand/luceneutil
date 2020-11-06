@@ -38,6 +38,9 @@ import shlex
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
+if PYTHON_MAJOR_VER < 3:
+  raise RuntimeError('Please run with Python 3.x!  Got: %s' % str(sys.version))
+
 # Skip the first N runs of a given category (cold) or particular task (hot):
 WARM_SKIP = 3
 
@@ -225,7 +228,7 @@ class SearchTask:
           groups1 = collapseDups(groups1)
           groups2 = collapseDups(groups2)
 
-          for docIDX in xrange(len(groups1)):
+          for docIDX in range(len(groups1)):
             if groups1[docIDX][1] != groups2[docIDX][1]:
               self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
             if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
@@ -1253,8 +1256,8 @@ class RunAlgs:
         currentCatLatencies = currentRecord[currentKey]
         currentCatLatencies.sort()
 
-        resultLatencyMetrics[currentKey] = ({})
-        currentLatencyMetricsDict = resultLatencyMetrics[currentKey]
+        currentLatencyMetricsDict = {}
+        resultLatencyMetrics[currentKey] = (currentLatencyMetricsDict)
 
         currentP0 = currentCatLatencies[0]
         currentP50 = currentCatLatencies[(len(currentCatLatencies)-1)//2]
@@ -1269,8 +1272,8 @@ class RunAlgs:
         currentLatencyMetricsDict['p99'] = currentP99
         currentLatencyMetricsDict['p999'] = currentP999
         currentLatencyMetricsDict['p100'] = currentP100
-    return resultLatencyMetrics
 
+    return resultLatencyMetrics
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
@@ -1342,10 +1345,7 @@ class RunAlgs:
       resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
 
       if VERBOSE:
-        if type(cat) is types.TupleType:
-          print('cat %s' % cat[0])
-        else:
-          print('cat %s' % cat)
+        print('cat %s' % str(cat))
         print('  baseQPS: %s' % ' '.join('%.1f' % x for x in baseQPS))
         print('    avg %.1f' % avgQPSBase)
         print('  cmpQPS: %s' % ' '.join('%.1f' % x for x in cmpQPS))
@@ -1366,7 +1366,10 @@ class RunAlgs:
         qpsStdDev = math.sqrt((qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp) / 2)
 
         # t-value is the difference of the means normalized by the combined std.dev.
-        tValue = abs(qpsCmp - qpsBase) / (qpsStdDev * math.sqrt(2.0 / len(baseQPS)))
+        if qpsStdDev != 0 and len(baseQPS) != 0:
+          tValue = abs(qpsCmp - qpsBase) / (qpsStdDev * math.sqrt(2.0 / len(baseQPS)))
+        else:
+          tValue = float('inf')
 
         # then we have tValue = exp(-x/(2 . stddev^2)) and
         # pValue = 1 - 2 * Integral(exp(-x/(2 . stddev^2)) [0 to tValue]) as the probability of the null hypothesis (that the

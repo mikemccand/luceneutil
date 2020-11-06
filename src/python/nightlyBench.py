@@ -19,7 +19,7 @@
 #   - where to publish
 #   - outgoing smtp
 
-import cPickle
+import pickle
 import tarfile
 import traceback
 import time
@@ -565,7 +565,7 @@ def toSeconds(td):
   return td.days * 86400 + td.seconds + td.microseconds/1000000.
 
 def message(s):
-  print '[%s] %s' % (now(), s)
+  print('[%s] %s' % (now(), s))
 
 def runCommand(command):
   if REAL:
@@ -589,7 +589,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   #indexTime = (now()-t0)
 
   if REAL:
-    print('Move log to %s/%s' % (runLogDir, logFile))
+    print(('Move log to %s/%s' % (runLogDir, logFile)))
     os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
 
   s = open('%s/%s' % (runLogDir, logFile)).read()
@@ -622,7 +622,7 @@ def checkIndex(r, indexPath, checkLogFileName):
          indexPath + '/index',
          checkLogFileName)
   runCommand(cmd)
-  if open(checkLogFileName, 'rb').read().find('No problems were detected with this index') == -1:
+  if open(checkLogFileName, 'r', encoding='utf-8').read().find('No problems were detected with this index') == -1:
     raise RuntimeError('CheckIndex failed')
 
 reNRTReopenTime = re.compile('^Reopen: +([0-9.]+) msec$', re.MULTILINE)
@@ -648,7 +648,7 @@ def runNRTTest(r, indexPath, runLogDir):
   runCommand(cmd)
 
   times = []
-  for s in reNRTReopenTime.findall(open(logFile, 'rb').read()):
+  for s in reNRTReopenTime.findall(open(logFile, 'r', encoding='utf-8').read()):
     times.append(float(s))
 
   # Discard first 10 (JVM warmup)
@@ -656,7 +656,7 @@ def runNRTTest(r, indexPath, runLogDir):
 
   # Discard worst 2%
   times.sort()
-  numDrop = len(times)/50
+  numDrop = len(times)//50
   if numDrop > 0:
     message('drop: %s' % ' '.join(['%.1f' % x for x in times[-numDrop:]]))
     times = times[:-numDrop]
@@ -677,19 +677,19 @@ def run():
   if DEBUG:
     # Must re-direct all logs so we don't overwrite the "production" run's logs:
     constants.LOGS_DIR = '/l/trunk/lucene/benchmark'
-    MEDIUM_INDEX_NUM_DOCS /= 100
-    BIG_INDEX_NUM_DOCS /= 100
+    MEDIUM_INDEX_NUM_DOCS //= 100
+    BIG_INDEX_NUM_DOCS //= 100
 
   DO_RESET = '-reset' in sys.argv
 
-  print
-  print
-  print
-  print
+  print()
+  print()
+  print()
+  print()
   message('start')
   id = 'nightly'
   if not REAL:
-    start = datetime.datetime(year=2011, month=5, day=19, hour=23, minute=00, second=01)
+    start = datetime.datetime(year=2011, month=5, day=19, hour=23, minute=00, second=0o1)
   else:
     start = now()
   timeStamp = '%04d.%02d.%02d.%02d.%02d.%02d' % (start.year, start.month, start.day, start.hour, start.minute, start.second)
@@ -702,25 +702,27 @@ def run():
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     svnRev = '1102160'
     luceneUtilRev = '2270c7a8b3ac+ tip'
-    print 'SVN rev is %s' % svnRev
-    print 'luceneutil rev is %s' % luceneUtilRev
+    print('SVN rev is %s' % svnRev)
+    print('luceneutil rev is %s' % luceneUtilRev)
   else:
     os.chdir(constants.BENCH_BASE_DIR)
 
+    # nocommit
     iters = 30
-    for i in range(iters):
-      try:
-        runCommand('git checkout master; git pull origin master > %s/gitupdate.log' % runLogDir)
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
+    if False:
+      for i in range(iters):
+        try:
+          runCommand('git checkout master; git pull origin master > %s/gitupdate.log' % runLogDir)
+        except RuntimeError:
+          message('  retry...')
+          time.sleep(60.0)
+        else:
+          s = open('%s/gitupdate.log' % runLogDir).read()
+          if s.find('not updating') != -1:
+            raise RuntimeError('git pull failed: %s' % s)
+          break
       else:
-        s = open('%s/gitupdate.log' % runLogDir).read()
-        if s.find('not updating') != -1:
-          raise RuntimeError('git pull failed: %s' % s)
-        break
-    else:
-      raise RuntimeError('failed to run git pull after %d tries' % iters)
+        raise RuntimeError('failed to run git pull after %d tries' % iters)
 
     os.chdir(constants.BENCH_BASE_DIR)
     luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
@@ -738,24 +740,24 @@ def run():
       else:
         luceneRev = os.popen('git rev-parse HEAD').read().strip()
         #svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-        print 'LUCENE rev is %s' % luceneRev
+        print('LUCENE rev is %s' % luceneRev)
         break
     else:
       raise RuntimeError('failed to run git pull after %d tries' % iters)
 
-    print 'luceneutil rev is %s' % luceneUtilRev
+    print('luceneutil rev is %s' % luceneUtilRev)
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
-    print '%s' % javaVersion
-    print 'uname -a: %s' % os.popen('uname -a 2>&1').read().strip()
-    print 'lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip()
+    print('%s' % javaVersion)
+    print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
+    print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
 
-  print 'Java command-line: %s' % constants.JAVA_COMMAND
+  print('Java command-line: %s' % constants.JAVA_COMMAND)
   try:
     s = open('/sys/kernel/mm/transparent_hugepage/enabled').read()
   except:
     print('Unable to read /sys/kernel/mm/transparent_hugepage/enabled')
   else:
-    print('transparent_hugepages: %s' % s)
+    print(('transparent_hugepages: %s' % s))
 
   runCommand('%s clean > clean.log 2>&1' % constants.GRADLE_EXE)
 
@@ -874,7 +876,7 @@ def run():
     segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.getName()))
     if segCountNow != segCountPrev:
       # raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
-      print 'WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow)
+      print('WARNING: different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
 
   # Search
   rand = random.Random(714)
@@ -890,11 +892,11 @@ def run():
   comp.printHeap = True
   if REAL:
     resultsNow = []
-    for iter in xrange(JVM_COUNT):
+    for iter in range(JVM_COUNT):
       seed = rand.randint(-10000000, 1000000)
       resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
   else:
-    resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in xrange(20)]
+    resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in range(20)]
   message('done search (%s)' % (now()-t0))
   resultsPrev = []
 
@@ -912,7 +914,7 @@ def run():
                                                     False, True,
                                                     'prev', 'now',
                                                     writer=output.append)
-    f = open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'wb')
+    f = open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w')
     timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
     w = f.write
     w('<html>\n')
@@ -933,11 +935,11 @@ def run():
       shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
     searchResults = results
 
-    print '  heaps: %s' % str(searchHeaps)
+    print('  heaps: %s' % str(searchHeaps))
 
     if cmpDiffs is not None:
       warnings, errors = cmpDiffs
-      print 'WARNING: search result differences: %s' % str(warnings)
+      print('WARNING: search result differences: %s' % str(warnings))
       if len(errors) > 0:
         raise RuntimeError('search result differences: %s' % str(errors))
   else:
@@ -979,7 +981,7 @@ def run():
   else:
     resultsFileName = 'results.pk'
 
-  open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(cPickle.dumps(results))
+  open('%s/%s' % (runLogDir, resultsFileName), 'wb').write(pickle.dumps(results))
 
   if REAL:
     if False:
@@ -992,22 +994,21 @@ reTimeIn = re.compile('^\s*Time in (.*?): (\d+) ms')
 def getIndexGCTimes(subDir):
   if not os.path.exists('%s/gcTimes.pk' % subDir):
     times = {}
-    print("check %s" % ('%s/logs.tar.bz2' % subDir))
     if os.path.exists('%s/logs.tar.bz2' % subDir):
       cmd = 'tar xjf %s/logs.tar.bz2 fastIndexMediumDocs.log' % subDir
       if os.system(cmd):
         raise RuntimeError('%s failed (cwd %s)' % (cmd, os.getcwd()))
 
-      with open('fastIndexMediumDocs.log') as f:
+      with open('fastIndexMediumDocs.log', 'r', encoding='utf-8') as f:
         for line in f.readlines():
           m = reTimeIn.search(line)
           if m is not None:
             times[m.group(1)] = float(m.group(2))/1000.
 
-      open('%s/gcTimes.pk' % subDir, 'wb').write(cPickle.dumps(times))
+      open('%s/gcTimes.pk' % subDir, 'wb').write(pickle.dumps(times))
     return times
   else:
-    return cPickle.loads(open('%s/gcTimes.pk' % subDir, 'rb').read())
+    return pickle.loads(open('%s/gcTimes.pk' % subDir, 'rb').read())
 
 reSearchStdoutLog = re.compile(r'nightly\.nightly\.\d+\.stdout')
 
@@ -1016,7 +1017,7 @@ def getSearchGCTimes(subDir):
   #print("check search gc/jit %s" % ('%s/logs.tar.bz2' % subDir))
   pk_file = '%s/search.gcjit.pk' % subDir
   if os.path.exists(pk_file):
-    return cPickle.load(open(pk_file))
+    return pickle.load(open(pk_file, 'rb'))
   
   if os.path.exists('%s/logs.tar.bz2' % subDir):
     with tarfile.open('%s/logs.tar.bz2' % subDir, 'r') as t:
@@ -1030,15 +1031,14 @@ def getSearchGCTimes(subDir):
         f = t.extractfile(info)
         try:
           for line in f.readlines():
-            m = reTimeIn.search(line)
+            m = reTimeIn.search(line.decode('utf-8'))
             if m is not None:
-              print('  GOT MATCH: %s' % line.strip())
               key = m.group(1)
               times[key]= times.get(key, 0.0) + float(m.group(2))/1000.
         finally:
           f.close()
 
-    open(pk_file, 'wb').write(cPickle.dumps(times))
+    open(pk_file, 'wb').write(pickle.dumps(times))
     
   return times
 
@@ -1062,7 +1062,7 @@ def makeGraphs():
 
     if os.path.exists(resultsFile):
 
-      tup = cPickle.loads(open(resultsFile).read())
+      tup = pickle.loads(open(resultsFile, 'rb').read(), encoding='bytes')
       # print 'RESULTS: %s' % resultsFile
 
       timeStamp, \
@@ -1123,7 +1123,12 @@ def makeGraphs():
       nrtChartData.append('%s,%.3f,%.2f' % (timeStampString, mean, stdDev))
       if searchResults is not None:
         days.append(timeStamp)
-        for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in searchResults.items():
+        for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in list(searchResults.items()):
+
+          if isinstance(cat, bytes):
+            # TODO: why does this happen!?
+            cat = str(cat, 'utf-8')
+            
           if cat not in searchChartData:
             searchChartData[cat] = ['Date,QPS']
           if cat == 'PKLookup':
@@ -1169,7 +1174,7 @@ def makeGraphs():
 
   sort(medIndexChartData)
   sort(bigIndexChartData)
-  for k, v in searchChartData.items():
+  for k, v in list(searchChartData.items()):
     sort(v)
 
   # Index time, including GC/JIT times
@@ -1181,14 +1186,14 @@ def makeGraphs():
   # NRT
   writeNRTHTML(nrtChartData)
 
-  for k, v in searchChartData.items()[:]:
+  for k, v in list(searchChartData.items())[:]:
     # Graph does not render right with only one value:
     if len(v) > 1:
       writeOneGraphHTML('Lucene %s queries/sec' % taskRename.get(k, k),
                         '%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, k),
                         getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
     else:
-      print('skip %s: %s' % (k, len(v)))
+      print(('skip %s: %s' % (k, len(v))))
       del searchChartData[k]
 
   writeIndexHTML(searchChartData, days)
@@ -1268,7 +1273,7 @@ def writeCheckIndexTimeHTML():
     chartData.append('%s-%s-%s %s:%s:%s,%s' % (tuple(tup) + (seconds,)))
     #print("added %s" % chartData[-1])
 
-  with open('%s/checkIndexTime.html' % constants.NIGHTLY_REPORTS_DIR, 'wb') as f:
+  with open('%s/checkIndexTime.html' % constants.NIGHTLY_REPORTS_DIR, 'w', encoding='utf-8') as f:
     w = f.write
     header(w, 'Lucene nightly CheckIndex time')
     w('<h1>Seconds to run CheckIndex</h1>\n')
@@ -1314,7 +1319,7 @@ def writeOneLine(w, seen, cat, desc):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="%s.html">%s</a>' % (cat, desc))
 
 def writeIndexHTML(searchChartData, days):
-  f = open('%s/index.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
+  f = open('%s/index.html' % constants.NIGHTLY_REPORTS_DIR, 'w')
   w = f.write
   header(w, 'Lucene nightly benchmarks')
   w('<h1>Lucene nightly benchmarks</h1>')
@@ -1383,7 +1388,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"gradle -p lucene test" time in lucene</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
 
-  l = searchChartData.keys()
+  l = list(searchChartData.keys())
   lx = []
   for s in l:
     if s not in done:
@@ -1446,7 +1451,7 @@ def sort(l):
   return l
 
 def writeOneGraphHTML(title, fileName, chartHTML):
-  f = open(fileName, 'wb')
+  f = open(fileName, 'w')
   w = f.write
   header(w, title)
   w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
@@ -1483,7 +1488,7 @@ def writeKnownChanges(w, pctOffset=77):
   w('</ul>')
 
 def writeSearchGCJITHTML(gcTimesChartData):
-  with open('%s/search_gc_jit.html' % constants.NIGHTLY_REPORTS_DIR, 'wb') as f:
+  with open('%s/search_gc_jit.html' % constants.NIGHTLY_REPORTS_DIR, 'w') as f:
     w = f.write
     header(w, 'Lucene search GC/JIT times')
     w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
@@ -1494,7 +1499,7 @@ def writeSearchGCJITHTML(gcTimesChartData):
     footer(w)
 
 def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
-  f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
+  f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'w', encoding='utf-8')
   w = f.write
   header(w, 'Lucene nightly indexing benchmark')
   w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
@@ -1536,7 +1541,7 @@ def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
   f.close()
 
 def writeNRTHTML(nrtChartData):
-  f = open('%s/nrt.html' % constants.NIGHTLY_REPORTS_DIR, 'wb')
+  f = open('%s/nrt.html' % constants.NIGHTLY_REPORTS_DIR, 'w', encoding='utf-8')
   w = f.write
   header(w, 'Lucene nightly near-real-time latency benchmark')
   w('<br>')
@@ -1666,7 +1671,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   w('</script>')
 
   if 0:
-    f = open('%s/%s.txt' % (constants.NIGHTLY_REPORTS_DIR, id), 'wb')
+    f = open('%s/%s.txt' % (constants.NIGHTLY_REPORTS_DIR, id), 'w')
     for s in data:
       f.write('%s\n' % s)
     f.close()
@@ -1676,7 +1681,7 @@ def getLabel(label):
   if label < 26:
     s = chr(65+label)
   else:
-    s = '%s%s' % (chr(65+(label/26 - 1)), chr(65 + (label%26)))
+    s = '%s%s' % (chr(65+(label//26 - 1)), chr(65 + (label%26)))
   return s
 
 def sendEmail(toEmailAddr, subject, messageText):

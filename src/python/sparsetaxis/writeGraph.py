@@ -89,14 +89,13 @@ def extractIndexStats(indexLog):
 def msecToQPS(x):
   return 1000./x
 
-reHits = re.compile('T(.) (.*?) sort=(.*?): ([0-9]+) hits in ([.0-9]+) msec')
-reHeapUsagePart = re.compile(r'^  ([a-z ]+) \[.*?\]: ([0-9.]+) (.B)$')
+reHits = re.compile('T(.) (.*?) sort=(.*?): ([0-9]+\\+?)(?: hits)? hits in ([.0-9]+) msec')
+reHeapUsagePart = re.compile(r'^  ([a-z ]+) \[.*?\]: ([0-9.]+) (.B|bytes)$')
 def extractSearchStats(searchLog):
   
   heapBytes = None
   heapBytesByPart = {}
   byThread = {}
-  
   with open(searchLog, 'r', encoding='utf-8') as f:
     while True:
       line = f.readline()
@@ -115,6 +114,8 @@ def extractSearchStats(searchLog):
             sortDesc = None
           else:
             sortDesc = 'longitude'
+          if hitCount.endswith('+'):
+            hitCount = hitCount[:-1]
           byThread[threadID].append((queryDesc, sortDesc, int(hitCount), float(msec)))
         else:
           m = reHeapUsagePart.match(line)
@@ -127,10 +128,11 @@ def extractSearchStats(searchLog):
               size *= 1024*1024
             elif unit == 'KB':
               size *= 1024
+            elif unit == 'bytes':
+              pass
             else:
-              raise RuntimeError('uhandled unit %s' % unit)
+              raise RuntimeError('unhandled unit %s' % unit)
             heapBytesByPart[part] = heapBytesByPart.get(part, 0.0) + size
-            
 
   byQuerySort = {}
   for threadID, results in byThread.items():
@@ -171,16 +173,12 @@ def extractSearchStats(searchLog):
 def extractDiskUsageStats(logFileName):
 
   with open(logFileName, 'r') as f:
-    # skip "analyzing..." header
-    f.readline()
-    # skip "retrieving per-field..." header
-    f.readline()
-    # skip total_disk
-    f.readline()
-    # skip num docs
-    line = f.readline()
-    if not line.startswith('num docs:'):
-      raise RuntimeError('unexpected line from disk usage log: %s' % line)
+    while True:
+      line = f.readline()
+      if line == '':
+        raise RuntimeError('unexpected EOF while parsing "%s"' % logFileName)
+      elif line.startswith('num docs:'):
+        break
 
     mbByPart = {}
 
@@ -290,7 +288,7 @@ def main():
 
         searchLog = '/l/logs.nightly/taxis/%s/searchsparse.log' % fileName
         if os.path.exists(searchLog):
-          sparseSearchStats = [extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.log' % fileName)]
+          sparseSearchStats = [extractSearchStats(searchLog)]
           nonSparseSearchStats = [extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.log' % fileName)]
           sparseSortedSearchStats = [extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.log' % fileName)]
         else:
@@ -302,7 +300,7 @@ def main():
             searchLog = '/l/logs.nightly/taxis/%s/searchsparse.%d.log' % (fileName, upto)
             if not os.path.exists(searchLog):
               break
-            sparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse.%s.log' % (fileName, upto)))
+            sparseSearchStats.append(extractSearchStats(searchLog))
             nonSparseSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchnonsparse.%s.log' % (fileName, upto)))
             sparseSortedSearchStats.append(extractSearchStats('/l/logs.nightly/taxis/%s/searchsparse-sorted.%s.log' % (fileName, upto)))
             upto += 1

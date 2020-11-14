@@ -83,7 +83,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
   if search:
 
-    if taskPatterns is not (None, None):
+    if taskPatterns != (None, None):
       pos, neg = taskPatterns
       if pos is None:
         if neg is None:

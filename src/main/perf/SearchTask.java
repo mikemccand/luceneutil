@@ -29,6 +29,8 @@ import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.RandomAccessVectorValues;
+import org.apache.lucene.index.RandomAccessVectorValuesProducer;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.VectorValues;
 import org.apache.lucene.search.Collector;
@@ -291,11 +293,11 @@ final class SearchTask extends Task {
         if (vectorField != null) {
           IndexReader reader = searcher.getIndexReader();
           List<LeafReaderContext> leaves = reader.leaves();
-          List<VectorValues.RandomAccess> perLeafVectors = new ArrayList<>();
+          List<RandomAccessVectorValues> perLeafVectors = new ArrayList<>();
           for (LeafReaderContext ctx : leaves) {
             VectorValues vectorValues = ctx.reader().getVectorValues(vectorField);
             if (vectorValues != null) {
-              perLeafVectors.add(vectorValues.randomAccess());
+	      perLeafVectors.add(((RandomAccessVectorValuesProducer) vectorValues).randomAccess());
             } else {
               perLeafVectors.add(null);
             }
@@ -304,7 +306,7 @@ final class SearchTask extends Task {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
             int doc = scoreDoc.doc;
             int segment = ReaderUtil.subIndex(doc, leaves);
-            VectorValues.RandomAccess vectors = perLeafVectors.get(segment);
+            RandomAccessVectorValues vectors = perLeafVectors.get(segment);
             if (vectors != null) {
               vectors.vectorValue(doc - leaves.get(segment).docBase);
             }

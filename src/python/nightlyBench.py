@@ -513,6 +513,10 @@ KNOWN_CHANGES = [
    'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting',
    'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting'),
 
+  ('2020-10-27',
+   'LUCENE-9280: enable optimization to skip non-competitive documents when sorting by field by indexing benchmark datetime field as both points and doc values',
+   'LUCENE-9280: optimization to skip non-competitive documents when sorting by field by indexing benchmark datetime field as both points and doc values'),
+
   ('2020-11-06',
    'Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks',
    'Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks: 64 cores (128 with hyperthreading), 256 GB RAM, 960 GB Intel 905P Optane, Linux 5.9.2-arch1-1, still OpenJDK 12.0.2+10'),

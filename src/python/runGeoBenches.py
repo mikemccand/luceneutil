@@ -81,7 +81,7 @@ if nightly:
 else:
   sources = '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java'
 
-if os.system('javac -cp test-framework/build/classes/java/main:codecs/build/classes/java/main:core/build/classes/java/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main %s' % sources):
+if os.system('javac -cp test-framework/build/classes/java/main:sandbox/build/classes/java/main:codecs/build/classes/java/main:core/build/classes/java/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main %s' % sources):
   raise RuntimeError('compile failed')
 
 results = {}
@@ -159,7 +159,7 @@ with open(logFileName, 'w') as log:
       else:
         utilSrcDir = '/l/util/src/main'
 
-      cmd = 'java -XX:+UseParallelGC -Xmx10g -cp %s:test-framework/build/classes/java/main:codecs/build/classes/java/main:codecs/build/resources/main:core/build/classes/java/main:core/build/resources/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra)
+      cmd = 'java -XX:+UseParallelGC -Xmx10g -cp %s:test-framework/build/classes/java/main:sandbox/build/classes/java/main:codecs/build/classes/java/main:codecs/build/resources/main:core/build/classes/java/main:core/build/resources/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main perf.IndexAndSearchOpenStreetMaps -%s -%s%s' % (utilSrcDir, approach2, shapeCmd, extra)
       print('RUN: %s' % cmd)
         
       p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

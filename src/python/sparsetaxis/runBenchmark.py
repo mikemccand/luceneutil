@@ -192,7 +192,7 @@ def main():
 
   print('\nCompile java benchmark sources...')
 
-  classPath = '%s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/lucene/build/analysis/common/lucene-analyzers-common-7.0.0-SNAPSHOT.jar:%s/../../main' % \
+  classPath = '%s/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar:%s/lucene/analysis/common/build/libs/lucene-analysis-common-9.0.0-SNAPSHOT.jar:%s/../../main' % \
               (args.luceneMaster, args.luceneMaster, luceneUtilPythonPath)
 
   run('javac -cp %s %s/../../main/perf/SearchTaxis.java %s/../../main/perf/IndexTaxis.java %s/../../main/perf/DiskUsage.java' % (classPath, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))

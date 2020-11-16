@@ -509,6 +509,10 @@ KNOWN_CHANGES = [
    'LUCENE-4702: compress suffix bytes in terms dictionary',
    'LUCENE-4702: compress suffix bytes in terms dictionary'),
 
+  ('2020-02-18',
+   'LUCENE-9211: Adding compression to BinaryDocValues storage',
+   'LUCENE-9211: Adding compression to BinaryDocValues storage'),
+
   ('2020-09-09',
    'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting',
    'LUCENE-9511: Include StoredFieldsWriter in DWPT accounting'),
@@ -520,6 +524,10 @@ KNOWN_CHANGES = [
   ('2020-11-06',
    'Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks',
    'Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks: 64 cores (128 with hyperthreading), 256 GB RAM, 960 GB Intel 905P Optane, Linux 5.9.2-arch1-1, still OpenJDK 12.0.2+10'),
+
+  ('2020-11-14',
+   'LUCENE-9378: Configurable compression for binary doc values',
+   'LUCENE-9378: Configurable compression for binary doc values'),
 
 ]
 

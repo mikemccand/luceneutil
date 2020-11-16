@@ -114,7 +114,7 @@ def runIndexing(args, cpuCount, sparseOrNot, sortOrNot):
           print('  %6.1f sec: %5.1f M docs; %5.1f K docs/sec' % \
                 (float(m.group(1)), int(m.group(2))/1000000.0, float(m.group(3))/1000.0))
           lastPrint = now
-    p.poll()
+    p.wait()
     if p.returncode != 0:
       print(open(logFile, 'r', encoding='utf-8').read())
       raise RuntimeError('indexing failed: %s' % p.returncode)

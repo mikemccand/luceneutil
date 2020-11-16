@@ -34,7 +34,7 @@ os.chdir(LUCENE_ROOT)
 
 t = datetime.datetime.now()
 ymd = t.strftime('%Y-%m-%d')
-print('\n%s' % ymd)
+print('\nrunAnalyzerPerf.py: %s' % ymd)
 
 #run('python -u /home/mike/src/util/svnClean.py %s/..' % LUCENE_ROOT)
 #run('svn cleanup')

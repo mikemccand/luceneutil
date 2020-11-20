@@ -34,7 +34,7 @@ A trunk version of Lucene can be checked out with
 
 ```
 cd $LUCENE_BENCH_HOME
-git clone https://github.com/apache/lucene-solr.git
+git clone https://github.com/apache/lucene-solr.git lucene_baseline
 ```
 
 Adjust the command accordingly for `lucene_candidate`.
@@ -60,7 +60,7 @@ cd $LUCENE_BENCH_HOME/util
 python src/python/localrun.py -source wikimedium10k
 ```
 
-If you get ClassNotFound exceptions, your Lucene checkouts may need to be rebuilt. Run `ant clean jar` in both `lucene_candidate/lucene` and `lucene_baseline/lucene` dirs.
+If you get ClassNotFound exceptions, your Lucene checkouts may need to be rebuilt. Run `./gradlew jar` in both `lucene_candidate/` and `lucene_baseline/` dirs.
 
 If your benchmark fails with "facetDim Date was not indexed" or similar, try adding
 

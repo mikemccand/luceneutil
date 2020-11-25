@@ -34,6 +34,7 @@ import org.apache.lucene.index.RandomAccessVectorValuesProducer;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.VectorValues;
 import org.apache.lucene.search.Collector;
+import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -553,6 +554,9 @@ final class SearchTask extends Task {
       } else if (hits != null) {
         for(ScoreDoc hit : hits.scoreDocs) {
           out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " score=" + hit.score);
+          // print explanation
+          //Explanation explain = searcher.explain(q, hit.doc);
+          //out.println("    explain: " + explain);
         }
       }
 

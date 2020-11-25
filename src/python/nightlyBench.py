@@ -634,7 +634,7 @@ def checkIndex(r, indexPath, checkLogFileName):
   message('run CheckIndex')
   cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex "%s" > %s 2>&1' % \
         (constants.JAVA_COMMAND,
-         r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
+         benchUtil.classPathToString(benchUtil.getClassPath(NIGHTLY_DIR)),
          indexPath + '/index',
          checkLogFileName)
   runCommand(cmd)
@@ -649,7 +649,7 @@ def runNRTTest(r, indexPath, runLogDir):
 
   cmd = '%s -classpath "%s" perf.NRTPerfTest %s "%s" multi "%s" 17 %s %s %s %s %s update 5 no 0.0 body10.tasks' % \
         (constants.JAVA_COMMAND,
-         r.classPathToString(r.getClassPath(NIGHTLY_DIR)),
+         benchUtil.classPathToString(benchUtil.getClassPath(NIGHTLY_DIR)),
          DIR_IMPL,
          indexPath + '/index',
          constants.NIGHTLY_MEDIUM_LINE_FILE,

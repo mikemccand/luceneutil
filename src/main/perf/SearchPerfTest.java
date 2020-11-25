@@ -262,11 +262,11 @@ public class SearchPerfTest {
 
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
-    final String vectorField;
-    if (args.getFlag("-vectorField")) {
-      vectorField = "vector";
+    final String vectorFile;
+    if (args.hasArg("-vectorDict")) {
+      vectorFile = args.getString("-vectorDict");
     } else {
-      vectorField = null;
+      vectorFile = null;
     }
 
     if (recacheFilterDeletes) {
@@ -505,7 +505,7 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     final QueryParser queryParser = new QueryParser("body", a);
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorField, doStoredLoads);
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorFile, doStoredLoads);
 
     final TaskSource tasks;
 

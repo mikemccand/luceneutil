@@ -40,7 +40,7 @@ DOC_COUNT = 10000000
 print('Compile luceneutil and %s/%s...' % (constants.BASE_DIR, LUCENE_TRUNK_ROOT))
 r = benchUtil.RunAlgs(JAVA_CMD, False)
 c = competition.Competitor('foo', LUCENE_TRUNK_ROOT)
-c.compile(r.classPathToString(r.getClassPath(c.checkout)))
+c.compile(benchUtil.classPathToString(benchUtil.getClassPath(c.checkout)))
 
 while True:
   print

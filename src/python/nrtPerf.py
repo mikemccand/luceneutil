@@ -167,7 +167,7 @@ if __name__ == '__main__':
   r.compile(c)
   r.makeIndex(c.name, index, False)
 
-  cp = '%s' % r.classPathToString(r.getClassPath(c.checkout))
+  cp = '%s' % r.classPathToString(benchUtil.getClassPath(c.checkout))
   fip = '%s/index' % benchUtil.nameToIndexPath(index.getName())
   modes = benchUtil.getArg('-mode', 'update', True)
   docsPerSec = benchUtil.getArg('-dps', '1', True)

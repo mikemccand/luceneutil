@@ -38,6 +38,7 @@ import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.queries.intervals.Intervals;
 import org.apache.lucene.queries.intervals.IntervalQuery;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -55,24 +56,31 @@ class TaskParser {
   private final Sort lastModNDVSort;
   private final int topN;
   private final Random random;
-  private final String vectorField;
   private final boolean doStoredLoads;
   private final IndexState state;
+  private final VectorDictionary vectorDictionary;
+  private final String vectorField;
 
   public TaskParser(IndexState state,
                     QueryParser queryParser,
                     String fieldName,
                     int topN,
                     Random random,
-                    String vectorField,
-                    boolean doStoredLoads) {
+                    String vectorFile,
+                    boolean doStoredLoads) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.topN = topN;
     this.random = random;
-    this.vectorField = vectorField;
     this.doStoredLoads = doStoredLoads;
     this.state = state;
+    if (vectorFile != null) {
+      vectorDictionary = new VectorDictionary(vectorFile);
+      vectorField = "vector";
+    } else {
+      vectorDictionary = null;
+      vectorField = null;
+    }
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
     titleBDVSort = new Sort(new SortField("titleBDV", SortField.Type.STRING_VAL));
     monthDVSort = new Sort(new SortField("monthSortedDV", SortField.Type.STRING));
@@ -300,6 +308,8 @@ class TaskParser {
           throw new IllegalArgumentException("use lastmodndvsort instead");
         case "titlesort":
           throw new IllegalArgumentException("use titledvsort instead");
+        case "vector":
+          return parseVectorQuery();
         default:
           setSortAndGroup(type);
           query = queryParser.parse(text);
@@ -433,6 +443,11 @@ class TaskParser {
       clauses.add(new TermQuery(new Term(fieldName, text.substring(0, spot3))));
       clauses.add(new TermQuery(new Term(fieldName, text.substring(spot3+1).trim())));
       return new DisjunctionMaxQuery(clauses, 0.1f);
+    }
+
+    Query parseVectorQuery() {
+      float[] queryVector = vectorDictionary.computeTextVector(text);
+      return new KnnQuery("vector", text, queryVector, topN);
     }
   }
 }

@@ -42,6 +42,7 @@ WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % B
 #WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
+WIKI_VECTOR_TASKS_FILE = '%s/tasks/vector.tasks' % BENCH_BASE_DIR
 SORTED_TASKS_FILE = '%s/tasks/sorted.tasks' % BENCH_BASE_DIR
 
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2

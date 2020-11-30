@@ -36,6 +36,7 @@ WIKI_MEDIUM_DOCS_COUNT = 33332620
 # see https://nlp.stanford.edu/projects/glove/
 # Thanks to Jeffrey Pennington, Richard Socher, and Christopher D. Manning.
 GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
+GLOVE_VECTOR_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d.vec' % BASE_DIR
 
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR

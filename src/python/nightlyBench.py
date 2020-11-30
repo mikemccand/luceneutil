@@ -855,10 +855,12 @@ def run():
                                   ('sortedset:Month', 'Month'),
                                   ('sortedset:DayOfYear', 'DayOfYear')),
                         maxConcurrentMerges=3,
-                        addDVFields=True)
+                        addDVFields=True,
+                        vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
+                      vectorDict=constants.GLOVE_WORD_VECTORS_FILE,
                       directory=DIR_IMPL,
                       commitPoint='multi')
 

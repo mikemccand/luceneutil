@@ -298,7 +298,7 @@ final class SearchTask extends Task {
           for (LeafReaderContext ctx : leaves) {
             VectorValues vectorValues = ctx.reader().getVectorValues(vectorField);
             if (vectorValues != null) {
-	      perLeafVectors.add(((RandomAccessVectorValuesProducer) vectorValues).randomAccess());
+              perLeafVectors.add(((RandomAccessVectorValuesProducer) vectorValues).randomAccess());
             } else {
               perLeafVectors.add(null);
             }

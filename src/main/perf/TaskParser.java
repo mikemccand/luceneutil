@@ -147,7 +147,7 @@ class TaskParser {
       Query query = buildQuery(taskType, text, parseMinShouldMatch());
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
-      return new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoadsTask, facets, vectorField, doDrillSideways);
+      return new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
     }
 
     String[] parseTaskType(String line) {

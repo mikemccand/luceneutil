@@ -856,7 +856,8 @@ def run():
                                   ('sortedset:DayOfYear', 'DayOfYear')),
                         maxConcurrentMerges=3,
                         addDVFields=True,
-                        vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,)
+                        vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
+                        vectorDimension=100,)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

@@ -138,12 +138,14 @@ AndMedOrHighHigh: +interview +(at united) # freq=94736 freq=2834104 freq=1185528
 AndMedOrHighHigh: +hard +(but year) # freq=92045 freq=1484398 freq=1098425
 AndMedOrHighHigh: +9 +(name its) # freq=541405 freq=2577591 freq=1160703
 AndMedOrHighHigh: +bay +(to but) # freq=117167 freq=6105155 freq=1484398
-VectorSearch: vector//publisher backstory # freq=194856 freq=148
-VectorSearch: vector//many geografia # freq=99550 freq=104
-VectorSearch: vector//many foundation # freq=99550 freq=10894
-VectorSearch: vector//this school # freq=238551 freq=29912
-VectorSearch: vector//such 2007 # freq=111526 freq=90200 1.2
-VectorSearch: vector//year work # freq=175324 freq=102732 1.7
-VectorSearch: vector//interviews # freq=31768
-VectorSearch: vector//golf # freq=31760
-VectorSearch: vector//http # freq=389790
+
+# TODO -- need to get vectors folded into binary line docs file:
+#VectorSearch: vector//publisher backstory # freq=194856 freq=148
+#VectorSearch: vector//many geografia # freq=99550 freq=104
+#VectorSearch: vector//many foundation # freq=99550 freq=10894
+#VectorSearch: vector//this school # freq=238551 freq=29912
+#VectorSearch: vector//such 2007 # freq=111526 freq=90200 1.2
+#VectorSearch: vector//year work # freq=175324 freq=102732 1.7
+#VectorSearch: vector//interviews # freq=31768
+#VectorSearch: vector//golf # freq=31760
+#VectorSearch: vector//http # freq=389790

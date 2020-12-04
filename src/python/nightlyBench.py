@@ -957,7 +957,7 @@ def run():
     print('  heaps: %s' % str(searchHeaps))
 
     if cmpDiffs is not None:
-      warnings, errors = cmpDiffs
+      warnings, errors, overlap = cmpDiffs
       print('WARNING: search result differences: %s' % str(warnings))
       if len(errors) > 0:
         raise RuntimeError('search result differences: %s' % str(errors))

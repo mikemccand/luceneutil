@@ -1360,6 +1360,10 @@ class RunAlgs:
     cmpLatencyMetrics = self.computeTaskLatencies(cmpTaskLatencies, catSet)
 
     for currentCat in catSet:
+      if currentCat not in baseLatencyMetrics:
+        # When we add a whole new task (e.g. VectorSearch), just skip the comparison for the first nightly run
+        # since baseline will not have this task yet:
+        continue
       currentBaseMetrics = baseLatencyMetrics[currentCat]
       currentCmpMetrics = cmpLatencyMetrics[currentCat]
       pctP50 = 100*(currentCmpMetrics['p50'] - currentBaseMetrics['p50'])/currentBaseMetrics['p50']

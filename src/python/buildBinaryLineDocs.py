@@ -7,6 +7,11 @@ import io
 
 epoch = datetime.datetime.utcfromtimestamp(0)
 
+def flush(pending, pendingDocCount, fOut):
+  fOut.write(struct.pack('i', pendingDocCount))
+  fOut.write(struct.pack('i', pending.tell()))
+  fOut.write(pending.getbuffer())
+
 with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as fOut:
   first = True
   pending = io.BytesIO()
@@ -47,11 +52,9 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
     
     if pending.tell() > 64*1024:
       #print('%d docs in %.1f KB chunk' % (pendingDocCount, pending.tell()/1024.))
-      fOut.write(struct.pack('i', pending.tell()))
-      fOut.write(pending.getbuffer())
+      flush(pending, pendingDocCount, fOut)
       pending = io.BytesIO()
       pendingDocCount = 0
 
   if pending.tell() > 0:
-    fOut.write(struct.pack('i', pending.tell()))
-    fOut.write(pending.getbuffer())
+    flush(pending, pendingDocCount, fOut)

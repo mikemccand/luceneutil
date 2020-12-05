@@ -96,7 +96,7 @@ public class LineFileDocs implements Closeable {
   private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
   final boolean isBinary;
-  private final ThreadLocal<ByteBuffer> nextDocs = new ThreadLocal<>();
+  private final ThreadLocal<LineFileDoc> nextDocs = new ThreadLocal<>();
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
   private final String vectorFile;
   private final int vectorDimension;
@@ -137,7 +137,7 @@ public class LineFileDocs implements Closeable {
 
   private void readDocs() throws Exception {
     if (isBinary) {
-      byte[] headerBytes = new byte[4];
+      byte[] headerBytes = new byte[8];
       ByteBuffer header = ByteBuffer.wrap(headerBytes);
       header.order(ByteOrder.LITTLE_ENDIAN);
       while (true) {
@@ -153,11 +153,12 @@ public class LineFileDocs implements Closeable {
           }
         }
 
-        if (x != 4) {
-          throw new RuntimeException("expected 4 header bytes but read " + x);
+        if (x != 8) {
+          throw new RuntimeException("expected 8 header bytes but read " + x);
         }
-        int length = header.getInt(0);
-        //System.out.println("len=" + length);
+        int count = header.getInt(0);
+        int length = header.getInt(4);
+        //System.out.println("count= " + count + " len=" + length);
         ByteBuffer buffer = ByteBuffer.wrap(new byte[length]);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
         x = channel.read(buffer);
@@ -165,7 +166,7 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc(buffer, readVector()));
+        queue.put(new LineFileDoc(buffer, readVector(count)));
       }
     } else {
       while (true) {
@@ -179,7 +180,7 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc(line, readVector()));
+        queue.put(new LineFileDoc(line, readVector(1)));
       }
     }
     for(int i=0;i<128;i++) {
@@ -187,16 +188,16 @@ public class LineFileDocs implements Closeable {
     }
   }
 
-  private float[] readVector() throws IOException {
+  private float[] readVector(int count) throws IOException {
     if (vectorChannel == null) {
       return null;
     }
-    float[] vector = new float[vectorDimension];
-    ByteBuffer buffer = ByteBuffer.allocate(vectorDimension * Float.BYTES)
+    float[] vector = new float[count * vectorDimension];
+    ByteBuffer buffer = ByteBuffer.allocate(count * vectorDimension * Float.BYTES)
       .order(ByteOrder.LITTLE_ENDIAN);
     int n = vectorChannel.read(buffer);
-    if (n != vectorDimension * Float.BYTES) {
-      throw new RuntimeException("expected " + vectorDimension * Float.BYTES + " vector bytes but read " + n);
+    if (n != count * vectorDimension * Float.BYTES) {
+      throw new RuntimeException("expected " + count * vectorDimension * Float.BYTES + " vector bytes but read " + n);
     }
     buffer.position(0);
     buffer.asFloatBuffer().get(vector);
@@ -444,6 +445,7 @@ public class LineFileDocs implements Closeable {
   // TODO: is there a pre-existing way to do this!!!
   static Document cloneDoc(Document doc1) {
     final Document doc2 = new Document();
+
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
       if (f instanceof LongPoint) {
@@ -481,8 +483,10 @@ public class LineFileDocs implements Closeable {
 
     if (isBinary) {
 
-      ByteBuffer buffer = nextDocs.get();
-      if (buffer == null || buffer.position() == buffer.limit()) {
+      float[] vector = new float[vectorDimension];
+      FloatBuffer vectorBuffer = null;
+      LineFileDoc lfd = nextDocs.get();
+      if (lfd == null || lfd.byteText.hasRemaining() == false) {
         /*
         System.out.println("  prev buffer=" + buffer);
         if (buffer != null) {
@@ -490,7 +494,6 @@ public class LineFileDocs implements Closeable {
         }
         */
 
-        LineFileDoc lfd;
         try {
           lfd = queue.take();
         } catch (InterruptedException ie) {
@@ -500,11 +503,10 @@ public class LineFileDocs implements Closeable {
         if (lfd == END) {
           return null;
         }
-        buffer = lfd.byteText;
-        nextDocs.set(buffer);
+        nextDocs.set(lfd);
         //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
       }
-
+      ByteBuffer buffer = lfd.byteText;
       int titleLenBytes = buffer.getInt();
       int bodyLenBytes = buffer.getInt();
       //System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes);
@@ -527,6 +529,9 @@ public class LineFileDocs implements Closeable {
       spot3 = 0;
       line = null;
 
+      if (lfd.vector != null) {
+        lfd.vector.get(doc.vector.vectorValue());
+      }
     } else {
       LineFileDoc lfd;
       try {
@@ -572,7 +577,7 @@ public class LineFileDocs implements Closeable {
       msecSinceEpoch = doc.dateCal.getTimeInMillis();
       timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
       if (doc.vector != null) {
-        doc.vector.setVectorValue(lfd.vector);
+        doc.vector.setVectorValue(lfd.vector.array());
       }
     }
 
@@ -584,11 +589,11 @@ public class LineFileDocs implements Closeable {
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
-      doc.titleTokenized.setStringValue(title);
       doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));
       doc.dayOfYearDV.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.dayOfYearIP.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
     }
+    doc.titleTokenized.setStringValue(title);
     doc.id.setStringValue(intToID(myID));
 
     doc.idPoint.setIntValue(myID);
@@ -691,20 +696,28 @@ public class LineFileDocs implements Closeable {
   }
 
   private static class LineFileDoc {
-    final float[] vector;
+    final FloatBuffer vector;
     final String stringText;
     final ByteBuffer byteText;
 
     LineFileDoc(String text, float[] vector) {
       stringText = text;
       byteText = null;
-      this.vector = vector;
+      if (vector == null) {
+        this.vector = null;
+      } else {
+        this.vector = FloatBuffer.wrap(vector);
+      }
     }
 
     LineFileDoc(ByteBuffer bytes, float[] vector) {
       stringText = null;
       byteText = bytes;
-      this.vector = vector;
+      if (vector == null) {
+        this.vector = null;
+      } else {
+        this.vector = FloatBuffer.wrap(vector);
+      }
     }
   }
 }

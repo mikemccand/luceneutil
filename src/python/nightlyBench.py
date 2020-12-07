@@ -1413,7 +1413,7 @@ def writeIndexHTML(searchChartData, days):
     if s not in done:
       done.add(s)
       v = taskRename.get(s, s)
-      lx.append((v, '<br>&nbsp;&nbsp;<a href="%s.html">%s</a>' % \
+      lx.append((v, '<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="%s.html">%s</a>' % \
                  (htmlEscape(s), htmlEscape(v))))
   lx.sort()
   for ign, s in lx:

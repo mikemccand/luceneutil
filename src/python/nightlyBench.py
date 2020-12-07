@@ -529,6 +529,10 @@ KNOWN_CHANGES = [
    'LUCENE-9378: Configurable compression for binary doc values',
    'LUCENE-9378: Configurable compression for binary doc values'),
 
+  ('2020-12-04',
+   'Switch to JDK 15 (from JDK 12)',
+   'Switch to JDK 15 (from JDK 12)'),
+
 ]
 
 # TODO

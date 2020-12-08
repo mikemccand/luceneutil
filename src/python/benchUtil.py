@@ -158,6 +158,9 @@ class SearchTask:
   # TODO: subclass SearchGroupTask
 
   def verifySame(self, other, verifyScores, verifyCounts):
+    if self.query.startswith('<vector:knn:'):
+      # KNN search is deterministically randomized, such that the seed changes with each re-indexing, so we cannot compare results
+      return
     if not isinstance(other, SearchTask):
       self.fail('not a SearchTask (%s)' % other)
     if self.query != other.query:

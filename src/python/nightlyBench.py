@@ -806,7 +806,10 @@ def run():
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
                                   maxConcurrentMerges=3,
-                                  useCMS=True)
+                                  useCMS=True,
+                                  vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
+                                  vectorDimension=100,)
+                                  
 
   nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                   analyzer='StandardAnalyzerNoStopWords',
@@ -822,8 +825,10 @@ def run():
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
                                   maxConcurrentMerges=3,
-                                  useCMS=True)
-
+                                  useCMS=True,
+                                  vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
+                                  vectorDimension=100,)
+                                 
   bigSource = competition.Data('wikibig',
                                constants.NIGHTLY_BIG_LINE_FILE,
                                BIG_INDEX_NUM_DOCS,
@@ -843,7 +848,10 @@ def run():
                                verbose=False,
                                mergePolicy='TieredMergePolicy',
                                maxConcurrentMerges=3,
-                               useCMS=True)
+                               useCMS=True,
+                               vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
+                               vectorDimension=100,)
+                               
 
   # Must use only 1 thread so we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,

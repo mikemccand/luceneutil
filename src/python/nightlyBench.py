@@ -533,6 +533,10 @@ KNOWN_CHANGES = [
    'Switch to JDK 15 (from JDK 12)',
    'Switch to JDK 15 (from JDK 12)'),
 
+  ('2020-12-10',
+   'LUCENE-9626: switch to native arrays for HNSW ANN vector search',
+   'LUCENE-9626: switch to native arrays for HNSW ANN vector search'),
+
 ]
 
 # TODO

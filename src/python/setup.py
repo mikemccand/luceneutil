@@ -32,7 +32,7 @@ DATA_FILES = [
   ('enwiki-20120502-lines-1k.txt.lzma', BASE_URL),
   ('enwiki-20120502-lines-1k-100d.vec', BASE_URL2),
   ('wikimedium500.tasks', BASE_URL),
-  ('glove.6B.zip', 'http://nlp.stanford.edu/data/glove.6B.zip')
+  ('glove.6B.zip', 'http://nlp.stanford.edu/data/')
 ]
 USAGE= """
 Usage: python setup.py [-download]

@@ -809,7 +809,7 @@ def run():
                                   grouping=False,
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
-                                  maxConcurrentMerges=3,
+                                  maxConcurrentMerges=12,
                                   useCMS=True,
                                   vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                                   vectorDimension=100,)
@@ -828,7 +828,7 @@ def run():
                                   grouping=False,
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
-                                  maxConcurrentMerges=3,
+                                  maxConcurrentMerges=12,
                                   useCMS=True,
                                   vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                                   vectorDimension=100,)
@@ -851,7 +851,7 @@ def run():
                                grouping=False,
                                verbose=False,
                                mergePolicy='TieredMergePolicy',
-                               maxConcurrentMerges=3,
+                               maxConcurrentMerges=12,
                                useCMS=True,
                                vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                                vectorDimension=100,)
@@ -862,6 +862,7 @@ def run():
                         analyzer='StandardAnalyzerNoStopWords',
                         postingsFormat='Lucene84',
                         numThreads=1,
+                        useCMS=False,
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Lucene84',
                         mergePolicy='LogDocMergePolicy',
@@ -870,7 +871,6 @@ def run():
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
                                   ('sortedset:Month', 'Month'),
                                   ('sortedset:DayOfYear', 'DayOfYear')),
-                        maxConcurrentMerges=3,
                         addDVFields=True,
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                         vectorDimension=100,)
@@ -943,28 +943,38 @@ def run():
       resultsPrev.append(prevFName)
 
   if not DO_RESET:
+
+    lastLuceneRev, lastLuceneUtilRev, lastLogFile = findLastSuccessfulGitHashes()
+
     output = []
     results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev,
                                                     resultsNow,
                                                     False, True,
                                                     'prev', 'now',
                                                     writer=output.append)
-    f = open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w')
-    timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
-    w = f.write
-    w('<html>\n')
-    w('<h1>%s</h1>' % timeStamp2)
-    w('Lucene/Solr trunk rev %s<br>' % luceneRev)
-    w('luceneutil rev %s<br>' % luceneUtilRev)
-    w('%s<br>' % javaVersion)
-    w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
-    w('Index: %s<br>' % fixedIndexAtClose)
-    w('<br><br><b>Search perf vs day before</b>\n')
-    w(''.join(output))
-    w('<br><br>')
-    w('<img src="%s.png"/>\n' % timeStamp)
-    w('</html>\n')
-    f.close()
+    with open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w') as f:
+      timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
+      w = f.write
+      w('<html>\n')
+      w('<h1>%s</h1>' % timeStamp2)
+
+      w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
+      if lastLuceneRev != luceneRev:
+        w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene-solr/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
+      else:
+        w(f'\nLucene/Solr trunk rev {luceneRev} (no changes since last successful run)<br>')
+      if lastLuceneUtilRev != luceneUtilRev:
+        w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
+      else:
+        w(f'\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>')
+      w('%s<br>' % javaVersion)
+      w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
+      w('Index: %s<br>' % fixedIndexAtClose)
+      w('<br><br><b>Search perf vs day before</b>\n')
+      w(''.join(output))
+      w('<br><br>')
+      w('<img src="%s.png"/>\n' % timeStamp)
+      w('</html>\n')
 
     if os.path.exists('out.png'):
       shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
@@ -1024,6 +1034,38 @@ def run():
 
   message('done: total time %s' % (now()-start))
 
+  
+def findLastSuccessfulGitHashes():
+
+  # lazy -- we really just need the most recent one:
+  logFiles = sorted(os.listdir(constants.NIGHTLY_REPORTS_DIR), reverse=True)
+
+  nightlyBenchResult = re.compile(r'\d\d\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.html')  
+
+  for logFile in logFiles:
+    if nightlyBenchResult.match(logFile) is not None:
+
+      luceneGitHash = None
+      luceneUtilGitHash = None
+
+      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile), 'r') as f:
+        html = f.read()
+
+        m = re.search('Lucene/Solr trunk rev ([a-z0-9]+)[< ]', html)
+        if m is not None:
+          luceneGitHash = m.group(1)
+        else:
+          raise RuntimeError(f'failed to determine last successful Lucene git hash from file {logFile}')
+
+        m = re.search('luceneutil rev ([a-z0-9]+)[< ]', html)
+        if m is not None:
+          luceneUtilGitHash = m.group(1)
+        else:
+          raise RuntimeError(f'failed to determine last successful luceneutil git hash from file {logFile}')
+      
+      return luceneGitHash, luceneUtilGitHash, logFile
+        
+        
 reTimeIn = re.compile('^\s*Time in (.*?): (\d+) ms')
 
 def getIndexGCTimes(subDir):

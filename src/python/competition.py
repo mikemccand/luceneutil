@@ -366,6 +366,9 @@ class Competition(object):
   def competitor(self, name, checkout=None, **kwArgs):
     if not checkout:
       checkout = name
+    for c in self.competitors:
+      if c.name == name:
+        raise RuntimeError(f'competitor named {name} already added')
     c = Competitor(name, checkout, **kwArgs)
     c.competition = self
     self.competitors.append(c)

@@ -533,6 +533,10 @@ KNOWN_CHANGES = [
    'Switch to JDK 15 (from JDK 12)',
    'Switch to JDK 15 (from JDK 12)'),
 
+  ('2020-12-09 10:00:13',
+   'Add KNN vectors to indexing metrics',
+   'Add KNN vectors to indexing metrics',),
+
   ('2020-12-10',
    'LUCENE-9626: switch to native arrays for HNSW ANN vector search',
    'LUCENE-9626: switch to native arrays for HNSW ANN vector search'),

@@ -1063,7 +1063,7 @@ def findLastSuccessfulGitHashes():
         else:
           raise RuntimeError(f'failed to determine last successful Lucene git hash from file {logFile}')
 
-        m = re.search('luceneutil rev ([a-z0-9]+)[< ]', html)
+        m = re.search('luceneutil rev(?:ision)? ([a-z0-9]+)[< ]', html)
         if m is not None:
           luceneUtilGitHash = m.group(1)
         else:

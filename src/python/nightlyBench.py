@@ -545,6 +545,9 @@ KNOWN_CHANGES = [
    'increase max number of concurrent merges from 3 to 12 for indexing tasks; increase Indexer heap from 8 to 32 GB',
    'increase max number of concurrent merges from 3 to 12 for indexing tasks; increase Indexer heap from 8 to 32 GB'),
 
+  ('2021-01-07',
+   'LUCENE-9652: add dedicated method, DataInput.readLEFloats, to read float[] from DataInput, optimizing HNSW KNN',
+   'LUCENE-9652: add dedicated method, DataInput.readLEFloats, to read float[] from DataInput, optimizing HNSW KNN',)
 ]
 
 # TODO

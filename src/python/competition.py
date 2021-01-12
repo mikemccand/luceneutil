@@ -260,10 +260,10 @@ class Competitor(object):
        f'-Dtests.profile.mode={mode}',
        f'-Dtests.profile.stacksize={stackSize}',
        f'-Dtests.profile.count={count}',
-       'org.apache.lucene.gradle.ProfileResults'] +
-    glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
+       'org.apache.lucene.gradle.ProfileResults'] + \
+       glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
 
-    print(f'JFR aggregation command: {' '.join(command)}')
+    print(f'JFR aggregation command: {" ".join(command)}')
     t0 = time.time()
     result = subprocess.run(command,
                             stdout = subprocess.PIPE,

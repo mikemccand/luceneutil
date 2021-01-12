@@ -15,12 +15,14 @@
 # limitations under the License.
 #
 
-import os
-import searchBench
 import benchUtil
-import constants
-import random
 import common
+import constants
+import glob
+import os
+import random
+import searchBench
+import subprocess
 
 class Data(object):
   
@@ -247,6 +249,22 @@ class Competitor(object):
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
 
+  def getAggregateProfilerResult(self, id, mode):
+    if mode not in ('cpu', 'heap'):
+      raise ValueError(f'mode must be "cpu" or "heap" but got: {mode}')
+    
+    result = subprocess.run(constants.JAVA_COMMAND.split(' ') +
+                            ['-cp',
+                             f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
+                             f'-Dtests.profile.mode={mode}',
+                             '-Dtests.profile.count=30',
+                             'org.apache.lucene.gradle.ProfileResults'] +
+                            glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr'),
+                            stdout = subprocess.PIPE,
+                            stderr = subprocess.STDOUT,
+                            check = True)
+    return result.stdout.decode('utf-8')
+
   def compile(self, cp):
     root = benchUtil.checkoutToUtilPath(self.checkout)
 
@@ -395,11 +413,14 @@ class Competition(object):
     if base is None:
       base = self.competitors[0]
       challenger = self.competitors[1]
+    elif base == self.competitors[0]:
+      challenger = self.competitors[1]
     else:
-      if base == self.competitors[0]:
-        challenger = self.competitors[1]
-      else:
-        challenger = self.competitors[0]
+      challenger = self.competitors[0]
+
+    for fileName in glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-*.jfr'):
+      print('Removing old JFR %s...' % fileName)
+      os.remove(fileName)
 
     base.tasksFile = base.index.dataSource.tasksFile
     challenger.tasksFile = challenger.index.dataSource.tasksFile

@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import time
+import subprocess
 import sys
 import os
 import re
@@ -199,7 +200,13 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     finally:
       if newTasksFile is not None and os.path.exists(newTasksFile):
         os.remove(newTasksFile)
-          
+
+    # TODO: maybe print this after each iter, not just in the end, for the impatient/progressive?
+    for mode in 'cpu', 'heap':
+      for c in competitors:
+        print(f'\n{mode.upper()} merged search profile for {c.name}:')
+        print(c.getAggregateProfilerResult(id, mode))
+                           
   else:
     results = {}
     for c in competitors:

@@ -366,7 +366,7 @@ def parseResults(resultsFiles):
     if not os.path.exists(resultsFile):
       continue
 
-    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 10*1024:
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 50*1024:
       raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
 
     # print 'parse %s' % resultsFile
@@ -1033,6 +1033,12 @@ class RunAlgs:
 
     command = []
     command += c.javaCommand.split()
+
+    # 77: always enable Java Flight Recorder profiling
+    command += [f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
+                f',filename={constants.BENCH_BASE_DIR}/bench-search-{id}-{c.name}-{iter}.jfr',
+                '-XX:+UnlockDiagnosticVMOptions',
+                '-XX:+DebugNonSafepoints']
 
     w = lambda *xs : [command.append(str(x)) for x in xs]
     w('-classpath', cp)

@@ -961,6 +961,7 @@ def run():
                                                     False, True,
                                                     'prev', 'now',
                                                     writer=output.append)
+
     with open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w') as f:
       timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
       w = f.write
@@ -983,6 +984,18 @@ def run():
       w(''.join(output))
       w('<br><br>')
       w('<img src="%s.png"/>\n' % timeStamp)
+
+      w('<br><br><h2>Profiler results</h2>\n')
+      w('<b>CPU:<b><br>')
+      w('<pre>\n')
+      w(comp.getAggregateProfilerResult(id, 'cpu'))
+      w('</pre>')
+      
+      w('<br><br>')
+      w('<b>HEAP:<b><br>')
+      w('<pre>\n')
+      w(comp.getAggregateProfilerResult(id, 'heap'))
+      w('</pre>')
       w('</html>\n')
 
     if os.path.exists('out.png'):

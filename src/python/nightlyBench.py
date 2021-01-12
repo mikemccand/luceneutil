@@ -988,13 +988,13 @@ def run():
       w('<br><br><h2>Profiler results</h2>\n')
       w('<b>CPU:<b><br>')
       w('<pre>\n')
-      w(comp.getAggregateProfilerResult(id, 'cpu'))
+      w(comp.getAggregateProfilerResult(id, 'cpu', stackSize=12, count=50))
       w('</pre>')
       
       w('<br><br>')
       w('<b>HEAP:<b><br>')
       w('<pre>\n')
-      w(comp.getAggregateProfilerResult(id, 'heap'))
+      w(comp.getAggregateProfilerResult(id, 'heap', stackSize=12, count=50))
       w('</pre>')
       w('</html>\n')
 

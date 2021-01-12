@@ -23,6 +23,7 @@ import os
 import random
 import searchBench
 import subprocess
+import time
 
 class Data(object):
   
@@ -249,20 +250,27 @@ class Competitor(object):
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
 
-  def getAggregateProfilerResult(self, id, mode):
+  def getAggregateProfilerResult(self, id, mode, count=30, stackSize=1):
     if mode not in ('cpu', 'heap'):
       raise ValueError(f'mode must be "cpu" or "heap" but got: {mode}')
-    
-    result = subprocess.run(constants.JAVA_COMMAND.split(' ') +
-                            ['-cp',
-                             f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
-                             f'-Dtests.profile.mode={mode}',
-                             '-Dtests.profile.count=30',
-                             'org.apache.lucene.gradle.ProfileResults'] +
-                            glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr'),
+
+    command = constants.JAVA_COMMAND.split(' ') + \
+      ['-cp',
+       f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
+       f'-Dtests.profile.mode={mode}',
+       f'-Dtests.profile.stacksize={stackSize}',
+       f'-Dtests.profile.count={count}',
+       'org.apache.lucene.gradle.ProfileResults'] +
+    glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
+
+    print(f'JFR aggregation command: {' '.join(command)}')
+    t0 = time.time()
+    result = subprocess.run(command,
                             stdout = subprocess.PIPE,
                             stderr = subprocess.STDOUT,
                             check = True)
+    t1 = time.time()
+    print(f'Took {t1-t0:.2f} seconds')
     return result.stdout.decode('utf-8')
 
   def compile(self, cp):

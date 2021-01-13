@@ -541,6 +541,10 @@ KNOWN_CHANGES = [
    'LUCENE-9626: switch to native arrays for HNSW ANN vector search',
    'LUCENE-9626: switch to native arrays for HNSW ANN vector search'),
 
+  ('2020-12-28',
+   'LUCENE-9644: add diversity to HNSW (ANN search) neighbor selection, apparently yielding performance gains to VectorSearch task',
+   'LUCENE-9644: add diversity to HNSW (ANN search) neighbor selection, apparently yielding performance gains to VectorSearch task'),
+
   ('2021-01-09 13:35:50',
    'increase max number of concurrent merges from 3 to 12 for indexing tasks; increase Indexer heap from 8 to 32 GB',
    'increase max number of concurrent merges from 3 to 12 for indexing tasks; increase Indexer heap from 8 to 32 GB'),

@@ -37,6 +37,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.lucene80.Lucene80DocValuesFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
@@ -398,14 +399,14 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Codec codec = new Lucene90Codec() {
+    final Codec codec = new Lucene90Codec(Lucene90Codec.Mode.BEST_COMPRESSION) {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
                                         idFieldPostingsFormat : defaultPostingsFormat);
         }
 
-        private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName(facetDVFormatName);
+        private final DocValuesFormat facetsDVFormat = new Lucene80DocValuesFormat(Lucene80DocValuesFormat.Mode.BEST_COMPRESSION);
         //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
 //        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");

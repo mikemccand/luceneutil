@@ -790,7 +790,7 @@ class RunAlgs:
     else:
       print('OS:\n%s' % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False):
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1):
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath) and not index.doUpdate:
@@ -926,22 +926,25 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
+    profilerResults = []
+    
     for mode in 'cpu', 'heap':
       result = subprocess.run(index.javaCommand.split(' ') +
                               ['-cp',
                                f'{checkoutToPath(index.checkout)}/buildSrc/build/classes/java/main',
                                f'-Dtests.profile.mode={mode}',
-                               '-Dtests.profile.count=30',
-                               '-Dtests.profile.stacksize=5',
+                               f'-Dtests.profile.count={profilerCount}',
+                               f'-Dtests.profile.stacksize={profilerStackSize}',
                                'org.apache.lucene.gradle.ProfileResults',
                                jfrOutput],
                               stdout = subprocess.PIPE,
                               stderr = subprocess.STDOUT,
                               check = True)
-      print(f'\nProfiler for {mode}')
-      print(result.stdout.decode('utf-8'))
+      output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
+      print(output)
+      profilerResults.append(output)
 
-    return fullIndexPath, fullLogFile
+    return fullIndexPath, fullLogFile, profilerResults
 
   def addJars(self, cp, path):
     if os.path.exists(path):

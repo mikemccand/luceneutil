@@ -624,7 +624,9 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   if os.path.exists(indexPath):
     shutil.rmtree(indexPath)
   if REAL:
-    indexPath, fullLogFile = r.makeIndex('nightly', index)
+    indexPath, fullLogFile, profilerResults = r.makeIndex('nightly', index, profilerCount=50, profilerStackSize=12)
+  else:
+    profilerResults = None
   #indexTime = (now()-t0)
 
   if REAL:
@@ -651,7 +653,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     checkLogFileName = '%s/checkIndex.%s' % (runLogDir, logFile)
     checkIndex(r, indexPath, checkLogFileName)
 
-  return indexPath, indexTimeSec, bytesIndexed, indexAtClose
+  return indexPath, indexTimeSec, bytesIndexed, indexAtClose, profilerResults
 
 def checkIndex(r, indexPath, checkLogFileName):
   message('run CheckIndex')
@@ -901,20 +903,21 @@ def run():
     r.compile(c)
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed, atClose = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
+  medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
   message('medIndexAtClose %s' % atClose)
 
   # 2: NRT test
-  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
+  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
   message('nrtMedIndexAtClose %s' % atClose)
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  ign, bigIndexTime, bigBytesIndexed, atClose = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
+  ign, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
   message('bigIndexAtClose %s' % atClose)
 
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
-  indexPathNow, ign, ign, atClose = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
+  # TODO: switch to concurrent yet deterministic indexer: https://markmail.org/thread/cp6jpjuowbhni6xc
+  indexPathNow, ign, ign, atClose, profilerSearchIndex = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
   message('fixedIndexAtClose %s' % atClose)
   fixedIndexAtClose = atClose
 
@@ -990,7 +993,25 @@ def run():
       w('<br><br>')
       w('<img src="%s.png"/>\n' % timeStamp)
 
-      w('<br><br><h2>Profiler results</h2>\n')
+      w('<br><br><h2>Profiler results (indexing)</h2>\n')
+      if profilerMediumIndex is not None:
+        w('<b>~1KB docs</b>')
+        for output in profilerMediumIndex:
+          w(f'<pre>{output}</pre>\n')
+      if profilerBigIndex is not None:
+        w('<b>~4KB docs</b>')
+        for output in profilerBigIndex:
+          w(f'<pre>{output}</pre>\n')
+      if profilerNRTIndex is not None:
+        w('<b>NRT indexing</b>')
+        for output in profilerNRTIndex:
+          w(f'<pre>{output}</pre>\n')
+      if profilerSearchIndex is not None:
+        w('<b>Deterministic (for search benchmarking) indexing</b>')
+        for output in profilerSearchIndex:
+          w(f'<pre>{output}</pre>\n')
+      
+      w('<br><br><h2>Profiler results (searching)</h2>\n')
       w('<b>CPU:<b><br>')
       w('<pre>\n')
       w(comp.getAggregateProfilerResult(id, 'cpu', stackSize=12, count=50))

@@ -813,6 +813,15 @@ class RunAlgs:
       cmd += index.javaCommand.split()
       w = lambda *xs : [cmd.append(str(x)) for x in xs]
       w('-classpath', classPathToString(getClassPath(index.checkout)))
+
+      jfrOutput = f'{constants.BENCH_BASE_DIR}/bench-index-{id}-{index.getName()}.jfr'
+
+      # 77: always enable Java Flight Recorder profiling
+      w(f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
+        f',filename={jfrOutput}',
+        '-XX:+UnlockDiagnosticVMOptions',
+        '-XX:+DebugNonSafepoints')
+      
       w('perf.Indexer')
       w('-dirImpl', index.directory)
       w('-indexPath', fullIndexPath)
@@ -916,6 +925,21 @@ class RunAlgs:
       if os.path.exists(fullIndexPath):
         shutil.rmtree(fullIndexPath)
       raise
+
+    for mode in 'cpu', 'heap':
+      result = subprocess.run(index.javaCommand.split(' ') +
+                              ['-cp',
+                               f'{checkoutToPath(index.checkout)}/buildSrc/build/classes/java/main',
+                               f'-Dtests.profile.mode={mode}',
+                               '-Dtests.profile.count=30',
+                               '-Dtests.profile.stacksize=5',
+                               'org.apache.lucene.gradle.ProfileResults',
+                               jfrOutput],
+                              stdout = subprocess.PIPE,
+                              stderr = subprocess.STDOUT,
+                              check = True)
+      print(f'\nProfiler for {mode}')
+      print(result.stdout.decode('utf-8'))
 
     return fullIndexPath, fullLogFile
 

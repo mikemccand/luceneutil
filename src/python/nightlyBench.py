@@ -747,19 +747,20 @@ def run():
     os.chdir(constants.BENCH_BASE_DIR)
 
     iters = 30
-    for i in range(iters):
-      try:
-        runCommand('git checkout master; git pull origin master > %s/gitupdate.log' % runLogDir)
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
+    if True:
+      for i in range(iters):
+        try:
+          runCommand('git checkout master; git pull origin master > %s/gitupdate.log' % runLogDir)
+        except RuntimeError:
+          message('  retry...')
+          time.sleep(60.0)
+        else:
+          s = open('%s/gitupdate.log' % runLogDir).read()
+          if s.find('not updating') != -1:
+            raise RuntimeError('git pull failed: %s' % s)
+          break
       else:
-        s = open('%s/gitupdate.log' % runLogDir).read()
-        if s.find('not updating') != -1:
-          raise RuntimeError('git pull failed: %s' % s)
-        break
-    else:
-      raise RuntimeError('failed to run git pull after %d tries' % iters)
+        raise RuntimeError('failed to run git pull after %d tries' % iters)
 
     os.chdir(constants.BENCH_BASE_DIR)
     luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()

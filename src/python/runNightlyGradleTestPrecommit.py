@@ -48,7 +48,7 @@ def runLuceneTests(logFile):
   # There is some weird gradle bootstrapping bug: if we do not run this "help" first, then the test run fails w/ cryptic error:
   os.system('./gradlew help >> %s.tmp 2>&1' % logFile)
   
-  if not os.system('./gradlew -p lucene test >> %s.tmp 2>&1' % logFile):
+  if not os.system('./gradlew --no-daemon -p lucene test >> %s.tmp 2>&1' % logFile):
     # Success
     t1 = time.time()
     open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))
@@ -68,7 +68,7 @@ def runPrecommit(logFile):
     raise RuntimeError('git clean -xfd failed!')
 
   t0 = time.time()
-  if not os.system('./gradlew precommit >> %s.tmp 2>&1' % logFile):
+  if not os.system('./gradlew --no-daemon precommit >> %s.tmp 2>&1' % logFile):
     # Success
     t1 = time.time()
     open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))

@@ -64,18 +64,24 @@ def runPrecommit(logFile):
   open(logFile + '.tmp', 'w').write('git rev: %s\n\n' % os.popen('git rev-parse HEAD').read().strip())
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
 
-  if os.system('git clean -xfd >> %s.tmp 2>&1' % logFile):
-    raise RuntimeError('git clean -xfd failed!')
+  # See https://issues.apache.org/jira/browse/LUCENE-9670 -- retry up to 5 times in case this weird IOException: Stream Closed issue struck:
 
-  t0 = time.time()
-  if not os.system('./gradlew --no-daemon precommit >> %s.tmp 2>&1' % logFile):
-    # Success
-    t1 = time.time()
-    open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))
-    os.rename(logFile + '.tmp', logFile)
-    print('  took: %.1f min' % ((t1-t0)/60.0))
-  else:
-    print('FAILED; see %s.tmp' % logFile)
+  for i in range(5):
+    if os.system('git clean -xfd >> %s.tmp 2>&1' % logFile):
+      raise RuntimeError('git clean -xfd failed!')
+
+    t0 = time.time()
+    if not os.system('./gradlew --no-daemon precommit >> %s.tmp 2>&1' % logFile):
+      # Success
+      t1 = time.time()
+      open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))
+      os.rename(logFile + '.tmp', logFile)
+      print('  took: %.1f min' % ((t1-t0)/60.0))
+      break
+    elif i < 4:
+      print(f'FAILED; see {logFile}.tmp; will try again ({5 - i - 1} attempts remain)')
+    else:
+      print('FAILED; see %s.tmp' % logFile)
 
 def getTestCount(line, regexp):
   m = regexp.search(line)

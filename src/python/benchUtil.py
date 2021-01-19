@@ -942,7 +942,7 @@ class RunAlgs:
                               check = True)
       output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
       print(output)
-      profilerResults.append(output)
+      profilerResults.append((mode, output))
 
     return fullIndexPath, fullLogFile, profilerResults
 

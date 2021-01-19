@@ -993,32 +993,45 @@ def run():
       w('<br><br>')
       w('<img src="%s.png"/>\n' % timeStamp)
 
+      w('Jump to profiler results:')
+      w('indexing 1KB <a href="#profiler_1kb_indexing_cpu">cpu</a>, <a href="#profiler_1kb_indexing_heap">heap</a>, ')
+      w('indexing 4KB <a href="#profiler_4kb_indexing_cpu">cpu</a>, <a href="#profiler_4kb_indexing_heap">heap</a>, ')
+      w('indexing near-real-time <a href="#profiler_nrt_indexing_cpu">cpu</a>, <a href="#profiler_nrt_indexing_heap">heap</a>, ')
+      w('deterministic (single threaded) indexing <a href="#profiler_nrt_indexing_cpu">cpu</a>, <a href="#profiler_nrt_indexing_heap">heap</a>, ')
+      w('searching <a href="#profiler_searching_cpu">cpu</a>, <a href="#profiler_searching_heap">heap</a>')
+
       w('<br><br><h2>Profiler results (indexing)</h2>\n')
       if profilerMediumIndex is not None:
         w('<b>~1KB docs</b>')
-        for output in profilerMediumIndex:
+        for mode, output in profilerMediumIndex:
+          w(f'<a id="profiler_1kb_indexing_{mode}"></a>')
           w(f'<pre>{output}</pre>\n')
       if profilerBigIndex is not None:
         w('<b>~4KB docs</b>')
-        for output in profilerBigIndex:
+        for mode, output in profilerBigIndex:
+          w(f'<a id="profiler_4kb_indexing_{mode}"></a>')
           w(f'<pre>{output}</pre>\n')
       if profilerNRTIndex is not None:
         w('<b>NRT indexing</b>')
-        for output in profilerNRTIndex:
+        for mode, output in profilerNRTIndex:
+          w(f'<a id="profiler_nrt_indexing_{mode}"></a>')
           w(f'<pre>{output}</pre>\n')
       if profilerSearchIndex is not None:
         w('<b>Deterministic (for search benchmarking) indexing</b>')
-        for output in profilerSearchIndex:
+        for mode, output in profilerSearchIndex:
+          w(f'<a id="profiler_deterministic_indexing_{mode}"></a>')
           w(f'<pre>{output}</pre>\n')
       
       w('<br><br><h2>Profiler results (searching)</h2>\n')
-      w('<b>CPU:<b><br>')
+      w(f'<a id="profiler_searching_cpu"></a>')
+      w('<b>CPU:</b><br>')
       w('<pre>\n')
       w(comp.getAggregateProfilerResult(id, 'cpu', stackSize=12, count=50))
       w('</pre>')
       
       w('<br><br>')
-      w('<b>HEAP:<b><br>')
+      w('<b>HEAP:</b><br>')
+      w(f'<a id="profiler_searching_heap"></a>')
       w('<pre>\n')
       w(comp.getAggregateProfilerResult(id, 'heap', stackSize=12, count=50))
       w('</pre>')

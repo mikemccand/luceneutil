@@ -71,7 +71,7 @@ def runPrecommit(logFile):
       raise RuntimeError('git clean -xfd failed!')
 
     t0 = time.time()
-    if not os.system('./gradlew --no-daemon precommit >> %s.tmp 2>&1' % logFile):
+    if not os.system('./gradlew --stacktrace precommit >> %s.tmp 2>&1' % logFile):
       # Success
       t1 = time.time()
       open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))

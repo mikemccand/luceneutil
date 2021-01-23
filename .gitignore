@@ -28,4 +28,7 @@ build/
 work/
 .DS_Store
 node_modules/
+
+# emacs temporary files
 *~
+#*

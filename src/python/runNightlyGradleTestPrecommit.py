@@ -28,6 +28,17 @@ KNOWN_CHANGES_ANT_TEST = [
   ('2014-10-15', 'The Great Test Slowdown of 2014')
   ]
 
+def clean(logFile):
+
+  if os.system(f'git clean -xfd lucene solr >> {logFile}.tmp 2>&1'):
+    raise RuntimeError(f'git clean -xfd lucene solr failed!  see {logFile}')
+
+  # nightlyBench.py leaves this:
+  cleanLogFile = f'{BASE_DIR}/{NIGHTLY_DIR}/clean.log'
+  if os.path.exists(cleanLogFile):
+    os.remove(cleanLogFile)
+  
+
 def runLuceneTests(logFile):
 
   # nocommit svn up to the timestamp:
@@ -38,15 +49,14 @@ def runLuceneTests(logFile):
   open(logFile + '.tmp', 'w').write('git rev: %s\n\n' % os.popen('git rev-parse HEAD').read().strip())
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
 
-  if os.system('git clean -xfd >> %s.tmp 2>&1' % logFile):
-    raise RuntimeError('git clean -xfd failed!')
-  
-  t0 = time.time()
   # Goodbye ant, hello gradle!
   #if not os.system('ant clean test -Dtests.jvms=%s >> %s.tmp 2>&1' % (constants.PROCESSOR_COUNT, logFile)):
+  clean(logFile)
 
   # There is some weird gradle bootstrapping bug: if we do not run this "help" first, then the test run fails w/ cryptic error:
   os.system('./gradlew help >> %s.tmp 2>&1' % logFile)
+  
+  t0 = time.time()
   
   if not os.system('./gradlew --no-daemon -p lucene test >> %s.tmp 2>&1' % logFile):
     # Success
@@ -64,11 +74,13 @@ def runPrecommit(logFile):
   open(logFile + '.tmp', 'w').write('git rev: %s\n\n' % os.popen('git rev-parse HEAD').read().strip())
   open(logFile + '.tmp', 'a').write('\n\njava version: %s\n\n' % os.popen('java -fullversion 2>&1').read())
 
+  clean(logFile)
+
   # See https://issues.apache.org/jira/browse/LUCENE-9670 -- retry up to 5 times in case this weird IOException: Stream Closed issue struck:
 
   for i in range(5):
-    if os.system('git clean -xfd >> %s.tmp 2>&1' % logFile):
-      raise RuntimeError('git clean -xfd failed!')
+    if os.system('git clean -xfd lucene solr >> %s.tmp 2>&1' % logFile):
+      raise RuntimeError('git clean -xfd lucene solr failed!')
 
     t0 = time.time()
     if not os.system('./gradlew --stacktrace precommit >> %s.tmp 2>&1' % logFile):

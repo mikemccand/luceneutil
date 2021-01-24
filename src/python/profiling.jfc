@@ -38,4 +38,55 @@ Collects only execution and method samples at a low interval
     <setting name="enabled">true</setting>
     <setting name="stackTrace">true</setting>
   </event>
+
+  <event name="jdk.GarbageCollection">
+    <setting name="enabled">true</setting>
+    <setting name="threshold">0 ms</setting>
+  </event>
+
+  <event name="jdk.CPULoad">
+    <setting name="enabled">true</setting>
+    <setting name="period">50 ms</setting>
+  </event>
+
+  <event name="jdk.Compilation">
+    <setting name="enabled">true</setting>
+  </event>
+
+  <event name="jdk.JVMInformation">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+  <event name="jdk.GCConfiguration">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+  <event name="jdk.StringFlag">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+  <event name="jdk.IntFlag">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+  <event name="jdk.UnsignedIntFlag">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+  <event name="jdk.BooleanFlag">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+  <event name="jdk.CPUInformation">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
+  </event>
+
+
 </configuration>

@@ -102,7 +102,7 @@ if 'ANALYZER' in locals():
 
 POSTINGS_FORMAT_DEFAULT='Lucene84'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT=POSTINGS_FORMAT_DEFAULT
-FACET_FIELD_DV_FORMAT_DEFAULT='Lucene80'
+FACET_FIELD_DV_FORMAT_DEFAULT='Lucene80' # this field is not used as a default. Change the code in src/main/perf/Indexer.java to use a different DV format
 ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='BM25Similarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'

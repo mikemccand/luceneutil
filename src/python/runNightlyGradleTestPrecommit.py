@@ -128,6 +128,7 @@ def writeGraph():
                                   day = int(m.group(3)))
 
     what = m.group(4)
+
     if what in (None, 'lucene-tests'):
       # back compat!
       what = 'lucene-tests'
@@ -201,14 +202,47 @@ def writeGraph():
       w('    ""\n')
 
     precommit_upto = 0
-    for date, totalTests, seconds in test_results:
-      # merge sort precommit time:
-      if date == precommit_results[precommit_upto][0]:
-        precommit_minutes = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
-        precommit_upto += 1
+    tests_upto = 0
+
+    while precommit_upto < len(precommit_results) or tests_upto < len(test_results):
+
+      # merge sort tests time / precommit time:
+      if tests_upto < len(test_results):
+        date, total_tests, tests_seconds = test_results[tests_upto]
+
+        if date == precommit_results[precommit_upto][0]:
+          precommit_minutes_str = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
+          precommit_upto += 1
+          tests_upto += 1
+        elif date > precommit_results[precommit_upto][0]:
+          precommit_minutes_str = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
+          date = precommit_results[precommit_upto][0]
+          total_tests = None
+          precommit_upto += 1
+          tests_seconds = None
+        else:
+          precommit_minutes_str = ''
+          tests_upto += 1
       else:
-        precommit_minutes = ''
-      w('    + "%4d-%02d-%02d,%s,%.3f,%s,%.2f\\n"\n' % (date.year, date.month, date.day, totalTests/1000.0, seconds/60.0, precommit_minutes, float(totalTests)/(seconds/60.0)/1000.))
+        date = precommit_results[precommit_upto][0]
+        total_tests = None
+        tests_seconds = None
+        precommit_minutes_str = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
+        precommit_upto += 1
+
+      if total_tests is None:
+        total_tests_str = ''
+        total_tests_rate_str = ''
+      else:
+        total_tests_str = '%.3f' % (total_tests/1000.0)
+        total_tests_rate_str = '%.3f' % (float(total_tests)/(tests_seconds/60.0)/1000.)
+
+      if tests_seconds is None:
+        tests_seconds_str = ''
+      else:
+        tests_seconds_str = '%.3f' % (tests_seconds/1000.0)
+
+      w('    + "%4d-%02d-%02d,%s,%s,%s,%s\\n"\n' % (date.year, date.month, date.day, total_tests_str, tests_seconds_str, precommit_minutes_str, total_tests_rate_str))
 
     w(''',
     { "title": "Time for \'gradle -p lucene test\'",

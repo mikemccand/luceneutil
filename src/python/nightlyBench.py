@@ -622,9 +622,10 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   if os.path.exists(indexPath):
     shutil.rmtree(indexPath)
   if REAL:
-    indexPath, fullLogFile, profilerResults = r.makeIndex('nightly', index, profilerCount=50, profilerStackSize=12)
+    indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50, profilerStackSize=12)
   else:
     profilerResults = None
+    jfrFile = None
   #indexTime = (now()-t0)
 
   if REAL:
@@ -651,7 +652,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     checkLogFileName = '%s/checkIndex.%s' % (runLogDir, logFile)
     checkIndex(r, indexPath, checkLogFileName)
 
-  return indexPath, indexTimeSec, bytesIndexed, indexAtClose, profilerResults
+  return indexPath, indexTimeSec, bytesIndexed, indexAtClose, profilerResults, jfrFile
 
 def checkIndex(r, indexPath, checkLogFileName):
   message('run CheckIndex')
@@ -906,21 +907,21 @@ def run():
     r.compile(c)
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
+  medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
   message('medIndexAtClose %s' % atClose)
 
   # 2: NRT test
-  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
+  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
   message('nrtMedIndexAtClose %s' % atClose)
   nrtResults = runNRTTest(r, medIndexPath, runLogDir)
 
   # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  ign, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
+  ign, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
   message('bigIndexAtClose %s' % atClose)
 
   # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
   # TODO: switch to concurrent yet deterministic indexer: https://markmail.org/thread/cp6jpjuowbhni6xc
-  indexPathNow, ign, ign, atClose, profilerSearchIndex = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
+  indexPathNow, ign, ign, atClose, profilerSearchIndex, profilerSearchJFR = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
   message('fixedIndexAtClose %s' % atClose)
   fixedIndexAtClose = atClose
 
@@ -1045,6 +1046,27 @@ def run():
                       f'searching-{timeStamp}',
                       f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
                       glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+
+      blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
+                      f'indexing-1kb-{timeStamp}',
+                      f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                      profilerMediumJFR)
+
+      blunders.upload(f'Indexing fast ~4 KB docs ({timeStamp})',
+                      f'indexing-4kb-{timeStamp}',
+                      f"Profiled results during indexing ~4 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                      profilerBigJFR)
+
+      blunders.upload(f'Indexing single-threaded ~1 KB docs into fixed searching index ({timeStamp})',
+                      f'indexing-1kb-fixed-search-single-thread-{timeStamp}',
+                      f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks, single-threaded, for fixed searching index on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                      profilerSearchJFR)
+
+      if False:
+        blunders.upload(f'Indexing NRT ~1 KB docs ({timeStamp})',
+                        f'indexing-1kb-nrt-{timeStamp}',
+                        f"Profiled results during indexing ~1 KB near-real-time docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                        profilerNRTJFR)
 
     if os.path.exists('out.png'):
       shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))

@@ -944,7 +944,7 @@ class RunAlgs:
       print(output)
       profilerResults.append((mode, output))
 
-    return fullIndexPath, fullLogFile, profilerResults
+    return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
   def addJars(self, cp, path):
     if os.path.exists(path):

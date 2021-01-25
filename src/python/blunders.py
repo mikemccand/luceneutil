@@ -39,7 +39,7 @@ def upload(name, label, description, jfr_files):
     upload_url = init_upload(label, name, description)
 
     if type(jfr_files) is str:
-        jfr_files = [str]
+        jfr_files = [jfr_files]
 
     t0 = time.time()
     # Sorry about the curl, but couldn't figure out how to stream data in python

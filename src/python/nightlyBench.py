@@ -15,28 +15,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO AMD
-#   - where to publish
-#   - outgoing smtp
-
-import pickle
-import tarfile
-import traceback
-import time
 import datetime
+import glob
 import os
-import sys
+import pickle
+import pysftp
+import random
+import re
 import shutil
 import smtplib
-import re
-import random
-import pysftp
+import sys
+import tarfile
+import time
+import traceback
 
 # local imports:
 import benchUtil
 import constants
 import competition
 import stats
+import blunders
 
 """
 This script runs certain benchmarks, once per day, and generates graphs so we can see performance over time:
@@ -723,6 +721,11 @@ def run():
 
   DO_RESET = '-reset' in sys.argv
 
+  # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
+  for fileName in glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-*.jfr'):
+    print('Removing old JFR %s...' % fileName)
+    os.remove(fileName)
+
   print()
   print()
   print()
@@ -1036,6 +1039,12 @@ def run():
       w(comp.getAggregateProfilerResult(id, 'heap', stackSize=12, count=50))
       w('</pre>')
       w('</html>\n')
+
+      # Blunders upload:
+      blunders.upload(f'Searching ({timeStamp})',
+                      f'searching-{timeStamp}',
+                      f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                      glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
 
     if os.path.exists('out.png'):
       shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
@@ -1465,6 +1474,7 @@ def writeIndexHTML(searchChartData, days):
   w('Each night, an <a href="https://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.')
   w('<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>')
   w('<p>See more details in <a href="http://blog.mikemccandless.com/2011/04/catching-slowdowns-in-lucene.html">this blog post</a>.</p>')
+  w('<p>See pretty flame charts from Java Flight Recorder profiling at <a href="https://blunders.io/lucene-bench">blunders.io</a>.</p>')
 
   done = set()
 

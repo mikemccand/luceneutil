@@ -145,5 +145,8 @@ NIGHTLY_REPORTS_DIR = '%s/reports.nightly' % BASE_DIR
 
 PROCESSOR_COUNT = 12
 
+# set this to see flame charts on blunders.io; see blunders.py
+BLUNDERS_AUTH_UPLOAD_PASSWORD = None
+
 # import again in case you want to override any of the vars set above
 from localconstants import *

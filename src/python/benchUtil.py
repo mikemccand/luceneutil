@@ -1272,8 +1272,7 @@ class RunAlgs:
       qpsCmp = avgQPSCmp
 
       # print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
-      if qpsStdDevBase != 0 or qpsStdDevCmp != 0:
-        assert len(baseQPS) == len(cmpQPS)
+      if (qpsStdDevBase != 0 or qpsStdDevCmp != 0) and len(baseQPS) == len(cmpQPS):
 
         # Student's T-Test is often used for distributions with the same underlying variance and number of samples, but
         # with large number of samples, Student's T distribution approaches a normal distribution

@@ -549,7 +549,11 @@ KNOWN_CHANGES = [
 
   ('2021-01-07',
    'LUCENE-9652: add dedicated method, DataInput.readLEFloats, to read float[] from DataInput, optimizing HNSW KNN',
-   'LUCENE-9652: add dedicated method, DataInput.readLEFloats, to read float[] from DataInput, optimizing HNSW KNN',)
+   'LUCENE-9652: add dedicated method, DataInput.readLEFloats, to read float[] from DataInput, optimizing HNSW KNN'),
+
+  ('2021-01-24 17:25:07',
+   'enable BinaryDocValues compression in taxonomy index',
+   'enable BinaryDocValues compression in taxonomy index'),
 ]
 
 # TODO

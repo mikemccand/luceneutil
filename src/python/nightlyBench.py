@@ -554,6 +554,10 @@ KNOWN_CHANGES = [
   ('2021-01-24 17:25:07',
    'enable BinaryDocValues compression in taxonomy index',
    'enable BinaryDocValues compression in taxonomy index'),
+
+  ('2021-01-28',
+   'LUCENE-9695: WTF somehow this bug fix hurt vector indexing throughput?',
+   'LUCENE-9695: WTF somehow this bug fix hurt vector indexing throughput?'),
 ]
 
 # TODO

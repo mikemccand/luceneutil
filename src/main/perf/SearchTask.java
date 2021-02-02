@@ -294,23 +294,14 @@ final class SearchTask extends Task {
         if (vectorField != null) {
           IndexReader reader = searcher.getIndexReader();
           List<LeafReaderContext> leaves = reader.leaves();
-          List<RandomAccessVectorValues> perLeafVectors = new ArrayList<>();
-          for (LeafReaderContext ctx : leaves) {
-            VectorValues vectorValues = ctx.reader().getVectorValues(vectorField);
-            if (vectorValues != null) {
-              perLeafVectors.add(((RandomAccessVectorValuesProducer) vectorValues).randomAccess());
-            } else {
-              perLeafVectors.add(null);
-            }
-          }
           for (int i = 0; i < hits.scoreDocs.length; i++) {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
             int doc = scoreDoc.doc;
             int segment = ReaderUtil.subIndex(doc, leaves);
-            RandomAccessVectorValues vectors = perLeafVectors.get(segment);
-            if (vectors != null) {
-              vectors.vectorValue(doc - leaves.get(segment).docBase);
-            }
+            VectorValues vv = leaves.get(segment).reader()
+                                                .getVectorValues(vectorField);
+            vv.advance(doc - leaves.get(segment).docBase);
+            vv.vectorValue();
           }
         }
 

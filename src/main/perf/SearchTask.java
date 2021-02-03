@@ -306,6 +306,7 @@ final class SearchTask extends Task {
             VectorValues vectors = perLeafVectors.get(segment);
             if (vectors != null) {
               vectors.advance(doc - leaves.get(segment).docBase);
+              vectors.vectorValue();
             }
           }
         }

@@ -570,6 +570,8 @@ KNOWN_CHANGES = [
 
 DEBUG = '-debug' in sys.argv
 
+JFR_STACK_SIZES = (1, 2, 4, 8, 12)
+
 if DEBUG:
   NIGHTLY_DIR = 'trunk'
 else:
@@ -622,7 +624,7 @@ def runCommand(command):
     message('  took %.1f sec' % (time.time()-t0))
   else:
     message('WOULD RUN: %s' % command)
-    
+
 def buildIndex(r, runLogDir, desc, index, logFile):
   message('build %s' % desc)
   #t0 = now()
@@ -630,7 +632,8 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   if os.path.exists(indexPath):
     shutil.rmtree(indexPath)
   if REAL:
-    indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50, profilerStackSize=12)
+    # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
+    indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES)
   else:
     profilerResults = None
     jfrFile = None
@@ -1006,46 +1009,68 @@ def run():
       w('<img src="%s.png"/>\n' % timeStamp)
 
       w('Jump to profiler results:')
-      w('indexing 1KB <a href="#profiler_1kb_indexing_cpu">cpu</a>, <a href="#profiler_1kb_indexing_heap">heap</a>, ')
-      w('indexing 4KB <a href="#profiler_4kb_indexing_cpu">cpu</a>, <a href="#profiler_4kb_indexing_heap">heap</a>, ')
-      w('indexing near-real-time <a href="#profiler_nrt_indexing_cpu">cpu</a>, <a href="#profiler_nrt_indexing_heap">heap</a>, ')
-      w('deterministic (single threaded) indexing <a href="#profiler_nrt_indexing_cpu">cpu</a>, <a href="#profiler_nrt_indexing_heap">heap</a>, ')
-      w('searching <a href="#profiler_searching_cpu">cpu</a>, <a href="#profiler_searching_heap">heap</a>')
+      w('<br>indexing 1KB\n<ul>')
+      for stackSize in JFR_STACK_SIZES:
+        w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_{stackSize}_heap">heap</a>')
+      w('</ul>')
+
+      w('<br>indexing 4KB\n<ul>')
+      for stackSize in JFR_STACK_SIZES:
+        w(f'<li>stackSize={stackSize}: <a href="#profiler_4kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_4kb_indexing_{stackSize}_heap">heap</a>')
+      w('</ul>')
+
+      w('<br>indexing near-real-timeB\n<ul>')
+      for stackSize in JFR_STACK_SIZES:
+        w(f'<li>stackSize={stackSize}: <a href="#profiler_nrt_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_nrt_indexing_{stackSize}_heap">heap</a>')
+      w('</ul>')
+      
+      w('<br>deterministic (single threaded) indexing<ul>')
+      for stackSize in JFR_STACK_SIZES:
+        w(f'<li>stackSize={stackSize}: <a href="#profiler_deterministic_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_deterministic_indexing_{stackSize}_heap">heap</a>')
+      w('</ul>')
+
+      w('<br>searching<ul>')
+      for stackSize in JFR_STACK_SIZES:
+        w(f'<li>stackSize={stackSize}: <a href="#profiler_searching_{stackSize}_cpu">cpu</a>, <a href="#profiler_searching_{stackSize}_heap">heap</a>')
+      w('</ul>')
 
       w('<br><br><h2>Profiler results (indexing)</h2>\n')
       if profilerMediumIndex is not None:
         w('<b>~1KB docs</b>')
-        for mode, output in profilerMediumIndex:
-          w(f'<a id="profiler_1kb_indexing_{mode}"></a>')
-          w(f'<pre>{output}</pre>\n')
+        for mode, stackSize, output in profilerMediumIndex:
+          w(f'\n<a id="profiler_1kb_indexing_{stackSize}_{mode}"></a>')
+          w(f'\n<pre>{output}</pre>\n')
       if profilerBigIndex is not None:
         w('<b>~4KB docs</b>')
-        for mode, output in profilerBigIndex:
-          w(f'<a id="profiler_4kb_indexing_{mode}"></a>')
-          w(f'<pre>{output}</pre>\n')
+        for mode, stackSize, output in profilerBigIndex:
+          w(f'\n<a id="profiler_4kb_indexing_{stackSize}_{mode}"></a>')
+          w(f'\n<pre>{output}</pre>\n')
       if profilerNRTIndex is not None:
         w('<b>NRT indexing</b>')
-        for mode, output in profilerNRTIndex:
-          w(f'<a id="profiler_nrt_indexing_{mode}"></a>')
-          w(f'<pre>{output}</pre>\n')
+        for mode, stackSize, output in profilerNRTIndex:
+          w(f'\n<a id="profiler_nrt_indexing_{stackSize}_{mode}"></a>')
+          w(f'\n<pre>{output}</pre>\n')
       if profilerSearchIndex is not None:
         w('<b>Deterministic (for search benchmarking) indexing</b>')
-        for mode, output in profilerSearchIndex:
-          w(f'<a id="profiler_deterministic_indexing_{mode}"></a>')
-          w(f'<pre>{output}</pre>\n')
+        for mode, stackSize, output in profilerSearchIndex:
+          w(f'\n<a id="profiler_deterministic_indexing_{stackSize}_{mode}"></a>')
+          w(f'\n<pre>{output}</pre>\n')
       
       w('<br><br><h2>Profiler results (searching)</h2>\n')
       w(f'<a id="profiler_searching_cpu"></a>')
       w('<b>CPU:</b><br>')
       w('<pre>\n')
-      w(comp.getAggregateProfilerResult(id, 'cpu', stackSize=12, count=50))
-      w('</pre>')
+      for stackSize, result in comp.getAggregateProfilerResult(id, 'cpu', stackSize=JFR_STACK_SIZES, count=50):
+        w(f'\n<a id="profiler_searching_{stackSize}_cpu"></a>')
+        w(f'\n<pre>{result}</pre>')
       
       w('<br><br>')
       w('<b>HEAP:</b><br>')
       w(f'<a id="profiler_searching_heap"></a>')
       w('<pre>\n')
-      w(comp.getAggregateProfilerResult(id, 'heap', stackSize=12, count=50))
+      for stackSize, result in comp.getAggregateProfilerResult(id, 'heap', stackSize=JFR_STACK_SIZES, count=50):
+        w(f'\n<a id="profiler_searching_{stackSize}_heap"></a>')
+        w(f'\n<pre>{result}</pre>')
       w('</pre>')
       w('</html>\n')
 

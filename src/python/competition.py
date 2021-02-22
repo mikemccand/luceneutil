@@ -251,27 +251,38 @@ class Competitor(object):
     self.concurrentSearches = concurrentSearches
 
   def getAggregateProfilerResult(self, id, mode, count=30, stackSize=1):
+
+    # we accept a sequence of stack sizes and will re-aggregate JFR results at each
+    if type(stackSize) is int:
+      stackSize = (stackSize,)
+    
     if mode not in ('cpu', 'heap'):
       raise ValueError(f'mode must be "cpu" or "heap" but got: {mode}')
 
-    command = constants.JAVA_COMMAND.split(' ') + \
-      ['-cp',
-       f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
-       f'-Dtests.profile.mode={mode}',
-       f'-Dtests.profile.stacksize={stackSize}',
-       f'-Dtests.profile.count={count}',
-       'org.apache.lucene.gradle.ProfileResults'] + \
-       glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
+    results = []
 
-    print(f'JFR aggregation command: {" ".join(command)}')
-    t0 = time.time()
-    result = subprocess.run(command,
-                            stdout = subprocess.PIPE,
-                            stderr = subprocess.STDOUT,
-                            check = True)
-    t1 = time.time()
-    print(f'Took {t1-t0:.2f} seconds')
-    return result.stdout.decode('utf-8')
+    for size in stackSize:
+
+      command = constants.JAVA_COMMAND.split(' ') + \
+        ['-cp',
+         f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
+         f'-Dtests.profile.mode={mode}',
+         f'-Dtests.profile.stacksize={size}',
+         f'-Dtests.profile.count={count}',
+         'org.apache.lucene.gradle.ProfileResults'] + \
+         glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
+
+      print(f'JFR aggregation command: {" ".join(command)}')
+      t0 = time.time()
+      result = subprocess.run(command,
+                              stdout = subprocess.PIPE,
+                              stderr = subprocess.STDOUT,
+                              check = True)
+      t1 = time.time()
+      print(f'Took {t1-t0:.2f} seconds')
+      results.append((stackSize, result.stdout.decode('utf-8')))
+
+    return results
 
   def compile(self, cp):
     root = benchUtil.checkoutToUtilPath(self.checkout)

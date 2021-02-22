@@ -792,6 +792,10 @@ class RunAlgs:
 
   def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1):
 
+    # we accept a sequence of stack sizes and will re-aggregate JFR results at each
+    if type(profilerStackSize) is int:
+      profilerStackSize = (profilerStackSize,)
+
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath) and not index.doUpdate:
       print('  %s: already exists' % fullIndexPath)
@@ -929,20 +933,21 @@ class RunAlgs:
     profilerResults = []
     
     for mode in 'cpu', 'heap':
-      result = subprocess.run(index.javaCommand.split(' ') +
-                              ['-cp',
-                               f'{checkoutToPath(index.checkout)}/buildSrc/build/classes/java/main',
-                               f'-Dtests.profile.mode={mode}',
-                               f'-Dtests.profile.count={profilerCount}',
-                               f'-Dtests.profile.stacksize={profilerStackSize}',
-                               'org.apache.lucene.gradle.ProfileResults',
-                               jfrOutput],
-                              stdout = subprocess.PIPE,
-                              stderr = subprocess.STDOUT,
-                              check = True)
-      output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
-      print(output)
-      profilerResults.append((mode, output))
+      for stackSize in profilerStackSize:
+        result = subprocess.run(index.javaCommand.split(' ') +
+                                ['-cp',
+                                 f'{checkoutToPath(index.checkout)}/buildSrc/build/classes/java/main',
+                                 f'-Dtests.profile.mode={mode}',
+                                 f'-Dtests.profile.count={profilerCount}',
+                                 f'-Dtests.profile.stacksize={stackSize}',
+                                 'org.apache.lucene.gradle.ProfileResults',
+                                 jfrOutput],
+                                stdout = subprocess.PIPE,
+                                stderr = subprocess.STDOUT,
+                                check = True)
+        output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
+        print(output)
+        profilerResults.append((mode, stackSize, output))
 
     return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 

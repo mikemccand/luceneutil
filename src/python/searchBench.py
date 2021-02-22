@@ -205,7 +205,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for mode in 'cpu', 'heap':
       for c in competitors:
         print(f'\n{mode.upper()} merged search profile for {c.name}:')
-        print(c.getAggregateProfilerResult(id, mode))
+        print(c.getAggregateProfilerResult(id, mode)[0][1])
                            
   else:
     results = {}

@@ -30,10 +30,10 @@ import java.util.TreeSet;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene84.Lucene84PostingsFormat;
+import org.apache.lucene.codecs.lucene90.Lucene90PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.codecs.lucene90.Lucene90Codec.Mode;
-import org.apache.lucene.codecs.lucene80.Lucene80DocValuesFormat;
+import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.perfield.PerFieldDocValuesFormat;
 import org.apache.lucene.codecs.perfield.PerFieldPostingsFormat;
 import org.apache.lucene.index.CodecReader;
@@ -75,12 +75,12 @@ public class DiskUsage {
     conf.setCodec(new Lucene90Codec(Mode.valueOf(System.getProperty("mode", "BEST_SPEED"))) {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
-        return new Lucene84PostingsFormat();
+        return new Lucene90PostingsFormat();
       }
 
       @Override
       public DocValuesFormat getDocValuesFormatForField(String field) {
-        return new Lucene80DocValuesFormat();
+        return new Lucene90DocValuesFormat();
       }
     });
     

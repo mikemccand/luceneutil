@@ -558,6 +558,10 @@ KNOWN_CHANGES = [
   ('2021-01-28',
    'LUCENE-9695: WTF somehow this bug fix hurt vector indexing throughput?',
    'LUCENE-9695: WTF somehow this bug fix hurt vector indexing throughput?'),
+
+  ('2021-02-25',
+   'Upgrade beast3 to Arch Linux 5.11.1',
+   'Upgrade beast3 to Arch Linux 5.11.1'),
 ]
 
 # TODO

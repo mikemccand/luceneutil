@@ -772,7 +772,9 @@ def run():
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     #runCommand('%s cleanup' % constants.SVN_EXE)
     runCommand('%s clean -xfd' % constants.GIT_EXE)
+    luceneRev = os.popen('git rev-parse HEAD').read().strip()
     if True:
+      iters = 30
       for i in range(iters):
         try:
           #runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))

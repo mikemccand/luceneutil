@@ -767,42 +767,26 @@ def run():
   else:
     os.chdir(constants.BENCH_BASE_DIR)
 
-    iters = 30
-    if True:
-      for i in range(iters):
-        try:
-          runCommand('git checkout master; git pull origin main > %s/gitupdate.log' % runLogDir)
-        except RuntimeError:
-          message('  retry...')
-          time.sleep(60.0)
-        else:
-          s = open('%s/gitupdate.log' % runLogDir).read()
-          if s.find('not updating') != -1:
-            raise RuntimeError('git pull failed: %s' % s)
-          break
-      else:
-        raise RuntimeError('failed to run git pull after %d tries' % iters)
-
-    os.chdir(constants.BENCH_BASE_DIR)
     luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
 
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     #runCommand('%s cleanup' % constants.SVN_EXE)
     runCommand('%s clean -xfd' % constants.GIT_EXE)
-    for i in range(iters):
-      try:
-        #runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-        runCommand('%s checkout main; %s pull origin master > %s/update.log' % (constants.GIT_EXE, constants.GIT_EXE, runLogDir))
-      except RuntimeError:
-        message('  retry...')
-        time.sleep(60.0)
+    if True:
+      for i in range(iters):
+        try:
+          #runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
+          runCommand('%s checkout main; %s pull origin main > %s/update.log' % (constants.GIT_EXE, constants.GIT_EXE, runLogDir))
+        except RuntimeError:
+          message('  retry...')
+          time.sleep(60.0)
+        else:
+          luceneRev = os.popen('git rev-parse HEAD').read().strip()
+          #svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
+          print('LUCENE rev is %s' % luceneRev)
+          break
       else:
-        luceneRev = os.popen('git rev-parse HEAD').read().strip()
-        #svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-        print('LUCENE rev is %s' % luceneRev)
-        break
-    else:
-      raise RuntimeError('failed to run git pull after %d tries' % iters)
+        raise RuntimeError('failed to run git pull after %d tries' % iters)
 
     print('luceneutil rev is %s' % luceneUtilRev)
     javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()

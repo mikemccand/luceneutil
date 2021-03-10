@@ -771,7 +771,7 @@ def run():
     if True:
       for i in range(iters):
         try:
-          runCommand('git checkout master; git pull origin master > %s/gitupdate.log' % runLogDir)
+          runCommand('git checkout master; git pull origin main > %s/gitupdate.log' % runLogDir)
         except RuntimeError:
           message('  retry...')
           time.sleep(60.0)
@@ -792,7 +792,7 @@ def run():
     for i in range(iters):
       try:
         #runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-        runCommand('%s checkout master; %s pull origin master > %s/update.log' % (constants.GIT_EXE, constants.GIT_EXE, runLogDir))
+        runCommand('%s checkout main; %s pull origin master > %s/update.log' % (constants.GIT_EXE, constants.GIT_EXE, runLogDir))
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)

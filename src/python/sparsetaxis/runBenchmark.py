@@ -146,7 +146,7 @@ def main():
   
   parser = argparse.ArgumentParser()
   parser.add_argument('-rootDir', help='directory where documents source files and indices are stored', default='.')
-  parser.add_argument('-luceneMaster', help='directory where lucene\'s master is cloned', default='./lucene.master')
+  parser.add_argument('-luceneMain', help='directory where lucene\'s main is cloned', default='./lucene.main')
   parser.add_argument('-logDir', help='where to write all indexing and searching logs')
   args = parser.parse_args()
   args.rootDir = os.path.abspath(args.rootDir)
@@ -172,9 +172,9 @@ def main():
 
   if True:
     cwd = os.getcwd()
-    if not os.path.exists(args.luceneMaster):
-      raise RuntimeError('%s default lucene master clone does not exist; please specify -luceneMaster' % args.luceneMaster)
-    os.chdir('%s/lucene/core' % args.luceneMaster)
+    if not os.path.exists(args.luceneMain):
+      raise RuntimeError('%s default lucene main clone does not exist; please specify -luceneMain' % args.luceneMain)
+    os.chdir('%s/lucene/core' % args.luceneMain)
     luceneRev = os.popen('git rev-parse HEAD').read().strip()
     print('Lucene git hash: %s' % luceneRev)
     results.append(luceneRev)
@@ -185,7 +185,7 @@ def main():
     # nocommit
     if False:
       print('\nCompile lucene analysis/common...')
-      os.chdir('%s/lucene/analysis/common' % args.luceneMaster)
+      os.chdir('%s/lucene/analysis/common' % args.luceneMain)
       run('ant clean jar', '%s/antclean.jar.log' % logDir)
 
     os.chdir(cwd)
@@ -193,7 +193,7 @@ def main():
   print('\nCompile java benchmark sources...')
 
   classPath = '%s/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar:%s/lucene/analysis/common/build/libs/lucene-analysis-common-9.0.0-SNAPSHOT.jar:%s/../../main' % \
-              (args.luceneMaster, args.luceneMaster, luceneUtilPythonPath)
+              (args.luceneMain, args.luceneMain, luceneUtilPythonPath)
 
   run('javac -cp %s %s/../../main/perf/SearchTaxis.java %s/../../main/perf/IndexTaxis.java %s/../../main/perf/DiskUsage.java' % (classPath, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))
 

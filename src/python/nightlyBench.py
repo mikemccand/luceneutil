@@ -831,9 +831,26 @@ def run():
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
                                   maxConcurrentMerges=12,
-                                  useCMS=True,
-                                  vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                  vectorDimension=100,)
+                                  useCMS=True)
+                                  
+
+  fastIndexMediumVectors = comp.newIndex(NIGHTLY_DIR, mediumSource,
+                                         analyzer='StandardAnalyzerNoStopWords',
+                                         postingsFormat='Lucene90',
+                                         numThreads=constants.INDEX_NUM_THREADS,
+                                         directory=DIR_IMPL,
+                                         idFieldPostingsFormat='Lucene90',
+                                         ramBufferMB=INDEXING_RAM_BUFFER_MB,
+                                         waitForMerges=False,
+                                         waitForCommit=False,
+                                         disableIOThrottle=True,
+                                         grouping=False,
+                                         verbose=False,
+                                         mergePolicy='TieredMergePolicy',
+                                         maxConcurrentMerges=12,
+                                         useCMS=True,
+                                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
+                                         vectorDimension=100,)
                                   
 
   nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
@@ -850,9 +867,7 @@ def run():
                                   verbose=False,
                                   mergePolicy='TieredMergePolicy',
                                   maxConcurrentMerges=12,
-                                  useCMS=True,
-                                  vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                  vectorDimension=100,)
+                                  useCMS=True)
                                  
   bigSource = competition.Data('wikibig',
                                constants.NIGHTLY_BIG_LINE_FILE,
@@ -873,9 +888,7 @@ def run():
                                verbose=False,
                                mergePolicy='TieredMergePolicy',
                                maxConcurrentMerges=12,
-                               useCMS=True,
-                               vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                               vectorDimension=100,)
+                               useCMS=True)
                                
 
   # Must use only 1 thread so we get same index structure, always:
@@ -911,16 +924,20 @@ def run():
   medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')
   message('medIndexAtClose %s' % atClose)
 
-  # 2: NRT test
+  # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
+  medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(r, runLogDir, 'medium vectors index (fast)', fastIndexMediumVectors, 'fastIndexMediumDocsWithVectors.log')
+  message('medIndexVectorsAtClose %s' % atClose)
+
+  # 3: build index for NRT test
   nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, 'nrt medium index', nrtIndexMedium, 'nrtIndexMediumDocs.log')
   message('nrtMedIndexAtClose %s' % atClose)
-  nrtResults = runNRTTest(r, medIndexPath, runLogDir)
+  nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
 
-  # 3: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
+  # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
   ign, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, 'big index (fast)', fastIndexBig, 'fastIndexBigDocs.log')
   message('bigIndexAtClose %s' % atClose)
 
-  # 4: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
+  # 5: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
   # TODO: switch to concurrent yet deterministic indexer: https://markmail.org/thread/cp6jpjuowbhni6xc
   indexPathNow, ign, ign, atClose, profilerSearchIndex, profilerSearchJFR = buildIndex(r, runLogDir, 'search index (fixed segments)', index, 'fixedIndex.log')
   message('fixedIndexAtClose %s' % atClose)
@@ -1004,6 +1021,11 @@ def run():
         w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_{stackSize}_heap">heap</a>')
       w('</ul>')
 
+      w('<br>indexing 1KB (with vectors)\n<ul>')
+      for stackSize in JFR_STACK_SIZES:
+        w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_vectors_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_vectors_{stackSize}_heap">heap</a>')
+      w('</ul>')
+
       w('<br>indexing 4KB\n<ul>')
       for stackSize in JFR_STACK_SIZES:
         w(f'<li>stackSize={stackSize}: <a href="#profiler_4kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_4kb_indexing_{stackSize}_heap">heap</a>')
@@ -1045,6 +1067,11 @@ def run():
         for mode, stackSize, output in profilerSearchIndex:
           w(f'\n<a id="profiler_deterministic_indexing_{stackSize}_{mode}"></a>')
           w(f'\n<pre>{output}</pre>\n')
+      if profilerMediumVectorsIndex is not None:
+        w('<b>~1KB docs</b>')
+        for mode, stackSize, output in profilerMediumVectorsIndex:
+          w(f'\n<a id="profiler_1kb_indexing_vectors_{stackSize}_{mode}"></a>')
+          w(f'\n<pre>{output}</pre>\n')
       
       w('<br><br><h2>Profiler results (searching)</h2>\n')
       w(f'<a id="profiler_searching_cpu"></a>')
@@ -1074,6 +1101,11 @@ def run():
                       f'indexing-1kb-{timeStamp}',
                       f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
                       profilerMediumJFR)
+
+      blunders.upload(f'Indexing fast ~1 KB docs with vectors ({timeStamp})',
+                      f'indexing-1kb-vectors-{timeStamp}',
+                      f"Profiled results during indexing ~1 KB docs with KNN vectors in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                      profilerMediumVectorsJFR)
 
       blunders.upload(f'Indexing fast ~4 KB docs ({timeStamp})',
                       f'indexing-4kb-{timeStamp}',
@@ -1113,7 +1145,9 @@ def run():
              searchResults,
              luceneRev,
              luceneUtilRev,
-             searchHeaps)
+             searchHeaps,
+             medVectorsIndexTime, medVectorsBytesIndexed)
+             
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
     if os.path.exists(fname + '.stdout'):
@@ -1237,6 +1271,7 @@ def getSearchGCTimes(subDir):
 def makeGraphs():
   global annotations
   medIndexChartData = ['Date,GB/hour']
+  medIndexVectorsChartData = ['Date,GB/hour']
   bigIndexChartData = ['Date,GB/hour']
   nrtChartData = ['Date,Reopen Time (msec)']
   gcIndexTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
@@ -1276,6 +1311,11 @@ def makeGraphs():
       else:
         searchHeaps = None
 
+      if len(tup) > 12:
+        medVectorsIndexTimeSec, medVectorsBytesIndexed = tup[12:14]
+      else:
+        medVectorsIndexTimeSec, medVectorsBytesIndexed = None, None
+
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
                          timeStamp.month,
@@ -1310,6 +1350,8 @@ def makeGraphs():
       gcSearchTimesChartData.append(s)
 
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
+      if medVectorsBytesIndexed is not None:
+        medIndexVectorsChartData.append('%s,%.1f' % (timeStampString, (medVectorsBytesIndexed / (1024*1024*1024.))/(medVectorsIndexTimeSec/3600.)))
       bigIndexChartData.append('%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024*1024*1024.))/(bigIndexTimeSec/3600.)))
       mean, stdDev = nrtResults
       nrtChartData.append('%s,%.3f,%.2f' % (timeStampString, mean, stdDev))
@@ -1366,12 +1408,13 @@ def makeGraphs():
         label += 1
 
   sort(medIndexChartData)
+  sort(medIndexVectorsChartData)
   sort(bigIndexChartData)
   for k, v in list(searchChartData.items()):
     sort(v)
 
   # Index time, including GC/JIT times
-  writeIndexingHTML(medIndexChartData, bigIndexChartData, gcIndexTimesChartData)
+  writeIndexingHTML(medIndexChartData, medIndexVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
 
   # CheckIndex time
   writeCheckIndexTimeHTML()
@@ -1692,7 +1735,7 @@ def writeSearchGCJITHTML(gcTimesChartData):
     writeKnownChanges(w, pctOffset=227)
     footer(w)
 
-def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
+def writeIndexingHTML(medChartData, medVectorsChartData, bigChartData, gcTimesChartData):
   f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'w', encoding='utf-8')
   w = f.write
   header(w, 'Lucene nightly indexing benchmark')
@@ -1703,16 +1746,22 @@ def writeIndexingHTML(medChartData, bigChartData, gcTimesChartData):
   w('<br>')
   w('<br>')
   w('<br>')
-  w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs", errorBars=False, pctOffset=80))
+  w(getOneGraphHTML('MedVectorsIndexTime', medVectorsChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs, with KNN Vectors", errorBars=False, pctOffset=90))
   w('\n')
 
   w('<br>')
   w('<br>')
   w('<br>')
-  w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False, pctOffset=150))
+  w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs", errorBars=False, pctOffset=170))
   w('\n')
 
-  writeKnownChanges(w, pctOffset=227)
+  w('<br>')
+  w('<br>')
+  w('<br>')
+  w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False, pctOffset=250))
+  w('\n')
+
+  writeKnownChanges(w, pctOffset=330)
 
   w('<br><br>')
   w('<b>Notes</b>:\n')

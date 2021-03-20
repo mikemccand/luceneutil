@@ -28,6 +28,7 @@ import sys
 import tarfile
 import time
 import traceback
+import urllib.request
 
 # local imports:
 import benchUtil
@@ -562,6 +563,10 @@ KNOWN_CHANGES = [
   ('2021-02-25',
    'Upgrade beast3 to Arch Linux 5.11.1',
    'Upgrade beast3 to Arch Linux 5.11.1'),
+
+  ('2021-03-14 08:23:12',
+   'Move vectors indexing to dedicated (separate) indexing task',
+   'Move vectors indexing to dedicated (separate) indexing task'),
 ]
 
 # TODO
@@ -606,6 +611,8 @@ reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
 reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)', re.MULTILINE)
 reSVNRev = re.compile(r'revision (.*?)\.')
 reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
+reGitHubPROpen = re.compile(r'\s(\d+) Open')
+reGitHubPRClosed = re.compile(r'\s(\d+) Closed')
 
 REAL = True
 
@@ -1138,6 +1145,8 @@ def run():
     cmpDiffs = None
     searchHeaps = None
 
+  openPRCount, closedPRCount = countGitHubPullRequests()
+
   results = (start,
              MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,
              BIG_INDEX_NUM_DOCS, bigIndexTime, bigBytesIndexed,
@@ -1146,7 +1155,8 @@ def run():
              luceneRev,
              luceneUtilRev,
              searchHeaps,
-             medVectorsIndexTime, medVectorsBytesIndexed)
+             medVectorsIndexTime, medVectorsBytesIndexed,
+             openPRCount, closedPRCount)
              
   for fname in resultsNow:
     shutil.copy(fname, runLogDir)
@@ -1183,6 +1193,23 @@ def run():
 
   message('done: total time %s' % (now()-start))
 
+def countGitHubPullRequests():
+  with urllib.request.urlopen('https://github.com/apache/lucene/pulls') as response:
+    html = response.read().decode('utf-8')
+
+    m = reGitHubPROpen.search(html)
+    if m is not None:
+      openCount = int(m.group(1))
+    else:
+      openCount = None
+
+    m = reGitHubPRClosed.search(html)
+    if m is not None:
+      closedCount = int(m.group(1))
+    else:
+      closedCount = None
+
+    return openCount, closedCount
   
 def findLastSuccessfulGitHashes():
 
@@ -1277,6 +1304,7 @@ def makeGraphs():
   gcIndexTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
   gcSearchTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
   searchChartData = {}
+  gitHubPRChartData = ['Date,Open PR Count,Closed PR Count']
   days = []
   annotations = []
   l = os.listdir(constants.NIGHTLY_LOG_DIR)
@@ -1316,6 +1344,11 @@ def makeGraphs():
       else:
         medVectorsIndexTimeSec, medVectorsBytesIndexed = None, None
 
+      if len(tup) > 14:
+        openGitHubPRCount, closedGitHubPRCount = tup[14:16]
+      else:
+        openGitHubPRCount, closedGitHubPRCount = None, None
+
       timeStampString = '%04d-%02d-%02d %02d:%02d:%02d' % \
                         (timeStamp.year,
                          timeStamp.month,
@@ -1348,6 +1381,11 @@ def makeGraphs():
         if v is not None:
           s += '%.4f' % v
       gcSearchTimesChartData.append(s)
+
+      if openGitHubPRCount is not None:
+        gitHubPRChartData.append(f'{timeStampString},{openGitHubPRCount},{closedGitHubPRCount}')
+      else:
+        gitHubPRChartData.append(f'{timeStampString},,')
 
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       if medVectorsBytesIndexed is not None:
@@ -1407,6 +1445,7 @@ def makeGraphs():
           #KNOWN_CHANGES.remove((date, desc, fullDesc))
         label += 1
 
+  sort(gitHubPRChartData)
   sort(medIndexChartData)
   sort(medIndexVectorsChartData)
   sort(bigIndexChartData)
@@ -1422,6 +1461,8 @@ def makeGraphs():
   # NRT
   writeNRTHTML(nrtChartData)
 
+  # GitHub PR open/closed counts
+
   for k, v in list(searchChartData.items())[:]:
     # Graph does not render right with only one value:
     if len(v) > 1:
@@ -1433,6 +1474,8 @@ def makeGraphs():
       del searchChartData[k]
 
   writeIndexHTML(searchChartData, days)
+
+  writeGitHubPRChartHTML(gitHubPRChartData)
 
   writeSearchGCJITHTML(gcSearchTimesChartData)
 
@@ -1570,6 +1613,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="nrt.html">Near-real-time refresh latency</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="github_pr_counts.html">Lucene GitHub pull-request counts</a>')
 
   w('<br><br><b>BooleanQuery:</b>')
   writeOneLine(w, done, 'AndHighHigh', '+high-freq +high-freq')
@@ -1681,6 +1725,9 @@ def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
 def sort(l):
+  '''
+  Leave header (l[0]) in-place but sort the rest of the list, naturally.
+  '''
   x = l[0]
   del l[0]
   l.sort()
@@ -1733,6 +1780,17 @@ def writeSearchGCJITHTML(gcTimesChartData):
     w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times during searching", errorBars=False))
     w('\n')
     writeKnownChanges(w, pctOffset=227)
+    footer(w)
+
+def writeGitHubPRChartHTML(gitHubPRChartData):
+  with open('%s/github_pr_counts.html' % constants.NIGHTLY_REPORTS_DIR, 'w') as f:
+    w = f.write
+    header(w, 'Lucene GitHub <a href="https://github.com/apache/lucene/pulls">pull-request counts</a>')
+    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
+    w('<br>')
+    w(getOneGraphHTML('GitHubPRCounts', gitHubPRChartData, "Count", "Lucene GitHub pull-request counts", errorBars=False))
+    w('\n')
+    writeKnownChanges(w, pctOffset=100)
     footer(w)
 
 def writeIndexingHTML(medChartData, medVectorsChartData, bigChartData, gcTimesChartData):
@@ -1841,10 +1899,20 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   w('  g_%s = new Dygraph(' % id)
   w('    document.getElementById("%s"),' % id)
   seenTimeStamps = set()
-  for s in data[:-1]:
+  firstTimeStamp = None
+
+  # header
+  w('    "%s\\n" +' % data[0])
+  
+  for s in data[1:-1]:
     w('    "%s\\n" +' % s)
-    timeStamp = s[:s.find(',')]
-    seenTimeStamps.add(timeStamp)
+    timeStamp, theRest = s.split(',', 1)
+    if firstTimeStamp is None and len(theRest.strip().replace(',', '').replace('\\n', '')) > 0:
+      firstTimeStamp = timeStamp
+    if firstTimeStamp is not None:
+      # don't show annotations before this chart's data begins
+      seenTimeStamps.add(timeStamp)
+      
   s = data[-1]
   w('    "%s\\n",' % s)
   timeStamp = s[:s.find(',')]

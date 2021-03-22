@@ -733,6 +733,8 @@ def runNRTTest(r, indexPath, runLogDir):
 
 def run():
 
+  openPRCount, closedPRCount = countGitHubPullRequests()
+
   MEDIUM_INDEX_NUM_DOCS = constants.NIGHTLY_MEDIUM_INDEX_NUM_DOCS
   BIG_INDEX_NUM_DOCS = constants.NIGHTLY_BIG_INDEX_NUM_DOCS
 
@@ -1145,8 +1147,6 @@ def run():
     cmpDiffs = None
     searchHeaps = None
 
-  openPRCount, closedPRCount = countGitHubPullRequests()
-
   results = (start,
              MEDIUM_INDEX_NUM_DOCS, medIndexTime, medBytesIndexed,
              BIG_INDEX_NUM_DOCS, bigIndexTime, bigBytesIndexed,
@@ -1208,6 +1208,8 @@ def countGitHubPullRequests():
       closedCount = int(m.group(1))
     else:
       closedCount = None
+
+    print(f'GitHub pull request counts: {openCount} open, {closedCount} closed')
 
     return openCount, closedCount
   
@@ -1777,7 +1779,7 @@ def writeSearchGCJITHTML(gcTimesChartData):
     header(w, 'Lucene search GC/JIT times')
     w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
     w('<br>')
-    w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times during searching", errorBars=False))
+    w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times during searching", errorBars=False, pctOffset=10))
     w('\n')
     writeKnownChanges(w, pctOffset=227)
     footer(w)
@@ -1785,10 +1787,10 @@ def writeSearchGCJITHTML(gcTimesChartData):
 def writeGitHubPRChartHTML(gitHubPRChartData):
   with open('%s/github_pr_counts.html' % constants.NIGHTLY_REPORTS_DIR, 'w') as f:
     w = f.write
-    header(w, 'Lucene GitHub <a href="https://github.com/apache/lucene/pulls">pull-request counts</a>')
-    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
+    header(w, 'Lucene GitHub pull-request counts')
+    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details.  This counts Lucene\'s <a href="https://github.com/apache/lucene/pulls">GitHub pull requests</a>. <br>')
     w('<br>')
-    w(getOneGraphHTML('GitHubPRCounts', gitHubPRChartData, "Count", "Lucene GitHub pull-request counts", errorBars=False))
+    w(getOneGraphHTML('GitHubPRCounts', gitHubPRChartData, "Count", "Lucene GitHub pull-request counts", errorBars=False, pctOffset=10))
     w('\n')
     writeKnownChanges(w, pctOffset=100)
     footer(w)

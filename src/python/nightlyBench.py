@@ -1386,8 +1386,6 @@ def makeGraphs():
 
       if openGitHubPRCount is not None:
         gitHubPRChartData.append(f'{timeStampString},{openGitHubPRCount},{closedGitHubPRCount}')
-      else:
-        gitHubPRChartData.append(f'{timeStampString},,')
 
       medIndexChartData.append('%s,%.1f' % (timeStampString, (medBytesIndexed / (1024*1024*1024.))/(medIndexTimeSec/3600.)))
       if medVectorsBytesIndexed is not None:
@@ -1930,12 +1928,13 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   options.append('clickCallback: doClick')
   options.append("labelsDivStyles: {'background-color': 'transparent'}")
 
-  # show past 2 years by default:
-  start = datetime.datetime.now() - datetime.timedelta(days=2*365)
-  end = datetime.datetime.now() + datetime.timedelta(days=2)
-  options.append('dateWindow: [Date.parse("%s/%s/%s"), Date.parse("%s/%s/%s")]' % \
-                 (start.year, start.month, start.day,
-                  end.year, end.month, end.day))
+  # show past 2 years by default -- disabled!  this is irritating because it is not obvious how to get back to the full history?
+  if False:
+    start = datetime.datetime.now() - datetime.timedelta(days=2*365)
+    end = datetime.datetime.now() + datetime.timedelta(days=2)
+    options.append('dateWindow: [Date.parse("%s/%s/%s"), Date.parse("%s/%s/%s")]' % \
+                   (start.year, start.month, start.day,
+                    end.year, end.month, end.day))
   if False:
     if errorBars:
       maxY = max([float(x.split(',')[1])+float(x.split(',')[2]) for x in data[1:]])

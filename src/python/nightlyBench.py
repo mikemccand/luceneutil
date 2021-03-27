@@ -1613,7 +1613,6 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="nrt.html">Near-real-time refresh latency</a>')
-  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="github_pr_counts.html">Lucene GitHub pull-request counts</a>')
 
   w('<br><br><b>BooleanQuery:</b>')
   writeOneLine(w, done, 'AndHighHigh', '+high-freq +high-freq')
@@ -1668,6 +1667,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparseResults.html">Sparse vs dense doc values performance on NYC taxi ride corpus</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="antcleantest.html">"gradle -p lucene test" and "gradle precommit" time in lucene</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="checkIndexTime.html">CheckIndex time</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="github_pr_counts.html">Lucene GitHub pull-request counts</a>')
 
   l = list(searchChartData.keys())
   lx = []

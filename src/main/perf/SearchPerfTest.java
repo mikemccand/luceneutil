@@ -42,14 +42,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.classic.ClassicAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
-import org.apache.lucene.analysis.standard.ClassicAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene86.Lucene86Codec;
+import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
@@ -262,6 +262,12 @@ public class SearchPerfTest {
 
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
+    final String vectorFile;
+    if (args.hasArg("-vectorDict")) {
+      vectorFile = args.getString("-vectorDict");
+    } else {
+      vectorFile = null;
+    }
 
     if (recacheFilterDeletes) {
       throw new UnsupportedOperationException("recacheFilterDeletes was deprecated");
@@ -314,7 +320,7 @@ public class SearchPerfTest {
       //((TieredMergePolicy) iwc.getMergePolicy()).setReclaimDeletesWeight(3.0);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergeAtOnce(4);
 
-      final Codec codec = new Lucene86Codec() {
+      final Codec codec = new Lucene90Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return PostingsFormat.forName(field.equals("id") ?
@@ -347,8 +353,8 @@ public class SearchPerfTest {
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
       boolean addDVFields = mode == Mode.BDV_UPDATE || mode == Mode.NDV_UPDATE;
-			LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields);
-			IndexThreads threads = new IndexThreads(new Random(17), writer, new AtomicBoolean(false), lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
+      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, null, 0);
+      IndexThreads threads = new IndexThreads(new Random(17), writer, new AtomicBoolean(false), lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
       threads.start();
 
       mgr = new SearcherManager(writer, new SearcherFactory() {
@@ -499,7 +505,7 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     final QueryParser queryParser = new QueryParser("body", a);
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, doStoredLoads);
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorFile, doStoredLoads);
 
     final TaskSource tasks;
 

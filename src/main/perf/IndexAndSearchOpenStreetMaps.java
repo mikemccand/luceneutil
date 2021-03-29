@@ -47,7 +47,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonDocValuesField;
 import org.apache.lucene.document.LatLonPoint;
-import org.apache.lucene.search.LatLonPointPrototypeQueries;
+import org.apache.lucene.sandbox.search.LatLonPointPrototypeQueries;
 //import org.apache.lucene.geo.EarthDebugger;
 import org.apache.lucene.geo.GeoUtils;
 import org.apache.lucene.geo.Polygon;
@@ -555,7 +555,7 @@ public class IndexAndSearchOpenStreetMaps {
 
   private static Codec getCodec(boolean fast) {
     if (fast) {
-      return new FilterCodec("Lucene86", Codec.getDefault()) {
+      return new FilterCodec("Lucene90", Codec.getDefault()) {
         @Override
         public PointsFormat pointsFormat() {
           return new PointsFormat() {
@@ -573,7 +573,7 @@ public class IndexAndSearchOpenStreetMaps {
         }
       };
     } else {
-      return Codec.forName("Lucene86");
+      return Codec.forName("Lucene90");
     }
   }
 

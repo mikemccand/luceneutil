@@ -1,0 +1,65 @@
+<project name="luceneutil-1.0" basedir="." default="build">
+
+  <property name="data.dir" value="${basedir}/../data"/>
+  <property name="tasks.dir" value="${basedir}/tasks"/>
+
+  <target name="build">
+
+    <path id="build.classpath">
+      <pathelement location="build"/>
+    </path>
+
+    <javac srcdir="src/main"
+           destdir="build"
+           includes="WikiVectors.java,perf/VectorDictionary.java"
+           classpathref="build.classpath"
+           includeantruntime="false"/>
+  </target>
+
+  <target name="extract-vector-tasks">
+    <copy file="${tasks.dir}/vector.tasks" tofile="${tasks.dir}/vector.task.txt">
+      <filterchain>
+        <tokenfilter>
+          <replaceregex pattern=".*//(.*) # .*" replace="\1"/>
+        </tokenfilter>
+      </filterchain>
+    </copy>
+  </target>
+
+  <target name="vectors300-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-300d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-300d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300" depends="vectors300-tasks,vectors300-docs"/>
+
+  <target name="vectors100-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-100d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors100-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-100d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors100" depends="vectors100-tasks,vectors100-docs"/>
+
+</project>

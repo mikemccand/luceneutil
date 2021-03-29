@@ -34,13 +34,13 @@ os.chdir(LUCENE_ROOT)
 
 t = datetime.datetime.now()
 ymd = t.strftime('%Y-%m-%d')
-print('\n%s' % ymd)
+print('\nrunAnalyzerPerf.py: %s' % ymd)
 
 #run('python -u /home/mike/src/util/svnClean.py %s/..' % LUCENE_ROOT)
 #run('svn cleanup')
 #run('svn up')
 run('git clean -xfd')
-run('git pull origin master')
+run('git pull origin main')
 print('Compile...')
 run('../gradlew clean compileJava > compile.log 2>&1')
 
@@ -49,7 +49,7 @@ logFileJa = '%s/%s.log' % (LOGS_JA_ROOT, ymd)
 
 with open(logFile + '.tmp', 'w') as lf:
   #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
-  lf.write('lucene master version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  lf.write('lucene main version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
   os.chdir(constants.BENCH_BASE_DIR)
   lf.write('git version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
   lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
@@ -57,7 +57,7 @@ with open(logFile + '.tmp', 'w') as lf:
 
 with open(logFileJa + '.tmp', 'w') as lf:
   #lf.write('svnversion: %s\n' % os.popen('svnversion').read().strip())
-  lf.write('lucene master version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
+  lf.write('lucene main version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
   os.chdir(constants.BENCH_BASE_DIR)
   lf.write('git version: %s\n' % os.popen('git rev-parse HEAD').read().strip())
   lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())

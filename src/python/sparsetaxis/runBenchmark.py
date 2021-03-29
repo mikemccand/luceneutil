@@ -114,7 +114,7 @@ def runIndexing(args, cpuCount, sparseOrNot, sortOrNot):
           print('  %6.1f sec: %5.1f M docs; %5.1f K docs/sec' % \
                 (float(m.group(1)), int(m.group(2))/1000000.0, float(m.group(3))/1000.0))
           lastPrint = now
-    p.poll()
+    p.wait()
     if p.returncode != 0:
       print(open(logFile, 'r', encoding='utf-8').read())
       raise RuntimeError('indexing failed: %s' % p.returncode)
@@ -146,7 +146,7 @@ def main():
   
   parser = argparse.ArgumentParser()
   parser.add_argument('-rootDir', help='directory where documents source files and indices are stored', default='.')
-  parser.add_argument('-luceneMaster', help='directory where lucene\'s master is cloned', default='./lucene.master')
+  parser.add_argument('-luceneMain', help='directory where lucene\'s main is cloned', default='./lucene.main')
   parser.add_argument('-logDir', help='where to write all indexing and searching logs')
   args = parser.parse_args()
   args.rootDir = os.path.abspath(args.rootDir)
@@ -172,28 +172,28 @@ def main():
 
   if True:
     cwd = os.getcwd()
-    if not os.path.exists(args.luceneMaster):
-      raise RuntimeError('%s default lucene master clone does not exist; please specify -luceneMaster' % args.luceneMaster)
-    os.chdir('%s/lucene/core' % args.luceneMaster)
+    if not os.path.exists(args.luceneMain):
+      raise RuntimeError('%s default lucene main clone does not exist; please specify -luceneMain' % args.luceneMain)
+    os.chdir('%s/lucene/core' % args.luceneMain)
     luceneRev = os.popen('git rev-parse HEAD').read().strip()
     print('Lucene git hash: %s' % luceneRev)
     results.append(luceneRev)
     print('\nCompile lucene core...')
     # nocommit
     #run('ant clean jar', '%s/antclean.jar.log' % logDir)
-    run('ant jar', '%s/antclean.jar.log' % logDir)
+    run('../../gradlew jar', '%s/gradle.jar.log' % logDir)
     # nocommit
     if False:
       print('\nCompile lucene analysis/common...')
-      os.chdir('%s/lucene/analysis/common' % args.luceneMaster)
+      os.chdir('%s/lucene/analysis/common' % args.luceneMain)
       run('ant clean jar', '%s/antclean.jar.log' % logDir)
 
     os.chdir(cwd)
 
   print('\nCompile java benchmark sources...')
 
-  classPath = '%s/lucene/build/core/lucene-core-7.0.0-SNAPSHOT.jar:%s/lucene/build/analysis/common/lucene-analyzers-common-7.0.0-SNAPSHOT.jar:%s/../../main' % \
-              (args.luceneMaster, args.luceneMaster, luceneUtilPythonPath)
+  classPath = '%s/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar:%s/lucene/analysis/common/build/libs/lucene-analysis-common-9.0.0-SNAPSHOT.jar:%s/../../main' % \
+              (args.luceneMain, args.luceneMain, luceneUtilPythonPath)
 
   run('javac -cp %s %s/../../main/perf/SearchTaxis.java %s/../../main/perf/IndexTaxis.java %s/../../main/perf/DiskUsage.java' % (classPath, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))
 

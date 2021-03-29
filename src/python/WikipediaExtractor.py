@@ -133,7 +133,13 @@ def WikiDocument(out, id, title, text):
     out.reserve(len(header) + len(text) + len(footer))
     out.write(header)
     for line in compact(text):
-        out.write(line.encode('utf-8'))
+        try:
+            out.write(line.encode('utf-8'))
+        except UnicodeEncodeError:
+            out.write(line.encode('utf-8', errors='replace'))
+            print('FAILED to cleanly convert text fragment:')
+            for i in range(len(line)):
+                print('%d: %x' % (i, ord(line[i])))
     out.write(footer)
 
 def get_url(id, prefix):

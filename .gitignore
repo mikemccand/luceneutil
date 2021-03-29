@@ -11,11 +11,16 @@
 .pydevproject
 *.sublime_session
 
+## generated files
+src/python/localrun.py
+src/python/localconstants.py
+
 ## temporaries and build directories
 *.class
 *.pyc
 *.swp
 npm-debug.log 
+target/
 local/
 tmp/
 bin/
@@ -23,3 +28,7 @@ build/
 work/
 .DS_Store
 node_modules/
+
+# emacs temporary files
+*~
+#*

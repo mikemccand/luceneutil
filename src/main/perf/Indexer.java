@@ -18,6 +18,7 @@ package perf;
  */
 
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -36,13 +37,17 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene86.Lucene86Codec;
+import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
+import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.LogMergePolicy;
@@ -205,6 +210,15 @@ public final class Indexer {
     } 
 
     final String lineFile = args.getString("-lineDocsFile");
+    String vectorFile;
+    int vectorDimension;
+    if (args.hasArg("-vectorFile")) {
+        vectorFile = args.getString("-vectorFile");
+        vectorDimension = args.getInt("-vectorDimension");
+    } else {
+        vectorFile = null;
+        vectorDimension = 0;
+    }
 
     // -1 means all docs in the line file:
     final int docCountLimit = args.getInt("-docCountLimit");
@@ -301,7 +315,7 @@ public final class Indexer {
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
-      facetDVFormatName = "Lucene80";
+      facetDVFormatName = "Lucene90";
     } else {
       facetDVFormatName = args.getString("-facetDVFormat");
     }
@@ -317,6 +331,7 @@ public final class Indexer {
     System.out.println("Index path: " + dirPath);
     System.out.println("Analyzer: " + analyzer);
     System.out.println("Line file: " + lineFile);
+    System.out.println("Vector file: " + vectorFile + ", dim=" + vectorDimension);
     System.out.println("Doc count limit: " + (docCountLimit == -1 ? "all docs" : ""+docCountLimit));
     System.out.println("Threads: " + numThreads);
     System.out.println("Force merge: " + (doForceMerge ? "yes" : "no"));
@@ -384,14 +399,14 @@ public final class Indexer {
       iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
     }
     
-    final Codec codec = new Lucene86Codec() {
+    final Codec codec = new Lucene90Codec(Lucene90Codec.Mode.BEST_COMPRESSION) {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
                                         idFieldPostingsFormat : defaultPostingsFormat);
         }
 
-        private final DocValuesFormat facetsDVFormat = DocValuesFormat.forName(facetDVFormatName);
+        private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat(Lucene90DocValuesFormat.Mode.BEST_COMPRESSION);
         //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
         //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
 //        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
@@ -428,7 +443,9 @@ public final class Indexer {
     // Fixed seed so group field values are always consistent:
     final Random random = new Random(17);
 
-    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false, taxoWriter, facetDimMethods, facetsConfig, addDVFields);
+    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
+                                                 taxoWriter, facetDimMethods, facetsConfig, addDVFields,
+                                                 vectorFile, vectorDimension);
 
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;
@@ -476,8 +493,13 @@ public final class Indexer {
       countShouldMatch = true;
     }
 
-    if (countShouldMatch && w.getDocStats().maxDoc != docCountLimit) {
-      throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.getDocStats().maxDoc) + ")");
+    if (countShouldMatch) {
+      if (w.getDocStats().maxDoc != docCountLimit) {
+        throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.getDocStats().maxDoc) + ")");
+      }
+      if (w.getDocStats().maxDoc != countUniqueTerms(w, "id")) {
+        throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but countUniqueIds=" + countUniqueTerms(w, "id"));
+      }
     }
 
     final Map<String,String> commitData = new HashMap<String,String>();
@@ -570,7 +592,7 @@ public final class Indexer {
       System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
       System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
     }
-      
+
     dir.close();
     final long tFinal = System.currentTimeMillis();
     System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
@@ -584,5 +606,18 @@ public final class Indexer {
       System.out.println("\nIndexer: finished (" + indexingTime + " msec), excluding commit");
     }
     System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./(indexingTime/3600000.)) + " GB/hour plain text");
+  }
+
+  private static long countUniqueTerms(IndexWriter iw, String fld) throws IOException {
+    long total = 0;
+    try (IndexReader reader = DirectoryReader.open(iw)) {
+      for (LeafReaderContext ctx : reader.leaves()) {
+        long size = ctx.reader().terms(fld).size();
+        if (size > 0) {
+          total += size;
+        }
+      }
+    }
+    return total;
   }
 }

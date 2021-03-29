@@ -38,6 +38,9 @@ import shlex
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
+if PYTHON_MAJOR_VER < 3:
+  raise RuntimeError('Please run with Python 3.x!  Got: %s' % str(sys.version))
+
 # Skip the first N runs of a given category (cold) or particular task (hot):
 WARM_SKIP = 3
 
@@ -74,21 +77,37 @@ def addFiles(root):
 
 def htmlColor(v):
   if v < 0:
-    return '<font color="red">%d%%</font>' % (-v)
+    return colorFormat(-v, 'html', 'red')
   else:
-    return '<font color="green">%d%%</font>' % v
+    return colorFormat(v, 'html', 'green')
 
 def htmlColor2(v):
+  vstr = '%.1f X' % v
   if v < 1.0:
-    return '<font color="red">%.1f X</font>' % v
+    return colorFormat(vstr, 'html', 'red')
   else:
-    return '<font color="green">%.1f X</font>' % v
+    return colorFormat(vstr, 'html', 'green')
 
 def jiraColor(v):
   if v < 0:
-    return '{color:red}%d%%{color}' % (-v)
+    return colorFormat(-v, 'jira', 'red')
   else:
-    return '{color:green}%d%%{color}' % v
+    return colorFormat(v, 'jira', 'green')
+
+def pValueColor(v, form):
+  vstr = '%.3f' % v
+  if v <= 0.05:
+    return colorFormat(vstr, form, 'green')
+  else:
+    return colorFormat(vstr, form, 'red')
+
+def colorFormat(value, form, color):
+  if form == 'html':
+    return '<font color="{}">{}</font>'.format(color, value)
+  elif form == 'jira':
+    return '{{color:{}}}{}{{color}}'.format(color, value)
+  else:
+    raise RuntimeException("unknown format {}".format(form))
 
 def getArg(argName, default, hasArg=True):
   try:
@@ -139,6 +158,9 @@ class SearchTask:
   # TODO: subclass SearchGroupTask
 
   def verifySame(self, other, verifyScores, verifyCounts):
+    if self.query.startswith('<vector:knn:'):
+      # KNN search is deterministically randomized, such that the seed changes with each re-indexing, so we cannot compare results
+      return
     if not isinstance(other, SearchTask):
       self.fail('not a SearchTask (%s)' % other)
     if self.query != other.query:
@@ -177,9 +199,9 @@ class SearchTask:
                   print('WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s' % \
                         (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1]))
               else:
-                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i][1], hitsOther[i][1]))
+                self.fail('hit %s has wrong field/score value %s vs %s' % (i, hitsSelf[i], hitsOther[i]))
             if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf)-1:
-              self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i][0], hitsOther[i][0]))
+              self.fail('hit %s has wrong id/s %s vs %s' % (i, hitsSelf[i], hitsOther[i]))
     else:
       # groups
       if self.groupCount != other.groupCount:
@@ -209,7 +231,7 @@ class SearchTask:
           groups1 = collapseDups(groups1)
           groups2 = collapseDups(groups2)
 
-          for docIDX in xrange(len(groups1)):
+          for docIDX in range(len(groups1)):
             if groups1[docIDX][1] != groups2[docIDX][1]:
               self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
             if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
@@ -344,7 +366,7 @@ def parseResults(resultsFiles):
     if not os.path.exists(resultsFile):
       continue
 
-    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 10*1024:
+    if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 50*1024:
       raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
 
     # print 'parse %s' % resultsFile
@@ -726,7 +748,7 @@ def run(cmd, logFile=None, indent='    '):
     out = open(logFile, 'wb')
   else:
     out = subprocess.STDOUT
-  p = subprocess.Popen(shlex.split(cmd), shell=False, stdout=out, stderr=out, close_fds=True)
+  p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
     if logFile is not None and os.path.getsize(logFile) < 50*1024:
       print(open(logFile).read())
@@ -768,7 +790,11 @@ class RunAlgs:
     else:
       print('OS:\n%s' % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False):
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1):
+
+    # we accept a sequence of stack sizes and will re-aggregate JFR results at each
+    if type(profilerStackSize) is int:
+      profilerStackSize = (profilerStackSize,)
 
     fullIndexPath = nameToIndexPath(index.getName())
     if os.path.exists(fullIndexPath) and not index.doUpdate:
@@ -788,17 +814,26 @@ class RunAlgs:
     try:
 
       cmd = []
-      w = cmd.append
-      w(index.javaCommand)
-      w('-classpath "%s"' % self.classPathToString(self.getClassPath(index.checkout)))
+      cmd += index.javaCommand.split()
+      w = lambda *xs : [cmd.append(str(x)) for x in xs]
+      w('-classpath', classPathToString(getClassPath(index.checkout)))
+
+      jfrOutput = f'{constants.BENCH_BASE_DIR}/bench-index-{id}-{index.getName()}.jfr'
+
+      # 77: always enable Java Flight Recorder profiling
+      w(f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
+        f',filename={jfrOutput}',
+        '-XX:+UnlockDiagnosticVMOptions',
+        '-XX:+DebugNonSafepoints')
+      
       w('perf.Indexer')
-      w('-dirImpl %s' % index.directory)
-      w('-indexPath "%s"' % fullIndexPath)
-      w('-analyzer %s' % index.analyzer)
-      w('-lineDocsFile %s' % index.lineDocSource)
-      w('-docCountLimit %s' % index.numDocs)
-      w('-threadCount %s' % index.numThreads)
-      w('-maxConcurrentMerges %s' % index.maxConcurrentMerges)
+      w('-dirImpl', index.directory)
+      w('-indexPath', fullIndexPath)
+      w('-analyzer', index.analyzer)
+      w('-lineDocsFile', index.lineDocSource)
+      w('-docCountLimit', index.numDocs)
+      w('-threadCount', index.numThreads)
+      w('-maxConcurrentMerges', index.maxConcurrentMerges)
 
       if index.addDVFields:
         w('-dvfields')
@@ -806,15 +841,19 @@ class RunAlgs:
       if index.useCMS:
         w('-useCMS')
 
+      if index.vectorFile:
+        w('-vectorFile', index.vectorFile)
+        w('-vectorDimension', index.vectorDimension)
+
       if index.optimize:
         w('-forceMerge')
 
       if index.verbose:
         w('-verbose')
 
-      w('-ramBufferMB %s' % index.ramBufferMB)
-      w('-maxBufferedDocs %s' % index.maxBufferedDocs)
-      w('-postingsFormat %s' % index.postingsFormat)
+      w('-ramBufferMB', index.ramBufferMB)
+      w('-maxBufferedDocs', index.maxBufferedDocs)
+      w('-postingsFormat', index.postingsFormat)
 
       if index.doDeletions:
         w('-deletions')
@@ -825,18 +864,20 @@ class RunAlgs:
       if index.waitForMerges:
         w('-waitForMerges')
 
-      w('-mergePolicy %s' % index.mergePolicy)
+      w('-mergePolicy', index.mergePolicy)
 
       if index.doUpdate:
         w('-update')
 
       if index.facets is not None:
         for tup in index.facets:
-          w('-facets')
-          w('"%s"' % ';'.join(tup))
-        w('-facetDVFormat %s' % index.facetDVFormat)
+          w('-facets', ';'.join(tup))
+        w('-facetDVFormat', index.facetDVFormat)
 
-      w('-idFieldPostingsFormat %s' % index.idFieldPostingsFormat)
+      w('-idFieldPostingsFormat', index.idFieldPostingsFormat)
+
+      w('-idFieldPostingsFormat')
+      w(index.idFieldPostingsFormat)
 
       if index.grouping:
         w('-grouping')
@@ -860,10 +901,7 @@ class RunAlgs:
         w('-disableIOThrottle')
 
       if index.indexSort:
-        w('-indexSort')
-        w(index.indexSort)
-
-      cmd = ' '.join(cmd)
+        w('-indexSort', index.indexSort)
 
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
 
@@ -892,110 +930,32 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
-    return fullIndexPath, fullLogFile
+    profilerResults = []
+    
+    for mode in 'cpu', 'heap':
+      for stackSize in profilerStackSize:
+        result = subprocess.run(index.javaCommand.split(' ') +
+                                ['-cp',
+                                 f'{checkoutToPath(index.checkout)}/buildSrc/build/classes/java/main',
+                                 f'-Dtests.profile.mode={mode}',
+                                 f'-Dtests.profile.count={profilerCount}',
+                                 f'-Dtests.profile.stacksize={stackSize}',
+                                 'org.apache.lucene.gradle.ProfileResults',
+                                 jfrOutput],
+                                stdout = subprocess.PIPE,
+                                stderr = subprocess.STDOUT,
+                                check = True)
+        output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
+        print(output)
+        profilerResults.append((mode, stackSize, output))
+
+    return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
   def addJars(self, cp, path):
     if os.path.exists(path):
       for f in os.listdir(path):
         if f.endswith('.jar'):
           cp.append('%s/%s' % (path, f))
-
-  def getAntClassPath(self, checkout):
-    path = checkoutToPath(checkout)
-    cp = []
-
-    # We use the jar file for core to leverage the MR JAR
-    core_jar_file = None
-    for filename in os.listdir('%s/lucene/build/core' % path):
-      if reCoreJar.match(filename) is not None:
-        core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
-        break
-    if core_jar_file is None:
-      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
-
-    cp.append(core_jar_file)
-    cp.append('%s/lucene/build/core/classes/test' % path)
-    cp.append('%s/lucene/build/sandbox/classes/java' % path)
-    cp.append('%s/lucene/build/misc/classes/java' % path)
-    cp.append('%s/lucene/build/facet/classes/java' % path)
-    cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
-    if True or version == '4.0':
-      cp.append('%s/lucene/build/analysis/common/classes/java' % path)
-      cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
-      cp.append('%s/lucene/build/queryparser/classes/java' % path)
-      cp.append('%s/lucene/build/grouping/classes/java' % path)
-      cp.append('%s/lucene/build/suggest/classes/java' % path)
-      cp.append('%s/lucene/build/highlighter/classes/java' % path)
-      cp.append('%s/lucene/build/codecs/classes/java' % path)
-      cp.append('%s/lucene/build/queries/classes/java' % path)
-      self.addJars(cp, '%s/lucene/facet/lib' % path)
-    elif version == '3.x':
-      cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
-      cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
-    else:
-      cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
-      cp.append('%s/build/contrib/spellchecker/classes/java' % path)
-
-    # so perf.* is found:
-    lib = os.path.join(checkoutToUtilPath(checkout), "lib")
-    for f in os.listdir(lib):
-      if f.endswith('.jar'):
-        cp.append(os.path.join(lib, f))
-    cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
-
-    return tuple(cp)
-
-  def getClassPath(self, checkout):
-    path = checkoutToPath(checkout)
-    if not os.path.exists(os.path.join(path, 'build.gradle')):
-      return self.getAntClassPath(checkout)
-
-    cp = []
-
-    # We use the jar file for core to leverage the MR JAR
-    core_jar_file = None
-    for filename in os.listdir('%s/lucene/core/build/libs' % path):
-      if reCoreJar.match(filename) is not None:
-        core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
-        break
-    if core_jar_file is None:
-      raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
-
-    cp.append(core_jar_file)
-    cp.append('%s/lucene/core/build/classes/java/test' % path)
-    cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
-    cp.append('%s/lucene/misc/build/classes/java/main' % path)
-    cp.append('%s/lucene/facet/build/classes/java/main' % path)
-    cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
-    cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
-    cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
-    cp.append('%s/lucene/grouping/build/classes/java/main' % path)
-    cp.append('%s/lucene/suggest/build/classes/java/main' % path)
-    cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
-    cp.append('%s/lucene/codecs/build/classes/java/main' % path)
-    cp.append('%s/lucene/queries/build/classes/java/main' % path)
-
-    # self.addJars(cp, '%s/lucene/facet/lib' % path)
-
-    # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
-    # gradle to tell me necessary dependency paths?
-    found = False
-    for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
-      for file in files:
-        if file == 'hppc-0.8.2.jar':
-          cp.append('%s/%s' % (root_path, file))
-          found = True
-
-    if not found:
-      raise RuntimeError('unable to locate hppc-0.8.2.jar dependency for lucene/facet!')
-
-    # so perf.* is found:
-    lib = os.path.join(checkoutToUtilPath(checkout), "lib")
-    for f in os.listdir(lib):
-      if f.endswith('.jar'):
-        cp.append(os.path.join(lib, f))
-    cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
-    return tuple(cp)
 
   compiledCheckouts = set()
 
@@ -1012,7 +972,7 @@ class RunAlgs:
         os.chdir(checkoutPath)
         for module in ['core']:
           print('compile lucene:core...')
-          run('%s lucene:core:jar' % constants.GRADLEW_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          run([constants.GRADLE_EXE, 'lucene:core:jar'], '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis:common', 'grouping',
                        'codecs', 'facet', 'sandbox',
@@ -1023,14 +983,14 @@ class RunAlgs:
           lastCompileTime = common.getLatestModTime(classesPath, '.class')
           if common.getLatestModTime('%s/src/java' % modulePath) > lastCompileTime:
             print('compile lucene:%s...' % module)
-            run('%s lucene:%s:compileJava' % (constants.GRADLEW_EXE, module), '%s/compile.log' % constants.LOGS_DIR)
+            run([constants.GRADLE_EXE, 'lucene:%s:compileJava' % module], '%s/compile.log' % constants.LOGS_DIR)
 
       print('  %s' % path)
       os.chdir(path)
       if path.endswith('/'):
         path = path[:-1]
 
-      cp = self.classPathToString(self.getClassPath(competitor.checkout))
+      cp = classPathToString(getClassPath(competitor.checkout))
       competitor.compile(cp)
     finally:
       os.chdir(cwd)
@@ -1047,7 +1007,7 @@ class RunAlgs:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)
           os.chdir(modulePath)
           print('  %s...' % modulePath)
-          run('%s jar' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+          run([constants.GRADLE_EXE, 'jar'], '%s/compile.log' % constants.LOGS_DIR)
         for module in ('suggest', 'highlighter', 'misc',
                        'analysis/common', 'grouping',
                        'codecs', 'facet', 'sandbox'):
@@ -1057,20 +1017,17 @@ class RunAlgs:
           if common.getLatestModTime('%s/src/java' % modulePath) > common.getLatestModTime(classesPath, '.class'):
             print('  %s...' % modulePath)
             os.chdir(modulePath)
-            run('%s compile' % constants.ANT_EXE, '%s/compile.log' % constants.LOGS_DIR)
+            run([constants.GRADLE_EXE, 'compileJava'], '%s/compile.log' % constants.LOGS_DIR)
 
       print('  %s' % path)
       os.chdir(path)
       if path.endswith('/'):
         path = path[:-1]
 
-      cp = self.classPathToString(self.getClassPath(competitor.checkout))
+      cp = classPathToString(getClassPath(competitor.checkout))
       competitor.compile(cp)
     finally:
       os.chdir(cwd)
-
-  def classPathToString(self, cp):
-    return common.pathsep().join(cp)
 
   def runSimpleSearchBench(self, iter, id, c,
                            coldRun, seed, staticSeed,
@@ -1080,20 +1037,20 @@ class RunAlgs:
       # flush OS buffer cache
       print('Drop buffer caches...')
       if osName == 'linux':
-        run("sudo %s/dropCaches.sh" % constants.BENCH_BASE_DIR)
+        run(["sudo", "%s/dropCaches.sh" % constants.BENCH_BASE_DIR])
       elif osName in ('windows', 'cygwin'):
         # NOTE: requires you have admin priv
-        run('%s/dropCaches.bat' % constants.BENCH_BASE_DIR)
+        run(['%s/dropCaches.bat' % constants.BENCH_BASE_DIR])
       elif osName == 'osx':
         # NOTE: requires you install OSX CHUD developer package
-        run('/usr/bin/purge')
+        run(['/usr/bin/purge'])
       else:
         raise RuntimeError('do not know how to purge buffer cache on this OS (%s)' % osName)
 
     # randomSeed = random.Random(staticRandomSeed).randint(-1000000, 1000000)
     #randomSeed = random.randint(-1000000, 1000000)
 
-    cp = self.classPathToString(self.getClassPath(c.checkout))
+    cp = classPathToString(getClassPath(c.checkout))
     logFile = '%s/%s.%s.%d' % (constants.LOGS_DIR, id, c.name, iter)
 
     if c.doSort:
@@ -1107,74 +1064,50 @@ class RunAlgs:
       doConcurrentSegmentReads = ''
 
     command = []
-    command.extend(c.javaCommand.split())
-    command.append('-classpath')
-    command.append(cp)
-    command.append('perf.SearchPerfTest')
-    command.append('-dirImpl')
-    command.append(c.directory)
-    command.append('-indexPath')
-    command.append(nameToIndexPath(c.index.getName()))
+    command += c.javaCommand.split()
+
+    # 77: always enable Java Flight Recorder profiling
+    command += [f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
+                f',filename={constants.BENCH_BASE_DIR}/bench-search-{id}-{c.name}-{iter}.jfr',
+                '-XX:+UnlockDiagnosticVMOptions',
+                '-XX:+DebugNonSafepoints']
+
+    w = lambda *xs : [command.append(str(x)) for x in xs]
+    w('-classpath', cp)
+    w('perf.SearchPerfTest')
+    w('-dirImpl', c.directory)
+    w('-indexPath', nameToIndexPath(c.index.getName()))
     if c.index.facets is not None:
       for tup in c.index.facets:
-        command.append('-facets')
-        command.append(';'.join(tup))
+        w('-facets', ';'.join(tup))
 
-    command.append('-analyzer')
-    command.append(c.analyzer)
-    command.append('-taskSource')
-    command.append(c.tasksFile)
-    command.append('-searchThreadCount')
-    command.append(str(c.numThreads))
-    command.append('-taskRepeatCount')
-    command.append(str(c.competition.taskRepeatCount))
-    command.append('-field')
-    command.append('body')
-    command.append('-tasksPerCat')
-    command.append(str(c.competition.taskCountPerCat))
+    w('-analyzer', c.analyzer)
+    w('-taskSource', c.tasksFile)
+    w('-searchThreadCount', c.numThreads)
+    w('-taskRepeatCount', c.competition.taskRepeatCount)
+    w('-field', 'body')
+    w('-tasksPerCat', c.competition.taskCountPerCat)
     if c.doSort:
-      command.append('-sort')
+      w('-sort')
     if c.concurrentSearches:
-      command.append('-concurrentSearches')
-    command.append('-staticSeed')
-    command.append(str(staticSeed))
-    command.append('-seed')
-    command.append(str(seed))
-    command.append('-similarity')
-    command.append(c.similarity)
-    command.append('-commit')
-    command.append(c.commitPoint)
-    command.append('-hiliteImpl')
-    command.append(c.hiliteImpl)
-    command.append('-log')
-    command.append(logFile)
-    command.append('-topN')
-    command.append('10')
+      w('-concurrentSearches')
+    w('-staticSeed', staticSeed)
+    w('-seed', seed)
+    w('-similarity', c.similarity)
+    w('-commit', c.commitPoint)
+    w('-hiliteImpl', c.hiliteImpl)
+    w('-log', logFile)
+    w('-topN', '10')
     if filter is not None:
-      command.append('-filter')
-      command.append('%.2f' % filter)
+      w('-filter', '%.2f' % filter)
     if c.printHeap:
-      command.append('-printHeap')
+      w('-printHeap')
     if c.pk:
-      command.append('-pk')
+      w('-pk')
     if c.loadStoredFields:
-      command.append('-loadStoredFields')
-
-    if False:
-      command = '%s -classpath "%s" perf.SearchPerfTest -dirImpl %s -indexPath "%s" -analyzer %s -taskSource "%s" -searchThreadCount %s -taskRepeatCount %s -field body -tasksPerCat %s %s -staticSeed %s -seed %s -similarity %s -commit %s -hiliteImpl %s -log %s' % \
-          (c.javaCommand, cp, c.directory,
-          nameToIndexPath(c.index.getName()), c.analyzer, c.tasksFile,
-          c.numThreads, c.competition.taskRepeatCount,
-          c.competition.taskCountPerCat, doSort, doConcurrentSegmentReads, staticSeed, seed, c.similarity, c.commitPoint, c.hiliteImpl, logFile)
-      command += ' -topN 10'
-      if filter is not None:
-        command += ' %s %.2f' % filter
-      if c.printHeap:
-        command += ' -printHeap'
-      if c.pk:
-        command += ' -pk'
-      if c.loadStoredFields:
-        command += ' -loadStoredFields'
+      w('-loadStoredFields')
+    if c.vectorDict:
+      w('-vectorDict', c.vectorDict)
 
     print('      log: %s + stdout' % logFile)
     t0 = time.time()
@@ -1203,7 +1136,7 @@ class RunAlgs:
         f.flush()
       f.close()
       p.wait()
-      run('sudo kill -INT %s' % p2.pid)
+      run(['sudo', 'kill', '-INT', p2.pid])
       #os.kill(p2.pid, signal.SIGINT)
       stdout, stderr = p2.communicate()
       print('PERF: %s' % fixupPerfOutput(stderr))
@@ -1245,8 +1178,8 @@ class RunAlgs:
         currentCatLatencies = currentRecord[currentKey]
         currentCatLatencies.sort()
 
-        resultLatencyMetrics[currentKey] = ({})
-        currentLatencyMetricsDict = resultLatencyMetrics[currentKey]
+        currentLatencyMetricsDict = {}
+        resultLatencyMetrics[currentKey] = (currentLatencyMetricsDict)
 
         currentP0 = currentCatLatencies[0]
         currentP50 = currentCatLatencies[(len(currentCatLatencies)-1)//2]
@@ -1261,8 +1194,8 @@ class RunAlgs:
         currentLatencyMetricsDict['p99'] = currentP99
         currentLatencyMetricsDict['p999'] = currentP999
         currentLatencyMetricsDict['p100'] = currentP100
-    return resultLatencyMetrics
 
+    return resultLatencyMetrics
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
@@ -1334,10 +1267,7 @@ class RunAlgs:
       resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
 
       if VERBOSE:
-        if type(cat) is types.TupleType:
-          print('cat %s' % cat[0])
-        else:
-          print('cat %s' % cat)
+        print('cat %s' % str(cat))
         print('  baseQPS: %s' % ' '.join('%.1f' % x for x in baseQPS))
         print('    avg %.1f' % avgQPSBase)
         print('  cmpQPS: %s' % ' '.join('%.1f' % x for x in cmpQPS))
@@ -1347,10 +1277,30 @@ class RunAlgs:
       qpsCmp = avgQPSCmp
 
       # print '%s: %s' % (desc, abs(qpsBase-qpsCmp) / ((maxQPSBase-minQPSBase)+(maxQPSCmp-minQPSCmp)))
-      # TODO: need a real significance test here
-      if qpsStdDevBase != 0 or qpsStdDevCmp != 0:
-        significant = (abs(qpsBase-qpsCmp) / (2*qpsStdDevBase+2*qpsStdDevCmp)) > 0.30
+      if (qpsStdDevBase != 0 or qpsStdDevCmp != 0) and len(baseQPS) == len(cmpQPS):
+
+        # Student's T-Test is often used for distributions with the same underlying variance and number of samples, but
+        # with large number of samples, Student's T distribution approaches a normal distribution
+
+        # the "combined" std.dev. is the square root of the average of the two variances.
+        # the factor of 2 here cancels out with one below, but is left in for clarity of nomenclature
+        qpsStdDev = math.sqrt((qpsStdDevBase * qpsStdDevBase + qpsStdDevCmp * qpsStdDevCmp) / 2.0)
+
+        # t-value is the difference of the means normalized by the combined std.dev.
+        if qpsStdDev != 0 and len(baseQPS) != 0:
+          tValue = abs(qpsCmp - qpsBase) / (qpsStdDev * math.sqrt(2.0 / len(baseQPS)))
+        else:
+          tValue = float('inf')
+
+        # then we have tValue = exp(-x/(2 . stddev^2)) and
+        # pValue = 1 - 2 * Integral(exp(-x/(2 . stddev^2)) [0 to tValue]) as the probability of the null hypothesis (that the
+        # two means are drawn from the same distribution, using a "two-tailed" test).
+        # We have no closed form solution for the Gaussian integral, but python has erf() which is its residual
+        pValue = 1 - math.erf(tValue / math.sqrt(2))
+        # We pick an arbitrary  but typical confidence interval for "significance":
+        significant = pValue <= 0.05
       else:
+        pValue = 1.0
         significant = False
 
       if self.verifyCounts and baseTotHitCount != cmpTotHitCount:
@@ -1403,16 +1353,25 @@ class RunAlgs:
         w('%16s' % ('%7.1f%% (%4d%% - %4d%%)' % (psAvg, psWorst, psBest)))
 
       if jira:
+        w('|%s' % pValueColor(pValue, 'jira'))
+      elif html:
+        w('<td>%s</td>' % pValueColor(pValue, 'html'))
+      else:
+        w('%6.3f' % pValue)
+
+      if jira:
         w('|\n')
       else:
         w('\n')
 
-      if constants.SORT_REPORT_BY == 'pctchange':
+      if constants.SORT_REPORT_BY == 'p-value':
+        sortBy = pValue
+      elif constants.SORT_REPORT_BY == 'pctchange':
         sortBy = psAvg
       elif constants.SORT_REPORT_BY == 'query':
         sortBy = desc
       else:
-        raise RuntimeError('invalid result sort %s' % constant.SORT_REPORT_BY)
+        raise RuntimeError('invalid result sort %s' % constants.SORT_REPORT_BY)
 
       lines.append((sortBy, ''.join(l0)))
       if True or significant:
@@ -1422,6 +1381,7 @@ class RunAlgs:
                           qpsBase+qpsStdDevBase,
                           qpsCmp-qpsStdDevCmp,
                           qpsCmp+qpsStdDevCmp,
+                          pValue,
                           ))
 
     lines.sort()
@@ -1440,6 +1400,10 @@ class RunAlgs:
     cmpLatencyMetrics = self.computeTaskLatencies(cmpTaskLatencies, catSet)
 
     for currentCat in catSet:
+      if currentCat not in baseLatencyMetrics:
+        # When we add a whole new task (e.g. VectorSearch), just skip the comparison for the first nightly run
+        # since baseline will not have this task yet:
+        continue
       currentBaseMetrics = baseLatencyMetrics[currentCat]
       currentCmpMetrics = cmpLatencyMetrics[currentCat]
       pctP50 = 100*(currentCmpMetrics['p50'] - currentBaseMetrics['p50'])/currentBaseMetrics['p50']
@@ -1454,7 +1418,7 @@ class RunAlgs:
          currentBaseMetrics['p999'], currentCmpMetrics['p999'], pctP999, currentBaseMetrics['p100'], currentCmpMetrics['p100'], pctP100)))
 
     if jira:
-      w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||' %
+      w('||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||p-value||' %
         (baseDesc, baseDesc, cmpDesc, cmpDesc))
     elif html:
       w('<table>')
@@ -1465,6 +1429,7 @@ class RunAlgs:
       w('<th>QPS %s</th>' % cmpDesc)
       w('<th>StdDev %s</th>' % cmpDesc)
       w('<th>% change</th>')
+      w('<th>p-value</th>')
       w('</tr>')
     else:
       w('%24s' % 'Task')
@@ -1473,6 +1438,7 @@ class RunAlgs:
       w('%12s' % ('QPS %s' % cmpDesc))
       w('%12s' % 'StdDev')
       w('%24s' % 'Pct diff')
+      w('%8s' % 'p-value')
 
     if jira:
       w('||\n')
@@ -1512,6 +1478,106 @@ class RunAlgs:
     f = open('%s.pk' % name, 'wb')
     pickle.dump(self.results, f)
     f.close()
+
+def getAntClassPath(checkout):
+  path = checkoutToPath(checkout)
+  cp = []
+
+  # We use the jar file for core to leverage the MR JAR
+  core_jar_file = None
+  for filename in os.listdir('%s/lucene/build/core' % path):
+    if reCoreJar.match(filename) is not None:
+      core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
+      break
+  if core_jar_file is None:
+    raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+
+  cp.append(core_jar_file)
+  cp.append('%s/lucene/build/core/classes/test' % path)
+  cp.append('%s/lucene/build/sandbox/classes/java' % path)
+  cp.append('%s/lucene/build/misc/classes/java' % path)
+  cp.append('%s/lucene/build/facet/classes/java' % path)
+  cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
+  if True or version == '4.0':
+    cp.append('%s/lucene/build/analysis/common/classes/java' % path)
+    cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
+    cp.append('%s/lucene/build/queryparser/classes/java' % path)
+    cp.append('%s/lucene/build/grouping/classes/java' % path)
+    cp.append('%s/lucene/build/suggest/classes/java' % path)
+    cp.append('%s/lucene/build/highlighter/classes/java' % path)
+    cp.append('%s/lucene/build/codecs/classes/java' % path)
+    cp.append('%s/lucene/build/queries/classes/java' % path)
+    self.addJars(cp, '%s/lucene/facet/lib' % path)
+  elif version == '3.x':
+    cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
+    cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
+  else:
+    cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
+    cp.append('%s/build/contrib/spellchecker/classes/java' % path)
+
+  # so perf.* is found:
+  lib = os.path.join(checkoutToUtilPath(checkout), "lib")
+  for f in os.listdir(lib):
+    if f.endswith('.jar'):
+      cp.append(os.path.join(lib, f))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+
+  return tuple(cp)
+
+def getClassPath(checkout):
+  path = checkoutToPath(checkout)
+  if not os.path.exists(os.path.join(path, 'build.gradle')):
+    return getAntClassPath(checkout)
+
+  cp = []
+
+  # We use the jar file for core to leverage the MR JAR
+  core_jar_file = None
+  for filename in os.listdir('%s/lucene/core/build/libs' % path):
+    if reCoreJar.match(filename) is not None:
+      core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
+      break
+  if core_jar_file is None:
+    raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
+
+  cp.append(core_jar_file)
+  cp.append('%s/lucene/core/build/classes/java/test' % path)
+  cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
+  cp.append('%s/lucene/misc/build/classes/java/main' % path)
+  cp.append('%s/lucene/facet/build/classes/java/main' % path)
+  cp.append('%s/lucene/analysis/common/build/classes/java/main' % path)
+  cp.append('%s/lucene/analysis/icu/build/classes/java/main' % path)
+  cp.append('%s/lucene/queryparser/build/classes/java/main' % path)
+  cp.append('%s/lucene/grouping/build/classes/java/main' % path)
+  cp.append('%s/lucene/suggest/build/classes/java/main' % path)
+  cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
+  cp.append('%s/lucene/codecs/build/classes/java/main' % path)
+  cp.append('%s/lucene/queries/build/classes/java/main' % path)
+
+  # self.addJars(cp, '%s/lucene/facet/lib' % path)
+
+  # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
+  # gradle to tell me necessary dependency paths?
+  found = False
+  for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
+    for file in files:
+      if file == 'hppc-0.8.2.jar':
+        cp.append('%s/%s' % (root_path, file))
+        found = True
+
+  if not found:
+    raise RuntimeError('unable to locate hppc-0.8.2.jar dependency for lucene/facet!')
+
+  # so perf.* is found:
+  lib = os.path.join(checkoutToUtilPath(checkout), "lib")
+  for f in os.listdir(lib):
+    if f.endswith('.jar'):
+      cp.append(os.path.join(lib, f))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+  return tuple(cp)
+
+def classPathToString(cp):
+  return common.pathsep().join(cp)
 
 reFuzzy = re.compile(r'body:(.*?)\~(.*?)$')
 
@@ -1575,7 +1641,9 @@ def compareHits(r1, r2, verifyScores, verifyCounts):
   if len(warnings) == 0 and len(errors) == 0:
     return None
   else:
-    return warnings, errors
+    inBoth = (len(d1) + len(d2) - onlyInD1 - onlyInD2) / 2
+    overlap = inBoth / float(max(len(d1), len(d2)))
+    return warnings, errors, overlap
 
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')

@@ -31,11 +31,19 @@ if 'BENCH_BASE_DIR' not in globals():
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
+# Word vectors downloaded from http://nlp.stanford.edu/data/glove.6B.zip (823MB download; 2.1GB unzipped)
+# Licensed under Public Domain (http://www.opendatacommons.org/licenses/pddl/1.0/);
+# see https://nlp.stanford.edu/projects/glove/
+# Thanks to Jeffrey Pennington, Richard Socher, and Christopher D. Manning.
+GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
+GLOVE_VECTOR_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d.vec' % BASE_DIR
+
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
 #WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
+WIKI_VECTOR_TASKS_FILE = '%s/tasks/vector.tasks' % BENCH_BASE_DIR
 SORTED_TASKS_FILE = '%s/tasks/sorted.tasks' % BENCH_BASE_DIR
 
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
@@ -84,6 +92,7 @@ SEARCH_NUM_THREADS = 2
 REPRO_COMMAND_START = 'python -u %s/repeatLuceneTest.py -once -verbose -nolog' % BENCH_BASE_DIR
 REPRO_COMMAND_END = ''
 
+#SORT_REPORT_BY = 'p-value'
 SORT_REPORT_BY = 'pctchange'
 #SORT_REPORT_BY = 'query'
 
@@ -91,9 +100,9 @@ if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
-POSTINGS_FORMAT_DEFAULT='Lucene84'
+POSTINGS_FORMAT_DEFAULT='Lucene90'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT=POSTINGS_FORMAT_DEFAULT
-FACET_FIELD_DV_FORMAT_DEFAULT='Lucene80'
+FACET_FIELD_DV_FORMAT_DEFAULT='Lucene90' # this field is not used as a default. Change the code in src/main/perf/Indexer.java to use a different DV format
 ANALYZER_DEFAULT='StandardAnalyzer'
 SIMILARITY_DEFAULT='BM25Similarity'
 MERGEPOLICY_DEFAULT='LogDocMergePolicy'
@@ -102,8 +111,7 @@ TESTS_LINE_FILE = '/lucene/clean2.svn/lucene/test-framework/src/resources/org/ap
 TESTS_LINE_FILE = '/lucenedata/from_hudson/hudson.enwiki.random.lines.txt'
 #TESTS_LINE_FILE = None
 
-ANT_EXE = 'ant'
-GRADLEW_EXE = './gradlew'
+GRADLE_EXE = './gradlew'
 
 # Set to True to run Linux's "perf stat" tool, but sudo must work w/o a password!
 DO_PERF = False
@@ -136,6 +144,9 @@ PERF_STATS = (
 NIGHTLY_REPORTS_DIR = '%s/reports.nightly' % BASE_DIR
 
 PROCESSOR_COUNT = 12
+
+# set this to see flame charts on blunders.io; see blunders.py
+BLUNDERS_AUTH_UPLOAD_PASSWORD = None
 
 # import again in case you want to override any of the vars set above
 from localconstants import *

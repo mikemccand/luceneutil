@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import time
+import subprocess
 import sys
 import os
 import re
@@ -33,7 +34,7 @@ if '-ea' in sys.argv:
 
 osName = common.osName
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None, requireOverlap=1.0):
   competitors = [challenger, base]
 
   if randomSeed is None:
@@ -83,7 +84,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
   if search:
 
-    if taskPatterns is not (None, None):
+    if taskPatterns != (None, None):
       pos, neg = taskPatterns
       if pos is None:
         if neg is None:
@@ -191,12 +192,21 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                                                     cmpDesc=challenger.name,
                                                     baseDesc=base.name)
         if cmpDiffs is not None:
-          raise RuntimeError('results differ: %s' % str(cmpDiffs))
+          if cmpDiffs[1]:
+            raise RuntimeError('errors occurred: %s' % str(cmpDiffs))
+          if cmpDiffs[2] < requireOverlap:
+            raise RuntimeError('results differ: %s' % str(cmpDiffs))
         
     finally:
       if newTasksFile is not None and os.path.exists(newTasksFile):
         os.remove(newTasksFile)
-          
+
+    # TODO: maybe print this after each iter, not just in the end, for the impatient/progressive?
+    for mode in 'cpu', 'heap':
+      for c in competitors:
+        print(f'\n{mode.upper()} merged search profile for {c.name}:')
+        print(c.getAggregateProfilerResult(id, mode)[0][1])
+                           
   else:
     results = {}
     for c in competitors:

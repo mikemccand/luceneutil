@@ -272,7 +272,7 @@ public class NRTPerfTest {
 		System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
 		final Random random = new Random(seed);
 
-		final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true);
+		final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, null, 0);
 
 		final Directory dir0;
 		if (dirImpl.equals("MMapDirectory")) {
@@ -374,7 +374,7 @@ public class NRTPerfTest {
 		final DirectSpellChecker spellChecker = new DirectSpellChecker();
 		final IndexState indexState = new IndexState(manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
 		final QueryParser qp = new QueryParser(field, analyzer);
-		TaskParser taskParser = new TaskParser(indexState, qp, field, 10, random, true);
+		TaskParser taskParser = new TaskParser(indexState, qp, field, 10, random, null, true);
 		final TaskSource tasks = new RandomTaskSource(taskParser, tasksFile, random) {
 			@Override
 			public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {

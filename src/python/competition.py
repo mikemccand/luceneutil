@@ -15,12 +15,15 @@
 # limitations under the License.
 #
 
-import os
-import searchBench
 import benchUtil
-import constants
-import random
 import common
+import constants
+import glob
+import os
+import random
+import searchBench
+import subprocess
+import time
 
 class Data(object):
   
@@ -50,6 +53,8 @@ WIKI_BIG_1M = Data('wikibig1m', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, cons
 
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
+WIKI_VECTOR_10K = Data('wikivector10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_VECTOR_TASKS_FILE)
+
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
@@ -62,7 +67,9 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikibig10k' : WIKI_BIG_10K,
         'wikibig100k' : WIKI_BIG_100K,
         'wikibig1m' : WIKI_BIG_1M,
-        'euromedium' : EURO_MEDIUM }
+        'euromedium' : EURO_MEDIUM,
+        'wikivector10k' : WIKI_VECTOR_10K,
+        }
 
 # for multi-segment index:
 SEGS_PER_LEVEL = 5
@@ -74,7 +81,7 @@ def sourceData(key=None):
       key = sys.argv[1+sys.argv.index('-source')]
   if key in DATA:
     return DATA[key]
-  raise RuntimeError('unknown data source (valid keys: %s)' % DATA.keys())
+  raise RuntimeError('unknown data source "%s" (valid keys: %s)' % (key, DATA.keys()))
 
 class Index(object):
 
@@ -107,7 +114,9 @@ class Index(object):
                maxConcurrentMerges = 1,  # use 1 for spinning-magnets and 3 for fast SSD
                addDVFields = False,
                name = None,
-               indexSort = None
+               indexSort = None,
+               vectorFile = None,
+               vectorDimension = None
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -146,22 +155,23 @@ class Index(object):
     self.facetDVFormat = facetDVFormat
     self.assignedName = name
     self.indexSort = indexSort
-    
+    self.vectorFile = vectorFile
+    self.vectorDimension = vectorDimension
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     self.useCMS = useCMS
-    
+
   def getName(self):
     if self.assignedName is not None:
       return self.assignedName
-    
+
     name = [self.dataSource.name,
             self.checkout]
 
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
-      
+
     if self.optimize:
       name.append('opt')
 
@@ -192,7 +202,10 @@ class Index(object):
 
     if self.indexSort:
       name.append('sort=%s' % self.indexSort)
-      
+
+    if self.vectorFile:
+      name.append('vectors=%d' % self.vectorDimension)
+
     name.append('nd%gM' % (self.numDocs/1000000.0))
     return '.'.join(name)
 
@@ -211,6 +224,7 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
+               vectorDict = None,
                loadStoredFields = False,
                concurrentSearches = False,
                javacCommand = constants.JAVAC_EXE):
@@ -232,14 +246,49 @@ class Competitor(object):
     self.hiliteImpl = hiliteImpl
     self.pk = pk
     self.loadStoredFields = loadStoredFields
+    self.vectorDict = vectorDict
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
+
+  def getAggregateProfilerResult(self, id, mode, count=30, stackSize=1):
+
+    # we accept a sequence of stack sizes and will re-aggregate JFR results at each
+    if type(stackSize) is int:
+      stackSize = (stackSize,)
+    
+    if mode not in ('cpu', 'heap'):
+      raise ValueError(f'mode must be "cpu" or "heap" but got: {mode}')
+
+    results = []
+
+    for size in stackSize:
+
+      command = constants.JAVA_COMMAND.split(' ') + \
+        ['-cp',
+         f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
+         f'-Dtests.profile.mode={mode}',
+         f'-Dtests.profile.stacksize={size}',
+         f'-Dtests.profile.count={count}',
+         'org.apache.lucene.gradle.ProfileResults'] + \
+         glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
+
+      print(f'JFR aggregation command: {" ".join(command)}')
+      t0 = time.time()
+      result = subprocess.run(command,
+                              stdout = subprocess.PIPE,
+                              stderr = subprocess.STDOUT,
+                              check = True)
+      t1 = time.time()
+      print(f'Took {t1-t0:.2f} seconds')
+      results.append((stackSize, result.stdout.decode('utf-8')))
+
+    return results
 
   def compile(self, cp):
     root = benchUtil.checkoutToUtilPath(self.checkout)
 
     perfSrc = os.path.join(root, "src/main")
-      
+
     buildDir = os.path.join(root, "build")
     if not os.path.exists(buildDir):
       os.makedirs(buildDir)
@@ -256,6 +305,7 @@ class Competitor(object):
       'NRTPerfTest.java',
       'Indexer.java',
       'KeepNoCommitsDeletionPolicy.java',
+      'KnnQuery.java',
       'LineFileDocs.java',
       'LocalTaskSource.java',
       'OpenDirectory.java',
@@ -272,14 +322,17 @@ class Competitor(object):
       'TaskParser.java',
       'TaskSource.java',
       'TaskThreads.java',
+      'VectorDictionary.java',
       )]
 
     print('files %s' % files)
-    
-    benchUtil.run('%s -d %s -classpath "%s" %s' % (self.javacCommand, buildDir, cp, ' '.join(files)), os.path.join(constants.LOGS_DIR, 'compile.log'))
+
+    cmd = [self.javacCommand, '-d', buildDir, '-classpath', cp]
+    cmd += files
+    benchUtil.run(cmd, os.path.join(constants.LOGS_DIR, 'compile.log'))
     # copy resources/META-INF
     if os.path.exists(os.path.join(perfSrc, 'resources/*')):
-      benchUtil.run('cp -r %s %s' % (os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/")))
+      benchUtil.run('cp', '-r', os.path.join(perfSrc, 'resources/*'), buildDir.replace("\\", "/"))
 
 class Competition(object):
 
@@ -287,6 +340,7 @@ class Competition(object):
                printCharts=False,
                verifyScores=True,
                verifyCounts=True,
+               requireOverlap=1.0,
                remoteHost=None,
                # Pass fixed randomSeed so separate runs are comparable (pick the same tasks):
                randomSeed=None,
@@ -297,11 +351,12 @@ class Competition(object):
     self.cold = cold
     self.competitors = []
     self.indices = []
-    self.printCharts = printCharts 
+    self.printCharts = printCharts
     self.benchSearch = benchSearch
     self.benchIndex = True
     self.verifyScores = verifyScores
     self.verifyCounts = verifyCounts
+    self.requireOverlap = requireOverlap
     self.onlyTaskPatterns = None
     self.notTaskPatterns = None
     # TODO: not implemented yet
@@ -328,7 +383,7 @@ class Competition(object):
     # code differently.  Often the results are bi or tri modal for a
     # given query.
     self.jvmCount = jvmCount
-    
+
 
   def addTaskPattern(self, pattern):
     if self.onlyTaskPatterns is None:
@@ -348,17 +403,20 @@ class Competition(object):
   def competitor(self, name, checkout=None, **kwArgs):
     if not checkout:
       checkout = name
+    for c in self.competitors:
+      if c.name == name:
+        raise RuntimeError(f'competitor named {name} already added')
     c = Competitor(name, checkout, **kwArgs)
     c.competition = self
     self.competitors.append(c)
     return c
-  
+
   def skipIndex(self):
     self.benchIndex = False
 
   def skipSearch(self):
     self.benchSearch = False
-    
+
   def benchmark(self, id):
     if len(self.competitors) != 2:
       raise RuntimeError('expected 2 competitors but was %d' % (len(self.competitors)))
@@ -374,19 +432,27 @@ class Competition(object):
     if base is None:
       base = self.competitors[0]
       challenger = self.competitors[1]
+    elif base == self.competitors[0]:
+      challenger = self.competitors[1]
     else:
-      if base == self.competitors[0]:
-        challenger = self.competitors[1]
-      else:
-        challenger = self.competitors[0]
+      challenger = self.competitors[0]
+
+    for fileName in glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-*.jfr'):
+      print('Removing old JFR %s...' % fileName)
+      os.remove(fileName)
 
     base.tasksFile = base.index.dataSource.tasksFile
     challenger.tasksFile = challenger.index.dataSource.tasksFile
 
-    searchBench.run(id, base, challenger, coldRun = self.cold, doCharts = self.printCharts,
-                    search = self.benchSearch, index = self.benchIndex,
+    searchBench.run(id, base, challenger,
+                    coldRun = self.cold,
+                    doCharts = self.printCharts,
+                    search = self.benchSearch,
+                    index = self.benchIndex,
                     verifyScores = self.verifyScores, verifyCounts = self.verifyCounts,
-                    taskPatterns = (self.onlyTaskPatterns, self.notTaskPatterns), randomSeed = self.randomSeed)
+                    taskPatterns = (self.onlyTaskPatterns, self.notTaskPatterns),
+                    requireOverlap = self.requireOverlap,
+                    randomSeed = self.randomSeed)
     return self
 
   def clearCompetitors(self):

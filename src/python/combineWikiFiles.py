@@ -22,7 +22,11 @@ fOut = open(sys.argv[3], 'w')
 
 if onlyThreeColumns:
   tup = line.strip(string.whitespace).split('\t')
-  tup = tup[:3]
+  if tup[0].startswith('FIELDS_HEADER_INDICATOR'):
+    tup = tup[:4]
+  else:
+    # ancient history legacy file that had headers with no indicator:
+    tup = tup[:3]
   line = '\t'.join(tup) + '\n'
 
 fOut.write(line)

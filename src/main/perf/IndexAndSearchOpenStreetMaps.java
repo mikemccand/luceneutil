@@ -935,11 +935,6 @@ public class IndexAndSearchOpenStreetMaps {
                     Sort sort = new Sort(LatLonDocValuesField.newDistanceSort("point", centerLat, centerLon));
                     for(IndexSearcher s : searchers) {
                       TopFieldDocs hits = s.search(q, 10, sort);
-                      if (hits.totalHits.relation != TotalHits.Relation.EQUAL_TO) {
-                    	  // IndexSearcher can never optimize top-hits collection in that case,
-                    	  // se we should get accurate hit counts
-                    	  throw new AssertionError();
-                      }
                       totHits += hits.totalHits.value;
                     }
                   } else {

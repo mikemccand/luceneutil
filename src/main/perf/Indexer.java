@@ -19,6 +19,8 @@ package perf;
 
 
 import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -27,6 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -62,6 +65,7 @@ import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
@@ -226,6 +230,14 @@ public final class Indexer {
 
     final boolean doForceMerge = args.getFlag("-forceMerge");
     final boolean verbose = args.getFlag("-verbose");
+
+    int arrangement = 0;
+    if (args.hasArg("-rearrange")) {
+      if (doForceMerge) {
+        throw new IllegalArgumentException("Force merge not compatible with rearrange!");
+      }
+      arrangement = args.getInt("-rearrange");
+    }
     
     String indexSortField = null;
     SortField.Type indexSortType = null;
@@ -370,34 +382,6 @@ public final class Indexer {
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
-
-    final IndexWriterConfig iwc = new IndexWriterConfig(a);
-
-    if (indexSortField != null) {
-      iwc.setIndexSort(new Sort(new SortField(indexSortField, indexSortType)));
-    }
-
-    if (mode == Mode.UPDATE) {
-      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
-    } else {
-      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    }
-
-    iwc.setMaxBufferedDocs(maxBufferedDocs);
-    iwc.setRAMBufferSizeMB(ramBufferSizeMB);
-
-    // So flushed segments do/don't use CFS:
-    iwc.setUseCompoundFile(useCFS);
-
-    final AtomicBoolean indexingFailed = new AtomicBoolean();
-
-    iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
-    iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
-
-    // Keep all commit points:
-    if (doDeletions || doForceMerge) {
-      iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
-    }
     
     final Codec codec = new Lucene90Codec(Lucene90Codec.Mode.BEST_COMPRESSION) {
         @Override
@@ -424,7 +408,44 @@ public final class Indexer {
         }
       };
 
-    iwc.setCodec(codec);
+    final AtomicBoolean indexingFailed = new AtomicBoolean();
+
+    final String finalIndexSortField = indexSortField;
+    final SortField.Type finalIndexSortType = indexSortType;
+
+    Callable<IndexWriterConfig> getIWC = () -> {
+      final IndexWriterConfig iwc = new IndexWriterConfig(a);
+
+      if (finalIndexSortField != null) {
+        iwc.setIndexSort(new Sort(new SortField(finalIndexSortField, finalIndexSortType)));
+      }
+
+      if (mode == Mode.UPDATE) {
+        iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+      } else {
+        iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+      }
+
+      iwc.setMaxBufferedDocs(maxBufferedDocs);
+      iwc.setRAMBufferSizeMB(ramBufferSizeMB);
+
+      // So flushed segments do/don't use CFS:
+      iwc.setUseCompoundFile(useCFS);
+
+
+      iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
+      iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
+
+      // Keep all commit points:
+      if (doDeletions || doForceMerge) {
+        iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+      }
+      iwc.setCodec(codec);
+      return iwc;
+    };
+
+    final IndexWriterConfig iwc = getIWC.call();
+
 
     System.out.println("IW config=" + iwc);
 
@@ -505,18 +526,9 @@ public final class Indexer {
     final Map<String,String> commitData = new HashMap<String,String>();
 
     if (waitForMerges) {
-      w.close();        
-      IndexWriterConfig iwc2 = new IndexWriterConfig(a);
-      iwc2.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
-      iwc2.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
-      iwc2.setCodec(codec);
-      iwc2.setUseCompoundFile(useCFS);
-      iwc2.setMaxBufferedDocs(maxBufferedDocs);
-      iwc2.setRAMBufferSizeMB(ramBufferSizeMB);
-      if (indexSortField != null) {
-        iwc2.setIndexSort(new Sort(new SortField(indexSortField, indexSortType)));
-      }
-      
+      w.close();
+      IndexWriterConfig iwc2 = getIWC.call();
+      iwc2.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
       w = new IndexWriter(dir, iwc2);
       long t2 = System.currentTimeMillis();
       System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
@@ -591,6 +603,27 @@ public final class Indexer {
     if (waitForCommit) {
       System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
       System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
+    }
+
+    if (arrangement != 0) {
+      // rearrange after normal indexing routine is completed
+      long rearrangeStartMSec = System.currentTimeMillis();
+      Path tmpDirPath = Files.createTempDirectory("rearrange");
+      System.out.println(tmpDirPath);
+      Directory tmpDir = od.open(tmpDirPath);
+      BenchRearranger.rearrange(dir, tmpDir, getIWC.call() , arrangement);
+      PerfUtils.clearDir(dir);
+      PerfUtils.copyDir(tmpDir, dir);
+      tmpDir.close();
+      long rearrangeEndMSec = System.currentTimeMillis();
+//      IndexReader reader = DirectoryReader.open(dir);
+//      for (LeafReaderContext context: reader.leaves()) {
+//        System.out.println(context.reader().numDocs());
+//      }
+//      reader.close();
+      /* code above will print '1810' once, '1800' 4 times, '180' 5 times, '18' 5 times
+       on a 10000 doc, 555 arrangement */
+      System.out.println("\nIndexer: rearrange done (took " + (rearrangeEndMSec-rearrangeStartMSec) + " msec)");
     }
 
     dir.close();

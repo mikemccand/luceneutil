@@ -116,7 +116,13 @@ class Index(object):
                name = None,
                indexSort = None,
                vectorFile = None,
-               vectorDimension = None
+               vectorDimension = None,
+               # an int defining how many segments to rearrange to, 0 represents not performing rearrange
+               # rearrange /100 gives how many large segments desired
+               # (rearrange % 100) / 10 gives how many medium segments desired
+               # rearrange % 10 gives how many small segments desired
+               # For example, rearrange = 555 means 5 large segments, 5 medium segments and 5 small segments
+               rearrange = 0
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -161,6 +167,7 @@ class Index(object):
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     self.useCMS = useCMS
+    self.rearrange = rearrange
 
   def getName(self):
     if self.assignedName is not None:
@@ -298,6 +305,7 @@ class Competitor(object):
       print('Skip compiling luceneutil: all .class are up to date')
       return
 
+    # Can we iterate the perf directory and get this list automatically?
     files = ['%s/perf/%s' % (perfSrc, x) for x in (
       'Args.java',
       'IndexState.java',
@@ -323,6 +331,8 @@ class Competitor(object):
       'TaskSource.java',
       'TaskThreads.java',
       'VectorDictionary.java',
+      'BenchRearranger.java',
+      'StringFieldDocSelector.java',
       )]
 
     print('files %s' % files)

@@ -24,6 +24,8 @@ package perf;
 //  - get pk lookup working w/ remote tasks
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,7 @@ import java.util.Map;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 
 public class PerfUtils {
 
@@ -55,5 +58,16 @@ public class PerfUtils {
   public static long usedMemory(Runtime runtime) {
     return runtime.totalMemory() - runtime.freeMemory();
   }
-  
+
+  public static void clearDir(Directory directory) throws IOException {
+    for (String file: directory.listAll()) {
+      directory.deleteFile(file);
+    }
+  }
+
+  public static void copyDir(Directory from, Directory to) throws IOException {
+    for (String file: from.listAll()) {
+      to.copyFrom(from, file, file, IOContext.DEFAULT);
+    }
+  }
 }

@@ -903,6 +903,9 @@ class RunAlgs:
       if index.indexSort:
         w('-indexSort', index.indexSort)
 
+      if index.rearrange != 0:
+        w('-rearrange', index.rearrange)
+
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
 
       print('    log %s' % fullLogFile)

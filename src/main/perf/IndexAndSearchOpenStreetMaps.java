@@ -100,8 +100,6 @@ import org.apache.lucene.document.ShapeField;
 import org.apache.lucene.document.Field;
 
 
-import javax.management.Query;
-
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLatitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.decodeLongitude;
 import static org.apache.lucene.geo.GeoEncodingUtils.encodeLatitude;

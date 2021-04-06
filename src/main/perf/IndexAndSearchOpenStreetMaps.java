@@ -41,8 +41,8 @@ import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.PointsFormat;
 import org.apache.lucene.codecs.PointsReader;
 import org.apache.lucene.codecs.PointsWriter;
-import org.apache.lucene.codecs.lucene86.Lucene86PointsReader;
-import org.apache.lucene.codecs.lucene86.Lucene86PointsWriter;
+import org.apache.lucene.codecs.lucene90.Lucene90PointsReader;
+import org.apache.lucene.codecs.lucene90.Lucene90PointsWriter;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonDocValuesField;
@@ -562,12 +562,12 @@ public class IndexAndSearchOpenStreetMaps {
             @Override
             public PointsWriter fieldsWriter(SegmentWriteState writeState) throws IOException {
               int maxPointsInLeafNode = 1024;
-              return new Lucene86PointsWriter(writeState, maxPointsInLeafNode, BKDWriter.DEFAULT_MAX_MB_SORT_IN_HEAP);
+              return new Lucene90PointsWriter(writeState, maxPointsInLeafNode, BKDWriter.DEFAULT_MAX_MB_SORT_IN_HEAP);
             }
 
             @Override
             public PointsReader fieldsReader(SegmentReadState readState) throws IOException {
-              return new Lucene86PointsReader(readState);
+              return new Lucene90PointsReader(readState);
             }
           };
         }
@@ -832,11 +832,11 @@ public class IndexAndSearchOpenStreetMaps {
       }
 
       for(int iter=0;iter<ITERS;iter++) {
+        List<Query> queries  = new ArrayList<>();
         long tStart = System.nanoTime();
         long totHits = 0;
         double totNearestDistance = 0.0;
         int queryCount = 0;
-
         for(int latStep=0;latStep<STEPS;latStep++) {
           double lat = MIN_LAT + latStep * (MAX_LAT - MIN_LAT) / STEPS;
           for(int lonStep=0;lonStep<STEPS;lonStep++) {
@@ -935,11 +935,7 @@ public class IndexAndSearchOpenStreetMaps {
                     Sort sort = new Sort(LatLonDocValuesField.newDistanceSort("point", centerLat, centerLon));
                     for(IndexSearcher s : searchers) {
                       TopFieldDocs hits = s.search(q, 10, sort);
-                      if (hits.totalHits.relation != TotalHits.Relation.EQUAL_TO) {
-                    	  // IndexSearcher can never optimize top-hits collection in that case,
-                    	  // se we should get accurate hit counts
-                    	  throw new AssertionError();
-                      }
+                      queries.add(q);
                       totHits += hits.totalHits.value;
                     }
                   } else {
@@ -965,6 +961,20 @@ public class IndexAndSearchOpenStreetMaps {
         }
 
         long tEnd = System.nanoTime();
+        if (doDistanceSort) {
+          long prevHits = totHits;
+          totHits = 0;
+          for (Query q : queries) {
+            for (IndexSearcher s : searchers) {
+              totHits += s.count(q);
+            }
+          }
+          if (prevHits > totHits) {
+            // we should have not visited more documents
+            // than the count of the query alone
+            throw new AssertionError();
+          }
+        }
         double elapsedSec = (tEnd-tStart)/1000000000.0;
         double qps = queryCount / elapsedSec;
         double mhps = (totHits/1000000.0) / elapsedSec;

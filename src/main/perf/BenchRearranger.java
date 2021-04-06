@@ -42,7 +42,7 @@ public class BenchRearranger {
      * @param inputDir input directory, will not be modified
      * @param outputDir output directory, will create new index under this dir
      * @param iwc IndexWriterConfig, will be configured with {@link org.apache.lucene.index.NoMergePolicy} when rearrange
-     * @param arrangement and integer, will be parsed as explained above
+     * @param arrangement an integer, will be parsed as explained above
      * @throws Exception when rearrange
      */
     public static void rearrange(Directory inputDir, Directory outputDir, IndexWriterConfig iwc, int arrangement) throws Exception {
@@ -68,24 +68,24 @@ public class BenchRearranger {
         }
         int docPerChunk = numAllDocs / totalChunks;
         int docResidual = numAllDocs % totalChunks;
-        int upto = 0, nextSeg;
+        int upto = 0;
         List<IndexRearranger.DocumentSelector> selectors = new ArrayList<>();
         for (int i = 0; i < large; i++) {
-            nextSeg = upto + 100 * docPerChunk + Math.min(100, docResidual);
+            int nextSeg = upto + 100 * docPerChunk + Math.min(100, docResidual);
             selectors.add(new StringFieldDocSelector(ID_FIELD, getIdSetOfRange(upto, nextSeg)));
             docResidual = Math.max(0, docResidual - 100);
             upto = nextSeg;
         }
 
         for (int i = 0; i < medium; i++) {
-            nextSeg = upto + 10 * docPerChunk + Math.min(10, docResidual);
+            int nextSeg = upto + 10 * docPerChunk + Math.min(10, docResidual);
             selectors.add(new StringFieldDocSelector(ID_FIELD, getIdSetOfRange(upto, nextSeg)));
             docResidual = Math.max(0, docResidual - 10);
             upto = nextSeg;
         }
 
         for (int i = 0; i < small; i++) {
-            nextSeg = upto + docPerChunk + Math.min(1, docResidual);
+            int nextSeg = upto + docPerChunk + Math.min(1, docResidual);
             selectors.add(new StringFieldDocSelector(ID_FIELD, getIdSetOfRange(upto, nextSeg)));
             docResidual = Math.max(0, docResidual - 1);
             upto = nextSeg;

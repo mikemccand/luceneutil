@@ -233,10 +233,13 @@ public final class Indexer {
 
     int arrangement = 0;
     if (args.hasArg("-rearrange")) {
-      if (doForceMerge) {
+      arrangement = args.getInt("-rearrange");
+      if (doForceMerge && arrangement > 0) {
         throw new IllegalArgumentException("Force merge not compatible with rearrange!");
       }
-      arrangement = args.getInt("-rearrange");
+      if (arrangement < 0) {
+        throw new IllegalArgumentException("Illegal arrangement!");
+      }
     }
     
     String indexSortField = null;
@@ -347,6 +350,7 @@ public final class Indexer {
     System.out.println("Doc count limit: " + (docCountLimit == -1 ? "all docs" : ""+docCountLimit));
     System.out.println("Threads: " + numThreads);
     System.out.println("Force merge: " + (doForceMerge ? "yes" : "no"));
+    System.out.println("Rearrange to (0 for no rearrange): " + arrangement);
     System.out.println("Verbose: " + (verbose ? "yes" : "no"));
     System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
     System.out.println("Max buffered docs: " + maxBufferedDocs);
@@ -607,6 +611,7 @@ public final class Indexer {
 
     if (arrangement != 0) {
       // rearrange after normal indexing routine is completed
+      System.out.println("\nIndexer: rearrange start");
       long rearrangeStartMSec = System.currentTimeMillis();
       Path tmpDirPath = Files.createTempDirectory("rearrange");
       System.out.println(tmpDirPath);

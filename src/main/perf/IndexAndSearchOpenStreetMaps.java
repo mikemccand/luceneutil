@@ -972,8 +972,8 @@ public class IndexAndSearchOpenStreetMaps {
             }
           }
           if (prevHits > totHits) {
-            // we should not have visited more documents
-            // than the result of the query
+            // we should have not visited more documents
+            // than the count of the query alone
             throw new AssertionError();
           }
         }

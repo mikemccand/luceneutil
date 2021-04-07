@@ -81,7 +81,9 @@ if nightly:
 else:
   sources = '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java /l/util/src/main/perf/RandomQuery.java'
 
-if os.system('javac -cp test-framework/build/classes/java/main:sandbox/build/classes/java/main:codecs/build/classes/java/main:core/build/classes/java/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main %s' % sources):
+cmd = 'javac -cp test-framework/build/classes/java/main:sandbox/build/classes/java/main:codecs/build/classes/java/main:core/build/classes/java/main:sandbox/build/classes/java/main:spatial3d/build/classes/java/main %s' % sources
+print(f'RUN: {cmd}')
+if os.system(cmd):
   raise RuntimeError('compile failed')
 
 results = {}

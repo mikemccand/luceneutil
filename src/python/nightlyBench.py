@@ -904,11 +904,12 @@ def run():
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
                         analyzer='StandardAnalyzerNoStopWords',
                         postingsFormat='Lucene90',
-                        numThreads=1,
-                        useCMS=False,
+                        numThreads=constants.INDEX_NUM_THREADS,
+                        useCMS=True,
+                        maxConcurrentMerges=12,
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Lucene90',
-                        mergePolicy='LogDocMergePolicy',
+                        mergePolicy='TieredMergePolicy',
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
@@ -916,7 +917,9 @@ def run():
                                   ('sortedset:DayOfYear', 'DayOfYear')),
                         addDVFields=True,
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                        vectorDimension=100,)
+                        vectorDimension=100,
+                        rearrange=555,
+                        )
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

@@ -398,7 +398,6 @@ public class IndexAndSearchShapes {
                 if (values != null) {
                     numPoints += values.size();
                 }
-                bytes += cr.ramBytesUsed();
             }
         }
         System.out.println("READER MB: " + (bytes/1024./1024.));

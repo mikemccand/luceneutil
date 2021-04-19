@@ -386,19 +386,17 @@ public final class Indexer {
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
-    
-    final Codec codec = new Lucene90Codec(Lucene90Codec.Mode.BEST_COMPRESSION) {
+
+    // Use codec at defaults:
+    final Codec codec = new Lucene90Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
                                         idFieldPostingsFormat : defaultPostingsFormat);
         }
 
-        private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat(Lucene90DocValuesFormat.Mode.BEST_COMPRESSION);
-        //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
-        //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
-//        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
-        //private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
+        // Use doc values format at defaults:
+        private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat();
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
@@ -406,7 +404,6 @@ public final class Indexer {
             return facetsDVFormat;
           } else {
             // Use default DVFormat for all else:
-            // System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
             return super.getDocValuesFormatForField(field);
           }
         }

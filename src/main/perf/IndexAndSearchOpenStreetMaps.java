@@ -650,15 +650,6 @@ public class IndexAndSearchOpenStreetMaps {
     for(IndexSearcher s : searchers) {
       IndexReader r = s.getIndexReader();
       maxDoc += r.maxDoc();
-      for(LeafReaderContext ctx : r.leaves()) {
-        CodecReader cr = (CodecReader) ctx.reader();
-        /*
-        for(Accountable acc : cr.getChildResources()) {
-          System.out.println("  " + Accountables.toString(acc));
-        }
-        */
-        bytes += cr.ramBytesUsed();
-      }
     }
     System.out.println("READER MB: " + (bytes/1024./1024.));
     System.out.println("maxDoc=" + maxDoc);

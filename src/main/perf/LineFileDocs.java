@@ -43,6 +43,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -337,7 +338,6 @@ public class LineFileDocs implements Closeable {
     final LongPoint lastModLP;
     final Field body;
     final Field id;
-    final Field idNDV;
     final Field idPoint;
     final Field date;
     //final NumericDocValuesField dateMSec;
@@ -361,10 +361,6 @@ public class LineFileDocs implements Closeable {
       doc.add(title);
 
       if (addDVFields) {
-
-        idNDV = new NumericDocValuesField("idNDV", -1);
-        doc.add(idNDV);
-
         titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
         doc.add(titleDV);
 
@@ -384,7 +380,6 @@ public class LineFileDocs implements Closeable {
         dayOfYearIP = new IntPoint("dayOfYearNumericDV", 0); //points field must have the same name and value as DV field
         doc.add(dayOfYearIP);
       } else {
-        idNDV = null;
         titleDV = null;
         titleBDV = null;
         lastModNDV = null;
@@ -592,7 +587,6 @@ public class LineFileDocs implements Closeable {
     doc.body.setStringValue(body);
     doc.title.setStringValue(title);
     if (addDVFields) {
-      doc.idNDV.setLongValue(myID);
       doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
       doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));

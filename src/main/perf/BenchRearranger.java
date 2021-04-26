@@ -19,16 +19,13 @@ package perf;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.misc.index.BinaryDocValueSelector;
 import org.apache.lucene.misc.index.IndexRearranger;
 import org.apache.lucene.store.Directory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
@@ -49,12 +46,6 @@ public class BenchRearranger {
      * @throws Exception when rearrange
      */
     public static void rearrange(Directory inputDir, Directory outputDir, IndexWriterConfig iwc, int arrangement) throws Exception {
-        HashMap<String, String> commitData = new HashMap<>();
-        if (arrangement > 1) {
-            commitData.put("userData", "multi");
-        } else {
-            commitData.put("userData", "single");
-        }
         try (IndexReader reader = DirectoryReader.open(inputDir)) {
             int large = arrangement / 100;
             int medium = (arrangement % 100) / 10;
@@ -66,14 +57,6 @@ public class BenchRearranger {
                     getDocumentSelectors(reader, large, medium, small)
             );
             rearranger.execute();
-        }
-        IndexWriterConfig config = new IndexWriterConfig(null);
-        config.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-        config.setMergePolicy(NoMergePolicy.INSTANCE);
-        // TODO: expose a callable argument to IndexRearranger to set live commit data
-        try (IndexWriter writer = new IndexWriter(outputDir, config)) {
-            writer.setLiveCommitData(commitData.entrySet());
-            writer.commit();
         }
     }
 

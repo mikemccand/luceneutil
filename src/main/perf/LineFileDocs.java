@@ -73,7 +73,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc("END", null, -1);
+  private final static LineFileDoc END = new LineFileDoc("END", null);
 
   private final AtomicInteger nextID = new AtomicInteger();
 
@@ -166,7 +166,7 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc(buffer, readVector(count), nextID.getAndIncrement()));
+        queue.put(new LineFileDoc(buffer, readVector(count)));
       }
     } else {
       while (true) {
@@ -180,7 +180,7 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc(line, readVector(1), nextID.getAndIncrement()));
+        queue.put(new LineFileDoc(line, readVector(1)));
       }
     }
     for(int i=0;i<128;i++) {
@@ -480,13 +480,12 @@ public class LineFileDocs implements Closeable {
     String line;
     String title;
     String body;
-    LineFileDoc lfd;
 
     if (isBinary) {
 
       float[] vector = new float[vectorDimension];
       FloatBuffer vectorBuffer = null;
-      lfd = nextDocs.get();
+      LineFileDoc lfd = nextDocs.get();
       if (lfd == null || lfd.byteText.hasRemaining() == false) {
         /*
         System.out.println("  prev buffer=" + buffer);
@@ -534,6 +533,7 @@ public class LineFileDocs implements Closeable {
         lfd.vector.get(doc.vector.vectorValue());
       }
     } else {
+      LineFileDoc lfd;
       try {
         lfd = queue.take();
       } catch (InterruptedException ie) {
@@ -581,7 +581,7 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    final int myID = lfd.id;
+    final int myID = nextID.getAndIncrement();
 
     bytesIndexed.addAndGet(body.length() + title.length());
     doc.body.setStringValue(body);
@@ -699,12 +699,10 @@ public class LineFileDocs implements Closeable {
     final FloatBuffer vector;
     final String stringText;
     final ByteBuffer byteText;
-    final int id;
 
-    LineFileDoc(String text, float[] vector, int id) {
+    LineFileDoc(String text, float[] vector) {
       stringText = text;
       byteText = null;
-      this.id = id;
       if (vector == null) {
         this.vector = null;
       } else {
@@ -712,10 +710,9 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    LineFileDoc(ByteBuffer bytes, float[] vector, int id) {
+    LineFileDoc(ByteBuffer bytes, float[] vector) {
       stringText = null;
       byteText = bytes;
-      this.id = id;
       if (vector == null) {
         this.vector = null;
       } else {

@@ -23,6 +23,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.misc.index.BinaryDocValueSelector;
 import org.apache.lucene.misc.index.IndexRearranger;
 import org.apache.lucene.store.Directory;
 
@@ -82,7 +83,6 @@ public class BenchRearranger {
         for (LeafReaderContext context: reader.leaves()) {
             numAllDocs += context.reader().numDocs();
         }
-        System.out.println("all docs num:" + numAllDocs);
         int docPerChunk = numAllDocs / totalChunks;
         int docResidual = numAllDocs % totalChunks;
         int upto = 0;
@@ -93,7 +93,6 @@ public class BenchRearranger {
             docResidual = Math.max(0, docResidual - 100);
             upto = nextSeg;
         }
-        System.out.println("large upto:" + upto);
 
         for (int i = 0; i < medium; i++) {
             int nextSeg = upto + 10 * docPerChunk + Math.min(10, docResidual);
@@ -101,7 +100,6 @@ public class BenchRearranger {
             docResidual = Math.max(0, docResidual - 10);
             upto = nextSeg;
         }
-        System.out.println("med upto:" + upto);
 
         for (int i = 0; i < small; i++) {
             int nextSeg = upto + docPerChunk + Math.min(1, docResidual);
@@ -109,7 +107,6 @@ public class BenchRearranger {
             docResidual = Math.max(0, docResidual - 1);
             upto = nextSeg;
         }
-        System.out.println("small upto:" + upto);
         assert docResidual == 0;
         assert upto == numAllDocs;
         return selectors;

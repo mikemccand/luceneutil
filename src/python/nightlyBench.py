@@ -900,7 +900,7 @@ def run():
                                useCMS=True)
                                
 
-  # Must use only 1 thread so we get same index structure, always:
+  # Must use rearrange and indexSort to ensure we get same index structure, always:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
                         analyzer='StandardAnalyzerNoStopWords',
                         postingsFormat='Lucene90',
@@ -916,6 +916,7 @@ def run():
                                   ('sortedset:Month', 'Month'),
                                   ('sortedset:DayOfYear', 'DayOfYear')),
                         addDVFields=True,
+                        indexSort="idNDV:long",
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                         vectorDimension=100,
                         rearrange=555,

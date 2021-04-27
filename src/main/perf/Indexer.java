@@ -61,10 +61,12 @@ import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
@@ -386,19 +388,17 @@ public final class Indexer {
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
-    
-    final Codec codec = new Lucene90Codec(Lucene90Codec.Mode.BEST_COMPRESSION) {
+
+    // Use codec at defaults:
+    final Codec codec = new Lucene90Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?
                                         idFieldPostingsFormat : defaultPostingsFormat);
         }
 
-        private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat(Lucene90DocValuesFormat.Mode.BEST_COMPRESSION);
-        //private final DocValuesFormat lucene42DVFormat = DocValuesFormat.forName("Lucene42");
-        //private final DocValuesFormat diskDVFormat = DocValuesFormat.forName("Disk");
-//        private final DocValuesFormat lucene45DVFormat = DocValuesFormat.forName("Lucene45");
-        //private final DocValuesFormat directDVFormat = DocValuesFormat.forName("Direct");
+        // Use doc values format at defaults:
+        private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat();
 
         @Override
         public DocValuesFormat getDocValuesFormatForField(String field) {
@@ -406,7 +406,6 @@ public final class Indexer {
             return facetsDVFormat;
           } else {
             // Use default DVFormat for all else:
-            // System.out.println("DV: field=" + field + " format=" + super.getDocValuesFormatForField(field));
             return super.getDocValuesFormatForField(field);
           }
         }
@@ -623,11 +622,26 @@ public final class Indexer {
       long rearrangeEndMSec = System.currentTimeMillis();
 //      IndexReader reader = DirectoryReader.open(dir);
 //      for (LeafReaderContext context: reader.leaves()) {
+//        HashSet<Integer> idSet = new HashSet<>();
+//        int min = Integer.MAX_VALUE;
+//        int max = -1;
+//        TermsEnum termsEnum = context.reader().terms("id").iterator();
+//        BytesRef next = termsEnum.next();
+//        while (next != null) {
+//          int id = LineFileDocs.idToInt(next);
+//          idSet.add(id);
+//          min = Math.min(min, id);
+//          max = Math.max(max, id);
+//          next = termsEnum.next();
+//        }
+//        System.out.println("---segment---");
 //        System.out.println(context.reader().numDocs());
+//        System.out.println("Unique id num: " + idSet.size());
+//        System.out.println("min id: " + min);
+//        System.out.println("max id: " + max);
 //      }
 //      reader.close();
-      /* code above will print '1810' once, '1800' 4 times, '180' 5 times, '18' 5 times
-       on a 10000 doc, 555 arrangement */
+      /* code above could be used to inspect the rearranged index for debugging */
       System.out.println("\nIndexer: rearrange done (took " + (rearrangeEndMSec-rearrangeStartMSec) + " msec)");
     }
 

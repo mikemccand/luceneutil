@@ -8,7 +8,7 @@ etc.. We'll refer to this directory as `$LUCENE_BENCH_HOME` here.
 
 ```
 # 1. checkout luceneutil:
-# Choose a suitable directory, e.g. ~/Projects/lucence/benchmarks.
+# Choose a suitable directory, e.g. ~/Projects/lucene/benchmarks.
 mkdir $LUCENE_BENCH_HOME && cd $LUCENE_BENCH_HOME
 git clone https://github.com/mikemccand/luceneutil.git util
 
@@ -34,7 +34,7 @@ A trunk version of Lucene can be checked out with
 
 ```
 cd $LUCENE_BENCH_HOME
-git clone https://github.com/apache/lucene-solr.git lucene_baseline
+git clone https://github.com/apache/lucene.git lucene_baseline
 ```
 
 Adjust the command accordingly for `lucene_candidate`.

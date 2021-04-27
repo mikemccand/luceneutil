@@ -43,7 +43,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -73,7 +72,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc("END", null);
+  private final static LineFileDoc END = new LineFileDoc("END", null, -1);
 
   private final AtomicInteger nextID = new AtomicInteger();
 
@@ -166,7 +165,7 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc(buffer, readVector(count)));
+        queue.put(new LineFileDoc(buffer, readVector(count), nextID.getAndIncrement()));
       }
     } else {
       while (true) {
@@ -180,7 +179,7 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc(line, readVector(1)));
+        queue.put(new LineFileDoc(line, readVector(1), nextID.getAndIncrement()));
       }
     }
     for(int i=0;i<128;i++) {
@@ -338,6 +337,7 @@ public class LineFileDocs implements Closeable {
     final LongPoint lastModLP;
     final Field body;
     final Field id;
+    final Field idNDV;
     final Field idPoint;
     final Field date;
     //final NumericDocValuesField dateMSec;
@@ -361,6 +361,10 @@ public class LineFileDocs implements Closeable {
       doc.add(title);
 
       if (addDVFields) {
+
+        idNDV = new NumericDocValuesField("idNDV", -1);
+        doc.add(idNDV);
+
         titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
         doc.add(titleDV);
 
@@ -380,6 +384,7 @@ public class LineFileDocs implements Closeable {
         dayOfYearIP = new IntPoint("dayOfYearNumericDV", 0); //points field must have the same name and value as DV field
         doc.add(dayOfYearIP);
       } else {
+        idNDV = null;
         titleDV = null;
         titleBDV = null;
         lastModNDV = null;
@@ -480,12 +485,13 @@ public class LineFileDocs implements Closeable {
     String line;
     String title;
     String body;
+    LineFileDoc lfd;
 
     if (isBinary) {
 
       float[] vector = new float[vectorDimension];
       FloatBuffer vectorBuffer = null;
-      LineFileDoc lfd = nextDocs.get();
+      lfd = nextDocs.get();
       if (lfd == null || lfd.byteText.hasRemaining() == false) {
         /*
         System.out.println("  prev buffer=" + buffer);
@@ -533,7 +539,6 @@ public class LineFileDocs implements Closeable {
         lfd.vector.get(doc.vector.vectorValue());
       }
     } else {
-      LineFileDoc lfd;
       try {
         lfd = queue.take();
       } catch (InterruptedException ie) {
@@ -581,12 +586,13 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    final int myID = nextID.getAndIncrement();
+    final int myID = lfd.id;
 
     bytesIndexed.addAndGet(body.length() + title.length());
     doc.body.setStringValue(body);
     doc.title.setStringValue(title);
     if (addDVFields) {
+      doc.idNDV.setLongValue(myID);
       doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
       doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));
@@ -699,10 +705,12 @@ public class LineFileDocs implements Closeable {
     final FloatBuffer vector;
     final String stringText;
     final ByteBuffer byteText;
+    final int id;
 
-    LineFileDoc(String text, float[] vector) {
+    LineFileDoc(String text, float[] vector, int id) {
       stringText = text;
       byteText = null;
+      this.id = id;
       if (vector == null) {
         this.vector = null;
       } else {
@@ -710,9 +718,10 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    LineFileDoc(ByteBuffer bytes, float[] vector) {
+    LineFileDoc(ByteBuffer bytes, float[] vector, int id) {
       stringText = null;
       byteText = bytes;
+      this.id = id;
       if (vector == null) {
         this.vector = null;
       } else {

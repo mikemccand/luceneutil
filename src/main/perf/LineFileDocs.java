@@ -66,7 +66,7 @@ import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.VectorValues.SearchStrategy;
+import org.apache.lucene.index.VectorValues.SimilarityFunction;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
 
@@ -430,7 +430,7 @@ public class LineFileDocs implements Closeable {
 
       if (vectorDimension > 0) {
         // create a throwaway vector so the field's type gets the proper dimension
-        vector = new VectorField("vector", new float[vectorDimension], SearchStrategy.DOT_PRODUCT_HNSW);
+        vector = new VectorField("vector", new float[vectorDimension], SimilarityFunction.DOT_PRODUCT);
         doc.add(vector);
       } else {
         vector = null;
@@ -459,7 +459,7 @@ public class LineFileDocs implements Closeable {
       } else if (f instanceof BinaryDocValuesField) {
         doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
       } else if (f instanceof VectorField) {
-        doc2.add(new VectorField(f.name(), ((VectorField) f).vectorValue(), f.fieldType().vectorSearchStrategy()));
+        doc2.add(new VectorField(f.name(), ((VectorField) f).vectorValue(), f.fieldType().vectorSimilarityFunction()));
       } else {
         Field field2 = new Field(f.name(),
                                  f.stringValue(),

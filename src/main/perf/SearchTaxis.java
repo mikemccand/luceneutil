@@ -188,12 +188,8 @@ public class SearchTaxis {
     for(LeafReaderContext ctx : reader.leaves()) {
       CodecReader cr = (CodecReader) ctx.reader();
       System.out.println("\nREADER: " + cr);
-      for(Accountable acc : cr.getChildResources()) {
-        System.out.println("  " + Accountables.toString(acc));
-      }
-      bytes += cr.ramBytesUsed();
     }
-    System.out.println("HEAP: " + bytes);
+    System.out.println("HEAP: 0");
 
     IndexSearcher searcher = new IndexSearcher(reader);
 

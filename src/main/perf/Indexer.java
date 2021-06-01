@@ -18,11 +18,13 @@ package perf;
  */
 
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -611,12 +613,19 @@ public final class Indexer {
       System.out.println("\nIndexer: rearrange start");
       long rearrangeStartMSec = System.currentTimeMillis();
       Path tmpDirPath = Files.createTempDirectory("rearrange");
-      System.out.println(tmpDirPath);
-      Directory tmpDir = od.open(tmpDirPath);
-      BenchRearranger.rearrange(dir, tmpDir, getIWC.call() , arrangement);
-      PerfUtils.clearDir(dir);
-      PerfUtils.copyDir(tmpDir, dir);
-      tmpDir.close();
+      System.out.println("Created tmp dir for rearranging: " + tmpDirPath);
+      try (Directory tmpDir = od.open(tmpDirPath)) {
+          BenchRearranger.rearrange(dir, tmpDir, getIWC.call() , arrangement);
+          PerfUtils.clearDir(dir);
+          PerfUtils.copyDir(tmpDir, dir);
+      } finally {
+          Files.walk(tmpDirPath)
+                  .sorted(Comparator.reverseOrder())
+                  .map(Path::toFile)
+                  .forEach(File::delete);
+          tmpDirPath.toFile().delete();
+          System.out.println("Deleted tmp dir: " + tmpDirPath);
+      }
       long rearrangeEndMSec = System.currentTimeMillis();
 //      IndexReader reader = DirectoryReader.open(dir);
 //      for (LeafReaderContext context: reader.leaves()) {

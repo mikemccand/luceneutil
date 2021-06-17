@@ -45,6 +45,9 @@ WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BEN
 WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_VECTOR_TASKS_FILE = '%s/tasks/vector.tasks' % BENCH_BASE_DIR
 SORTED_TASKS_FILE = '%s/tasks/sorted.tasks' % BENCH_BASE_DIR
+DISJUNCTION_SIMPLE_TASKS_FILE = '%s/tasks/disjunctionSimple.tasks' % BENCH_BASE_DIR
+DISJUNCTION_REALISTIC_TASKS_FILE = '%s/tasks/disjunctionRealistic.tasks' % BENCH_BASE_DIR
+DISJUNCTION_INTENSIVE_TASKS_FILE = '%s/tasks/disjunctionIntensive.tasks' % BENCH_BASE_DIR
 
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR
@@ -59,6 +62,9 @@ WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
 # enwiki-20120502-lines.txt has 6726515 docs
 # enwiki-20130102-lines.txt has 6647577 docs
 WIKI_BIG_DOCS_COUNT = 6726515
+
+DISJUNCTION_DOC_COUNT = 500000
+DISJUNCTION_DOCS_LINE_FILE = WIKI_MEDIUM_DOCS_LINE_FILE
 
 #WIKI_FILE = '%s/data/enwiki-20100302-pages-articles.xml.bz2' % BENCH_BASE_DIR
 

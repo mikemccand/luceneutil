@@ -1,0 +1,6 @@
+# This is intended to illustrate a realistic-type query that would have
+# relatively significant combinatorial expansion in `pullUpDisjunctions()`
+
+IntervalDis: intervalDis//(body:us|united-states health|health-care policy|public-policy law|legal-aspects)
+IntervalMinDis: intervalMinDis//(body:us|united-states health|health-care policy|public-policy law|legal-aspects)
+SpanDis: spanDis//(body:us|united-states health|health-care policy|public-policy law|legal-aspects)

@@ -16,12 +16,15 @@
  */
 
 import java.io.IOException;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 import org.apache.lucene.util.UnicodeUtil;
-import org.apache.lucene.util.automaton.LevenshteinAutomata;
 import org.apache.lucene.util.automaton.Automaton;
-import org.apache.lucene.util.automaton.UTF32ToUTF8;
+import org.apache.lucene.util.automaton.LevenshteinAutomata;
 import org.apache.lucene.util.automaton.Operations;
 import org.apache.lucene.util.automaton.TooComplexToDeterminizeException;
+import org.apache.lucene.util.automaton.UTF32ToUTF8;
 
 //import org.apache.lucene.util.BytesRef;
 //import org.apache.lucene.util.IntsRef;
@@ -111,9 +114,19 @@ public class BuildLevenshteinAutomaton {
     Automaton a = new LevenshteinAutomata(suffix, alphaMax, transpositionIsOneEdit).toAutomaton(editDistance, prefix);
     if (convertToUTF8) {
       a = new UTF32ToUTF8().convert(a);
-      a = Operations.determinize(a, Operations.DEFAULT_DETERMINIZE_WORK_LIMIT);
     }
 
-    System.out.println(a.toDot());
+    // TODO: this might not be strictly needed if we didn't convert to UTF-8?
+    a = Operations.determinize(a, Operations.DEFAULT_DETERMINIZE_WORK_LIMIT);
+    a = Operations.removeDeadStates(a);
+
+    String dot = a.toDot();
+
+    // some small tweaks -- maybe fix toDot?
+    dot = dot.replaceAll(Pattern.quote("\\\\U00000000"), "");
+    dot = dot.replaceAll(Pattern.quote(String.format(Locale.ROOT, "\\\\U%08x", alphaMax)), "");
+    //dot = dot.replaceAll("-", " - ");
+
+    System.out.println(dot);
   }
 }

@@ -26,13 +26,13 @@ import time
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
-BASE_URL = 'http://home.apache.org/~mikemccand'
-BASE_URL2 = 'http://home.apache.org/~sokolov'
+BASE_URL = 'https://home.apache.org/~mikemccand'
+BASE_URL2 = 'https://home.apache.org/~sokolov'
 DATA_FILES = [
   ('enwiki-20120502-lines-1k.txt.lzma', BASE_URL),
   ('enwiki-20120502-lines-1k-100d.vec', BASE_URL2),
   ('wikimedium500.tasks', BASE_URL),
-  ('glove.6B.zip', 'http://nlp.stanford.edu/data/')
+  ('glove.6B.zip', 'https://downloads.cs.stanford.edu/nlp/data/')
 ]
 USAGE= """
 Usage: python setup.py [-download]

@@ -34,11 +34,14 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.queries.spans.SpanNearQuery;
+import org.apache.lucene.queries.spans.SpanOrQuery;
 import org.apache.lucene.queries.spans.SpanQuery;
 import org.apache.lucene.queries.spans.SpanTermQuery;
 import org.apache.lucene.queries.intervals.Intervals;
+import org.apache.lucene.queries.intervals.IntervalsSource;
 import org.apache.lucene.queries.intervals.IntervalQuery;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -297,6 +300,12 @@ class TaskParser {
       switch(type) {
         case "ordered":
           return parseOrderedQuery();
+        case "spanDis":
+          return parseSpanDisjunctions();
+        case "intervalDis":
+          return parseIntervalDisjunctions(true);
+        case "intervalDisMin":
+          return parseIntervalDisjunctions(false);
         case "near":
           return parseNearQuery();
         case "multiPhrase":
@@ -411,28 +420,106 @@ class TaskParser {
           true);
     }
 
+    Query parseSpanDisjunctions() {
+      String[] fieldHolder = new String[1];
+      int[] slopHolder = new int[] {10}; // default to slop of 10
+      String[][][] clauses = parseDisjunctionSpec(fieldHolder, slopHolder);
+      String field = fieldHolder[0];
+      int slop = slopHolder[0];
+      SpanQuery[] spanClauses = Arrays.stream(clauses).map((component) -> {
+        SpanQuery[] disjunct = Arrays.stream(component).map((words) -> {
+          if (words.length == 1) {
+            return new SpanTermQuery(new Term(field, words[0]));
+          } else {
+            return new SpanNearQuery(Arrays.stream(words).map((word) -> {
+              return new SpanTermQuery(new Term(field, word));
+            }).toArray((size) -> new SpanQuery[size]), 0, true);
+          }
+        }).toArray((size) -> new SpanQuery[size]);
+        return disjunct.length == 1 ? disjunct[0] : new SpanOrQuery(disjunct);
+      }).toArray((size) -> new SpanQuery[size]);
+      // NOTE: in contrast to intervals (below), with spans there is no special
+      // case for slop==0; we have only SpanNearQuery
+      return spanClauses.length == 1 ? spanClauses[0] : new SpanNearQuery(spanClauses, slop, true);
+    }
+
+    Query parseIntervalDisjunctions(boolean rewrite) {
+      String[] fieldHolder = new String[1];
+      int[] slopHolder = new int[] {10}; // default to slop of 10
+      String[][][] clauses = parseDisjunctionSpec(fieldHolder, slopHolder);
+      String field = fieldHolder[0];
+      int slop = slopHolder[0];
+      IntervalsSource[] intervalClauses = Arrays.stream(clauses).map((component) -> {
+        IntervalsSource[] disjunct = Arrays.stream(component).map((words) -> {
+          if (words.length == 1) {
+            return Intervals.term(words[0]);
+          } else {
+            IntervalsSource[] intervalWords = Arrays.stream(words).map((word) -> {
+              return Intervals.term(word);
+            }).toArray((size) -> new IntervalsSource[size]);
+            return Intervals.phrase(intervalWords);
+          }
+        }).toArray((size) -> new IntervalsSource[size]);
+        return disjunct.length == 1 ? disjunct[0] : Intervals.or(rewrite, disjunct);
+      }).toArray((size) -> new IntervalsSource[size]);
+      IntervalsSource positional;
+      if (intervalClauses.length == 1) {
+        // NOTE: apparently maxgaps/ordered/phrase do not rewrite for the single-clause
+        // case? ... or in any event not in a way that's transparent immediately after
+        // query construction. So we do it manually here, in order be sure that Intervals
+        // can "put their best foot forward" on the plain-disjunction case.
+        positional = intervalClauses[0];
+      } else if (slop == 0) {
+        // assumption: "phrase" is equivalent to "maxgaps(0, ordered)"?
+        positional = Intervals.phrase(intervalClauses);
+      } else {
+        // the usual case
+        positional = Intervals.maxgaps(slop, Intervals.ordered(intervalClauses));
+      }
+      return new IntervalQuery(field, positional);
+    }
+
     Query parseMultiPhrase() {
+      String[] fieldHolder = new String[1];
+      int[] slopHolder = new int[1]; // implicit default to slop=0
+      String[][][] clauses = parseDisjunctionSpec(fieldHolder, slopHolder);
+      if (slopHolder[0] != 0) {
+        throw new IllegalArgumentException("multiPhrase only supports slop==0; found:" + slopHolder[0]);
+      }
+      String field = fieldHolder[0];
+      MultiPhraseQuery.Builder b = new MultiPhraseQuery.Builder();
+      for (int i = 0; i < clauses.length; i++) {
+        String words[][] = clauses[i];
+        Term terms[] = new Term[words.length];
+        for (int j = 0; j < words.length; j++) {
+          terms[j] = new Term(field, words[j][0]);
+        }
+        b.add(terms);
+      }
+      return b.build();
+    }
+
+    private String[][][] parseDisjunctionSpec(String[] fieldHolder, int[] slopHolder) {
       int colon = text.indexOf(':');
       if (colon == -1) {
         throw new RuntimeException("failed to parse query=" + text);
       }
-      String field = text.substring("(".length(), colon);
+      fieldHolder[0] = text.substring("(".length(), colon);
       MultiPhraseQuery.Builder b = new MultiPhraseQuery.Builder();
       int endParen = text.indexOf(')');
       if (endParen == -1) {
         throw new RuntimeException("failed to parse query=" + text);
       }
-      String queryText = text.substring(colon+1, endParen);
-      String elements[] = queryText.split("\\s+");
-      for (int i = 0; i < elements.length; i++) {
-        String words[] = elements[i].split("\\|");
-        Term terms[] = new Term[words.length];
-        for (int j = 0; j < words.length; j++) {
-          terms[j] = new Term(field, words[j]);
-        }
-        b.add(terms);
+      int checkExplicitSlop = endParen + 1;
+      if (text.length() > checkExplicitSlop && text.charAt(checkExplicitSlop) == '~') {
+        slopHolder[0] = Integer.parseInt(text.substring(checkExplicitSlop + 1).split("[^0-9]", 2)[0]);
       }
-      return b.build();
+      String queryText = text.substring(colon+1, endParen);
+      return Arrays.stream(queryText.split("\\s+")).map((clause) -> {
+        return Arrays.stream(clause.split("\\|")).map((component) -> {
+          return component.split("-");
+        }).toArray((size) -> new String[size][]);
+      }).toArray((size) -> new String[size][][]);
     }
 
     Query parseDisjunctionMax() {

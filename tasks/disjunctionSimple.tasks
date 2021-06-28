@@ -1,0 +1,6 @@
+# These should not actually result in positional queries; they exist to evaluate
+# realistic pure-disjunction queries in isolation (i.e.: SpanOrQuery,
+# DisjunctionIntervalsSource)
+
+PlainIntervalDis: intervalDis//(body:trash|waste|garbage|recycling|refuse)
+PlainSpanDis: spanDis//(body:trash|waste|garbage|recycling|refuse)

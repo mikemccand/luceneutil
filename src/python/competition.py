@@ -55,6 +55,21 @@ EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 50000
 
 WIKI_VECTOR_10K = Data('wikivector10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_VECTOR_TASKS_FILE)
 
+DISJUNCTION_SIMPLE = Data('disjunctionSimple',
+                          constants.DISJUNCTION_DOCS_LINE_FILE,
+                          constants.DISJUNCTION_DOC_COUNT,
+                          constants.DISJUNCTION_SIMPLE_TASKS_FILE)
+
+DISJUNCTION_REALISTIC = Data('disjunctionRealistic',
+                             constants.DISJUNCTION_DOCS_LINE_FILE,
+                             constants.DISJUNCTION_DOC_COUNT,
+                             constants.DISJUNCTION_REALISTIC_TASKS_FILE)
+
+DISJUNCTION_INTENSIVE = Data('disjunctionIntensive',
+                             constants.DISJUNCTION_DOCS_LINE_FILE,
+                             constants.DISJUNCTION_DOC_COUNT,
+                             constants.DISJUNCTION_INTENSIVE_TASKS_FILE)
+
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
@@ -69,6 +84,9 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM,
         'wikivector10k' : WIKI_VECTOR_10K,
+        'disjunctionSimple' : DISJUNCTION_SIMPLE,
+        'disjunctionRealistic' : DISJUNCTION_REALISTIC,
+        'disjunctionIntensive' : DISJUNCTION_INTENSIVE
         }
 
 # for multi-segment index:

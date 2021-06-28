@@ -1,0 +1,29 @@
+# these are artificially designed to create intensive disjunction queries. The
+# goal is to illustrate performance profile; particularly, e.g., with
+# potentially adversarial queries
+
+# NOTE: alternating between "a|in-the" and "the|in-the" clauses is required
+# to induce `pullUpDisjunctions()` query rewriting, which otherwise seems
+# to be prevented by `OrderedIntervalSource.deduplicate()`?
+
+# NOTE: the "smith" term is arbitrary, just to restrict the domain somewhat
+# and push QPS into friendlier number ranges
+
+IntervalDis1: intervalDis//(body:smith a|in-the)
+IntervalMinDis1: intervalMinDis//(body:smith a|in-the)
+SpanDis1: spanDis//(body:smith a|in-the)
+IntervalDis2: intervalDis//(body:smith a|in-the the|in-the)
+IntervalMinDis2: intervalMinDis//(body:smith a|in-the the|in-the)
+SpanDis2: spanDis//(body:smith a|in-the the|in-the)
+IntervalDis3: intervalDis//(body:smith a|in-the the|in-the a|in-the)
+IntervalMinDis3: intervalMinDis//(body:smith a|in-the the|in-the a|in-the)
+SpanDis3: spanDis//(body:smith a|in-the the|in-the a|in-the)
+IntervalDis4: intervalDis//(body:smith a|in-the the|in-the a|in-the the|in-the)
+IntervalMinDis4: intervalMinDis//(body:smith a|in-the the|in-the a|in-the the|in-the)
+SpanDis4: spanDis//(body:smith a|in-the the|in-the a|in-the the|in-the)
+IntervalDis5: intervalDis//(body:smith a|in-the the|in-the a|in-the the|in-the a|in-the)
+IntervalMinDis5: intervalMinDis//(body:smith a|in-the the|in-the a|in-the the|in-the a|in-the)
+SpanDis5: spanDis//(body:smith a|in-the the|in-the a|in-the the|in-the a|in-the)
+IntervalDis6: intervalDis//(body:smith a|in-the the|in-the a|in-the the|in-the a|in-the the|in-the)
+IntervalMinDis6: intervalMinDis//(body:smith a|in-the the|in-the a|in-the the|in-the a|in-the the|in-the)
+SpanDis6: spanDis//(body:smith a|in-the the|in-the a|in-the the|in-the a|in-the the|in-the)

@@ -59,14 +59,14 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.document.VectorField;
+import org.apache.lucene.document.KnnVectorField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.VectorValues.SimilarityFunction;
+import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
 
@@ -345,7 +345,7 @@ public class LineFileDocs implements Closeable {
     final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
-    final VectorField vector;
+    final KnnVectorField vector;
 
     // For just y/m/day:
     //final SimpleDateFormat dateParser = new SimpleDateFormat("y/M/d", Locale.US);
@@ -430,7 +430,7 @@ public class LineFileDocs implements Closeable {
 
       if (vectorDimension > 0) {
         // create a throwaway vector so the field's type gets the proper dimension
-        vector = new VectorField("vector", new float[vectorDimension], SimilarityFunction.DOT_PRODUCT);
+        vector = new KnnVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
         doc.add(vector);
       } else {
         vector = null;
@@ -458,8 +458,8 @@ public class LineFileDocs implements Closeable {
         doc2.add(new NumericDocValuesField(f.name(), f.numericValue().longValue()));
       } else if (f instanceof BinaryDocValuesField) {
         doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
-      } else if (f instanceof VectorField) {
-        doc2.add(new VectorField(f.name(), ((VectorField) f).vectorValue(), f.fieldType().vectorSimilarityFunction()));
+      } else if (f instanceof KnnVectorField) {
+        doc2.add(new KnnVectorField(f.name(), ((KnnVectorField) f).vectorValue(), f.fieldType().vectorSimilarityFunction()));
       } else {
         Field field2 = new Field(f.name(),
                                  f.stringValue(),

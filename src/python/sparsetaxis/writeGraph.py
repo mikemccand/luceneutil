@@ -353,7 +353,7 @@ def main():
       x = [m.groups()]
       for part in 'postings', 'docvalues', 'stored fields', 'points':
         for stats in nonSparseSearchStats, sparseSearchStats, sparseSortedSearchStats:
-          x.append(toMB(stats[0][1][part]))
+          x.append(toMB(stats[0][1].get(part, 0)))
       searcherHeapMBPartData.append(tuple(x))
       searchSortQPSData.append((m.groups(),
                                 msecToQPS(getFastest(nonSparseSearchStats, 3)),

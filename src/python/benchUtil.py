@@ -1564,7 +1564,7 @@ def getClassPath(checkout):
   found = False
   for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
     for file in files:
-      if file == 'hppc-0.8.2.jar':
+      if file == 'hppc-0.9.0.jar':
         cp.append('%s/%s' % (root_path, file))
         found = True
 

@@ -85,7 +85,7 @@ public class KnnQuery extends Query {
 
     @Override
     public Scorer scorer(LeafReaderContext context) throws IOException {
-      return new TopDocScorer(this, context.reader().searchNearestVectors(field, vector, topK));
+      return new TopDocScorer(this, context.reader().searchNearestVectors(field, vector, topK, context.reader().getLiveDocs()));
     }
 
     @Override

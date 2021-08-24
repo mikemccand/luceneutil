@@ -567,6 +567,10 @@ KNOWN_CHANGES = [
   ('2021-03-14 08:23:12',
    'Move vectors indexing to dedicated (separate) indexing task',
    'Move vectors indexing to dedicated (separate) indexing task'),
+
+  ('2021-08-24 00:03:22',
+   'LUCENE-5309: specialize single-valued SortedSetDocValues faceting',
+   'LUCENE-5309: specialize single-valued SortedSetDocValues faceting'),
 ]
 
 # TODO

@@ -568,6 +568,10 @@ KNOWN_CHANGES = [
    'Move vectors indexing to dedicated (separate) indexing task',
    'Move vectors indexing to dedicated (separate) indexing task'),
 
+  ('2021-06-24 00:03:16',
+   'LUCENE-9613: Create blocks for ords when it helps Lucene80DocValuesFormat',
+   'LUCENE-9613: Create blocks for ords when it helps Lucene80DocValuesFormat'),
+
   ('2021-08-24 00:03:22',
    'LUCENE-5309: specialize single-valued SortedSetDocValues faceting',
    'LUCENE-5309: specialize single-valued SortedSetDocValues faceting'),

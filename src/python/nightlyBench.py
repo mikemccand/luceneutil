@@ -1017,7 +1017,7 @@ def run():
 
       w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
       if lastLuceneRev != luceneRev:
-        w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene-solr/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
+        w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
       else:
         w(f'\nLucene/Solr trunk rev {luceneRev} (no changes since last successful run)<br>')
       if lastLuceneUtilRev != luceneUtilRev:

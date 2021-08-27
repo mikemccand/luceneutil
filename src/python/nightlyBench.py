@@ -575,6 +575,10 @@ KNOWN_CHANGES = [
   ('2021-08-24 00:03:22',
    'LUCENE-5309: specialize single-valued SortedSetDocValues faceting',
    'LUCENE-5309: specialize single-valued SortedSetDocValues faceting'),
+
+  ('2021-08-26 07:26:00',
+   'LUCENE-10067: specialize SSDV ordinal decode',
+   'LUCENE-10067: specialize SSDV ordinal decode'),
 ]
 
 # TODO

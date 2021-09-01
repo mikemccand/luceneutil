@@ -579,6 +579,10 @@ KNOWN_CHANGES = [
   ('2021-08-26 07:26:00',
    'LUCENE-10067: specialize SSDV ordinal decode',
    'LUCENE-10067: specialize SSDV ordinal decode'),
+
+  ('2021-08-27 10:46:59',
+   'Upgrade to JDK 16.0.2+7',
+   'Upgrade to JDK 16.0.2+7'),
 ]
 
 # TODO

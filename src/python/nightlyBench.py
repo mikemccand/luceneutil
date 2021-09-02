@@ -583,6 +583,10 @@ KNOWN_CHANGES = [
   ('2021-08-27 10:46:59',
    'Upgrade to JDK 16.0.2+7',
    'Upgrade to JDK 16.0.2+7'),
+
+  ('2021-09-01 00:03:16',
+   'LUCENE-9662: CheckIndex should be concurrent',
+   'LUCENE-9662: CheckIndex should be concurrent',),
 ]
 
 # TODO
@@ -694,7 +698,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
 
 def checkIndex(r, indexPath, checkLogFileName):
   message('run CheckIndex')
-  cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex "%s" > %s 2>&1' % \
+  cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex -threadCount 16 "%s" > %s 2>&1' % \
         (constants.JAVA_COMMAND,
          benchUtil.classPathToString(benchUtil.getClassPath(NIGHTLY_DIR)),
          indexPath + '/index',

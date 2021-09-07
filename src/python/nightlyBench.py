@@ -587,6 +587,10 @@ KNOWN_CHANGES = [
   ('2021-09-01 00:03:16',
    'LUCENE-9662: CheckIndex should be concurrent',
    'LUCENE-9662: CheckIndex should be concurrent',),
+
+  ('2021-09-03 00:03:25',
+   'Use 16 concurrent threads for CheckIndex',
+   'Use 16 concurrent threads for CheckIndex'),
 ]
 
 # TODO

@@ -1253,7 +1253,7 @@ class RunAlgs:
         w('<tr>')
         w('<td>%s</td>' % htmlEscape(desc))
       else:
-        w('%24s' % desc)
+        w('%32s' % desc)
 
       # baseMS, cmpMS are lists of milli-seconds of the run-time for
       # this task across the N JVMs:
@@ -1435,7 +1435,7 @@ class RunAlgs:
       w('<th>p-value</th>')
       w('</tr>')
     else:
-      w('%24s' % 'Task')
+      w('%32s' % 'Task')
       w('%12s' % ('QPS %s' % baseDesc))
       w('%12s' % 'StdDev')
       w('%12s' % ('QPS %s' % cmpDesc))

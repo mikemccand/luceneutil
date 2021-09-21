@@ -1671,6 +1671,10 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'BrowseMonthSSDVFacets', 'All months (doc values)')
   writeOneLine(w, done, 'BrowseDayOfYearTaxoFacets', 'All dayOfYear')
   writeOneLine(w, done, 'BrowseDayOfYearSSDVFacets', 'All dayOfYear (doc values)')
+  writeOneLine(w, done, 'MedTermDayTaxoFacets', 'medium-freq-term +dayOfYear taxo facets')
+  writeOneLine(w, done, 'OrHighMedDayTaxoFacets', 'high-freq medium-freq +dayOfYear taxo facets')
+  writeOneLine(w, done, 'AndHighHighDayTaxoFacets', '+high-freq +high-freq +dayOfYear taxo facets')
+  writeOneLine(w, done, 'AndHighMedDayTaxoFacets', '+high-freq +medium-freq +dayOfYear taxo facets')
 
   w('<br><br><b>Sorting (on TermQuery):</b>')
   writeOneLine(w, done, 'TermDTSort', 'Date/time (long, high cardinality)')

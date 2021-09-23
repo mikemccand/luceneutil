@@ -29,7 +29,9 @@ CHANGES = [
   ('2016-12-20', 'LUCENE-7579: Sort segments on flush, not merge'),
   ('2019-04-23', 'Switched to OpenJDK 11'),
   ('2019-04-30', 'Switched GC back to ParallelGC (away from default G1GC)'),
+  ('2020-11-06', 'Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks'),
   ('2021-06-18', 'LUCENE-9996: Reduced RAM usage per DWPT'),
+  ('2021-06-24', 'LUCENE-9613: Encode ordinals like numerics'),
   ('2021-07-29', 'LUCENE-10031: Faster merging with index sorting enabled'),
   ('2021-08-16', 'LUCENE-10014: Fixed GCD compression'),
   ]

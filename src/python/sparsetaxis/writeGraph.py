@@ -419,9 +419,9 @@ def main():
     f.write('''
 function onPointClick(e, p) {
   if (p.idx > 0) {
-    top.location = "https://github.com/apache/lucene-solr/compare/" + gitHashes[p.idx-1] + "..." + gitHashes[p.idx];
+    top.location = "https://github.com/apache/lucene/compare/" + gitHashes[p.idx-1] + "..." + gitHashes[p.idx];
   } else {
-    top.location = "https://github.com/apache/lucene-solr/commit/" + gitHashes[p.idx];
+    top.location = "https://github.com/apache/lucene/commit/" + gitHashes[p.idx];
   }
 }
 </script>

@@ -234,32 +234,6 @@ public class DiskUsage {
           default: 
             throw new AssertionError("unexpected suffixed file: " + file);
         }
-      } else {
-        // not a per-field file, but we can hackishly do this for the points case.
-        if ("dii".equals(IndexFileNames.getExtension(file))) {
-          System.err.println("retrieving per-field point usage, if you see a scary corruption error, its probably just this tool!!!!");
-          try (ChecksumIndexInput in = directory.openChecksumInput(file, IOContext.READONCE)) {
-            // fail hard if its not exactly the version we do this hack for.
-            CodecUtil.checkIndexHeader(in, "Lucene60PointsFormatMeta", 0, 0, reader.getSegmentInfo().info.getId(), "");
-            int fieldCount = in.readVInt();
-            // strangely, bkd offsets are not in any guaranteed order
-            TreeMap<Long,String> offsetToField = new TreeMap<>();
-            for (int i = 0; i < fieldCount; i++) {
-              int field = in.readVInt();
-              long offset = in.readVLong();
-              offsetToField.put(offset, reader.getFieldInfos().fieldInfo(field).name);
-            }
-            // now we can traverse in order
-            long previousOffset = 0;
-            for (Map.Entry<Long,String> entry : offsetToField.entrySet()) {
-              long offset = entry.getKey();
-              String field = entry.getValue();
-              stats.get(field).pointsBytes += (offset - previousOffset);
-              previousOffset = offset;
-            }
-            CodecUtil.checkFooter(in);
-          }
-        }
       }
     }
 
@@ -282,10 +256,12 @@ public class DiskUsage {
       String extension = IndexFileNames.getExtension(file);
       if (extension != null) {
         switch (extension) {
+          case "fdm":
           case "fdt":
           case "fdx":
             storeSize += size;
             break;
+          case "tvm":
           case "tvx":
           case "tvd":
             vectorSize += size;
@@ -309,8 +285,9 @@ public class DiskUsage {
           case "doc":
             postingsSize += size;
             break;
-          case "dii":
-          case "dim":
+          case "kdm":
+          case "kdi":
+          case "kdd":
             pointsSize += size;
             break;
         }

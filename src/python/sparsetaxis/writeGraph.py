@@ -29,6 +29,9 @@ CHANGES = [
   ('2016-12-20', 'LUCENE-7579: Sort segments on flush, not merge'),
   ('2019-04-23', 'Switched to OpenJDK 11'),
   ('2019-04-30', 'Switched GC back to ParallelGC (away from default G1GC)'),
+  ('2021-06-18', 'LUCENE-9996: Reduced RAM usage per DWPT'),
+  ('2021-07-29', 'LUCENE-10031: Faster merging with index sorting enabled'),
+  ('2021-08-16', 'LUCENE-10014: Fixed GCD compression'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')

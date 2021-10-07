@@ -50,8 +50,11 @@ KNOWN_CHANGES = (
   ('2019-10-26', 'LUCENE-8932: Move BKDReader\'s index off-heap when the input is a ByteBufferIndexInput'),
   ('2020-01-13', 'Switch to OpenJDK 13'),
   ('2020-01-14', 'Switch to OpenJDK 12'),
-  ('2019-02-05', 'LUCENE-9147: Off-heap stored fields index'),
-  ('2019-05-02', 'LUCENE-9087: Always write full leaves'),
+  ('2020-02-05', 'LUCENE-9147: Off-heap stored fields index'),
+  ('2020-05-02', 'LUCENE-9087: Always write full leaves'),
+  ('2020-09-28', 'LUCENE-10125: Optimize primitive writes in OutputStreamIndexOutput'),
+  ('2020-10-05', 'LUCENE-10145: Speed up byte[] comparisons using VarHandles'),
+
 )
 
 def toString(timeStamp):

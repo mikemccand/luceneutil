@@ -591,6 +591,10 @@ KNOWN_CHANGES = [
   ('2021-09-03 00:03:25',
    'Use 16 concurrent threads for CheckIndex',
    'Use 16 concurrent threads for CheckIndex'),
+
+  ('2021-10-05 12:21:08',
+   'Upgrade Linux kernel from 5.13.12 to 5.14.8',
+   'Upgrade Linux kernel from 5.13.12 to 5.14.8'),
 ]
 
 # TODO

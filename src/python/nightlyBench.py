@@ -593,8 +593,8 @@ KNOWN_CHANGES = [
    'Use 16 concurrent threads for CheckIndex'),
 
   ('2021-09-25 00:03:25',
-   'LUCENE-10109: Increase default "beam width" from 16 to 100',
-   'LUCENE-10109: Increase default "beam width" from 16 to 100'),
+   'LUCENE-10109: Increase default beam width from 16 to 100',
+   'LUCENE-10109: Increase default beam width from 16 to 100'),
 
   ('2021-10-05 12:21:08',
    'Upgrade Linux kernel from 5.13.12 to 5.14.8',

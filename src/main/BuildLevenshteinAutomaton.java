@@ -20,15 +20,13 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 import org.apache.lucene.util.UnicodeUtil;
+import org.apache.lucene.util.automaton.Automata;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.LevenshteinAutomata;
 import org.apache.lucene.util.automaton.Operations;
+import org.apache.lucene.util.automaton.MinimizationOperations;
 import org.apache.lucene.util.automaton.TooComplexToDeterminizeException;
 import org.apache.lucene.util.automaton.UTF32ToUTF8;
-
-//import org.apache.lucene.util.BytesRef;
-//import org.apache.lucene.util.IntsRef;
-//import org.apache.lucene.util.IntsRefBuilder;
 
 // pushd /l/trunk/lucene/core; ../../gradlew jar; popd; javac -cp /l/trunk/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar BuildLevenshteinAutomaton.java; java -cp .:/l/trunk/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar BuildLevenshteinAutomaton lucene 1 true 2 false 128 > /x/tmp/out.dot; dot -Tpng /x/tmp/out.dot > /x/tmp/out.png
 
@@ -59,8 +57,8 @@ public class BuildLevenshteinAutomaton {
   @SuppressWarnings({ "rawtypes", "unchecked" })
   public static void main(String[] args) throws IOException {
 
-    if (args.length != 5 && args.length != 6) {
-      throw new RuntimeException("Usage: java BuildLevenshteinAutomaton <term> <edit-distance:1|2> <transposition-is-one-edit:true|false> <prefix-length:non-negative-int> <convert-to-utf8:true|false> [<alphabet-max>]");
+    if (args.length != 6 && args.length != 7) {
+      throw new RuntimeException("Usage: java BuildLevenshteinAutomaton <term> <edit-distance:1|2> <transposition-is-one-edit:true|false> <prefix-length:non-negative-int> <convert-to-utf8:true|false> <exclude-exact-match:true|false> [<alphabet-max>]");
     }
 
     String term = args[0];
@@ -95,13 +93,15 @@ public class BuildLevenshteinAutomaton {
 
     boolean convertToUTF8 = parseBoolean(args[4], "convert-to-utf8");
 
+    boolean excludeExactMatch = parseBoolean(args[5], "exclude-exact-match");
+
     int alphaMax;
 
-    if (args.length == 6) {
+    if (args.length == 7) {
       try {
-        alphaMax = Integer.parseInt(args[5]);
+        alphaMax = Integer.parseInt(args[6]);
       } catch (NumberFormatException nfe) {
-        throw new RuntimeException("could not parse alphabet-max \"" + args[5] + "\" as integer", nfe);
+        throw new RuntimeException("could not parse alphabet-max \"" + args[6] + "\" as integer", nfe);
       }
     } else {
       // Accept all Unicode characters
@@ -112,6 +112,15 @@ public class BuildLevenshteinAutomaton {
     System.arraycopy(codePoints, prefixLength, suffix, 0, suffix.length);
 
     Automaton a = new LevenshteinAutomata(suffix, alphaMax, transpositionIsOneEdit).toAutomaton(editDistance, prefix);
+    if (excludeExactMatch) {
+      // Rob not joking!
+      Automaton exact = Automata.makeString(codePoints, 0, codePoints.length);
+      Automaton a2 = Operations.minus(a, exact, Integer.MAX_VALUE);
+      System.err.println("exclude-exact-match: before minimize: " + a2.getNumStates() + " states; " + a2.getNumTransitions() + " transitions");
+      a = MinimizationOperations.minimize(a2, Integer.MAX_VALUE);
+      System.err.println("exclude-exact-match: after minimize: " + a.getNumStates() + " states; " + a.getNumTransitions() + " transitions");
+    }
+    
     if (convertToUTF8) {
       a = new UTF32ToUTF8().convert(a);
     }
@@ -119,6 +128,7 @@ public class BuildLevenshteinAutomaton {
     // TODO: this might not be strictly needed if we didn't convert to UTF-8?
     a = Operations.determinize(a, Operations.DEFAULT_DETERMINIZE_WORK_LIMIT);
     a = Operations.removeDeadStates(a);
+    System.err.println("final: " + a.getNumStates() + " states; " + a.getNumTransitions() + " transitions");
 
     String dot = a.toDot();
 

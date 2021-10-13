@@ -215,28 +215,35 @@ public class LineFileDocs implements Closeable {
       reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
       String firstLine = reader.readLine();
       if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-        if (!firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody") &&
-            !firstLine.startsWith("FIELDS_HEADER_INDICATOR###\ttitle\ttimestamp\ttext")) {
+        int defaultFieldLength = 4;
+        if (firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody") == false &&
+            firstLine.startsWith("FIELDS_HEADER_INDICATOR###\ttitle\ttimestamp\ttext") == false &&
+            firstLine.startsWith("FIELD_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody\tRandomLabel") == false) {
           throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+        }
+        if (firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody\tRandomLabel")) {
+          defaultFieldLength = 5;
         }
         if (facetFields.isEmpty() == false) {
           String[] fields = firstLine.split("\t");
-          if (fields.length > 4) {
-            extraFacetFields = Arrays.copyOfRange(fields, 4, fields.length);
+          if (fields.length > defaultFieldLength) {
+            extraFacetFields = Arrays.copyOfRange(fields, defaultFieldLength, fields.length);
             System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
 
             List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
 
             // Verify facet fields now:
             for(String field : facetFields.keySet()) {
-              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false && !extraFacetFieldsList.contains(field)) {
+              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false
+                      && field.equals("RandomLabel") == false && extraFacetFieldsList.contains(field) == false) {
                 throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
               }
             }
           } else {
             // Verify facet fields now:
             for(String field : facetFields.keySet()) {
-              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false) {
+              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false
+                      && field.equals("RandomLabel") == false) {
                 throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
               }
             }
@@ -339,6 +346,8 @@ public class LineFileDocs implements Closeable {
     final Field id;
     final Field idPoint;
     final Field date;
+    final Field randomLabel;
+
     //final NumericDocValuesField dateMSec;
     //final LongField rand;
     final Field timeSec;
@@ -409,6 +418,9 @@ public class LineFileDocs implements Closeable {
       body = new Field("body", "", bodyFieldType);
       doc.add(body);
 
+      randomLabel = new Field("randomLabel", "", StringField.TYPE_NOT_STORED);
+      doc.add(body);
+
       id = new Field("id", "", StringField.TYPE_STORED);
       doc.add(id);
 
@@ -475,10 +487,11 @@ public class LineFileDocs implements Closeable {
 
     long msecSinceEpoch;
     int timeSec;
-    int spot3;
+    int spot4;
     String line;
     String title;
     String body;
+    String randomLabel;
 
     if (isBinary) {
 
@@ -505,27 +518,37 @@ public class LineFileDocs implements Closeable {
         nextDocs.set(lfd);
         //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
       }
+      // buffer format described in buildBinaryLineDocs.py
       ByteBuffer buffer = lfd.byteText;
       int titleLenBytes = buffer.getInt();
       int bodyLenBytes = buffer.getInt();
-      //System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes);
-      msecSinceEpoch  = buffer.getLong();
+      int randomLabelLenBytes = buffer.getInt();
       timeSec  = buffer.getInt();
+      msecSinceEpoch  = buffer.getLong();
+//      System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes +
+//              " randomLabelLenBytes=" + randomLabelLenBytes + " msecSinceEpoch=" + msecSinceEpoch + " timeSec=" + timeSec);
       byte[] bytes = buffer.array();
 
       char[] titleChars = new char[titleLenBytes];
       int titleLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position(), titleLenBytes, titleChars);
       title = new String(titleChars, 0, titleLenChars);
-      //System.out.println("title: " + title);
+//      System.out.println("title: " + title);
 
       char[] bodyChars = new char[bodyLenBytes];
       int bodyLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes, bodyLenBytes, bodyChars);
       body = new String(bodyChars, 0, bodyLenChars);
-      buffer.position(buffer.position() + titleLenBytes + bodyLenBytes);
+//      System.out.println("body: " + body);
+
+      char[] randomLabelChars = new char[randomLabelLenBytes];
+      int randomLabelLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes+bodyLenBytes, randomLabelLenBytes, randomLabelChars);
+      randomLabel = new String(randomLabelChars, 0, randomLabelLenChars);
+//      System.out.println("randomLabel: " + randomLabel);
+
+      buffer.position(buffer.position() + titleLenBytes + bodyLenBytes + randomLabelLenBytes);
 
       doc.dateCal.setTimeInMillis(msecSinceEpoch);
 
-      spot3 = 0;
+      spot4 = 0;
       line = null;
 
       if (lfd.vector != null) {
@@ -552,12 +575,20 @@ public class LineFileDocs implements Closeable {
       if (spot2 == -1) {
         throw new RuntimeException("line: [" + line + "] is in an invalid format !");
       }
-      spot3 = line.indexOf(SEP, 1 + spot2);
+      int spot3 = line.indexOf(SEP, 1 + spot2);
       if (spot3 == -1) {
-        spot3 = line.length();
+        throw new RuntimeException("line: [" + line + "] is in an invalid format !" +
+                "Your source file (enwiki-20120502-lines-1k.txt) might be out of date." +
+                "Please download an updated version from home.apache.org/~mikemccand");
+      }
+      spot4 = line.indexOf(SEP, 1 + spot3);
+      if (spot4 == -1) {
+        spot4 = line.length();
       }
 
       body = line.substring(1+spot2, spot3);
+
+      randomLabel = line.substring(1+spot3, spot4).strip();
 
       title = line.substring(0, spot);
 
@@ -582,9 +613,10 @@ public class LineFileDocs implements Closeable {
 
     final int myID = nextID.getAndIncrement();
 
-    bytesIndexed.addAndGet(body.length() + title.length());
+    bytesIndexed.addAndGet(body.length() + title.length() + randomLabel.length());
     doc.body.setStringValue(body);
     doc.title.setStringValue(title);
+    doc.randomLabel.setStringValue(randomLabel);
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
@@ -640,8 +672,18 @@ public class LineFileDocs implements Closeable {
         }
       }
 
+      if (facetFields.containsKey("RandomLabel")) {
+        int flag = facetFields.get("RandomLabel");
+        if ((flag & 1) != 0) {
+          doc2.add(new FacetField("RandomLabel.taxonomy", randomLabel));
+        }
+        if ((flag & 2) != 0) {
+          doc2.add(new SortedSetDocValuesFacetField("RandomLabel.sortedset", randomLabel));
+        }
+      }
+
       if (extraFacetFields != null) {
-        String[] extraValues = line.substring(spot3+1, line.length()).split("\t");
+        String[] extraValues = line.substring(spot4+1, line.length()).split("\t");
 
         for(int i=0;i<extraFacetFields.length;i++) {
           String extraFieldName = extraFacetFields[i];

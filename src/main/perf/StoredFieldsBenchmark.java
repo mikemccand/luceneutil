@@ -62,7 +62,7 @@ public class StoredFieldsBenchmark {
         throw new AssertionError();
     }
     IOUtils.rm(Paths.get(indexPath));
-    try(FSDirectory dir = FSDirectory.open(Paths.get(indexPath))) {
+    try (FSDirectory dir = FSDirectory.open(Paths.get(indexPath))) {
 
       System.err.println("Warm up indexing");
       try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));

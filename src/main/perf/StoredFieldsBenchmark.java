@@ -17,6 +17,7 @@
 
 package perf;
 
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.nio.file.Files;
@@ -26,10 +27,12 @@ import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.IOUtils;
 
@@ -39,8 +42,12 @@ public class StoredFieldsBenchmark {
   public static void main(String args[]) throws Exception {
     if (args.length != 3) {
       System.err.println("Usage: StoredFieldsBenchmark /path/to/geonames.txt /path/to/index/dir (BEST_SPEED|BEST_COMPRESSION)");
+      System.err.println("First line printed on stdout is the number of millis to index the data");
+      System.err.println("Second line is the store size in bytes");
+      System.err.println("Third line is the average number of nanos it takes to retrieve a document");
       System.exit(1);
     }
+
     String geonamesDataPath = args[0];
     String indexPath = args[1];
     Lucene90Codec.Mode mode;
@@ -55,23 +62,43 @@ public class StoredFieldsBenchmark {
         throw new AssertionError();
     }
     IOUtils.rm(Paths.get(indexPath));
-    FSDirectory dir = FSDirectory.open(Paths.get(indexPath));
+    try(FSDirectory dir = FSDirectory.open(Paths.get(indexPath))) {
 
-    System.out.println("Warm up");
-    try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));
-        LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
-      indexDocs(iw, reader);
+      System.err.println("Warm up indexing");
+      try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));
+          LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
+        indexDocs(iw, reader);
+      }
+
+      System.err.println("Now run indexing");
+      try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));
+          LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
+        long t0 = System.nanoTime();
+        indexDocs(iw, reader);
+        System.out.println((System.nanoTime() - t0) / 1_000_000);
+      }
+
+      long storeSize = 0;
+      for (String f : dir.listAll()) {
+        storeSize += dir.fileLength(f);
+      }
+      System.out.println(storeSize);
+
+      try (DirectoryReader reader = DirectoryReader.open(dir)) {
+        System.err.println("Warm up searching");
+        getDocs(reader);
+
+        System.err.println("Now run searching");
+        // Take the min across multiple runs to decrease noise
+        long minDuration = Long.MAX_VALUE;
+        for (int i = 0; i < 10; ++i) {
+          long t0 = System.nanoTime();
+          getDocs(reader);
+          minDuration = Math.min(minDuration, System.nanoTime() - t0);
+        }
+        System.out.println(minDuration / 10_000);
+      }
     }
-
-    System.out.println("Now run");
-    try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));
-        LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
-      long t0 = System.nanoTime();
-      indexDocs(iw, reader);
-      System.out.println("Millis: " + (System.nanoTime() - t0) / 1_000_000);
-    }
-
-    dir.close();
   }
 
   private static IndexWriterConfig getConfig(Lucene90Codec.Mode mode) {
@@ -95,7 +122,7 @@ public class StoredFieldsBenchmark {
     String line = null;
     while ((line = reader.readLine()) != null) {
       if (reader.getLineNumber() % 10000 == 0) {
-        System.out.println("doc: " + reader.getLineNumber());
+        System.err.println("doc: " + reader.getLineNumber());
       }
       if (reader.getLineNumber() == 1000000) {
         break;
@@ -110,6 +137,17 @@ public class StoredFieldsBenchmark {
       iw.addDocument(doc);
     }
     iw.flush();
+  }
+
+  static int DUMMY;
+
+  static void getDocs(IndexReader reader) throws IOException {
+    int docId = 42;
+    for (int i = 0; i < 10_000; ++i) {
+      Document doc = reader.document(docId);
+      DUMMY += doc.getFields().size(); // Prevent the JVM from optimizing away the read of the stored document
+      docId = (docId + 65535) % reader.maxDoc();
+    }
   }
 
 }

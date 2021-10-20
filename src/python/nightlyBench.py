@@ -599,6 +599,10 @@ KNOWN_CHANGES = [
   ('2021-10-05 12:21:08',
    'Upgrade Linux kernel from 5.13.12 to 5.14.8',
    'Upgrade Linux kernel from 5.13.12 to 5.14.8'),
+
+  ('2021-10-19 08:14:33',
+   'Upgrade to JDK17+35',
+   'Upgrade to JDK17+35'),
 ]
 
 # TODO

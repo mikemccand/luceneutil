@@ -653,8 +653,7 @@ reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
 reGitHubPROpen = re.compile(r'\s(\d+) Open')
 reGitHubPRClosed = re.compile(r'\s(\d+) Closed')
 
-# nocommit
-REAL = False
+REAL = True
 
 def now():
   return datetime.datetime.now()
@@ -1355,6 +1354,9 @@ def makeGraphs():
   gcIndexTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
   gcSearchTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
   searchChartData = {}
+  storedFieldsResults = {'Index size': ['Date,Index size BEST_SPEED (MB),Index size BEST_COMPRESSION (MB)'],
+                         'Indexing time': ['Date,Indexing time BEST_SPEED (sec),Indexing time BEST_COMPRESSION (sec)'],
+                         'Retrieval time': ['Date,Retrieval time BEST_SPEED (msec),Retrieval time BEST_COMPRESSION (msec)']}
   gitHubPRChartData = ['Date,Open PR Count,Closed PR Count']
   days = []
   annotations = []
@@ -1494,6 +1496,29 @@ def makeGraphs():
           #KNOWN_CHANGES.remove((date, desc, fullDesc))
         label += 1
 
+    resultsFile = '%s/%s/geonames-stored-fields-benchmark-results.pk' % (constants.NIGHTLY_LOG_DIR, subDir)
+    if os.path.exists(resultsFile):
+      stored_fields_results = pickle.load(open(resultsFile, 'rb'))
+      index_size_mb_row = [timestamp, None, None]
+      indexing_time_sec_row = [timestamp, None, None]
+      retrieval_time_msec_row = [timestamp, None, None]
+      for mode, indexing_time_msec, stored_field_size_mb, retrieved_time_msec in stored_fields_results:
+        if mode == 'BEST_SPEED':
+          idx = 1
+        elif mode == 'BEST_COMPRESSION':
+          idx = 2
+        else:
+          raise RuntimeError(f'unknown stored fields benchmark mode {mode}: expected BEST_SPEED or BEST_COMPRESSION')
+
+        index_size_mb_row[idx] = stored_field_size_mb
+        indexing_time_sec_row[idx] = indexing_time_msec / 1000.
+        retrieval_time_msec_row[idx] = retrieved_time_msec
+
+      storedFieldsResults['Index size'].append(index_size_mb_row)
+      storedFieldsResults['Indexing time'].append(indexing_time_sec_row)
+      storedFieldsResults['Retrieval time'].append(retrieval_time_msec_row)
+        
+
   sort(gitHubPRChartData)
   sort(medIndexChartData)
   sort(medIndexVectorsChartData)
@@ -1527,6 +1552,8 @@ def makeGraphs():
   writeGitHubPRChartHTML(gitHubPRChartData)
 
   writeSearchGCJITHTML(gcSearchTimesChartData)
+
+  writeStoredFieldsBenchmarkHTML(storedFieldsResults)
 
   # publish
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
@@ -1842,6 +1869,19 @@ def writeGitHubPRChartHTML(gitHubPRChartData):
     w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details.  This counts Lucene\'s <a href="https://github.com/apache/lucene/pulls">GitHub pull requests</a>. <br>')
     w('<br>')
     w(getOneGraphHTML('GitHubPRCounts', gitHubPRChartData, "Count", "Lucene GitHub pull-request counts", errorBars=False, pctOffset=10))
+    w('\n')
+    writeKnownChanges(w, pctOffset=100)
+    footer(w)
+
+def writeStoredFieldsBenchmarkHTML(storedFieldsBenchmarkData):
+  with open('%s/stored_fields_benchmarks.html' % constants.NIGHTLY_REPORTS_DIR, 'w') as f:
+    w = f.write
+    header(w, 'Lucene Stored Fields benchmarks')
+    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details.  This shows the results of the stored fields benchmark (runStoredFieldsBenchmark.py). <br>')
+    w('<br>')
+    w(getOneGraphHTML('Index size (MB)', storedFieldsBenchmarkData['Index size'], "MB", "Index size (MB)", errorBars=False, pctOffset=10))
+    w(getOneGraphHTML('Indexing time (sec)', storedFieldsBenchmarkData['Indexing time'], "Sec", "Indexing time (sec)", errorBars=False, pctOffset=20))
+    w(getOneGraphHTML('Retrieval time (msec)', storedFieldsBenchmarkData['Retrieval time'], "MSec", "Retrieval time (msec)", errorBars=False, pctOffset=30))
     w('\n')
     writeKnownChanges(w, pctOffset=100)
     footer(w)

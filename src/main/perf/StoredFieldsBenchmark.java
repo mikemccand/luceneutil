@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Locale;
 
 import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.document.Document;
@@ -35,6 +36,8 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.IOUtils;
+
+// javac -cp /l/trunk/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar src/main/perf/StoredFieldsBenchmark.java; java -cp /l/trunk/lucene/core/build/libs/lucene-core-9.0.0-SNAPSHOT.jar:. src/main/perf/StoredFieldsBenchmark.java /lucenedata/geonames/geonames.20160818.csv /l/indices/geonames BEST_SPEED
 
 /** Benchmark indexing stored fields on 1M lines of Geonames. */
 public class StoredFieldsBenchmark {
@@ -75,14 +78,14 @@ public class StoredFieldsBenchmark {
           LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
         long t0 = System.nanoTime();
         indexDocs(iw, reader);
-        System.out.println((System.nanoTime() - t0) / 1_000_000);
+        System.out.println(String.format(Locale.ROOT, "Indexing time: %d msec", (System.nanoTime() - t0) / 1_000_000));
       }
 
-      long storeSize = 0;
+      long storeSizeBytes = 0;
       for (String f : dir.listAll()) {
-        storeSize += dir.fileLength(f);
+        storeSizeBytes += dir.fileLength(f);
       }
-      System.out.println(storeSize);
+      System.out.println(String.format(Locale.ROOT, "Stored fields size: %.3f MB", storeSizeBytes / 1024. / 1024.));
 
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         System.err.println("Warm up searching");
@@ -90,13 +93,13 @@ public class StoredFieldsBenchmark {
 
         System.err.println("Now run searching");
         // Take the min across multiple runs to decrease noise
-        long minDuration = Long.MAX_VALUE;
+        long minDurationNS = Long.MAX_VALUE;
         for (int i = 0; i < 10; ++i) {
           long t0 = System.nanoTime();
           getDocs(reader);
-          minDuration = Math.min(minDuration, System.nanoTime() - t0);
+          minDurationNS = Math.min(minDurationNS, System.nanoTime() - t0);
         }
-        System.out.println(minDuration / 10_000);
+        System.out.println(String.format(Locale.ROOT, "Retrieved time: %.5f msec", minDurationNS / 1_000_000.));
       }
     }
   }
@@ -124,9 +127,10 @@ public class StoredFieldsBenchmark {
       if (reader.getLineNumber() % 10000 == 0) {
         System.err.println("doc: " + reader.getLineNumber());
       }
-      if (reader.getLineNumber() == 1000000) {
-        break;
-      }
+      // index whole file
+      //if (reader.getLineNumber() == 1000000) {
+      //break;
+      //}
       String values[] = line.split("\t");
       if (values.length != fields.length) {
         throw new RuntimeException("bogus: " + values);
@@ -149,5 +153,4 @@ public class StoredFieldsBenchmark {
       docId = (docId + 65535) % reader.maxDoc();
     }
   }
-
 }

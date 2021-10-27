@@ -43,11 +43,8 @@ import org.apache.lucene.util.IOUtils;
 public class StoredFieldsBenchmark {
 
   public static void main(String args[]) throws Exception {
-    if (args.length != 3) {
-      System.err.println("Usage: StoredFieldsBenchmark /path/to/geonames.txt /path/to/index/dir (BEST_SPEED|BEST_COMPRESSION)");
-      System.err.println("First line printed on stdout is the number of millis to index the data");
-      System.err.println("Second line is the store size in bytes");
-      System.err.println("Third line is the average number of nanos it takes to retrieve a document");
+    if (args.length != 4) {
+      System.err.println("Usage: StoredFieldsBenchmark /path/to/geonames.txt /path/to/index/dir (BEST_SPEED|BEST_COMPRESSION) doc_limit(or -1 means index all lines)");
       System.exit(1);
     }
 
@@ -64,20 +61,22 @@ public class StoredFieldsBenchmark {
       default:
         throw new AssertionError();
     }
+    int docLimit = Integer.parseInt(args[3]);
+    
     IOUtils.rm(Paths.get(indexPath));
     try (FSDirectory dir = FSDirectory.open(Paths.get(indexPath))) {
 
       System.err.println("Warm up indexing");
       try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));
           LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
-        indexDocs(iw, reader);
+        indexDocs(iw, reader, docLimit);
       }
 
       System.err.println("Now run indexing");
       try (IndexWriter iw = new IndexWriter(dir, getConfig(mode));
           LineNumberReader reader = new LineNumberReader(new InputStreamReader(Files.newInputStream(Paths.get(geonamesDataPath))))) {
         long t0 = System.nanoTime();
-        indexDocs(iw, reader);
+        indexDocs(iw, reader, docLimit);
         System.out.println(String.format(Locale.ROOT, "Indexing time: %d msec", (System.nanoTime() - t0) / 1_000_000));
       }
 
@@ -109,12 +108,13 @@ public class StoredFieldsBenchmark {
     iwc.setOpenMode(OpenMode.CREATE);
     iwc.setCodec(new Lucene90Codec(mode));
     iwc.setMergeScheduler(new SerialMergeScheduler());
+    // provoke much segments, lots of compress/deompress/bulk copy:
     iwc.setMaxBufferedDocs(100);
     iwc.setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
     return iwc;
   }
 
-  static void indexDocs(IndexWriter iw, LineNumberReader reader) throws Exception {
+  static void indexDocs(IndexWriter iw, LineNumberReader reader, int docLimit) throws Exception {
     Document doc = new Document();
     Field fields[] = new Field[19];
     for (int i = 0; i < fields.length; i++) {
@@ -127,10 +127,9 @@ public class StoredFieldsBenchmark {
       if (reader.getLineNumber() % 10000 == 0) {
         System.err.println("doc: " + reader.getLineNumber());
       }
-      // index whole file
-      //if (reader.getLineNumber() == 1000000) {
-      //break;
-      //}
+      if (docLimit != -1 && reader.getLineNumber() == docLimit) {
+        break;
+      }
       String values[] = line.split("\t");
       if (values.length != fields.length) {
         throw new RuntimeException("bogus: " + values);

@@ -29,6 +29,8 @@ import tarfile
 import time
 import traceback
 import urllib.request
+import runStoredFieldsBenchmark
+
 
 # local imports:
 import benchUtil
@@ -36,6 +38,7 @@ import constants
 import competition
 import stats
 import blunders
+import localconstants
 
 """
 This script runs certain benchmarks, once per day, and generates graphs so we can see performance over time:
@@ -650,7 +653,8 @@ reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
 reGitHubPROpen = re.compile(r'\s(\d+) Open')
 reGitHubPRClosed = re.compile(r'\s(\d+) Closed')
 
-REAL = True
+# nocommit
+REAL = False
 
 def now():
   return datetime.datetime.now()
@@ -802,6 +806,15 @@ def run():
   if REAL:
     os.makedirs(runLogDir)
   message('log dir %s' % runLogDir)
+
+  message('now run stored fields benchmark')
+  if not REAL:
+    doc_limit = 100000
+  else:
+    # do all docs in the file
+    doc_limit = -1
+  runStoredFieldsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}', localconstants.GEONAMES_LINE_FILE_DOCS, f'{localconstants.INDEX_DIR_BASE}/geonames-stored-fields-nightly', runLogDir, doc_limit)
+  message('done run stored fields benchmark')
 
   if not REAL:
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))

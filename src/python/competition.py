@@ -319,7 +319,9 @@ class Competitor(object):
       os.makedirs(buildDir)
 
     # Try to be faster than ant; this may miss changes, e.g. a static final constant changed in core that is used in another module:
-    if common.getLatestModTime(perfSrc) <= common.getLatestModTime(buildDir, '.class'):
+    # This is a broken optimization!  E.g. if there is a single .class file, with recent timestamp, and all other .class files are missing,
+    # this fails to compile the missing ones!
+    if False and common.getLatestModTime(perfSrc) <= common.getLatestModTime(buildDir, '.class'):
       print('Skip compiling luceneutil: all .class are up to date')
       return
 

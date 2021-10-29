@@ -1223,7 +1223,8 @@ def run():
         os.rename(indexPathNow, indexPathPrev)
 
     os.chdir(runLogDir)
-    runCommand('tar cjf logs.tar.bz2 *')
+    # tar/bz2 log files, but not results files from separate benchmarks (e.g. stored fields):
+    runCommand('tar --exclude=*.pk cjf logs.tar.bz2 *')
     for f in os.listdir(runLogDir):
       if f != 'logs.tar.bz2':
         os.remove(f)
@@ -1496,28 +1497,28 @@ def makeGraphs():
           #KNOWN_CHANGES.remove((date, desc, fullDesc))
         label += 1
 
-    resultsFile = '%s/%s/geonames-stored-fields-benchmark-results.pk' % (constants.NIGHTLY_LOG_DIR, subDir)
-    if os.path.exists(resultsFile):
-      stored_fields_results = pickle.load(open(resultsFile, 'rb'))
-      index_size_mb_row = [timestamp, None, None]
-      indexing_time_sec_row = [timestamp, None, None]
-      retrieval_time_msec_row = [timestamp, None, None]
-      for mode, indexing_time_msec, stored_field_size_mb, retrieved_time_msec in stored_fields_results:
-        if mode == 'BEST_SPEED':
-          idx = 1
-        elif mode == 'BEST_COMPRESSION':
-          idx = 2
-        else:
-          raise RuntimeError(f'unknown stored fields benchmark mode {mode}: expected BEST_SPEED or BEST_COMPRESSION')
+      resultsFile = '%s/%s/geonames-stored-fields-benchmark-results.pk' % (constants.NIGHTLY_LOG_DIR, subDir)
+      if os.path.exists(resultsFile):
+        print(f'stored: {subDir}, {timeStamp}')
+        stored_fields_results = pickle.load(open(resultsFile, 'rb'))
+        index_size_mb_row = [timeStamp, None, None]
+        indexing_time_sec_row = [timeStamp, None, None]
+        retrieval_time_msec_row = [timeStamp, None, None]
+        for mode, indexing_time_msec, stored_field_size_mb, retrieved_time_msec in stored_fields_results:
+          if mode == 'BEST_SPEED':
+            idx = 1
+          elif mode == 'BEST_COMPRESSION':
+            idx = 2
+          else:
+            raise RuntimeError(f'unknown stored fields benchmark mode {mode}: expected BEST_SPEED or BEST_COMPRESSION')
 
-        index_size_mb_row[idx] = stored_field_size_mb
-        indexing_time_sec_row[idx] = indexing_time_msec / 1000.
-        retrieval_time_msec_row[idx] = retrieved_time_msec
+          index_size_mb_row[idx] = stored_field_size_mb
+          indexing_time_sec_row[idx] = indexing_time_msec / 1000.
+          retrieval_time_msec_row[idx] = retrieved_time_msec
 
-      storedFieldsResults['Index size'].append(index_size_mb_row)
-      storedFieldsResults['Indexing time'].append(indexing_time_sec_row)
-      storedFieldsResults['Retrieval time'].append(retrieval_time_msec_row)
-        
+        storedFieldsResults['Index size'].append(','.join([str(x) for x in index_size_mb_row]))
+        storedFieldsResults['Indexing time'].append(','.join([str(x) for x in indexing_time_sec_row]))
+        storedFieldsResults['Retrieval time'].append(','.join([str(x) for x in retrieval_time_msec_row]))
 
   sort(gitHubPRChartData)
   sort(medIndexChartData)
@@ -1567,8 +1568,18 @@ def pushReports():
   with pysftp.Connection('home.apache.org', username='mikemccand') as c:
     with c.cd('public_html'):
       #c.mkdir('lucenebench')
-      # TODO: this is not incremental...
-      c.put_r('%s/reports.nightly' % constants.BASE_DIR, 'lucenebench')
+      to_copy = []
+      # anything changed in the past 4 days
+      then = time.time() - 4 * 24 * 3600
+      for file_name in os.listdir(f'{constants.BASE_DIR}/reports.nightly'):
+        full_path = f'{constants.BASE_DIR}/reports.nightly/{file_name}'
+        if os.path.getmtime(full_path) >= then:
+          print(f'  copy {file_name}...')
+          if os.path.isdir(full_path):
+            put = c.put_r
+          else:
+            put = c.put
+          put(full_path, f'lucenebench/{file_name}')
 
 reTookSec = re.compile('took ([0-9.]+) sec')
 reDateTime = re.compile('log dir /lucene/logs.nightly/(.*?)$')
@@ -1742,6 +1753,7 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'TermBGroup1M1P', '1M groups (single pass block grouping)')
 
   w('<br><br><b>Others:</b>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="stored_fields_benchmarks.html">Stored fields geonames benchmarks</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="search_gc_jit.html">GC/JIT metrics during search benchmarks</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="../geobench.html">Geo spatial benchmarks</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparseResults.html">Sparse vs dense doc values performance on NYC taxi ride corpus</a>')
@@ -1879,11 +1891,11 @@ def writeStoredFieldsBenchmarkHTML(storedFieldsBenchmarkData):
     header(w, 'Lucene Stored Fields benchmarks')
     w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details.  This shows the results of the stored fields benchmark (runStoredFieldsBenchmark.py). <br>')
     w('<br>')
-    w(getOneGraphHTML('Index size (MB)', storedFieldsBenchmarkData['Index size'], "MB", "Index size (MB)", errorBars=False, pctOffset=10))
-    w(getOneGraphHTML('Indexing time (sec)', storedFieldsBenchmarkData['Indexing time'], "Sec", "Indexing time (sec)", errorBars=False, pctOffset=20))
-    w(getOneGraphHTML('Retrieval time (msec)', storedFieldsBenchmarkData['Retrieval time'], "MSec", "Retrieval time (msec)", errorBars=False, pctOffset=30))
+    w(getOneGraphHTML('IndexSize', storedFieldsBenchmarkData['Index size'], "MB", "Index size (MB)", errorBars=False, pctOffset=10))
+    w(getOneGraphHTML('IndexingTime', storedFieldsBenchmarkData['Indexing time'], "Sec", "Indexing time (sec)", errorBars=False, pctOffset=90))
+    w(getOneGraphHTML('RetrievalTime', storedFieldsBenchmarkData['Retrieval time'], "MSec", "Retrieval time (msec)", errorBars=False, pctOffset=170))
     w('\n')
-    writeKnownChanges(w, pctOffset=100)
+    writeKnownChanges(w, pctOffset=250)
     footer(w)
 
 def writeIndexingHTML(medChartData, medVectorsChartData, bigChartData, gcTimesChartData):

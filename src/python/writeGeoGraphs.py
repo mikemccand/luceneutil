@@ -52,9 +52,10 @@ KNOWN_CHANGES = (
   ('2020-01-14', 'Switch to OpenJDK 12'),
   ('2020-02-05', 'LUCENE-9147: Off-heap stored fields index'),
   ('2020-05-02', 'LUCENE-9087: Always write full leaves'),
-  ('2020-09-28', 'LUCENE-10125: Optimize primitive writes in OutputStreamIndexOutput'),
-  ('2020-10-05', 'LUCENE-10145: Speed up byte[] comparisons using VarHandles'),
-  ('2020-10-07', 'LUCENE-10153: Speed up BKDWriter using VarHandles'),
+  ('2021-09-28', 'LUCENE-10125: Optimize primitive writes in OutputStreamIndexOutput'),
+  ('2021-10-05', 'LUCENE-10145: Speed up byte[] comparisons using VarHandles'),
+  ('2021-10-07', 'LUCENE-10153: Speed up BKDWriter using VarHandles'),
+  ('2021-10-19', 'Upgrade to JDK17+35'),
 
 )
 

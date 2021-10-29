@@ -34,6 +34,9 @@ CHANGES = [
   ('2021-06-24', 'LUCENE-9613: Encode ordinals like numerics'),
   ('2021-07-29', 'LUCENE-10031: Faster merging with index sorting enabled'),
   ('2021-08-16', 'LUCENE-10014: Fixed GCD compression'),
+  ('2021-09-28', 'LUCENE-10125: Optimize primitive writes in OutputStreamIndexOutput'),
+  ('2021-10-07', 'LUCENE-10153: Speed up BKDWriter using VarHandles'),
+  ('2021-10-21', 'LUCENE-10165: Implement Lucene90DocValuesProducer#getMergeInstance'),
   ]
 
 reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')

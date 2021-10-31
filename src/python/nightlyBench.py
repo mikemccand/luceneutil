@@ -1224,7 +1224,7 @@ def run():
 
     os.chdir(runLogDir)
     # tar/bz2 log files, but not results files from separate benchmarks (e.g. stored fields):
-    runCommand('tar --exclude=*.pk cjf logs.tar.bz2 *')
+    runCommand('tar cjf logs.tar.bz2 --exclude=*.pk *')
     for f in os.listdir(runLogDir):
       if f != 'logs.tar.bz2':
         os.remove(f)

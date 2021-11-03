@@ -56,6 +56,7 @@ KNOWN_CHANGES = (
   ('2021-10-05', 'LUCENE-10145: Speed up byte[] comparisons using VarHandles'),
   ('2021-10-07', 'LUCENE-10153: Speed up BKDWriter using VarHandles'),
   ('2021-10-19', 'Upgrade to JDK17+35'),
+  ('2021-11-01', 'LUCENE-10196: Improve IntroSorter with 3-ways partitioning'),
 
 )
 

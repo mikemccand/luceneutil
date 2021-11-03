@@ -754,7 +754,7 @@ def run(cmd, logFile=None, indent='    '):
       print(open(logFile).read())
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
 
-reCoreJar = re.compile('lucene-core-[0-9]\.[0-9]\.[0-9](?:-SNAPSHOT)?\.jar')
+reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]\.[0-9](?:-SNAPSHOT)?\.jar')
 
 class RunAlgs:
 

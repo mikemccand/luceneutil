@@ -1226,7 +1226,7 @@ def run():
     # tar/bz2 log files, but not results files from separate benchmarks (e.g. stored fields):
     runCommand('tar cjf logs.tar.bz2 --exclude=*.pk *')
     for f in os.listdir(runLogDir):
-      if f != 'logs.tar.bz2':
+      if f != 'logs.tar.bz2' and not f.endswith('.pk'):
         os.remove(f)
 
   if DEBUG:

@@ -22,13 +22,13 @@ import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.sandbox.search.CombinedFieldQuery;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
-import org.apache.lucene.search.PointRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -93,6 +93,9 @@ class TaskParser {
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
+  // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
+  // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
+  private final static Pattern combinedFieldsPattern = Pattern.compile(" \\+combinedFields=((\\p{Alnum}+(\\^\\d+.\\d)?,)+\\p{Alnum}+(\\^\\d+.\\d)?)");
 
   public Task parseOneTask(String line) throws ParseException {
     return new TaskBuilder(line).build();
@@ -104,6 +107,7 @@ class TaskParser {
     final String origText;
 
     List<String> facets;
+    List<FieldAndWeight> combinedFields;
     String text;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
@@ -148,10 +152,11 @@ class TaskParser {
       String taskType = taskAndType[0];
       text = taskAndType[1];
       int msm = parseMinShouldMatch();
-      Query query = buildQuery(taskType, text, msm);
+      combinedFields = parseCombinedFields();
+      Query query = buildQuery(taskType, text, msm, combinedFields);
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
-      return new SearchTask(category, query2, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
+      return new SearchTask(category, query3, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
     }
 
     String[] parseTaskType(String line) {
@@ -226,6 +231,36 @@ class TaskParser {
       return minShouldMatch;
     }
 
+    class FieldAndWeight {
+      final String field;
+      final float weight;
+
+      FieldAndWeight(String field, float weight) {
+        this.field = field;
+        this.weight = weight;
+      }
+    }
+
+    List<FieldAndWeight> parseCombinedFields() {
+      final Matcher m = combinedFieldsPattern.matcher(text);
+      List<FieldAndWeight> result = new ArrayList<>();
+      if (m.find()) {
+        for (String fieldAndWeight : m.group(1).split(",")) {
+          if (fieldAndWeight.contains("^")) { // boosted field
+            String[] pair = fieldAndWeight.split("\\^");
+            result.add(new FieldAndWeight(pair[0], Float.valueOf(pair[1])));
+          } else {
+            result.add(new FieldAndWeight(fieldAndWeight, 1L));
+          }
+        }
+        // Splice out the combinedFields string:
+        text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
+        return result;
+      } else {
+        return null;
+      }
+    }
+
     List<String> parseFacets() {
       List<String> facets = new ArrayList<>();
       while (true) {
@@ -295,7 +330,7 @@ class TaskParser {
       }
     }
 
-    Query buildQuery(String type, String text, int minShouldMatch) throws ParseException {
+    Query buildQuery(String type, String text, int minShouldMatch, List<FieldAndWeight> fieldAndWeights) throws ParseException {
       Query query;
       switch(type) {
         case "ordered":
@@ -327,6 +362,27 @@ class TaskParser {
       if (query.toString().equals("")) {
         throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
       }
+
+      if (combinedFields != null) {
+        CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder();
+
+        for (FieldAndWeight fieldAndWeight : fieldAndWeights) {
+          cfqBuilder.addField(fieldAndWeight.field, fieldAndWeight.weight);
+        }
+
+        if (query instanceof TermQuery) {
+          cfqBuilder.addTerm(((TermQuery) query).getTerm().bytes());
+        } else if (query instanceof BooleanQuery) {
+          for (BooleanClause clause : (BooleanQuery) query) {
+            cfqBuilder.addTerm(((TermQuery) clause.getQuery()).getTerm().bytes());
+          }
+        } else {
+          throw new RuntimeException("combinedFields can only be used with TermQuery or BooleanQuery: query=" + origText);
+        }
+
+        return cfqBuilder.build();
+      }
+
       if (minShouldMatch == 0) {
         return query;
       } else {

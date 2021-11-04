@@ -77,7 +77,7 @@ cd /l/util.nightly
 
 echo "Now rsync"
 date
-rsync --delete -lrtS /l/logs.nightly/ mike@10.17.4.11:/x/tmp/beast3.logs/logs.nightly/
+rsync --delete -lrtS /l/logs.nightly/ /x/tmp/beast3.logs/logs.nightly/
 
 echo "Touch nightly marker file..."
 date

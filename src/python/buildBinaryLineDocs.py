@@ -33,6 +33,9 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
     tup = line.split('\t')
     if len(tup) != 4:
       raise RuntimeError('got %s' % str(tup))
+    for s in tup:
+      if not s.strip():
+        raise RuntimeError('contained empty category' % str(tup))
     title, date, body, randomLabel = tup
 
     dt = datetime.datetime.strptime(date.replace('.000', ''), '%d-%b-%Y %H:%M:%S')

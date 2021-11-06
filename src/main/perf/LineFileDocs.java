@@ -357,7 +357,11 @@ public class LineFileDocs implements Closeable {
     DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension) {
       doc = new Document();
 
-      title = new StringField("title", "", Field.Store.NO);
+      FieldType titleFieldType = new FieldType(TextField.TYPE_NOT_STORED);
+      // nocommit should this option be made configurable?
+      titleFieldType.setOmitNorms(false);
+      title = new Field("title", "", titleFieldType);
+
       doc.add(title);
 
       if (addDVFields) {

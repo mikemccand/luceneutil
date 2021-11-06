@@ -70,6 +70,10 @@ DISJUNCTION_INTENSIVE = Data('disjunctionIntensive',
                              constants.DISJUNCTION_DOC_COUNT,
                              constants.DISJUNCTION_INTENSIVE_TASKS_FILE)
 
+COMBINED_FIELDS = Data('combinedFields',
+                       constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.COMBINED_FIELDS_TASKS_FILE)
+
+
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
@@ -86,7 +90,8 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikivector10k' : WIKI_VECTOR_10K,
         'disjunctionSimple' : DISJUNCTION_SIMPLE,
         'disjunctionRealistic' : DISJUNCTION_REALISTIC,
-        'disjunctionIntensive' : DISJUNCTION_INTENSIVE
+        'disjunctionIntensive' : DISJUNCTION_INTENSIVE,
+        'combinedFields' : COMBINED_FIELDS
         }
 
 # for multi-segment index:

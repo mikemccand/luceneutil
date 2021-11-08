@@ -1501,9 +1501,9 @@ def makeGraphs():
       if os.path.exists(resultsFile):
         print(f'stored: {subDir}, {timeStamp}')
         stored_fields_results = pickle.load(open(resultsFile, 'rb'))
-        index_size_mb_row = [timeStamp, None, None]
-        indexing_time_sec_row = [timeStamp, None, None]
-        retrieval_time_msec_row = [timeStamp, None, None]
+        index_size_mb_row = [timeStampString, None, None]
+        indexing_time_sec_row = [timeStampString, None, None]
+        retrieval_time_msec_row = [timeStampString, None, None]
         for mode, indexing_time_msec, stored_field_size_mb, retrieved_time_msec in stored_fields_results:
           if mode == 'BEST_SPEED':
             idx = 1

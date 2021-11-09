@@ -70,8 +70,17 @@ DISJUNCTION_INTENSIVE = Data('disjunctionIntensive',
                              constants.DISJUNCTION_DOC_COUNT,
                              constants.DISJUNCTION_INTENSIVE_TASKS_FILE)
 
-COMBINED_FIELDS = Data('combinedFields',
-                       constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.COMBINED_FIELDS_TASKS_FILE)
+COMBINED_FIELDS_BIG = Data('combinedFieldsBig',
+                       constants.WIKI_BIG_DOCS_LINE_FILE,  constants.WIKI_BIG_DOCS_COUNT, constants.COMBINED_FIELDS_TASKS_FILE)
+
+COMBINED_FIELDS_UNEVENLY_WEIGHTED_BIG = Data('combinedFieldsUnevenlyWeightedBig',
+                       constants.WIKI_BIG_DOCS_LINE_FILE,  constants.WIKI_BIG_DOCS_COUNT, constants.COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE)
+
+COMBINED_FIELDS_MEDIUM_10M = Data('combinedFieldsMedium10M',
+                           constants.WIKI_MEDIUM_DOCS_LINE_FILE,  10000000, constants.COMBINED_FIELDS_TASKS_FILE)
+
+COMBINED_FIELDS_UNEVENLY_WEIGHTED_MEDIUM_10M = Data('combinedFieldsUnevenlyWeightedMedium10M',
+                                             constants.WIKI_MEDIUM_DOCS_LINE_FILE,  10000000, constants.COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE)
 
 
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
@@ -91,7 +100,10 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'disjunctionSimple' : DISJUNCTION_SIMPLE,
         'disjunctionRealistic' : DISJUNCTION_REALISTIC,
         'disjunctionIntensive' : DISJUNCTION_INTENSIVE,
-        'combinedFields' : COMBINED_FIELDS
+        'combinedFieldsBig' : COMBINED_FIELDS_BIG,
+        'combinedFieldsUnevenlyWeightedBig' : COMBINED_FIELDS_UNEVENLY_WEIGHTED_BIG,
+        'combinedFieldsMedium10M' : COMBINED_FIELDS_MEDIUM_10M,
+        'combinedFieldsUnevenlyWeightedMedium10M' : COMBINED_FIELDS_UNEVENLY_WEIGHTED_MEDIUM_10M
         }
 
 # for multi-segment index:

@@ -374,10 +374,13 @@ class TaskParser {
           cfqBuilder.addTerm(((TermQuery) query).getTerm().bytes());
         } else if (query instanceof BooleanQuery) {
           for (BooleanClause clause : (BooleanQuery) query) {
+            if (clause.getOccur() != Occur.SHOULD) {
+              throw new RuntimeException("combinedFields can only be used with TermQuery or BooleanQuery with OR clauses: query=" + origText);
+            }
             cfqBuilder.addTerm(((TermQuery) clause.getQuery()).getTerm().bytes());
           }
         } else {
-          throw new RuntimeException("combinedFields can only be used with TermQuery or BooleanQuery: query=" + origText);
+          throw new RuntimeException("combinedFields can only be used with TermQuery or BooleanQuery with OR clauses: query=" + origText);
         }
 
         return cfqBuilder.build();

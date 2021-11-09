@@ -48,7 +48,8 @@ SORTED_TASKS_FILE = '%s/tasks/sorted.tasks' % BENCH_BASE_DIR
 DISJUNCTION_SIMPLE_TASKS_FILE = '%s/tasks/disjunctionSimple.tasks' % BENCH_BASE_DIR
 DISJUNCTION_REALISTIC_TASKS_FILE = '%s/tasks/disjunctionRealistic.tasks' % BENCH_BASE_DIR
 DISJUNCTION_INTENSIVE_TASKS_FILE = '%s/tasks/disjunctionIntensive.tasks' % BENCH_BASE_DIR
-COMBINED_FIELDS_TASKS_FILE = '%s/tasks/wikimedium.10M.nostopwords.combinedfields.tasks' % BENCH_BASE_DIR
+COMBINED_FIELDS_TASKS_FILE = '%s/tasks/combinedfields.tasks' % BENCH_BASE_DIR
+COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = '%s/tasks/combinedfields.unevenlyweighted.tasks' % BENCH_BASE_DIR
 
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR

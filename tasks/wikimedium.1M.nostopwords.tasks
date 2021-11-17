@@ -11268,6 +11268,8 @@ BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
 BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
 BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
 BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
+BrowseRandomLabelSSDVFacets: *:* +facets:RandomLabel.sortedset
+BrowseRandomLabelTaxoFacets: *:* +facets:RandomLabel.taxonomy
 HighTermDayOfYearSort: dayofyeardvsort//ref # freq=541190
 HighTermDayOfYearSort: dayofyeardvsort//http # freq=389790
 HighTermDayOfYearSort: dayofyeardvsort//from # freq=359428

@@ -4,6 +4,9 @@
 *.ipr
 *.iws
 
+## Java flight recording
+*.jfr
+
 ## project files
 .project
 .classpath

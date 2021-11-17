@@ -1738,6 +1738,8 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'OrHighMedDayTaxoFacets', 'high-freq medium-freq +dayOfYear taxo facets')
   writeOneLine(w, done, 'AndHighHighDayTaxoFacets', '+high-freq +high-freq +dayOfYear taxo facets')
   writeOneLine(w, done, 'AndHighMedDayTaxoFacets', '+high-freq +medium-freq +dayOfYear taxo facets')
+  writeOneLine(w, done, 'BrowseRandomLabelTaxoFacets', 'Random labels chosen from each doc')
+  writeOneLine(w, done, 'BrowseRandomLabelSSDVFacets', 'Random labels chosen from each doc (doc values)')
 
   w('<br><br><b>Sorting (on TermQuery):</b>')
   writeOneLine(w, done, 'TermDTSort', 'Date/time (long, high cardinality)')
@@ -1811,7 +1813,9 @@ taskRename = {
   'BrowseDateTaxoFacets': 'All hierarchical taxonomy facet counts for last-modified year/month/day',
   'BrowseDayOfYearSSDVFacets': 'All flat sorted-set doc values facet counts for last-modified day-of-year',
   'BrowseMonthSSDVFacets': 'All flat sorted-set doc values facet counts for last-modified month',
-  }
+  'BrowseRandomLabelTaxoFacets': 'All flat taxonomy facet counts for a random word chosen from each doc',
+  'BrowseRandomLabelSSDVFacets' : 'All flat sorted-set doc values counts for a random word chosen from each doc',
+}
 
 def htmlEscape(s):
   return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')

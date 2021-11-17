@@ -28,7 +28,8 @@ if 'BENCH_BASE_DIR' not in globals():
 #WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
 
 # wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
-WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k.txt' % BASE_DIR
+WIKI_MEDIUM_DOC_BIN_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-with-random-label.bin' % BASE_DIR
+WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-with-random-label.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
 # Word vectors downloaded from http://nlp.stanford.edu/data/glove.6B.zip (823MB download; 2.1GB unzipped)

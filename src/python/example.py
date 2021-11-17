@@ -29,7 +29,9 @@ if __name__ == '__main__':
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
                                   ('sortedset:Month', 'Month'),
-                                  ('sortedset:DayOfYear', 'DayOfYear')))
+                                  ('sortedset:DayOfYear', 'DayOfYear'),
+                                  ('taxonomy:RandomLabel', 'RandomLabel'),
+                                  ('sortedset:RandomLabel', 'RandomLabel')))
 
   #Warning -- Do not break the order of arguments
   #TODO -- Fix the following by using argparser

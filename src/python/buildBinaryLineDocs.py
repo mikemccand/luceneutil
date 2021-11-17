@@ -25,15 +25,18 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
       first = False
       if line.startswith('FIELDS_HEADER_INDICATOR'):
         print('skip header')
-        if len(line.strip().split('\t')) != 4:
-          raise RuntimeError('cannot convert line doc files that have more than title, timestamp, text fields: saw header %s' % line.rstrip())
+        if len(line.strip().split('\t')) != 5:
+          raise RuntimeError('cannot convert line doc files that have more than title, timestamp, text fields, random label: saw header %s' % line.rstrip())
         continue
       else:
         print('no header')
     tup = line.split('\t')
-    if len(tup) != 3:
+    if len(tup) != 4:
       raise RuntimeError('got %s' % str(tup))
-    title, date, body = tup
+    for s in tup:
+      if not s.strip():
+        raise RuntimeError('contained empty category' % str(tup))
+    title, date, body, randomLabel = tup
 
     dt = datetime.datetime.strptime(date.replace('.000', ''), '%d-%b-%Y %H:%M:%S')
     msecSinceEpoch = int((dt - epoch).total_seconds() * 1000)
@@ -41,13 +44,14 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
     timeSec = dt.hour*3600 + dt.minute * 60 + dt.second
     titleBytes = title.encode('utf-8')
     bodyBytes = body.encode('utf-8')
-    totalLength = len(titleBytes)+len(bodyBytes)+16
+    randomLabelBytes = randomLabel.strip().encode('utf-8')
+    totalLength = len(titleBytes)+len(bodyBytes)+len(randomLabelBytes)+20
     #print('len=%s' % totalLength)
     #print('HERE: %s, offset=%s' % (struct.pack('i', totalLength), fOut.tell()))
-
-    pending.write(struct.pack('iili', len(titleBytes), len(bodyBytes), msecSinceEpoch, timeSec))
+    pending.write(struct.pack('iiiil', len(titleBytes), len(bodyBytes), len(randomLabelBytes), timeSec, msecSinceEpoch))
     pending.write(titleBytes)
     pending.write(bodyBytes)
+    pending.write(randomLabelBytes)
     pendingDocCount += 1
     
     if pending.tell() > 64*1024:

@@ -961,7 +961,9 @@ def run():
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
                                   ('sortedset:Month', 'Month'),
-                                  ('sortedset:DayOfYear', 'DayOfYear')),
+                                  ('sortedset:DayOfYear', 'DayOfYear'),
+                                  ('taxonomy:RandomLabel', 'RandomLabel'),
+                                  ('sortedset:RandomLabel', 'RandomLabel')),
                         addDVFields=True,
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                         vectorDimension=100,)

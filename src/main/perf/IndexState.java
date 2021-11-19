@@ -30,6 +30,7 @@ import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PointValues.IntersectVisitor;
+import org.apache.lucene.index.PointValues.PointTree;
 import org.apache.lucene.index.PointValues.Relation;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Term;
@@ -43,7 +44,6 @@ import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.StringHelper;
-import org.apache.lucene.util.bkd.BKDReader.IntersectState;
 import org.apache.lucene.util.bkd.BKDReader;
 
 class IndexState {
@@ -161,14 +161,14 @@ class IndexState {
   /** Holds re-used thread-private classes for points primary key lookup for one LeafReader */
   public static class PointsPKLookupState {
     public final PKIntersectVisitor visitor;
-    public final IntersectState state;
+    //public final PointTree pointTree;
     public final Bits liveDocs;
-    public final BKDReader bkdReader;
+    //public final BKDReader bkdReader;
 
     public PointsPKLookupState(LeafReader reader, String fieldName) throws IOException {
       visitor = new PKIntersectVisitor();
-      bkdReader = ((BKDReader) reader.getPointValues(fieldName));
-      state = bkdReader.getIntersectState(visitor);
+      //bkdReader = ((BKDReader) reader.getPointValues(fieldName));
+      //pointTree = reader.getValues(fieldName).getPointTree();
       liveDocs = reader.getLiveDocs();
     }
   }

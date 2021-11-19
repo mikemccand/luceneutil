@@ -106,7 +106,7 @@ public class RandomQuery extends Query {
 
   @Override
   public int hashCode() {
-    return 31 * classHash() + new Double(fractionKeep).hashCode();
+    return 31 * classHash() + Double.valueOf(fractionKeep).hashCode();
   }
 
   @Override

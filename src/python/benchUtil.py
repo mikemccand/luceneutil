@@ -220,7 +220,7 @@ class SearchTask:
         # iffy: this is a float cmp
         if verifyScores:
           if groupTopScore1 != groupTopScore2:
-            self.fail('group %d has wrong groupTopScor: %s vs %s' % (groupIDX, groupTopScore1, groupTopScore2))
+            self.fail('group %d has wrong groupTopScore: %s vs %s' % (groupIDX, groupTopScore1, groupTopScore2))
 
           if groupTotHits1 != groupTotHits2:
             self.fail('group %d has wrong totHits: %s vs %s' % (groupIDX, groupTotHits1, groupTotHits2))

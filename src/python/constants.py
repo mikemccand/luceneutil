@@ -27,9 +27,9 @@ if 'BENCH_BASE_DIR' not in globals():
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 #WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
 
-# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
-WIKI_MEDIUM_DOC_BIN_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-with-random-label.bin' % BASE_DIR
-WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-with-random-label.txt' % BASE_DIR
+# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
+WIKI_MEDIUM_DOC_BIN_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.bin' % BASE_DIR
+WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt' % BASE_DIR
 WIKI_MEDIUM_DOCS_COUNT = 33332620
 
 # Word vectors downloaded from http://nlp.stanford.edu/data/glove.6B.zip (823MB download; 2.1GB unzipped)
@@ -52,8 +52,8 @@ DISJUNCTION_INTENSIVE_TASKS_FILE = '%s/tasks/disjunctionIntensive.tasks' % BENCH
 COMBINED_FIELDS_TASKS_FILE = '%s/tasks/combinedfields.tasks' % BENCH_BASE_DIR
 COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = '%s/tasks/combinedfields.unevenlyweighted.tasks' % BENCH_BASE_DIR
 
-# wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines.txt.bz2
-WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines.txt' % BASE_DIR
+# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-with-random-label.txt.lzma
+WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-with-random-label.txt' % BASE_DIR
 #WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
 WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
 

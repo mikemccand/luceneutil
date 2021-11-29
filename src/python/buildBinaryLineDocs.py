@@ -12,7 +12,7 @@ def flush(pending, pendingDocCount, fOut):
   fOut.write(struct.pack('i', pending.tell()))
   fOut.write(pending.getbuffer())
 
-with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as fOut:
+with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as fOut:
   first = True
   pending = io.BytesIO()
   pendingDocCount = 0
@@ -26,16 +26,17 @@ with open(sys.argv[1], 'r', errors='replace') as f, open(sys.argv[2], 'wb') as f
       if line.startswith('FIELDS_HEADER_INDICATOR'):
         print('skip header')
         if len(line.strip().split('\t')) != 5:
-          raise RuntimeError('cannot convert line doc files that have more than title, timestamp, text fields, random label: saw header %s' % line.rstrip())
+          raise RuntimeError('can only convert line doc files that have header title, timestamp, body text, random label: saw header %s' % line.rstrip())
         continue
       else:
         print('no header')
     tup = line.split('\t')
     if len(tup) != 4:
       raise RuntimeError('got %s' % str(tup))
-    for s in tup:
-      if not s.strip():
-        raise RuntimeError('contained empty category' % str(tup))
+    if False:
+      for s in tup:
+        if not s.strip():
+          raise RuntimeError('contained empty category %s' % str(tup))
     title, date, body, randomLabel = tup
 
     dt = datetime.datetime.strptime(date.replace('.000', ''), '%d-%b-%Y %H:%M:%S')

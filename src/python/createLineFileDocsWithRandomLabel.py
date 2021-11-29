@@ -18,96 +18,92 @@
 import sys
 import os
 import re
-
-from random import randrange
-
-USAGE= """
-Usage: python createLineFileDocsWithRandomLabel.py
-
-"""
-
-ORIGINAL_LINEFILE = 'enwiki-20120502-lines-1k.txt'
-TARGET_LINEFILE = 'enwiki-20120502-lines-1k-with-random-label.txt'
+import random
 
 def createLineFileDocsWithRandomLabels(original_file, target_file):
-    if original_file is None:
-        cwd = os.getcwd()
-        parent, base = os.path.split(cwd)
-        data_dir = os.path.join(parent, 'data')
+    if not os.path.exists(original_file):
+        raise RuntimeError(f'original file {original_file} does not exist?')
 
-        if not os.path.exists(data_dir):
-            print('download data before running this script')
-            exit()
+    if os.path.exists(target_file):
+        raise RuntimeError(f'target file {target_file} exists -- please delete first and retry')
 
-        original_file = os.path.join(data_dir, ORIGINAL_LINEFILE)
-        target_file = os.path.join(data_dir, TARGET_LINEFILE)
-    else:
-        if not os.path.exist(original_file):
-            print("Recieved invalid path to data")
-            exit()
+    print(f'Reading from {original_file} and writing to {target_file}')
 
-    with open(original_file, 'r', encoding='ISO-8859-1') as original, open(target_file, 'w', encoding='ISO-8859-1') as out:
-        first_line = True
-        skipped = 0
+    with open(original_file, 'r', encoding='utf-8') as f:
+        line = f.readline()
+        original_has_header = line.startswith('FIELDS_HEADER_INDICATOR###')
+
+    print(f'input has header?={original_has_header}')
+
+    # alas, we have UTF-8 bugs in some of our line docs files, so I had to use errors='replace' below:
+    with open(original_file, 'r', encoding='utf-8', errors='replace') as original, open(target_file, 'w', encoding='utf-8') as out:
         i = 0
+
+        # always write header even if input does not have it:
+        line_arr = ['FIELDS_HEADER_INDICATOR###', 'doctitle', 'docdate', 'body', 'RandomLabel']
+        out.write('\t'.join(line_arr) + '\n')
+
+        skip_header = original_has_header
+        
         for line in original:
+
+            # Lucene line docs files always terminate each line with newline, so we strip just that
+            # one newline and no other interesting trailing whitespace that's part of the body of
+            # each doc:
+            line = line[:-1]
+            
+            line_arr = line.split('\t')
+
+            if skip_header:
+                if line_arr != ['FIELDS_HEADER_INDICATOR###', 'doctitle', 'docdate', 'body']:
+                    # prolly only succeeds on Unix-like filesystems:
+                    os.remove(target_file)
+                    raise RuntimeError(f'unsuported header: {line_arr} -- expected [FIELDS_HEADER_INDICATOR###, doctitle, docdate, body]')
+                skip_header = False
+                # we already (optimistically) pre-wrote the header above
+                continue
+
+            if len(line_arr) != 3:
+                raise RuntimeError(f'can only handle line file docs with three entries (title, date, body); saw {len(line_arr)} entries: {line_arr}')
+
+            body = line_arr[2]
+
+            if isNotEmpty(body):
+                random_label = chooseRandomLabel(body)
+            else:
+                random_label = "EMPTY_LABEL"
+            line_arr.append(random_label)
+            out.write('\t'.join(line_arr) + '\n')
+            i += 1
             if i % 100000 == 0:
                 print("Converted ", i, " line file docs")
-            line_arr = line.strip().split('\t')
-            if first_line:
-                line_arr.append('RandomLabel')
-                first_line = False
-                line_to_write = '\t'.join(line_arr) + '\n'
-                out.write(line_to_write)
-                continue
-            else:
-                try:
-                    if not isNotEmpty(line_arr[2]):
-                        line_arr.append('EMPTY_LABEL')
-                        random_label = "EMPTY_LABEL"
-                    else:
-                        random_label = chooseRandomLabel(line_arr[2])
-                        if random_label == "EMPTY_BODY":
-                            random_label = "EMPTY_LABEL"
-                            line_arr[2] = "EMPTY_LABEL"
-                except IndexError:
-                    # found a few lines that looked like this: ['Biosensor', '05-APR-2012 04:12:36.000'] with no body
-                    line_arr.append('EMPTY_LABEL')
-                    random_label = 'EMPTY_LABEL'
-                line_arr.append(random_label)
-            first_line = False
-            line_to_write = '\t'.join(line_arr) + '\n'
-            out.write(line_to_write)
-            i += 1
         print("Indexed ", i, " total documents")
-        print("Skipped ", skipped, " documents")
 
 def chooseRandomLabel(body):
     body_arr = list(filter(isNotEmpty, re.split(r'\W', body)))
-    if (len(body_arr) == 0):
-        return "EMPTY_BODY"
+    if len(body_arr) == 0:
+        print(f'WARNING: empty body: {repr(body)}')
+        return 'EMPTY_LABEL'
     label = None
     i = 0
     while not isNotEmpty(label) and i < 5:
-        label = body_arr[randrange(len(body_arr))]
+        label = random.choice(body_arr)
     if not isNotEmpty(label):
-        return "EMPTY_LABEL"
+        return 'EMPTY_LABEL'
     else:
         return label
 
 def isNotEmpty(str):
-    if str and str.strip():
-        return True
-    return False
+    return str and str.strip()
 
 if __name__ == '__main__':
     if '-help' in sys.argv or '--help' in sys.argv:
-        print(USAGE)
+        print('Usage: python createLineFileDocsWithRandomLabel.py file-name-in file-name-out [--help]')
     else:
         if len(sys.argv) == 3:
-            createLineFileDocsWithRandomLabels(sys.argv[1], sys.argv[2])
-        elif len(sys.argv) == 1:
-            createLineFileDocsWithRandomLabels(None, None)
+            ORIGINAL_LINEFILE = sys.argv[1]
+            TARGET_LINEFILE = sys.argv[2]
+            createLineFileDocsWithRandomLabels(ORIGINAL_LINEFILE, TARGET_LINEFILE)
         else:
             print("Invalid arguments")
-            exit()
+            print('Usage: python createLineFileDocsWithRandomLabel.py file-name-in file-name-out [--help]')

@@ -24,8 +24,10 @@ LOGS_DIR = '%s/logs.nightly/ant_test' % BASE_DIR
 #LOGS_DIR = '/x/tmp/beast.logs/logs.nightly/ant_test'
 
 KNOWN_CHANGES_ANT_TEST = [
-  ('2014-05-04', 'Switched from Java 1.7.0_65 to 1.8.0_40'),
-  ('2014-10-15', 'The Great Test Slowdown of 2014')
+  ('2014-05-04', 'Lucene Tests Minutes', 'Switched from Java 1.7.0_65 to 1.8.0_40'),
+  ('2014-10-15', 'Lucene Tests Minutes', 'The Great Test Slowdown of 2014'),
+  ('2021-10-19', 'Precommit Minutes', 'Add -release option to ecj'),
+  ('2021-11-29', 'Precommit Minutes', 'Remove -release from ecj (it makes things slower!)'),
   ]
 
 def clean(logFile):
@@ -103,6 +105,7 @@ def getTestCount(line, regexp):
     return -1
 
 def writeGraph():
+
   logFiles = os.listdir(LOGS_DIR)
   logFiles.sort()
 
@@ -278,9 +281,7 @@ def writeGraph():
     if True:
       w('g.ready(function() {g.setAnnotations([')
       label = 0
-      for tup in KNOWN_CHANGES_ANT_TEST:
-        date, reason = tup[:2]
-        series = 'Minutes'
+      for date, series, reason in KNOWN_CHANGES_ANT_TEST:
         shortText = getLabel(label)
         label += 1
         w('{series: "%s", x: "%s", shortText: "%s", text: "%s"},' % \

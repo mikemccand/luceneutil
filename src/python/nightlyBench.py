@@ -604,8 +604,12 @@ KNOWN_CHANGES = [
    'Upgrade Linux kernel from 5.13.12 to 5.14.8'),
 
   ('2021-10-19 08:14:33',
-   'Upgrade to JDK17+35',
-   'Upgrade to JDK17+35'),
+   'Upgrade to JDK17+35, and pass -release to ecj linting',
+   'Upgrade to JDK17+35, and pass -release to ecj linting'),
+
+  ('2021-11-29 ',
+   'Stop passing -release to ecj since it makes it quite a bit slower',
+   'Stop passing -release to ecj since it makes it quite a bit slower'),
 ]
 
 # TODO

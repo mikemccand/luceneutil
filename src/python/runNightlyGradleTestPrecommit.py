@@ -27,7 +27,8 @@ KNOWN_CHANGES_ANT_TEST = [
   ('2014-05-04', 'Lucene Tests Minutes', 'Switched from Java 1.7.0_65 to 1.8.0_40'),
   ('2014-10-15', 'Lucene Tests Minutes', 'The Great Test Slowdown of 2014'),
   ('2021-10-19', 'Precommit Minutes', 'Add -release option to ecj'),
-  ('2021-11-29', 'Precommit Minutes', 'Remove -release from ecj (it makes things slower!)'),
+  ('2021-11-30', 'Precommit Minutes', 'Switch to counting aggregate task time instead of wall clock elapsed time'),
+  ('2021-11-30', 'Lucene Tests Minutes', 'Switch to counting aggregate task time instead of wall clock elapsed time'),
   ]
 
 def clean(logFile):
@@ -39,7 +40,6 @@ def clean(logFile):
   cleanLogFile = f'{BASE_DIR}/{NIGHTLY_DIR}/clean.log'
   if os.path.exists(cleanLogFile):
     os.remove(cleanLogFile)
-  
 
 def runLuceneTests(logFile):
 
@@ -60,7 +60,7 @@ def runLuceneTests(logFile):
   
   t0 = time.time()
   
-  if not os.system('./gradlew --no-daemon -p lucene test >> %s.tmp 2>&1' % logFile):
+  if not os.system('./gradlew --no-daemon -Ptask.times=true -p lucene test >> %s.tmp 2>&1' % logFile):
     # Success
     t1 = time.time()
     open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))
@@ -85,7 +85,7 @@ def runPrecommit(logFile):
       raise RuntimeError('git clean -xfd lucene solr failed!')
 
     t0 = time.time()
-    if not os.system('./gradlew --stacktrace precommit >> %s.tmp 2>&1' % logFile):
+    if not os.system('./gradlew --stacktrace precommit -Ptask.times=true >> %s.tmp 2>&1' % logFile):
       # Success
       t1 = time.time()
       open(logFile + '.tmp', 'a').write('\nTOTAL SEC: %s' % (t1-t0))
@@ -103,6 +103,14 @@ def getTestCount(line, regexp):
     return int(m.group(1))
   else:
     return -1
+
+def pick_seconds(tup):
+  elapsed_seconds, aggregate_task_seconds = tup[2:]
+  # on Nov 30 2021 we switched to summing aggregate_tasks_seconds so the many-cored beast3 doesn't hide progress:
+  if aggregate_task_seconds is not None:
+    return aggregate_task_seconds
+  else:
+    return elapsed_seconds
 
 def writeGraph():
 
@@ -139,8 +147,10 @@ def writeGraph():
     else:
       results = precommit_results
 
-    totalTests = 0
+    aggregate_time_sec = None
     with open('%s/%s' % (LOGS_DIR, logFile)) as f:
+      totalTests = 0
+      in_aggregate_task_times = False
       for line in f.readlines():
 
         if what == 'lucene-tests':
@@ -153,9 +163,41 @@ def writeGraph():
               # do not over-count ant "summary" output lines:
               testCount = 0
           totalTests += testCount
-        
+
+        if line.startswith('Aggregate task times '):
+          # e.g.:
+          '''
+Aggregate task times (possibly running in parallel!):
+ 496.12 sec.  test
+  27.65 sec.  compileJava
+  13.11 sec.  compileTestJava
+   2.97 sec.  jar
+   1.55 sec.  processResources
+   0.80 sec.  copyTestResources
+   0.47 sec.  gitStatus
+   0.17 sec.  processTestResources
+   0.07 sec.  compileTestFixturesJava
+   0.04 sec.  wipeTaskTemp
+   0.02 sec.  randomizationInfo
+   0.01 sec.  testFixturesJar
+   0.00 sec.  errorProneSkipped
+
+'''
+          in_aggregate_task_times = True
+          aggregate_time_sec = 0
+          continue
+        elif in_aggregate_task_times:
+          if len(line.strip()) == 0:
+            # ends with empty line
+            in_aggregate_task_times = False
+          else:
+            m = re.match('([0-9.]+) sec.*', line.strip())
+            if m is None:
+              raise RuntimeError(f'failed to parse "{line}" as an aggregate task time entry (file={LOGS_DIR}/{logFile})')
+            aggregate_time_sec += float(m.group(1))
+          
         if line.startswith('TOTAL SEC: '):
-          results.append((timestamp, totalTests, float(line[11:].strip())))
+          results.append((timestamp, totalTests, float(line[11:].strip()), aggregate_time_sec))
           break
       else:
         raise RuntimeError("couldn't find total seconds for %s/%s" % (LOGS_DIR, logFile))
@@ -211,14 +253,16 @@ def writeGraph():
 
       # merge sort tests time / precommit time:
       if tests_upto < len(test_results):
-        date, total_tests, tests_seconds = test_results[tests_upto]
+        date, total_tests = test_results[tests_upto][:2]
+
+        tests_seconds = pick_seconds(test_results[tests_upto])
 
         if date == precommit_results[precommit_upto][0]:
-          precommit_minutes_str = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
+          precommit_minutes_str = f'{pick_seconds(precommit_results[precommit_upto])/60.0:.3f}'
           precommit_upto += 1
           tests_upto += 1
         elif date > precommit_results[precommit_upto][0]:
-          precommit_minutes_str = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
+          precommit_minutes_str = f'{pick_seconds(precommit_results[precommit_upto])/60.0:.3f}'
           date = precommit_results[precommit_upto][0]
           total_tests = None
           precommit_upto += 1
@@ -230,7 +274,7 @@ def writeGraph():
         date = precommit_results[precommit_upto][0]
         total_tests = None
         tests_seconds = None
-        precommit_minutes_str = f'{precommit_results[precommit_upto][2]/60.0:.3f}'
+        precommit_minutes_str = f'{pick_seconds(precommit_results[precommit_upto])/60.0:.3f}'
         precommit_upto += 1
 
       if total_tests is None:

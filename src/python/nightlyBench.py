@@ -610,6 +610,10 @@ KNOWN_CHANGES = [
   ('2021-11-29 ',
    'Stop passing -release to ecj since it makes it quite a bit slower',
    'Stop passing -release to ecj since it makes it quite a bit slower'),
+
+  ('2021-11-24 18:04:23',
+   'LUCENE-10062: switch to storing taxonomy Facet ordinals from custom encoding in BINARY DV field, to SSDV field',
+   'LUCENE-10062: switch to storing taxonomy Facet ordinals from custom encoding in BINARY DV field, to SSDV field',),
 ]
 
 # TODO

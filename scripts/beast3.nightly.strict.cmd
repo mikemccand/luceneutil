@@ -26,8 +26,14 @@ set -ex
 # export PATH=/l/rally:$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
 
 # OpenJDK java 15
+#export ANT_HOME=/usr/local/src/apache-ant-1.9.5
+#export JAVA_HOME=/opt/jdk-15.0.1/
+#export GRADLE_HOME=/usr/local/src/gradle-2.9
+#export PATH=$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
+
+# OpenJDK java 17
 export ANT_HOME=/usr/local/src/apache-ant-1.9.5
-export JAVA_HOME=/opt/jdk-15.0.1/
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export GRADLE_HOME=/usr/local/src/gradle-2.9
 export PATH=$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
 
@@ -77,7 +83,7 @@ cd /l/util.nightly
 
 echo "Now rsync"
 date
-rsync --delete -lrtS /l/logs.nightly/ /x/tmp/beast3.logs/logs.nightly/
+rsync --delete -lrtSO /l/logs.nightly/ /x/tmp/beast3.logs/logs.nightly/
 
 echo "Touch nightly marker file..."
 date

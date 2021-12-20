@@ -11228,6 +11228,7 @@ Respell: 2010a
 BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
 BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
 BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
+BrowseDateSSDVFacets: *:* +facets:Date.sortedset
 BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
 BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
 BrowseRandomLabelSSDVFacets: *:* +facets:RandomLabel.sortedset

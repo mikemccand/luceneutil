@@ -374,7 +374,7 @@ class Competitor(object):
 
     print('files %s' % files)
 
-    cmd = [self.javacCommand, '-d', buildDir, '-classpath', cp]
+    cmd = [self.javacCommand, '-g', '-d', buildDir, '-classpath', cp]
     cmd += files
     benchUtil.run(cmd, os.path.join(constants.LOGS_DIR, 'compile.log'))
     # copy resources/META-INF

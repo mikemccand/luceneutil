@@ -613,7 +613,11 @@ KNOWN_CHANGES = [
 
   ('2021-11-24 18:04:23',
    'LUCENE-10062: switch to storing taxonomy Facet ordinals from custom encoding in BINARY DV field, to SSDV field',
-   'LUCENE-10062: switch to storing taxonomy Facet ordinals from custom encoding in BINARY DV field, to SSDV field',),
+   'LUCENE-10062: switch to storing taxonomy Facet ordinals from custom encoding in BINARY DV field, to SSDV field'),
+
+  ('2021-12-21',
+   'Upgrade Arch Linux kernel from 5.14.x to 5.15.10',
+   'Upgrade Arch Linux kernel from 5.14.x to 5.15.10'),
 ]
 
 # TODO

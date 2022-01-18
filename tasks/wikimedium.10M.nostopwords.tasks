@@ -14406,6 +14406,7 @@ OrHighNotLow: had -halfback # freq=1246743 freq=1205
 BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
 BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
 BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
+BrowseDateSSDVFacets: *:* +facets:Date.sortedset
 BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
 BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
 BrowseRandomLabelTaxoFacets: *:* +facets:RandomLabel.taxonomy

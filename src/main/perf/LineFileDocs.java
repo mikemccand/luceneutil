@@ -648,7 +648,10 @@ public class LineFileDocs implements Closeable {
                                   ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
         }
         if ((flag & 2) != 0) {
-          throw new IllegalArgumentException("Date field can only be indexed as taxonomy facets, not sortedset, because it is hierarchical");
+          doc2.add(new SortedSetDocValuesFacetField("Date.sortedset",
+                                                    ""+doc.dateCal.get(Calendar.YEAR),
+                                                    ""+doc.dateCal.get(Calendar.MONTH),
+                                                    ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
         }
       }
 

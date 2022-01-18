@@ -103,7 +103,11 @@ class IndexState {
     SortedSetDocValuesReaderState result = ssdvFacetStates.get(facetGroupField);
     if (result == null) {
       IndexSearcher searcher = mgr.acquire();
-      result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField);
+      if (facetsConfig != null) {
+        result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField, facetsConfig);
+      } else {
+        result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField);
+      }
       // NOTE: do not release the acquired searcher here!  Really we should have a close() in this class where we release...
       ssdvFacetStates.put(facetGroupField, result);
     }

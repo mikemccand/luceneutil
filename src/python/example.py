@@ -28,6 +28,7 @@ if __name__ == '__main__':
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Date', 'Date'),
                                   ('sortedset:Month', 'Month'),
                                   ('sortedset:DayOfYear', 'DayOfYear'),
                                   ('taxonomy:RandomLabel', 'RandomLabel'),

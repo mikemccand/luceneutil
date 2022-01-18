@@ -10228,5 +10228,6 @@ Respell: titlebdvsort//2010a
 BrowseDateTaxoFacets: titlebdvsort//*:* +facets:Date.taxonomy
 BrowseMonthTaxoFacets: titlebdvsort//*:* +facets:Month.taxonomy
 BrowseDayOfYearTaxoFacets: titlebdvsort//*:* +facets:DayOfYear.taxonomy
+BrowseDateSSDVFacets: titlebdvsort//*:* +facets:Date.sortedset
 BrowseMonthSSDVFacets: titlebdvsort//*:* +facets:Month.sortedset
 BrowseDayOfYearSSDVFacets: titlebdvsort//*:* +facets:DayOfYear.sortedset

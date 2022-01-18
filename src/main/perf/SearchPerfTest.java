@@ -441,6 +441,7 @@ public class SearchPerfTest {
 
     FacetsConfig facetsConfig = new FacetsConfig();
     facetsConfig.setHierarchical("Date.taxonomy", true);
+    facetsConfig.setHierarchical("Date.sortedset", true);
 
     // all unique facet group fields ($facet alone, by default):
     final Set<String> facetFields = new HashSet<>();

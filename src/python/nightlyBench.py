@@ -983,6 +983,7 @@ def run():
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
                                   ('sortedset:Month', 'Month'),
                                   ('sortedset:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Date', 'Date'),
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')),
                         addDVFields=True,

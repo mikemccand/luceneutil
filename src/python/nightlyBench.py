@@ -1754,6 +1754,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br><br><b>Faceting:</b>')
   writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')
   writeOneLine(w, done, 'BrowseDateTaxoFacets', 'All dates hierarchy')
+  writeOneLine(w, done, 'BrowseDateSSDVFacets', 'All dates hierarchy (doc values)')
   writeOneLine(w, done, 'BrowseMonthTaxoFacets', 'All months')
   writeOneLine(w, done, 'BrowseMonthSSDVFacets', 'All months (doc values)')
   writeOneLine(w, done, 'BrowseDayOfYearTaxoFacets', 'All dayOfYear')
@@ -1835,6 +1836,7 @@ taskRename = {
   'BrowseDayOfYearTaxoFacets': 'All flat taxonomy facet counts for last-modified day-of-year',
   'BrowseMonthTaxoFacets': 'All flat taxonomy facet counts for last-modified month',
   'BrowseDateTaxoFacets': 'All hierarchical taxonomy facet counts for last-modified year/month/day',
+  'BrowseDateSSDVFacets': 'All hierarchical SSDV facet counts for last-modified year/month/day',
   'BrowseDayOfYearSSDVFacets': 'All flat sorted-set doc values facet counts for last-modified day-of-year',
   'BrowseMonthSSDVFacets': 'All flat sorted-set doc values facet counts for last-modified month',
   'BrowseRandomLabelTaxoFacets': 'All flat taxonomy facet counts for a random word chosen from each doc',

@@ -29,12 +29,9 @@ import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.RandomAccessVectorValues;
-import org.apache.lucene.index.RandomAccessVectorValuesProducer;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.VectorValues;
 import org.apache.lucene.search.Collector;
-import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -190,6 +187,9 @@ final class SearchTask extends Task {
           }
         }
       } else if (!facetRequests.isEmpty()) {
+        if (state.facetsConfig == null) {
+          throw new IllegalStateException("Missing facet config, cannot run facet requests");
+        }
         // TODO: support sort, filter too!!
         // TODO: support other facet methods
         if (doDrillSideways) {

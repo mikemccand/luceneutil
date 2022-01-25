@@ -100,7 +100,7 @@ public class BenchmarkFacets {
             double createFastTaxoCountsTime = (double)(createFastTaxoCountsEnd - createFastTaxoCountsStart) / BILLION;
 
             // only benchmark count creation
-            SortedSetDocValuesReaderState state = new DefaultSortedSetDocValuesReaderState(s.getIndexReader());
+            SortedSetDocValuesReaderState state = new DefaultSortedSetDocValuesReaderState(s.getIndexReader(), config);
             long createSSDVReaderStateStart = System.nanoTime();
             Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
             long createSSDVReaderStateEnd = System.nanoTime();

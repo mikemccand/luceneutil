@@ -30,7 +30,6 @@ import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PointValues.IntersectVisitor;
-import org.apache.lucene.index.PointValues.PointTree;
 import org.apache.lucene.index.PointValues.Relation;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Term;
@@ -43,8 +42,6 @@ import org.apache.lucene.search.spell.DirectSpellChecker;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.StringHelper;
-import org.apache.lucene.util.bkd.BKDReader;
 
 class IndexState {
   public final ReferenceManager<IndexSearcher> mgr;
@@ -61,7 +58,6 @@ class IndexState {
   public final Map<String,Integer> facetFields;
   public final Map<Object, ThreadLocal<PKLookupState>> pkLookupStates = new HashMap<>();
   public final Map<Object, ThreadLocal<PointsPKLookupState>> pointsPKLookupStates = new HashMap<>();
-  private SortedSetDocValuesReaderState sortedSetReaderState;
 
   public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker,
                     String hiliteImpl, FacetsConfig facetsConfig, Map<String,Integer> facetFields) throws IOException {
@@ -103,11 +99,7 @@ class IndexState {
     SortedSetDocValuesReaderState result = ssdvFacetStates.get(facetGroupField);
     if (result == null) {
       IndexSearcher searcher = mgr.acquire();
-      if (facetsConfig != null) {
-        result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField, facetsConfig);
-      } else {
-        result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField);
-      }
+      result = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), facetGroupField, facetsConfig);
       // NOTE: do not release the acquired searcher here!  Really we should have a close() in this class where we release...
       ssdvFacetStates.put(facetGroupField, result);
     }

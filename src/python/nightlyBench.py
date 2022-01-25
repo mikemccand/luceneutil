@@ -622,6 +622,10 @@ KNOWN_CHANGES = [
   ('2022-01-03 18:03:13',
    'LUCENE-10346: specialize single-valued doc values during taxonomy facet counting',
    'LUCENE-10346: specialize single-valued doc values during taxonomy facet counting'),
+
+  ('2021-01-19 10:17:11',
+   'LUCENE-10375: Speed up HNSW merge by writing combined vector data',
+   'LUCENE-10375: Speed up HNSW merge by writing combined vector data'),
 ]
 
 # TODO

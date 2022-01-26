@@ -24,7 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Locale;
 
-import org.apache.lucene.codecs.lucene90.Lucene90Codec;
+import org.apache.lucene.codecs.lucene91.Lucene91Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
@@ -50,13 +50,13 @@ public class StoredFieldsBenchmark {
 
     String geonamesDataPath = args[0];
     String indexPath = args[1];
-    Lucene90Codec.Mode mode;
+    Lucene91Codec.Mode mode;
     switch (args[2]) {
       case "BEST_SPEED":
-        mode = Lucene90Codec.Mode.BEST_SPEED;
+        mode = Lucene91Codec.Mode.BEST_SPEED;
         break;
       case "BEST_COMPRESSION":
-        mode = Lucene90Codec.Mode.BEST_COMPRESSION;
+        mode = Lucene91Codec.Mode.BEST_COMPRESSION;
         break;
       default:
         throw new AssertionError();
@@ -103,10 +103,10 @@ public class StoredFieldsBenchmark {
     }
   }
 
-  private static IndexWriterConfig getConfig(Lucene90Codec.Mode mode) {
+  private static IndexWriterConfig getConfig(Lucene91Codec.Mode mode) {
     IndexWriterConfig iwc = new IndexWriterConfig();
     iwc.setOpenMode(OpenMode.CREATE);
-    iwc.setCodec(new Lucene90Codec(mode));
+    iwc.setCodec(new Lucene91Codec(mode));
     iwc.setMergeScheduler(new SerialMergeScheduler());
     // provoke much segments, lots of compress/deompress/bulk copy:
     iwc.setMaxBufferedDocs(100);

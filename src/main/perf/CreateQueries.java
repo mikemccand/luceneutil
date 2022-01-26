@@ -23,10 +23,10 @@ import org.apache.lucene.util.*;
 import org.apache.lucene.search.spell.*;
 
 import java.io.IOException;
-import java.io.File;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.file.Paths;
 import java.io.FileOutputStream;
 import java.util.Random;
 import java.util.Set;
@@ -67,7 +67,7 @@ public class CreateQueries {
 
   private static class MostFrequentTerms extends PriorityQueue<TermFreq> {
     public MostFrequentTerms(int maxSize) {
-      super(maxSize, false);
+      super(maxSize);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class CreateQueries {
 
     final BufferedWriter queriesOut = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queriesFileOut),"UTF8"));
 
-    final Directory dir = FSDirectory.open(new File(indexPath));
+    final Directory dir = FSDirectory.open(Paths.get(indexPath));
     final IndexReader r = DirectoryReader.open(dir);
 
     System.out.println("\nFind top df terms...");
@@ -392,9 +392,9 @@ public class CreateQueries {
 
   private static TermFreq[] getTopTermsByDocFreq(IndexReader r, String field, int topN, boolean doShingles) throws IOException {
     final MostFrequentTerms pq = new MostFrequentTerms(topN);
-    Terms terms = MultiFields.getTerms(r, field);
+    Terms terms = MultiTerms.getTerms(r, field);
     if (terms != null) {
-      TermsEnum termsEnum = terms.iterator(null);
+      TermsEnum termsEnum = terms.iterator();
       while (termsEnum.next() != null) {
         String term = termsEnum.term().utf8ToString();
         if (term.indexOf(':') != -1) {

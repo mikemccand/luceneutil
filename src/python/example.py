@@ -31,6 +31,7 @@ if __name__ == '__main__':
                                   ('sortedset:Date', 'Date'),
                                   ('sortedset:Month', 'Month'),
                                   ('sortedset:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Date', 'Date'),
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')))
 

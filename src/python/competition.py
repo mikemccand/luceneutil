@@ -350,7 +350,6 @@ class Competitor(object):
       'NRTPerfTest.java',
       'Indexer.java',
       'KeepNoCommitsDeletionPolicy.java',
-      'KnnQuery.java',
       'LineFileDocs.java',
       'LocalTaskSource.java',
       'OpenDirectory.java',

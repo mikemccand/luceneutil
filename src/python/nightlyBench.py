@@ -627,7 +627,7 @@ KNOWN_CHANGES = [
    'LUCENE-10375: Speed up HNSW merge by writing combined vector data',
    'LUCENE-10375: Speed up HNSW merge by writing combined vector data'),
 
-  ('2022-01-25 19:54:00',
+  ('2022-01-26 18:03:08',
    'LUCENE-10054: Make HnswGraph hierarchical',
    'LUCENE-10054: Make HnswGraph hierarchical'),
 ]

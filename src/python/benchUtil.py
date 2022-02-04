@@ -1496,7 +1496,6 @@ def getAntClassPath(checkout):
     raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
 
   cp.append(core_jar_file)
-  cp.append('%s/lucene/build/core/classes/test' % path)
   cp.append('%s/lucene/build/sandbox/classes/java' % path)
   cp.append('%s/lucene/build/misc/classes/java' % path)
   cp.append('%s/lucene/build/facet/classes/java' % path)
@@ -1544,7 +1543,6 @@ def getClassPath(checkout):
     raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
 
   cp.append(core_jar_file)
-  cp.append('%s/lucene/core/build/classes/java/test' % path)
   cp.append('%s/lucene/sandbox/build/classes/java/main' % path)
   cp.append('%s/lucene/misc/build/classes/java/main' % path)
   cp.append('%s/lucene/facet/build/classes/java/main' % path)

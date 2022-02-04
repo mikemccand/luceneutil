@@ -28,6 +28,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.search.KnnVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
@@ -594,7 +595,7 @@ class TaskParser {
 
     Query parseVectorQuery() {
       float[] queryVector = vectorDictionary.computeTextVector(text);
-      return new KnnQuery("vector", text, queryVector, topN);
+      return new KnnVectorQuery("vector", queryVector, topN);
     }
   }
 }

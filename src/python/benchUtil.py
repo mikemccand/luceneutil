@@ -158,7 +158,7 @@ class SearchTask:
   # TODO: subclass SearchGroupTask
 
   def verifySame(self, other, verifyScores, verifyCounts):
-    if self.query.startswith('<vector:knn:'):
+    if self.query.startswith('KnnVectorQuery:knn:'):
       # KNN search is deterministically randomized, such that the seed changes with each re-indexing, so we cannot compare results
       return
     if not isinstance(other, SearchTask):

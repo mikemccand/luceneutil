@@ -630,6 +630,14 @@ KNOWN_CHANGES = [
   ('2022-01-26 18:03:08',
    'LUCENE-10054: Make HnswGraph hierarchical',
    'LUCENE-10054: Make HnswGraph hierarchical'),
+
+  ('2022-02-18 07:54:59',
+   'LUCENE-10391: Reuse data structures across HnswGraph#searchLevel calls',
+   'LUCENE-10391: Reuse data structures across HnswGraph#searchLevel calls'),
+
+  ('2022-02-18 07:54:59',
+   'LUCENE-10408 Better encoding of doc Ids in vectors',
+   'LUCENE-10408 Better encoding of doc Ids in vectors'),
 ]
 
 # TODO

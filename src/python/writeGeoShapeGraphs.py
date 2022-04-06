@@ -241,7 +241,7 @@ with open('/tmp/geoshapebench.html', 'w') as f:
     key += " " + zp(d.getHours(), 2) + ":" + zp(d.getMinutes(), 2) + ":" + zp(d.getSeconds(), 2);
     gitHash = gitHashes[key];
 
-    top.location = "https://git-wip-us.apache.org/repos/asf?p=lucene-solr.git;a=log;h=" + gitHash;
+    top.location = "https://gitbox.apache.org/repos/asf?p=lucene.git;a=log;h=" + gitHash;
   }
 </script>
 
@@ -249,7 +249,7 @@ with open('/tmp/geoshapebench.html', 'w') as f:
 <body>
 <h2>Lucene Geo Shape Benchmarks</h2>
 <div style="min-width: 800px">
-<p>Below are the results of the Lucene nightly geo shape benchmarks based on the <a href="https://git-wip-us.apache.org/repos/asf/lucene-solr.git">main</a> branch as of that point in time.</p>
+<p>Below are the results of the Lucene nightly geo shape benchmarks based on the <a href="https://gitbox.apache.org/repos/asf/lucene.git">main</a> branch as of that point in time.</p>
 <p>This test indexes a 13M polygons subset exported from the full (as of 23/05/2019) <a href="http://openstreetmaps.org">OpenStreetMaps corpus</a>, including every polygon inside the UK, and 10% of polygons from remaining areas, using vector based LatLonShape to test search performance for different spatial operations using various shapes.  The London boroughs polygons <a href="http://data.london.gov.uk/2011-boundary-files">come from here</a> (33 polygons, average 5.6K vertices).</p>
 <p>On each chart, you can click + drag (vertically or horizontally) to zoom in and then shift + drag to move around, and double-click to reset.  Hover over an annotation to see known changes.  Click on a point to see the exact source git revision that was run.</p>
 </div>

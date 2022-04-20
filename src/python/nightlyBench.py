@@ -638,6 +638,10 @@ KNOWN_CHANGES = [
   ('2022-02-18 07:54:59',
    'LUCENE-10408 Better encoding of doc Ids in vectors',
    'LUCENE-10408 Better encoding of doc Ids in vectors'),
+
+  ('2022-02-25 18:03:10',
+   'LUCENE-10421: Use fixed seed for HNSW search',
+   'LUCENE-10421: Use fixed seed for HNSW search'),
 ]
 
 # TODO

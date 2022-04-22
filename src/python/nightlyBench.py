@@ -642,6 +642,10 @@ KNOWN_CHANGES = [
   ('2022-02-25 18:03:10',
    'LUCENE-10421: Use fixed seed for HNSW search',
    'LUCENE-10421: Use fixed seed for HNSW search'),
+
+  ('2022-04-21 18:03:04',
+   'LUCENE-10517: specialize SSDV pure-browse facets for some cases',
+   'LUCENE-10517: specialize SSDV pure-browse facets for some cases'),
 ]
 
 # TODO

@@ -51,7 +51,10 @@ import perf.OpenDirectory;
 
 public class BenchmarkFacets {
 
-    public static double BILLION = 1000000000;
+    public static double MILLION = 1_000_000;
+
+    public static String SSDV_FIELD_NAME = "address.sortedset";
+    public static String TAXO_FIELD_NAME = "address.taxonomy";
 
     public static void main(String[] args) throws IOException {
         File indexPath = new File(args[0]);
@@ -80,81 +83,118 @@ public class BenchmarkFacets {
         DirectoryTaxonomyReader taxoReader = new DirectoryTaxonomyReader(taxoDir);
 
         FacetsConfig config = new FacetsConfig();
-        config.setIndexFieldName("address.taxonomy", "address.taxonomy");
-        config.setHierarchical("address.taxonomy", true);
+        config.setIndexFieldName(TAXO_FIELD_NAME, TAXO_FIELD_NAME);
+        config.setHierarchical(TAXO_FIELD_NAME, true);
+        config.setHierarchical(SSDV_FIELD_NAME, true);
 
         try {
+            // SSDV state creation
+            SortedSetDocValuesReaderState state = new DefaultSortedSetDocValuesReaderState(s.getIndexReader(), config);
+
+            System.out.println("Warming up...");
+
+            // Warmup
+            for (int i = 0; i < 5; i++) {
+                FacetsCollector c = new FacetsCollector();
+                s.search(new MatchAllDocsQuery(), c);
+                Facets taxoFacets = new FastTaxonomyFacetCounts(TAXO_FIELD_NAME, taxoReader, config, c);
+                Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
+                taxoFacets.getAllDims(5);
+                ssdvFacets.getAllDims(5);
+                taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
+                ssdvFacets.getTopChildren(10, SSDV_FIELD_NAME, "TX");
+            }
+
             System.out.println("Number of docs: " + s.getIndexReader().numDocs());
             System.out.println("Number of segments: " + s.getIndexReader().leaves().size());
-            String ssdvFieldName = "address.sortedset";
-            String taxoFieldName = "address.taxonomy";
 
-            System.out.println("Testing facet instanciation...");
+            System.out.println("Running benchmark...");
 
-            FacetsCollector c = new FacetsCollector();
-            s.search(new MatchAllDocsQuery(), c);
+            int numIters = 20;
 
-            long createFastTaxoCountsStart = System.nanoTime();
-            Facets taxoFacets = new FastTaxonomyFacetCounts(taxoFieldName, taxoReader, config, c);
-            long createFastTaxoCountsEnd = System.nanoTime();
-            double createFastTaxoCountsTime = (double)(createFastTaxoCountsEnd - createFastTaxoCountsStart) / BILLION;
+            double totalCreateFastTaxoCountsTimeMS = 0;
+            double totalCreateSSDVCountsTimeMS = 0;
+            double totalTaxoGetAllDimsTimeMS = 0;
+            double totalSSDVGetAllDimsTimeMS = 0;
+            double totalTaxoGetChildrenTimeMS = 0;
+            double totalSSDVGetChildrenTimeMS = 0;
 
-            // only benchmark count creation
-            SortedSetDocValuesReaderState state = new DefaultSortedSetDocValuesReaderState(s.getIndexReader(), config);
-            long createSSDVReaderStateStart = System.nanoTime();
-            Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
-            long createSSDVReaderStateEnd = System.nanoTime();
-            double createSSDVReaderStateTime = (double)(createSSDVReaderStateEnd - createSSDVReaderStateStart) / BILLION;
+            for (int i = 1; i < numIters + 1; i++) {
+                FacetsCollector c = new FacetsCollector();
+                s.search(new MatchAllDocsQuery(), c);
 
-            System.out.println("Time (s) taken to instanciate FastTaxonomyFacetCounts: " + createFastTaxoCountsTime);
-            System.out.println("Time (s) taken to instanciate SSDVFacetCounts: " + createSSDVReaderStateTime);
-            System.out.println("Percent difference: " + getPercentDiff(createFastTaxoCountsTime, createSSDVReaderStateTime) + "%");
+                long createFastTaxoCountsStartNS = System.nanoTime();
+                Facets taxoFacets = new FastTaxonomyFacetCounts(TAXO_FIELD_NAME, taxoReader, config, c);
+                long createFastTaxoCountsEndNS = System.nanoTime();
+                double createFastTaxoCountsTimeMS = (double)(createFastTaxoCountsEndNS - createFastTaxoCountsStartNS) / MILLION;
+                totalCreateFastTaxoCountsTimeMS += createFastTaxoCountsTimeMS;
 
-            // test getAllDims (there is only 1 dim, address.taxonomy or sortedset.taxonomy)
-            System.out.println("Testing getAllDims...");
+                long createSSDVReaderCountsStartNS = System.nanoTime();
+                Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
+                long createSSDVReaderCountsEndNS = System.nanoTime();
+                double createSSDVReaderStateTimeMS = (double)(createSSDVReaderCountsEndNS - createSSDVReaderCountsStartNS) / MILLION;
+                totalCreateSSDVCountsTimeMS += createSSDVReaderStateTimeMS;
 
-            long taxoGetAllDimsStart = System.nanoTime();
-            List<FacetResult> results = taxoFacets.getAllDims(5);
-            long taxoGetAllDimsEnd = System.nanoTime();
-            double taxoGetAllDimsTime = (double) (taxoGetAllDimsEnd - taxoGetAllDimsStart) / BILLION;
+                long taxoGetAllDimsStartNS = System.nanoTime();
+                List<FacetResult> results = taxoFacets.getAllDims(5);
+                long taxoGetAllDimsEndNS = System.nanoTime();
+                double taxoGetAllDimsTimeMS = (double) (taxoGetAllDimsEndNS - taxoGetAllDimsStartNS) / MILLION;
+                totalTaxoGetAllDimsTimeMS += taxoGetAllDimsTimeMS;
 
-            long ssdvGetAllDimsStart = System.nanoTime();
-            results = ssdvFacets.getAllDims(5);
-            long ssdvGetAllDimsEnd = System.nanoTime();
-            double ssdvGetAllDimsTime = (double) (ssdvGetAllDimsEnd - ssdvGetAllDimsStart) / BILLION;
+                long ssdvGetAllDimsStartNS = System.nanoTime();
+                results = ssdvFacets.getAllDims(5);
+                long ssdvGetAllDimsEndNS = System.nanoTime();
+                double ssdvGetAllDimsTimeMS = (double) (ssdvGetAllDimsEndNS - ssdvGetAllDimsStartNS) / MILLION;
+                totalSSDVGetAllDimsTimeMS += ssdvGetAllDimsTimeMS;
 
-            System.out.println("Time (s) taken to get all dims for taxonomy: " + taxoGetAllDimsTime);
-            System.out.println("Time (s) taken to get all dims for SSDV: " + ssdvGetAllDimsTime);
-            System.out.println("Percent difference: " + getPercentDiff(taxoGetAllDimsTime, ssdvGetAllDimsTime) + "%");
+                long taxoGetChildrenStartNS = System.nanoTime();
+                FacetResult result = taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
+                long taxoGetAllChildrenEndNS = System.nanoTime();
+                double taxoGetAllChildrenTimeMS = (double) (taxoGetAllChildrenEndNS - taxoGetChildrenStartNS) / MILLION;
+                totalTaxoGetChildrenTimeMS += taxoGetAllChildrenTimeMS;
 
-            // test get top children
-            System.out.println("Testing getTopChildren...");
+                long ssdvGetChildrenStartNS = System.nanoTime();
+                result = ssdvFacets.getTopChildren(10, SSDV_FIELD_NAME, "TX");
+                long ssdvGetChildrenEndNS = System.nanoTime();
+                double ssdvGetAllChildrenTimeMS = (double) (ssdvGetChildrenEndNS - ssdvGetChildrenStartNS) / MILLION;
+                totalSSDVGetChildrenTimeMS += ssdvGetAllChildrenTimeMS;
 
-            long taxoGetChildrenStart = System.nanoTime();
-            FacetResult result = taxoFacets.getTopChildren(10, taxoFieldName, "TX");
-            long taxoGetAllChildrenEnd = System.nanoTime();
-            double taxoGetAllChildrenTime = (double) (taxoGetAllChildrenEnd - taxoGetAllDimsStart) / BILLION;
+                System.out.println("Results after iteration " + i + "\n");
 
-            long ssdvGetChildrenStart = System.nanoTime();
-            result = ssdvFacets.getTopChildren(10, ssdvFieldName, "TX");
-            long ssdvGetChildrenEnd = System.nanoTime();
-            double ssdvGetAllChildrenTime = (double) (ssdvGetChildrenEnd - ssdvGetAllDimsStart) / BILLION;
+                System.out.println("Time (ms) taken to instanciate FastTaxonomyFacetCounts: " + totalCreateFastTaxoCountsTimeMS / (double) i);
+                System.out.println("Time (ms) taken to instanciate SSDVFacetCounts: " + totalCreateSSDVCountsTimeMS / (double) i);
+                reportPercentDifference(totalCreateFastTaxoCountsTimeMS / (double) i, totalCreateSSDVCountsTimeMS / (double) i);
+                System.out.println("");
 
-            System.out.println("Time (s) taken to get all dims for taxonomy: " + taxoGetAllChildrenTime);
-            System.out.println("Time (s) taken to get all dims for SSDV: " + ssdvGetAllChildrenTime);
-            System.out.println("Percent difference: " + getPercentDiff(taxoGetAllChildrenTime, ssdvGetAllChildrenTime) + "%");
+                System.out.println("Time (ms) taken to get all dims for taxonomy: " + totalTaxoGetAllDimsTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get all dims for SSDV: " + totalSSDVGetAllDimsTimeMS / (double) i);
+                reportPercentDifference(totalTaxoGetAllDimsTimeMS / (double) i, totalSSDVGetAllDimsTimeMS / (double) i);
+                System.out.println("");
 
+                System.out.println("Time (ms) taken to get top children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetChildrenTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get top \"address.sortedset/TX\" children for SSDV: " + totalSSDVGetChildrenTimeMS / (double) i);
+                reportPercentDifference(totalTaxoGetChildrenTimeMS / (double) i, totalSSDVGetChildrenTimeMS / (double) i);
+
+                System.out.print("\n");
+            }
         } finally {
             mgr.release(s);
         }
     }
 
-    public static double getPercentDiff(double a, double b) {
-        if (a == b) {
-            return 100.0;
+    public static void reportPercentDifference(double taxo, double ssdv) {
+        if (taxo == ssdv) {
+            System.out.println("No difference");
+            return;
         }
-        double larger = a > b ? a : b;
-        double smaller = a > b ? b : a;
-        return (larger / smaller) * 100;
+        double larger = taxo > ssdv ? taxo : ssdv;
+        double smaller = taxo > ssdv ? ssdv : taxo;
+        double percent = ((larger - smaller) / smaller) * 100;
+        String percentString = String.format("%.1f", percent);
+        if (taxo == larger) {
+            System.out.println("Taxonomy is " + percentString + "% slower than SSDV");
+        } else {
+            System.out.println("SSDV is " + percentString + "% slower than Taxonomy");
+        }
     }
 }

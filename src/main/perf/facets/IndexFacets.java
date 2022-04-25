@@ -30,6 +30,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.io.Reader;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,6 +40,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
+import java.util.Comparator;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -58,6 +61,9 @@ public class IndexFacets {
     public static void main(String args[]) throws IOException {
         String facetFile = args[0];
         File indexPath = new File(args[1]);
+
+        Path checkPath = indexPath.toPath();
+        deleteDirectoryIfExists(checkPath);
 
         final Directory dir;
         OpenDirectory od = OpenDirectory.get("NIOFSDirectory");
@@ -80,6 +86,7 @@ public class IndexFacets {
         FacetsConfig config = new FacetsConfig();
         config.setIndexFieldName("address.taxonomy", "address.taxonomy");
         config.setHierarchical("address.taxonomy", true);
+        config.setHierarchical("address.sortedset", true);
 
         lines.limit(60000000).forEach(withCounter((i, line) -> {
             String[] lineArr = line.split(",");
@@ -123,5 +130,22 @@ public class IndexFacets {
     public static <T> Consumer<T> withCounter(BiConsumer<Integer, T> consumer) {
         AtomicInteger counter = new AtomicInteger(0);
         return item -> consumer.accept(counter.getAndIncrement(), item);
+    }
+
+    private static void deleteDirectoryIfExists(Path path) throws IOException {
+        if (Files.exists(path)) {
+            try(Stream<Path> walk = Files.walk(path)) {
+                walk.sorted(Comparator.reverseOrder()).forEach(IndexFacets::deleteFile);
+            }
+        }
+    }
+
+    private static void deleteFile(Path path) {
+        try {
+            Files.delete(path);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
     }
 }

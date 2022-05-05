@@ -624,8 +624,8 @@ KNOWN_CHANGES = [
    'LUCENE-10346: specialize single-valued doc values during taxonomy facet counting'),
 
   ('2022-01-19 10:17:11',
-   'LUCENE-10375: Speed up HNSW merge by writing combined vector data',
-   'LUCENE-10375: Speed up HNSW merge by writing combined vector data'),
+   'Upgrade arch linux 5.15.10 -> 5.16.1; LUCENE-10375: Speed up HNSW merge by writing combined vector data',
+   'Upgrade arch linux 5.15.10 -> 5.16.1; LUCENE-10375: Speed up HNSW merge by writing combined vector data'),
 
   ('2022-01-26 18:03:08',
    'LUCENE-10054: Make HnswGraph hierarchical',

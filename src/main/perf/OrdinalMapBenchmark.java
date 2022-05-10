@@ -48,6 +48,8 @@ import org.apache.lucene.util.IOUtils;
 /** Benchmark indexing stored fields on 1M lines of Geonames. */
 public class OrdinalMapBenchmark {
 
+  private static final int ITERS = 10;
+
   public static void main(String args[]) throws Exception {
     if (args.length != 3) {
       System.err.println("Usage: OrdinalMapBenchmark /path/to/geonames.txt /path/to/index/dir doc_limit(or -1 means index all lines)");
@@ -75,14 +77,16 @@ public class OrdinalMapBenchmark {
 
         System.err.println("Now run benchmark");
         for (String field : new String[] { "id", "name", "country_code", "time_zone" }) {
-          // Take the min across multiple runs to decrease noise
-          long minDurationNS = Long.MAX_VALUE;
-          for (int i = 0; i < 10; ++i) {
-            long t0 = System.nanoTime();
-            loadOrdinalMap(reader, field);
-            minDurationNS = Math.min(minDurationNS, System.nanoTime() - t0);
-          }
-          System.out.println(String.format(Locale.ROOT, "%s: %.5f msec", field, minDurationNS / 1_000_000.));
+          // Force a GC now to hopefully not have one running during the benchmark and decrease noise
+          System.gc();
+          // System#gc javadocs say that the JVM has already made effort to reclaim space when it returns
+          // but it looks like we're getting less noisy results if we add a Thread#sleep call after
+          // System#gc.
+          Thread.sleep(1000);
+          long t0 = System.nanoTime();
+          loadOrdinalMap(reader, field);
+          long durationNS = System.nanoTime() - t0;
+          System.out.println(String.format(Locale.ROOT, "%s: %.5f msec", field, (durationNS / 1_000_000.) / ITERS));
         }
       }
     }
@@ -142,7 +146,7 @@ public class OrdinalMapBenchmark {
     for (LeafReaderContext context : reader.leaves()) {
       values[context.ord] = DocValues.getSorted(context.reader(), field);
     }
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < ITERS; ++i) {
       OrdinalMap map = OrdinalMap.build(null, values, 0f);
       if (map.getValueCount() == 0) {
         throw new Error("missing field: " + field);

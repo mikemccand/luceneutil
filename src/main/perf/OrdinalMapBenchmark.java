@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Locale;
 
-import org.apache.lucene.codecs.lucene91.Lucene91Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.SortedDocValuesField;
@@ -95,7 +94,6 @@ public class OrdinalMapBenchmark {
   private static IndexWriterConfig getConfig() {
     IndexWriterConfig iwc = new IndexWriterConfig();
     iwc.setOpenMode(OpenMode.CREATE);
-    iwc.setCodec(new Lucene91Codec());
     iwc.setMergeScheduler(new SerialMergeScheduler());
     // TieredMergePolicy's 2MB floor segment size would create an index that has few segments compared to
     // real-world usage where documents have more fields including stored fields

@@ -42,7 +42,7 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
-import org.apache.lucene.codecs.lucene91.Lucene91Codec;
+import org.apache.lucene.codecs.lucene92.Lucene92Codec;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -329,7 +329,7 @@ public final class Indexer {
 
     final String facetDVFormatName;
     if (facetFields.isEmpty()) {
-      facetDVFormatName = "Lucene91";
+      facetDVFormatName = "Lucene90";
     } else {
       facetDVFormatName = args.getString("-facetDVFormat");
     }
@@ -387,7 +387,7 @@ public final class Indexer {
     }
 
     // Use codec at defaults:
-    final Codec codec = new Lucene91Codec() {
+    final Codec codec = new Lucene92Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
           return PostingsFormat.forName(field.equals("id") ?

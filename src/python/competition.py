@@ -268,6 +268,7 @@ class Competitor(object):
                pk = True,
                vectorDict = None,
                loadStoredFields = False,
+               timeout = None,
                concurrentSearches = False,
                javacCommand = constants.JAVAC_EXE):
     self.name = name
@@ -289,6 +290,7 @@ class Competitor(object):
     self.pk = pk
     self.loadStoredFields = loadStoredFields
     self.vectorDict = vectorDict
+    self.timeout = timeout
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
 

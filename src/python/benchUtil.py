@@ -1111,6 +1111,8 @@ class RunAlgs:
       w('-loadStoredFields')
     if c.vectorDict:
       w('-vectorDict', c.vectorDict)
+    if c.timeout:
+      w('-timeout', c.timeout)
 
     print('      log: %s + stdout' % logFile)
     t0 = time.time()

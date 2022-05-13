@@ -55,11 +55,13 @@ import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.ExitableDirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.QueryTimeoutImpl;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -197,6 +199,7 @@ public class SearchPerfTest {
     final boolean doConcurrentSearches = args.getFlag("-concurrentSearches");
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
+    final QueryTimeoutImpl timeout = args.hasArg("-timeout") ? new QueryTimeoutImpl(args.getLong("-timeout")) : null;
 
     int cores = Runtime.getRuntime().availableProcessors();
 
@@ -408,14 +411,15 @@ public class SearchPerfTest {
     } else {
       dir = dir0;
       writer = null;
-      final DirectoryReader reader;
+      DirectoryReader _reader;
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening searcher on commit=" + commit);
-        reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
+        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
       } else {
         // open last commit
-        reader = DirectoryReader.open(dir);
+        _reader = DirectoryReader.open(dir);
       }
+      final DirectoryReader reader = timeout == null ? _reader : ExitableDirectoryReader.wrap(_reader, timeout);
 
       IndexSearcher s = createIndexSearcher(reader, executorService);
       s.setQueryCache(null); // don't bench the cache

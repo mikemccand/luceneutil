@@ -411,7 +411,7 @@ public class SearchPerfTest {
     } else {
       dir = dir0;
       writer = null;
-      DirectoryReader _reader;
+      final DirectoryReader _reader;
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening searcher on commit=" + commit);
         _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));

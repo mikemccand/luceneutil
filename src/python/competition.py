@@ -268,6 +268,7 @@ class Competitor(object):
                pk = True,
                vectorDict = None,
                loadStoredFields = False,
+               exitable = False,
                concurrentSearches = False,
                javacCommand = constants.JAVAC_EXE):
     self.name = name
@@ -288,6 +289,7 @@ class Competitor(object):
     self.hiliteImpl = hiliteImpl
     self.pk = pk
     self.loadStoredFields = loadStoredFields
+    self.exitable = exitable
     self.vectorDict = vectorDict
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches

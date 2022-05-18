@@ -152,13 +152,13 @@ public class BenchmarkFacets {
                 totalSSDVGetAllDimsTimeMS += ssdvGetAllDimsTimeMS;
 
                 long taxoGetTopDimsStartNS = System.nanoTime();
-                List<FacetResult> topDimsResults = taxoFacets.getTopDims(5, 5);
+                results = taxoFacets.getTopDims(5, 5);
                 long taxoGetTopDimsEndNS = System.nanoTime();
                 double taxoGetTopDimsTimeMS = (double) (taxoGetTopDimsEndNS - taxoGetTopDimsStartNS) / MILLION;
                 totalTaxoGetTopDimsTimeMS += taxoGetTopDimsTimeMS;
 
                 long ssdvGetTopDimsStartNS = System.nanoTime();
-                topDimsResults = ssdvFacets.getTopDims(5, 5);
+                results = ssdvFacets.getTopDims(5, 5);
                 long ssdvGetTopDimsEndNS = System.nanoTime();
                 double ssdvGetTopDimsTimeMS = (double) (ssdvGetTopDimsEndNS - ssdvGetTopDimsStartNS) / MILLION;
                 totalSSDVGetTopDimsTimeMS += ssdvGetTopDimsTimeMS;

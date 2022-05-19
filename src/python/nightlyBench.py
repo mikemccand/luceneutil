@@ -643,6 +643,10 @@ KNOWN_CHANGES = [
    'LUCENE-10421: Use fixed seed for HNSW search',
    'LUCENE-10421: Use fixed seed for HNSW search'),
 
+  ('2022-03-23 18:03:07',
+   'LUCENE-10481: FacetsCollector sets ScoreMode.COMPLETE_NO_SCORES when scores are not needed',
+   'LUCENE-10481: FacetsCollector sets ScoreMode.COMPLETE_NO_SCORES when scores are not needed'),
+
   ('2022-04-21 18:03:04',
    'LUCENE-10517: specialize SSDV pure-browse facets for some cases',
    'LUCENE-10517: specialize SSDV pure-browse facets for some cases'),

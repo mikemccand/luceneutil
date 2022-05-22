@@ -29,6 +29,8 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import perf.VectorDictionary;
 
@@ -45,12 +47,25 @@ public class WikiVectors {
   int dimension;
 
   public static void main(String[] args) throws Exception {
-    if (args.length != 3) {
-      System.err.println("usage: WikiVectors <vectorDictionary> <lineDocs> <docVectorOutput>");
-      System.exit(-1);
+    if (args.length < 3) {
+      usage();
     }
-    WikiVectors wv = new WikiVectors(new VectorDictionary(args[0]));
-    wv.computeVectors(args[1], args[2]);
+    float scale = 1;
+    List<String> argList = List.of(args);
+    if (args[0].equals("-scale")) {
+      scale = Float.parseFloat(args[1]);
+      argList = argList.subList(2, argList.size());
+    }
+    if (argList.size() != 3) {
+      usage();
+    }
+    WikiVectors wv = new WikiVectors(new VectorDictionary(argList.get(0), scale));
+    wv.computeVectors(argList.get(1), argList.get(2));
+  }
+
+  static void usage() {
+      System.err.println("usage: WikiVectors [-scale X] <vectorDictionary> <lineDocs> <docVectorOutput>");
+      System.exit(-1);
   }
 
   WikiVectors(VectorDictionary dict) {

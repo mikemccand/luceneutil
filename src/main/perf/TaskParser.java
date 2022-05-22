@@ -70,7 +70,7 @@ class TaskParser {
                     String fieldName,
                     int topN,
                     Random random,
-                    String vectorFile,
+                    VectorDictionary vectorDictionary,
                     boolean doStoredLoads) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
@@ -78,11 +78,10 @@ class TaskParser {
     this.random = random;
     this.doStoredLoads = doStoredLoads;
     this.state = state;
-    if (vectorFile != null) {
-      vectorDictionary = new VectorDictionary(vectorFile);
+    this.vectorDictionary = vectorDictionary;
+    if (vectorDictionary != null) {
       vectorField = "vector";
     } else {
-      vectorDictionary = null;
       vectorField = null;
     }
     titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));

@@ -435,7 +435,7 @@ public class SearchPerfTest {
     {
       IndexSearcher s = mgr.acquire();
       try {
-        System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc() + ": " + s);
+        System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc());
       } finally {
         mgr.release(s);
       }
@@ -510,7 +510,18 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     final QueryParser queryParser = new QueryParser("body", a);
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorFile, doStoredLoads);
+    VectorDictionary vectorDictionary;
+    if (vectorFile != null) {
+      Float scale = args.getFloat("-vectorScale");
+      if (scale != null) {
+        vectorDictionary = new VectorDictionary(vectorFile, scale);
+      } else {
+        vectorDictionary = new VectorDictionary(vectorFile, 1f);
+      }
+    } else {
+      vectorDictionary = null;
+    }
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorDictionary, doStoredLoads);
 
     final TaskSource tasks;
 

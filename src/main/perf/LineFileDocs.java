@@ -73,6 +73,14 @@ public class LineFileDocs implements Closeable {
 
   // sentinel:
   private final static LineFileDoc END = new LineFileDoc("END", null);
+  private final static VectorSimilarityFunction VECTOR_SIMILARITY = dotProductSimilarity();
+  private static VectorSimilarityFunction dotProductSimilarity() {
+    try {
+      return VectorSimilarityFunction.valueOf("DOT_PRODUCT8");
+    } catch (IllegalArgumentException e) {
+      return VectorSimilarityFunction.DOT_PRODUCT;
+    }
+  }
 
   private final AtomicInteger nextID = new AtomicInteger();
 
@@ -441,7 +449,7 @@ public class LineFileDocs implements Closeable {
 
       if (vectorDimension > 0) {
         // create a throwaway vector so the field's type gets the proper dimension
-        vector = new KnnVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
+        vector = new KnnVectorField("vector", new float[vectorDimension], VECTOR_SIMILARITY);
         doc.add(vector);
       } else {
         vector = null;

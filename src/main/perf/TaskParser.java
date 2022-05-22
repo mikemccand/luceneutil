@@ -62,7 +62,7 @@ class TaskParser {
   private final Random random;
   private final boolean doStoredLoads;
   private final IndexState state;
-  private final VectorDictionary vectorDictionary;
+  private final VectorDictionary<?> vectorDictionary;
   private final String vectorField;
 
   public TaskParser(IndexState state,
@@ -70,7 +70,7 @@ class TaskParser {
                     String fieldName,
                     int topN,
                     Random random,
-                    String vectorFile,
+                    VectorDictionary<?> vectorDictionary,
                     boolean doStoredLoads) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
@@ -78,11 +78,10 @@ class TaskParser {
     this.random = random;
     this.doStoredLoads = doStoredLoads;
     this.state = state;
-    if (vectorFile != null) {
-      vectorDictionary = new VectorDictionary(vectorFile);
+    this.vectorDictionary = vectorDictionary;
+    if (vectorDictionary != null) {
       vectorField = "vector";
     } else {
-      vectorDictionary = null;
       vectorField = null;
     }
     titleDVSort = new Sort(new SortField("title", SortField.Type.STRING));
@@ -594,8 +593,7 @@ class TaskParser {
     }
 
     Query parseVectorQuery() {
-      float[] queryVector = vectorDictionary.computeTextVector(text);
-      return new KnnVectorQuery("vector", queryVector, topN);
+      return new KnnVectorQuery(vectorField, vectorDictionary.computeTextVector(text), topN);
     }
   }
 }

@@ -87,6 +87,14 @@ public class Args {
     return Float.parseFloat(getString(argName));
   }
 
+  public Float getFloat(String argName, Float defaultValue) {
+    String arg = getString(argName, null);
+    if (arg == null) {
+      return defaultValue;
+    }
+    return Float.parseFloat(arg);
+  }
+
   public long getLong(String argName) {
     return Long.parseLong(getString(argName));
   }

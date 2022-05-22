@@ -27,15 +27,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
-public class VectorDictionary {
+import org.apache.lucene.index.VectorEncoding;
+
+/**
+ * @param T the type of vector; either float[] or byte[]
+ */
+public class VectorDictionary<T> {
 
   private final Map<String, float[]> dict = new HashMap<>();
+  public final float scale;
+  public final VectorEncoding vectorEncoding;
 
   public final int dimension;
 
-  public VectorDictionary(String filename) throws IOException {
+  public static VectorDictionary<float[]> create (String filename) throws IOException {
+    return new VectorDictionary<float[]>(filename, 0f, VectorEncoding.FLOAT32);
+  }
+
+  public static VectorDictionary<byte[]> create (String filename, float scale) throws IOException {
+    return new VectorDictionary<byte[]>(filename, scale, VectorEncoding.BYTE);
+  }
+
+  public int size() {
+    return dict.size();
+  }
+
+  public float[] get(String key) {
+    return dict.get(key);
+  }
+
+  private VectorDictionary(String filename, float scale, VectorEncoding vectorEncoding) throws IOException {
     // read a dictionary file where each line has a token and its n-dimensional vector as text:
     // <word> <f1> <f2> ... <fn>
+    this.scale = scale;
+    this.vectorEncoding = vectorEncoding;
     int dim = 0;
     try (BufferedReader reader = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8)) {
       String line = reader.readLine();
@@ -46,11 +71,13 @@ public class VectorDictionary {
           String err = String.format("vector dimension %s is not the initial dimension: %s for line: %s", lineDim, dim, line);
           throw new IllegalStateException(err);
         }
+        /*
         if (dict.size() % 10000 == 0) {
           System.out.print("loaded " + dict.size() + "\n");
         }
+        */
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
       System.err.println("An error occurred after reading " + dict.size() + " entries from " + filename);
       throw e;
     }
@@ -70,8 +97,8 @@ public class VectorDictionary {
       vector[i - 1] = Float.parseFloat(parts[i]);
     }
     double norm = vectorNorm(vector);
-    // We want only unit vectors
     if (norm > 0) {
+      // We want unit vectors
       vectorDiv(vector, norm);
       dict.put(token, vector);
     } else {
@@ -94,15 +121,19 @@ public class VectorDictionary {
         count++;
       }
     }
-    vectorDiv(dvec, vectorNorm(dvec));
-    if (Math.abs(vectorNorm(dvec) - 1) > 1e-5) {
-      throw new IllegalStateException("Vector is not unitary for doc '" + text + "'" +
-                                      " norm=" + vectorNorm(dvec));
+    switch (vectorEncoding) {
+      case BYTE -> {
+        vectorDiv(dvec, vectorNorm(dvec) / scale);
+        vectorClip(dvec, -128, 127);
+      }
+      case FLOAT32 -> {
+        vectorDiv(dvec, vectorNorm(dvec));
+      }
     }
     return dvec;
   }
 
-  static double vectorNorm(float[] x) {
+  public static double vectorNorm(float[] x) {
     double sum2 = 0;
     for (float f : x) {
       sum2 += f * f;
@@ -118,8 +149,17 @@ public class VectorDictionary {
   }
 
   static void vectorDiv(float[] v, double x) {
+    if (x == 0) {
+      return;
+    }
     for (int i = 0; i < v.length; i++) {
       v[i] /= x;
+    }
+  }
+
+  static void vectorClip(float[] v, float min, float max) {
+    for (int i = 0; i < v.length; i++) {
+      v[i] = (float) Math.min(max, Math.max(min, v[i]));
     }
   }
 

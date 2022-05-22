@@ -54,6 +54,7 @@ WIKI_BIG_1M = Data('wikibig1m', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, cons
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 WIKI_VECTOR_10K = Data('wikivector10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_VECTOR_TASKS_FILE)
+WIKI_VECTOR_1M = Data('wikivector1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_VECTOR_TASKS_FILE)
 
 DISJUNCTION_SIMPLE = Data('disjunctionSimple',
                           constants.DISJUNCTION_DOCS_LINE_FILE,
@@ -97,6 +98,7 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM,
         'wikivector10k' : WIKI_VECTOR_10K,
+        'wikivector1m' : WIKI_VECTOR_1M,
         'disjunctionSimple' : DISJUNCTION_SIMPLE,
         'disjunctionRealistic' : DISJUNCTION_REALISTIC,
         'disjunctionIntensive' : DISJUNCTION_INTENSIVE,
@@ -152,6 +154,7 @@ class Index(object):
                indexSort = None,
                vectorFile = None,
                vectorDimension = None,
+               vectorEncoding = None,
                # an int defining how many segments to rearrange to, 0 represents not performing rearrange
                # rearrange /100 gives how many large segments desired
                # (rearrange % 100) / 10 gives how many medium segments desired
@@ -198,6 +201,7 @@ class Index(object):
     self.indexSort = indexSort
     self.vectorFile = vectorFile
     self.vectorDimension = vectorDimension
+    self.vectorEncoding = vectorEncoding
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -267,6 +271,7 @@ class Competitor(object):
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
                vectorDict = None,
+               vectorScale = None,
                loadStoredFields = False,
                exitable = False,
                concurrentSearches = False,
@@ -291,6 +296,7 @@ class Competitor(object):
     self.loadStoredFields = loadStoredFields
     self.exitable = exitable
     self.vectorDict = vectorDict
+    self.vectorScale = vectorScale
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
 

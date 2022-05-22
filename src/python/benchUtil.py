@@ -743,7 +743,7 @@ def stats(l):
     return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
 
 def run(cmd, logFile=None, indent='    '):
-  print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))
+  #print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))
   if logFile is not None:
     out = open(logFile, 'wb')
   else:
@@ -844,6 +844,7 @@ class RunAlgs:
       if index.vectorFile:
         w('-vectorFile', index.vectorFile)
         w('-vectorDimension', index.vectorDimension)
+        w('-vectorEncoding', index.vectorEncoding)
 
       if index.optimize:
         w('-forceMerge')
@@ -1111,6 +1112,8 @@ class RunAlgs:
       w('-loadStoredFields')
     if c.vectorDict:
       w('-vectorDict', c.vectorDict)
+    if c.vectorScale:
+      w('-vectorScale', c.vectorScale)
     if c.exitable:
       w('-exitable')
 

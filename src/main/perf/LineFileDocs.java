@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -64,6 +65,7 @@ import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
@@ -96,11 +98,14 @@ public class LineFileDocs implements Closeable {
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
   private final String vectorFile;
   private final int vectorDimension;
+  private final VectorEncoding vectorEncoding;
   private SeekableByteChannel vectorChannel;
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
-                      FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension) throws IOException {
+                      FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension,
+                      VectorEncoding vectorEncoding)
+    throws IOException {
     this.path = path;
     this.isBinary = path.endsWith(".bin");
     this.storeBody = storeBody;
@@ -114,6 +119,7 @@ public class LineFileDocs implements Closeable {
     this.addDVFields = addDVFields;
     this.vectorFile = vectorFile;
     this.vectorDimension = vectorDimension;
+    this.vectorEncoding = vectorEncoding;
 
     open();
     readerThread = new Thread() {
@@ -356,7 +362,7 @@ public class LineFileDocs implements Closeable {
     final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
-    final KnnVectorField vector;
+    final KnnVectorField vectorField;
 
     // For just y/m/day:
     //final SimpleDateFormat dateParser = new SimpleDateFormat("y/M/d", Locale.US);
@@ -365,7 +371,7 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension, VectorEncoding vectorEncoding) {
       doc = new Document();
 
       title = new StringField("title", "", Field.Store.NO);
@@ -449,17 +455,20 @@ public class LineFileDocs implements Closeable {
       doc.add(timeSec);
 
       if (vectorDimension > 0) {
-        // create a throwaway vector so the field's type gets the proper dimension
-        vector = new KnnVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
-        doc.add(vector);
+        // create a throwaway vector so the field's type gets the proper dimension and similarity
+        vectorField = switch (vectorEncoding) {
+          case BYTE -> new KnnVectorField("vector", new BytesRef(new byte[vectorDimension]), VectorSimilarityFunction.DOT_PRODUCT);
+          case FLOAT32 -> new KnnVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
+        };
+        doc.add(vectorField);
       } else {
-        vector = null;
+        vectorField = null;
       }
     }
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, vectorDimension);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, vectorDimension, vectorEncoding);
   }
 
   // TODO: is there a pre-existing way to do this!!!
@@ -479,7 +488,8 @@ public class LineFileDocs implements Closeable {
       } else if (f instanceof BinaryDocValuesField) {
         doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
       } else if (f instanceof KnnVectorField) {
-        doc2.add(new KnnVectorField(f.name(), ((KnnVectorField) f).vectorValue(), f.fieldType().vectorSimilarityFunction()));
+        KnnVectorField knnf = ((KnnVectorField) f);
+        doc2.add(new KnnVectorField(f.name(), knnf.vectorValue(), f.fieldType().vectorSimilarityFunction()));
       } else {
         Field field2 = new Field(f.name(),
                                  f.stringValue(),
@@ -571,7 +581,7 @@ public class LineFileDocs implements Closeable {
       line = null;
 
       if (lfd.vector != null) {
-        lfd.vector.get(doc.vector.vectorValue());
+        lfd.getVector(doc.vectorField.vectorValue());
       }
 
     } else {
@@ -627,8 +637,8 @@ public class LineFileDocs implements Closeable {
       doc.dateCal.setTime(date);
       msecSinceEpoch = doc.dateCal.getTimeInMillis();
       timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-      if (doc.vector != null) {
-        doc.vector.setVectorValue(lfd.vector.array());
+      if (doc.vectorField != null) {
+        doc.vectorField.setVectorValue((float[]) lfd.vector.array());
       }
     }
 
@@ -770,7 +780,7 @@ public class LineFileDocs implements Closeable {
     // more specifically, for text based LFD the vector is single valued
     // but for binary based LFD the vector contains value for all the documents
     // in the block
-    private final FloatBuffer vector;
+    private final Buffer vector;
 
     LineFileDoc(float[] vector) {
       if (vector == null) {
@@ -850,6 +860,30 @@ public class LineFileDocs implements Closeable {
       ByteBuffer getBlockByteText() {
         return blockByteText;
       }
+    }
+
+    LineFileDoc(String text, byte[] vector) {
+      if (vector == null) {
+        this.vector = null;
+      } else {
+        this.vector = ByteBuffer.wrap(vector);
+      }
+    }
+
+    LineFileDoc(ByteBuffer bytes, byte[] vector) {
+      if (vector == null) {
+        this.vector = null;
+      } else {
+        this.vector = ByteBuffer.wrap(vector);
+      }
+    }
+
+    void getVector(float[] in) {
+      ((FloatBuffer) vector).get(in);
+    }
+
+    void getVector(byte[] in) {
+      ((ByteBuffer) vector).get(in);
     }
   }
 }

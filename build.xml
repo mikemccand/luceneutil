@@ -14,6 +14,11 @@
            includes="WikiVectors.java,perf/VectorDictionary.java"
            classpathref="build.classpath"
            includeantruntime="false"/>
+
+    <!-- run a test; we don't have any framework, just call a test method -->
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="--test"/>
+    </java>
   </target>
 
   <target name="extract-vector-tasks">
@@ -37,12 +42,44 @@
   <target name="vectors300-docs" depends="build">
     <java className="WikiVectors" classpathref="build.classpath">
       <arg value="${data.dir}/glove.6B.300d.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
       <arg value="${data.dir}/enwiki-20120502-lines-1k-300d.vec"/>
     </java>
   </target>
 
-  <target name="vectors300" depends="vectors300-tasks,vectors300-docs"/>
+  <target name="vectors300-8bit-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <!-- scale extrapolated from 100-dim by comparing 1/99%ile -->
+      <!--
+          1 Percentile =  -0.16812261939048767
+          10 Percentile =  -0.05280676484107971
+          50 Percentile =  0.0016044741496443748
+          90 Percentile =  0.052327241748571396
+          99 Percentile =  0.12062523514032364
+          100 Percentile =  0.500967800617218
+          average: -0.0013391887
+          stddev: 0.05804375
+          min .. max: -0.6463034 .. 0.5009678
+      -->
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-300d-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300-8bit-tasks" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-300d-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300" depends="vectors300-tasks,vectors300-docs,vectors300-8bit-docs,vectors300-8bit-tasks"/>
 
   <target name="vectors100-tasks" depends="build,extract-vector-tasks">
     <java className="WikiVectors" classpathref="build.classpath">
@@ -55,11 +92,44 @@
   <target name="vectors100-docs" depends="build">
     <java className="WikiVectors" classpathref="build.classpath">
       <arg value="${data.dir}/glove.6B.100d.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
       <arg value="${data.dir}/enwiki-20120502-lines-1k-100d.vec"/>
     </java>
   </target>
 
-  <target name="vectors100" depends="vectors100-tasks,vectors100-docs"/>
+  <target name="vectors100-8bit-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <!-- scale was determined empirically, testing recall -->
+      <!--
+          1 Percentile =  -0.325579971075058
+          10 Percentile =  -0.09507450535893414
+          50 Percentile =  -0.00024916713300626725
+          90 Percentile =  0.10140283405780792
+          99 Percentile =  0.25520724058151245
+          100 Percentile =  0.5750676989555359
+          average: -0.0012661816
+          stddev: 0.10003442
+          min .. max: -0.7082266 .. 0.5750677
+      -->
+      <arg value="-scale"/>
+      <arg value="128"/>
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-100d-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors100-8bit-tasks" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-100d-8bit.vec"/>
+    </java>
+  </target>
+
+  <!-- don't scale the task data here; we'll do it later after summing vectors for each term -->
+  <target name="vectors100" depends="vectors100-tasks,vectors100-docs,vectors100-8bit-docs,vectors100-8bit-tasks"/>
 
 </project>

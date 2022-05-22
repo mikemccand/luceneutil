@@ -38,6 +38,7 @@ WIKI_MEDIUM_DOCS_COUNT = 33332620
 # Thanks to Jeffrey Pennington, Richard Socher, and Christopher D. Manning.
 GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
 GLOVE_VECTOR_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d.vec' % BASE_DIR
+GLOVE_VECTOR8_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d-8bit.vec' % BASE_DIR
 
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
@@ -89,7 +90,7 @@ if 'JAVA_EXE' not in globals():
 if 'JAVAC_EXE' not in globals():
   JAVAC_EXE = 'javac'
 if 'JAVA_COMMAND' not in globals():
-  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
+  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
 else:
   print('use java command %s' % JAVA_COMMAND)
 

@@ -355,7 +355,7 @@ public class SearchPerfTest {
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
       boolean addDVFields = mode == Mode.BDV_UPDATE || mode == Mode.NDV_UPDATE;
-      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, null, 0);
+      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, null, 0, null);
       IndexThreads threads = new IndexThreads(new Random(17), writer, new AtomicBoolean(false), lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
       threads.start();
 
@@ -435,7 +435,7 @@ public class SearchPerfTest {
     {
       IndexSearcher s = mgr.acquire();
       try {
-        System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc() + ": " + s);
+        System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc());
       } finally {
         mgr.release(s);
       }
@@ -510,7 +510,18 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     final QueryParser queryParser = new QueryParser("body", a);
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorFile, doStoredLoads);
+    VectorDictionary vectorDictionary;
+    if (vectorFile != null) {
+      Float scale = args.getFloat("-vectorScale", null);
+      if (scale != null) {
+        vectorDictionary = VectorDictionary.create(vectorFile, scale);
+      } else {
+        vectorDictionary = VectorDictionary.create(vectorFile);
+      }
+    } else {
+      vectorDictionary = null;
+    }
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorDictionary, doStoredLoads);
 
     final TaskSource tasks;
 

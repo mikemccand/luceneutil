@@ -101,6 +101,8 @@ public class BenchmarkFacets {
                 Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
                 taxoFacets.getAllDims(5);
                 ssdvFacets.getAllDims(5);
+                taxoFacets.getTopDims(5, 5);
+                ssdvFacets.getTopDims(5, 5);
                 taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
                 ssdvFacets.getTopChildren(10, SSDV_FIELD_NAME, "TX");
             }
@@ -116,6 +118,8 @@ public class BenchmarkFacets {
             double totalCreateSSDVCountsTimeMS = 0;
             double totalTaxoGetAllDimsTimeMS = 0;
             double totalSSDVGetAllDimsTimeMS = 0;
+            double totalTaxoGetTopDimsTimeMS = 0;
+            double totalSSDVGetTopDimsTimeMS = 0;
             double totalTaxoGetChildrenTimeMS = 0;
             double totalSSDVGetChildrenTimeMS = 0;
 
@@ -147,6 +151,18 @@ public class BenchmarkFacets {
                 double ssdvGetAllDimsTimeMS = (double) (ssdvGetAllDimsEndNS - ssdvGetAllDimsStartNS) / MILLION;
                 totalSSDVGetAllDimsTimeMS += ssdvGetAllDimsTimeMS;
 
+                long taxoGetTopDimsStartNS = System.nanoTime();
+                results = taxoFacets.getTopDims(5, 5);
+                long taxoGetTopDimsEndNS = System.nanoTime();
+                double taxoGetTopDimsTimeMS = (double) (taxoGetTopDimsEndNS - taxoGetTopDimsStartNS) / MILLION;
+                totalTaxoGetTopDimsTimeMS += taxoGetTopDimsTimeMS;
+
+                long ssdvGetTopDimsStartNS = System.nanoTime();
+                results = ssdvFacets.getTopDims(5, 5);
+                long ssdvGetTopDimsEndNS = System.nanoTime();
+                double ssdvGetTopDimsTimeMS = (double) (ssdvGetTopDimsEndNS - ssdvGetTopDimsStartNS) / MILLION;
+                totalSSDVGetTopDimsTimeMS += ssdvGetTopDimsTimeMS;
+
                 long taxoGetChildrenStartNS = System.nanoTime();
                 FacetResult result = taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
                 long taxoGetAllChildrenEndNS = System.nanoTime();
@@ -169,6 +185,11 @@ public class BenchmarkFacets {
                 System.out.println("Time (ms) taken to get all dims for taxonomy: " + totalTaxoGetAllDimsTimeMS / (double) i);
                 System.out.println("Time (ms) taken to get all dims for SSDV: " + totalSSDVGetAllDimsTimeMS / (double) i);
                 reportPercentDifference(totalTaxoGetAllDimsTimeMS / (double) i, totalSSDVGetAllDimsTimeMS / (double) i);
+                System.out.println("");
+
+                System.out.println("Time (ms) taken to get top dims for taxonomy: " + totalTaxoGetTopDimsTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get top dims for SSDV: " + totalSSDVGetTopDimsTimeMS / (double) i);
+                reportPercentDifference(totalTaxoGetTopDimsTimeMS / (double) i, totalSSDVGetTopDimsTimeMS / (double) i);
                 System.out.println("");
 
                 System.out.println("Time (ms) taken to get top children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetChildrenTimeMS / (double) i);

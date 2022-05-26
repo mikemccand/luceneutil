@@ -855,15 +855,6 @@ def run():
     os.makedirs(runLogDir)
   message('log dir %s' % runLogDir)
 
-  message('now run stored fields benchmark')
-  if not REAL:
-    doc_limit = 100000
-  else:
-    # do all docs in the file
-    doc_limit = -1
-  runStoredFieldsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}', localconstants.GEONAMES_LINE_FILE_DOCS, f'{localconstants.INDEX_DIR_BASE}/geonames-stored-fields-nightly', runLogDir, doc_limit)
-  message('done run stored fields benchmark')
-
   if not REAL:
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
     svnRev = '1102160'
@@ -901,6 +892,15 @@ def run():
     print('%s' % javaVersion)
     print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
     print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
+
+  message('now run stored fields benchmark')
+  if not REAL:
+    doc_limit = 100000
+  else:
+    # do all docs in the file
+    doc_limit = -1
+  runStoredFieldsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}', localconstants.GEONAMES_LINE_FILE_DOCS, f'{localconstants.INDEX_DIR_BASE}/geonames-stored-fields-nightly', runLogDir, doc_limit)
+  message('done run stored fields benchmark')
 
   print('Java command-line: %s' % constants.JAVA_COMMAND)
   try:

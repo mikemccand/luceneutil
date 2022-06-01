@@ -1020,14 +1020,18 @@ def run():
   if REAL:
     r.compile(c)
 
-  message('now run stored fields benchmark')
-  if not REAL:
-    doc_limit = 100000
-  else:
-    # do all docs in the file
-    doc_limit = -1
-  runStoredFieldsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}', localconstants.GEONAMES_LINE_FILE_DOCS, f'{localconstants.INDEX_DIR_BASE}/geonames-stored-fields-nightly', runLogDir, doc_limit)
-  message('done run stored fields benchmark')
+  os.chdir(constants.BENCH_BASE_DIR)
+  try:
+    message('now run stored fields benchmark')
+    if not REAL:
+      doc_limit = 100000
+    else:
+      # do all docs in the file
+      doc_limit = -1
+    runStoredFieldsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}', localconstants.GEONAMES_LINE_FILE_DOCS, f'{localconstants.INDEX_DIR_BASE}/geonames-stored-fields-nightly', runLogDir, doc_limit)
+    message('done run stored fields benchmark')
+  finally:
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
   medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')

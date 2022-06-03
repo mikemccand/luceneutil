@@ -54,6 +54,7 @@ WIKI_BIG_1M = Data('wikibig1m', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, cons
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 
 WIKI_VECTOR_10K = Data('wikivector10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_VECTOR_TASKS_FILE)
+WIKI_VECTOR_1M = Data('wikivector1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_VECTOR_TASKS_FILE)
 
 DISJUNCTION_SIMPLE = Data('disjunctionSimple',
                           constants.DISJUNCTION_DOCS_LINE_FILE,
@@ -97,6 +98,7 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikibig1m' : WIKI_BIG_1M,
         'euromedium' : EURO_MEDIUM,
         'wikivector10k' : WIKI_VECTOR_10K,
+        'wikivector1m' : WIKI_VECTOR_1M,
         'disjunctionSimple' : DISJUNCTION_SIMPLE,
         'disjunctionRealistic' : DISJUNCTION_REALISTIC,
         'disjunctionIntensive' : DISJUNCTION_INTENSIVE,

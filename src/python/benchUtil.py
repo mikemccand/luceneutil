@@ -844,6 +844,7 @@ class RunAlgs:
       if index.vectorFile:
         w('-vectorFile', index.vectorFile)
         w('-vectorDimension', index.vectorDimension)
+        w('-vectorSimilarity', index.vectorSimilarity)
 
       if index.optimize:
         w('-forceMerge')

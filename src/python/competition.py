@@ -154,6 +154,7 @@ class Index(object):
                indexSort = None,
                vectorFile = None,
                vectorDimension = None,
+               vectorSimilarity = None,
                # an int defining how many segments to rearrange to, 0 represents not performing rearrange
                # rearrange /100 gives how many large segments desired
                # (rearrange % 100) / 10 gives how many medium segments desired
@@ -200,6 +201,7 @@ class Index(object):
     self.indexSort = indexSort
     self.vectorFile = vectorFile
     self.vectorDimension = vectorDimension
+    self.vectorSimilarity = vectorSimilarity
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))

@@ -947,7 +947,8 @@ def run():
                                          maxConcurrentMerges=12,
                                          useCMS=True,
                                          vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                         vectorDimension=100,)
+                                         vectorDimension=300,
+                                         vectorSimilarity='DOT_PRODUCT',)
                                   
 
   nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
@@ -1007,7 +1008,7 @@ def run():
                                   ('sortedset:RandomLabel', 'RandomLabel')),
                         addDVFields=True,
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                        vectorDimension=100,)
+                        vectorDimension=300,)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

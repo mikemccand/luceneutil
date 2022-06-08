@@ -62,6 +62,7 @@ import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
@@ -215,12 +216,15 @@ public final class Indexer {
     final String lineFile = args.getString("-lineDocsFile");
     String vectorFile;
     int vectorDimension;
+    VectorSimilarityFunction vectorSimilarity;
     if (args.hasArg("-vectorFile")) {
         vectorFile = args.getString("-vectorFile");
         vectorDimension = args.getInt("-vectorDimension");
+        vectorSimilarity = VectorSimilarityFunction.valueOf(args.getString("-vectorSimilarity"));
     } else {
         vectorFile = null;
         vectorDimension = 0;
+        vectorSimilarity = null;
     }
 
     // -1 means all docs in the line file:
@@ -466,7 +470,7 @@ public final class Indexer {
 
     LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
                                                  taxoWriter, facetDimMethods, facetsConfig, addDVFields,
-                                                 vectorFile, vectorDimension);
+                                                 vectorFile, vectorDimension, vectorSimilarity);
 
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;

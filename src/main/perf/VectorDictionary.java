@@ -98,7 +98,12 @@ public class VectorDictionary {
         count++;
       }
     }
-    vectorDiv(dvec, vectorNorm(dvec) / scale);
+    if (scale != 1f) {
+      vectorDiv(dvec, vectorNorm(dvec) / scale);
+      vectorClip(dvec, -128, 127);
+    } else {
+      vectorDiv(dvec, vectorNorm(dvec) / scale);
+    }
     return dvec;
   }
 
@@ -118,8 +123,17 @@ public class VectorDictionary {
   }
 
   static void vectorDiv(float[] v, double x) {
+    if (x == 0) {
+      return;
+    }
     for (int i = 0; i < v.length; i++) {
       v[i] /= x;
+    }
+  }
+
+  static void vectorClip(float[] v, float min, float max) {
+    for (int i = 0; i < v.length; i++) {
+      v[i] = Math.min(max, Math.max(min, v[i]));
     }
   }
 

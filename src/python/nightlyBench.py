@@ -650,6 +650,15 @@ KNOWN_CHANGES = [
   ('2022-04-21 18:03:04',
    'LUCENE-10517: specialize SSDV pure-browse facets for some cases',
    'LUCENE-10517: specialize SSDV pure-browse facets for some cases'),
+
+  ('2022-05-12 18:02:51',
+   'LUCENE-10527: Use 2*maxConn for last layer in HNSW',
+   'LUCENE-10527: Use 2*maxConn for last layer in HNSW'),
+
+  ('2022-06-07 18:02:50',
+   'LUCENE-10078: Enable merge-on-refresh by default',
+   'LUCENE-10078: Enable merge-on-refresh by default'),
+
 ]
 
 # TODO

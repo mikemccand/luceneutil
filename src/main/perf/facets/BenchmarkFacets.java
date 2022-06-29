@@ -105,8 +105,8 @@ public class BenchmarkFacets {
                 ssdvFacets.getTopDims(5, 5);
                 taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
                 ssdvFacets.getTopChildren(10, SSDV_FIELD_NAME, "TX");
-                taxoFacets.getAllChildren(TAXO_FIELD_NAME);
-                ssdvFacets.getAllChildren(SSDV_FIELD_NAME);
+                taxoFacets.getAllChildren(TAXO_FIELD_NAME, "TX");
+                ssdvFacets.getAllChildren(SSDV_FIELD_NAME, "TX");
             }
 
             System.out.println("Number of docs: " + s.getIndexReader().numDocs());
@@ -180,13 +180,13 @@ public class BenchmarkFacets {
                 totalSSDVGetTopChildrenTimeMS += ssdvGetTopChildrenTimeMS;
 
                 long taxoGetAllChildrenStartNS = System.nanoTime();
-                result = taxoFacets.getAllChildren(TAXO_FIELD_NAME);
+                result = taxoFacets.getAllChildren(TAXO_FIELD_NAME, "TX");
                 long taxoGetAllChildrenEndNS = System.nanoTime();
                 double taxoGetAllChildrenTimeMS = (double) (taxoGetAllChildrenEndNS - taxoGetAllChildrenStartNS) / MILLION;
                 totalTaxoGetAllChildrenTimeMS += taxoGetAllChildrenTimeMS;
 
                 long ssdvGetAllChildrenStartNS = System.nanoTime();
-                result = ssdvFacets.getAllChildren(SSDV_FIELD_NAME);
+                result = ssdvFacets.getAllChildren(SSDV_FIELD_NAME, "TX");
                 long ssdvGetAllChildrenEndNS = System.nanoTime();
                 double ssdvGetAllChildrenTimeMS = (double) (ssdvGetAllChildrenEndNS - ssdvGetAllChildrenStartNS) / MILLION;
                 totalSSDVGetAllChildrenTimeMS += ssdvGetAllChildrenTimeMS;

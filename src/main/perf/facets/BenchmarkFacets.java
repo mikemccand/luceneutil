@@ -21,7 +21,7 @@ package perf.facets;
 
 // java -cp ../../../../../../lucene/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:../../../../../../lucene/lucene/facet/build/libs/lucene-facet-10.0.0-SNAPSHOT.jar:../../../../build perf.facets.BenchmarkFacets
 
-// java -cp ../../../../../../lucene/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:../../../../../../lucene/lucene/facet/build/libs/lucene-facet-10.0.0-SNAPSHOT.jar:../../../../build perf.facets.BenchmarkFacets ../../../../../indices/NADFacets
+// java -cp ../../../../../../lucene/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:../../../../../../lucene/lucene/facet/build/libs/lucene-facet-10.0.0-SNAPSHOT.jar:../../../../build perf.facets.BenchmarkFacets ../../../../../indices/NADFacets numIters
 import java.io.File;
 import java.io.IOException;
 
@@ -58,6 +58,7 @@ public class BenchmarkFacets {
 
     public static void main(String[] args) throws IOException {
         File indexPath = new File(args[0]);
+        int numIters = Integer.parseInt(args[1]);
 
         final Directory dir;
         OpenDirectory od = OpenDirectory.get("NIOFSDirectory");
@@ -113,8 +114,6 @@ public class BenchmarkFacets {
             System.out.println("Number of segments: " + s.getIndexReader().leaves().size());
 
             System.out.println("Running benchmark...");
-
-            int numIters = 20;
 
             double totalCreateFastTaxoCountsTimeMS = 0;
             double totalCreateSSDVCountsTimeMS = 0;
@@ -208,12 +207,11 @@ public class BenchmarkFacets {
                 reportPercentDifference(totalTaxoGetTopDimsTimeMS / (double) i, totalSSDVGetTopDimsTimeMS / (double) i);
                 System.out.println("");
 
-                System.out.println("Time (ms) taken to get top children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetTopChildrenTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get top \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetTopChildrenTimeMS / (double) i);
                 System.out.println("Time (ms) taken to get top \"address.sortedset/TX\" children for SSDV: " + totalSSDVGetTopChildrenTimeMS / (double) i);
                 reportPercentDifference(totalTaxoGetTopChildrenTimeMS / (double) i, totalSSDVGetTopChildrenTimeMS / (double) i);
-                System.out.println("");
 
-                System.out.println("Time (ms) taken to get all children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetAllChildrenTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get all \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetAllChildrenTimeMS / (double) i);
                 System.out.println("Time (ms) taken to get all \"address.sortedset/TX\" children for SSDV: " + totalSSDVGetAllChildrenTimeMS / (double) i);
                 reportPercentDifference(totalTaxoGetAllChildrenTimeMS / (double) i, totalSSDVGetAllChildrenTimeMS / (double) i);
 

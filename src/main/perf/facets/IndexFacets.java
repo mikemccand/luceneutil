@@ -21,7 +21,7 @@ package perf.facets;
 
 // java -cp ../../../../../../lucene/lucene/core/build/libs/lucene-codecs-10.0.0-SNAPSHOT.jar:../../../../../../lucene/lucene/facet/build/libs/lucene-facet-10.0.0-SNAPSHOT.jar:../../../../build perf.facets.IndexFacets
 
-// for indexing NAD facets: java -cp ../../../../../../lucene/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:../../../../../../lucene/lucene/facet/build/libs/lucene-facet-10.0.0-SNAPSHOT.jar:../../../../build perf.facets.IndexFacets ../../../../../data/NAD_taxonomy.txt.gz ../../../../../indices/NADFacets
+// for indexing NAD facets: java -cp ../../../../../../lucene/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:../../../../../../lucene/lucene/facet/build/libs/lucene-facet-10.0.0-SNAPSHOT.jar:../../../../build perf.facets.IndexFacets ../../../../../data/NAD_taxonomy.txt.gz ../../../../../indices/NADFacets doc_limit
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -61,6 +61,12 @@ public class IndexFacets {
     public static void main(String args[]) throws IOException {
         String facetFile = args[0];
         File indexPath = new File(args[1]);
+        int docLimit;
+        if (args.length < 3 || args[2].isEmpty() || args[2].equals("-1")) {
+            docLimit = 60000000;
+        } else {
+            docLimit = Integer.parseInt(args[2]);
+        }
 
         Path checkPath = indexPath.toPath();
         deleteDirectoryIfExists(checkPath);
@@ -88,7 +94,7 @@ public class IndexFacets {
         config.setHierarchical("address.taxonomy", true);
         config.setHierarchical("address.sortedset", true);
 
-        lines.limit(60000000).forEach(withCounter((i, line) -> {
+        lines.limit(docLimit).forEach(withCounter((i, line) -> {
             String[] lineArr = line.split(",");
 
             if (lineArr == null) {

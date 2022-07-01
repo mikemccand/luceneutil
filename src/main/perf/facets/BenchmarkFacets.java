@@ -105,6 +105,8 @@ public class BenchmarkFacets {
                 ssdvFacets.getTopDims(5, 5);
                 taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
                 ssdvFacets.getTopChildren(10, SSDV_FIELD_NAME, "TX");
+                taxoFacets.getAllChildren(TAXO_FIELD_NAME, "TX");
+                ssdvFacets.getAllChildren(SSDV_FIELD_NAME, "TX");
             }
 
             System.out.println("Number of docs: " + s.getIndexReader().numDocs());
@@ -120,8 +122,10 @@ public class BenchmarkFacets {
             double totalSSDVGetAllDimsTimeMS = 0;
             double totalTaxoGetTopDimsTimeMS = 0;
             double totalSSDVGetTopDimsTimeMS = 0;
-            double totalTaxoGetChildrenTimeMS = 0;
-            double totalSSDVGetChildrenTimeMS = 0;
+            double totalTaxoGetTopChildrenTimeMS = 0;
+            double totalSSDVGetTopChildrenTimeMS = 0;
+            double totalTaxoGetAllChildrenTimeMS = 0;
+            double totalSSDVGetAllChildrenTimeMS = 0;
 
             for (int i = 1; i < numIters + 1; i++) {
                 FacetsCollector c = new FacetsCollector();
@@ -163,17 +167,29 @@ public class BenchmarkFacets {
                 double ssdvGetTopDimsTimeMS = (double) (ssdvGetTopDimsEndNS - ssdvGetTopDimsStartNS) / MILLION;
                 totalSSDVGetTopDimsTimeMS += ssdvGetTopDimsTimeMS;
 
-                long taxoGetChildrenStartNS = System.nanoTime();
+                long taxoGetTopChildrenStartNS = System.nanoTime();
                 FacetResult result = taxoFacets.getTopChildren(10, TAXO_FIELD_NAME, "TX");
-                long taxoGetAllChildrenEndNS = System.nanoTime();
-                double taxoGetAllChildrenTimeMS = (double) (taxoGetAllChildrenEndNS - taxoGetChildrenStartNS) / MILLION;
-                totalTaxoGetChildrenTimeMS += taxoGetAllChildrenTimeMS;
+                long taxoGetTopChildrenEndNS = System.nanoTime();
+                double taxoGetTopChildrenTimeMS = (double) (taxoGetTopChildrenEndNS - taxoGetTopChildrenStartNS) / MILLION;
+                totalTaxoGetTopChildrenTimeMS += taxoGetTopChildrenTimeMS;
 
-                long ssdvGetChildrenStartNS = System.nanoTime();
+                long ssdvGetTopChildrenStartNS = System.nanoTime();
                 result = ssdvFacets.getTopChildren(10, SSDV_FIELD_NAME, "TX");
-                long ssdvGetChildrenEndNS = System.nanoTime();
-                double ssdvGetAllChildrenTimeMS = (double) (ssdvGetChildrenEndNS - ssdvGetChildrenStartNS) / MILLION;
-                totalSSDVGetChildrenTimeMS += ssdvGetAllChildrenTimeMS;
+                long ssdvGetTopChildrenEndNS = System.nanoTime();
+                double ssdvGetTopChildrenTimeMS = (double) (ssdvGetTopChildrenEndNS - ssdvGetTopChildrenStartNS) / MILLION;
+                totalSSDVGetTopChildrenTimeMS += ssdvGetTopChildrenTimeMS;
+
+                long taxoGetAllChildrenStartNS = System.nanoTime();
+                result = taxoFacets.getAllChildren(TAXO_FIELD_NAME, "TX");
+                long taxoGetAllChildrenEndNS = System.nanoTime();
+                double taxoGetAllChildrenTimeMS = (double) (taxoGetAllChildrenEndNS - taxoGetAllChildrenStartNS) / MILLION;
+                totalTaxoGetAllChildrenTimeMS += taxoGetAllChildrenTimeMS;
+
+                long ssdvGetAllChildrenStartNS = System.nanoTime();
+                result = ssdvFacets.getAllChildren(SSDV_FIELD_NAME, "TX");
+                long ssdvGetAllChildrenEndNS = System.nanoTime();
+                double ssdvGetAllChildrenTimeMS = (double) (ssdvGetAllChildrenEndNS - ssdvGetAllChildrenStartNS) / MILLION;
+                totalSSDVGetAllChildrenTimeMS += ssdvGetAllChildrenTimeMS;
 
                 System.out.println("Results after iteration " + i + "\n");
 
@@ -192,9 +208,14 @@ public class BenchmarkFacets {
                 reportPercentDifference(totalTaxoGetTopDimsTimeMS / (double) i, totalSSDVGetTopDimsTimeMS / (double) i);
                 System.out.println("");
 
-                System.out.println("Time (ms) taken to get top children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetChildrenTimeMS / (double) i);
-                System.out.println("Time (ms) taken to get top \"address.sortedset/TX\" children for SSDV: " + totalSSDVGetChildrenTimeMS / (double) i);
-                reportPercentDifference(totalTaxoGetChildrenTimeMS / (double) i, totalSSDVGetChildrenTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get top children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetTopChildrenTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get top \"address.sortedset/TX\" children for SSDV: " + totalSSDVGetTopChildrenTimeMS / (double) i);
+                reportPercentDifference(totalTaxoGetTopChildrenTimeMS / (double) i, totalSSDVGetTopChildrenTimeMS / (double) i);
+                System.out.println("");
+
+                System.out.println("Time (ms) taken to get all children of \"address.taxonomy/TX\" children for taxonomy: " + totalTaxoGetAllChildrenTimeMS / (double) i);
+                System.out.println("Time (ms) taken to get all \"address.sortedset/TX\" children for SSDV: " + totalSSDVGetAllChildrenTimeMS / (double) i);
+                reportPercentDifference(totalTaxoGetAllChildrenTimeMS / (double) i, totalSSDVGetAllChildrenTimeMS / (double) i);
 
                 System.out.print("\n");
             }

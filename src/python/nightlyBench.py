@@ -30,6 +30,7 @@ import time
 import traceback
 import urllib.request
 import runStoredFieldsBenchmark
+import runFacetsBenchmark
 
 
 # local imports:
@@ -1041,6 +1042,21 @@ def run():
     message('done run stored fields benchmark')
   finally:
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+
+  os.chdir(constants.BENCH_BASE_DIR)
+  try:
+    message('now run NAD facets benchmark')
+    if not REAL:
+      doc_limit = 100000
+      num_iters = 2
+    else:
+      doc_limit = -1
+      num_iters = 30
+    runFacetsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}', f'{localconstants.INDEX_DIR_BASE}/nad-facets-nightly', f'{localconstants.BASE_DIR}/data', runLogDir, doc_limit, num_iters)
+    message('done run NAD facets benchmark')
+  finally:
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+
 
   # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
   medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, 'medium index (fast)', fastIndexMedium, 'fastIndexMediumDocs.log')

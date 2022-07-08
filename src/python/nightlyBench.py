@@ -911,7 +911,8 @@ def run():
   else:
     print(('transparent_hugepages: %s' % s))
 
-  runCommand('%s clean > clean.log 2>&1' % constants.GRADLE_EXE)
+  runCommand('%s clean > %s/clean-lucene.log 2>&1' % (constants.GRADLE_EXE, runLogDir))
+  runCommand('%s jar > %s/jar-lucene.log 2>&1' % (constants.GRADLE_EXE, runLogDir))
 
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
 

@@ -1,5 +1,7 @@
 # Luceneutil: Lucene benchmarking utilities
 
+![Benchmarking Lucene Duke -- thank you @mocobeta!](/Benchmarking-Duke-from-Tomoko.png)
+
 ### Setting up luceneutil
 
 First, pick a root directory, under which luceneutil will be checked out,

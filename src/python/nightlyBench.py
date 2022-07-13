@@ -660,6 +660,14 @@ KNOWN_CHANGES = [
    'LUCENE-10078: Enable merge-on-refresh by default',
    'LUCENE-10078: Enable merge-on-refresh by default'),
 
+  ('2022-07-04 18:02:46',
+   'LUCENE-10480: Use BMM scorer for 2 clauses disjunction',
+   'LUCENE-10480: Use BMM scorer for 2 clauses disjunction'),
+
+  ('2022-07-08 18:02:52',
+   'LUCENE-10480: Move scoring from advance to TwoPhaseIterator#matches',
+   'LUCENE-10480: Move scoring from advance to TwoPhaseIterator#matches'),
+
 ]
 
 # TODO

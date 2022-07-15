@@ -99,13 +99,12 @@ public class LineFileDocs implements Closeable {
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
   private final String vectorFile;
   private final int vectorDimension;
-  private final VectorSimilarityFunction vectorSimilarity;
   private SeekableByteChannel vectorChannel;
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
-                      FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension,
-                      VectorSimilarityFunction vectorSimilarity) throws IOException {
+                      FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension)
+    throws IOException {
     this.path = path;
     this.isBinary = path.endsWith(".bin");
     this.storeBody = storeBody;
@@ -119,7 +118,6 @@ public class LineFileDocs implements Closeable {
     this.addDVFields = addDVFields;
     this.vectorFile = vectorFile;
     this.vectorDimension = vectorDimension;
-    this.vectorSimilarity = vectorSimilarity;
 
     open();
     readerThread = new Thread() {
@@ -365,7 +363,7 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension, VectorSimilarityFunction vectorSimilarity) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension) {
       doc = new Document();
 
       title = new StringField("title", "", Field.Store.NO);
@@ -444,7 +442,7 @@ public class LineFileDocs implements Closeable {
 
       if (vectorDimension > 0) {
         // create a throwaway vector so the field's type gets the proper dimension and similarity
-        vector = new KnnVectorField("vector", new float[vectorDimension], vectorSimilarity);
+        vector = new KnnVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
         doc.add(vector);
       } else {
         vector = null;
@@ -453,7 +451,7 @@ public class LineFileDocs implements Closeable {
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, vectorDimension, vectorSimilarity);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, vectorDimension);
   }
 
   // TODO: is there a pre-existing way to do this!!!

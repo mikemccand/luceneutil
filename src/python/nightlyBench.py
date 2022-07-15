@@ -947,8 +947,7 @@ def run():
                                          maxConcurrentMerges=12,
                                          useCMS=True,
                                          vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                         vectorDimension=300,
-                                         vectorSimilarity='DOT_PRODUCT',)
+                                         vectorDimension=300)
                                   
 
   nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,

@@ -41,8 +41,10 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene93.Lucene93Codec;
+import org.apache.lucene.codecs.lucene93.Lucene93HnswVectorsFormat;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -62,12 +64,12 @@ import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
-import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
+import org.apache.lucene.util.hnsw.VectorEncoding;
 
 import perf.IndexThreads.Mode;
 
@@ -216,15 +218,15 @@ public final class Indexer {
     final String lineFile = args.getString("-lineDocsFile");
     String vectorFile;
     int vectorDimension;
-    VectorSimilarityFunction vectorSimilarity;
+    VectorEncoding vectorEncoding;
     if (args.hasArg("-vectorFile")) {
         vectorFile = args.getString("-vectorFile");
         vectorDimension = args.getInt("-vectorDimension");
-        vectorSimilarity = VectorSimilarityFunction.valueOf(args.getString("-vectorSimilarity"));
+        vectorEncoding = VectorEncoding.valueOf(args.getString("-vectorEncoding"));
     } else {
         vectorFile = null;
         vectorDimension = 0;
-        vectorSimilarity = null;
+        vectorEncoding = null;
     }
 
     // -1 means all docs in the line file:
@@ -410,6 +412,17 @@ public final class Indexer {
             return super.getDocValuesFormatForField(field);
           }
         }
+
+        @Override
+        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+          if (vectorEncoding != null) {
+            return new Lucene93HnswVectorsFormat(Lucene93HnswVectorsFormat.DEFAULT_MAX_CONN,
+                                                 Lucene93HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                                                 vectorEncoding);
+          } else {
+            return super.getKnnVectorsFormatForField(field);
+          }
+        }
       };
 
     final AtomicBoolean indexingFailed = new AtomicBoolean();
@@ -470,7 +483,7 @@ public final class Indexer {
 
     LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
                                                  taxoWriter, facetDimMethods, facetsConfig, addDVFields,
-                                                 vectorFile, vectorDimension, vectorSimilarity);
+                                                 vectorFile, vectorDimension);
 
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;

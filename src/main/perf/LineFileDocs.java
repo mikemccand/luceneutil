@@ -58,6 +58,7 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.KnnVectorField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetsConfig;
@@ -336,6 +337,7 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field titleDV;
+    final Field month;
     final Field monthDV;
     final Field dayOfYearDV;
     final IntPoint dayOfYearIP;
@@ -369,10 +371,10 @@ public class LineFileDocs implements Closeable {
       doc.add(title);
 
       if (addDVFields) {
-        titleDV = new SortedDocValuesField("titleDV", new BytesRef(""));
+        titleDV = new SortedDocValuesField("title", new BytesRef());
         doc.add(titleDV);
 
-        titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef(""));
+        titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
         doc.add(titleBDV);
 
         lastModNDV = new NumericDocValuesField("lastModNDV", -1);
@@ -380,7 +382,9 @@ public class LineFileDocs implements Closeable {
         lastModLP = new LongPoint("lastModNDV", -1); //points field must have the same name and value as DV field
         doc.add(lastModLP);
 
-        monthDV = new SortedDocValuesField("monthSortedDV", new BytesRef(""));
+        month = new StringField("month", "", Store.NO);
+        doc.add(month);
+        monthDV = new SortedDocValuesField("month", new BytesRef());
         doc.add(monthDV);
 
         dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
@@ -392,6 +396,7 @@ public class LineFileDocs implements Closeable {
         titleBDV = null;
         lastModNDV = null;
         lastModLP = null;
+        month = null;
         monthDV = null;
         dayOfYearDV = null;
         dayOfYearIP = null;
@@ -620,7 +625,9 @@ public class LineFileDocs implements Closeable {
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
       doc.titleDV.setBytesValue(new BytesRef(title));
-      doc.monthDV.setBytesValue(new BytesRef(months[doc.dateCal.get(Calendar.MONTH)]));
+      final String month = months[doc.dateCal.get(Calendar.MONTH)];
+      doc.month.setStringValue(month);
+      doc.monthDV.setBytesValue(new BytesRef(month));
       doc.dayOfYearDV.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.dayOfYearIP.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
     }

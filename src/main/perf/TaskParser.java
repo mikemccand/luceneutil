@@ -85,9 +85,9 @@ class TaskParser {
       vectorDictionary = null;
       vectorField = null;
     }
-    titleDVSort = new Sort(new SortField("titleDV", SortField.Type.STRING));
+    titleDVSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleBDVSort = new Sort(new SortField("titleBDV", SortField.Type.STRING_VAL));
-    monthDVSort = new Sort(new SortField("monthSortedDV", SortField.Type.STRING));
+    monthDVSort = new Sort(new SortField("month", SortField.Type.STRING));
     dayOfYearDVSort = new Sort(new SortField("dayOfYearNumericDV", SortField.Type.INT));
     lastModNDVSort = new Sort(new SortField("lastModNDV", SortField.Type.LONG));
   }

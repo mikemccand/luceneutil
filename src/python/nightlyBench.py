@@ -668,6 +668,10 @@ KNOWN_CHANGES = [
    'LUCENE-10480: Move scoring from advance to TwoPhaseIterator#matches',
    'LUCENE-10480: Move scoring from advance to TwoPhaseIterator#matches'),
 
+  ('2022-07-13 18:02:33',
+   '#1010: Specialize ordinal encoding for SortedSetDocValues',
+   '#1010: Specialize ordinal encoding for SortedSetDocValues '),
+
 ]
 
 # TODO

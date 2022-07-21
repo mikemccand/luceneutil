@@ -414,7 +414,7 @@ def parseResults(resultsFiles):
             task.sort = 'Title'
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">'):
             task.sort = 'DateTime'
-          elif sort in ('<string: "month">', '<string: "monthSOrtedDV">')::
+          elif sort in ('<string: "month">', '<string: "monthSortedDV">')::
             task.sort = 'Month'
           elif sort == '<int: "dayOfYearNumericDV">':
             task.sort = 'DayOfYear'

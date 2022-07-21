@@ -987,7 +987,8 @@ def run():
                                  verbose=False,
                                  mergePolicy='TieredMergePolicy',
                                  maxConcurrentMerges=12,
-                                 useCMS=True)
+                                 useCMS=True,
+                                 addDVFields=True)
                                  
   bigSource = competition.Data('wikibig',
                                constants.NIGHTLY_BIG_LINE_FILE,

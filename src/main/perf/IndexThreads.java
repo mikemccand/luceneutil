@@ -328,7 +328,7 @@ class IndexThreads {
             // of the time we add a new doc
             final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
             if (updatesListener != null) {
-            	updatesListener.beforeUpdate();
+              updatesListener.beforeUpdate();
             }
             switch (mode) {
             case UPDATE:

@@ -72,9 +72,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc("END", null);
-
-  private final AtomicInteger nextID = new AtomicInteger();
+  private final static LineFileDoc END = new LineFileDoc("END", null, -1);
 
   private BufferedReader reader;
   private SeekableByteChannel channel;
@@ -139,6 +137,8 @@ public class LineFileDocs implements Closeable {
       byte[] headerBytes = new byte[8];
       ByteBuffer header = ByteBuffer.wrap(headerBytes);
       header.order(ByteOrder.LITTLE_ENDIAN);
+      int idBase = 0;
+      int totalDocCount = 0;  // hopefully this won't overflow
       while (true) {
         header.position(0);
         int x = channel.read(header);
@@ -147,6 +147,7 @@ public class LineFileDocs implements Closeable {
             close();
             open();
             x = channel.read(header);
+            idBase = totalDocCount;
           } else {
             break;
           }
@@ -155,7 +156,8 @@ public class LineFileDocs implements Closeable {
         if (x != 8) {
           throw new RuntimeException("expected 8 header bytes but read " + x);
         }
-        int count = header.getInt(0);
+        int docCountPerBlock = header.getInt(0);
+        totalDocCount += docCountPerBlock;
         int length = header.getInt(4);
         //System.out.println("count= " + count + " len=" + length);
         ByteBuffer buffer = ByteBuffer.wrap(new byte[length]);
@@ -165,9 +167,10 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc(buffer, readVector(count)));
+        queue.put(new LineFileDoc(buffer, readVector(docCountPerBlock), idBase));
       }
     } else {
+      int id = 0;
       while (true) {
         String line = reader.readLine();
         if (line == null) {
@@ -179,7 +182,7 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc(line, readVector(1)));
+        queue.put(new LineFileDoc(line, readVector(1), id++));
       }
     }
     for(int i=0;i<128;i++) {
@@ -496,6 +499,7 @@ public class LineFileDocs implements Closeable {
     String title;
     String body;
     String randomLabel;
+    int myID = -1;
 
     if (isBinary) {
 
@@ -528,6 +532,7 @@ public class LineFileDocs implements Closeable {
       int bodyLenBytes = buffer.getInt();
       int randomLabelLenBytes = buffer.getInt();
       timeSec  = buffer.getInt();
+      myID = buffer.getInt() + lfd.idOrBase;
       msecSinceEpoch  = buffer.getLong();
 //      System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes +
 //              " randomLabelLenBytes=" + randomLabelLenBytes + " msecSinceEpoch=" + msecSinceEpoch + " timeSec=" + timeSec);
@@ -558,6 +563,7 @@ public class LineFileDocs implements Closeable {
       if (lfd.vector != null) {
         lfd.vector.get(doc.vector.vectorValue());
       }
+
     } else {
       LineFileDoc lfd;
       try {
@@ -570,6 +576,7 @@ public class LineFileDocs implements Closeable {
         return null;
       }
       line = lfd.stringText;
+      myID = lfd.idOrBase;
 
       int spot = line.indexOf(SEP);
       if (spot == -1) {
@@ -615,7 +622,9 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    final int myID = nextID.getAndIncrement();
+    if (myID == -1) {
+      throw new RuntimeException("ID not set correctly");
+    }
 
     bytesIndexed.addAndGet(body.length() + title.length() + randomLabel.length());
     doc.body.setStringValue(body);
@@ -750,7 +759,9 @@ public class LineFileDocs implements Closeable {
     final String stringText;
     final ByteBuffer byteText;
 
-    LineFileDoc(String text, float[] vector) {
+    final int idOrBase; // will be the exact id if this is txt based LFD, otherwise will be id base
+
+    LineFileDoc(String text, float[] vector, int id) {
       stringText = text;
       byteText = null;
       if (vector == null) {
@@ -758,9 +769,10 @@ public class LineFileDocs implements Closeable {
       } else {
         this.vector = FloatBuffer.wrap(vector);
       }
+      this.idOrBase = id;
     }
 
-    LineFileDoc(ByteBuffer bytes, float[] vector) {
+    LineFileDoc(ByteBuffer bytes, float[] vector, int idBase) {
       stringText = null;
       byteText = bytes;
       if (vector == null) {
@@ -768,6 +780,7 @@ public class LineFileDocs implements Closeable {
       } else {
         this.vector = FloatBuffer.wrap(vector);
       }
+      this.idOrBase = idBase;
     }
   }
 }

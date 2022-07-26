@@ -670,7 +670,11 @@ KNOWN_CHANGES = [
 
   ('2022-07-13 18:02:33',
    '#1010: Specialize ordinal encoding for SortedSetDocValues',
-   '#1010: Specialize ordinal encoding for SortedSetDocValues '),
+   '#1010: Specialize ordinal encoding for SortedSetDocValues'),
+
+  ('2022-07-23 06:00:31',
+   'LUCENE-10592: Build HNSW graph during indexing',
+   'LUCENE-10592: Build HNSW graph during indexing'),
 
 ]
 

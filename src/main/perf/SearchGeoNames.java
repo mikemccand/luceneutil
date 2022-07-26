@@ -17,8 +17,9 @@ package perf;
  * limitations under the License.
  */
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -26,10 +27,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
+import org.apache.lucene.document.DoublePoint;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
@@ -43,8 +46,7 @@ import org.apache.lucene.store.FSDirectory;
 
 public class SearchGeoNames {
   public static void main(String[] args) throws Exception {
-    File indexPath = new File(args[0]);
-    int precStep = Integer.parseInt(args[1]);
+    Path indexPath = Paths.get(args[0]);
     Directory dir = FSDirectory.open(indexPath);
     IndexReader r = DirectoryReader.open(dir);
     System.out.println("r=" + r);
@@ -54,12 +56,12 @@ public class SearchGeoNames {
     SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
     System.out.println("t=" + dateParser.parse("2014-12-01", new ParsePosition(0)).getTime());
 
-    searchOneField(s, getQueries(s, "geoNameID", precStep, 0, 10000000));
-    searchOneField(s, getQueries(s, "latitude", precStep, -50.0, 50.0));
-    searchOneField(s, getQueries(s, "longitude", precStep, -180.0, 180.0));
+    searchOneField(s, getQueries(s, "geoNameID", 0, 10000000));
+    searchOneField(s, getQueries(s, "latitude", -50.0, 50.0));
+    searchOneField(s, getQueries(s, "longitude", -180.0, 180.0));
 
     // 1993-12-01 to 2014-12-01:
-    searchOneField(s, getQueries(s, "modified", precStep, 754722000000L, 1417410000000L));
+    searchOneField(s, getQueries(s, "modified", 754722000000L, 1417410000000L));
 
     r.close();
     dir.close();
@@ -68,7 +70,7 @@ public class SearchGeoNames {
   static final int QUERY_COUNT = 100;
   static final int ITERS = 20;
   
-  private static List<Query> getQueries(IndexSearcher s, String field, int precStep, double min, double max) throws IOException {
+  private static List<Query> getQueries(IndexSearcher s, String field, double min, double max) throws IOException {
     // Fixed seed so we test same queries:
     Random r = new Random(19);
     System.out.println("\nfield=" + field);
@@ -79,13 +81,13 @@ public class SearchGeoNames {
       double v2 = min + r.nextDouble() * (max-min);
       double minV = Math.min(v1, v2);
       double maxV = Math.max(v1, v2);
-      Query query = NumericRangeQuery.newDoubleRange(field, precStep, minV, maxV, true, true);
+      Query query = DoublePoint.newRangeQuery(field, minV, maxV);
       queries.add(query);
     }
     return queries;
   }
 
-  private static List<Query> getQueries(IndexSearcher s, String field, int precStep, long min, long max) throws IOException {
+  private static List<Query> getQueries(IndexSearcher s, String field, long min, long max) throws IOException {
     // Fixed seed so we test same queries:
     Random r = new Random(19);
     System.out.println("\nfield=" + field);
@@ -97,13 +99,13 @@ public class SearchGeoNames {
       long v2 = min + ((r.nextLong()<<1)>>>1) % (max-min);
       long minV = Math.min(v1, v2);
       long maxV = Math.max(v1, v2);
-      Query query = NumericRangeQuery.newLongRange(field, precStep, minV, maxV, true, true);
+      Query query = LongPoint.newRangeQuery(field, minV, maxV);
       queries.add(query);
     }
     return queries;
   }
 
-  private static List<Query> getQueries(IndexSearcher s, String field, int precStep, int min, int max) throws IOException {
+  private static List<Query> getQueries(IndexSearcher s, String field, int min, int max) throws IOException {
     // Fixed seed so we test same queries:
     Random r = new Random(19);
     System.out.println("\nfield=" + field);
@@ -115,7 +117,7 @@ public class SearchGeoNames {
       int v2 = min + r.nextInt(max-min);
       int minV = Math.min(v1, v2);
       int maxV = Math.max(v1, v2);
-      Query query = NumericRangeQuery.newIntRange(field, precStep, minV, maxV, true, true);
+      Query query = IntPoint.newRangeQuery(field, minV, maxV);
       queries.add(query);
     }
     return queries;
@@ -127,7 +129,7 @@ public class SearchGeoNames {
     for(int i=0;i<ITERS;i++) {
       for(Query query : queries) {
         TopDocs hits = s.search(query, 10);
-        tot += hits.totalHits;
+        tot += hits.totalHits.value;
       }
     }
 
@@ -136,7 +138,7 @@ public class SearchGeoNames {
     for(int i=0;i<ITERS;i++) {
       for(Query query : queries) {
         TopDocs hits = s.search(query, 10);
-        tot += hits.totalHits;
+        tot += hits.totalHits.value;
       }
     }
     long t1 = System.nanoTime();

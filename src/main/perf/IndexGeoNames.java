@@ -18,10 +18,11 @@ package perf;
  */
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -31,24 +32,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
-import org.apache.lucene.document.DoubleField;
+import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 //import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.PrintStreamInfoStream;
-import org.apache.lucene.util.Version;
 
 // rm -rf /l/scratch/indices/geonames; pushd core; ant jar; popd; javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/IndexGeoNames.java; java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.IndexGeoNames /lucenedata/geonames/allCountries.txt /l/scratch/indices/geonames 4 8
 
@@ -62,10 +64,9 @@ public class IndexGeoNames {
 
   public static void main(String[] args) throws Exception {
     String geoNamesFile = args[0];
-    File indexPath = new File(args[1]);
+    Path indexPath = Paths.get(args[1]);
     int numThreads = Integer.parseInt(args[2]);
-    int precStep = Integer.parseInt(args[3]);
-    if (indexPath.exists()) {
+    if (indexPath.toFile().exists()) {
       throw new IllegalArgumentException("please remove indexPath \"" + indexPath + "\" before running");
     }
 
@@ -88,18 +89,6 @@ public class IndexGeoNames {
 
     final Field.Store store = Field.Store.NO;
 
-    final FieldType doubleFieldType = new FieldType(store == Field.Store.NO ? DoubleField.TYPE_NOT_STORED : DoubleField.TYPE_STORED);
-    doubleFieldType.setNumericPrecisionStep(precStep);
-    doubleFieldType.freeze();
-
-    final FieldType longFieldType = new FieldType(store == Field.Store.NO ? LongField.TYPE_NOT_STORED : LongField.TYPE_STORED);
-    longFieldType.setNumericPrecisionStep(precStep);
-    longFieldType.freeze();
-
-    final FieldType intFieldType = new FieldType(store == Field.Store.NO ? IntField.TYPE_NOT_STORED : IntField.TYPE_STORED);
-    intFieldType.setNumericPrecisionStep(precStep);
-    intFieldType.freeze();
-
     // 64K buffer:
     InputStream is = new FileInputStream(geoNamesFile);
     final BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), 1 << 16);
@@ -120,7 +109,7 @@ public class IndexGeoNames {
 
             if (reuseDocAndFields) {
               Document doc = new Document();
-              IntField geoNameID = new IntField("geoNameID", 0, intFieldType);
+              IntPoint geoNameID = new IntPoint("geoNameID", 0);
               doc.add(geoNameID);
               TextField nameField = new TextField("name", "", store);
               doc.add(nameField);
@@ -134,6 +123,8 @@ public class IndexGeoNames {
               doc.add(featureCodeField);
               StringField countryCodeField = new StringField("countryCode", "", store);
               doc.add(countryCodeField);
+              SortedDocValuesField countryCodeDV = new SortedDocValuesField("countryCode", new BytesRef());
+              doc.add(countryCodeDV);
               StringField cc2Field = new StringField("cc2", "", store);
               doc.add(cc2Field);
               StringField admin1Field = new StringField("admin1", "", store);
@@ -146,6 +137,8 @@ public class IndexGeoNames {
               doc.add(admin4Field);
               StringField tzField = new StringField("timezone", "", store);
               doc.add(tzField);
+              SortedDocValuesField tzDV = new SortedDocValuesField("timezone", new BytesRef());
+              doc.add(tzDV);
 
               while (true) {
                 try {
@@ -165,12 +158,12 @@ public class IndexGeoNames {
                   /*
                   if (values[4].isEmpty() == false) {
                     double v = Double.parseDouble(values[4]);
-                    doc.add(new DoubleField("latitude", v, doubleFieldType));
+                    doc.add(new DoublePoint("latitude", v, DoublePointType));
                     doc.add(new DoubleDocValuesField("latitude", v));
                   }
                   if (values[5].isEmpty() == false) {
                     double v = Double.parseDouble(values[5]);
-                    doc.add(new DoubleField("longitude", v, doubleFieldType));
+                    doc.add(new DoublePoint("longitude", v, DoublePointType));
                     doc.add(new DoubleDocValuesField("longitude", v));
                   }
                   */
@@ -178,6 +171,7 @@ public class IndexGeoNames {
                   featureClassField.setStringValue(values[6]);
                   featureCodeField.setStringValue(values[7]);
                   countryCodeField.setStringValue(values[8]);
+                  countryCodeDV.setBytesValue(new BytesRef(values[8]));
                   cc2Field.setStringValue(values[9]);
                   admin1Field.setStringValue(values[10]);
                   admin2Field.setStringValue(values[11]);
@@ -187,25 +181,26 @@ public class IndexGeoNames {
                   /*
                   if (values[14].isEmpty() == false) {
                     long v = Long.parseLong(values[14]);
-                    doc.add(new LongField("population", v, longFieldType));
+                    doc.add(new LongPoint("population", v));
                     doc.add(new NumericDocValuesField("population", v));
                   }
                   if (values[15].isEmpty() == false) {
                     long v = Long.parseLong(values[15]);
-                    doc.add(new LongField("elevation", v, longFieldType));
+                    doc.add(new LongPoint("elevation", v));
                     doc.add(new NumericDocValuesField("elevation", v));
                   }
                   if (values[16].isEmpty() == false) {
-                    doc.add(new IntField("dem", Integer.parseInt(values[16]), intFieldType));
+                    doc.add(new IntPoint("dem", Integer.parseInt(values[16])));
                   }
                   */
 
                   tzField.setStringValue(values[17]);
+                  tzDV.setBytesValue(new BytesRef(values[17]));
                   /*
                   if (values[18].isEmpty() == false) {
                     datePos.setIndex(0);
                     Date date = dateParser.parse(values[18], datePos);
-                    doc.add(new LongField("modified", date.getTime(), longFieldType));
+                    doc.add(new LongPoint("modified", date.getTime()));
                   }
                   */
                   w.addDocument(doc);
@@ -231,25 +226,26 @@ public class IndexGeoNames {
 
                   Document doc = new Document();
 
-                  doc.add(new IntField("geoNameID", Integer.parseInt(values[0]), intFieldType));
+                  doc.add(new IntPoint("geoNameID", Integer.parseInt(values[0])));
                   doc.add(new TextField("name", values[1], store));
                   doc.add(new TextField("asciiName", values[2], store));
                   doc.add(new TextField("alternateNames", values[3], store));
 
                   if (values[4].isEmpty() == false) {
                     double v = Double.parseDouble(values[4]);
-                    doc.add(new DoubleField("latitude", v, doubleFieldType));
+                    doc.add(new DoublePoint("latitude", v));
                     doc.add(new DoubleDocValuesField("latitude", v));
                   }
                   if (values[5].isEmpty() == false) {
                     double v = Double.parseDouble(values[5]);
-                    doc.add(new DoubleField("longitude", v, doubleFieldType));
+                    doc.add(new DoublePoint("longitude", v));
                     doc.add(new DoubleDocValuesField("longitude", v));
                   }
 
                   doc.add(new StringField("featureClass", values[6], store));
                   doc.add(new StringField("featureCode", values[7], store));
                   doc.add(new StringField("countryCode", values[8], store));
+                  doc.add(new SortedDocValuesField("countryCode", new BytesRef(values[8])));
                   doc.add(new StringField("cc2", values[9], store));
                   doc.add(new StringField("admin1Code", values[10], store));
                   doc.add(new StringField("admin2Code", values[11], store));
@@ -258,24 +254,25 @@ public class IndexGeoNames {
 
                   if (values[14].isEmpty() == false) {
                     long v = Long.parseLong(values[14]);
-                    doc.add(new LongField("population", v, longFieldType));
+                    doc.add(new LongPoint("population", v));
                     doc.add(new NumericDocValuesField("population", v));
                   }
                   if (values[15].isEmpty() == false) {
                     long v = Long.parseLong(values[15]);
-                    doc.add(new LongField("elevation", v, longFieldType));
+                    doc.add(new LongPoint("elevation", v));
                     doc.add(new NumericDocValuesField("elevation", v));
                   }
                   if (values[16].isEmpty() == false) {
-                    doc.add(new IntField("dem", Integer.parseInt(values[16]), intFieldType));
+                    doc.add(new IntPoint("dem", Integer.parseInt(values[16])));
                   }
 
                   doc.add(new StringField("timezone", values[17], store));
+                  doc.add(new SortedDocValuesField("timezone", new BytesRef(values[17])));
 
                   if (values[18].isEmpty() == false) {
                     datePos.setIndex(0);
                     Date date = dateParser.parse(values[18], datePos);
-                    doc.add(new LongField("modified", date.getTime(), longFieldType));
+                    doc.add(new LongPoint("modified", date.getTime()));
                   }
                   w.addDocument(doc);
                   int count = docsIndexed.incrementAndGet();
@@ -292,7 +289,7 @@ public class IndexGeoNames {
         };
       threads[i].start();
     }
-    DirectoryReader r = DirectoryReader.open(w, true);
+    DirectoryReader r = DirectoryReader.open(w);
     for(int i=0;i<100;i++) {
       DirectoryReader r2 = DirectoryReader.openIfChanged(r);
       if (r2 != null) {

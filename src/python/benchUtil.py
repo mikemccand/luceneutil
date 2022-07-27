@@ -1562,7 +1562,7 @@ def getClassPath(checkout):
   # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
   # gradle to tell me necessary dependency paths?
   found = False
-  hppc_dependency = 'hppc-0.9.0.jar'
+  hppc_dependency = 'hppc-0.9.1.jar'
   for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
     for file in files:
       if file == hppc_dependency:

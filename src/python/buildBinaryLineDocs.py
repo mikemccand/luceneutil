@@ -16,7 +16,6 @@ with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as f
   first = True
   pending = io.BytesIO()
   pendingDocCount = 0
-  nextId = 0
   while True:
     line = f.readline()
     if len(line) == 0:
@@ -50,8 +49,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as f
     totalLength = len(titleBytes)+len(bodyBytes)+len(randomLabelBytes)+20
     #print('len=%s' % totalLength)
     #print('HERE: %s, offset=%s' % (struct.pack('i', totalLength), fOut.tell()))
-    pending.write(struct.pack('iiiiil', len(titleBytes), len(bodyBytes),
-                              len(randomLabelBytes), timeSec, nextId, msecSinceEpoch))
+    pending.write(struct.pack('iiiiil', len(titleBytes), len(bodyBytes), len(randomLabelBytes), timeSec, msecSinceEpoch))
     pending.write(titleBytes)
     pending.write(bodyBytes)
     pending.write(randomLabelBytes)
@@ -62,9 +60,6 @@ with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as f
       flush(pending, pendingDocCount, fOut)
       pending = io.BytesIO()
       pendingDocCount = 0
-
-    # increase ID
-    nextId += 1
 
   if pending.tell() > 0:
     flush(pending, pendingDocCount, fOut)

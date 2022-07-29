@@ -44,7 +44,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.BinaryDocValuesField;
@@ -72,7 +71,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc("END", null, -1);
+  private final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
 
   private BufferedReader reader;
   private SeekableByteChannel channel;
@@ -137,7 +136,6 @@ public class LineFileDocs implements Closeable {
       byte[] headerBytes = new byte[8];
       ByteBuffer header = ByteBuffer.wrap(headerBytes);
       header.order(ByteOrder.LITTLE_ENDIAN);
-      int idBase = 0;
       int totalDocCount = 0;  // hopefully this won't overflow
       while (true) {
         header.position(0);
@@ -147,7 +145,6 @@ public class LineFileDocs implements Closeable {
             close();
             open();
             x = channel.read(header);
-            idBase = totalDocCount;
           } else {
             break;
           }
@@ -157,7 +154,6 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected 8 header bytes but read " + x);
         }
         int docCountPerBlock = header.getInt(0);
-        totalDocCount += docCountPerBlock;
         int length = header.getInt(4);
         //System.out.println("count= " + count + " len=" + length);
         ByteBuffer buffer = ByteBuffer.wrap(new byte[length]);
@@ -167,7 +163,8 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc(buffer, readVector(docCountPerBlock), idBase));
+        queue.put(new LineFileDoc.BinaryBased(buffer, readVector(docCountPerBlock), totalDocCount, docCountPerBlock));
+        totalDocCount += docCountPerBlock;
       }
     } else {
       int id = 0;
@@ -182,7 +179,7 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc(line, readVector(1), id++));
+        queue.put(new LineFileDoc.TextBased(line, readVector(1), id++));
       }
     }
     for(int i=0;i<128;i++) {
@@ -506,7 +503,7 @@ public class LineFileDocs implements Closeable {
       float[] vector = new float[vectorDimension];
       FloatBuffer vectorBuffer = null;
       LineFileDoc lfd = nextDocs.get();
-      if (lfd == null || lfd.byteText.hasRemaining() == false) {
+      if (lfd == null || lfd.getByteText().hasRemaining() == false) {
         /*
         System.out.println("  prev buffer=" + buffer);
         if (buffer != null) {
@@ -527,12 +524,12 @@ public class LineFileDocs implements Closeable {
         //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
       }
       // buffer format described in buildBinaryLineDocs.py
-      ByteBuffer buffer = lfd.byteText;
+      ByteBuffer buffer = lfd.getByteText();
       int titleLenBytes = buffer.getInt();
       int bodyLenBytes = buffer.getInt();
       int randomLabelLenBytes = buffer.getInt();
       timeSec  = buffer.getInt();
-      myID = buffer.getInt() + lfd.idOrBase;
+      myID = lfd.getId();
       msecSinceEpoch  = buffer.getLong();
 //      System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes +
 //              " randomLabelLenBytes=" + randomLabelLenBytes + " msecSinceEpoch=" + msecSinceEpoch + " timeSec=" + timeSec);
@@ -575,8 +572,8 @@ public class LineFileDocs implements Closeable {
       if (lfd == END) {
         return null;
       }
-      line = lfd.stringText;
-      myID = lfd.idOrBase;
+      line = lfd.getStringText();
+      myID = lfd.getId();
 
       int spot = line.indexOf(SEP);
       if (spot == -1) {
@@ -701,7 +698,7 @@ public class LineFileDocs implements Closeable {
       }
 
       if (extraFacetFields != null) {
-        String[] extraValues = line.substring(spot4+1, line.length()).split("\t");
+        String[] extraValues = line.substring(spot4+1).split("\t");
 
         for(int i=0;i<extraFacetFields.length;i++) {
           String extraFieldName = extraFacetFields[i];
@@ -754,33 +751,72 @@ public class LineFileDocs implements Closeable {
     }
   }
 
-  private static class LineFileDoc {
-    final FloatBuffer vector;
-    final String stringText;
-    final ByteBuffer byteText;
+  private static abstract class LineFileDoc {
+    private final FloatBuffer vector;
 
-    final int idOrBase; // will be the exact id if this is txt based LFD, otherwise will be id base
-
-    LineFileDoc(String text, float[] vector, int id) {
-      stringText = text;
-      byteText = null;
+    LineFileDoc(float[] vector) {
       if (vector == null) {
         this.vector = null;
       } else {
         this.vector = FloatBuffer.wrap(vector);
       }
-      this.idOrBase = id;
     }
 
-    LineFileDoc(ByteBuffer bytes, float[] vector, int idBase) {
-      stringText = null;
-      byteText = bytes;
-      if (vector == null) {
-        this.vector = null;
-      } else {
-        this.vector = FloatBuffer.wrap(vector);
+    abstract int getId();
+
+    String getStringText() {
+      throw new UnsupportedOperationException();
+    }
+
+    ByteBuffer getByteText() {
+      throw new UnsupportedOperationException();
+    }
+
+    private static final class TextBased extends LineFileDoc {
+      final String stringText;
+
+      final int id; // will be the exact id if this is txt based LFD
+      TextBased(String text, float[] vector, int id) {
+        super(vector);
+        stringText = text;
+        this.id = id;
       }
-      this.idOrBase = idBase;
+
+      @Override
+      int getId() {
+        return id;
+      }
+
+      @Override
+      String getStringText() {
+        return stringText;
+      }
+    }
+
+    private static final class BinaryBased extends LineFileDoc {
+
+      final ByteBuffer byteText;
+      private int nextId; // will have multiple doc in a same LFD so we'll determine id using a base
+      private int docCount; // and a count
+      BinaryBased(ByteBuffer bytes, float[] vector, int idBase, int docCount) {
+        super(vector);
+        byteText = bytes;
+        this.nextId = idBase;
+        this.docCount = docCount;
+      }
+
+      @Override
+      int getId() {
+        if (docCount-- == 0) {
+          throw new IllegalStateException("Calling getId more than docCount");
+        }
+        return nextId++;
+      }
+
+      @Override
+      ByteBuffer getByteText() {
+        return byteText;
+      }
     }
   }
 }

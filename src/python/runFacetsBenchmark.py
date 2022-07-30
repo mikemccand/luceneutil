@@ -55,13 +55,14 @@ def run_benchmark(lucene_dir, index_dir, data_dir, nightly_log_dir, doc_limit, n
     subprocess.check_call(index_cmd, shell=True)
 
     hppc_path = None
+    hppc_jar = 'hppc-0.9.1.jar'
     for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
         for file in files:
-            if file == 'hppc-0.9.0.jar':
+            if file == hppc_jar:
                 hppc_path = f'{root_path}/{file}'
 
     if hppc_path is None:
-        raise RuntimeError('unable to locate hppc-0.9.0-jar dependency for lucene/facet!')
+        raise RuntimeError(f'unable to locate {hppc_jar} dependency for lucene/facet!')
 
     # run benchmark
     benchmark_cmd = f'java -cp {lucene_core_jar}:{lucene_facet_jar}:{hppc_path}:build perf.facets.BenchmarkFacets {index_dir} {num_iters}'

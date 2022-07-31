@@ -676,6 +676,10 @@ KNOWN_CHANGES = [
    'LUCENE-10592: Build HNSW graph during indexing',
    'LUCENE-10592: Build HNSW graph during indexing'),
 
+  ('2022-07-30 18:02:50',
+   'LUCENE-10633: Dynamic pruning for queries sorted by SORTED(_SET) field',
+   'LUCENE-10633: Dynamic pruning for queries sorted by SORTED(_SET) field'),
+
 ]
 
 # TODO

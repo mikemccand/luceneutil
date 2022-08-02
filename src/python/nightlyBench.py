@@ -1461,6 +1461,11 @@ def makeGraphs():
   storedFieldsResults = {'Index size': ['Date,Index size BEST_SPEED (MB),Index size BEST_COMPRESSION (MB)'],
                          'Indexing time': ['Date,Indexing time BEST_SPEED (sec),Indexing time BEST_COMPRESSION (sec)'],
                          'Retrieval time': ['Date,Retrieval time BEST_SPEED (msec),Retrieval time BEST_COMPRESSION (msec)']}
+  nadFacetsResults = {'Instantiating Counts class time': ['Date,Time creating FastTaxonomyCounts (msec),Time creating SSDVFacetCounts (msec)'],
+                      'getAllDims() time': ['Date,Taxonomy (msec),SSDV (msec)'],
+                      'getTopDims() time': ['Date,Taxonomy (msec),SSDV (msec)'],
+                      'getTopChildren() time': ['Date,Taxonomy (msec),SSDV (msec)'],
+                      'getAllChildren() time': ['Date,Taxonomy (msec),SSDV (msec)']}
   gitHubPRChartData = ['Date,Open PR Count,Closed PR Count']
   days = []
   annotations = []
@@ -1623,6 +1628,29 @@ def makeGraphs():
         storedFieldsResults['Indexing time'].append(','.join([str(x) for x in indexing_time_sec_row]))
         storedFieldsResults['Retrieval time'].append(','.join([str(x) for x in retrieval_time_msec_row]))
 
+      resultsFile = '%s/%s/nad-facet-benchmark.pk' % (constants.NIGHTLY_REPORTS_DIR, subDir)
+      if os.path.exists(resultsFile):
+        nad_facet_results = pickle.load(open(resultsFile, 'rb'))
+        create_counts_row = [None, None, None]
+        get_all_dims_row = [None, None, None]
+        get_top_dims_row = [None, None, None]
+        get_children_row = [None, None, None]
+        get_all_children_row = [None, None, None]
+        for create_fast_taxo_counts, create_ssdv_facet_counts, taxo_get_all_dims, ssdv_get_all_dims, \
+            taxo_get_top_dims, ssdv_get_top_dims, taxo_get_children, ssdv_get_children, taxo_get_all_children, \
+            ssdv_get_all_children in nad_facet_results:
+                create_counts_row = [timeStampString, create_fast_taxo_counts, create_ssdv_facet_counts]
+                get_all_dims_row = [timeStampString, taxo_get_all_dims, ssdv_get_all_dims]
+                get_top_dims_row = [timeStampString, taxo_get_top_dims, ssdv_get_top_dims]
+                get_children_row = [timeStampString, taxo_get_children, ssdv_get_children]
+                get_all_children_row = [timeStampString, taxo_get_all_children, ssdv_get_all_children]
+
+        nadFacetsResults['Instantiating Counts class time'].append(','.join([str(x) for x in create_counts_row]))
+        nadFacetsResults['getAllDims() time'].append(','.join([str(x) for x in get_all_dims_row]))
+        nadFacetsResults['getTopDims() time'].append(','.join([str(x) for x in get_top_dims_row]))
+        nadFacetsResults['getTopChildren() time'].append(','.join([str(x) for x in get_children_row]))
+        nadFacetsResults['getAllChildren() time'].append(','.join([str(x) for x in get_all_children_row]))
+
   sort(gitHubPRChartData)
   sort(medIndexChartData)
   sort(medIndexVectorsChartData)
@@ -1658,6 +1686,8 @@ def makeGraphs():
   writeSearchGCJITHTML(gcSearchTimesChartData)
 
   writeStoredFieldsBenchmarkHTML(storedFieldsResults)
+
+  writeNADFacetBenchmarkHTML(nadFacetsResults)
 
   # publish
   #runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
@@ -1844,6 +1874,7 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'AndHighMedDayTaxoFacets', '+high-freq +medium-freq +dayOfYear taxo facets')
   writeOneLine(w, done, 'BrowseRandomLabelTaxoFacets', 'Random labels chosen from each doc')
   writeOneLine(w, done, 'BrowseRandomLabelSSDVFacets', 'Random labels chosen from each doc (doc values)')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="nad_facet_benchmarks.html">NAD high cardinality faceting</a>')
 
   w('<br><br><b>Sorting (on TermQuery):</b>')
   writeOneLine(w, done, 'TermDTSort', 'Date/time (long, high cardinality)')
@@ -2005,6 +2036,22 @@ def writeStoredFieldsBenchmarkHTML(storedFieldsBenchmarkData):
     w(getOneGraphHTML('RetrievalTime', storedFieldsBenchmarkData['Retrieval time'], "MSec", "Retrieval time (msec)", errorBars=False, pctOffset=170))
     w('\n')
     writeKnownChanges(w, pctOffset=250)
+    footer(w)
+
+def writeNADFacetBenchmarkHTML(nadFacetBenchmarkData):
+  with open('%s/nad_facet_benchmarks.html' % constants.NIGHTLY_REPORTS_DIR, 'w') as f:
+    w = f.write
+    header(w, 'National Address Database high cardinality faceting benchmarks')
+    w('<br>Uses the <a href="https://www.transportation.gov/gis/national-address-database/national-address-database-nad-disclaimer">National Address Database dataset</a>. The data from revision 8 (used for this benchmark), can be downloaded <a href="https://nationaladdressdata.s3.amazonaws.com/NAD_r8_TXT.zip">here</a>')
+    w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details.  This shows the results of the NAD facets benchmark (runFacetsBenchmark.py). <br>')
+    w('<br>')
+    w(getOneGraphHTML('Instantating Counts class time', nadFacetBenchmarkData['Instantiating Counts class time'], "msec", "Instantiating Counts class time (msec)", errorBars=False, pctOffset=10))
+    w(getOneGraphHTML('getAllDims() time', nadFacetBenchmarkData['getAllDims() time'], "msec", "getAllDims() time (msec)", errorBars=False, pctOffset=90))
+    w(getOneGraphHTML('getTopDims() time', nadFacetBenchmarkData['getTopDims() time'], "msec", "getTopDims() time (msec)", errorBars=False, pctOffset=170))
+    w(getOneGraphHTML('getTopChildren() time', nadFacetBenchmarkData['getTopChildren() time'], "msec", "getTopChildren() time (msec)", errorBars=False, pctOffset=250))
+    w(getOneGraphHTML('getAllChildren() time', nadFacetBenchmarkData['getAllChildren() time'], "msec", "getAllChildren() time (msec)", errorBars=False, pctOffset=330))
+    w('\n')
+    writeKnownChanges(w, pctOffset=410)
     footer(w)
 
 def writeIndexingHTML(medChartData, medVectorsChartData, bigChartData, gcTimesChartData):

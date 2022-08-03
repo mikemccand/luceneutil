@@ -49,7 +49,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as f
     totalLength = len(titleBytes)+len(bodyBytes)+len(randomLabelBytes)+20
     #print('len=%s' % totalLength)
     #print('HERE: %s, offset=%s' % (struct.pack('i', totalLength), fOut.tell()))
-    pending.write(struct.pack('iiiiil', len(titleBytes), len(bodyBytes), len(randomLabelBytes), timeSec, msecSinceEpoch))
+    pending.write(struct.pack('iiiil', len(titleBytes), len(bodyBytes), len(randomLabelBytes), timeSec, msecSinceEpoch))
     pending.write(titleBytes)
     pending.write(bodyBytes)
     pending.write(randomLabelBytes)

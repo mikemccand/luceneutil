@@ -136,7 +136,7 @@ public class LineFileDocs implements Closeable {
       byte[] headerBytes = new byte[8];
       ByteBuffer header = ByteBuffer.wrap(headerBytes);
       header.order(ByteOrder.LITTLE_ENDIAN);
-      int totalDocCount = 0;  // hopefully this won't overflow
+      int totalDocCount = 0;
       while (true) {
         header.position(0);
         int x = channel.read(header);
@@ -153,7 +153,7 @@ public class LineFileDocs implements Closeable {
         if (x != 8) {
           throw new RuntimeException("expected 8 header bytes but read " + x);
         }
-        int docCountPerBlock = header.getInt(0);
+        int docCountInBlock = header.getInt(0);
         int length = header.getInt(4);
         //System.out.println("count= " + count + " len=" + length);
         ByteBuffer buffer = ByteBuffer.wrap(new byte[length]);
@@ -163,10 +163,11 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc.BinaryBased(buffer, readVector(docCountPerBlock), totalDocCount, docCountPerBlock));
-        totalDocCount += docCountPerBlock;
+        queue.put(new LineFileDoc.BinaryBased(buffer, readVector(docCountInBlock), totalDocCount, docCountInBlock));
+        totalDocCount += docCountInBlock;
       }
     } else {
+      // This is a txt based line file doc
       int id = 0;
       while (true) {
         String line = reader.readLine();
@@ -529,7 +530,7 @@ public class LineFileDocs implements Closeable {
       int bodyLenBytes = buffer.getInt();
       int randomLabelLenBytes = buffer.getInt();
       timeSec  = buffer.getInt();
-      myID = lfd.getId();
+      myID = lfd.getNextId();
       msecSinceEpoch  = buffer.getLong();
 //      System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes +
 //              " randomLabelLenBytes=" + randomLabelLenBytes + " msecSinceEpoch=" + msecSinceEpoch + " timeSec=" + timeSec);
@@ -573,7 +574,7 @@ public class LineFileDocs implements Closeable {
         return null;
       }
       line = lfd.getStringText();
-      myID = lfd.getId();
+      myID = lfd.getNextId();
 
       int spot = line.indexOf(SEP);
       if (spot == -1) {
@@ -762,7 +763,12 @@ public class LineFileDocs implements Closeable {
       }
     }
 
-    abstract int getId();
+    /**
+     * Get the id for the next document, can only be called n times, where n
+     * is the number of documents carried by this LFD. Usually 1 doc if it is
+     * text based, or multiple if it is binary based
+     */
+    abstract int getNextId();
 
     String getStringText() {
       throw new UnsupportedOperationException();
@@ -775,7 +781,8 @@ public class LineFileDocs implements Closeable {
     private static final class TextBased extends LineFileDoc {
       final String stringText;
 
-      final int id; // will be the exact id if this is txt based LFD
+      final int id; // This is the exact id since it is txt based LFD
+
       TextBased(String text, float[] vector, int id) {
         super(vector);
         stringText = text;
@@ -783,7 +790,7 @@ public class LineFileDocs implements Closeable {
       }
 
       @Override
-      int getId() {
+      int getNextId() {
         return id;
       }
 
@@ -798,6 +805,7 @@ public class LineFileDocs implements Closeable {
       final ByteBuffer byteText;
       private int nextId; // will have multiple doc in a same LFD so we'll determine id using a base
       private int docCount; // and a count
+
       BinaryBased(ByteBuffer bytes, float[] vector, int idBase, int docCount) {
         super(vector);
         byteText = bytes;
@@ -806,7 +814,7 @@ public class LineFileDocs implements Closeable {
       }
 
       @Override
-      int getId() {
+      int getNextId() {
         if (docCount-- == 0) {
           throw new IllegalStateException("Calling getId more than docCount");
         }

@@ -504,7 +504,7 @@ public class LineFileDocs implements Closeable {
       float[] vector = new float[vectorDimension];
       FloatBuffer vectorBuffer = null;
       LineFileDoc lfd = nextDocs.get();
-      if (lfd == null || lfd.getByteText().hasRemaining() == false) {
+      if (lfd == null || lfd.getBlockByteText().hasRemaining() == false) {
         /*
         System.out.println("  prev buffer=" + buffer);
         if (buffer != null) {
@@ -525,7 +525,7 @@ public class LineFileDocs implements Closeable {
         //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
       }
       // buffer format described in buildBinaryLineDocs.py
-      ByteBuffer buffer = lfd.getByteText();
+      ByteBuffer buffer = lfd.getBlockByteText();
       int titleLenBytes = buffer.getInt();
       int bodyLenBytes = buffer.getInt();
       int randomLabelLenBytes = buffer.getInt();
@@ -753,6 +753,11 @@ public class LineFileDocs implements Closeable {
   }
 
   private static abstract class LineFileDoc {
+
+    // This vector can be vector value for one or more documents
+    // more specifically, for text based LFD the vector is single valued
+    // but for binary based LFD the vector contains value for all the documents
+    // in the block
     private final FloatBuffer vector;
 
     LineFileDoc(float[] vector) {
@@ -770,11 +775,19 @@ public class LineFileDocs implements Closeable {
      */
     abstract int getNextId();
 
+    /**
+     * This method is only for txt based LFD, should only return value for 1 document
+     */
     String getStringText() {
       throw new UnsupportedOperationException();
     }
 
-    ByteBuffer getByteText() {
+    /**
+     * This method is only for binary based LFD, it returns unconsumed buffer for all the documents encoded
+     * in the same block, the returned binary buffer should be consumed and positioned to the start of next
+     * document before next call
+     */
+    ByteBuffer getBlockByteText() {
       throw new UnsupportedOperationException();
     }
 
@@ -802,13 +815,13 @@ public class LineFileDocs implements Closeable {
 
     private static final class BinaryBased extends LineFileDoc {
 
-      final ByteBuffer byteText;
+      final ByteBuffer blockByteText;
       private int nextId; // will have multiple doc in a same LFD so we'll determine id using a base
       private int docCount; // and a count
 
       BinaryBased(ByteBuffer bytes, float[] vector, int idBase, int docCount) {
         super(vector);
-        byteText = bytes;
+        blockByteText = bytes;
         this.nextId = idBase;
         this.docCount = docCount;
       }
@@ -822,8 +835,8 @@ public class LineFileDocs implements Closeable {
       }
 
       @Override
-      ByteBuffer getByteText() {
-        return byteText;
+      ByteBuffer getBlockByteText() {
+        return blockByteText;
       }
     }
   }

@@ -54,7 +54,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as f
     pending.write(bodyBytes)
     pending.write(randomLabelBytes)
     pendingDocCount += 1
-    
+
     if pending.tell() > 64*1024:
       #print('%d docs in %.1f KB chunk' % (pendingDocCount, pending.tell()/1024.))
       flush(pending, pendingDocCount, fOut)

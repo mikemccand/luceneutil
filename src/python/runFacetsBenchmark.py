@@ -73,7 +73,7 @@ def run_benchmark(lucene_dir, index_dir, data_dir, nightly_log_dir, doc_limit, n
     stderr = results.stderr.decode('utf-8')
 
     open(f'{nightly_log_dir}/nad-facet-benchmark.stdout.txt', 'w').write(stdout)
-    open(f'{nightly_log_dir}/nad-facet-benchmark.sterr.txt', 'w').write(stdout)
+    open(f'{nightly_log_dir}/nad-facet-benchmark.sterr.txt', 'w').write(stderr)
 
     if results.returncode != 0:
         print(f'stdout: {stdout}\n')

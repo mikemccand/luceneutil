@@ -1628,7 +1628,7 @@ def makeGraphs():
         storedFieldsResults['Indexing time'].append(','.join([str(x) for x in indexing_time_sec_row]))
         storedFieldsResults['Retrieval time'].append(','.join([str(x) for x in retrieval_time_msec_row]))
 
-      resultsFile = '%s/%s/nad-facet-benchmark.pk' % (constants.NIGHTLY_REPORTS_DIR, subDir)
+      resultsFile = '%s/%s/nad-facet-benchmark.pk' % (constants.NIGHTLY_LOG_DIR, subDir)
       if os.path.exists(resultsFile):
         nad_facet_results = pickle.load(open(resultsFile, 'rb'))
         create_counts_row = [None, None, None]

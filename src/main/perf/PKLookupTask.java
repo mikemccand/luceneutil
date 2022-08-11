@@ -142,10 +142,9 @@ final class PKLookupTask extends Task {
   @Override
   public void printResults(PrintStream out, IndexState state) throws IOException {
     for(int idx=0;idx<ids.length;idx++) {
-
       if (answers[idx] == -1) {
         if (!state.hasDeletions) {
-          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
+          throw new RuntimeException("PKLookup: id=" + LineFileDocs.idToInt(ids[idx].utf8ToString()) + " failed to find a matching document");
         } else {
           // TODO: we should verify that these are in fact
           // the deleted docs...

@@ -347,6 +347,7 @@ public class LineFileDocs implements Closeable {
     final Field body;
     final Field id;
     final Field idPoint;
+    final Field idDV;
     final Field date;
     final Field randomLabel;
 
@@ -391,6 +392,8 @@ public class LineFileDocs implements Closeable {
         doc.add(dayOfYearDV);
         dayOfYearIP = new IntPoint("dayOfYearNumericDV", 0); //points field must have the same name and value as DV field
         doc.add(dayOfYearIP);
+        idDV = new NumericDocValuesField("id", 0);
+        doc.add(idDV);
       } else {
         titleDV = null;
         titleBDV = null;
@@ -400,6 +403,7 @@ public class LineFileDocs implements Closeable {
         monthDV = null;
         dayOfYearDV = null;
         dayOfYearIP = null;
+        idDV = null;
       }
 
       titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
@@ -487,6 +491,28 @@ public class LineFileDocs implements Closeable {
     return doc2;
   }
 
+  /* this function make sure the calling thread will have something to index */
+  public boolean reserve() {
+    if (isBinary == false) {
+      return true; // don't need to reserve anything with text based LFD
+    }
+    LineFileDoc lfd = nextDocs.get();
+    if (lfd != null && lfd.getBlockByteText().hasRemaining()) {
+      return true; // we have next document
+    }
+    try {
+      lfd = queue.take();
+    } catch (InterruptedException ie) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(ie);
+    }
+    if (lfd == END) {
+      return false;
+    }
+    nextDocs.set(lfd);
+    return true;
+  }
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   public Document nextDoc(DocState doc) throws IOException {
 
@@ -503,27 +529,13 @@ public class LineFileDocs implements Closeable {
 
       float[] vector = new float[vectorDimension];
       FloatBuffer vectorBuffer = null;
-      LineFileDoc lfd = nextDocs.get();
-      if (lfd == null || lfd.getBlockByteText().hasRemaining() == false) {
-        /*
-        System.out.println("  prev buffer=" + buffer);
-        if (buffer != null) {
-          System.out.println("    pos=" + buffer.position() + " vs limit=" + buffer.limit());
-        }
-        */
 
-        try {
-          lfd = queue.take();
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(ie);
-        }
-        if (lfd == END) {
-          return null;
-        }
-        nextDocs.set(lfd);
-        //System.out.println("    got new buffer=" + buffer + " pos=" + buffer.position() + " limit=" + buffer.limit());
+      // reserve() is okay to be called multiple times
+      if (reserve() == false) {
+        return null;
       }
+      LineFileDoc lfd = nextDocs.get();
+      assert lfd != null && lfd != END && lfd.getBlockByteText().hasRemaining();
       // buffer format described in buildBinaryLineDocs.py
       ByteBuffer buffer = lfd.getBlockByteText();
       int titleLenBytes = buffer.getInt();
@@ -636,10 +648,10 @@ public class LineFileDocs implements Closeable {
       doc.monthDV.setBytesValue(new BytesRef(month));
       doc.dayOfYearDV.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.dayOfYearIP.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
+      doc.idDV.setLongValue(myID);
     }
     doc.titleTokenized.setStringValue(title);
     doc.id.setStringValue(intToID(myID));
-
     doc.idPoint.setIntValue(myID);
 
     if (addDVFields) {

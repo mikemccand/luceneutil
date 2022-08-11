@@ -229,7 +229,7 @@ class IndexThreads {
           }
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
-          while (!stop.get()) {
+          while (!stop.get() && docs.reserve()) {
             final int groupCounter = groupBlockIndex.getAndIncrement();
             if (groupCounter >= groupBlocks.length) {
               break;

@@ -23,15 +23,17 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.BytesRef;
 
@@ -170,6 +172,16 @@ class IndexThreads {
       this.randomDocIDMax = randomDocIDMax;
     }
 
+    private static Field getStoredIDField(Document doc) {
+      for (IndexableField field : doc.getFields("id")) {
+        if (field.fieldType() == StoredField.TYPE) {
+          return (Field) field;
+        }
+      }
+
+      throw new IllegalArgumentException("cannot locate stored 'id' field in doc=" + doc);
+    }
+
     @Override
     public void run() {
       try {
@@ -229,7 +241,7 @@ class IndexThreads {
           }
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
-          while (!stop.get() && docs.reserve()) {
+          while (stop.get() == false && docs.reserve()) {
             final int groupCounter = groupBlockIndex.getAndIncrement();
             if (groupCounter >= groupBlocks.length) {
               break;
@@ -311,7 +323,7 @@ class IndexThreads {
         } else if (docsPerSec > 0 && mode != null) {
           final long startNS = System.nanoTime();
           int threadCount = 0;
-          while (!stop.get()) {
+          while (stop.get() == false) {
             final Document doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
@@ -332,9 +344,9 @@ class IndexThreads {
             }
             switch (mode) {
             case UPDATE:
-              // NOTE: can't use docState.id in case doClone
+              // NOTE: can't use docState.id in case doClone 
               // was true
-              ((Field) ((Document) doc).getField("id")).setStringValue(updateID);
+              getStoredIDField(doc).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
               break;
             case NDV_UPDATE:
@@ -370,7 +382,7 @@ class IndexThreads {
             maybeOpenReader(tStart);
           }
         } else {
-          while (!stop.get()) {
+          while (stop.get() == false) {
             final Document doc = docs.nextDoc(docState);
             if (doc == null) {
               break;
@@ -390,7 +402,7 @@ class IndexThreads {
               final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
               // NOTE: can't use docState.id in case doClone
               // was true
-              ((Field) ((Document) doc).getField("id")).setStringValue(updateID);
+              getStoredIDField(doc).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);
@@ -444,7 +456,7 @@ class IndexThreads {
        System.out.println("startIngest: " + time);
        final long start = time;
        int lastCount = count.get();
-       while(!stop.get()) {
+       while(stop.get() == false) {
          try {
            Thread.sleep(200);
          } catch(Exception ex) {

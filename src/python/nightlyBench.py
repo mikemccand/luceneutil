@@ -17,6 +17,7 @@
 
 import datetime
 import glob
+import multiprocessing
 import os
 import pickle
 import pysftp
@@ -1025,11 +1026,12 @@ def run():
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
                         analyzer='StandardAnalyzerNoStopWords',
                         postingsFormat='Lucene90',
-                        numThreads=1,
-                        useCMS=False,
+                        numThreads=multiprocessing.cpu_count(),
+                        useCMS=True,
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Lucene90',
-                        mergePolicy='LogDocMergePolicy',
+                        mergePolicy='TieredMergePolicy',
+                        maxConcurrentMerges=12,
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
@@ -1041,8 +1043,9 @@ def run():
                         addDVFields=True,
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
                         vectorDimension=100,
-                        vectorEncoding='FLOAT32')
-
+                        vectorEncoding='FLOAT32',
+                        rearrange=555,
+                        indexSort="id:long",)
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

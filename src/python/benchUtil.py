@@ -818,7 +818,7 @@ class RunAlgs:
       w = lambda *xs : [cmd.append(str(x)) for x in xs]
       w('-classpath', classPathToString(getClassPath(index.checkout)))
 
-      jfrOutput = f'{constants.BENCH_BASE_DIR}/bench-index-{id}-{index.getName()}.jfr'
+      jfrOutput = f'{constants.LOGS_DIR}/bench-index-{id}-{index.getName()}.jfr'
 
       # 77: always enable Java Flight Recorder profiling
       w(f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
@@ -1071,7 +1071,7 @@ class RunAlgs:
 
     # 77: always enable Java Flight Recorder profiling
     command += [f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
-                f',filename={constants.BENCH_BASE_DIR}/bench-search-{id}-{c.name}-{iter}.jfr',
+                f',filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr',
                 '-XX:+UnlockDiagnosticVMOptions',
                 '-XX:+DebugNonSafepoints']
 

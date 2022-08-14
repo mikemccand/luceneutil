@@ -40,19 +40,22 @@ GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
 GLOVE_VECTOR_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d.vec' % BASE_DIR
 GLOVE_VECTOR8_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d-8bit.vec' % BASE_DIR
 
-#WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
-#WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_500DOCS_FILE = '%s/tasks/wikimedium500.tasks' % BENCH_BASE_DIR
-WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
-WIKI_VECTOR_TASKS_FILE = '%s/tasks/vector.tasks' % BENCH_BASE_DIR
-SORTED_TASKS_FILE = '%s/tasks/sorted.tasks' % BENCH_BASE_DIR
-DISJUNCTION_SIMPLE_TASKS_FILE = '%s/tasks/disjunctionSimple.tasks' % BENCH_BASE_DIR
-DISJUNCTION_REALISTIC_TASKS_FILE = '%s/tasks/disjunctionRealistic.tasks' % BENCH_BASE_DIR
-DISJUNCTION_INTENSIVE_TASKS_FILE = '%s/tasks/disjunctionIntensive.tasks' % BENCH_BASE_DIR
-COMBINED_FIELDS_TASKS_FILE = '%s/tasks/combinedfields.tasks' % BENCH_BASE_DIR
-COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = '%s/tasks/combinedfields.unevenlyweighted.tasks' % BENCH_BASE_DIR
+TASKS_DIR=f'{BENCH_BASE_DIR}/tasks'
+#WIKI_MEDIUM_TASKS_10MDOCS_FILE = f'{TASKS_DIR}/wikimedium.10M.tasks'
+WIKI_MEDIUM_TASKS_10MDOCS_FILE = f'{TASKS_DIR}/wikimedium.10M.nostopwords.tasks'
+#WIKI_MEDIUM_TASKS_1MDOCS_FILE = f'{TASKS_DIR}/wikimedium.1M.tasks'
+WIKI_MEDIUM_TASKS_1MDOCS_FILE = f'{TASKS_DIR}/wikimedium.1M.nostopwords.tasks'
+WIKI_MEDIUM_TASKS_500DOCS_FILE = f'{TASKS_DIR}/wikimedium500.tasks'
+WIKI_MEDIUM_TASKS_ALL_FILE = f'{TASKS_DIR}/wikimedium.10M.tasks'
+WIKI_VECTOR_TASKS_FILE = f'{TASKS_DIR}/vector.tasks'
+WIKI_VECTOR_TASKS_ARG_100D = f'{TASKS_DIR}/vector.task.txt,{TASKS_DIR}/vector-task-100d.vec,100'
+WIKI_VECTOR_TASKS_ARG_300D = f'{TASKS_DIR}/vector.task.txt,{TASKS_DIR}/vector-task-300d.vec,300'
+SORTED_TASKS_FILE = f'{TASKS_DIR}/sorted.tasks'
+DISJUNCTION_SIMPLE_TASKS_FILE = f'{TASKS_DIR}/disjunctionSimple.tasks'
+DISJUNCTION_REALISTIC_TASKS_FILE = f'{TASKS_DIR}/disjunctionRealistic.tasks'
+DISJUNCTION_INTENSIVE_TASKS_FILE = f'{TASKS_DIR}/disjunctionIntensive.tasks'
+COMBINED_FIELDS_TASKS_FILE = f'{TASKS_DIR}/combinedfields.tasks'
+COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = f'{TASKS_DIR}/combinedfields.unevenlyweighted.tasks'
 
 # wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-with-random-label.txt.lzma
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-with-random-label.txt' % BASE_DIR

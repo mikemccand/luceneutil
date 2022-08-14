@@ -18,11 +18,15 @@ package perf;
  */
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -85,6 +89,39 @@ public class VectorDictionary<T> {
     System.out.println("loaded " + dict.size());
   }
 
+  public VectorDictionary(String textFileName, String binaryVectorFileName, int dim) throws IOException {
+    // read a dictionary file where each line of text file has some text, and its dim-dimensional
+    // vector is stored as f32 in the binaryVectorFile in the corresponding position (line no * dim * 4)
+    this.dimension = dim;
+    try (BufferedReader reader = Files.newBufferedReader(Paths.get(textFileName), StandardCharsets.UTF_8);
+         InputStream vIn = Files.newInputStream(Paths.get(binaryVectorFileName))) {
+      String text;
+      while ((text = reader.readLine()) != null) {
+        float[] vector = readVector(vIn, dim);
+        if (dict.containsKey(text)) {
+          if (Arrays.equals(vector, dict.get(text)) == false) {
+            throw new IllegalStateException("entry \"" + text + "\" seen twice with different values");
+          }
+        } else {
+          dict.put(text, vector);
+        }
+      }
+    }
+  }
+
+  public float[] readVector(InputStream in, int dim) throws IOException {
+    byte[] bytes = new byte[dim * Float.BYTES];
+    if (in.read(bytes) != bytes.length) {
+      throw new IOException("failed to read " + bytes.length + " bytes");
+    }
+    float[] result = new float[dim];
+    ByteBuffer.wrap(bytes)
+      .order(ByteOrder.LITTLE_ENDIAN)
+      .asFloatBuffer()
+      .get(result);
+    return result;
+  }
+
   private int parseLine(String line) {
     String[] parts = line.split(" ");
     String token = parts[0];
@@ -105,6 +142,10 @@ public class VectorDictionary<T> {
       System.err.println("WARN: skipping token in dictionary with zero vector: " + token);
     }
     return vector.length;
+  }
+
+  public float[] get(String text) {
+    return dict.get(text);
   }
 
   public float[] computeTextVector(String text) {

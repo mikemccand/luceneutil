@@ -1046,7 +1046,7 @@ def run():
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
-                      vectorDict=constants.GLOVE_WORD_VECTORS_FILE,
+                      vectorDict=constants.WIKI_VECTOR_TASKS_ARG_100D,
                       directory=DIR_IMPL,
                       commitPoint='multi')
 

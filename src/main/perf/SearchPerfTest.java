@@ -265,10 +265,21 @@ public class SearchPerfTest {
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
     final String vectorFile;
+    final String vectorValuesFile;
+    final int vectorDimension;
     if (args.hasArg("-vectorDict")) {
-      vectorFile = args.getString("-vectorDict");
+      String[] vArgs = args.getString("-vectorDict").split(",");
+      if (vArgs.length != 3) {
+        throw new IllegalArgumentException("-vectorDict should have three parts: ${textFile},${vectorDataFile},${dimension}, got: \"" +
+                                           args.getString("-vectorDict") + "\"");
+      }
+      vectorFile = vArgs[0];
+      vectorValuesFile = vArgs[1];
+      vectorDimension = Integer.parseInt(vArgs[2]);
     } else {
       vectorFile = null;
+      vectorValuesFile = null;
+      vectorDimension = 0;
     }
 
     if (recacheFilterDeletes) {
@@ -510,18 +521,8 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     final QueryParser queryParser = new QueryParser("body", a);
-    VectorDictionary vectorDictionary;
-    if (vectorFile != null) {
-      Float scale = args.getFloat("-vectorScale", null);
-      if (scale != null) {
-        vectorDictionary = VectorDictionary.create(vectorFile, scale);
-      } else {
-        vectorDictionary = VectorDictionary.create(vectorFile);
-      }
-    } else {
-      vectorDictionary = null;
-    }
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorDictionary, doStoredLoads);
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom,
+                                           vectorFile, vectorValuesFile, vectorDimension, doStoredLoads);
 
     final TaskSource tasks;
 

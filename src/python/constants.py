@@ -44,6 +44,7 @@ GLOVE_VECTOR8_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d-8bit.vec' % BAS
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
 #WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_TASKS_500DOCS_FILE = '%s/tasks/wikimedium500.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_ALL_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_VECTOR_TASKS_FILE = '%s/tasks/vector.tasks' % BENCH_BASE_DIR
 SORTED_TASKS_FILE = '%s/tasks/sorted.tasks' % BENCH_BASE_DIR

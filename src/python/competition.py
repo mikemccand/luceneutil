@@ -38,6 +38,7 @@ WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10
 WIKI_MEDIUM_5M = Data('wikimedium5m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 5000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_10K = Data('wikimedium10k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
+WIKI_MEDIUM_500 = Data('wikimedium500', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 500, constants.WIKI_MEDIUM_TASKS_500DOCS_FILE)
 WIKI_MEDIUM_500K = Data('wikimedium500k', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 500000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 WIKI_MEDIUM_2M = Data('wikimedium2m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 2000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
@@ -87,6 +88,7 @@ COMBINED_FIELDS_UNEVENLY_WEIGHTED_MEDIUM_10M = Data('combinedFieldsUnevenlyWeigh
 DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'wikimedium10m' : WIKI_MEDIUM_10M,
         'wikimedium1m' : WIKI_MEDIUM_1M,
+        'wikimedium500' : WIKI_MEDIUM_500,
         'wikimedium500k' : WIKI_MEDIUM_500K,
         'wikimedium10k' : WIKI_MEDIUM_10K,
         'wikimedium5m' : WIKI_MEDIUM_5M,
@@ -176,6 +178,8 @@ class Index(object):
     self.extraNamePart = extraNamePart
     if ramBufferMB == -1:
       self.maxBufferedDocs = self.numDocs // (SEGS_PER_LEVEL*111)
+      if self.maxBufferedDocs < 2:
+        self.maxBufferedDocs = self.numDocs
     else:
       self.maxBufferedDocs = -1
     self.mergePolicy = mergePolicy
@@ -320,7 +324,7 @@ class Competitor(object):
          f'-Dtests.profile.stacksize={size}',
          f'-Dtests.profile.count={count}',
          'org.apache.lucene.gradle.ProfileResults'] + \
-         glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{self.name}-*.jfr')
+         glob.glob(f'{constants.LOGS_DIR}/bench-search-{id}-{self.name}-*.jfr')
 
       print(f'JFR aggregation command: {" ".join(command)}')
       t0 = time.time()
@@ -491,7 +495,7 @@ class Competition(object):
     else:
       challenger = self.competitors[0]
 
-    for fileName in glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-*.jfr'):
+    for fileName in glob.glob(f'{constants.LOGS_DIR}/bench-search-*.jfr'):
       print('Removing old JFR %s...' % fileName)
       os.remove(fileName)
 

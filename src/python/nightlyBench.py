@@ -865,7 +865,7 @@ def run():
     print('will compare to last goot result files!')
 
   # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
-  for fileName in glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-*.jfr'):
+  for fileName in glob.glob(f'{constants.LOGS_DIR}/bench-search-*.jfr'):
     print('Removing old JFR %s...' % fileName)
     os.remove(fileName)
 

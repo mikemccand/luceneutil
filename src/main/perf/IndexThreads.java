@@ -172,9 +172,9 @@ class IndexThreads {
       this.randomDocIDMax = randomDocIDMax;
     }
 
-    private static Field getStoredIDField(Document doc) {
+    private static Field getStringIDField(Document doc) {
       for (IndexableField field : doc.getFields("id")) {
-        if (field.fieldType() == StoredField.TYPE) {
+        if (field.fieldType() == StringField.TYPE_STORED) {
           return (Field) field;
         }
       }
@@ -346,7 +346,7 @@ class IndexThreads {
             case UPDATE:
               // NOTE: can't use docState.id in case doClone 
               // was true
-              getStoredIDField(doc).setStringValue(updateID);
+              getStringIDField(doc).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
               break;
             case NDV_UPDATE:
@@ -402,7 +402,7 @@ class IndexThreads {
               final String updateID = LineFileDocs.intToID(random.nextInt(randomDocIDMax));
               // NOTE: can't use docState.id in case doClone
               // was true
-              getStoredIDField(doc).setStringValue(updateID);
+              getStringIDField(doc).setStringValue(updateID);
               w.updateDocument(new Term("id", updateID), doc);
             } else {
               w.addDocument(doc);

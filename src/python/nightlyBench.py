@@ -978,7 +978,8 @@ def run():
                                          maxConcurrentMerges=12,
                                          useCMS=True,
                                          vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                         vectorDimension=100,)
+                                         vectorDimension=100,
+                                         vectorEncoding='FLOAT32')
                                   
 
   nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
@@ -1039,7 +1040,9 @@ def run():
                                   ('sortedset:RandomLabel', 'RandomLabel')),
                         addDVFields=True,
                         vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                        vectorDimension=100,)
+                        vectorDimension=100,
+                        vectorEncoding='FLOAT32')
+
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
@@ -1055,7 +1058,7 @@ def run():
   os.chdir(constants.BENCH_BASE_DIR)
   try:
     message('now run stored fields benchmark')
-    if not REAL:
+    if not REAL or DEBUG:
       doc_limit = 100000
     else:
       # do all docs in the file
@@ -1068,7 +1071,7 @@ def run():
   os.chdir(constants.BENCH_BASE_DIR)
   try:
     message('now run NAD facets benchmark')
-    if not REAL:
+    if not REAL or DEBUG:
       doc_limit = 100000
       num_iters = 2
     else:
@@ -1251,31 +1254,32 @@ def run():
       w('</pre>')
       w('</html>\n')
 
-      # Blunders upload:
-      blunders.upload(f'Searching ({timeStamp})',
-                      f'searching-{timeStamp}',
-                      f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                      glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+      if not DEBUG and REAL:
+        # Blunders upload:
+        blunders.upload(f'Searching ({timeStamp})',
+                        f'searching-{timeStamp}',
+                        f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                        glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
 
-      blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
-                      f'indexing-1kb-{timeStamp}',
-                      f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                      profilerMediumJFR)
+        blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
+                        f'indexing-1kb-{timeStamp}',
+                        f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                        profilerMediumJFR)
 
-      blunders.upload(f'Indexing fast ~1 KB docs with vectors ({timeStamp})',
-                      f'indexing-1kb-vectors-{timeStamp}',
-                      f"Profiled results during indexing ~1 KB docs with KNN vectors in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                      profilerMediumVectorsJFR)
+        blunders.upload(f'Indexing fast ~1 KB docs with vectors ({timeStamp})',
+                        f'indexing-1kb-vectors-{timeStamp}',
+                        f"Profiled results during indexing ~1 KB docs with KNN vectors in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                        profilerMediumVectorsJFR)
 
-      blunders.upload(f'Indexing fast ~4 KB docs ({timeStamp})',
-                      f'indexing-4kb-{timeStamp}',
-                      f"Profiled results during indexing ~4 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                      profilerBigJFR)
+        blunders.upload(f'Indexing fast ~4 KB docs ({timeStamp})',
+                        f'indexing-4kb-{timeStamp}',
+                        f"Profiled results during indexing ~4 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                        profilerBigJFR)
 
-      blunders.upload(f'Indexing single-threaded ~1 KB docs into fixed searching index ({timeStamp})',
-                      f'indexing-1kb-fixed-search-single-thread-{timeStamp}',
-                      f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks, single-threaded, for fixed searching index on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                      profilerSearchJFR)
+        blunders.upload(f'Indexing single-threaded ~1 KB docs into fixed searching index ({timeStamp})',
+                        f'indexing-1kb-fixed-search-single-thread-{timeStamp}',
+                        f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks, single-threaded, for fixed searching index on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                        profilerSearchJFR)
 
       if False:
         blunders.upload(f'Indexing NRT ~1 KB docs ({timeStamp})',

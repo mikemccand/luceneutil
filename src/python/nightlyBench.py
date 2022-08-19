@@ -1045,7 +1045,8 @@ def run():
                         vectorDimension=100,
                         vectorEncoding='FLOAT32',
                         rearrange=555,
-                        indexSort="id:long",)
+                        indexSort="id:long",
+                        name="nightlyBenchIndex")
 
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,

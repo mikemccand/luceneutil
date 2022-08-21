@@ -1043,7 +1043,6 @@ def run():
                         vectorDimension=100,
                         vectorEncoding='FLOAT32')
 
-
   c = comp.competitor(id, NIGHTLY_DIR,
                       index=index,
                       vectorDict=constants.WIKI_VECTOR_TASKS_ARG_100D,

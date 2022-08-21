@@ -45,11 +45,14 @@ public class VectorDictionary<T> {
   public final int dimension;
 
   public static VectorDictionary<float[]> create (String filename) throws IOException {
-    return new VectorDictionary<float[]>(filename, 0f, VectorEncoding.FLOAT32);
+    return new VectorDictionary<float[]>(filename, 1f, VectorEncoding.FLOAT32);
   }
 
-  public static VectorDictionary<byte[]> create (String filename, float scale) throws IOException {
-    return new VectorDictionary<byte[]>(filename, scale, VectorEncoding.BYTE);
+  public static VectorDictionary<?> create (String filename, float scale, VectorEncoding vectorEncoding) throws IOException {
+    return switch(vectorEncoding) {
+      case BYTE -> new VectorDictionary<byte[]>(filename, scale, vectorEncoding);
+      case FLOAT32 -> new VectorDictionary<float[]>(filename, scale, vectorEncoding);
+    };
   }
 
   public int size() {
@@ -93,6 +96,11 @@ public class VectorDictionary<T> {
     // read a dictionary file where each line of text file has some text, and its dim-dimensional
     // vector is stored as f32 in the binaryVectorFile in the corresponding position (line no * dim * 4)
     this.dimension = dim;
+    // scaling, encoding not needed/supported for a directly-loaded dictionary. A dictionary created
+    // this way will not support computeTextVector; it's only intended for loading a precomputed set
+    // of string->vector mappings.
+    this.scale = 1f;
+    this.vectorEncoding = null;
     try (BufferedReader reader = Files.newBufferedReader(Paths.get(textFileName), StandardCharsets.UTF_8);
          InputStream vIn = Files.newInputStream(Paths.get(binaryVectorFileName))) {
       String text;
@@ -144,11 +152,10 @@ public class VectorDictionary<T> {
     return vector.length;
   }
 
-  public float[] get(String text) {
-    return dict.get(text);
-  }
-
   public float[] computeTextVector(String text) {
+    if (vectorEncoding == null) {
+      throw new IllegalStateException("This VectorDictionary does not support computeTextVector");
+    }
     float[] dvec = new float[dimension];
     int count = 0;
     for (String token : tokenize(text)) {
@@ -168,7 +175,7 @@ public class VectorDictionary<T> {
         vectorClip(dvec, -128, 127);
       }
       case FLOAT32 -> {
-        vectorDiv(dvec, vectorNorm(dvec));
+        vectorDiv(dvec, vectorNorm(dvec) / scale);
       }
     }
     return dvec;

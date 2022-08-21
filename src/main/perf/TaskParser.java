@@ -93,6 +93,7 @@ class TaskParser {
       vectorDictionary = new VectorDictionary(vectorTextFile, vectorValuesFile, vectorDimension);
       vectorField = "vector";
     } else {
+      vectorDictionary = null;
       vectorField = null;
     }
     titleDVSort = new Sort(new SortField("title", SortField.Type.STRING));

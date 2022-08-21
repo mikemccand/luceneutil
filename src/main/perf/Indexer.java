@@ -228,7 +228,7 @@ public final class Indexer {
         vectorDimension = 0;
         vectorEncoding = null;
     }
-
+    System.out.println("Indexer.vectorEncoding=" + vectorEncoding);
     // -1 means all docs in the line file:
     final int docCountLimit = args.getInt("-docCountLimit");
     final int numThreads = args.getInt("-threadCount");

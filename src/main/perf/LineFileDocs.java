@@ -73,7 +73,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
+  private final static LineFileDoc END = new LineFileDoc.TextBased("END", new float[0], -1);
 
   private BufferedReader reader;
   private SeekableByteChannel channel;
@@ -169,7 +169,10 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc.BinaryBased(buffer, readVector(docCountInBlock), totalDocCount, docCountInBlock));
+        switch(vectorEncoding) {
+          case BYTE -> queue.put(new LineFileDoc.BinaryBased(buffer, readByteVector(docCountInBlock), totalDocCount, docCountInBlock));
+          case FLOAT32 -> queue.put(new LineFileDoc.BinaryBased(buffer, readFloatVector(docCountInBlock), totalDocCount, docCountInBlock));
+        }
         totalDocCount += docCountInBlock;
       }
     } else {
@@ -186,7 +189,11 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc.TextBased(line, readVector(1), id++));
+        switch(vectorEncoding) {
+          case BYTE -> queue.put(new LineFileDoc.TextBased(line, readByteVector(1), id++));
+          case FLOAT32 -> queue.put(new LineFileDoc.TextBased(line, readFloatVector(1), id++));
+        }
+        ;
       }
     }
     for(int i=0;i<128;i++) {
@@ -194,7 +201,7 @@ public class LineFileDocs implements Closeable {
     }
   }
 
-  private float[] readVector(int count) throws IOException {
+  private float[] readFloatVector(int count) throws IOException {
     if (vectorChannel == null) {
       return null;
     }
@@ -207,6 +214,21 @@ public class LineFileDocs implements Closeable {
     }
     buffer.position(0);
     buffer.asFloatBuffer().get(vector);
+    return vector;
+  }
+
+  private byte[] readByteVector(int count) throws IOException {
+    if (vectorChannel == null) {
+      return null;
+    }
+    byte[] vector = new byte[count * vectorDimension];
+    ByteBuffer buffer = ByteBuffer.allocate(count * vectorDimension);
+    int n = vectorChannel.read(buffer);
+    if (n != count * vectorDimension) {
+      throw new RuntimeException("expected " + count * vectorDimension + " vector bytes but read " + n);
+    }
+    buffer.position(0);
+    buffer.get(vector);
     return vector;
   }
 
@@ -489,7 +511,10 @@ public class LineFileDocs implements Closeable {
         doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
       } else if (f instanceof KnnVectorField) {
         KnnVectorField knnf = ((KnnVectorField) f);
-        doc2.add(new KnnVectorField(f.name(), knnf.vectorValue(), f.fieldType().vectorSimilarityFunction()));
+        switch(f.fieldType().vectorEncoding()) {
+          case BYTE -> doc2.add(new KnnVectorField(f.name(), knnf.binaryValue(), f.fieldType().vectorSimilarityFunction()));
+          case FLOAT32 -> doc2.add(new KnnVectorField(f.name(), knnf.vectorValue(), f.fieldType().vectorSimilarityFunction()));
+        }
       } else {
         Field field2 = new Field(f.name(),
                                  f.stringValue(),
@@ -581,7 +606,10 @@ public class LineFileDocs implements Closeable {
       line = null;
 
       if (lfd.vector != null) {
-        lfd.getVector(doc.vectorField.vectorValue());
+        switch(vectorEncoding) {
+          case FLOAT32 -> lfd.getVector(doc.vectorField.vectorValue());
+          case BYTE -> lfd.getVector(doc.vectorField.binaryValue());
+        }
       }
 
     } else {
@@ -638,7 +666,10 @@ public class LineFileDocs implements Closeable {
       msecSinceEpoch = doc.dateCal.getTimeInMillis();
       timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
       if (doc.vectorField != null) {
-        doc.vectorField.setVectorValue((float[]) lfd.vector.array());
+        switch(vectorEncoding) {
+          case FLOAT32 -> doc.vectorField.setVectorValue((float[]) lfd.vector.array());
+          case BYTE -> doc.vectorField.setBytesValue((byte[]) lfd.vector.array());
+        }
       }
     }
 
@@ -790,6 +821,14 @@ public class LineFileDocs implements Closeable {
       }
     }
 
+    LineFileDoc(byte[] vector) {
+      if (vector == null) {
+        this.vector = null;
+      } else {
+        this.vector = ByteBuffer.wrap(vector);
+      }
+    }
+
     /**
      * Get the id for the next document, can only be called n times, where n
      * is the number of documents carried by this LFD. Usually 1 doc if it is
@@ -824,6 +863,12 @@ public class LineFileDocs implements Closeable {
         this.id = id;
       }
 
+      TextBased(String text, byte[] vector, int id) {
+        super(vector);
+        stringText = text;
+        this.id = id;
+      }
+
       @Override
       int getNextId() {
         return id;
@@ -842,6 +887,13 @@ public class LineFileDocs implements Closeable {
       private int docCount; // and a count
 
       BinaryBased(ByteBuffer bytes, float[] vector, int idBase, int docCount) {
+        super(vector);
+        blockByteText = bytes;
+        this.nextId = idBase;
+        this.docCount = docCount;
+      }
+
+      BinaryBased(ByteBuffer bytes, byte[] vector, int idBase, int docCount) {
         super(vector);
         blockByteText = bytes;
         this.nextId = idBase;
@@ -882,8 +934,8 @@ public class LineFileDocs implements Closeable {
       ((FloatBuffer) vector).get(in);
     }
 
-    void getVector(byte[] in) {
-      ((ByteBuffer) vector).get(in);
+    void getVector(BytesRef in) {
+      ((ByteBuffer) vector).get(in.bytes);
     }
   }
 }

@@ -7,6 +7,9 @@
 
     <path id="build.classpath">
       <pathelement location="build"/>
+      <fileset dir="../baseline/lucene/core/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
     </path>
 
     <javac srcdir="src/main"
@@ -63,6 +66,7 @@
       -->
       <arg value="-scale"/>
       <arg value="256"/>
+      <arg value="-write-bytes"/>
       <arg value="${data.dir}/glove.6B.300d.txt"/>
       <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
       <arg value="${data.dir}/enwiki-20120502-lines-1k-300d-8bit.vec"/>
@@ -75,7 +79,7 @@
       <arg value="256"/>
       <arg value="${data.dir}/glove.6B.300d.txt"/>
       <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-300d-8bit.vec"/>
+      <arg value="${tasks.dir}/vector-task-300d-scaled.vec"/>
     </java>
   </target>
 
@@ -113,6 +117,7 @@
       -->
       <arg value="-scale"/>
       <arg value="128"/>
+      <arg value="-write-bytes"/>
       <arg value="${data.dir}/glove.6B.100d.txt"/>
       <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
       <arg value="${data.dir}/enwiki-20120502-lines-1k-100d-8bit.vec"/>
@@ -125,7 +130,7 @@
       <arg value="256"/>
       <arg value="${data.dir}/glove.6B.100d.txt"/>
       <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-100d-8bit.vec"/>
+      <arg value="${tasks.dir}/vector-task-100d-scaled.vec"/>
     </java>
   </target>
 

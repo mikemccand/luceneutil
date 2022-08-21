@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.lucene.index.VectorEncoding;
+
 import perf.VectorDictionary;
 
 /**
@@ -46,14 +48,13 @@ public class WikiVectors<T> {
 
   private final VectorDictionary<?> dict;
 
-  float scale;
-  int dimension;
+  final VectorEncoding vectorEncoding;
+  final float scale;
 
   public static void main(String[] args) throws Exception {
     if (args.length < 1) {
       usage();
     }
-    float scale = 0;
     List<String> argList = List.of(args);
     if (argList.get(0).equals("--test")) {
       test();
@@ -62,38 +63,42 @@ public class WikiVectors<T> {
     if (args.length < 3) {
       usage();
     }
-    if (args[0].equals("-scale")) {
+    VectorEncoding vectorEncoding;
+    if (argList.contains("-write-bytes")) {
+      vectorEncoding = VectorEncoding.BYTE;
+      argList.remove("-write-bytes");
+    } else {
+      vectorEncoding = VectorEncoding.FLOAT32;
+    }
+    float scale = 1f;
+    if (argList.get(0).equals("-scale")) {
       scale = Float.parseFloat(args[1]);
       argList = argList.subList(2, argList.size());
     }
     if (argList.size() != 3) {
       usage();
     }
-    WikiVectors wikiVectors = new WikiVectors(argList.get(0), scale);
+    WikiVectors wikiVectors = new WikiVectors(argList.get(0), scale, vectorEncoding);
     try (OutputStream out = Files.newOutputStream(Paths.get(argList.get(2)))) {
       wikiVectors.computeVectors(argList.get(1), out);
     }
   }
 
   static void usage() {
-      System.err.println("usage: WikiVectors --test | [-scale X] <vectorDictionary> <lineDocs> <docVectorOutput>");
+      System.err.println("usage: WikiVectors --test | [-scale X] [-write-bytes] <vectorDictionary> <lineDocs> <docVectorOutput>");
       System.exit(-1);
   }
 
-  WikiVectors(String dictFileName, float scale) throws IOException {
+  WikiVectors(String dictFileName, float scale, VectorEncoding vectorEncoding) throws IOException {
+    this.vectorEncoding = vectorEncoding;
     this.scale = scale;
-    if (scale == 0) {
-      dict = VectorDictionary.create(dictFileName);
-    } else {
-      dict = VectorDictionary.create(dictFileName, scale);
-    }
+    dict = VectorDictionary.create(dictFileName, scale, vectorEncoding);
   }
 
   void computeVectors(String lineDocFile, OutputStream out) throws IOException {
-    if (scale == 0) {
-      computeFloatVectors(lineDocFile, out);
-    } else {
-      computeByteVectors(lineDocFile, out);
+    switch (vectorEncoding) {
+      case BYTE -> computeByteVectors(lineDocFile, out);
+      case FLOAT32 -> computeFloatVectors(lineDocFile, out);
     }
   }
 
@@ -128,12 +133,16 @@ public class WikiVectors<T> {
     int count = 0;
     CharsetDecoder dec=StandardCharsets.UTF_8.newDecoder()
       .onMalformedInput(CodingErrorAction.REPLACE); // replace invalid input with the UTF8 replacement character
+    byte[] scratch = new byte[dict.dimension];
     try (Reader r = Channels.newReader(FileChannel.open(Paths.get(lineDocFile)), dec, -1);
          BufferedReader in = new BufferedReader(r)) {
       String lineDoc;
       while ((lineDoc = in.readLine()) != null) {
-        byte[] vec = (byte[]) dict.computeTextVector(lineDoc);
-        out.write(vec);
+        float[] vec = dict.computeTextVector(lineDoc);
+        for (int i = 0; i < vec.length; i++) {
+          scratch[i] = (byte) vec[i];
+        }
+        out.write(scratch);
         if (++count % 10000 == 0) {
           System.out.print("wrote " + count + "\n");
         }
@@ -156,14 +165,17 @@ public class WikiVectors<T> {
     System.out.println("testUnscaled: ok");
     testScaled();
     System.out.println("testScaled: ok");
+    testScaledFloat();
+    System.out.println("testScaledFloat: ok");
   }
 
   static void testUnscaled() throws IOException {
-    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.txt", 0);
+    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.txt", 1, VectorEncoding.FLOAT32);
     assertEquals(100, wikiVectors.dict.dimension);
     assertEquals(100, wikiVectors.dict.get("many").length);
-    assertEquals(0f, wikiVectors.dict.scale);
+    assertEquals(1f, wikiVectors.dict.scale);
     assertEquals(4, wikiVectors.dict.size());
+    assertEquals(VectorEncoding.FLOAT32, wikiVectors.dict.vectorEncoding);
     // vectors were normalized
     assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("publisher")));
     assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("backstory")));
@@ -192,12 +204,13 @@ public class WikiVectors<T> {
 
   static void testScaled() throws IOException {
     float scale = 128f;
-    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.txt", scale);
+    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.txt", scale, VectorEncoding.BYTE);
     assertEquals(100, wikiVectors.dict.dimension);
     assertEquals(100, wikiVectors.dict.get("many").length);
     assertEquals(scale, wikiVectors.dict.scale);
+    assertEquals(VectorEncoding.BYTE, wikiVectors.dict.vectorEncoding);
     assertEquals(4, wikiVectors.dict.size());
-    // vectors were normalized
+    // vectors were normalized - we will scale when writing out to a file
     assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("publisher")));
     assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("backstory")));
     assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("many")));
@@ -219,6 +232,45 @@ public class WikiVectors<T> {
       // vector for "many geografia" - geografia is not there
       assertEquals(buf[100], scaleToByte(wikiVectors.dict.get("many")[0], scale));
       assertEquals(buf[199], scaleToByte(wikiVectors.dict.get("many")[99], scale));
+    }
+  }
+
+  static void testScaledFloat() throws IOException {
+    float scale = 2f;
+    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.txt", scale, VectorEncoding.FLOAT32);
+    assertEquals(100, wikiVectors.dict.dimension);
+    assertEquals(100, wikiVectors.dict.get("many").length);
+    assertEquals(scale, wikiVectors.dict.scale);
+    assertEquals(VectorEncoding.FLOAT32, wikiVectors.dict.vectorEncoding);
+    assertEquals(4, wikiVectors.dict.size());
+    // vectors were normalized and scaled
+    assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("publisher")));
+    assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("backstory")));
+    assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("many")));
+    // compare ratios since these are invariant under scaling, and we normalized the input
+    assertClose(-0.056504f / 0.16064f, wikiVectors.dict.get("publisher")[0] / wikiVectors.dict.get("publisher")[99]);
+    assertClose(-0.32914f / 0.59499f, wikiVectors.dict.get("many")[0] / wikiVectors.dict.get("many")[99]);
+    assertThat(wikiVectors.dict.get("geografia") == null);
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+      wikiVectors.computeVectors("resources/test-tasks.txt", out);
+      byte[] buf = out.toByteArray();
+      // we wrote two 100-dimensional vectors
+      assertEquals(800, buf.length);
+      FloatBuffer floatBuf = ByteBuffer.wrap(buf).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+      float[] v = new float[100];
+
+      floatBuf.get(v);
+      // vector for "publisher backstory"
+      assertClose(v[0] / v[99],
+                  (wikiVectors.dict.get("publisher")[0] + wikiVectors.dict.get("backstory")[0])
+                  /
+                  (float) (wikiVectors.dict.get("publisher")[99] + wikiVectors.dict.get("backstory")[99]),
+                  1/128f);
+
+      floatBuf.get(v);
+      // vector for "many geografia" - geografia is not there
+      assertEquals(v[0], wikiVectors.dict.get("many")[0] * scale);
+      assertEquals(v[99], wikiVectors.dict.get("many")[99] * scale);
     }
   }
 

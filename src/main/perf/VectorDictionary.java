@@ -172,11 +172,15 @@ public class VectorDictionary<T> {
     switch (vectorEncoding) {
       case BYTE -> {
         vectorDiv(dvec, vectorNorm(dvec) / scale);
-        vectorClip(dvec, -128, 127);
       }
       case FLOAT32 -> {
         vectorDiv(dvec, vectorNorm(dvec) / scale);
       }
+    }
+    if (scale != 1f) {
+      // whenever we are scaling it is in order to reduce precision to 1 byte
+      // even when we write out as floats
+      vectorClip(dvec, Byte.MIN_VALUE, Byte.MAX_VALUE);
     }
     return dvec;
   }

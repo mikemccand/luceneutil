@@ -127,7 +127,7 @@
   <target name="vectors100-8bit-tasks" depends="build">
     <java className="WikiVectors" classpathref="build.classpath">
       <arg value="-scale"/>
-      <arg value="256"/>
+      <arg value="128"/>
       <arg value="${data.dir}/glove.6B.100d.txt"/>
       <arg value="${tasks.dir}/vector.task.txt"/>
       <arg value="${tasks.dir}/vector-task-100d-scaled.vec"/>

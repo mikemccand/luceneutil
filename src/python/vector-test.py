@@ -28,8 +28,8 @@ if __name__ == '__main__':
   comp =  competition.Competition()
 
   index = comp.newIndex('baseline', sourceData,
-                        vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                        vectorDimension=100,
+                        vectorFile=constants.GLOVE_VECTOR_300D_DOCS_FILE,
+                        vectorDimension=300,
                         vectorEncoding='FLOAT32',
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
@@ -49,13 +49,13 @@ if __name__ == '__main__':
 
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', 'baseline',
-                  vectorDict=constants.WIKI_VECTOR_TASKS_ARG_100D,
+                  vectorDict=constants.WIKI_VECTOR_TASKS_ARG_300D,
                   index = index, concurrentSearches = concurrentSearches)
 
   # use a different index 
   index = comp.newIndex('candidate', sourceData,
-                        vectorFile=constants.GLOVE_VECTOR8_DOCS_FILE,
-                        vectorDimension=100,
+                        vectorFile=constants.GLOVE_VECTOR8_300D_DOCS_FILE,
+                        vectorDimension=300,
                         vectorEncoding='BYTE',
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
@@ -69,7 +69,7 @@ if __name__ == '__main__':
   # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
   # while the codec that is used for running this competitor is taken from this competitor.
   comp.competitor('candidate', 'candidate',
-                  vectorDict=constants.WIKI_VECTOR_TASKS_ARG_100D_BYTE_SCALED,
+                  vectorDict=constants.WIKI_VECTOR_TASKS_ARG_300D_BYTE_SCALED,
                   index = index, concurrentSearches = concurrentSearches)
 
   # start the benchmark - this can take long depending on your index and machines

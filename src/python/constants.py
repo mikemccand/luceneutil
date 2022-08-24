@@ -39,6 +39,8 @@ WIKI_MEDIUM_DOCS_COUNT = 33332620
 GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
 GLOVE_VECTOR_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d.vec' % BASE_DIR
 GLOVE_VECTOR8_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d-8bit.vec' % BASE_DIR
+GLOVE_VECTOR_300D_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-300d.vec' % BASE_DIR
+GLOVE_VECTOR8_300D_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-300d-8bit.vec' % BASE_DIR
 
 TASKS_DIR=f'{BENCH_BASE_DIR}/tasks'
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = f'{TASKS_DIR}/wikimedium.10M.tasks'

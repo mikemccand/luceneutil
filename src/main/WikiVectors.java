@@ -55,7 +55,7 @@ public class WikiVectors<T> {
     if (args.length < 1) {
       usage();
     }
-    List<String> argList = List.of(args);
+    List<String> argList = new ArrayList<>(List.of(args));
     if (argList.get(0).equals("--test")) {
       test();
       return;

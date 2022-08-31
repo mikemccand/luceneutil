@@ -54,7 +54,7 @@ class IndexThreads {
                       boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
-    Integer groupBlockIndex;
+    AtomicInteger groupBlockIndex;
 
     this.docs = lineFileDocs;
     if (addGroupingFields) {
@@ -62,7 +62,7 @@ class IndexThreads {
       IndexThread.group10K = randomStrings(10000, random);
       IndexThread.group100K = randomStrings(100000, random);
       IndexThread.group1M = randomStrings(1000000, random);
-      groupBlockIndex = 0;
+      groupBlockIndex = new AtomicInteger();
     } else {
       groupBlockIndex = null;
     }
@@ -79,7 +79,7 @@ class IndexThreads {
     for(int thread=0;thread<numThreads;thread++) {
       threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode,
               groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener,
-              nrtEverySec, randomDocIDMax, this);
+              nrtEverySec, randomDocIDMax);
       threads[thread].setName("Index #" + thread);
       threads[thread].start();
     }
@@ -138,7 +138,7 @@ class IndexThreads {
     private final IndexWriter w;
     private final AtomicBoolean stop;
     private final AtomicInteger count;
-    private Integer groupBlockIndex;
+    private final AtomicInteger groupBlockIndex;
     private final Mode mode;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
@@ -150,14 +150,10 @@ class IndexThreads {
     private final AtomicLong lastRefreshNS;
     private final double nrtEverySec;
     final int randomDocIDMax;
-
-    private final IndexThreads parent; // used for locking
-
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
-                       LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, Integer groupBlockIndex,
+                       LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
                        AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, float docsPerSec,
-                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax,
-                       IndexThreads parent) {
+                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -175,7 +171,6 @@ class IndexThreads {
       this.lastRefreshNS = lastRefreshNS;
       this.nrtEverySec = nrtEverySec;
       this.randomDocIDMax = randomDocIDMax;
-      this.parent = parent;
     }
 
     private static Field getStringIDField(Document doc) {
@@ -249,19 +244,19 @@ class IndexThreads {
 
           while (stop.get() == false) {
             int groupCounter = -1;
-            if (groupBlockIndex >= groupBlocks.length) {
+            if (groupBlockIndex.get() >= groupBlocks.length) {
               break;
             } else {
-              synchronized (parent) {
+              synchronized (groupBlockIndex) {
                 // we need to make sure we have more group index
                 // as well as more docs to index at the same time
-                if (groupBlockIndex >= groupBlocks.length) {
+                if (groupBlockIndex.get() >= groupBlocks.length) {
                   break;
                 }
                 if (docs.reserve() == false) {
                   break;
                 }
-                groupCounter = groupBlockIndex++;
+                groupCounter = groupBlockIndex.getAndIncrement();
               }
             }
             final int numDocs;

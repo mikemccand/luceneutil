@@ -506,18 +506,12 @@ public final class Indexer {
       throw new RuntimeException("exceptions during indexing");
     }
 
-    // Very tricky: if the line file docs source is binary, and you use multiple threads, and you use grouping fields, then the doc count
-    // may not match:
     boolean countShouldMatch;
 
     if (docCountLimit == -1) {
       countShouldMatch = false;
-    } else if (mode == Mode.UPDATE) {
-      countShouldMatch = false;
-    } else if (lineFileDocs.isBinary && numThreads > 1 && addGroupingFields) {
-      countShouldMatch = false;
     } else {
-      countShouldMatch = true;
+      countShouldMatch = mode != Mode.UPDATE;
     }
 
     if (countShouldMatch) {

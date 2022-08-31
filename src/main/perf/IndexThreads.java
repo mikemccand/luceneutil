@@ -54,7 +54,7 @@ class IndexThreads {
                       boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
-    final AtomicInteger groupBlockIndex;
+    Integer groupBlockIndex;
 
     this.docs = lineFileDocs;
     if (addGroupingFields) {
@@ -62,7 +62,7 @@ class IndexThreads {
       IndexThread.group10K = randomStrings(10000, random);
       IndexThread.group100K = randomStrings(100000, random);
       IndexThread.group1M = randomStrings(1000000, random);
-      groupBlockIndex = new AtomicInteger();
+      groupBlockIndex = 0;
     } else {
       groupBlockIndex = null;
     }
@@ -77,7 +77,9 @@ class IndexThreads {
     lastRefreshNS = new AtomicLong(System.nanoTime());
 
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode, groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener, nrtEverySec, randomDocIDMax);
+      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode,
+              groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener,
+              nrtEverySec, randomDocIDMax, this);
       threads[thread].setName("Index #" + thread);
       threads[thread].start();
     }
@@ -136,7 +138,7 @@ class IndexThreads {
     private final IndexWriter w;
     private final AtomicBoolean stop;
     private final AtomicInteger count;
-    private final AtomicInteger groupBlockIndex;
+    private Integer groupBlockIndex;
     private final Mode mode;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
@@ -149,10 +151,13 @@ class IndexThreads {
     private final double nrtEverySec;
     final int randomDocIDMax;
 
+    private final IndexThreads parent; // used for locking
+
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
-                       LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
+                       LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, Integer groupBlockIndex,
                        AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, float docsPerSec,
-                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax) {
+                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax,
+                       IndexThreads parent) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -170,6 +175,7 @@ class IndexThreads {
       this.lastRefreshNS = lastRefreshNS;
       this.nrtEverySec = nrtEverySec;
       this.randomDocIDMax = randomDocIDMax;
+      this.parent = parent;
     }
 
     private static Field getStringIDField(Document doc) {
@@ -241,10 +247,22 @@ class IndexThreads {
           }
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
-          while (stop.get() == false && docs.reserve()) {
-            final int groupCounter = groupBlockIndex.getAndIncrement();
-            if (groupCounter >= groupBlocks.length) {
+          while (stop.get() == false) {
+            int groupCounter = -1;
+            if (groupBlockIndex >= groupBlocks.length) {
               break;
+            } else {
+              synchronized (parent) {
+                // we need to make sure we have more group index
+                // as well as more docs to index at the same time
+                if (groupBlockIndex >= groupBlocks.length) {
+                  break;
+                }
+                if (docs.reserve() == false) {
+                  break;
+                }
+                groupCounter = groupBlockIndex++;
+              }
             }
             final int numDocs;
             // This will toggle between X and X+1 docs,

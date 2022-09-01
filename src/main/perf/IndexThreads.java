@@ -53,7 +53,7 @@ class IndexThreads {
                       boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
-    AtomicInteger groupBlockIndex;
+    final AtomicInteger groupBlockIndex;
 
     this.docs = lineFileDocs;
     if (addGroupingFields) {

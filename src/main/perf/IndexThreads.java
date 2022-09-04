@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -77,7 +76,9 @@ class IndexThreads {
     lastRefreshNS = new AtomicLong(System.nanoTime());
 
     for(int thread=0;thread<numThreads;thread++) {
-      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode, groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener, nrtEverySec, randomDocIDMax);
+      threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode,
+              groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener,
+              nrtEverySec, randomDocIDMax);
       threads[thread].setName("Index #" + thread);
       threads[thread].start();
     }
@@ -148,7 +149,6 @@ class IndexThreads {
     private final AtomicLong lastRefreshNS;
     private final double nrtEverySec;
     final int randomDocIDMax;
-
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
                        LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
                        AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, float docsPerSec,
@@ -241,10 +241,24 @@ class IndexThreads {
           }
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
-          while (stop.get() == false && docs.reserve()) {
-            final int groupCounter = groupBlockIndex.getAndIncrement();
-            if (groupCounter >= groupBlocks.length) {
+          while (stop.get() == false) {
+            int groupCounter = -1;
+            if (groupBlockIndex.get() >= groupBlocks.length) {
+              docs.recycle();
               break;
+            } else {
+              synchronized (groupBlockIndex) {
+                // we need to make sure we have more group index
+                // as well as more docs to index at the same time
+                if (groupBlockIndex.get() >= groupBlocks.length) {
+                  docs.recycle();
+                  break;
+                }
+                if (docs.reserve() == false) {
+                  break;
+                }
+                groupCounter = groupBlockIndex.getAndIncrement();
+              }
             }
             final int numDocs;
             // This will toggle between X and X+1 docs,
@@ -273,12 +287,12 @@ class IndexThreads {
                         Field extraField;
 
                         try {
-                          doc = docs.nextDoc(docState);
+                          doc = docs.nextDoc(docState, true);
                         } catch (IOException ioe) {
                           throw new RuntimeException(ioe);
                         }
                         if (doc == null) {
-                          return false;
+                          throw new IllegalStateException("Expected more docs");
                         }
 
                         if (upto == numDocs) {

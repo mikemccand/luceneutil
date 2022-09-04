@@ -45,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.BinaryDocValuesField;
@@ -92,6 +93,7 @@ public class LineFileDocs implements Closeable {
   private String[] extraFacetFields;
   private final boolean addDVFields;
   private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
+  private final BlockingQueue<LineFileDoc> recycleBin = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
   final boolean isBinary;
   private final ThreadLocal<LineFileDoc> nextDocs = new ThreadLocal<>();
@@ -501,7 +503,20 @@ public class LineFileDocs implements Closeable {
     return doc2;
   }
 
-  /* this function make sure the calling thread will have something to index */
+  /* Call this function to put the remaining doc block into recycle queue */
+  public void recycle() {
+    if (isBinary && nextDocs.get() != null && nextDocs.get().getBlockByteText().hasRemaining()) {
+      try {
+        recycleBin.put(nextDocs.get());
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(ie);
+      }
+      nextDocs.set(null);
+    }
+  }
+
+  /* Call this function to make sure the calling thread will have something to index */
   public boolean reserve() {
     if (isBinary == false) {
       return true; // don't need to reserve anything with text based LFD
@@ -523,8 +538,12 @@ public class LineFileDocs implements Closeable {
     return true;
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
   public Document nextDoc(DocState doc) throws IOException {
+    return nextDoc(doc, false);
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public Document nextDoc(DocState doc, boolean expected) throws IOException {
 
     long msecSinceEpoch;
     int timeSec;
@@ -540,11 +559,28 @@ public class LineFileDocs implements Closeable {
       float[] vector = new float[vectorDimension];
       FloatBuffer vectorBuffer = null;
 
+      LineFileDoc lfd;
+
       // reserve() is okay to be called multiple times
       if (reserve() == false) {
-        return null;
+        if (expected == false) {
+          return null;
+        } else {
+          // the caller expects there are more documents, we will be blocking on recycleBin for 10 seconds
+          try {
+            lfd = recycleBin.poll(10, TimeUnit.SECONDS);
+            if (lfd == null) {
+              throw new IllegalStateException("Expected docs in recycleBin but not found anything");
+            }
+            nextDocs.set(lfd);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ie);
+          }
+        }
+      } else {
+        lfd = nextDocs.get();
       }
-      LineFileDoc lfd = nextDocs.get();
       assert lfd != null && lfd != END && lfd.getBlockByteText().hasRemaining();
       // buffer format described in buildBinaryLineDocs.py
       ByteBuffer buffer = lfd.getBlockByteText();

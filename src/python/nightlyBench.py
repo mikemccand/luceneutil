@@ -1022,11 +1022,12 @@ def run():
                                useCMS=True)
                                
 
-  # Must use only 1 thread so we get same index structure, always:
+  # Build a deterministic index so it's the same segment geometry every night.  We use multiple threads followed by a
+  # deterministic (random) assignment of docs to the same segment geometry:
   index = comp.newIndex(NIGHTLY_DIR, mediumSource,
                         analyzer='StandardAnalyzerNoStopWords',
                         postingsFormat='Lucene90',
-                        numThreads=multiprocessing.cpu_count(),
+                        numThreads=constants.INDEX_NUM_THREADS,
                         useCMS=True,
                         directory=DIR_IMPL,
                         idFieldPostingsFormat='Lucene90',

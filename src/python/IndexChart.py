@@ -14,7 +14,7 @@
 # limitations under the License.
 
 try:
-  import Gnuplot
+  from pygnuplot import gnuplot as Gnuplot
 except ImportError:
   print('WARNING: Gnuplot module not present; will not make charts')
   Gnuplot = None

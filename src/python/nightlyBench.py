@@ -1659,6 +1659,7 @@ def makeGraphs():
   sort(medIndexChartData)
   sort(medIndexVectorsChartData)
   sort(bigIndexChartData)
+  sort(gcIndexTimesChartData)
   for k, v in list(searchChartData.items()):
     sort(v)
 
@@ -1804,9 +1805,9 @@ def header(w, title):
   w('<html>')
   w('<head>')
   w('<title>%s</title>' % htmlEscape(title))
-  w('<style type="text/css">')
-  w('BODY { font-family:verdana; }')
-  w('</style>')
+  #w('<style type="text/css">')
+  #w('BODY { font-family:verdana; }')
+  #w('</style>')
   w('<script type="text/javascript" src="dygraph-combined-dev.js"></script>\n')
   w('</head>')
   w('<body>')
@@ -2168,7 +2169,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
 
   # header
   w('    "%s\\n" +' % data[0])
-  
+
   for s in data[1:-1]:
     w('    "%s\\n" +' % s)
     timeStamp, theRest = s.split(',', 1)

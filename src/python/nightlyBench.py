@@ -1783,9 +1783,9 @@ def writeCheckIndexTimeHTML():
     w('<h1>Seconds to run CheckIndex</h1>\n')
     w('<br>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details<br>')
     w('<br>')
-    w(getOneGraphHTML('CheckIndexTimeSeconds', chartData, "Seconds", "CheckIndex time (seconds)", errorBars=False))
+    w(getOneGraphHTML('CheckIndexTimeSeconds', chartData, "Seconds", "CheckIndex time (seconds)", errorBars=False, pctOffset=15))
 
-    writeKnownChanges(w)
+    writeKnownChanges(w, pctOffset=85)
 
     w('<br><br>')
     w('<b>Notes</b>:\n')

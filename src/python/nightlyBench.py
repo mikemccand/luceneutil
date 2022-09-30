@@ -656,6 +656,10 @@ KNOWN_CHANGES = [
    'LUCENE-10527: Use 2*maxConn for last layer in HNSW',
    'LUCENE-10527: Use 2*maxConn for last layer in HNSW'),
 
+  ('2022-05-19',
+   'GITHUB#11610: Prevent pathological O(N^2) merges',
+   'GITHUB#11610: Prevent pathological O(N^2) merges'),
+
   ('2022-06-07 18:02:50',
    'LUCENE-10078: Enable merge-on-refresh by default',
    'LUCENE-10078: Enable merge-on-refresh by default'),
@@ -683,6 +687,10 @@ KNOWN_CHANGES = [
   ('2022-09-29',
    'Update all Arch Linux packages, including kernel from 5.17.5 -> 5.19.12',
    'Update all Arch Linux packages, including kernel from 5.17.5 -> 5.19.12'),
+
+  ('2022-09-30',
+   'Switch from OpenJDK 17.0.1+12 -> standard Arch Linux OpenJDK 17.0.4.1+1',
+   'Switch from OpenJDK 17.0.1+12 -> standard Arch Linux OpenJDK 17.0.4.1+1'),
 
 ]
 

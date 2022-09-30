@@ -57,7 +57,8 @@ KNOWN_CHANGES = (
   ('2021-10-07', 'LUCENE-10153: Speed up BKDWriter using VarHandles'),
   ('2021-10-19', 'Upgrade to JDK17+35'),
   ('2021-11-01', 'LUCENE-10196: Improve IntroSorter with 3-ways partitioning'),
-
+  ('2022-08-10', 'GITHUB#1017: Add new ShapeDocValuesField for LatLonShape and XYShape'),
+  ('2022-09-28', 'GITHUB#11824: recover performance regression of LatLonPoint#newPolygonQuery'),
 )
 
 def toString(timeStamp):

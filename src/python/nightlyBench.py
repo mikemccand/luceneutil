@@ -684,6 +684,14 @@ KNOWN_CHANGES = [
    'LUCENE-10633: Dynamic pruning for queries sorted by SORTED(_SET) field',
    'LUCENE-10633: Dynamic pruning for queries sorted by SORTED(_SET) field'),
 
+  ('2022-08-10',
+   'GITHUB#1017: Add new ShapeDocValuesField for LatLonShape and XYShape',
+   'GITHUB#1017: Add new ShapeDocValuesField for LatLonShape and XYShape'),
+
+  ('2022-09-28',
+   'GITHUB#11824: recover performance regression of LatLonPoint#newPolygonQuery',
+   'GITHUB#11824: recover performance regression of LatLonPoint#newPolygonQuery'),
+
   ('2022-09-29',
    'Update all Arch Linux packages, including kernel from 5.17.5 -> 5.19.12',
    'Update all Arch Linux packages, including kernel from 5.17.5 -> 5.19.12'),

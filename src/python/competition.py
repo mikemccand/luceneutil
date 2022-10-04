@@ -279,7 +279,8 @@ class Competitor(object):
                loadStoredFields = False,
                exitable = False,
                concurrentSearches = False,
-               javacCommand = constants.JAVAC_EXE):
+               javacCommand = constants.JAVAC_EXE,
+               topN = 100):
     self.name = name
     self.checkout = checkout
     self.numThreads = numThreads
@@ -303,6 +304,8 @@ class Competitor(object):
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
     self.concurrentSearches = concurrentSearches
+    # TopN: how many hits are retrieved
+    self.topN = topN
 
   def getAggregateProfilerResult(self, id, mode, count=30, stackSize=1):
 

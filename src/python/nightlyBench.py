@@ -1867,6 +1867,11 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, 'AndHighOrMedMed', '+high-freq +(medium-freq medium-freq)')
   writeOneLine(w, done, 'AndMedOrHighHigh', '+medium-freq +(high-freq high-freq)')
 
+  w('<br><br><b>CombinedFieldsQuery:</b>')
+  writeOneLine(w, done, 'CombinedTerm', 'Combined high-freq')
+  writeOneLine(w, done, 'CombinedHighMed', 'Combined high-freq medium-freq')
+  writeOneLine(w, done, 'CombinedHighHigh', 'Combined high-freq high-freq')
+
   w('<br><br><b>Proximity queries:</b>')
   writeOneLine(w, done, 'Phrase', 'Exact phrase')
   writeOneLine(w, done, 'SloppyPhrase', 'Sloppy (~4) phrase')
@@ -1967,6 +1972,9 @@ taskRename = {
   'AndHighMed': 'BooleanQuery (AND, high freq, medium freq term)',
   'OrHighHigh': 'BooleanQuery (OR, high freq, high freq term)',
   'OrHighMed': 'BooleanQuery (OR, high freq, medium freq term)',
+  'CombinedTerm': 'CombinedFieldsQuery (term)',
+  'CombinedHighMed': 'CombinedFieldsQuery (OR, high freq, medium freq term)',
+  'CombinedHighHigh': 'CombinedFieldsQuery (OR, high freq, high freq term)',
   'Wildcard': 'WildcardQuery',
   'BrowseDayOfYearTaxoFacets': 'All flat taxonomy facet counts for last-modified day-of-year',
   'BrowseMonthTaxoFacets': 'All flat taxonomy facet counts for last-modified month',

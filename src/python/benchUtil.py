@@ -1101,7 +1101,7 @@ class RunAlgs:
     w('-commit', c.commitPoint)
     w('-hiliteImpl', c.hiliteImpl)
     w('-log', logFile)
-    w('-topN', '10')
+    w('-topN', c.topN)
     if filter is not None:
       w('-filter', '%.2f' % filter)
     if c.printHeap:

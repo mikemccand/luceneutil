@@ -700,6 +700,10 @@ KNOWN_CHANGES = [
    'Switch from OpenJDK 17.0.1+12 -> standard Arch Linux OpenJDK 17.0.4.1+1',
    'Switch from OpenJDK 17.0.1+12 -> standard Arch Linux OpenJDK 17.0.4.1+1'),
 
+  ('2022-10-06',
+   'luceneutil#192: increase the default topN from 10 to 100',
+   'luceneutil#192: increase the default topN from 10 to 100'),
+
 ]
 
 # TODO

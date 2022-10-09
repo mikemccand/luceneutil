@@ -23,6 +23,7 @@ import pysftp
 import random
 import re
 import shutil
+import json
 import smtplib
 import sys
 import tarfile
@@ -750,6 +751,9 @@ reSVNRev = re.compile(r'revision (.*?)\.')
 reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
 reGitHubPROpen = re.compile(r'\s(\d+) Open')
 reGitHubPRClosed = re.compile(r'\s(\d+) Closed')
+
+# luceneutil#205: we accumulate the raw CSV values for every chart here, and write JSON in the end:
+all_graph_data = {}
 
 REAL = True
 
@@ -1723,6 +1727,7 @@ def makeGraphs():
 
   if not DEBUG:
     #runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
+    open(f'{constants.BASE_DIR}/reports.nightly/for_all_time.json', 'w').write(json.dumps(all_graph_data, indent=2))
     pushReports()
 
 def pushReports():
@@ -2181,6 +2186,15 @@ onClickJS = '''
 '''
 
 def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
+
+  # convert data closer to separate values:
+  values = [x.split(',') for x in data]
+
+  # TODO: also include all known annotations!
+  # TODO: when errorBars is true, the variance(s) is/are extra columns in the data, so the headers
+  #       look incorrect now
+  all_graph_data[id] = (title, values)
+
   l = []
   w = l.append
   series = data[0].split(',')[1]

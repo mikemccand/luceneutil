@@ -2193,6 +2193,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   # TODO: also include all known annotations!
   # TODO: when errorBars is true, the variance(s) is/are extra columns in the data, so the headers
   #       look incorrect now
+  # TODO: get all other benches into this -- geo, sparse, github PRs, etc.
   all_graph_data[id] = (title, values)
 
   l = []

@@ -25,6 +25,15 @@ download the large data file just remove the `-download` flag from the commandli
 
 After the download has completed, extract the lzma file in `$LUCENE_BENCH_HOME/data`.
 
+### (Optional, for development) set up IntelliJ
+Should be able to open by IntelliJ automatically. The gradle will write a local configuration file `gradle.properties` in
+which you can configure your local lucene repository so that intellij will use it as external library and code suggestion
+will work. Also because the compilation is looking for jar so you have to build your lucene repo manually if you haven't 
+done so.
+Note the gradle build will NOT be able to compile the whole project because
+some codes do have errors so we still need to filter which files to compile (see competitions.py). So you still
+need to follow the rest procedure.
+
 ### Preparing the benchmark candidates
 
 The benchmark compares a baseline version of Lucene to a patched one. Therefore we need two checkouts of Lucene, for example:

@@ -6,7 +6,9 @@ sourceSets {
   main.java.srcDirs = ['.']
 }
 
+def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
+
 dependencies {
-  implementation fileTree(dir: '/Users/zhai7/ws/lucene_home/lucene_baseline/lucene', include: '**/*.jar')
+  implementation fileTree(dir: luceneDir, include: '**/*.jar')
 }
 

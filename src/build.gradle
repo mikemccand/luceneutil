@@ -1,0 +1,6 @@
+description = "Source code for luceneutil"
+
+subprojects {
+  group "org.apache.lucene"
+}
+

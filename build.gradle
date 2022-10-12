@@ -21,7 +21,7 @@ external.lucene.repo=$parentDir
     }
 }
 
-if (!hasDefaults) {
+if (hasDefaults == false) {
     // Make all tasks depend on local setup to make sure it'll run.
     allprojects {
         tasks.all { task ->

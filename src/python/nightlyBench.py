@@ -865,8 +865,8 @@ def makeGraphs():
     medIndexVectorsChartData = ['Date,GB/hour']
     bigIndexChartData = ['Date,GB/hour']
     nrtChartData = ['Date,Reopen Time (msec)']
-    gcIndexTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
-    gcSearchTimesChartData = ['Date,JIT (sec), Young GC (sec), Old GC (sec)']
+    gcIndexTimesChartData = ['Date,JIT (sec),Young GC (sec),Old GC (sec)']
+    gcSearchTimesChartData = ['Date,JIT (sec),Young GC (sec),Old GC (sec)']
     searchChartData = {}
     storedFieldsResults = {'Index size': ['Date,Index size BEST_SPEED (MB),Index size BEST_COMPRESSION (MB)'],
                            'Indexing time': [
@@ -1145,7 +1145,7 @@ def writeCheckIndexTimeHTML():
     # Messy: parses the .tar.bz2 to find timestamps of each file  Once
     # LUCENE-6233 is in we can more cleanly get this from CheckIndex's output
     # instead:
-    chartData = []
+    chartData = ['Date,CheckIndex time (seconds)']
 
     l = os.listdir(constants.NIGHTLY_LOG_DIR)
     l.sort()
@@ -1610,8 +1610,48 @@ onClickJS = '''
 
 def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
     # convert data closer to separate values:
+
+    # TODO: do we have any escaped commans (\,) in our data!!
     values = [x.split(',') for x in data]
 
+    if errorBars:
+        # Insert the (missing) stddev headers so the header count matches the value count
+        headers = values[0]
+        column = 1
+        while column < len(headers):
+            headers.insert(column+1, headers[column] + ' (stddev)')
+            column += 2
+
+    # make numbers numbers again:
+    is_int = [True] * len(values[0])
+    is_float = [True] * len(values[0])
+    for row in values[1:]:
+        for i in range(0, len(row)):
+            if row[i] == '':
+                # allow missing values
+                continue
+            try:
+                int(row[i])
+            except ValueError:
+                is_int[i] = False
+            try:
+                float(row[i])
+            except ValueError:
+                is_float[i] = False
+
+    for row in values[1:]:
+        for i in range(0, len(row)):
+            if row[i] == '':
+                # allow missing values, but swap in None/null
+                if is_float[i] or is_int[i]:
+                    row[i] = None
+                continue
+            
+            if is_int[i]:
+                row[i] = int(row[i])
+            elif is_float[i]:
+                row[i] = float(row[i])
+                
     # TODO: also include all known annotations!
     # TODO: when errorBars is true, the variance(s) is/are extra columns in the data, so the headers
     #       look incorrect now

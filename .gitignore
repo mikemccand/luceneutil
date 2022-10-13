@@ -7,6 +7,12 @@
 ## Java flight recording
 *.jfr
 
+## gradle related
+.gradle/
+/gradle.properties
+build/
+gradle/wrapper/gradle-wrapper.jar
+
 ## project files
 .project
 .classpath

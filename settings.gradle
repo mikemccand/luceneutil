@@ -1,0 +1,4 @@
+rootProject.name = "luceneutil-root"
+
+include "src:main"
+include "src:python"

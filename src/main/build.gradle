@@ -1,0 +1,14 @@
+plugins {
+  id 'java'
+}
+
+sourceSets {
+  main.java.srcDirs = ['.']
+}
+
+def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
+
+dependencies {
+  implementation fileTree(dir: luceneDir, include: '**/*.jar')
+}
+

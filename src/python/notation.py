@@ -651,4 +651,8 @@ KNOWN_CHANGES = [
      'Fix CombinedFieldsQuery tasks: https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8',
      'Fix CombinedFieldsQuery tasks: https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8'),
 
+    ('2022-10-26',
+     'Upgrade to OpenJDK 19.0.1+10',
+     'Upgrade to OpenJDK 19.0.1+10',),
+
 ]

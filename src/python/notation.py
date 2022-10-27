@@ -647,4 +647,8 @@ KNOWN_CHANGES = [
      'luceneutil#192: increase the default topN from 10 to 100',
      'luceneutil#192: increase the default topN from 10 to 100'),
 
+    ('2022-10-19',
+     'Fix CombinedFieldsQuery tasks: https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8',
+     'Fix CombinedFieldsQuery tasks: https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8'),
+
 ]

@@ -98,8 +98,8 @@ reBytesIndexed = re.compile('^Indexer: net bytes indexed (.*)$', re.MULTILINE)
 reIndexingTime = re.compile(r'^Indexer: finished \((.*) msec\)', re.MULTILINE)
 reSVNRev = re.compile(r'revision (.*?)\.')
 reIndexAtClose = re.compile('Indexer: at close: (.*?)$', re.M)
-reGitHubPROpen = re.compile(r'\s(\d+) Open')
-reGitHubPRClosed = re.compile(r'\s(\d+) Closed')
+reGitHubPROpen = re.compile(r'\s([0-9,]+) Open')
+reGitHubPRClosed = re.compile(r'\s([0-9,]+) Closed')
 
 # luceneutil#205: we accumulate the raw CSV values for every chart here, and write JSON in the end:
 all_graph_data = {}
@@ -757,13 +757,13 @@ def countGitHubPullRequests():
 
         m = reGitHubPROpen.search(html)
         if m is not None:
-            openCount = int(m.group(1))
+            openCount = int(m.group(1).replace(',', ''))
         else:
             openCount = None
 
         m = reGitHubPRClosed.search(html)
         if m is not None:
-            closedCount = int(m.group(1))
+            closedCount = int(m.group(1).replace(',', ''))
         else:
             closedCount = None
 

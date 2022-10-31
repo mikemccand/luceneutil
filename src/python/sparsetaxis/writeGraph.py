@@ -40,7 +40,7 @@ CHANGES = [
   ('2021-11-01', 'LUCENE-10196: Improve IntroSorter with 3-ways partitioning'),
   ]
 
-reMergeTime = re.compile(r': (\d+) msec to merge ([a-z ]+) \[(\d+) docs\]')
+reMergeTime = re.compile(r': (\d+) (?:ms|msec) to merge ([a-z ]+) \[(\d+) docs\]')
 reTotMergeTime = re.compile(r': merge time (\d+) msec for (\d+) docs')
 reFlushTime = re.compile(r': flush time ([.0-9]+) msec')
 reFlushPostings = re.compile(r'flush postings as segment .*? numDocs=(\d+)$')
@@ -348,7 +348,11 @@ def main():
       flushTimesData.append((m.groups(), nonSparseIndexStats[2], sparseIndexStats[2], sparseSortedIndexStats[2]))
       docsPerMBRAMData.append((m.groups(), nonSparseIndexStats[3]/1000., sparseIndexStats[3]/1000., sparseSortedIndexStats[3]/1000.))
       docsPerMBDiskData.append((m.groups(), nonSparseIndexStats[4]/1000., sparseIndexStats[4]/1000., sparseSortedIndexStats[4]/1000.))
-      dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
+      try:
+        dvMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['doc values'][0], sparseIndexStats[1]['doc values'][0], sparseSortedIndexStats[1]['doc values'][0]))
+      except:
+        print('FAILED for %s' % fileName)
+        raise
       try:
         totMergeTimesData.append((m.groups(), nonSparseIndexStats[1]['total'][0], sparseIndexStats[1]['total'][0], sparseSortedIndexStats[1]['total'][0]))
       except:

@@ -1,8 +1,8 @@
 import math
 try:
-  import ImageDraw
-  import Image
-  import ImageFont
+  from PIL import ImageDraw
+  from PIL import Image
+  from PIL import ImageFont
   supported = True
 except ImportError:
   supported = False
@@ -41,7 +41,7 @@ Y_SPACER = 20
 class QPSChart:
 
   def __init__(self, data, fileOut):
-    self.maxQPS = None
+    self.maxQPS = -math.inf
     for tup in data:
       self.maxQPS = max(tup[1:] + (self.maxQPS,))
 
@@ -137,7 +137,7 @@ class QPSChart:
   def qpsToY(self, qps):
     return Y_SPACER + self.yPixPerQPS * (self.maxQPS-qps)
 
-if 0:
+if __name__ == '__main__':
   data = (('Fuzzy1', 22.3, 24.4, 33.3, 36.6),
           ('Fuzzy2', 12.3, 13.1, 20.0, 22.7))
 

@@ -337,7 +337,7 @@ class Competitor(object):
                               check = True)
       t1 = time.time()
       print(f'Took {t1-t0:.2f} seconds')
-      results.append((stackSize, result.stdout.decode('utf-8')))
+      results.append((size, result.stdout.decode('utf-8')))
 
     return results
 

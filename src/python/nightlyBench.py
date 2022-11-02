@@ -1010,6 +1010,11 @@ def makeGraphs():
                                     '06/10/2014'):
                             # Bug in luceneutil (didn't index numeric field properly)
                             continue
+                    if cat in ('CombinedTerm', 'CombinedHighMed', 'CombinedHighHigh') and timeStamp < datetime.datetime(2022, 10, 19):
+                        # prior to this date these tasks were matching 0 docs, causing an fake 1000X slowdown!
+                        # see https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8
+                        continue
+                    
                     searchChartData[cat].append(
                         '%s,%.3f,%.3f' % (timeStampString, avgQPS * qpsMult, stdDevQPS * qpsMult))
 

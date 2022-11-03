@@ -6,7 +6,7 @@ try:
   supported = True
 except ImportError:
   supported = False
-  
+
 #FONT = ImageFont.truetype('/usr/local/src/yjp-9.0.7/jre64/lib/fonts/LucidaSansRegular.ttf', 15)
 #FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationSans-Bold.ttf', 15)
 #FONT = ImageFont.truetype('/usr/share/fonts/liberation/LiberationMono-Regular.ttf', 12)
@@ -43,7 +43,7 @@ class QPSChart:
   def __init__(self, data, fileOut):
     self.maxQPS = -math.inf
     for tup in data:
-      self.maxQPS = max(tup[1:] + (self.maxQPS,))
+      self.maxQPS = max(maxQPS, data[2], data[4])
 
     if self.maxQPS > 100:
       qpsInc = 20
@@ -75,7 +75,7 @@ class QPSChart:
       qps += qpsInc
 
     x = X_AXIS_GAP + X_SPACER1
-    for idx, (cat, minBase, maxBase, minCmp, maxCmp) in enumerate(data):
+    for idx, (cat, minBase, maxBase, minCmp, maxCmp, pValue) in enumerate(data):
 
       avgBase = (minBase + maxBase)/2
       avgCmp = (minCmp + maxCmp)/2

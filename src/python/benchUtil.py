@@ -1397,8 +1397,13 @@ class RunAlgs:
     chartData = [x[1:] for x in chartData]
 
     if QPSChart.supported:
-      QPSChart.QPSChart(chartData, 'out.png')
-      print('Chart saved to out.png... (wd: %s)' % os.getcwd())
+      try:
+        QPSChart.QPSChart(chartData, 'out.png')
+      except:
+        print(f'WARNING: failed to generate QPS diff chart chartData={chartData}; skipping')
+        traceback.print_exc()
+      else:
+        print(f'Chart saved to out.png... (wd: {os.getcwd()})')
 
     w = writer
 

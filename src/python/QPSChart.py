@@ -43,7 +43,7 @@ class QPSChart:
   def __init__(self, data, fileOut):
     self.maxQPS = -math.inf
     for tup in data:
-      self.maxQPS = max(maxQPS, data[2], data[4])
+      self.maxQPS = max(self.maxQPS, data[2], data[4])
 
     if self.maxQPS > 100:
       qpsInc = 20

@@ -653,6 +653,10 @@ KNOWN_CHANGES = [
 
     ('2022-10-26',
      'Upgrade to OpenJDK 19.0.1+10',
-     'Upgrade to OpenJDK 19.0.1+10',),
+     'Upgrade to OpenJDK 19.0.1+10'),
+
+    ('2022-11-03',
+     'Add --enable-preview command-line JVM flag to test new Panama-based MMapDirectory implementation',
+     'Add --enable-preview command-line JVM flag to test new Panama-based MMapDirectory implementation'),
 
 ]

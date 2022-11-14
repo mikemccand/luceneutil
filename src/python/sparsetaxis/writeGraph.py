@@ -41,8 +41,8 @@ CHANGES = [
   ]
 
 reMergeTime = re.compile(r': (\d+) (?:ms|msec) to merge ([a-z ]+) \[(\d+) docs\]')
-reTotMergeTime = re.compile(r': merge time (\d+) msec for (\d+) docs')
-reFlushTime = re.compile(r': flush time ([.0-9]+) msec')
+reTotMergeTime = re.compile(r': merge time (\d+) ms for (\d+) docs')
+reFlushTime = re.compile(r': flush time ([.0-9]+) ms')
 reFlushPostings = re.compile(r'flush postings as segment .*? numDocs=(\d+)$')
 reDocsPerMB = re.compile('ramUsed=([.,0-9]+) MB newFlushedSize.*? docs/MB=([.,0-9]+)$')
 reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')

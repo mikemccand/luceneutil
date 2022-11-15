@@ -25,6 +25,7 @@ package perf;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -39,6 +40,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
@@ -51,6 +53,8 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene94.Lucene94Codec;
 import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.sortedset.DefaultSortedSetDocValuesReaderState;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.TaxonomyReader;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyReader;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
@@ -275,6 +279,56 @@ public class SearchPerfTest {
       throw new UnsupportedOperationException("recacheFilterDeletes was deprecated");
     }
 
+    FacetsConfig facetsConfig = new FacetsConfig();
+    facetsConfig.setHierarchical("Date.taxonomy", true);
+    facetsConfig.setHierarchical("Date.sortedset", true);
+
+    // all unique facet group fields ($facet alone, by default):
+    final Set<String> facetFields = new HashSet<>();
+
+    // facet dim name -> facet method
+    final Map<String,Integer> facetDimMethods = new HashMap<>();
+    if (args.hasArg("-facets")) {
+      for(String arg : args.getStrings("-facets")) {
+        String[] dims = arg.split(";");
+        String facetGroupField;
+        String facetMethod;
+        if (dims[0].equals("taxonomy") || dims[0].equals("sortedset")) {
+          // method --> use the default facet field for this group
+          facetGroupField = FacetsConfig.DEFAULT_INDEX_FIELD_NAME;
+          facetMethod = dims[0];
+        } else {
+          // method:indexFieldName --> use a custom facet field for this group
+          int i = dims[0].indexOf(":");
+          if (i == -1) {
+            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
+          }
+          facetMethod = dims[0].substring(0, i);
+          if (facetMethod.equals("taxonomy") == false && facetMethod.equals("sortedset") == false) {
+            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
+          }
+          facetGroupField = dims[0].substring(i+1);
+        }
+        facetFields.add(facetGroupField);
+        for(int i=1;i<dims.length;i++) {
+          int flag;
+          if (facetDimMethods.containsKey(dims[i])) {
+            flag = facetDimMethods.get(dims[i]);
+          } else {
+            flag = 0;
+          }
+          if (facetMethod.equals("taxonomy")) {
+            flag |= 1;
+            facetsConfig.setIndexFieldName(dims[i]+".taxonomy", facetGroupField + ".taxonomy");
+          } else {
+            flag |= 2;
+            facetsConfig.setIndexFieldName(dims[i]+".sortedset", facetGroupField + ".sortedset");
+          }
+          facetDimMethods.put(dims[i], flag);
+        }
+      }
+    }
+
     if (args.getFlag("-nrt")) {
       // TODO: get taxoReader working here too
       // TODO: factor out & share this CL processing w/ Indexer
@@ -390,6 +444,18 @@ public class SearchPerfTest {
                 mgr.maybeRefresh();
                 reopenCount++;
                 IndexSearcher s = mgr.acquire();
+
+                // An application that uses facets should create new reader states after refreshing.
+                // Here we're demonstrating correct usage, but don't really need the reader states.
+                List<SortedSetDocValuesReaderState> freshReaderStates = facetsConfig.getDimConfigs().keySet().stream()
+                        .map(field -> {
+                            try {
+                              return new DefaultSortedSetDocValuesReaderState(s.getIndexReader(), field, facetsConfig);
+                            } catch (IOException e) {
+                              throw new UncheckedIOException(e);
+                            }
+                          }
+                ).collect(Collectors.toList());
                 try {
                   System.out.println(String.format(Locale.ENGLISH, "%.1fs: done reopen; writer.maxDoc()=%d; searcher.maxDoc()=%d; searcher.numDocs()=%d",
                                                    (System.currentTimeMillis() - startMS)/1000.0,
@@ -442,56 +508,6 @@ public class SearchPerfTest {
     }
 
     //System.out.println("searcher=" + searcher);
-
-    FacetsConfig facetsConfig = new FacetsConfig();
-    facetsConfig.setHierarchical("Date.taxonomy", true);
-    facetsConfig.setHierarchical("Date.sortedset", true);
-
-    // all unique facet group fields ($facet alone, by default):
-    final Set<String> facetFields = new HashSet<>();
-
-    // facet dim name -> facet method
-    final Map<String,Integer> facetDimMethods = new HashMap<>();
-    if (args.hasArg("-facets")) {
-      for(String arg : args.getStrings("-facets")) {
-        String[] dims = arg.split(";");
-        String facetGroupField;
-        String facetMethod;
-        if (dims[0].equals("taxonomy") || dims[0].equals("sortedset")) {
-          // method --> use the default facet field for this group
-          facetGroupField = FacetsConfig.DEFAULT_INDEX_FIELD_NAME;
-          facetMethod = dims[0];
-        } else {
-          // method:indexFieldName --> use a custom facet field for this group
-          int i = dims[0].indexOf(":");
-          if (i == -1) {
-            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
-          }
-          facetMethod = dims[0].substring(0, i);
-          if (facetMethod.equals("taxonomy") == false && facetMethod.equals("sortedset") == false) {
-            throw new IllegalArgumentException("-facets: expected (taxonomy|sortedset):fieldName but got " + dims[0]);
-          }
-          facetGroupField = dims[0].substring(i+1);
-        }
-        facetFields.add(facetGroupField);
-        for(int i=1;i<dims.length;i++) {
-          int flag;
-          if (facetDimMethods.containsKey(dims[i])) {
-            flag = facetDimMethods.get(dims[i]);
-          } else {
-            flag = 0;
-          }
-          if (facetMethod.equals("taxonomy")) {
-            flag |= 1;
-            facetsConfig.setIndexFieldName(dims[i]+".taxonomy", facetGroupField + ".taxonomy");
-          } else {
-            flag |= 2;
-            facetsConfig.setIndexFieldName(dims[i]+".sortedset", facetGroupField + ".sortedset");
-          }
-          facetDimMethods.put(dims[i], flag);
-        }
-      }
-    }
 
     TaxonomyReader taxoReader;
     Path taxoPath = Paths.get(args.getString("-indexPath"), "facets");

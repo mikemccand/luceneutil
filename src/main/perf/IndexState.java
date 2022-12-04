@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,6 +68,8 @@ class IndexState {
     this.taxoReader = taxoReader;
     this.facetsConfig = facetsConfig;
     this.facetFields = facetFields;
+
+    preLoadSsdvFacetStates();
     
     groupEndQuery = new TermQuery(new Term("groupend", "x"));
     if (hiliteImpl.equals("FastVectorHighlighter")) {
@@ -105,6 +108,21 @@ class IndexState {
     }
 
     return result;
+  }
+
+  public void preLoadSsdvFacetStates() {
+    if (facetsConfig == null) {
+      return;
+    }
+    facetsConfig.getDimConfigs().keySet().forEach(facetField -> {
+      try {
+        getSortedSetReaderState(facetField);
+      } catch (IllegalArgumentException ignore) {
+        // Some fields in the FacetsConfig are not indexed with SSDVs
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    });
   }
 
   /** Holds re-used thread-private classes for postings primary key lookup for one LeafReader */

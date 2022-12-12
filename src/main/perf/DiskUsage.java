@@ -30,8 +30,8 @@ import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
-import org.apache.lucene.codecs.lucene94.Lucene94Codec;
-import org.apache.lucene.codecs.lucene94.Lucene94Codec.Mode;
+import org.apache.lucene.codecs.lucene95.Lucene95Codec;
+import org.apache.lucene.codecs.lucene95.Lucene95Codec.Mode;
 import org.apache.lucene.codecs.perfield.PerFieldDocValuesFormat;
 import org.apache.lucene.codecs.perfield.PerFieldPostingsFormat;
 import org.apache.lucene.index.CodecReader;
@@ -67,7 +67,7 @@ public class DiskUsage {
     IndexWriterConfig conf = new IndexWriterConfig(null);
     conf.setOpenMode(OpenMode.CREATE);
     // force codec to write per-field filenames.
-    conf.setCodec(new Lucene94Codec(Mode.valueOf(System.getProperty("mode", "BEST_SPEED"))) {
+    conf.setCodec(new Lucene95Codec(Mode.valueOf(System.getProperty("mode", "BEST_SPEED"))) {
       @Override
       public PostingsFormat getPostingsFormatForField(String field) {
         return new Lucene90PostingsFormat();

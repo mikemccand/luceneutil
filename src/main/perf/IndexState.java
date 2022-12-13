@@ -178,9 +178,10 @@ class IndexState {
       int base = 0;
       for(AtomicReaderContext sub : searcher.getIndexReader().leaves()) {
         int maxDoc = sub.reader().maxDoc();
+        StoredFields storedFields = sub.reader().storedFields();
         for(int doc=0;doc<maxDoc;doc++) {
           // NOTE: slow!!!!  But we do this once on startup ...
-          docIDToID[base+doc] = LineFileDocs.idToInt(sub.reader().document(doc).get("id"));
+          docIDToID[base+doc] = LineFileDocs.idToInt(storedFields.document(doc).get("id"));
         }
         base += maxDoc;
       }

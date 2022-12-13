@@ -34,6 +34,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.SerialMergeScheduler;
+import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.IOUtils;
 
@@ -145,9 +146,10 @@ public class StoredFieldsBenchmark {
   static int DUMMY;
 
   static void getDocs(IndexReader reader) throws IOException {
+    StoredFields storedFields = reader.storedFields();
     int docId = 42;
     for (int i = 0; i < 10_000; ++i) {
-      Document doc = reader.document(docId);
+      Document doc = storedFields.document(docId);
       DUMMY += doc.getFields().size(); // Prevent the JVM from optimizing away the read of the stored document
       docId = (docId + 65535) % reader.maxDoc();
     }

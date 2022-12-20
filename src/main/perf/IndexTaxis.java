@@ -18,7 +18,6 @@ package perf;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,7 +25,6 @@ import java.nio.file.StandardOpenOption;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -38,16 +36,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.DoublePoint;
+import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.IntPoint;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.IntField;
+import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.document.SortedNumericDocValuesField;
-import org.apache.lucene.document.SortedSetDocValuesField;
 import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogDocMergePolicy;
@@ -57,7 +51,6 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
 // First: cd to /foo/bar/baz/lucene-solr-clone/lucene
@@ -132,8 +125,6 @@ public class IndexTaxis {
       long v = date.getTime();
       reuseField.setLongValue(v);
       doc.add(reuseField);
-      reuseField2.setLongValue(v);
-      doc.add(reuseField2);
       break;
     }
     case "passenger_count":
@@ -142,8 +133,6 @@ public class IndexTaxis {
       int v = Integer.parseInt(rawValue);
       reuseField.setIntValue(v);
       doc.add(reuseField);
-      reuseField2.setLongValue(v);
-      doc.add(reuseField2);
       break;
     }
     case "trip_distance":
@@ -191,8 +180,6 @@ public class IndexTaxis {
       double v = Double.parseDouble(rawValue);
       reuseField.setDoubleValue(v);
       doc.add(reuseField);
-      reuseField2.setLongValue(Double.doubleToRawLongBits(v));
-      doc.add(reuseField2);
       break;
     }
     default:
@@ -442,29 +429,21 @@ public class IndexTaxis {
               case "pickup_datetime":
               case "dropoff_datetime": {
                 if (sparse) {
-                  reuseFields[0][i] = new LongPoint("green_" + fieldName, 0);
-                  reuseFields2[0][i] = new NumericDocValuesField("green_" + fieldName, 0);
-                  reuseFields[1][i] = new LongPoint("yellow_" + fieldName, 0);
-                  reuseFields2[1][i] = new NumericDocValuesField("yellow_" + fieldName, 0);
+                  reuseFields[0][i] = new LongField("green_" + fieldName, 0);
+                  reuseFields[1][i] = new LongField("yellow_" + fieldName, 0);
                 } else {
-                  reuseFields[0][i] = new LongPoint(fieldName, 0);
-                  reuseFields2[0][i] = new NumericDocValuesField(fieldName, 0);
+                  reuseFields[0][i] = new LongField(fieldName, 0);
                   reuseFields[1][i] = reuseFields[0][i];
-                  reuseFields2[1][i] = reuseFields2[0][i];
                 }
                 break;
               }
               case "passenger_count": {
                 if (sparse) {
-                  reuseFields[0][i] = new IntPoint("green_" + fieldName, 0);
-                  reuseFields2[0][i] = new NumericDocValuesField("green_" + fieldName, 0);
-                  reuseFields[1][i] = new IntPoint("yellow_" + fieldName, 0);
-                  reuseFields2[1][i] = new NumericDocValuesField("yellow_" + fieldName, 0);
+                  reuseFields[0][i] = new IntField("green_" + fieldName, 0);
+                  reuseFields[1][i] = new IntField("yellow_" + fieldName, 0);
                 } else {
-                  reuseFields[0][i] = new IntPoint(fieldName, 0);
-                  reuseFields2[0][i] = new NumericDocValuesField(fieldName, 0);
+                  reuseFields[0][i] = new IntField(fieldName, 0);
                   reuseFields[1][i] = reuseFields[0][i];
-                  reuseFields2[1][i] = reuseFields2[0][i];
                 }
                 break;
               }
@@ -483,15 +462,11 @@ public class IndexTaxis {
               case "tolls_amount":
               case "total_amount": {
                 if (sparse) {
-                  reuseFields[0][i] = new DoublePoint("green_" + fieldName, 0.0);
-                  reuseFields2[0][i] = new NumericDocValuesField("green_" + fieldName, 0);
-                  reuseFields[1][i] = new DoublePoint("yellow_" + fieldName, 0.0);
-                  reuseFields2[1][i] = new NumericDocValuesField("yellow_" + fieldName, 0);
+                  reuseFields[0][i] = new DoubleField("green_" + fieldName, 0.0);
+                  reuseFields[1][i] = new DoubleField("yellow_" + fieldName, 0.0);
                 } else {
-                  reuseFields[0][i] = new DoublePoint(fieldName, 0.0);
-                  reuseFields2[0][i] = new NumericDocValuesField(fieldName, 0);
+                  reuseFields[0][i] = new DoubleField(fieldName, 0.0);
                   reuseFields[1][i] = reuseFields[0][i];
-                  reuseFields2[1][i] = reuseFields2[0][i];
                 }
                 break;
               }

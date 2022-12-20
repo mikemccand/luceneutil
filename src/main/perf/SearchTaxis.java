@@ -24,11 +24,14 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.PointValues;
+import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -36,13 +39,11 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortedNumericSelector;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Accountable;
-import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.IOUtils;
 
 public class SearchTaxis {
@@ -124,18 +125,18 @@ public class SearchTaxis {
         } else if (color.equals("neither")) {
           if (sparse) {
             BooleanQuery.Builder builder = new BooleanQuery.Builder();
-            builder.add(DoublePoint.newRangeQuery("green_pickup_latitude", 40.75, 40.9), BooleanClause.Occur.SHOULD);
-            builder.add(DoublePoint.newRangeQuery("yellow_pickup_latitude", 40.75, 40.9), BooleanClause.Occur.SHOULD);
+            builder.add(DoubleField.newRangeQuery("green_pickup_latitude", 40.75, 40.9), BooleanClause.Occur.SHOULD);
+            builder.add(DoubleField.newRangeQuery("yellow_pickup_latitude", 40.75, 40.9), BooleanClause.Occur.SHOULD);
             query = builder.build();
           } else {
-            query = DoublePoint.newRangeQuery("pickup_latitude", 40.75, 40.9);
+            query = DoubleField.newRangeQuery("pickup_latitude", 40.75, 40.9);
           }
         } else {
           query = new TermQuery(new Term("cab_color", color));
         }
         Sort sort;
         if (sortField != null && random.nextBoolean()) {
-          sort = new Sort(new SortField(sortField, SortField.Type.DOUBLE));
+          sort = new Sort(DoubleField.newSortField(sortField, false, SortedNumericSelector.Type.MIN));
         } else {
           sort = null;
         }
@@ -149,8 +150,9 @@ public class SearchTaxis {
         }
         long t1 = System.nanoTime();
         results.add("T" + threadID + " " + query + " sort=" + sort + ": " + hits.totalHits + " hits in " + ((t1-t0)/1000000.) + " msec");
-        for(ScoreDoc hit : hits.scoreDocs) {
-          Document doc = searcher.doc(hit.doc);
+        StoredFields storedFields = searcher.storedFields();
+        for (ScoreDoc hit : hits.scoreDocs) {
+          Document doc = storedFields.document(hit.doc);
           results.add("  " + hit.doc + " " + hit.score + ": " + doc.getFields().size() + " fields");
         }
 

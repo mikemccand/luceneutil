@@ -1,5 +1,15 @@
 package perf;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.lucene.document.IntField;
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,36 +28,31 @@ package perf;
  */
 
 import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongField;
 import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.queries.intervals.IntervalQuery;
+import org.apache.lucene.queries.intervals.Intervals;
+import org.apache.lucene.queries.intervals.IntervalsSource;
+import org.apache.lucene.queries.spans.SpanNearQuery;
+import org.apache.lucene.queries.spans.SpanOrQuery;
+import org.apache.lucene.queries.spans.SpanQuery;
+import org.apache.lucene.queries.spans.SpanTermQuery;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.sandbox.search.CombinedFieldQuery;
-import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanQuery.Builder;
+import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.KnnVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortedNumericSelector;
 import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.queries.spans.SpanNearQuery;
-import org.apache.lucene.queries.spans.SpanOrQuery;
-import org.apache.lucene.queries.spans.SpanQuery;
-import org.apache.lucene.queries.spans.SpanTermQuery;
-import org.apache.lucene.queries.intervals.Intervals;
-import org.apache.lucene.queries.intervals.IntervalsSource;
-import org.apache.lucene.queries.intervals.IntervalQuery;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 class TaskParser {
 
@@ -56,8 +61,8 @@ class TaskParser {
   private final Sort titleDVSort;
   private final Sort titleBDVSort;
   private final Sort monthDVSort; // Month of the "last modified timestamp", SORTED doc values
-  private final Sort dayOfYearDVSort; // Day of the year of the "last modified timestamp", NUMERIC doc values
-  private final Sort lastModNDVSort;
+  private final Sort dayOfYearSort; // Day of the year of the "last modified timestamp", NUMERIC doc values
+  private final Sort lastModSort;
   private final int topN;
   private final Random random;
   private final boolean doStoredLoads;
@@ -87,8 +92,8 @@ class TaskParser {
     titleDVSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleBDVSort = new Sort(new SortField("titleBDV", SortField.Type.STRING_VAL));
     monthDVSort = new Sort(new SortField("month", SortField.Type.STRING));
-    dayOfYearDVSort = new Sort(new SortField("dayOfYearNumericDV", SortField.Type.INT));
-    lastModNDVSort = new Sort(new SortField("lastModNDV", SortField.Type.LONG));
+    dayOfYearSort = new Sort(IntField.newSortField("dayOfYear", false, SortedNumericSelector.Type.MIN));
+    lastModSort = new Sort(LongField.newSortField("lastMod", false, SortedNumericSelector.Type.MIN));
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
@@ -413,10 +418,10 @@ class TaskParser {
           sort = monthDVSort;
           break;
         case "dayofyeardvsort":
-          sort = dayOfYearDVSort;
+          sort = dayOfYearSort;
           break;
         case "lastmodndvsort":
-          sort = lastModNDVSort;
+          sort = lastModSort;
           break;
         case "group100":
           group = "group100";

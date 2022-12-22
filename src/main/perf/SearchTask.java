@@ -30,6 +30,7 @@ import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.ReaderUtil;
+import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.VectorValues;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
@@ -286,9 +287,10 @@ final class SearchTask extends Task {
         totalHitCount = hits.totalHits;
 
         if (doStoredLoads) {
+          StoredFields storedFields = searcher.storedFields();
           for (int i = 0; i < hits.scoreDocs.length; i++) {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
-            searcher.doc(scoreDoc.doc);
+            storedFields.document(scoreDoc.doc);
           }
         }
         if (vectorField != null) {
@@ -375,7 +377,7 @@ final class SearchTask extends Task {
         //System.out.println("    frag: " + h);
       }
     } else {
-      Document doc = searcher.doc(docID);
+      Document doc = searcher.storedFields().document(docID);
       String text = doc.get(indexState.textFieldName);
       // NOTE: passing null for analyzer: TermVectors must
       // be indexed!
@@ -535,6 +537,7 @@ final class SearchTask extends Task {
           }
         }
       } else if (hits instanceof TopFieldDocs) {
+        StoredFields storedFields = searcher.storedFields();
         for(int idx=0;idx<hits.scoreDocs.length;idx++) {
           FieldDoc hit = (FieldDoc) hits.scoreDocs[idx];
           final Object v = hit.fields[0];
@@ -546,11 +549,12 @@ final class SearchTask extends Task {
           } else {
             vs = ((BytesRef) v).utf8ToString();
           }
-          out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " " + s.getSort()[0].getField() + "=" + vs);
+          out.println("  doc=" + LineFileDocs.idToInt(storedFields.document(hit.doc).get("id")) + " " + s.getSort()[0].getField() + "=" + vs);
         }
       } else if (hits != null) {
+        StoredFields storedFields = searcher.storedFields();
         for(ScoreDoc hit : hits.scoreDocs) {
-          out.println("  doc=" + LineFileDocs.idToInt(searcher.doc(hit.doc).get("id")) + " score=" + hit.score);
+          out.println("  doc=" + LineFileDocs.idToInt(storedFields.document(hit.doc).get("id")) + " score=" + hit.score);
           // print explanation
           //Explanation explain = searcher.explain(q, hit.doc);
           //out.println("    explain: " + explain);

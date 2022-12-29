@@ -659,4 +659,8 @@ KNOWN_CHANGES = [
      'Add --enable-preview command-line JVM flag to test new Panama-based MMapDirectory implementation',
      'Add --enable-preview command-line JVM flag to test new Panama-based MMapDirectory implementation'),
 
+    ('2022-11-16',
+     'GITHUB#11939: fix bug of incorrect cost after upgradeToBitSet in DocIdSetBuilder class',
+     'GITHUB#11939: fix bug of incorrect cost after upgradeToBitSet in DocIdSetBuilder class'),
+
 ]

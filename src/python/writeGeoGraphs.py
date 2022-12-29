@@ -59,6 +59,7 @@ KNOWN_CHANGES = (
   ('2021-11-01', 'LUCENE-10196: Improve IntroSorter with 3-ways partitioning'),
   ('2022-08-10', 'GITHUB#1017: Add new ShapeDocValuesField for LatLonShape and XYShape'),
   ('2022-09-28', 'GITHUB#11824: recover performance regression of LatLonPoint#newPolygonQuery'),
+  ('2022-12-13', 'GITHUB#12006: Do int compare instead of ArrayUtil#compareUnsigned4 in LatlonPointQueries'),
 )
 
 def toString(timeStamp):

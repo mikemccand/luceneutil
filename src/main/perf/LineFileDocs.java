@@ -51,15 +51,17 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.KnnVectorField;
+import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.document.Field.Store;
-import org.apache.lucene.document.KnnVectorField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
@@ -347,11 +349,9 @@ public class LineFileDocs implements Closeable {
     final Field titleDV;
     final Field month;
     final Field monthDV;
-    final Field dayOfYearDV;
-    final IntPoint dayOfYearIP;
+    final IntField dayOfYear;
     final BinaryDocValuesField titleBDV;
-    final NumericDocValuesField lastModNDV;
-    final LongPoint lastModLP;
+    final LongField lastMod;
     final Field body;
     final Field id;
     final Field idPoint;
@@ -386,31 +386,26 @@ public class LineFileDocs implements Closeable {
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
         doc.add(titleBDV);
 
-        lastModNDV = new NumericDocValuesField("lastModNDV", -1);
-        doc.add(lastModNDV);
-        lastModLP = new LongPoint("lastModNDV", -1); //points field must have the same name and value as DV field
-        doc.add(lastModLP);
+        lastMod = new LongField("lastMod", -1);
+        doc.add(lastMod);
 
         month = new StringField("month", "", Store.NO);
         doc.add(month);
         monthDV = new SortedDocValuesField("month", new BytesRef());
         doc.add(monthDV);
 
-        dayOfYearDV = new NumericDocValuesField("dayOfYearNumericDV", 0);
-        doc.add(dayOfYearDV);
-        dayOfYearIP = new IntPoint("dayOfYearNumericDV", 0); //points field must have the same name and value as DV field
-        doc.add(dayOfYearIP);
+        dayOfYear = new IntField("dayOfYear", 0);
+        doc.add(dayOfYear);
+
         idDV = new NumericDocValuesField("id", 0);
         doc.add(idDV);
       } else {
         titleDV = null;
         titleBDV = null;
-        lastModNDV = null;
-        lastModLP = null;
+        lastMod = null;
         month = null;
         monthDV = null;
-        dayOfYearDV = null;
-        dayOfYearIP = null;
+        dayOfYear = null;
         idDV = null;
       }
 
@@ -479,7 +474,11 @@ public class LineFileDocs implements Closeable {
 
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof LongPoint) {
+      if (f instanceof IntField) {
+        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
+      } else if (f instanceof LongField) {
+        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
+      } else if (f instanceof LongPoint) {
         doc2.add(new LongPoint(f.name(), ((LongPoint) f).numericValue().longValue()));
       } else if (f instanceof IntPoint) {
         doc2.add(new IntPoint(f.name(), ((IntPoint) f).numericValue().intValue()));
@@ -692,8 +691,7 @@ public class LineFileDocs implements Closeable {
       final String month = months[doc.dateCal.get(Calendar.MONTH)];
       doc.month.setStringValue(month);
       doc.monthDV.setBytesValue(new BytesRef(month));
-      doc.dayOfYearDV.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
-      doc.dayOfYearIP.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
+      doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.idDV.setLongValue(myID);
     }
     doc.titleTokenized.setStringValue(title);
@@ -701,8 +699,7 @@ public class LineFileDocs implements Closeable {
     doc.idPoint.setIntValue(myID);
 
     if (addDVFields) {
-      doc.lastModNDV.setLongValue(msecSinceEpoch);
-      doc.lastModLP.setLongValue(msecSinceEpoch);
+      doc.lastMod.setLongValue(msecSinceEpoch);
     }
 
     doc.timeSec.setIntValue(timeSec);

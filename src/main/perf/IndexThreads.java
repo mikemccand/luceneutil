@@ -364,7 +364,7 @@ class IndexThreads {
               w.updateDocument(new Term("id", updateID), doc);
               break;
             case NDV_UPDATE:
-              w.updateNumericDocValue(new Term("id", updateID), "lastModNDV", System.currentTimeMillis());
+              w.updateNumericDocValue(new Term("id", updateID), "lastMod", System.currentTimeMillis());
               break;
             case BDV_UPDATE:
               throw new IllegalArgumentException("not implemented!");

@@ -102,9 +102,10 @@ public class IndexTaxis {
     case "store_and_fwd_flag":
     case "green_store_and_fwd_flag":
     case "yellow_store_and_fwd_flag": {
-      reuseField.setStringValue(rawValue);
+      BytesRef utf8Value = new BytesRef(rawValue);
+      reuseField.setBytesValue(utf8Value);
       doc.add(reuseField);
-      reuseField2.setBytesValue(new BytesRef(rawValue));
+      reuseField2.setBytesValue(utf8Value);
       doc.add(reuseField2);
       break;
     }
@@ -237,9 +238,9 @@ public class IndexTaxis {
               if (s.charAt(i++) != ':') {
                 throw new IllegalArgumentException("expected ':' but saw '" + s.charAt(i-1));
               }
-              cabColorField.setStringValue(Character.toString(color));
-              reuseDoc.add(cabColorField);
               colorBytesRef.bytes[0] = (byte) color;
+              cabColorField.setBytesValue(colorBytesRef);
+              reuseDoc.add(cabColorField);
               cabColorDVField.setBytesValue(colorBytesRef);
               reuseDoc.add(cabColorDVField);
               int colorFieldIndex;
@@ -414,12 +415,12 @@ public class IndexTaxis {
               case "rate_code_id":
               case "store_and_fwd_flag": {
                 if (sparse) {
-                  reuseFields[0][i] = new StringField("green_" + fieldName, "", Field.Store.YES);
+                  reuseFields[0][i] = new StringField("green_" + fieldName, new BytesRef(), Field.Store.YES);
                   reuseFields2[0][i] = new SortedDocValuesField("green_" + fieldName, new BytesRef());
-                  reuseFields[1][i] = new StringField("yellow_" + fieldName, "", Field.Store.YES);
+                  reuseFields[1][i] = new StringField("yellow_" + fieldName, new BytesRef(), Field.Store.YES);
                   reuseFields2[1][i] = new SortedDocValuesField("yellow_" + fieldName, new BytesRef());
                 } else {
-                  reuseFields[0][i] = new StringField(fieldName, "", Field.Store.YES);
+                  reuseFields[0][i] = new StringField(fieldName, new BytesRef(), Field.Store.YES);
                   reuseFields2[0][i] = new SortedDocValuesField(fieldName, new BytesRef());
                   reuseFields[1][i] = reuseFields[0][i];
                   reuseFields2[1][i] = reuseFields2[0][i];
@@ -475,7 +476,7 @@ public class IndexTaxis {
               }
             }
 
-            Field cabColorField = new StringField("cab_color", "", Field.Store.NO);
+            Field cabColorField = new StringField("cab_color", new BytesRef(), Field.Store.NO);
             Field cabColorDVField = new SortedDocValuesField("cab_color", new BytesRef());
             Document reuseDoc = new Document();
             

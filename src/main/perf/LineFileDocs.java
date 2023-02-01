@@ -56,7 +56,7 @@ import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.KnnByteVectorField;
-import org.apache.lucene.document.KnnVectorField;
+import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
@@ -365,7 +365,7 @@ public class LineFileDocs implements Closeable {
     final Field timeSec;
     // Necessary for "old style" wiki line files:
     final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
-    final KnnVectorField floatVectorField;
+    final KnnFloatVectorField floatVectorField;
     final KnnByteVectorField byteVectorField;
 
     // For just y/m/day:
@@ -455,11 +455,11 @@ public class LineFileDocs implements Closeable {
 
       if (vectorDimension > 0) {
         if (vectorEncoding == VectorEncoding.FLOAT32) {
-          floatVectorField = new KnnVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
+          floatVectorField = new KnnFloatVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
           doc.add(floatVectorField);
           byteVectorField = null;
         } else {
-          byteVectorField = new KnnByteVectorField("vector", new BytesRef(new byte[vectorDimension]), VectorSimilarityFunction.DOT_PRODUCT);
+          byteVectorField = new KnnByteVectorField("vector", new byte[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
           doc.add(byteVectorField);
           floatVectorField = null;
         }
@@ -494,9 +494,9 @@ public class LineFileDocs implements Closeable {
         doc2.add(new NumericDocValuesField(f.name(), f.numericValue().longValue()));
       } else if (f instanceof BinaryDocValuesField) {
         doc2.add(new BinaryDocValuesField(f.name(), f.binaryValue()));
-      } else if (f instanceof KnnVectorField) {
-        KnnVectorField knnf = ((KnnVectorField) f);
-        doc2.add(new KnnVectorField(f.name(), knnf.vectorValue(), f.fieldType().vectorSimilarityFunction()));
+      } else if (f instanceof KnnFloatVectorField) {
+        KnnFloatVectorField knnf = ((KnnFloatVectorField) f);
+        doc2.add(new KnnFloatVectorField(f.name(), knnf.vectorValue(), f.fieldType().vectorSimilarityFunction()));
       } else {
         Field field2 = new Field(f.name(),
                                  f.stringValue(),
@@ -625,7 +625,7 @@ public class LineFileDocs implements Closeable {
         if (doc.floatVectorField != null) {
           lfd.getVector(doc.floatVectorField.vectorValue());
         } else {
-          lfd.getVector(doc.byteVectorField.vectorValue().bytes);
+          lfd.getVector(doc.byteVectorField.vectorValue());
         }
       }
 
@@ -685,7 +685,7 @@ public class LineFileDocs implements Closeable {
       if (doc.floatVectorField != null) {
         doc.floatVectorField.setVectorValue((float[]) lfd.vector.array());
       } else if (doc.byteVectorField != null) {
-        doc.byteVectorField.setVectorValue(new BytesRef((byte[]) lfd.vector.array()));
+        doc.byteVectorField.setVectorValue((byte[]) lfd.vector.array());
       }
     }
 

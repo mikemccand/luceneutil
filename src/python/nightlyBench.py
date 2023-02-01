@@ -106,7 +106,6 @@ all_graph_data = {}
 
 REAL = True
 
-
 def now():
     return datetime.datetime.now()
 

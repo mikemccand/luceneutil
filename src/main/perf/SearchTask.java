@@ -31,7 +31,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.StoredFields;
-import org.apache.lucene.index.VectorValues;
+import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
@@ -296,19 +296,19 @@ final class SearchTask extends Task {
         if (vectorField != null) {
           IndexReader reader = searcher.getIndexReader();
           List<LeafReaderContext> leaves = reader.leaves();
-          List<VectorValues> perLeafVectors = new ArrayList<>();
+          List<FloatVectorValues> perLeafFloatVectors = new ArrayList<>();
           for (LeafReaderContext ctx : leaves) {
-            VectorValues vectorValues = ctx.reader().getVectorValues(vectorField);	
-            perLeafVectors.add(vectorValues);
+            FloatVectorValues floatVectorValues = ctx.reader().getFloatVectorValues(vectorField);	
+            perLeafFloatVectors.add(floatVectorValues);
           }
           for (int i = 0; i < hits.scoreDocs.length; i++) {
             ScoreDoc scoreDoc = hits.scoreDocs[i];
             int doc = scoreDoc.doc;
             int segment = ReaderUtil.subIndex(doc, leaves);
-            VectorValues vectors = perLeafVectors.get(segment);
-            if (vectors != null) {
-              vectors.advance(doc - leaves.get(segment).docBase);
-              vectors.vectorValue();
+            FloatVectorValues floatVectors = perLeafFloatVectors.get(segment);
+            if (floatVectors != null) {
+              floatVectors.advance(doc - leaves.get(segment).docBase);
+              floatVectors.vectorValue();
             }
           }
         }

@@ -46,7 +46,7 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.DisjunctionMaxQuery;
-import org.apache.lucene.search.KnnVectorQuery;
+import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
@@ -598,7 +598,7 @@ class TaskParser {
     }
 
     Query parseVectorQuery() {
-      return new KnnVectorQuery(vectorField, vectorDictionary.computeTextVector(text), topN);
+      return new KnnFloatVectorQuery(vectorField, vectorDictionary.computeTextVector(text), topN);
     }
   }
 }

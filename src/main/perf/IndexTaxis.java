@@ -430,20 +430,20 @@ public class IndexTaxis {
               case "pickup_datetime":
               case "dropoff_datetime": {
                 if (sparse) {
-                  reuseFields[0][i] = new LongField("green_" + fieldName, 0);
-                  reuseFields[1][i] = new LongField("yellow_" + fieldName, 0);
+                  reuseFields[0][i] = new LongField("green_" + fieldName, 0, Field.Store.NO);
+                  reuseFields[1][i] = new LongField("yellow_" + fieldName, 0, Field.Store.NO);
                 } else {
-                  reuseFields[0][i] = new LongField(fieldName, 0);
+                  reuseFields[0][i] = new LongField(fieldName, 0, Field.Store.NO);
                   reuseFields[1][i] = reuseFields[0][i];
                 }
                 break;
               }
               case "passenger_count": {
                 if (sparse) {
-                  reuseFields[0][i] = new IntField("green_" + fieldName, 0);
-                  reuseFields[1][i] = new IntField("yellow_" + fieldName, 0);
+                  reuseFields[0][i] = new IntField("green_" + fieldName, 0, Field.Store.NO);
+                  reuseFields[1][i] = new IntField("yellow_" + fieldName, 0, Field.Store.NO);
                 } else {
-                  reuseFields[0][i] = new IntField(fieldName, 0);
+                  reuseFields[0][i] = new IntField(fieldName, 0, Field.Store.NO);
                   reuseFields[1][i] = reuseFields[0][i];
                 }
                 break;
@@ -463,10 +463,10 @@ public class IndexTaxis {
               case "tolls_amount":
               case "total_amount": {
                 if (sparse) {
-                  reuseFields[0][i] = new DoubleField("green_" + fieldName, 0.0);
-                  reuseFields[1][i] = new DoubleField("yellow_" + fieldName, 0.0);
+                  reuseFields[0][i] = new DoubleField("green_" + fieldName, 0.0, Field.Store.NO);
+                  reuseFields[1][i] = new DoubleField("yellow_" + fieldName, 0.0, Field.Store.NO);
                 } else {
-                  reuseFields[0][i] = new DoubleField(fieldName, 0.0);
+                  reuseFields[0][i] = new DoubleField(fieldName, 0.0, Field.Store.NO);
                   reuseFields[1][i] = reuseFields[0][i];
                 }
                 break;

@@ -39,9 +39,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.IntField;
+import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.SortedDocValuesField;
-import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogDocMergePolicy;
@@ -85,7 +84,7 @@ public class IndexTaxis {
     return chunk;
   }
 
-  static void addOneField(Document doc, SimpleDateFormat dateParser, ParsePosition parsePosition, Field reuseField, Field reuseField2, String rawValue) {
+  static void addOneField(Document doc, SimpleDateFormat dateParser, ParsePosition parsePosition, Field reuseField, String rawValue) {
     switch(reuseField.name()) {
     case "vendor_id":
     case "green_vendor_id":
@@ -105,8 +104,6 @@ public class IndexTaxis {
       BytesRef utf8Value = new BytesRef(rawValue);
       reuseField.setBytesValue(utf8Value);
       doc.add(reuseField);
-      reuseField2.setBytesValue(utf8Value);
-      doc.add(reuseField2);
       break;
     }
     case "pickup_datetime":
@@ -190,7 +187,7 @@ public class IndexTaxis {
 
   /** Index all documents contained in one chunk */
   static void indexOneChunk(SimpleDateFormat dateParser, ParsePosition parsePosition,
-                            Field[][] reuseFields, Field[][] reuseFields2, Document reuseDoc, Field cabColorField, Field cabColorDVField, byte[] chunk,
+                            Field[][] reuseFields, Document reuseDoc, Field cabColorField, byte[] chunk,
                             IndexWriter w, AtomicInteger docCounter, AtomicLong bytesCounter) throws IOException {
     //System.out.println("CHUNK: " + chunk.length + " bytes");
     String s = new String(chunk, 0, chunk.length);
@@ -206,7 +203,6 @@ public class IndexTaxis {
             private Document nextDoc;
             private boolean nextSet;
             private int lastLineStart;
-            private int chunkDocCount;
             private final BytesRef colorBytesRef = new BytesRef(new byte[1]);
 
             @Override
@@ -241,8 +237,6 @@ public class IndexTaxis {
               colorBytesRef.bytes[0] = (byte) color;
               cabColorField.setBytesValue(colorBytesRef);
               reuseDoc.add(cabColorField);
-              cabColorDVField.setBytesValue(colorBytesRef);
-              reuseDoc.add(cabColorDVField);
               int colorFieldIndex;
               if (color == 'g') {
                 colorFieldIndex = 0;
@@ -252,19 +246,17 @@ public class IndexTaxis {
                 throw new IllegalArgumentException("expected color 'g' or 'y' but got '" + color + "'");
               }
               Field[] colorReuseFields = reuseFields[colorFieldIndex];
-              Field[] colorReuseFields2 = reuseFields2[colorFieldIndex];
               int lastFieldStart = i;
               while (true) {
                 char c = s.charAt(i);
                 if (c == '\n' || c == ',') {
                   if (i > lastFieldStart) {
-                    addOneField(reuseDoc, dateParser, parsePosition, colorReuseFields[fieldUpto], colorReuseFields2[fieldUpto], s.substring(lastFieldStart, i));
+                    addOneField(reuseDoc, dateParser, parsePosition, colorReuseFields[fieldUpto], s.substring(lastFieldStart, i));
                   }
                   if (c == '\n') {
                     if (fieldUpto != colorReuseFields.length-1) {
                       throw new AssertionError("fieldUpto=" + fieldUpto + " vs fields.length-1=" + (colorReuseFields.length-1));
                     }
-                    chunkDocCount++;
                     this.nextDoc = reuseDoc;
                     int x = docCounter.incrementAndGet();
                     long y = bytesCounter.addAndGet((i+1) - lastLineStart);
@@ -375,7 +367,6 @@ public class IndexTaxis {
     startNS = System.nanoTime();    
 
     for(int i=0;i<threadCount;i++) {
-      final int threadID = i;
       threads[i] = new Thread() {
           @Override
           public void run() {
@@ -395,15 +386,12 @@ public class IndexTaxis {
             
             // Setup fields & document to reuse
             final Field[][] reuseFields = new Field[2][];
-            final Field[][] reuseFields2 = new Field[2][];
 
             // green's fields:
             reuseFields[0] = new Field[fields.length];
-            reuseFields2[0] = new Field[fields.length];
 
             // yellow's fields:
             reuseFields[1] = new Field[fields.length];
-            reuseFields2[1] = new Field[fields.length];
 
             
             for(int i=0;i<fields.length;i++) {
@@ -415,15 +403,11 @@ public class IndexTaxis {
               case "rate_code_id":
               case "store_and_fwd_flag": {
                 if (sparse) {
-                  reuseFields[0][i] = new StringField("green_" + fieldName, new BytesRef(), Field.Store.YES);
-                  reuseFields2[0][i] = new SortedDocValuesField("green_" + fieldName, new BytesRef());
-                  reuseFields[1][i] = new StringField("yellow_" + fieldName, new BytesRef(), Field.Store.YES);
-                  reuseFields2[1][i] = new SortedDocValuesField("yellow_" + fieldName, new BytesRef());
+                  reuseFields[0][i] = new KeywordField("green_" + fieldName, new BytesRef(), Field.Store.YES);
+                  reuseFields[1][i] = new KeywordField("yellow_" + fieldName, new BytesRef(), Field.Store.YES);
                 } else {
-                  reuseFields[0][i] = new StringField(fieldName, new BytesRef(), Field.Store.YES);
-                  reuseFields2[0][i] = new SortedDocValuesField(fieldName, new BytesRef());
+                  reuseFields[0][i] = new KeywordField(fieldName, new BytesRef(), Field.Store.YES);
                   reuseFields[1][i] = reuseFields[0][i];
-                  reuseFields2[1][i] = reuseFields2[0][i];
                 }
                 break;
               }
@@ -476,8 +460,7 @@ public class IndexTaxis {
               }
             }
 
-            Field cabColorField = new StringField("cab_color", new BytesRef(), Field.Store.NO);
-            Field cabColorDVField = new SortedDocValuesField("cab_color", new BytesRef());
+            Field cabColorField = new KeywordField("cab_color", new BytesRef(), Field.Store.NO);
             Document reuseDoc = new Document();
             
             while (true) {
@@ -485,7 +468,7 @@ public class IndexTaxis {
               if (chunk == null) {
                 break;
               }
-              indexOneChunk(dateParser, parsePosition, reuseFields, reuseFields2, reuseDoc, cabColorField, cabColorDVField, chunk, w, docCounter, bytesCounter);
+              indexOneChunk(dateParser, parsePosition, reuseFields, reuseDoc, cabColorField, chunk, w, docCounter, bytesCounter);
             }
           }
         };

@@ -40,6 +40,7 @@ CHANGES = [
   ('2021-11-01', 'LUCENE-10196: Improve IntroSorter with 3-ways partitioning'),
   ('2022-12-23', 'Cut over numeric fields to LongField / DoubleField'),
   ('2022-12-28', 'GITHUB#12037: Optimize flush of SORTED_NUMERIC fields in conjunction with index sorting'),
+  ('2022-02-07', 'Cut over keyword fields to KeywordField'),
   ]
 
 reMergeTime = re.compile(r': (\d+) (?:ms|msec) to merge ([a-z ]+) \[(\d+) docs\]')

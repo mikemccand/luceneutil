@@ -46,7 +46,7 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogDocMergePolicy;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortedSetSortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
@@ -328,7 +328,7 @@ public class IndexTaxis {
     }
 
     if (sorted) {
-      iwc.setIndexSort(new Sort(new SortField("cab_color", SortField.Type.STRING)));
+      iwc.setIndexSort(new Sort(new SortedSetSortField("cab_color", false)));
     }
 
     final IndexWriter w = new IndexWriter(dir, iwc);

@@ -249,3 +249,6 @@ import pysftp
 with pysftp.Connection('home.apache.org', username='mikemccand') as c:
   with c.cd('public_html/lucenebench'):
     c.put('analyzers.html', 'analyzers.html')
+
+print
+print('done sumAnalyzerPerf.py')

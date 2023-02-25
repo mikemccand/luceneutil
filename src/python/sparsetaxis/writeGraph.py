@@ -41,6 +41,7 @@ CHANGES = [
   ('2022-12-23', 'Cut over numeric fields to LongField / DoubleField'),
   ('2022-12-28', 'GITHUB#12037: Optimize flush of SORTED_NUMERIC fields in conjunction with index sorting'),
   ('2023-02-13', 'Cut over keyword fields to KeywordField'),
+  ('2023-02-21', 'GITHUB#12139: Skip the TokenStream overhead for simple keywords'),
   ]
 
 reMergeTime = re.compile(r': (\d+) (?:ms|msec) to merge ([a-z ]+) \[(\d+) docs\]')

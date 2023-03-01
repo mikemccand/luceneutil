@@ -55,7 +55,6 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
-import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.document.LongField;
@@ -348,7 +347,9 @@ public class LineFileDocs implements Closeable {
     final Document doc;
     final Field titleTokenized;
     final Field title;
+    final Field titleDV;
     final Field month;
+    final Field monthDV;
     final IntField dayOfYear;
     final BinaryDocValuesField titleBDV;
     final LongField lastMod;
@@ -377,32 +378,35 @@ public class LineFileDocs implements Closeable {
     DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension, VectorEncoding vectorEncoding) {
       doc = new Document();
 
-      if (addDVFields) {
-        title = new StringField("title", "", Field.Store.NO);
-      } else {
-        title = new KeywordField("title", "", Field.Store.NO);
-      }
+      title = new StringField("title", "", Field.Store.NO);
       doc.add(title);
 
       if (addDVFields) {
+        titleDV = new SortedDocValuesField("title", new BytesRef());
+        doc.add(titleDV);
+
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
         doc.add(titleBDV);
 
-        lastMod = new LongField("lastMod", -1, Field.Store.NO);
+        lastMod = new LongField("lastMod", -1);
         doc.add(lastMod);
 
-        month = new KeywordField("month", "", Store.NO);
+        month = new StringField("month", "", Store.NO);
         doc.add(month);
+        monthDV = new SortedDocValuesField("month", new BytesRef());
+        doc.add(monthDV);
 
-        dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
+        dayOfYear = new IntField("dayOfYear", 0);
         doc.add(dayOfYear);
 
         idDV = new NumericDocValuesField("id", 0);
         doc.add(idDV);
       } else {
+        titleDV = null;
         titleBDV = null;
         lastMod = null;
         month = null;
+        monthDV = null;
         dayOfYear = null;
         idDV = null;
       }
@@ -476,14 +480,10 @@ public class LineFileDocs implements Closeable {
 
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
-      if (f instanceof StringField) {
-        doc2.add(new StringField(f.name(), f.stringValue(), Field.Store.NO));
-      } else if (f instanceof KeywordField) {
-        doc2.add(new KeywordField(f.name(), f.stringValue(), Field.Store.NO));
-      } else if (f instanceof IntField) {
-        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
+      if (f instanceof IntField) {
+        doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue()));
       } else if (f instanceof LongField) {
-        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue(), Field.Store.NO));
+        doc2.add(new LongField(f.name(), ((LongField) f).numericValue().longValue()));
       } else if (f instanceof LongPoint) {
         doc2.add(new LongPoint(f.name(), ((LongPoint) f).numericValue().longValue()));
       } else if (f instanceof IntPoint) {
@@ -699,8 +699,10 @@ public class LineFileDocs implements Closeable {
     doc.randomLabel.setStringValue(randomLabel);
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
+      doc.titleDV.setBytesValue(new BytesRef(title));
       final String month = months[doc.dateCal.get(Calendar.MONTH)];
       doc.month.setStringValue(month);
+      doc.monthDV.setBytesValue(new BytesRef(month));
       doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.idDV.setLongValue(myID);
     }

@@ -28,7 +28,6 @@ import org.apache.lucene.document.IntField;
  */
 
 import org.apache.lucene.document.IntPoint;
-import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
@@ -53,7 +52,6 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.SortedNumericSelector;
-import org.apache.lucene.search.SortedSetSelector;
 import org.apache.lucene.search.TermQuery;
 
 class TaskParser {
@@ -91,9 +89,9 @@ class TaskParser {
     } else {
       vectorField = null;
     }
-    titleDVSort = new Sort(KeywordField.newSortField("title", false, SortedSetSelector.Type.MIN));
+    titleDVSort = new Sort(new SortField("title", SortField.Type.STRING));
     titleBDVSort = new Sort(new SortField("titleBDV", SortField.Type.STRING_VAL));
-    monthDVSort = new Sort(KeywordField.newSortField("month", false, SortedSetSelector.Type.MIN));
+    monthDVSort = new Sort(new SortField("month", SortField.Type.STRING));
     dayOfYearSort = new Sort(IntField.newSortField("dayOfYear", false, SortedNumericSelector.Type.MIN));
     lastModSort = new Sort(LongField.newSortField("lastMod", false, SortedNumericSelector.Type.MIN));
   }

@@ -411,11 +411,11 @@ def parseResults(resultsFiles):
             task.hitCount = "0"
           else:
             task.hitCount = hitCount
-          if sort in ('<string: "title">', '<string: "titleDV">'):
+          if sort in ('<string: "title">', '<string: "titleDV">', '<sortedset: "title"> selector=MIN'):
             task.sort = 'Title'
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">') or sort.startswith('<sortednumeric: "lastMod"> selector=MIN type=LONG'):
             task.sort = 'DateTime'
-          elif sort in ('<string: "month">', '<string: "monthSortedDV">'):
+          elif sort in ('<string: "month">', '<string: "monthSortedDV">', '<sortedset: "month"> selector=MIN'):
             task.sort = 'Month'
           elif sort == '<int: "dayOfYearNumericDV">' or sort.startswith('<sortednumeric: "dayOfYear"> selector=MIN type=INT'):
             task.sort = 'DayOfYear'

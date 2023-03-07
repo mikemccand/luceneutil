@@ -663,7 +663,7 @@ KNOWN_CHANGES = [
      'GITHUB#11939: fix bug of incorrect cost after upgradeToBitSet in DocIdSetBuilder class',
      'GITHUB#11939: fix bug of incorrect cost after upgradeToBitSet in DocIdSetBuilder class'),
 
-    ('2023-02-28',
+    ('2023-03-01',
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite',
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite'),
 

@@ -45,6 +45,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
@@ -66,13 +67,11 @@ public class IndexGeoNames {
     String geoNamesFile = args[0];
     Path indexPath = Paths.get(args[1]);
     int numThreads = Integer.parseInt(args[2]);
-    if (indexPath.toFile().exists()) {
-      throw new IllegalArgumentException("please remove indexPath \"" + indexPath + "\" before running");
-    }
 
     Directory dir = FSDirectory.open(indexPath);
     //IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_48, new StandardAnalyzer(Version.LUCENE_48));
     IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
+    iwc.setOpenMode(OpenMode.CREATE);
     //iwc.setRAMBufferSizeMB(350);
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {

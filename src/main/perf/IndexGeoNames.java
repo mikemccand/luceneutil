@@ -46,8 +46,6 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
@@ -287,19 +285,6 @@ public class IndexGeoNames {
           }
         };
       threads[i].start();
-    }
-    DirectoryReader r = DirectoryReader.open(w);
-    for(int i=0;i<100;i++) {
-      DirectoryReader r2 = DirectoryReader.openIfChanged(r);
-      if (r2 != null) {
-        r.close();
-        r = r2;
-      }
-      Thread.sleep(500);
-    }
-    if (r != null) {
-      r.close();
-      r = null;
     }
     for(int i=0;i<numThreads;i++) {
       threads[i].join();

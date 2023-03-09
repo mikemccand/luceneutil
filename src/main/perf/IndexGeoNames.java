@@ -73,7 +73,7 @@ public class IndexGeoNames {
     //iwc.setRAMBufferSizeMB(350);
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     if (normal == false) {
-      iwc.setRAMBufferSizeMB(1024);
+      iwc.setRAMBufferSizeMB(128);
       iwc.setMergePolicy(NoMergePolicy.INSTANCE);
       //iwc.setMergePolicy(NoMergePolicy.NO_COMPOUND_FILES);
     } else {

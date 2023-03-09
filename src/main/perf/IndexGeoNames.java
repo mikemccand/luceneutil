@@ -337,11 +337,11 @@ public class IndexGeoNames {
     for (Thread thread : threads) {
       thread.join();
     }
+    w.close();
     long ms = System.currentTimeMillis();
     System.out.println(docsIndexed + ": " + ((ms - startMS)/1000.0) + " sec");
     //System.out.println("tot conflicts: " + BytesRefHash.totConflict);
     //w.shutdown(normal);
-    w.close();
     dir.close();
   }
 }

@@ -25,8 +25,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.Date;
+import java.util.Deque;
 import java.util.Locale;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -40,12 +45,11 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.DirectoryReader;
 //import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
@@ -58,6 +62,8 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 // java -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.IndexGeoNames /lucenedata/geonames/allCountries.txt /l/scratch/indices/geonames 4
 
 public class IndexGeoNames {
+
+  private static final int BATCH_SIZE = 128;
 
   final static boolean normal = false;
 
@@ -96,6 +102,9 @@ public class IndexGeoNames {
 
     // With reuse it's ~ 38% faster (41.8 sec vs 67.0 sec):
     final boolean reuseDocAndFields = false;
+
+    final AtomicBoolean done = new AtomicBoolean();
+    final ArrayBlockingQueue<Deque<String>> workQueue = new ArrayBlockingQueue<>(1000);
 
     for(int i=0;i<numThreads;i++) {
       threads[i] = new Thread() {
@@ -137,11 +146,22 @@ public class IndexGeoNames {
               SortedDocValuesField tzDV = new SortedDocValuesField("timezone", new BytesRef());
               doc.add(tzDV);
 
+              Deque<String> batch = null;
               while (true) {
                 try {
 
-                  // Curiously BufferedReader.readLine seems to be thread-safe...
-                  String line = reader.readLine();
+                  if (batch == null || batch.isEmpty()) {
+                    batch = workQueue.poll(100, TimeUnit.MILLISECONDS);
+                    if (batch == null) {
+                      if (done.get()) {
+                        break;
+                      } else {
+                        continue;
+                      }
+                    }
+                  }
+
+                  String line = batch.poll();
                   if (line == null) {
                     break;
                   }
@@ -211,11 +231,22 @@ public class IndexGeoNames {
                 }
               }
             } else {
+              Deque<String> batch = null;
               while (true) {
                 try {
 
-                  // Curiously BufferedReader.readLine seems to be thread-safe...
-                  String line = reader.readLine();
+                  if (batch == null || batch.isEmpty()) {
+                    batch = workQueue.poll(100, TimeUnit.MILLISECONDS);
+                    if (batch == null) {
+                      if (done.get()) {
+                        break;
+                      } else {
+                        continue;
+                      }
+                    }
+                  }
+
+                  String line = batch.poll();
                   if (line == null) {
                     break;
                   }
@@ -284,10 +315,27 @@ public class IndexGeoNames {
             }
           }
         };
-      threads[i].start();
     }
-    for(int i=0;i<numThreads;i++) {
-      threads[i].join();
+    for (Thread thread : threads) {
+      thread.start();
+    }
+    Deque<String> batch = new ArrayDeque<>();
+    for (String line = reader.readLine(); ; line = reader.readLine()) {
+      if (line == null) {
+        if (batch.isEmpty() == false) {
+          workQueue.put(batch);
+        }
+        break;
+      }
+      batch.add(line);
+      if (batch.size() == BATCH_SIZE) {
+        workQueue.put(batch);
+        batch = new ArrayDeque<>();
+      }
+    }
+    done.set(true);
+    for (Thread thread : threads) {
+      thread.join();
     }
     long ms = System.currentTimeMillis();
     System.out.println(docsIndexed + ": " + ((ms - startMS)/1000.0) + " sec");

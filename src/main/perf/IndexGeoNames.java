@@ -103,6 +103,8 @@ public class IndexGeoNames {
 
     // With reuse it's ~ 38% faster (41.8 sec vs 67.0 sec):
     final boolean reuseDocAndFields = false;
+    // With 20 threads, it's ~35% faster with batching:
+    final boolean batchAddDocuments = false;
 
     final AtomicBoolean done = new AtomicBoolean();
     final ArrayBlockingQueue<Deque<String>> workQueue = new ArrayBlockingQueue<>(1000);
@@ -232,8 +234,9 @@ public class IndexGeoNames {
               }
             } else {
               Deque<String> batch = null;
-              while (true) {
-                try {
+              List<Document> documentBatch = new ArrayList<>();
+              try {
+                while (true) {
 
                   if (batch == null || batch.isEmpty()) {
                     batch = workQueue.poll(100, TimeUnit.MILLISECONDS);
@@ -296,15 +299,28 @@ public class IndexGeoNames {
                     Date date = dateParser.parse(values[18], datePos);
                     doc.add(new LongField("modified", date.getTime(), store));
                   }
-                  w.addDocument(doc);
+
+                  if (batchAddDocuments) {
+                    documentBatch.add(doc);
+                    if (documentBatch.size() == BATCH_SIZE) {
+                      w.addDocuments(documentBatch);
+                      documentBatch.clear();
+                    }
+                  } else {
+                    w.addDocument(doc);
+                  }
+
                   int count = docsIndexed.incrementAndGet();
                   if (count % 200000 == 0) {
                     long ms = System.currentTimeMillis();
                     System.out.println(count + ": " + ((ms - startMS)/1000.0) + " sec");
                   }
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
                 }
+                if (documentBatch.isEmpty() == false) {
+                  w.addDocuments(documentBatch);
+                }
+              } catch (Exception e) {
+                throw new RuntimeException(e);
               }
             }
           }

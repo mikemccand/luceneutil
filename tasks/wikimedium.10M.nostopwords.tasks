@@ -14409,8 +14409,6 @@ BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
 BrowseDateSSDVFacets: *:* +facets:Date.sortedset
 BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
 BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
-BrowseRandomLabelTaxoFacets: *:* +facets:RandomLabel.taxonomy
-BrowseRandomLabelSSDVFacets: *:* +facets:RandomLabel.sortedset
 
 HighTermDayOfYearSort: dayofyeardvsort//ref # freq=3793973
 HighTermDayOfYearSort: dayofyeardvsort//http # freq=3493581
@@ -17368,3 +17366,13 @@ HighTermTitleSort: titledvsort//century # freq=385541
 HighTermTitleSort: titledvsort//government # freq=384004
 HighTermTitleSort: titledvsort//27 # freq=383042
 HighTermTitleSort: titledvsort//old # freq=381809
+AndHighNotQuarter: +last -quarter:q1 #  freq=830278
+AndHighNotQuarter: +united -quarter:q2 #  freq=1185528
+AndHighNotQuarter: +year -quarter:q3 #  freq=1098425
+AndHighNotQuarter: +its -quarter:q4 #  freq=1160703
+AndHighNotQuarter: +but -quarter:q1 #  freq=1484398
+AndMedNotQuarter: +mostly -quarter:q2 #  freq=89401
+AndMedNotQuarter: +interview -quarter:q3 #  freq=94736
+AndMedNotQuarter: +9 -quarter:q4 #  freq=541405
+AndMedNotQuarter: +hard -quarter:q1 #  freq=92045
+AndMedNotQuarter: +bay -quarter:q2 #  freq=117167

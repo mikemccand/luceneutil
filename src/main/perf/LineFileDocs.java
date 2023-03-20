@@ -43,6 +43,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +80,7 @@ public class LineFileDocs implements Closeable {
 
   // sentinel:
   private final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
+  private static final Random RANDOM = new Random();
 
   private BufferedReader reader;
   private SeekableByteChannel channel;
@@ -698,6 +700,23 @@ public class LineFileDocs implements Closeable {
     doc.title.setStringValue(title);
     doc.randomLabel.setStringValue(randomLabel);
     if (addDVFields) {
+      doc.doc.removeField("quarter");
+      doc.doc.removeField("quarterBDV");
+      int randomInt = RANDOM.nextInt(13);
+      String value = "";
+      if (randomInt <= 3) {
+        value = "q1";
+      } else if (randomInt <= 6) {
+        value = "q2";
+      } else if (randomInt <= 9) {
+        value = "q3";
+      } else {
+        value = "q4";
+      }
+
+      doc.doc.add(new StringField("quarter", value, Store.NO));
+      doc.doc.add(new SortedDocValuesField("quarterBDV", new BytesRef(value)));
+
       doc.titleBDV.setBytesValue(new BytesRef(title));
       final String month = months[doc.dateCal.get(Calendar.MONTH)];
       doc.month.setStringValue(month);

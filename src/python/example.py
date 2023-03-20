@@ -22,18 +22,20 @@ import sys
 # Baseline here is ../lucene_baseline versus ../lucene_candidate
 if __name__ == '__main__':
   sourceData = competition.sourceData()
-  comp =  competition.Competition()
+  comp =  competition.Competition(verifyCounts=False, taskRepeatCount=20)
 
   index = comp.newIndex('lucene_baseline', sourceData,
+                        indexSort='quarterBDV:string',
                         addDVFields = True,
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
                                   ('sortedset:Date', 'Date'),
                                   ('sortedset:Month', 'Month'),
-                                  ('sortedset:DayOfYear', 'DayOfYear'),
-                                  ('taxonomy:RandomLabel', 'RandomLabel'),
-                                  ('sortedset:RandomLabel', 'RandomLabel')))
+                                  ('sortedset:DayOfYear', 'DayOfYear')))
+                                    ## index file name too long with all the facets, need to comment out two
+                                  # ('taxonomy:RandomLabel', 'RandomLabel'),
+                                  # ('sortedset:RandomLabel', 'RandomLabel')))
 
   #Warning -- Do not break the order of arguments
   #TODO -- Fix the following by using argparser

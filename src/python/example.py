@@ -25,7 +25,7 @@ if __name__ == '__main__':
   comp =  competition.Competition(verifyCounts=False, taskRepeatCount=20)
 
   index = comp.newIndex('lucene_baseline', sourceData,
-                        indexSort='quarterBDV:string',
+                        indexSort='month:custom',
                         addDVFields = True,
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),

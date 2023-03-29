@@ -17376,3 +17376,13 @@ AndMedNotMonth: +interview -monthPostings:jul #  freq=94736
 AndMedNotMonth: +9 -monthPostings:aug #  freq=541405
 AndMedNotMonth: +hard -monthPostings:sep #  freq=92045
 AndMedNotMonth: +bay -monthPostings:oct #  freq=117167
+AndHighFilterMonth: +last +filter=monthPostings:jan #  freq=830278
+AndHighFilterMonth: +united +filter=monthPostings:feb #  freq=1185528
+AndHighFilterMonth: +year +filter=monthPostings:mar #  freq=1098425
+AndHighFilterMonth: +its +filter=monthPostings:apr #  freq=1160703
+AndHighFilterMonth: +but +filter=monthPostings:may #  freq=1484398
+AndMedFilterMonth: +mostly +filter=monthPostings:jun #  freq=89401
+AndMedFilterMonth: +interview +filter=monthPostings:jul #  freq=94736
+AndMedFilterMonth: +9 +filter=monthPostings:aug #  freq=541405
+AndMedFilterMonth: +hard +filter=monthPostings:sep #  freq=92045
+AndMedFilterMonth: +bay +filter=monthPostings:oct #  freq=117167

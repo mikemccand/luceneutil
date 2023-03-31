@@ -2,10 +2,12 @@
 
   <property name="data.dir" value="${basedir}/../data"/>
   <property name="tasks.dir" value="${basedir}/tasks"/>
+  <property name="external.lucene.repo" value="${basedir}/../lucene_candidate/lucene"/>
 
   <target name="build">
 
     <path id="build.classpath">
+      <fileset dir="${external.lucene.repo}" includes="**/*.jar" />
       <pathelement location="build"/>
     </path>
 

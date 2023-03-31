@@ -42,6 +42,7 @@ def advance(ix):
 def benchmark_knn(checkout):
     last_indexes = (-1, -1, -1)
     print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
+    cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     while advance(indexes):
         params = {}
         for (i, p) in enumerate(PARAMS):
@@ -55,15 +56,14 @@ def benchmark_knn(checkout):
             args += [ '-reindex' ]
 
         docVectors = '%s/data/enwiki-20120502-lines-1k-100d.vec' % constants.BASE_DIR
-        queryVectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
-
-        cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
+        queryVectors = '%s/util/tasks/vector-task-100d.vec' % constants.BASE_DIR
         cmd = ['java',
                '-cp', cp,
                'org.apache.lucene.util.hnsw.KnnGraphTester'] + args + [
                    '-quiet',
                    '-dim', '100',
-                   '-search', docVectors, queryVectors]
+                   '-docs', docVectors,
+                   '-search', queryVectors]
         #print(cmd)
         subprocess.run(cmd)
 

@@ -109,7 +109,7 @@ public class WikiVectors<T> {
         .order(ByteOrder.LITTLE_ENDIAN);
       FloatBuffer fbuf = bbuf.asFloatBuffer();
       while ((lineDoc = in.readLine()) != null) {
-        float[] dvec = (float[]) dict.computeTextVector(lineDoc);
+        float[] dvec = dict.computeTextVector(lineDoc);
         fbuf.position(0);
         fbuf.put(dvec);
         out.write(buffer);
@@ -132,7 +132,7 @@ public class WikiVectors<T> {
          BufferedReader in = new BufferedReader(r)) {
       String lineDoc;
       while ((lineDoc = in.readLine()) != null) {
-        byte[] vec = (byte[]) dict.computeTextVector(lineDoc);
+        byte[] vec = dict.computeTextVectorByte(lineDoc);
         out.write(vec);
         if (++count % 10000 == 0) {
           System.out.print("wrote " + count + "\n");

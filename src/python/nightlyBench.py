@@ -659,7 +659,8 @@ def run():
                 blunders.upload(f'Searching ({timeStamp})',
                                 f'searching-{timeStamp}',
                                 f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+                                #glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+                                glob.glob(f'{constants.NIGHTLY_LOG_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
 
                 blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
                                 f'indexing-1kb-{timeStamp}',

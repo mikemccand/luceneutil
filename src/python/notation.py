@@ -667,4 +667,8 @@ KNOWN_CHANGES = [
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite',
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite'),
 
+    ('2023-03-04',
+     'Remove --enable-preview JVM flag',
+     'Remove --enable-preview JVM flag'),
+
 ]

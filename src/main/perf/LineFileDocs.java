@@ -407,7 +407,7 @@ public class LineFileDocs implements Closeable {
         idDV = null;
       }
 
-      titleTokenized = new Field("titleTokenized", "", TextField.TYPE_STORED);
+      titleTokenized = new TextField("titleTokenized", "", Field.Store.YES);
       doc.add(titleTokenized);
 
       FieldType bodyFieldType = new FieldType(TextField.TYPE_NOT_STORED);
@@ -428,16 +428,16 @@ public class LineFileDocs implements Closeable {
       body = new Field("body", "", bodyFieldType);
       doc.add(body);
 
-      randomLabel = new Field("randomLabel", "", StringField.TYPE_NOT_STORED);
+      randomLabel = new StringField("randomLabel", "", Field.Store.NO);
       doc.add(body);
 
-      id = new Field("id", "", StringField.TYPE_STORED);
+      id = new StringField("id", "", Field.Store.YES);
       doc.add(id);
 
       idPoint = new IntPoint("id", 0);
       doc.add(idPoint);
 
-      date = new Field("date", "", StringField.TYPE_STORED);
+      date = new StringField("date", "", Field.Store.YES);
       doc.add(date);
 
       //dateMSec = new NumericDocValuesField("datenum", 0L);
@@ -477,9 +477,11 @@ public class LineFileDocs implements Closeable {
     for(IndexableField f0 : doc1.getFields()) {
       Field f = (Field) f0;
       if (f instanceof StringField) {
-        doc2.add(new StringField(f.name(), f.stringValue(), Field.Store.NO));
+        doc2.add(new StringField(f.name(), f.stringValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
       } else if (f instanceof KeywordField) {
-        doc2.add(new KeywordField(f.name(), f.stringValue(), Field.Store.NO));
+        doc2.add(new KeywordField(f.name(), f.stringValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
+      } else if (f instanceof TextField) {
+        doc2.add(new TextField(f.name(), f.stringValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
       } else if (f instanceof IntField) {
         doc2.add(new IntField(f.name(), ((IntField) f).numericValue().intValue(), Field.Store.NO));
       } else if (f instanceof LongField) {

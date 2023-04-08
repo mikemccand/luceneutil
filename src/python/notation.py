@@ -667,6 +667,10 @@ KNOWN_CHANGES = [
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite',
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite'),
 
+    ('2023-03-14',
+     'GITHUB#12198: Reduced contention and increased thread affinity',
+     'GITHUB#12198: Reduced contention and increased thread affinity'),
+
     ('2023-04-04',
      'Remove --enable-preview JVM flag',
      'Remove --enable-preview JVM flag'),

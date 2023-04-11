@@ -675,4 +675,8 @@ KNOWN_CHANGES = [
      'Remove --enable-preview JVM flag',
      'Remove --enable-preview JVM flag'),
 
+    ('2023-04-09',
+     'Upgrade Linux kernel 5.19.12 -> 6.2.9 plus all packages',
+     'Upgrade Linux kernel 5.19.12 -> 6.2.9 plus all packages'),
+
 ]

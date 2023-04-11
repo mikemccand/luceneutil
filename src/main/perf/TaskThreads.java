@@ -28,12 +28,12 @@ public class TaskThreads {
 	final CountDownLatch stopLatch;
 	final AtomicBoolean stop;
 
-	public TaskThreads(TaskSource tasks, IndexState indexState, int numThreads) {
+	public TaskThreads(TaskSource tasks, IndexState indexState, int numThreads, TaskParserFactory taskParserFactory) throws IOException {
 		threads = new Thread[numThreads];
 		stopLatch = new CountDownLatch(numThreads);
 		stop = new AtomicBoolean(false);
 		for(int threadIDX=0;threadIDX<numThreads;threadIDX++) {
-			threads[threadIDX] = new TaskThread(startLatch, stopLatch, stop, tasks, indexState, threadIDX);
+			threads[threadIDX] = new TaskThread(startLatch, stopLatch, stop, tasks, indexState, threadIDX, taskParserFactory.getTaskParser());
 			threads[threadIDX].start();
 		}
 	}
@@ -60,14 +60,17 @@ public class TaskThreads {
 		private final TaskSource tasks;
 		private final IndexState indexState;
 		private final int threadID;
+		private final TaskParser taskParser;
 
-		public TaskThread(CountDownLatch startLatch, CountDownLatch stopLatch, AtomicBoolean stop, TaskSource tasks, IndexState indexState, int threadID) {
+		public TaskThread(CountDownLatch startLatch, CountDownLatch stopLatch, AtomicBoolean stop, TaskSource tasks,
+						  IndexState indexState, int threadID, TaskParser taskParser) {
 			this.startLatch = startLatch;
 			this.stopLatch = stopLatch;
 			this.stop = stop;
 			this.tasks = tasks;
 			this.indexState = indexState;
 			this.threadID = threadID;
+			this.taskParser = taskParser;
 		}
 
 		@Override
@@ -88,7 +91,7 @@ public class TaskThreads {
 					}
 					final long t0 = System.nanoTime();
 					try {
-						task.go(indexState);
+						task.go(indexState, taskParser);
 					} catch (IOException ioe) {
 						throw new RuntimeException(ioe);
 					}

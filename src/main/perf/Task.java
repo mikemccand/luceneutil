@@ -29,13 +29,15 @@ import org.apache.lucene.search.TotalHits;
 abstract class Task {
   //public String origString;
 
+  // fields below are only for RemoteTask
   public int taskID;
-
-  public TotalHits totalHitCount;
-
   public long recvTimeNS;
 
-  public abstract void go(IndexState state) throws IOException;
+  // fields below will be set after search
+  public TotalHits totalHitCount;
+  public long runTimeNanos;
+
+  public abstract void go(IndexState state, TaskParser taskParser) throws IOException;
 
   public abstract String getCategory();
 
@@ -43,7 +45,6 @@ abstract class Task {
   public abstract Task clone();
 
   // these are set once the task is executed
-  public long runTimeNanos;
   public int threadID;
 
   // Called after go, to return "summary" of the results.
@@ -61,7 +62,7 @@ abstract class Task {
   static final Task END_TASK = new Task() {
 
     @Override
-    public void go(IndexState state) {
+    public void go(IndexState state, TaskParser taskParser) {
     }
 
     @Override

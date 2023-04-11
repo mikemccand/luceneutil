@@ -186,8 +186,8 @@ public class NRTPerfTest {
     private final AtomicInteger nextTask = new AtomicInteger();
     private final int numTasks;
 
-    public RandomTaskSource(TaskParser taskParser, String tasksFile, Random random) throws IOException, ParseException {
-      tasks = LocalTaskSource.loadTasks(taskParser, tasksFile);
+    public RandomTaskSource(String tasksFile, Random random) throws IOException, ParseException {
+      tasks = LocalTaskSource.loadTasks(tasksFile);
       numTasks = tasks.size();
       Collections.shuffle(tasks, random);
       System.out.println("TASK LEN=" + tasks.size());
@@ -373,9 +373,9 @@ public class NRTPerfTest {
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
     final IndexState indexState = new IndexState(manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
-    final QueryParser qp = new QueryParser(field, analyzer);
-    TaskParser taskParser = new TaskParser(indexState, qp, field, 10, random, null, true);
-    final TaskSource tasks = new RandomTaskSource(taskParser, tasksFile, random) {
+    TaskParserFactory taskParserFactory =
+            new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, true);
+    final TaskSource tasks = new RandomTaskSource(tasksFile, random) {
         @Override
         public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
           searchesByTime[currentQT.get()].incrementAndGet();
@@ -384,7 +384,7 @@ public class NRTPerfTest {
     System.out.println("Task repeat count 1");
     System.out.println("Tasks file " + tasksFile);
     System.out.println("Num task per cat 20");
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numSearchThreads);
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numSearchThreads, taskParserFactory);
 
     final ReopenThread reopenThread = new ReopenThread(reopenPerSec, manager, reopensByTime, runTimeSec);
     reopenThread.setName("ReopenThread");

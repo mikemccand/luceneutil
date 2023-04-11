@@ -108,8 +108,31 @@ class TaskParser {
     return new TaskBuilder(line).build();
   }
 
+  public Task parseOneTask(UnparsedTask unparsedSearchTask) throws ParseException {
+    return new TaskBuilder(unparsedSearchTask).build();
+  }
+
+  /**
+   * @param line task line
+   * @return array of [category, remainingText]
+   */
+  public static String[] parseCategory(String line) {
+    final int spot = line.indexOf(':');
+    if (spot == -1) {
+      throw new RuntimeException("task line is malformed: " + line);
+    }
+    String category = line.substring(0, spot);
+
+    int spot2 = line.indexOf(" #");
+    if (spot2 == -1) {
+      spot2 = line.length();
+    }
+
+    String remaining = line.substring(spot+1, spot2).trim();
+    return new String[] {category, remaining};
+  }
+
   class TaskBuilder {
-    final String line;
     final String category;
     final String origText;
 
@@ -121,20 +144,14 @@ class TaskParser {
     String group;
 
     TaskBuilder(String line) {
-      this.line = line;
+      String[] categoryAndText = parseCategory(line);
+      category = categoryAndText[0];
+      origText = categoryAndText[1];
+    }
 
-      final int spot = line.indexOf(':');
-      if (spot == -1) {
-        throw new RuntimeException("task line is malformed: " + line);
-      }
-      category = line.substring(0, spot);
-
-      int spot2 = line.indexOf(" #");
-      if (spot2 == -1) {
-        spot2 = line.length();
-      }
-
-      origText = line.substring(spot+1, spot2).trim();
+    TaskBuilder(UnparsedTask unparsedSearchTask) {
+      category = unparsedSearchTask.getCategory();
+      origText = unparsedSearchTask.getOrigText();
     }
 
     Task build() throws ParseException {
@@ -144,11 +161,11 @@ class TaskParser {
         if (origText.length() == 0) {
           throw new RuntimeException("null query line");
         }
-        return buildQueryTask(origText);
+        return buildSearchTask(origText);
       }
     }
 
-    Task buildQueryTask(String input) throws ParseException {
+    SearchTask buildSearchTask(String input) throws ParseException {
       text = input;
       Query filter = parseFilter();
       facets = parseFacets();

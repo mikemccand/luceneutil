@@ -679,4 +679,8 @@ KNOWN_CHANGES = [
      'Upgrade Linux kernel 5.19.12 -> 6.2.9 plus all packages',
      'Upgrade Linux kernel 5.19.12 -> 6.2.9 plus all packages'),
 
+    ('2023-04-11',
+     'Upgrade Java 19.0.2+7 to 20+36-2344',
+     'Upgrade Java 19.0.2+7 to 20+36-2344',)
+
 ]

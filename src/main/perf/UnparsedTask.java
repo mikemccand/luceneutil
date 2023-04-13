@@ -82,4 +82,13 @@ public class UnparsedTask extends Task{
         assert parsedTask.get() != null: "task should be already parsed before this method";
         parsedTask.get().printResults(out, state);
     }
+
+    @Override
+    public String toString() {
+        if (parsedTask.get() != null) {
+            return parsedTask.toString();
+        } else {
+            return "UnparsedTask cat:" + category + " text:" + origText;
+        }
+    }
 }

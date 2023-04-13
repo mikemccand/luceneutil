@@ -104,11 +104,11 @@ class TaskParser {
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
   private final static Pattern combinedFieldsPattern = Pattern.compile(" \\+combinedFields=((\\p{Alnum}+(\\^\\d+.\\d)?,)+\\p{Alnum}+(\\^\\d+.\\d)?)");
 
-  public Task parseOneTask(String line) throws ParseException {
-    return new TaskBuilder(line).build();
+  public Task firstPassParse(String line) throws ParseException {
+    return new UnparsedTask(parseCategory(line));
   }
 
-  public Task parseOneTask(UnparsedTask unparsedSearchTask) throws ParseException {
+  public Task secondPassParse(UnparsedTask unparsedSearchTask) throws ParseException {
     return new TaskBuilder(unparsedSearchTask).build();
   }
 

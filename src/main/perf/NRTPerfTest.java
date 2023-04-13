@@ -186,8 +186,8 @@ public class NRTPerfTest {
     private final AtomicInteger nextTask = new AtomicInteger();
     private final int numTasks;
 
-    public RandomTaskSource(String tasksFile, Random random) throws IOException, ParseException {
-      tasks = LocalTaskSource.loadTasks(tasksFile);
+    public RandomTaskSource(String tasksFile, Random random, TaskParser taskParser) throws IOException, ParseException {
+      tasks = LocalTaskSource.loadTasks(tasksFile, taskParser);
       numTasks = tasks.size();
       Collections.shuffle(tasks, random);
       System.out.println("TASK LEN=" + tasks.size());
@@ -375,7 +375,7 @@ public class NRTPerfTest {
     final IndexState indexState = new IndexState(manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
     TaskParserFactory taskParserFactory =
             new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, true);
-    final TaskSource tasks = new RandomTaskSource(tasksFile, random) {
+    final TaskSource tasks = new RandomTaskSource(tasksFile, random, taskParserFactory.getTaskParser()) {
         @Override
         public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
           searchesByTime[currentQT.get()].incrementAndGet();

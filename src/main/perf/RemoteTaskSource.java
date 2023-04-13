@@ -37,12 +37,14 @@ class RemoteTaskSource extends Thread implements TaskSource {
   private final ServerSocket serverSocket;
   private final int numThreads;
   private static final int MAX_BYTES = 70;
+  private final TaskParser taskParser;
 
   // nocommit maybe fair=true?
   private final BlockingQueue<Task> queue = new ArrayBlockingQueue<Task>(100000);
 
-  public RemoteTaskSource(String iface, int port, int numThreads) throws IOException {
+  public RemoteTaskSource(String iface, int port, int numThreads, TaskParser taskParser) throws IOException {
     this.numThreads = numThreads;
+    this.taskParser = taskParser;
     serverSocket = new ServerSocket(port, 50, InetAddress.getByName(iface));
     System.out.println("Waiting for client connection on interface " + iface + ", port " + port);
     setPriority(Thread.MAX_PRIORITY);
@@ -116,7 +118,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
           }
           Task task;
           try {
-            task = new UnparsedTask(TaskParser.parseCategory(s));
+            task = taskParser.firstPassParse(s);
           } catch (RuntimeException re) {
             re.printStackTrace();
             continue;

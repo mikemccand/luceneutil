@@ -43,11 +43,11 @@ class LocalTaskSource implements TaskSource {
   private final List<Task> tasks;
   private final AtomicInteger nextTask = new AtomicInteger();
 
-  public LocalTaskSource(IndexState indexState, String tasksFile,
+  public LocalTaskSource(IndexState indexState, String tasksFile, TaskParser taskParser,
                          Random staticRandom, Random random, int numTaskPerCat, int taskRepeatCount,
                          boolean doPKLookup, boolean groupByCat) throws IOException, ParseException {
 
-    final List<Task> loadedTasks = loadTasks(tasksFile);
+    final List<Task> loadedTasks = loadTasks(tasksFile, taskParser);
     Collections.shuffle(loadedTasks, staticRandom);
     final List<Task> prunedTasks = pruneTasks(loadedTasks, numTaskPerCat);
 
@@ -150,7 +150,7 @@ class LocalTaskSource implements TaskSource {
   public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
   }
 
-  static List<Task> loadTasks(String filePath) throws IOException, ParseException {
+  static List<Task> loadTasks(String filePath, TaskParser taskParser) throws IOException, ParseException {
     final List<Task> tasks = new ArrayList<Task>();
     final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
     while (true) {
@@ -169,7 +169,7 @@ class LocalTaskSource implements TaskSource {
       }
 
       // Only parse the category here, will parse to specific task when searching
-      tasks.add(new UnparsedTask(parseCategory(line)));
+      tasks.add(taskParser.firstPassParse(line));
     }
     taskFile.close();
     return tasks;

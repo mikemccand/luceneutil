@@ -532,7 +532,7 @@ public class SearchPerfTest {
       }
       String iface = tasksFile.substring(7, idx);
       int port = Integer.valueOf(tasksFile.substring(1+idx));
-      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount);
+      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParserFactory.getTaskParser());
 
       // nocommit must stop thread?
       tasks = remoteTasks;
@@ -540,7 +540,8 @@ public class SearchPerfTest {
       // Load the tasks from a file:
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
+      tasks = new LocalTaskSource(indexState, tasksFile, taskParserFactory.getTaskParser(), staticRandom, random,
+              numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
       System.out.println("Task repeat count " + taskRepeatCount);
       System.out.println("Tasks file " + tasksFile);
       System.out.println("Num task per cat " + numTaskPerCat);

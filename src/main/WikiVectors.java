@@ -131,9 +131,13 @@ public class WikiVectors<T> {
     try (Reader r = Channels.newReader(FileChannel.open(Paths.get(lineDocFile)), dec, -1);
          BufferedReader in = new BufferedReader(r)) {
       String lineDoc;
+      byte[] bvec = new byte[dict.dimension];
       while ((lineDoc = in.readLine()) != null) {
-        byte[] vec = (byte[]) dict.computeTextVector(lineDoc);
-        out.write(vec);
+        float[] vec = dict.computeTextVector(lineDoc);
+        for (int i = 0; i < vec.length; i++) {
+          bvec[i] = (byte) vec[i];
+        }
+        out.write(bvec);
         if (++count % 10000 == 0) {
           System.out.print("wrote " + count + "\n");
         }

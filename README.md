@@ -129,3 +129,9 @@ You can create your own line doc file from an arbitrary Wikimedia dump by follow
     # extract titie, timestamp and body text
     cat /data/jawiki/jawiki-20200620-lines.txt | cut -f1,2,3
     ```
+# Running the KNN benchmark
+
+Some knn-related tasks are included in the main benchmarks. If you specifically want to test
+KNN/HNSW there is a script dedicated to that in src/python/knnPerfTest.py which has instructions on
+how to run it in its comments.
+

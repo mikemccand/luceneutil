@@ -9,16 +9,23 @@ import constants
 
 # SETUP:
 ### Download and extract data files: Wikipedia line docs + GloVe
-# python src/python/setup.py
+# python src/python/setup.py -download
 # cd ../data
 # unzip glove.6B.zip
 # unlzma enwiki-20120502-lines-1k.txt.lzma
 ### Create document and task vectors
 # ant vectors100
+#
+# then run this file: python src/python/knnPerfTest.py
+#
+# you may want to modify the following settings:
 
-LUCENE_CHECKOUT = 'lucene_candidate'
 
-PARAMS = ('ndoc', 'maxConn', 'beamWidthIndex', 'fanout')
+# Where the version of Lucene is that will be tested. Expected to be in the base dir above luceneutil.
+LUCENE_CHECKOUT = 'lucene'
+
+
+# test parameters. This script will run KnnGraphTester on every combination of these parameters
 VALUES = {
     'ndoc': (10000, 100000, 1000000),
     'maxConn': (32, 64, 96),
@@ -26,45 +33,52 @@ VALUES = {
     'fanout': (20, 100, 250)
 }
 
-indexes = [0, 0, 0, -1]
-
-def advance(ix):
+def advance(ix, values):
     for i in reversed(range(len(ix))):
-        param = PARAMS[i]
-        j = ix[i] + 1
-        if ix[i] == len(VALUES[param]) - 1:
+        param = list(values.keys())[i]
+        #print("advance " + param)
+        if ix[i] == len(values[param]) - 1:
             ix[i] = 0
         else:
             ix[i] += 1
             return True
     return False
 
-def benchmark_knn(checkout):
-    last_indexes = (-1, -1, -1)
+def run_knn_benchmark(checkout, values):
+    indexes = [0] * len(values.keys())
+    indexes[-1] = -1
+    args = []
+    dim = 100
+    doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
+    query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
+    cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
+    cmd = ['java', '-cp', cp,
+           '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
+           'KnnGraphTester']
     print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
-    while advance(indexes):
-        params = {}
-        for (i, p) in enumerate(PARAMS):
-            value = VALUES[p][indexes[i]]
-            #print(p + ' ' + str(value))
-            params[p] = value
-        #print(params)
-        args = [a for (k, v) in params.items() for a in ('-' + k, str(v))]
-        if last_indexes != indexes[:3]:
-            last_indexes = indexes[:3]
-            args += [ '-reindex' ]
+    while advance(indexes, values):
+        pv = {}
+        args = []
+        for (i, p) in enumerate(list(values.keys())):
+            #print(f"i={i}, p={p}")
+            if p in values:
+                if values[p]:
+                    value = values[p][indexes[i]]
+                    pv[p] = value
+                    #print(values[p])
+                    #print(indexes)
+                    #print(p)
+                else:
+                    args += ['-' + p]
+        args += [a for (k, v) in pv.items() for a in ('-' + k, str(v)) if a]
 
-        docVectors = '%s/data/enwiki-20120502-lines-1k-100d.vec' % constants.BASE_DIR
-        queryVectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
+        this_cmd = cmd + args + [
+            '-dim', str(dim),
+            '-docs', doc_vectors,
+            '-reindex',
+            '-search', query_vectors,
+            '-quiet']
+        #print(this_cmd)
+        subprocess.run(this_cmd)
 
-        cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
-        cmd = ['java',
-               '-cp', cp,
-               'org.apache.lucene.util.hnsw.KnnGraphTester'] + args + [
-                   '-quiet',
-                   '-dim', '100',
-                   '-search', docVectors, queryVectors]
-        #print(cmd)
-        subprocess.run(cmd)
-
-benchmark_knn(LUCENE_CHECKOUT)
+run_knn_benchmark(LUCENE_CHECKOUT, VALUES)

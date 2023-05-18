@@ -779,7 +779,7 @@ def findLastSuccessfulGitHashes():
     nightlyBenchResult = re.compile(r'\d\d\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.html')
 
     for logFile in logFiles:
-        if nightlyBenchResult.match(logFile) is not None:
+        if nightlyBenchResult.match(logFile) is not None and os.path.exists(f'{constants.NIGHTLY_LOG_DIR}/{logFile[:-5]}/results.pk'):
 
             luceneGitHash = None
             luceneUtilGitHash = None

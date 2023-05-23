@@ -128,7 +128,7 @@ final class SearchTask extends Task {
   }
 
   @Override
-  public void go(IndexState state, TaskParser taskParser) throws IOException {
+  public void go(IndexState state) throws IOException {
     //System.out.println("go group=" + this.group + " single=" + singlePassGroup + " xxx=" + xxx + " this=" + this);
     final IndexSearcher searcher = state.mgr.acquire();
 

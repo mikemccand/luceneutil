@@ -329,7 +329,7 @@ class Competitor(object):
          'org.apache.lucene.gradle.ProfileResults'] + \
          glob.glob(f'{constants.LOGS_DIR}/bench-search-{id}-{self.name}-*.jfr')
 
-      # print(f'JFR aggregation command: {" ".join(command)}')
+      print(f'JFR aggregation command: {" ".join(command)}')
       t0 = time.time()
       result = subprocess.run(command,
                               stdout = subprocess.PIPE,
@@ -384,8 +384,6 @@ class Competitor(object):
       'VectorDictionary.java',
       'BenchRearranger.java',
       'StringFieldDocSelector.java',
-      'UnparsedTask.java',
-      'TaskParserFactory.java',
       )]
 
     print('files %s' % files)

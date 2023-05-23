@@ -509,6 +509,7 @@ public class SearchPerfTest {
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
+    final QueryParser queryParser = new QueryParser("body", a);
     VectorDictionary vectorDictionary;
     if (vectorFile != null) {
       Float scale = args.getFloat("-vectorScale", null);
@@ -520,8 +521,7 @@ public class SearchPerfTest {
     } else {
       vectorDictionary = null;
     }
-    TaskParserFactory taskParserFactory =
-            new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, doStoredLoads);
+    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorDictionary, doStoredLoads);
 
     final TaskSource tasks;
 
@@ -532,7 +532,7 @@ public class SearchPerfTest {
       }
       String iface = tasksFile.substring(7, idx);
       int port = Integer.valueOf(tasksFile.substring(1+idx));
-      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParserFactory.getTaskParser());
+      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParser);
 
       // nocommit must stop thread?
       tasks = remoteTasks;
@@ -540,8 +540,7 @@ public class SearchPerfTest {
       // Load the tasks from a file:
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, tasksFile, taskParserFactory.getTaskParser(), staticRandom, random,
-              numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
+      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
       System.out.println("Task repeat count " + taskRepeatCount);
       System.out.println("Tasks file " + tasksFile);
       System.out.println("Num task per cat " + numTaskPerCat);
@@ -552,7 +551,7 @@ public class SearchPerfTest {
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount, taskParserFactory);
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount);
     Thread.sleep(10);
 
     final long startNanos = System.nanoTime();

@@ -24,10 +24,13 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
 final class PKLookupTask extends Task {
@@ -75,7 +78,7 @@ final class PKLookupTask extends Task {
   }
 
   @Override
-  public void go(IndexState state, TaskParser taskParser) throws IOException {
+  public void go(IndexState state) throws IOException {
 
     final IndexSearcher searcher = state.mgr.acquire();
     try {

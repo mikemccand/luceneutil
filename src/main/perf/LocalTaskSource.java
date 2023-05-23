@@ -36,18 +36,16 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.util.BytesRef;
 
-import static perf.TaskParser.parseCategory;
-
 // Serves up tasks from locally loaded list:
 class LocalTaskSource implements TaskSource {
   private final List<Task> tasks;
   private final AtomicInteger nextTask = new AtomicInteger();
 
-  public LocalTaskSource(IndexState indexState, String tasksFile, TaskParser taskParser,
+  public LocalTaskSource(IndexState indexState, TaskParser taskParser, String tasksFile,
                          Random staticRandom, Random random, int numTaskPerCat, int taskRepeatCount,
                          boolean doPKLookup, boolean groupByCat) throws IOException, ParseException {
 
-    final List<Task> loadedTasks = loadTasks(tasksFile, taskParser);
+    final List<Task> loadedTasks = loadTasks(taskParser, tasksFile);
     Collections.shuffle(loadedTasks, staticRandom);
     final List<Task> prunedTasks = pruneTasks(loadedTasks, numTaskPerCat);
 
@@ -150,7 +148,7 @@ class LocalTaskSource implements TaskSource {
   public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
   }
 
-  static List<Task> loadTasks(String filePath, TaskParser taskParser) throws IOException, ParseException {
+  static List<Task> loadTasks(TaskParser taskParser, String filePath) throws IOException, ParseException {
     final List<Task> tasks = new ArrayList<Task>();
     final BufferedReader taskFile = new BufferedReader(new InputStreamReader(new FileInputStream(filePath), "UTF-8"), 16384);
     while (true) {
@@ -168,8 +166,7 @@ class LocalTaskSource implements TaskSource {
         continue;
       }
 
-      // Only parse the category here, will parse to specific task when searching
-      tasks.add(taskParser.firstPassParse(line));
+      tasks.add(taskParser.parseOneTask(line));
     }
     taskFile.close();
     return tasks;

@@ -681,6 +681,18 @@ KNOWN_CHANGES = [
 
     ('2023-04-11',
      'Upgrade Java 19.0.2+7 to 20+36-2344',
-     'Upgrade Java 19.0.2+7 to 20+36-2344',)
+     'Upgrade Java 19.0.2+7 to 20+36-2344',),
+
+    ('2023-05-12',
+     'Allocate one NeighborQueue per search for results #12255',
+     'Allocate one NeighborQueue per search for results #12255'),
+
+    ('2023-05-20',
+     'Revert allocate one NeighborQueue per search for results #12255',
+     'Revert allocate one NeighborQueue per search for results #12255'),
+
+    ('2023-05-29',
+     'Use the incubating Panama API to accelerate KNN indexing and searching #12311',
+     'Use the incubating Panama API to accelerate KNN indexing and searching #12311',),
 
 ]

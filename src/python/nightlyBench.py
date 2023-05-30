@@ -938,6 +938,9 @@ def makeGraphs():
             if date in ('05/16/2014'):
                 # Bug in luceneutil made it look like 0 qps on all queries
                 continue
+            if date in ('05/28/2023'):
+                # Skip partially successfull first run with Panama -- the next run (05/29) was complete
+                continue
 
             gcIndexTimes = getIndexGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
             s = timeStampString

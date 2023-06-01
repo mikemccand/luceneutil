@@ -22,15 +22,23 @@ import constants
 
 
 # Where the version of Lucene is that will be tested. Expected to be in the base dir above luceneutil.
-LUCENE_CHECKOUT = 'lucene'
-
+#LUCENE_CHECKOUT = 'baseline'
+LUCENE_CHECKOUT = 'candidate'
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 VALUES = {
-    'ndoc': (10000, 100000, 1000000),
-    'maxConn': (32, 64, 96),
-    'beamWidthIndex': (250, 500),
-    'fanout': (20, 100, 250)
+    #'ndoc': (10000, 100000, 1000000),
+    #'ndoc': (10000, 100000, 200000, 500000),
+    'ndoc': (10000, 100000, 200000),
+    #'ndoc': (100000,),
+    #'maxConn': (32, 64, 96),
+    'maxConn': (64, ),
+    #'beamWidthIndex': (250, 500),
+    'beamWidthIndex': (250, ),
+    #'fanout': (20, 100, 250)
+    'fanout': (0,),
+    #'topK': (10,),
+    #'niter': (10,),
 }
 
 def advance(ix, values):
@@ -48,11 +56,25 @@ def run_knn_benchmark(checkout, values):
     indexes = [0] * len(values.keys())
     indexes[-1] = -1
     args = []
-    dim = 100
-    doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
-    query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
+    #dim = 100
+    #doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
+    #query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
+    #dim = 768
+    #doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
+    #query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
+    dim = 384
+    doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
+    query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
+    #dim = 300
+    #doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
+    #query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
+    #dim = 256
+    #doc_vectors = '/d/electronics_asin_emb.bin'
+    #query_vectors = '/d/electronics_query_vectors.bin'
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
-    cmd = ['java', '-cp', cp,
+    JAVA_EXE = '/usr/lib/jvm/jdk-20.0.1/bin/java'
+    cmd = [JAVA_EXE, '-cp', cp,
+           '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
            'KnnGraphTester']
     print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")

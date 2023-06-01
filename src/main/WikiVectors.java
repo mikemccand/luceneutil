@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -33,6 +34,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+
+import org.apache.lucene.index.VectorEncoding;
 
 import perf.VectorDictionary;
 
@@ -44,10 +48,9 @@ import perf.VectorDictionary;
  */
 public class WikiVectors<T> {
 
-  private final VectorDictionary<?> dict;
+  private final VectorDictionary dict;
 
   float scale;
-  int dimension;
 
   public static void main(String[] args) throws Exception {
     if (args.length < 1) {
@@ -66,26 +69,44 @@ public class WikiVectors<T> {
       scale = Float.parseFloat(args[1]);
       argList = argList.subList(2, argList.size());
     }
-    if (argList.size() != 3) {
+    if (argList.size() == 3) {
+      WikiVectors wikiVectors = new WikiVectors(argList.get(0), scale);
+      try (OutputStream out = Files.newOutputStream(Paths.get(argList.get(2)))) {
+        wikiVectors.computeVectors(argList.get(1), out);
+      }
+    } else if (argList.size() == 5) {
+      WikiVectors wikiVectors = new WikiVectors(argList.get(0), argList.get(1),
+                                                Integer.parseInt(argList.get(2)), scale);
+      try (OutputStream out = Files.newOutputStream(Paths.get(argList.get(4)))) {
+        wikiVectors.computeVectors(argList.get(3), out);
+      }
+    } else {
       usage();
-    }
-    WikiVectors wikiVectors = new WikiVectors(argList.get(0), scale);
-    try (OutputStream out = Files.newOutputStream(Paths.get(argList.get(2)))) {
-      wikiVectors.computeVectors(argList.get(1), out);
     }
   }
 
   static void usage() {
-      System.err.println("usage: WikiVectors --test | [-scale X] <vectorDictionary> <lineDocs> <docVectorOutput>");
+      System.err.println("usage: WikiVectors --test |" +
+                         "\n\t[-scale X] <vectorDictionary> <lineDocs> <docVectorOutput> |" +
+                         "\n\t[-scale X] <tokens> <binary vectors> <dim> <lineDocs> <docVectorOutput>");
       System.exit(-1);
   }
 
   WikiVectors(String dictFileName, float scale) throws IOException {
     this.scale = scale;
     if (scale == 0) {
-      dict = VectorDictionary.create(dictFileName);
+      dict = VectorDictionary.create(dictFileName, scale, VectorEncoding.FLOAT32);
     } else {
-      dict = VectorDictionary.create(dictFileName, scale);
+      dict = VectorDictionary.create(dictFileName, scale, VectorEncoding.BYTE);
+    }
+  }
+
+  WikiVectors(String tokFile, String vecFile, int dim, float scale) throws IOException {
+    this.scale = scale;
+    if (scale == 0) {
+      dict = VectorDictionary.create(tokFile, vecFile, dim, scale, VectorEncoding.FLOAT32);
+    } else {
+      dict = VectorDictionary.create(tokFile, vecFile, dim, scale, VectorEncoding.BYTE);
     }
   }
 
@@ -160,6 +181,9 @@ public class WikiVectors<T> {
     System.out.println("testUnscaled: ok");
     testScaled();
     System.out.println("testScaled: ok");
+    //createBinaryDict();
+    testBinaryDict();
+    System.out.println("testBinaryDict: ok");
   }
 
   static void testUnscaled() throws IOException {
@@ -223,6 +247,52 @@ public class WikiVectors<T> {
       // vector for "many geografia" - geografia is not there
       assertEquals(buf[100], scaleToByte(wikiVectors.dict.get("many")[0], scale));
       assertEquals(buf[199], scaleToByte(wikiVectors.dict.get("many")[99], scale));
+    }
+  }
+
+  static void createBinaryDict() throws IOException {
+    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.txt", 0);
+    byte[] bytes = new byte[wikiVectors.dict.dimension * Float.BYTES];
+    ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+    try (PrintStream tokens = new PrintStream(Files.newOutputStream(Paths.get("resources/test-dict.tok")));
+         OutputStream vectors = Files.newOutputStream(Paths.get("resources/test-dict.vec"))) {
+      for (Map.Entry<String, float[]> e : wikiVectors.dict.entrySet()) {
+        tokens.println(e.getKey());
+        buffer.asFloatBuffer().put(e.getValue());
+        vectors.write(bytes);
+      }
+    }
+  }
+
+  static void testBinaryDict() throws IOException {
+    WikiVectors wikiVectors = new WikiVectors("resources/test-dict.tok", "resources/test-dict.vec", 100, 0);
+    assertEquals(100, wikiVectors.dict.dimension);
+    assertEquals(100, wikiVectors.dict.get("many").length);
+    assertEquals(0f, wikiVectors.dict.scale);
+    assertEquals(4, wikiVectors.dict.size());
+    // vectors were normalized
+    assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("publisher")));
+    assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("backstory")));
+    assertClose(1f, (float) VectorDictionary.vectorNorm(wikiVectors.dict.get("many")));
+    // compare ratios since these are invariant under scaling, and we normalized the input
+    assertClose(-0.056504f / 0.16064f, wikiVectors.dict.get("publisher")[0] / wikiVectors.dict.get("publisher")[99]);
+    assertClose(-0.32914f / 0.59499f, wikiVectors.dict.get("many")[0] / wikiVectors.dict.get("many")[99]);
+    assertThat(wikiVectors.dict.get("geografia") == null);
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+      wikiVectors.computeVectors("resources/test-tasks.txt", out);
+      byte[] buf = out.toByteArray();
+      FloatBuffer floats = ByteBuffer.wrap(buf).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+      float[] vec = new float[100];
+      // vector for "publisher backstory"
+      floats.get(vec);
+      assertClose(vec[0] / vec[99],
+                  (wikiVectors.dict.get("publisher")[0] + wikiVectors.dict.get("backstory")[0])
+                  /
+                  (wikiVectors.dict.get("publisher")[99] + wikiVectors.dict.get("backstory")[99]));
+      // vector for "many geografia" - geografia is not there
+      floats.get(vec);
+      assertClose(vec[0], wikiVectors.dict.get("many")[0]);
+      assertClose(vec[99], wikiVectors.dict.get("many")[99]);
     }
   }
 

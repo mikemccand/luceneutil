@@ -64,6 +64,7 @@ import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.QueryTimeoutImpl;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ReferenceManager;
@@ -264,11 +265,11 @@ public class SearchPerfTest {
 
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
-    final String vectorFile;
+    final String vectorDict;
     if (args.hasArg("-vectorDict")) {
-      vectorFile = args.getString("-vectorDict");
+      vectorDict = args.getString("-vectorDict");
     } else {
-      vectorFile = null;
+      vectorDict = null;
     }
 
     if (recacheFilterDeletes) {
@@ -510,13 +511,29 @@ public class SearchPerfTest {
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     VectorDictionary vectorDictionary;
-    if (vectorFile != null) {
+    if (vectorDict != null) {
       Float scale = args.getFloat("-vectorScale", null);
-      if (scale != null) {
-        vectorDictionary = VectorDictionary.create(vectorFile, scale);
+      long start = System.nanoTime();
+      if (vectorDict.charAt(0) == '(') {
+        // python sends as a tuple
+        String[] parts = vectorDict.substring(1, vectorDict.length() - 1).split(", ");
+        // strip off quotes
+        String tokenFile = parts[0].substring(1, parts[0].length() - 1);
+        String vectorFile = parts[1].substring(1, parts[1].length() - 1);
+        int dim = Integer.parseInt(parts[2]);
+        if (scale != null) {
+          vectorDictionary = VectorDictionary.create(tokenFile, vectorFile, dim, scale, VectorEncoding.BYTE);
+        } else {
+          vectorDictionary = VectorDictionary.create(tokenFile, vectorFile, dim, 0, VectorEncoding.FLOAT32);
+        }
       } else {
-        vectorDictionary = VectorDictionary.create(vectorFile);
+        if (scale != null) {
+          vectorDictionary = VectorDictionary.create(vectorDict, scale, VectorEncoding.BYTE);
+        } else {
+          vectorDictionary = VectorDictionary.create(vectorDict, 0, VectorEncoding.FLOAT32);
+        }
       }
+      System.out.println("vector dictionary loaded from " + vectorDict + " in " + (System.nanoTime() - start) / 1_000_000 + "ms");
     } else {
       vectorDictionary = null;
     }

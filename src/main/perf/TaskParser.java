@@ -69,7 +69,7 @@ class TaskParser {
   private final Random random;
   private final boolean doStoredLoads;
   private final IndexState state;
-  private final VectorDictionary<?> vectorDictionary;
+  private final VectorDictionary vectorDictionary;
   private final String vectorField;
 
   public TaskParser(IndexState state,
@@ -77,7 +77,7 @@ class TaskParser {
                     String fieldName,
                     int topN,
                     Random random,
-                    VectorDictionary<?> vectorDictionary,
+                    VectorDictionary vectorDictionary,
                     boolean doStoredLoads) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;

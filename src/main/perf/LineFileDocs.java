@@ -349,6 +349,7 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field month;
+    final Field monthPostings;
     final IntField dayOfYear;
     final BinaryDocValuesField titleBDV;
     final LongField lastMod;
@@ -394,6 +395,9 @@ public class LineFileDocs implements Closeable {
         month = new KeywordField("month", "", Store.NO);
         doc.add(month);
 
+        monthPostings = new StringField("monthPostings", "", Store.NO);
+        doc.add(monthPostings);
+
         dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
         doc.add(dayOfYear);
 
@@ -402,6 +406,7 @@ public class LineFileDocs implements Closeable {
       } else {
         titleBDV = null;
         lastMod = null;
+        monthPostings = null;
         month = null;
         dayOfYear = null;
         idDV = null;
@@ -701,8 +706,9 @@ public class LineFileDocs implements Closeable {
     doc.randomLabel.setStringValue(randomLabel);
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
-      final String month = months[doc.dateCal.get(Calendar.MONTH)];
+      final String month = months[doc.dateCal.get(Calendar.MONTH)].toLowerCase(Locale.ROOT);
       doc.month.setStringValue(month);
+      doc.monthPostings.setStringValue(month);
       doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.idDV.setLongValue(myID);
     }

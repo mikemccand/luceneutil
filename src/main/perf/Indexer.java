@@ -45,6 +45,7 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
+import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -67,6 +68,7 @@ import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortedSetSelector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
@@ -264,8 +266,10 @@ public final class Indexer {
         indexSortType = SortField.Type.STRING;
       } else if (typeString.equals("int")) {
         indexSortType = SortField.Type.INT;
+      } else if (typeString.equals("custom")) {
+        indexSortType = SortField.Type.CUSTOM;
       } else {
-        throw new IllegalArgumentException("-indexSort can only handle {long,int,string} sort; got: " + typeString);
+        throw new IllegalArgumentException("-indexSort can only handle {long,int,string,custom} sort; got: " + typeString);
       }
       indexSortField = indexSortField.substring(0, i);
     } else {
@@ -423,7 +427,12 @@ public final class Indexer {
       final IndexWriterConfig iwc = new IndexWriterConfig(a);
 
       if (finalIndexSortField != null) {
-        iwc.setIndexSort(new Sort(new SortField(finalIndexSortField, finalIndexSortType)));
+        // NOCOMMIT some hack to get benchmarking going...
+        if (finalIndexSortField.equals("month")) {
+          iwc.setIndexSort(new Sort(KeywordField.newSortField("month", false, SortedSetSelector.Type.MIN)));
+        } else {
+          iwc.setIndexSort(new Sort(new SortField(finalIndexSortField, finalIndexSortType)));
+        }
       }
 
       if (mode == Mode.UPDATE) {

@@ -99,6 +99,7 @@ class TaskParser {
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
+  private final static Pattern filterQueryPattern = Pattern.compile(" \\+filter=([0-9a-zA-Z\\:\\.]+)");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
@@ -242,13 +243,27 @@ class TaskParser {
 
     Query parseFilter() {
       // Check for filter (eg: " +filter=0.5%")
-      final Matcher m = filterPattern.matcher(text);
+      Matcher m = filterPattern.matcher(text);
       if (m.find()) {
         final double filterPct = Double.parseDouble(m.group(1));
         // Splice out the filter string:
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         return new RandomQuery(filterPct);
       }
+
+      // Check for filter query (eg: " +filter=field:text")
+      m = filterQueryPattern.matcher(text);
+      if (m.find()) {
+        String[] term = m.group(1).split(":");
+        String filterField = term[0];
+        String filterText = term[1];
+
+        // Splice out the filter string:
+        text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
+
+        return new TermQuery(new Term(filterField, filterText));
+      }
+
       return null;
     }
 

@@ -43,7 +43,7 @@ public class VectorDictionary {
 
   public final int dimension;
 
-   /**
+  /**
    * Reads a vector dictionary in the GloVe format, a text file where each line has a
    * token followed by dimension floating point numbers in text, all space-separated.
    * @param filename the dictionary file

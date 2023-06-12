@@ -9,7 +9,6 @@
     <mkdir dir="build"/>
 
     <path id="build.classpath">
-      <fileset dir="${external.lucene.repo}" includes="**/*.jar" />
       <pathelement location="build"/>
       <fileset dir="${lucene.checkout}/lucene/core/build/libs/">
         <include name="*.jar"/>

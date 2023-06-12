@@ -46,7 +46,7 @@ import perf.VectorDictionary;
  * as a precursor for indexing vectors in benchmark runs. It's provided for "offline" (manual) use,
  * and doesn't factor into benchmark execution.
  */
-public class WikiVectors<T> {
+public class WikiVectors {
 
   private final VectorDictionary dict;
 
@@ -152,7 +152,6 @@ public class WikiVectors<T> {
     try (Reader r = Channels.newReader(FileChannel.open(Paths.get(lineDocFile)), dec, -1);
          BufferedReader in = new BufferedReader(r)) {
       String lineDoc;
-      byte[] bvec = new byte[dict.dimension];
       while ((lineDoc = in.readLine()) != null) {
         byte[] vec = dict.computeTextVectorByte(lineDoc);
         out.write(vec);

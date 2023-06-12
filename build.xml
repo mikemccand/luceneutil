@@ -2,18 +2,23 @@
 
   <property name="data.dir" value="${basedir}/../data"/>
   <property name="tasks.dir" value="${basedir}/tasks"/>
-  <property name="external.lucene.repo" value="${basedir}/../lucene_candidate/lucene"/>
+  <property name="lucene.checkout" value="${basedir}/../lucene"/>
 
   <target name="build">
+
+    <mkdir dir="build"/>
 
     <path id="build.classpath">
       <fileset dir="${external.lucene.repo}" includes="**/*.jar" />
       <pathelement location="build"/>
+      <fileset dir="${lucene.checkout}/lucene/core/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
     </path>
 
     <javac srcdir="src/main"
            destdir="build"
-           includes="WikiVectors.java,perf/VectorDictionary.java"
+           includes="KnnGraphTester.java,WikiVectors.java,perf/VectorDictionary.java"
            classpathref="build.classpath"
            includeantruntime="false"/>
 
@@ -133,5 +138,49 @@
 
   <!-- don't scale the task data here; we'll do it later after summing vectors for each term -->
   <target name="vectors100" depends="vectors100-tasks,vectors100-docs,vectors100-8bit-docs,vectors100-8bit-tasks"/>
+
+  <!-- 384-dim vectors trained using all-MiniLM-L6-v2 from https://www.sbert.net/ -->
+
+  <target name="vectors-minilm-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-minilm.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors-minilm-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-minilm.vec"/>
+    </java>
+  </target>
+  
+  <!-- 768-dim vectors trained using mpnet from https://www.sbert.net/ -->
+
+  <target name="vectors-mpnet-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.vec"/>
+      <arg value="768"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-mpnet.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors-mpnet-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.vec"/>
+      <arg value="768"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-mpnet.vec"/>
+    </java>
+  </target>
 
 </project>

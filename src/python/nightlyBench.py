@@ -659,7 +659,8 @@ def run():
                 blunders.upload(f'Searching ({timeStamp})',
                                 f'searching-{timeStamp}',
                                 f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+                                #glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+                                glob.glob(f'{constants.NIGHTLY_LOG_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
 
                 blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
                                 f'indexing-1kb-{timeStamp}',
@@ -778,7 +779,7 @@ def findLastSuccessfulGitHashes():
     nightlyBenchResult = re.compile(r'\d\d\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.html')
 
     for logFile in logFiles:
-        if nightlyBenchResult.match(logFile) is not None:
+        if nightlyBenchResult.match(logFile) is not None and os.path.exists(f'{constants.NIGHTLY_LOG_DIR}/{logFile[:-5]}/results.pk'):
 
             luceneGitHash = None
             luceneUtilGitHash = None
@@ -936,6 +937,9 @@ def makeGraphs():
                 continue
             if date in ('05/16/2014'):
                 # Bug in luceneutil made it look like 0 qps on all queries
+                continue
+            if date in ('05/28/2023'):
+                # Skip partially successfull first run with Panama -- the next run (05/29) was complete
                 continue
 
             gcIndexTimes = getIndexGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))

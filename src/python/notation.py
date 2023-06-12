@@ -667,4 +667,32 @@ KNOWN_CHANGES = [
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite',
      'GITHUB#12055: Better skipping for multi-term queries with a FILTER rewrite'),
 
+    ('2023-03-14',
+     'GITHUB#12198: Reduced contention and increased thread affinity',
+     'GITHUB#12198: Reduced contention and increased thread affinity'),
+
+    ('2023-04-04',
+     'Remove --enable-preview JVM flag',
+     'Remove --enable-preview JVM flag'),
+
+    ('2023-04-09',
+     'Upgrade Linux kernel 5.19.12 -> 6.2.9 plus all packages',
+     'Upgrade Linux kernel 5.19.12 -> 6.2.9 plus all packages'),
+
+    ('2023-04-11',
+     'Upgrade Java 19.0.2+7 to 20+36-2344',
+     'Upgrade Java 19.0.2+7 to 20+36-2344',),
+
+    ('2023-05-12',
+     'Allocate one NeighborQueue per search for results #12255',
+     'Allocate one NeighborQueue per search for results #12255'),
+
+    ('2023-05-20',
+     'Revert allocate one NeighborQueue per search for results #12255',
+     'Revert allocate one NeighborQueue per search for results #12255'),
+
+    ('2023-05-29',
+     'Use the incubating Panama API to accelerate KNN indexing and searching #12311',
+     'Use the incubating Panama API to accelerate KNN indexing and searching #12311',),
+
 ]

@@ -64,6 +64,7 @@ import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.QueryTimeoutImpl;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ReferenceManager;
@@ -264,11 +265,11 @@ public class SearchPerfTest {
 
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
-    final String vectorFile;
+    final String vectorDict;
     if (args.hasArg("-vectorDict")) {
-      vectorFile = args.getString("-vectorDict");
+      vectorDict = args.getString("-vectorDict");
     } else {
-      vectorFile = null;
+      vectorDict = null;
     }
 
     if (recacheFilterDeletes) {
@@ -509,19 +510,35 @@ public class SearchPerfTest {
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
     final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
-    final QueryParser queryParser = new QueryParser("body", a);
     VectorDictionary vectorDictionary;
-    if (vectorFile != null) {
+    if (vectorDict != null) {
       Float scale = args.getFloat("-vectorScale", null);
-      if (scale != null) {
-        vectorDictionary = VectorDictionary.create(vectorFile, scale);
+      long start = System.nanoTime();
+      if (vectorDict.charAt(0) == '(') {
+        // python sends as a tuple
+        String[] parts = vectorDict.substring(1, vectorDict.length() - 1).split(", ");
+        // strip off quotes
+        String tokenFile = parts[0].substring(1, parts[0].length() - 1);
+        String vectorFile = parts[1].substring(1, parts[1].length() - 1);
+        int dim = Integer.parseInt(parts[2]);
+        if (scale != null) {
+          vectorDictionary = VectorDictionary.create(tokenFile, vectorFile, dim, scale, VectorEncoding.BYTE);
+        } else {
+          vectorDictionary = VectorDictionary.create(tokenFile, vectorFile, dim, 0, VectorEncoding.FLOAT32);
+        }
       } else {
-        vectorDictionary = VectorDictionary.create(vectorFile);
+        if (scale != null) {
+          vectorDictionary = VectorDictionary.create(vectorDict, scale, VectorEncoding.BYTE);
+        } else {
+          vectorDictionary = VectorDictionary.create(vectorDict, 0, VectorEncoding.FLOAT32);
+        }
       }
+      System.out.println("vector dictionary loaded from " + vectorDict + " in " + (System.nanoTime() - start) / 1_000_000 + "ms");
     } else {
       vectorDictionary = null;
     }
-    TaskParser taskParser = new TaskParser(indexState, queryParser, fieldName, topN, staticRandom, vectorDictionary, doStoredLoads);
+    TaskParserFactory taskParserFactory =
+            new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, doStoredLoads);
 
     final TaskSource tasks;
 
@@ -532,7 +549,7 @@ public class SearchPerfTest {
       }
       String iface = tasksFile.substring(7, idx);
       int port = Integer.valueOf(tasksFile.substring(1+idx));
-      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParser);
+      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParserFactory.getTaskParser());
 
       // nocommit must stop thread?
       tasks = remoteTasks;
@@ -540,7 +557,8 @@ public class SearchPerfTest {
       // Load the tasks from a file:
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, taskParser, tasksFile, staticRandom, random, numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
+      tasks = new LocalTaskSource(indexState, tasksFile, taskParserFactory.getTaskParser(), staticRandom, random,
+              numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
       System.out.println("Task repeat count " + taskRepeatCount);
       System.out.println("Tasks file " + tasksFile);
       System.out.println("Num task per cat " + numTaskPerCat);
@@ -551,7 +569,7 @@ public class SearchPerfTest {
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount);
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount, taskParserFactory);
     Thread.sleep(10);
 
     final long startNanos = System.nanoTime();

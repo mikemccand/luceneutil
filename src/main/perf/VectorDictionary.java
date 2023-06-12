@@ -18,7 +18,11 @@ package perf;
  */
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -26,15 +30,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
 
 import org.apache.lucene.index.VectorEncoding;
 
-/**
- * @param T the type of vector; either float[] or byte[]
- */
-public class VectorDictionary<T> {
+public class VectorDictionary {
 
   private final Map<String, float[]> dict = new HashMap<>();
+
   public final float scale;
   public final VectorEncoding vectorEncoding;
 
@@ -46,6 +49,25 @@ public class VectorDictionary<T> {
 
   public static VectorDictionary<byte[]> create (String filename, float scale) throws IOException {
     return new VectorDictionary<>(filename, scale, VectorEncoding.BYTE);
+  }
+  
+   /**
+   * Reads a vector dictionary in the GloVe format, a text file where each line has a
+   * token followed by dimension floating point numbers in text, all space-separated.
+   * @param filename the dictionary file
+   */
+  public static VectorDictionary create(String filename, float scale, VectorEncoding encoding) throws IOException {
+    return new VectorDictionary(filename, scale, encoding);
+  }
+
+  /**
+   * Reads a vector dictionary stored in two files, one containing words and another binary file
+   * containing floating point vectors.
+   * @param wordFile a file containing one word token per line
+   * @param vectorFile a file containing vectors in LE 32 bit floating point
+   */
+  public static VectorDictionary create(String wordFile, String vectorFile, int dimension, float scale, VectorEncoding encoding) throws IOException {
+    return new VectorDictionary(wordFile, vectorFile, dimension, scale, encoding);
   }
 
   public int size() {
@@ -95,6 +117,11 @@ public class VectorDictionary<T> {
     for (int i = 1; i < parts.length; i++) {
       vector[i - 1] = Float.parseFloat(parts[i]);
     }
+    add(token, vector);
+    return vector.length;
+  }
+
+  private void add(String token, float[] vector) {
     double norm = vectorNorm(vector);
     if (norm > 0) {
       // We want unit vectors
@@ -103,7 +130,38 @@ public class VectorDictionary<T> {
     } else {
       System.err.println("WARN: skipping token in dictionary with zero vector: " + token);
     }
-    return vector.length;
+  }
+
+  private VectorDictionary(String wordFile, String vectorFile, int dimension, float scale, VectorEncoding vectorEncoding) throws IOException {
+    // read a dictionary from two files, one with a token per line and the other with little-endian fp32 vectors
+    this.scale = scale;
+    this.vectorEncoding = vectorEncoding;
+    this.dimension = dimension;
+    try (BufferedReader words = Files.newBufferedReader(Paths.get(wordFile), StandardCharsets.UTF_8);
+         InputStream vectors = Files.newInputStream(Paths.get(vectorFile))) {
+      String token;
+      byte[] buf = new byte[dimension * Float.BYTES];
+      ByteBuffer bytes = ByteBuffer.wrap(buf)
+        .order(ByteOrder.LITTLE_ENDIAN);
+      while ((token = words.readLine()) != null) {
+        if (dict.containsKey(token)) {
+          // nocommit - hack to patch up some bad data I created
+          continue;
+          // throw new IllegalStateException("token " + token + " seen twice");
+        }
+        int nread = vectors.read(buf);
+        if (nread < buf.length) {
+          throw new IllegalStateException("EOF while reading vectors after " + dict.size() + " entries");
+        }
+        float[] vec = new float[dimension];
+        bytes.asFloatBuffer().get(vec);
+        add(token, vec);
+      }
+    } catch (Exception e) {
+      System.err.println("An error occurred after reading " + dict.size() + " entries");
+      throw e;
+    }
+    System.out.println("loaded " + dict.size());
   }
 
   public float[] computeTextVector(String text) {
@@ -195,6 +253,10 @@ public class VectorDictionary<T> {
       }
     }
     return tokens;
+  }
+
+  public Set<Map.Entry<String, float[]>> entrySet() {
+    return dict.entrySet();
   }
 
 }

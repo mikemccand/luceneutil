@@ -43,12 +43,12 @@ public class VectorDictionary {
 
   public final int dimension;
 
-  public static VectorDictionary<float[]> create (String filename) throws IOException {
-    return new VectorDictionary<>(filename, 0f, VectorEncoding.FLOAT32);
+  public static VectorDictionary create (String filename) throws IOException {
+    return new VectorDictionary(filename, 0f, VectorEncoding.FLOAT32);
   }
 
-  public static VectorDictionary<byte[]> create (String filename, float scale) throws IOException {
-    return new VectorDictionary<>(filename, scale, VectorEncoding.BYTE);
+  public static VectorDictionary create (String filename, float scale) throws IOException {
+    return new VectorDictionary(filename, scale, VectorEncoding.BYTE);
   }
   
    /**

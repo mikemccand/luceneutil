@@ -43,14 +43,6 @@ public class VectorDictionary {
 
   public final int dimension;
 
-  public static VectorDictionary create (String filename) throws IOException {
-    return new VectorDictionary(filename, 0f, VectorEncoding.FLOAT32);
-  }
-
-  public static VectorDictionary create (String filename, float scale) throws IOException {
-    return new VectorDictionary(filename, scale, VectorEncoding.BYTE);
-  }
-  
    /**
    * Reads a vector dictionary in the GloVe format, a text file where each line has a
    * token followed by dimension floating point numbers in text, all space-separated.

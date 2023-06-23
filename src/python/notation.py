@@ -695,4 +695,8 @@ KNOWN_CHANGES = [
      'Use the incubating Panama API to accelerate KNN indexing and searching #12311',
      'Use the incubating Panama API to accelerate KNN indexing and searching #12311',),
 
+    ('2023-06-22',
+     'Implement top-level disjunctions as a bulk scorer',
+     'Implement top-level disjunctions as a bulk scorer',),
+
 ]

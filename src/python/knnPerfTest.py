@@ -72,8 +72,7 @@ def run_knn_benchmark(checkout, values):
     #doc_vectors = '/d/electronics_asin_emb.bin'
     #query_vectors = '/d/electronics_query_vectors.bin'
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
-    JAVA_EXE = '/usr/lib/jvm/jdk-20.0.1/bin/java'
-    cmd = [JAVA_EXE, '-cp', cp,
+    cmd = [constants.JAVA_EXE, '-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
            'KnnGraphTester']

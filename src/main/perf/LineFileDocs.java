@@ -43,9 +43,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.BinaryDocValuesField;
@@ -78,7 +75,7 @@ import org.apache.lucene.util.UnicodeUtil;
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
+  final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
 
   private BufferedReader reader;
   private SeekableByteChannel channel;
@@ -96,21 +93,20 @@ public class LineFileDocs implements Closeable {
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
-  private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
-  private final BlockingQueue<LineFileDoc> recycleBin = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
   final boolean isBinary;
-  private final ThreadLocal<LineFileDoc> nextDocs = new ThreadLocal<>();
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
   private final String vectorFile;
   private final int vectorDimension;
   private final VectorEncoding vectorEncoding;
   private SeekableByteChannel vectorChannel;
+  private final DocGrouper docGrouper;
+  private final ThreadLocal<DocGrouper.DocGroups> nextDocGroups = new ThreadLocal<>();
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
                       FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension,
-                      VectorEncoding vectorEncoding)
+                      VectorEncoding vectorEncoding, boolean addGroupingFields, int totalDocs)
     throws IOException {
     this.path = path;
     this.isBinary = path.endsWith(".bin");
@@ -126,6 +122,14 @@ public class LineFileDocs implements Closeable {
     this.vectorFile = vectorFile;
     this.vectorDimension = vectorDimension;
     this.vectorEncoding = vectorEncoding;
+    if (addGroupingFields == false) {
+      // NOTE: totalDocs can be -1 if we don't add group fields
+      docGrouper = new DocGrouper.NoGroupImpl(totalDocs);
+    } else if (isBinary) {
+      docGrouper = new DocGrouper.BinaryGrouper(totalDocs);
+    } else {
+      docGrouper = new DocGrouper.TextGrouper(totalDocs);
+    }
 
     open();
     readerThread = new Thread() {
@@ -175,7 +179,7 @@ public class LineFileDocs implements Closeable {
           throw new RuntimeException("expected " + length + " document bytes but read " + x);
         }
         buffer.position(0);
-        queue.put(new LineFileDoc.BinaryBased(buffer, readVector(docCountInBlock), totalDocCount, docCountInBlock));
+        docGrouper.add(new LineFileDoc.BinaryBased(buffer, readVector(docCountInBlock), totalDocCount, docCountInBlock));
         totalDocCount += docCountInBlock;
       }
     } else {
@@ -192,11 +196,11 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc.TextBased(line, readVector(1), id++));
+        docGrouper.add(new LineFileDoc.TextBased(line, readVector(1), id++));
       }
     }
     for(int i=0;i<128;i++) {
-      queue.put(END);
+      docGrouper.add(END);
     }
   }
 
@@ -510,47 +514,38 @@ public class LineFileDocs implements Closeable {
     return doc2;
   }
 
-  /* Call this function to put the remaining doc block into recycle queue */
-  public void recycle() {
-    if (isBinary && nextDocs.get() != null && nextDocs.get().getBlockByteText().hasRemaining()) {
-      try {
-        recycleBin.put(nextDocs.get());
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
-      }
-      nextDocs.set(null);
-    }
-  }
-
-  /* Call this function to make sure the calling thread will have something to index */
-  public boolean reserve() {
-    if (isBinary == false) {
-      return true; // don't need to reserve anything with text based LFD
-    }
-    LineFileDoc lfd = nextDocs.get();
-    if (lfd != null && lfd.getBlockByteText().hasRemaining()) {
-      return true; // we have next document
+  /**
+   * Call this function to make sure the calling thread will have something to index
+   * @return number of documents in the next group to be indexed, 0 means nothing and the
+   *         thread should stop indexing.
+   */
+  public int reserve() {
+    DocGrouper.DocGroups docGroups = nextDocGroups.get();
+    if (docGroups != null && docGroups.getRemainingNumGroups() > 0) {
+      return docGroups.getNumOfDocsInGroup();
     }
     try {
-      lfd = queue.take();
-    } catch (InterruptedException ie) {
+      docGroups = docGrouper.getNextDocGroups();
+    } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new RuntimeException(ie);
+      throw new RuntimeException(e);
     }
-    if (lfd == END) {
-      return false;
+    if (docGroups == DocGrouper.END) {
+      return 0;
     }
-    nextDocs.set(lfd);
-    return true;
+    nextDocGroups.set(docGroups);
+    return docGroups.getNumOfDocsInGroup();
   }
 
-  public Document nextDoc(DocState doc) throws IOException {
-    return nextDoc(doc, false);
+  /**
+   * Should only call this method after {@link #reserve()} return positive value
+   */
+  public BytesRef getCurrentGroupId() {
+    return nextDocGroups.get().getGroupId();
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public Document nextDoc(DocState doc, boolean expected) throws IOException {
+  public Document nextDoc(DocState doc) throws IOException {
 
     long msecSinceEpoch;
     int timeSec;
@@ -560,34 +555,16 @@ public class LineFileDocs implements Closeable {
     String body;
     String randomLabel;
     int myID = -1;
+    LineFileDoc lfd;
+
+    // reserve() is okay to be called multiple times
+    if (reserve() == 0) {
+      return null;
+    } else {
+      lfd = nextDocGroups.get().getNextLFD();
+    }
 
     if (isBinary) {
-
-      float[] vector = new float[vectorDimension];
-      FloatBuffer vectorBuffer = null;
-
-      LineFileDoc lfd;
-
-      // reserve() is okay to be called multiple times
-      if (reserve() == false) {
-        if (expected == false) {
-          return null;
-        } else {
-          // the caller expects there are more documents, we will be blocking on recycleBin for 10 seconds
-          try {
-            lfd = recycleBin.poll(10, TimeUnit.SECONDS);
-            if (lfd == null) {
-              throw new IllegalStateException("Expected docs in recycleBin but not found anything");
-            }
-            nextDocs.set(lfd);
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(ie);
-          }
-        }
-      } else {
-        lfd = nextDocs.get();
-      }
       assert lfd != null && lfd != END && lfd.getBlockByteText().hasRemaining();
       // buffer format described in buildBinaryLineDocs.py
       ByteBuffer buffer = lfd.getBlockByteText();
@@ -632,16 +609,6 @@ public class LineFileDocs implements Closeable {
       }
 
     } else {
-      LineFileDoc lfd;
-      try {
-        lfd = queue.take();
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
-      }
-      if (lfd == END) {
-        return null;
-      }
       line = lfd.getStringText();
       myID = lfd.getNextId();
 
@@ -819,7 +786,7 @@ public class LineFileDocs implements Closeable {
     }
   }
 
-  private static abstract class LineFileDoc {
+  static abstract class LineFileDoc {
 
     // This vector can be vector value for one or more documents
     // more specifically, for text based LFD the vector is single valued
@@ -843,6 +810,12 @@ public class LineFileDocs implements Closeable {
     abstract int getNextId();
 
     /**
+     * How many docs in this LFD is not yet read, mainly for BinaryBased, as TextBased LFD will
+     * only have 1 doc always
+     */
+    abstract int remainingDocs();
+
+    /**
      * This method is only for txt based LFD, should only return value for 1 document
      */
     String getStringText() {
@@ -862,6 +835,7 @@ public class LineFileDocs implements Closeable {
       final String stringText;
 
       final int id; // This is the exact id since it is txt based LFD
+      boolean consumed;
 
       TextBased(String text, float[] vector, int id) {
         super(vector);
@@ -871,7 +845,16 @@ public class LineFileDocs implements Closeable {
 
       @Override
       int getNextId() {
+        consumed = true;
         return id;
+      }
+
+      @Override
+      int remainingDocs() {
+        if (consumed) {
+          return 0;
+        }
+        return 1;
       }
 
       @Override
@@ -884,42 +867,31 @@ public class LineFileDocs implements Closeable {
 
       final ByteBuffer blockByteText;
       private int nextId; // will have multiple doc in a same LFD so we'll determine id using a base
-      private int docCount; // and a count
+      private int remainingDocs; // and a count
 
       BinaryBased(ByteBuffer bytes, float[] vector, int idBase, int docCount) {
         super(vector);
         blockByteText = bytes;
         this.nextId = idBase;
-        this.docCount = docCount;
+        this.remainingDocs = docCount;
       }
 
       @Override
       int getNextId() {
-        if (docCount-- == 0) {
-          throw new IllegalStateException("Calling getId more than docCount");
+        if (remainingDocs-- == 0) {
+          throw new IllegalStateException("Calling getId more than number of docs in a block");
         }
         return nextId++;
       }
 
       @Override
+      int remainingDocs() {
+        return remainingDocs;
+      }
+
+      @Override
       ByteBuffer getBlockByteText() {
         return blockByteText;
-      }
-    }
-
-    LineFileDoc(String text, byte[] vector) {
-      if (vector == null) {
-        this.vector = null;
-      } else {
-        this.vector = ByteBuffer.wrap(vector);
-      }
-    }
-
-    LineFileDoc(ByteBuffer bytes, byte[] vector) {
-      if (vector == null) {
-        this.vector = null;
-      } else {
-        this.vector = ByteBuffer.wrap(vector);
       }
     }
 

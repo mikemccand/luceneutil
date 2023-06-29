@@ -317,6 +317,26 @@ class PKLookupTask:
   def __hash__(self):
     return hash(self.pkOrd)
 
+class PKLookupWithTermStateTask:
+  cat = 'PKLookupWithTermState'
+
+  def verifySame(self, other, verifyScores, verifyCounts):
+    # already "verified" in search perf test, ie, that the docID
+    # returned in fact has the id that was asked for
+    pass
+
+  def __str__(self):
+    return 'PKTS%s' % self.pkOrd
+
+  def __eq__(self, other):
+    if not isinstance(other, PKLookupWithTermStateTask):
+      return False
+    else:
+      return self.pkOrd == other.pkOrd
+
+  def __hash__(self):
+    return hash(self.pkOrd)
+
 class PointsPKLookupTask:
   cat = 'PointsPKLookup'
 
@@ -354,7 +374,7 @@ reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) gr
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
-rePKOrd = re.compile(r'PK(.*?)\[')
+rePKOrd = re.compile(r'PK(?:TS)?(.*?)\[')
 reOneGroup = re.compile('group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$', re.DOTALL)
 reHeap = re.compile('HEAP: ([0-9]+)$')
 
@@ -543,6 +563,11 @@ def parseResults(resultsFiles):
           suggest, freq, score = m.groups()
           task.hits.append((suggest, int(freq), float(score)))
 
+      elif line.startswith(b'TASK: PKTS'):
+        task = PKLookupWithTermStateTask()
+        task.pkOrd = rePKOrd.search(decode(line)).group(1)
+        task.msec = float(f.readline().strip().split()[0])
+        task.threadID = int(f.readline().strip().split()[1])
       elif line.startswith(b'TASK: PK'):
         task = PKLookupTask()
         task.pkOrd = rePKOrd.search(decode(line)).group(1)

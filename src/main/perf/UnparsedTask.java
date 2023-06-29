@@ -41,7 +41,6 @@ public class UnparsedTask extends Task{
         this.origText = origText;
     }
 
-
     @Override
     public void go(IndexState state, TaskParser taskParser) throws IOException {
         if (parsedTask.get() != null) {

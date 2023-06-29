@@ -55,14 +55,7 @@ final class PKLookupTask extends Task {
     int idx = 0;
     while(idx < count) {
       final BytesRef id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
-      /*
-        if (idx == 0) {
-        id = new BytesRef("000013688");
-        } else {
-        id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
-        }
-      */
-      if (!seen.contains(id)) {
+      if (seen.contains(id) == false) {
         seen.add(id);
         ids[idx++] = id;
       }
@@ -108,11 +101,13 @@ final class PKLookupTask extends Task {
             for (int d = docs.nextDoc(); d != DocIdSetIterator.NO_MORE_DOCS; d = docs.nextDoc()) {
               if (pkState.liveDocs == null || pkState.liveDocs.get(d)) {
                 docID = d;
+                // stop iterating for additional docs since we know this is a unique id
                 break;
               }
             }
             if (docID != DocIdSetIterator.NO_MORE_DOCS) {
               answers[idx] = base + docID;
+              // stop checking further segments since we know this is a unique id
               break;
             }
           }
@@ -141,7 +136,7 @@ final class PKLookupTask extends Task {
     for(int idx=0;idx<ids.length;idx++) {
       if (answers[idx] == -1) {
         if (!state.hasDeletions) {
-          throw new RuntimeException("PKLookup: id=" + LineFileDocs.idToInt(ids[idx].utf8ToString()) + " failed to find a matching document");
+          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
         } else {
           // TODO: we should verify that these are in fact
           // the deleted docs...

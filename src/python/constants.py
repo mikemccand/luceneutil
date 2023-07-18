@@ -36,9 +36,22 @@ WIKI_MEDIUM_DOCS_COUNT = 33332620
 # Licensed under Public Domain (http://www.opendatacommons.org/licenses/pddl/1.0/);
 # see https://nlp.stanford.edu/projects/glove/
 # Thanks to Jeffrey Pennington, Richard Socher, and Christopher D. Manning.
-GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.100d.txt' % BASE_DIR
-GLOVE_VECTOR_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d.vec' % BASE_DIR
-GLOVE_VECTOR8_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-100d-8bit.vec' % BASE_DIR
+
+# see vector-test.py for other vector sets / different dimensions:
+
+# the words
+VECTORS_WORD_TOK_FILE = '%s/data/enwiki-20120502-mpnet.tok' % BASE_DIR
+
+# the vector for each word
+VECTORS_WORD_VEC_FILE = '%s/data/enwiki-20120502-mpnet.vec' % BASE_DIR
+
+# the pre-computed "line docs file" like version for vectors:
+VECTORS_DOCS_FILE = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % BASE_DIR
+
+#VECTORS_TYPE = 'FLOAT8'
+VECTORS_TYPE = 'FLOAT32'
+
+VECTORS_DIMENSIONS = 768
 
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR

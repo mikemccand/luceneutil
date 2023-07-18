@@ -362,9 +362,9 @@ def run():
                                            mergePolicy='TieredMergePolicy',
                                            maxConcurrentMerges=12,
                                            useCMS=True,
-                                           vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                           vectorDimension=100,
-                                           vectorEncoding='FLOAT32')
+                                           vectorFile=constants.VECTORS_DOCS_FILE,
+                                           vectorDimension=constants.VECTORS_DIMENSIONS,
+                                           vectorEncoding=constants.VECTORS_TYPE)
 
     nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                    analyzer='StandardAnalyzerNoStopWords',
@@ -422,13 +422,13 @@ def run():
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')),
                           addDVFields=True,
-                          vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                          vectorDimension=100,
-                          vectorEncoding='FLOAT32')
+                          vectorFile=constants.VECTORS_DOCS_FILE,
+                          vectorDimension=constants.VECTORS_DIMENSIONS,
+                          vectorEncoding=constants.VECTORS_TYPE)
 
     c = comp.competitor(id, NIGHTLY_DIR,
                         index=index,
-                        vectorDict=constants.GLOVE_WORD_VECTORS_FILE,
+                        vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
                         directory=DIR_IMPL,
                         commitPoint='multi')
 

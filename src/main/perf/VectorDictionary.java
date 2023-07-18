@@ -106,7 +106,6 @@ public class VectorDictionary {
       throw new IllegalStateException("token " + token + " seen twice");
     }
     float[] vector = new float[parts.length - 1];
-    double sum2 = 0;
     for (int i = 1; i < parts.length; i++) {
       vector[i - 1] = Float.parseFloat(parts[i]);
     }
@@ -159,7 +158,6 @@ public class VectorDictionary {
 
   public float[] computeTextVector(String text) {
     float[] dvec = new float[dimension];
-    int count = 0;
     for (String token : tokenize(text)) {
       float[] tvec = dict.get(token);
       if (tvec != null) {
@@ -168,7 +166,6 @@ public class VectorDictionary {
                                           " norm=" + vectorNorm(tvec));
         }
         vectorAdd(dvec, tvec);
-        count++;
       }
     }
     switch (vectorEncoding) {
@@ -182,6 +179,30 @@ public class VectorDictionary {
     }
     return dvec;
   }
+
+  public byte[] computeTextVectorByte(String text) {
+    float[] dvec = new float[dimension];
+    int count = 0;
+    for (String token : tokenize(text)) {
+      float[] tvec = dict.get(token);
+      if (tvec != null) {
+        if (Math.abs(vectorNorm(tvec) - 1) > 1e-5) {
+          throw new IllegalStateException("Vector is not unitary for token '" + token + "'" +
+                  " norm=" + vectorNorm(tvec));
+        }
+        vectorAdd(dvec, tvec);
+        count++;
+      }
+    }
+    vectorDiv(dvec, vectorNorm(dvec) / scale);
+    vectorClip(dvec, -128, 127);
+    byte[] b = new byte[dimension];
+    for (int i = 0; i < dimension; i++) {
+      b[i] = (byte)dvec[i];
+    }
+    return b;
+  }
+
 
   public static double vectorNorm(float[] x) {
     double sum2 = 0;

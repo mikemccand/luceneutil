@@ -699,4 +699,8 @@ KNOWN_CHANGES = [
      'Implement top-level disjunctions as a bulk scorer',
      'Implement top-level disjunctions as a bulk scorer',),
 
+   ('2023-07-20',
+     'Add BS1 optimization to MaxScoreBulkScorer',
+     'Add BS1 optimization to MaxScoreBulkScorer',),
+
 ]

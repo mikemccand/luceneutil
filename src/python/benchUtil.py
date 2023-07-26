@@ -281,7 +281,7 @@ class SearchTask:
         self.isCountOnly == other.isCountOnly
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
+    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets)) + hash(self.isCountOnly)
 
 
 class RespellTask:

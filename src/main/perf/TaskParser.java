@@ -257,12 +257,9 @@ class TaskParser {
     boolean parseIsCountOnly() {
       // Check for count: "count(...)"
       final Matcher m = countOnlyPattern.matcher(text);
-      System.out.println("\nCHECK: " + text);
       if (m.find()) {
         // Splice out the count string:
-        System.out.println("\nBEFORE: " + text);
         text = (text.substring(0, m.start(0)) + m.group(1) + text.substring(m.end(0), text.length())).trim();
-        System.out.println(" AFTER: " + text);
         return true;
       }
       return false;

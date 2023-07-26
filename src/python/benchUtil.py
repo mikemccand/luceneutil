@@ -159,7 +159,8 @@ class SearchTask:
   # TODO: subclass SearchGroupTask
 
   countOnlyCount = None
-
+  isCountOnly = False
+  
   def verifySame(self, other, verifyScores, verifyCounts):
     if self.query.startswith('KnnVectorQuery:vector'):
       # KNN search is deterministically randomized, such that the seed changes with each re-indexing, so we cannot compare results
@@ -257,19 +258,27 @@ class SearchTask:
 
   def __str__(self):
     s = self.query
-    if self.sort is not None:
-      s += ' [sort=%s]' % self.sort
-    if self.groupField is not None:
-      s += ' [groupField=%s]' % self.groupField
-    if self.facets is not None:
-      s += ' [facets=%s]' % self.facets
+    if self.isCountOnly:
+      s += ' [count-only]'
+    else:
+      if self.sort is not None:
+        s += ' [sort=%s]' % self.sort
+      if self.groupField is not None:
+        s += ' [groupField=%s]' % self.groupField
+      if self.facets is not None:
+        s += ' [facets=%s]' % self.facets
     return s
 
   def __eq__(self, other):
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter and self.facets == other.facets
+      return self.query == other.query and \
+        self.sort == other.sort and \
+        self.groupField == other.groupField and \
+        self.filter == other.filter and \
+        self.facets == other.facets and \
+        self.isCountOnly == other.isCountOnly
 
   def __hash__(self):
     return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
@@ -428,6 +437,7 @@ def parseResults(resultsFiles):
             if m is not None:
               cat = m.group(1)
               task.query = m.group(2)
+              task.isCountOnly = True
               task.countOnlyCount = int(m.group(3))
               hitCount = None
               filter = None

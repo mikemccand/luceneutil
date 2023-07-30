@@ -1294,6 +1294,14 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Fuzzy1', 'Edit distance 1')
     writeOneLine(w, done, 'Fuzzy2', 'Edit distance 2')
 
+    w('<br><br><b>Count:</b>')
+    writeOneLine(w, done, 'CountTerm', 'Count(Term)')
+    writeOneLine(w, done, 'CountPhrase', 'Count(Phrase)')
+    writeOneLine(w, done, 'CountAndHighHigh', 'Count(+high-freq +high-freq)')
+    writeOneLine(w, done, 'CountAndHighMed', 'Count(+high-freq +med-freq)')
+    writeOneLine(w, done, 'CountOrHighHigh', 'Count(high-freq high-freq)')
+    writeOneLine(w, done, 'CountOrHighMed', 'Count(high-freq med-freq)')
+
     w('<br><br><b>Other queries:</b>')
     writeOneLine(w, done, 'Term', 'TermQuery')
     writeOneLine(w, done, 'Respell', 'Respell (DirectSpellChecker)')

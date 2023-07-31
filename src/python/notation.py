@@ -703,4 +703,8 @@ KNOWN_CHANGES = [
      'Add BS1 optimization to MaxScoreBulkScorer',
      'Add BS1 optimization to MaxScoreBulkScorer',),
 
+    ('2023-07-20',
+     'Increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33',
+     'Increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33',),
+
 ]

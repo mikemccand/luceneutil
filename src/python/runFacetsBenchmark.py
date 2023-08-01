@@ -40,12 +40,12 @@ def run_benchmark(lucene_dir, index_dir, data_dir, nightly_log_dir, doc_limit, n
     lucene_facet_jar = lucene_facet_jar[0]
 
     # compile indexer
-    index_compile_cmd = f'{localconstants.JAVA_HOME/bin/javac} -cp {lucene_core_jar}:{lucene_facet_jar}:build -d build src/main/perf/facets/IndexFacets.java'
+    index_compile_cmd = f'{localconstants.JAVA_HOME}/bin/javac -cp {lucene_core_jar}:{lucene_facet_jar}:build -d build src/main/perf/facets/IndexFacets.java'
     print(f'RUN: {index_compile_cmd}, cwd={os.getcwd()}')
     subprocess.check_call(index_compile_cmd, shell=True)
 
     # compile searcher
-    searcher_compile_cmd = f'{localconstants.JAVA_HOME/bin/javac} -cp {lucene_core_jar}:{lucene_facet_jar}:build -d build src/main/perf/facets/BenchmarkFacets.java'
+    searcher_compile_cmd = f'{localconstants.JAVA_HOME}/bin/javac -cp {lucene_core_jar}:{lucene_facet_jar}:build -d build src/main/perf/facets/BenchmarkFacets.java'
     print(f'RUN: {searcher_compile_cmd}, cwd={os.getcwd()}')
     subprocess.check_call(searcher_compile_cmd, shell=True)
 

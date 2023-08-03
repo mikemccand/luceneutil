@@ -1,3 +1,7 @@
+#
+# NOTE: do not put any more than 5 unique queries under each task!  See https://github.com/mikemccand/luceneutil/issues/226
+#
+
 AndHighHigh: +be +up # freq=2115632 freq=824628
 AndHighHigh: +cite +had # freq=1367577 freq=1223103
 AndHighHigh: +is +he # freq=4214104 freq=1663980
@@ -235,4 +239,3 @@ CountTerm: count(names) # freq=402762
 CountTerm: count(nbsp) # freq=492778
 CountTerm: count(part) # freq=588644
 CountTerm: count(st) # freq=306811
-

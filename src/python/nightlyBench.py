@@ -1339,6 +1339,7 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Wildcard', 'WildcardQuery')
     writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')
     writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')
+    writeOneLine(w, done, 'VectorSearch', 'VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)')
 
     w('<br><br><b>Faceting:</b>')
     writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')

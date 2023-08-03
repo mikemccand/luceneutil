@@ -699,12 +699,15 @@ KNOWN_CHANGES = [
      'Implement top-level disjunctions as a bulk scorer',
      'Implement top-level disjunctions as a bulk scorer',),
 
-   ('2023-07-20',
-     'Add BS1 optimization to MaxScoreBulkScorer',
-     'Add BS1 optimization to MaxScoreBulkScorer',),
-
     ('2023-07-20',
-     'Increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33',
-     'Increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33',),
+     'Add BS1 optimization to MaxScoreBulkScorer; also increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33',
+     'Add BS1 optimization to MaxScoreBulkScorer; also increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33'),
 
+    ('2023-07-28',
+     'Initialize facet counting data structures lazily (https://github.com/apache/lucene/commit/179b45bc23e4496278b7058811577b66ef3af77d); but this also incorrectly shifted which facet tasks are executed, making results incomparable: https://github.com/mikemccand/luceneutil/issues/226',
+     'Initialize facet counting data structures lazily (https://github.com/apache/lucene/commit/179b45bc23e4496278b7058811577b66ef3af77d); but this also incorrectly shifted which facet tasks are executed, making results incomparable: https://github.com/mikemccand/luceneutil/issues/226'),
+
+    ('2023-08-03 06:31:03',
+     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226',
+     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226'),
 ]

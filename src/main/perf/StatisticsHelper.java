@@ -1,4 +1,4 @@
-/** Poached from cometd 2.1.0, Apache 2 license */
+/* Poached from cometd 2.1.0, Apache 2 license */
 
 package perf;
 
@@ -18,7 +18,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * @version $Revision$ $Date$
+ * See <a href="https://github.com/cometd/cometd/blob/2.4.x/cometd-java/cometd-java-examples/src/main/java/org/cometd/benchmark/BenchmarkHelper.java"
+ * >BenchmarkHelper in CometD</a>.
  */
 public class StatisticsHelper implements Runnable {
 
@@ -29,6 +30,8 @@ public class StatisticsHelper implements Runnable {
 	private final MemoryMXBean heapMemory;
 
 	private final AtomicInteger starts = new AtomicInteger();
+
+	// TODO reconsider "volatile" everywhere here; we don't need synchronization based on how we use this
 
 	private volatile MemoryPoolMXBean youngMemoryPool;
 
@@ -81,16 +84,15 @@ public class StatisticsHelper implements Runnable {
 		this.jitCompiler = ManagementFactory.getCompilationMXBean();
 		this.heapMemory = ManagementFactory.getMemoryMXBean();
 
+		// See this (dated) reference:
+		// https://gist.github.com/szegedi/1474365/ebee66b04aa3468b5e3864945dc48fa3e204548a
 		List<MemoryPoolMXBean> memoryPools = ManagementFactory.getMemoryPoolMXBeans();
 		for (MemoryPoolMXBean memoryPool : memoryPools) {
-			if ("PS Eden Space".equals(memoryPool.getName()) || "Par Eden Space".equals(memoryPool.getName())
-					|| "G1 Eden".equals(memoryPool.getName())) {
+			if (memoryPool.getName().contains("Eden")) {
 				youngMemoryPool = memoryPool;
-			} else if ("PS Survivor Space".equals(memoryPool.getName()) || "Par Survivor Space".equals(memoryPool.getName())
-					|| "G1 Survivor".equals(memoryPool.getName())) {
+			} else if (memoryPool.getName().contains("Survivor")) {
 				survivorMemoryPool = memoryPool;
-			} else if ("PS Old Gen".equals(memoryPool.getName()) || "CMS Old Gen".equals(memoryPool.getName())
-					|| "G1 Old Gen".equals(memoryPool.getName())) {
+			} else if (memoryPool.getName().contains("Old Gen")) {
 				oldMemoryPool = memoryPool;
 			}
 		}
@@ -112,23 +114,11 @@ public class StatisticsHelper implements Runnable {
 
 	@Override
 	public void run() {
-
-                // So we don't prevent process exit if this
-                // is the only thread left:
-                Thread.currentThread().setDaemon(true);
-
-		if (!hasMemoryPools)
-			return;
-
-                // So we don't prevent process exit if this
-                // is the only thread left:
-                Thread.currentThread().setDaemon(true);
-
 		long young = youngMemoryPool.getUsage().getUsed();
 		long survivor = survivorMemoryPool.getUsage().getUsed();
 		long old = oldMemoryPool.getUsage().getUsed();
 
-		if (!polling) {
+		if (!polling) { // in initial state; don't save deltas
 			polling = true;
 		} else {
 			if (lastYoungUsed <= young) {
@@ -190,9 +180,11 @@ public class StatisticsHelper implements Runnable {
 			}
 			System.err.println("- - - - - - - - - - - - - - - - - - - - ");
 
-			scheduler = Executors.newSingleThreadScheduledExecutor();
-			polling = false;
-			memoryPoller = scheduler.scheduleWithFixedDelay(this, 0, 250, TimeUnit.MILLISECONDS);
+			if (hasMemoryPools) {
+				scheduler = Executors.newSingleThreadScheduledExecutor();
+				polling = false;
+				memoryPoller = scheduler.scheduleWithFixedDelay(this, 0, 250, TimeUnit.MILLISECONDS);
+			}
 
 			lastYoungUsed = 0;
 			if (hasCollectors) {
@@ -225,8 +217,13 @@ public class StatisticsHelper implements Runnable {
 			if (starts.decrementAndGet() > 0)
 				return false;
 
-			memoryPoller.cancel(false);
-			scheduler.shutdown();
+			if (scheduler != null) {
+				memoryPoller.cancel(false);
+				scheduler.shutdown();
+			}
+			if (hasMemoryPools) {
+				run();// update latest stats
+			}
 
 			System.err.println("- - - - - - - - - - - - - - - - - - - - ");
 			System.err.println("Statistics Ended at " + new Date());

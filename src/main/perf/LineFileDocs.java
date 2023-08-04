@@ -95,9 +95,7 @@ public class LineFileDocs implements Closeable {
   private String[] extraFacetFields;
   private final boolean addDVFields;
   private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
-  private final BlockingQueue<LineFileDoc> recycleBin = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
-  private final ThreadLocal<LineFileDoc> nextDocs = new ThreadLocal<>();
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
   private final String vectorFile;
   private final int vectorDimension;

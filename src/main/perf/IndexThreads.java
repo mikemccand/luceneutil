@@ -242,23 +242,9 @@ class IndexThreads {
           final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
 
           while (stop.get() == false) {
-            int groupCounter = -1;
-            if (groupBlockIndex.get() >= groupBlocks.length) {
-              docs.recycle();
+            int groupCounter = groupBlockIndex.getAndIncrement();
+            if (groupCounter >= groupBlocks.length) {
               break;
-            } else {
-              synchronized (groupBlockIndex) {
-                // we need to make sure we have more group index
-                // as well as more docs to index at the same time
-                if (groupBlockIndex.get() >= groupBlocks.length) {
-                  docs.recycle();
-                  break;
-                }
-                if (docs.reserve() == false) {
-                  break;
-                }
-                groupCounter = groupBlockIndex.getAndIncrement();
-              }
             }
             final int numDocs;
             // This will toggle between X and X+1 docs,
@@ -287,7 +273,7 @@ class IndexThreads {
                         Field extraField;
 
                         try {
-                          doc = docs.nextDoc(docState, true);
+                          doc = docs.nextDoc(docState);
                         } catch (IOException ioe) {
                           throw new RuntimeException(ioe);
                         }

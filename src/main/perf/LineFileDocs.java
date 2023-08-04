@@ -45,7 +45,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.BinaryDocValuesField;
@@ -73,12 +72,11 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.UnicodeUtil;
 
 public class LineFileDocs implements Closeable {
 
   // sentinel:
-  private final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
+  private final static LineFileDoc END = new LineFileDoc("END", null, -1);
 
   private BufferedReader reader;
   private SeekableByteChannel channel;
@@ -99,7 +97,6 @@ public class LineFileDocs implements Closeable {
   private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
   private final BlockingQueue<LineFileDoc> recycleBin = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
-  final boolean isBinary;
   private final ThreadLocal<LineFileDoc> nextDocs = new ThreadLocal<>();
   private final String[] months = DateFormatSymbols.getInstance(Locale.ROOT).getMonths();
   private final String vectorFile;
@@ -113,7 +110,9 @@ public class LineFileDocs implements Closeable {
                       VectorEncoding vectorEncoding)
     throws IOException {
     this.path = path;
-    this.isBinary = path.endsWith(".bin");
+    if (path.endsWith(".bin")) {
+      System.out.println("Binary LFD has been deprecated!");
+    }
     this.storeBody = storeBody;
     this.tvsBody = tvsBody;
     this.bodyPostingsOffsets = bodyPostingsOffsets;
@@ -144,42 +143,6 @@ public class LineFileDocs implements Closeable {
   }
 
   private void readDocs() throws Exception {
-    if (isBinary) {
-      byte[] headerBytes = new byte[8];
-      ByteBuffer header = ByteBuffer.wrap(headerBytes);
-      header.order(ByteOrder.LITTLE_ENDIAN);
-      int totalDocCount = 0;
-      while (true) {
-        header.position(0);
-        int x = channel.read(header);
-        if (x == -1) {
-          if (doRepeat) {
-            close();
-            open();
-            x = channel.read(header);
-          } else {
-            break;
-          }
-        }
-
-        if (x != 8) {
-          throw new RuntimeException("expected 8 header bytes but read " + x);
-        }
-        int docCountInBlock = header.getInt(0);
-        int length = header.getInt(4);
-        //System.out.println("count= " + count + " len=" + length);
-        ByteBuffer buffer = ByteBuffer.wrap(new byte[length]);
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
-        x = channel.read(buffer);
-        if (x != length) {
-          throw new RuntimeException("expected " + length + " document bytes but read " + x);
-        }
-        buffer.position(0);
-        queue.put(new LineFileDoc.BinaryBased(buffer, readVector(docCountInBlock), totalDocCount, docCountInBlock));
-        totalDocCount += docCountInBlock;
-      }
-    } else {
-      // This is a txt based line file doc
       int id = 0;
       while (true) {
         String line = reader.readLine();
@@ -192,12 +155,8 @@ public class LineFileDocs implements Closeable {
             break;
           }
         }
-        queue.put(new LineFileDoc.TextBased(line, readVector(1), id++));
+        queue.put(new LineFileDoc(line, readVector(1), id++));
       }
-    }
-    for(int i=0;i<128;i++) {
-      queue.put(END);
-    }
   }
 
   private float[] readVector(int count) throws IOException {
@@ -221,54 +180,50 @@ public class LineFileDocs implements Closeable {
   }
 
   private void open() throws IOException {
-    if (isBinary) {
-      channel = Files.newByteChannel(Paths.get(path), StandardOpenOption.READ);
-    } else {
-      InputStream is = new FileInputStream(path);
-      reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
-      String firstLine = reader.readLine();
-      if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
-        int defaultFieldLength = 4;
-        if (firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody") == false &&
-            firstLine.startsWith("FIELDS_HEADER_INDICATOR###\ttitle\ttimestamp\ttext") == false &&
-            firstLine.startsWith("FIELD_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody\tRandomLabel") == false) {
-          throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
-        }
-        if (firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody\tRandomLabel")) {
-          defaultFieldLength = 5;
-        }
-        if (facetFields.isEmpty() == false) {
-          String[] fields = firstLine.split("\t");
-          if (fields.length > defaultFieldLength) {
-            extraFacetFields = Arrays.copyOfRange(fields, defaultFieldLength, fields.length);
-            System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
+    InputStream is = new FileInputStream(path);
+    reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
+    String firstLine = reader.readLine();
+    if (firstLine.startsWith("FIELDS_HEADER_INDICATOR")) {
+      int defaultFieldLength = 4;
+      if (firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody") == false &&
+          firstLine.startsWith("FIELDS_HEADER_INDICATOR###\ttitle\ttimestamp\ttext") == false &&
+          firstLine.startsWith("FIELD_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody\tRandomLabel") == false) {
+        throw new IllegalArgumentException("unrecognized header in line docs file: " + firstLine.trim());
+      }
+      if (firstLine.startsWith("FIELDS_HEADER_INDICATOR###\tdoctitle\tdocdate\tbody\tRandomLabel")) {
+        defaultFieldLength = 5;
+      }
+      if (facetFields.isEmpty() == false) {
+        String[] fields = firstLine.split("\t");
+        if (fields.length > defaultFieldLength) {
+          extraFacetFields = Arrays.copyOfRange(fields, defaultFieldLength, fields.length);
+          System.out.println("Additional facet fields: " + Arrays.toString(extraFacetFields));
 
-            List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
+          List<String> extraFacetFieldsList = Arrays.asList(extraFacetFields);
 
-            // Verify facet fields now:
-            for(String field : facetFields.keySet()) {
-              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false
-                      && field.equals("RandomLabel") == false && extraFacetFieldsList.contains(field) == false) {
-                throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
-              }
+          // Verify facet fields now:
+          for(String field : facetFields.keySet()) {
+            if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false
+                    && field.equals("RandomLabel") == false && extraFacetFieldsList.contains(field) == false) {
+              throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
             }
-          } else {
-            // Verify facet fields now:
-            for(String field : facetFields.keySet()) {
-              if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false
-                      && field.equals("RandomLabel") == false) {
-                throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
-              }
+          }
+        } else {
+          // Verify facet fields now:
+          for(String field : facetFields.keySet()) {
+            if (field.equals("Date") == false && field.equals("Month") == false && field.equals("DayOfYear") == false
+                    && field.equals("RandomLabel") == false) {
+              throw new IllegalArgumentException("facet field \"" + field + "\" is not recognized");
             }
           }
         }
-        // Skip header
-      } else {
-        // Old format: no header
-        reader.close();
-        is = new FileInputStream(path);
-        reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
       }
+      // Skip header
+    } else {
+      // Old format: no header
+      reader.close();
+      is = new FileInputStream(path);
+      reader = new BufferedReader(new InputStreamReader(is, "UTF-8"), BUFFER_SIZE);
     }
     if (vectorFile != null) {
       vectorChannel = Files.newByteChannel(Paths.get(vectorFile), StandardOpenOption.READ);
@@ -510,47 +465,8 @@ public class LineFileDocs implements Closeable {
     return doc2;
   }
 
-  /* Call this function to put the remaining doc block into recycle queue */
-  public void recycle() {
-    if (isBinary && nextDocs.get() != null && nextDocs.get().getBlockByteText().hasRemaining()) {
-      try {
-        recycleBin.put(nextDocs.get());
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
-      }
-      nextDocs.set(null);
-    }
-  }
-
-  /* Call this function to make sure the calling thread will have something to index */
-  public boolean reserve() {
-    if (isBinary == false) {
-      return true; // don't need to reserve anything with text based LFD
-    }
-    LineFileDoc lfd = nextDocs.get();
-    if (lfd != null && lfd.getBlockByteText().hasRemaining()) {
-      return true; // we have next document
-    }
-    try {
-      lfd = queue.take();
-    } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(ie);
-    }
-    if (lfd == END) {
-      return false;
-    }
-    nextDocs.set(lfd);
-    return true;
-  }
-
-  public Document nextDoc(DocState doc) throws IOException {
-    return nextDoc(doc, false);
-  }
-
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public Document nextDoc(DocState doc, boolean expected) throws IOException {
+  public Document nextDoc(DocState doc) throws IOException {
 
     long msecSinceEpoch;
     int timeSec;
@@ -561,134 +477,62 @@ public class LineFileDocs implements Closeable {
     String randomLabel;
     int myID = -1;
 
-    if (isBinary) {
+    LineFileDoc lfd;
+    try {
+      lfd = queue.take();
+    } catch (InterruptedException ie) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(ie);
+    }
+    if (lfd == END) {
+      return null;
+    }
+    line = lfd.getStringText();
+    myID = lfd.getNextId();
 
-      float[] vector = new float[vectorDimension];
-      FloatBuffer vectorBuffer = null;
+    int spot = line.indexOf(SEP);
+    if (spot == -1) {
+      throw new RuntimeException("line: [" + line + "] is in an invalid format !");
+    }
+    int spot2 = line.indexOf(SEP, 1 + spot);
+    if (spot2 == -1) {
+      throw new RuntimeException("line: [" + line + "] is in an invalid format !");
+    }
+    int spot3 = line.indexOf(SEP, 1 + spot2);
+    if (spot3 == -1) {
+      throw new RuntimeException("line: [" + line + "] is in an invalid format !" +
+              "Your source file (enwiki-20120502-lines-1k.txt) might be out of date." +
+              "Please download an updated version from home.apache.org/~mikemccand");
+    }
+    spot4 = line.indexOf(SEP, 1 + spot3);
+    if (spot4 == -1) {
+      spot4 = line.length();
+    }
 
-      LineFileDoc lfd;
+    body = line.substring(1+spot2, spot3);
 
-      // reserve() is okay to be called multiple times
-      if (reserve() == false) {
-        if (expected == false) {
-          return null;
-        } else {
-          // the caller expects there are more documents, we will be blocking on recycleBin for 10 seconds
-          try {
-            lfd = recycleBin.poll(10, TimeUnit.SECONDS);
-            if (lfd == null) {
-              throw new IllegalStateException("Expected docs in recycleBin but not found anything");
-            }
-            nextDocs.set(lfd);
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(ie);
-          }
-        }
-      } else {
-        lfd = nextDocs.get();
-      }
-      assert lfd != null && lfd != END && lfd.getBlockByteText().hasRemaining();
-      // buffer format described in buildBinaryLineDocs.py
-      ByteBuffer buffer = lfd.getBlockByteText();
-      int titleLenBytes = buffer.getInt();
-      int bodyLenBytes = buffer.getInt();
-      int randomLabelLenBytes = buffer.getInt();
-      timeSec  = buffer.getInt();
-      myID = lfd.getNextId();
-      msecSinceEpoch  = buffer.getLong();
-//      System.out.println("    titleLen=" + titleLenBytes + " bodyLenBytes=" + bodyLenBytes +
-//              " randomLabelLenBytes=" + randomLabelLenBytes + " msecSinceEpoch=" + msecSinceEpoch + " timeSec=" + timeSec);
-      byte[] bytes = buffer.array();
+    randomLabel = line.substring(1+spot3, spot4).strip();
 
-      char[] titleChars = new char[titleLenBytes];
-      int titleLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position(), titleLenBytes, titleChars);
-      title = new String(titleChars, 0, titleLenChars);
-//      System.out.println("title: " + title);
+    title = line.substring(0, spot);
 
-      char[] bodyChars = new char[bodyLenBytes];
-      int bodyLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes, bodyLenBytes, bodyChars);
-      body = new String(bodyChars, 0, bodyLenChars);
-//      System.out.println("body: " + body);
+    final String dateString = line.substring(1+spot, spot2);
+    doc.date.setStringValue(dateString);
+    doc.datePos.setIndex(0);
+    final Date date = doc.dateParser.parse(dateString, doc.datePos);
+    if (date == null) {
+      System.out.println("FAILED: " + dateString);
+    }
+    //doc.dateMSec.setLongValue(date.getTime());
 
-      char[] randomLabelChars = new char[randomLabelLenBytes];
-      int randomLabelLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes+bodyLenBytes, randomLabelLenBytes, randomLabelChars);
-      randomLabel = new String(randomLabelChars, 0, randomLabelLenChars);
-//      System.out.println("randomLabel: " + randomLabel);
-
-      buffer.position(buffer.position() + titleLenBytes + bodyLenBytes + randomLabelLenBytes);
-
-      doc.dateCal.setTimeInMillis(msecSinceEpoch);
-
-      spot4 = 0;
-      line = null;
-
-      if (lfd.vector != null) {
-        if (doc.floatVectorField != null) {
-          lfd.getVector(doc.floatVectorField.vectorValue());
-        } else {
-          lfd.getVector(doc.byteVectorField.vectorValue());
-        }
-      }
-
-    } else {
-      LineFileDoc lfd;
-      try {
-        lfd = queue.take();
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
-      }
-      if (lfd == END) {
-        return null;
-      }
-      line = lfd.getStringText();
-      myID = lfd.getNextId();
-
-      int spot = line.indexOf(SEP);
-      if (spot == -1) {
-        throw new RuntimeException("line: [" + line + "] is in an invalid format !");
-      }
-      int spot2 = line.indexOf(SEP, 1 + spot);
-      if (spot2 == -1) {
-        throw new RuntimeException("line: [" + line + "] is in an invalid format !");
-      }
-      int spot3 = line.indexOf(SEP, 1 + spot2);
-      if (spot3 == -1) {
-        throw new RuntimeException("line: [" + line + "] is in an invalid format !" +
-                "Your source file (enwiki-20120502-lines-1k.txt) might be out of date." +
-                "Please download an updated version from home.apache.org/~mikemccand");
-      }
-      spot4 = line.indexOf(SEP, 1 + spot3);
-      if (spot4 == -1) {
-        spot4 = line.length();
-      }
-
-      body = line.substring(1+spot2, spot3);
-
-      randomLabel = line.substring(1+spot3, spot4).strip();
-
-      title = line.substring(0, spot);
-
-      final String dateString = line.substring(1+spot, spot2);
-      doc.date.setStringValue(dateString);
-      doc.datePos.setIndex(0);
-      final Date date = doc.dateParser.parse(dateString, doc.datePos);
-      if (date == null) {
-        System.out.println("FAILED: " + dateString);
-      }
-      //doc.dateMSec.setLongValue(date.getTime());
-
-      //doc.rand.setLongValue(rand.nextInt(10000));
-      //System.out.println("DATE: " + date);
-      doc.dateCal.setTime(date);
-      msecSinceEpoch = doc.dateCal.getTimeInMillis();
-      timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
-      if (doc.floatVectorField != null) {
-        doc.floatVectorField.setVectorValue((float[]) lfd.vector.array());
-      } else if (doc.byteVectorField != null) {
-        doc.byteVectorField.setVectorValue((byte[]) lfd.vector.array());
-      }
+    //doc.rand.setLongValue(rand.nextInt(10000));
+    //System.out.println("DATE: " + date);
+    doc.dateCal.setTime(date);
+    msecSinceEpoch = doc.dateCal.getTimeInMillis();
+    timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
+    if (doc.floatVectorField != null) {
+      doc.floatVectorField.setVectorValue((float[]) lfd.vector.array());
+    } else if (doc.byteVectorField != null) {
+      doc.byteVectorField.setVectorValue((byte[]) lfd.vector.array());
     }
 
     if (myID == -1) {
@@ -819,116 +663,31 @@ public class LineFileDocs implements Closeable {
     }
   }
 
-  private static abstract class LineFileDoc {
+  private static class LineFileDoc {
 
-    // This vector can be vector value for one or more documents
-    // more specifically, for text based LFD the vector is single valued
-    // but for binary based LFD the vector contains value for all the documents
-    // in the block
+    // This vector is single valued
     private final Buffer vector;
 
-    LineFileDoc(float[] vector) {
+    final String stringText;
+
+    final int id; // This is the exact id since it is txt based LFD
+
+    LineFileDoc(String text, float[] vector, int id) {
       if (vector == null) {
         this.vector = null;
       } else {
         this.vector = FloatBuffer.wrap(vector);
       }
+      stringText = text;
+      this.id = id;
     }
 
-    /**
-     * Get the id for the next document, can only be called n times, where n
-     * is the number of documents carried by this LFD. Usually 1 doc if it is
-     * text based, or multiple if it is binary based
-     */
-    abstract int getNextId();
+    int getNextId() {
+      return id;
+    }
 
-    /**
-     * This method is only for txt based LFD, should only return value for 1 document
-     */
     String getStringText() {
-      throw new UnsupportedOperationException();
-    }
-
-    /**
-     * This method is only for binary based LFD, it returns unconsumed buffer for all the documents encoded
-     * in the same block, the returned binary buffer should be consumed and positioned to the start of next
-     * document before next call
-     */
-    ByteBuffer getBlockByteText() {
-      throw new UnsupportedOperationException();
-    }
-
-    private static final class TextBased extends LineFileDoc {
-      final String stringText;
-
-      final int id; // This is the exact id since it is txt based LFD
-
-      TextBased(String text, float[] vector, int id) {
-        super(vector);
-        stringText = text;
-        this.id = id;
-      }
-
-      @Override
-      int getNextId() {
-        return id;
-      }
-
-      @Override
-      String getStringText() {
-        return stringText;
-      }
-    }
-
-    private static final class BinaryBased extends LineFileDoc {
-
-      final ByteBuffer blockByteText;
-      private int nextId; // will have multiple doc in a same LFD so we'll determine id using a base
-      private int docCount; // and a count
-
-      BinaryBased(ByteBuffer bytes, float[] vector, int idBase, int docCount) {
-        super(vector);
-        blockByteText = bytes;
-        this.nextId = idBase;
-        this.docCount = docCount;
-      }
-
-      @Override
-      int getNextId() {
-        if (docCount-- == 0) {
-          throw new IllegalStateException("Calling getId more than docCount");
-        }
-        return nextId++;
-      }
-
-      @Override
-      ByteBuffer getBlockByteText() {
-        return blockByteText;
-      }
-    }
-
-    LineFileDoc(String text, byte[] vector) {
-      if (vector == null) {
-        this.vector = null;
-      } else {
-        this.vector = ByteBuffer.wrap(vector);
-      }
-    }
-
-    LineFileDoc(ByteBuffer bytes, byte[] vector) {
-      if (vector == null) {
-        this.vector = null;
-      } else {
-        this.vector = ByteBuffer.wrap(vector);
-      }
-    }
-
-    void getVector(float[] in) {
-      ((FloatBuffer) vector).get(in);
-    }
-
-    void getVector(byte[] in) {
-      ((ByteBuffer) vector).get(in);
+      return stringText;
     }
   }
 }

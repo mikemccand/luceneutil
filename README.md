@@ -136,7 +136,9 @@ KNN/HNSW there is a script dedicated to that in src/python/knnPerfTest.py which 
 how to run it in its comments.
 
 ## Testing with higher dimension vectors
+
 By default we use 100 dimension vectors, to use higher dimension vectors, you need to:
+
 1. run `src/python/infer_token_vectors.py` to get `xxx.vec` and `xxx.tok` file. E.g. for 768 dimensions you need `enwiki-20120502-mpnet.vec` and `enwiki-20120502-mpnet.tok`
 2. run corresponding ant tasks to generate embeddings for docs and queries. E.g. for 768 dimensions you need to run `ant vectors-mpnet-docs` and `vectors-mpnet-tasks`.
 3. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 

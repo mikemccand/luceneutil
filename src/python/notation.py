@@ -708,6 +708,6 @@ KNOWN_CHANGES = [
      'Initialize facet counting data structures lazily (https://github.com/apache/lucene/commit/179b45bc23e4496278b7058811577b66ef3af77d); but this also incorrectly shifted which facet tasks are executed, making results incomparable: https://github.com/mikemccand/luceneutil/issues/226'),
 
     ('2023-08-03 06:31:03',
-     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226',
-     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226'),
+     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226, and reduce overhead of BooleanScorer in non-scoring mode: https://github.com/apache/lucene/pull/12475',
+     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226, and reduce overhead of BooleanScorer in non-scoring mode: https://github.com/apache/lucene/pull/12475'),
 ]

@@ -710,4 +710,8 @@ KNOWN_CHANGES = [
     ('2023-08-03 06:31:03',
      'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226, reduce overhead of BooleanScorer in non-scoring mode: https://github.com/apache/lucene/pull/12475, and reduce overhead of intersecting the scorer with the collector\'s competitive iterator: https://github.com/apache/lucene/pull/12481',
      'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226, reduce overhead of BooleanScorer in non-scoring mode: https://github.com/apache/lucene/pull/12475, and reduce overhead of intersecting the scorer with the collector\'s competitive iterator: https://github.com/apache/lucene/pull/12481'),
+
+    ('2023-08-11',
+     'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415',
+     'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415',),
 ]

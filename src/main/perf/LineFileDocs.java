@@ -126,7 +126,7 @@ public class LineFileDocs implements Closeable {
       // NOTE: totalDocs can be -1 if we don't add group fields
       docGrouper = new DocGrouper.NoGroupImpl(totalDocs);
     } else if (isBinary) {
-      docGrouper = new DocGrouper.BinaryGrouper(totalDocs);
+      throw new IllegalArgumentException("We don't support group field with binary LFD");
     } else {
       docGrouper = new DocGrouper.TextGrouper(totalDocs);
     }
@@ -519,7 +519,7 @@ public class LineFileDocs implements Closeable {
    * @return number of documents in the next group to be indexed, 0 means nothing and the
    *         thread should stop indexing.
    */
-  public int reserve() {
+  public int reserveNextGroup() {
     DocGrouper.DocGroups docGroups = nextDocGroups.get();
     if (docGroups != null && docGroups.getRemainingNumGroups() > 0) {
       return docGroups.getNumOfDocsInGroup();
@@ -538,7 +538,7 @@ public class LineFileDocs implements Closeable {
   }
 
   /**
-   * Should only call this method after {@link #reserve()} return positive value
+   * Should only call this method after {@link #reserveNextGroup()} return positive value
    */
   public BytesRef getCurrentGroupId() {
     return nextDocGroups.get().getGroupId();
@@ -554,11 +554,11 @@ public class LineFileDocs implements Closeable {
     String title;
     String body;
     String randomLabel;
-    int myID = -1;
+    int myID;
     LineFileDoc lfd;
 
-    // reserve() is okay to be called multiple times
-    if (reserve() == 0) {
+    // reserveNextGroup() is okay to be called multiple times
+    if (reserveNextGroup() == 0) {
       return null;
     } else {
       lfd = nextDocGroups.get().getNextLFD();

@@ -222,25 +222,13 @@ class IndexThreads {
         }
 
         if (group100 != null) {
-
+          // We're indexing with grouping enabled
           if (numTotalDocs == -1) {
             throw new IllegalStateException("must specify numTotalDocs when indexing doc blocks for grouping");
           }
 
-          // Add docs in blocks:
-          
-          final BytesRef[] groupBlocks;
-          if (numTotalDocs >= 5000000) {
-            groupBlocks = group1M;
-          } else if (numTotalDocs >= 500000) {
-            groupBlocks = group100K;
-          } else {
-            groupBlocks = group10K;
-          }
-          final double docsPerGroupBlock = numTotalDocs / (double) groupBlocks.length;
-
           while (stop.get() == false) {
-            final int numDocs = docs.reserve();
+            final int numDocs = docs.reserveNextGroup();
             if (numDocs == 0) {
               break;
             }

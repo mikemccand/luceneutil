@@ -72,8 +72,10 @@ public abstract class DocGrouper {
         return outputQueue.take();
     }
 
-    public static void initGroupIds(Random random) {
-        assert group100 == null;
+    public static synchronized void initGroupIds(Random random) {
+        if (group100 != null) {
+            throw new IllegalStateException("Cannot init group ids twice");
+        }
         group100 = randomStrings(100, random);
         group10K = randomStrings(10000, random);
         group100K = randomStrings(100000, random);
@@ -167,17 +169,18 @@ public abstract class DocGrouper {
 
         /* Called when we move to next group */
         private void reset() {
-            nextNumDocs = calculateNextGroupDocNum();
+            nextNumDocs = calculateNextGroupDocCount();
             buffer = new LineFileDocs.LineFileDoc[nextNumDocs];
         }
 
-        private int calculateNextGroupDocNum() {
-            // This will toggle between X and X+1 docs,
-            // converging over time on average to the
-            // floating point docsPerGroupBlock:
+        private int calculateNextGroupDocCount() {
             if (groupCounter == groupIds.length - 1) {
+                // The last group, we make sure the sum matches the total doc count
                 return numDocs - ((int) (groupCounter * docsPerGroupBlock));
             } else {
+                // This will toggle between X and X+1 docs,
+                // converging over time on average to the
+                // floating point docsPerGroupBlock:
                 return ((int) ((1 + groupCounter) * docsPerGroupBlock)) - ((int) (groupCounter * docsPerGroupBlock));
             }
         }

@@ -878,7 +878,7 @@ public class LineFileDocs implements Closeable {
 
       @Override
       int getNextId() {
-        if (remainingDocs-- == 0) {
+        if (remainingDocs-- <= 0) {
           throw new IllegalStateException("Calling getId more than number of docs in a block");
         }
         return nextId++;

@@ -66,7 +66,7 @@ Adjust the command accordingly for `lucene_candidate`.
 
 `setup.py` has created two files: `localconstants.py`, and `localrun.py` in `$LUCENE_BENCH_HOME/util/src/python/`. 
 
-The file `localconstants.py` should be used to override any existing constants in `constants.py`, for example if you want to change the Java commandline used to run benchmarks. To run an inintal benchmark you don't need to modify this file. 
+The file `localconstants.py` should be used to override any existing constants in `constants.py`, for example if you want to change the Java commandline used to run benchmarks. To run an initial benchmark you don't need to modify this file.
 
 Now you can start editing `localrun.py` to define your comparison, at the
 bottom near its `__main__`:

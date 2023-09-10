@@ -17,13 +17,25 @@ git clone https://github.com/mikemccand/luceneutil.git util
 # 2. Run the setup script
 cd util
 python src/python/setup.py -download
+
+# you can run with -h option for help
+python src/python/setup.py -h
 ```
   
-In the second step, the setup procedure creates all necessary directories in the clones parent directory and downloads a
-6 GB compressed Wikipedia line doc file from an Apache mirror. If you don't want to
-download the large data file just remove the `-download` flag from the commandline. 
+In the second step, the setup procedure creates all necessary directories in the clones parent directory and downloads
+datasets to run the benchmarks on. By default, it downloads a 6 GB compressed Wikipedia line doc file, and a 13 GB vectors
+file from Apache mirrors. If you don't want to download the large data files,
+just remove the `-download` flag from the commandline.
 
-After the download has completed, extract the lzma file in `$LUCENE_BENCH_HOME/data`.
+After the download has completed, extract the lzma file in `$LUCENE_BENCH_HOME/data`. You can do this using the `xz` tool,
+or the `lmza` tool, or any other tool of your choice. For example:
+```bash
+cd $LUCENE_BENCH_HOME/data
+# using xz
+xz -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
+# using lmza
+lzma -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
+```
 
 ### (Optional, for development) set up IntelliJ
 Should be able to open by IntelliJ automatically. The gradle will write a local configuration file `gradle.properties` in

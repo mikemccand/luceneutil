@@ -115,9 +115,8 @@ SEGS_PER_LEVEL = 5
 
 def sourceData(key=None):
   if not key:
-    import sys
-    if '-source' in sys.argv:
-      key = sys.argv[1+sys.argv.index('-source')]
+    raise RuntimeError('Data source required for benchmark run. '
+                       'Use "-s/-source/--source" option to provide data source. \nValid options: %s' % DATA.keys())
   if key in DATA:
     return DATA[key]
   raise RuntimeError('unknown data source "%s" (valid keys: %s)' % (key, DATA.keys()))

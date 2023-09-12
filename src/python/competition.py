@@ -227,6 +227,8 @@ class Index(object):
     if self.useCFS:
       name.append('cfs')
 
+    # TODO: adding facets to filename makes it too long and runs into limits on some machines
+    # Can we remove this from file name and record it in a different logfile.
     if self.facets is not None:
       name.append('facets')
       for arg in self.facets:

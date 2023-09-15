@@ -131,8 +131,11 @@ def getArg(argName, default, hasArg=True):
       del sys.argv[idx]
   return v
 
+def checkoutToName(checkout):
+  return checkout.split('/')[-1]
+
 def checkoutToPath(checkout):
-  return '%s/%s' % (constants.BASE_DIR, checkout)
+  return checkout if '/' in checkout else '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
   return '%s/lucene/benchmark' % checkoutToPath(checkout)

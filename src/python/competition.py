@@ -216,7 +216,7 @@ class Index(object):
       return self.assignedName
 
     name = [self.dataSource.name,
-            self.checkout]
+            benchUtil.checkoutToName(self.checkout)]
 
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
@@ -227,6 +227,8 @@ class Index(object):
     if self.useCFS:
       name.append('cfs')
 
+    # TODO: adding facets to filename makes it too long and runs into limits on some machines
+    # Can we remove this from file name and record it in a different logfile.
     if self.facets is not None:
       name.append('facets')
       for arg in self.facets:
@@ -469,6 +471,7 @@ class Competition(object):
     for c in self.competitors:
       if c.name == name:
         raise RuntimeError(f'competitor named {name} already added')
+    print('Using checkout:[%s] for competitor:[%s]' % (benchUtil.checkoutToPath(checkout), name))
     c = Competitor(name, checkout, **kwArgs)
     c.competition = self
     self.competitors.append(c)

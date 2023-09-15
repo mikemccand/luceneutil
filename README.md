@@ -92,6 +92,20 @@ If your benchmark fails with "facetDim Date was not indexed" or similar, try add
 
 in `localrun.py`, and use that index in your benchmarks.
 
+### Additional Run Options
+You can also make the benchmark use baseline or candidate repository that exists outside of the directory structure above. 
+Simply use `-b <Baseline repo path>` or `-c <Candidate repo path>` as shown below:
+```bash
+python src/python/localrun.py -source wikimedium10k -b /Users/vigyas/repos/lucene -c /Users/vigyas/forks/lucene
+```
+
+While benchmarking an indexing side change, you might want to recreate the index for your candidate run. Use the `-r / --reindex` arg as follows:
+```bash
+python src/python/localrun.py -source wikimedium10k -r
+```
+
+For details on all the available options, use the `-h` or `--help` parameter.
+
 # Running the geo benchmark
 
 This one is different and self-contained. Read the command-line examples at the top of src/main/perf/IndexAndSearchOpenStreetMaps.java

@@ -713,5 +713,11 @@ KNOWN_CHANGES = [
 
     ('2023-08-11',
      'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415',
-     'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415',),
+     'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415'),
+
+   ('2023-09-15',
+     'No longer propagate min competitive scores through the query tree https://github.com/apache/lucene/pull/12490',
+     'No longer propagate min competitive scores through the query tree https://github.com/apache/lucene/pull/12490'),
+
+
 ]

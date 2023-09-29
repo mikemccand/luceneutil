@@ -719,5 +719,9 @@ KNOWN_CHANGES = [
      'No longer propagate min competitive scores through the query tree https://github.com/apache/lucene/pull/12490',
      'No longer propagate min competitive scores through the query tree https://github.com/apache/lucene/pull/12490'),
 
+    ('2023-09-28',
+     'Specialized bulk scorer for conjunctions https://github.com/apache/lucene/pull/12382',
+     'Specialized bulk scorer for conjunctions https://github.com/apache/lucene/pull/12382'),
+
 
 ]

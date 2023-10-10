@@ -24,6 +24,8 @@ import random
 import searchBench
 import subprocess
 import time
+from logger import *
+
 
 class Data(object):
   
@@ -32,6 +34,9 @@ class Data(object):
     self.lineFile = lineFile
     self.numDocs = numDocs
     self.tasksFile = tasksFile
+  def __str__(self):
+    return f"Data (name={self.name}, lineFile={self.lineFile}, numDocs={self.numDocs}, tasksFile={self.tasksFile})"
+
 
 WIKI_MEDIUM_ALL = Data('wikimediumall', constants.WIKI_MEDIUM_DOCS_LINE_FILE, constants.WIKI_MEDIUM_DOCS_COUNT, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
@@ -205,6 +210,7 @@ class Index(object):
     self.vectorFile = vectorFile
     self.vectorDimension = vectorDimension
     self.vectorEncoding = vectorEncoding
+    log(f"vectorFile = {vectorFile}, vectorDimension={vectorDimension}, vectorEncoding={vectorEncoding} ")
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
@@ -337,7 +343,7 @@ class Competitor(object):
                               stderr = subprocess.STDOUT,
                               check = True)
       t1 = time.time()
-      print(f'Took {t1-t0:.2f} seconds')
+      log(f'Took {t1-t0:.2f} seconds')
       results.append((size, result.stdout.decode('utf-8')))
 
     return results
@@ -355,7 +361,7 @@ class Competitor(object):
     # This is a broken optimization!  E.g. if there is a single .class file, with recent timestamp, and all other .class files are missing,
     # this fails to compile the missing ones!
     if False and common.getLatestModTime(perfSrc) <= common.getLatestModTime(buildDir, '.class'):
-      print('Skip compiling luceneutil: all .class are up to date')
+      log('Skip compiling luceneutil: all .class are up to date')
       return
 
     # Can we iterate the perf directory and get this list automatically?
@@ -390,7 +396,7 @@ class Competitor(object):
       'TaskParserFactory.java',
       )]
 
-    print('files %s' % files)
+    log('files %s' % files)
 
     cmd = [self.javacCommand, '-g', '-d', buildDir, '-classpath', cp]
     cmd += files
@@ -471,7 +477,7 @@ class Competition(object):
     for c in self.competitors:
       if c.name == name:
         raise RuntimeError(f'competitor named {name} already added')
-    print('Using checkout:[%s] for competitor:[%s]' % (benchUtil.checkoutToPath(checkout), name))
+    log('Using checkout:[%s] for competitor:[%s]' % (benchUtil.checkoutToPath(checkout), name))
     c = Competitor(name, checkout, **kwArgs)
     c.competition = self
     self.competitors.append(c)
@@ -504,7 +510,7 @@ class Competition(object):
       challenger = self.competitors[0]
 
     for fileName in glob.glob(f'{constants.LOGS_DIR}/bench-search-*.jfr'):
-      print('Removing old JFR %s...' % fileName)
+      log('Removing old JFR %s...' % fileName)
       os.remove(fileName)
 
     base.tasksFile = base.index.dataSource.tasksFile

@@ -40,7 +40,7 @@ public class IndexGeoNames2 {
     String geoNamesFile = args[0];
     File indexPath = new File(args[1]);
 
-    Directory dir = FSDirectory.open(indexPath);
+    Directory dir = FSDirectory.open(indexPath.toPath());
     IndexWriter iw = new IndexWriter(dir, 
         new IndexWriterConfig(null)
              .setRAMBufferSizeMB(50)

@@ -723,5 +723,9 @@ KNOWN_CHANGES = [
      'Specialized bulk scorer for conjunctions https://github.com/apache/lucene/pull/12382',
      'Specialized bulk scorer for conjunctions https://github.com/apache/lucene/pull/12382'),
 
+    ('2023-10-04',
+     'Reduced FST block size for BlockTreeTermsWriter https://github.com/apache/lucene/pull/12604',
+     'Reduced FST block size for BlockTreeTermsWriter https://github.com/apache/lucene/pull/12604'),
+
 
 ]

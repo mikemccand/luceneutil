@@ -1,0 +1,15 @@
+<ivy-module version="2.0">
+    <info organisation="org.apache" module="luceneutil"/>
+
+    <configurations defaultconfmapping="main->default">
+        <conf name="main" description="Required to compile code"/>
+        <conf name="test" visibility="private" description="Additional test dependencies"/>
+    </configurations>
+
+    <dependencies>
+        <dependency org="org.apache.logging.log4j" name="log4j-core" rev="2.21.1" conf="main->default"/>
+        <dependency org="org.apache.logging.log4j" name="log4j-api" rev="2.21.1" conf="main->default"/>
+        <dependency org="junit" name="junit" rev="4.13.1" conf="test->default"/>
+    </dependencies>
+</ivy-module>
+

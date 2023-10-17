@@ -1,3 +1,5 @@
+ant.importBuild 'build.xml'
+
 def hasDefaults = rootProject.file("gradle.properties").exists()
 
 configure(rootProject) {

@@ -727,5 +727,13 @@ KNOWN_CHANGES = [
      'Reduced FST block size for BlockTreeTermsWriter https://github.com/apache/lucene/pull/12604',
      'Reduced FST block size for BlockTreeTermsWriter https://github.com/apache/lucene/pull/12604'),
 
+   ('2023-10-10',
+     'Better output prefix sharing in terms index https://github.com/apache/lucene/pull/12631',
+     'Better output prefix sharing in terms index https://github.com/apache/lucene/pull/12631'),
+
+    ('2023-10-13',
+     'Lazy decoding of frequencies in BlockImpacstDocsEnum https://github.com/apache/lucene/pull/12668',
+     'Lazy decoding of frequencies in BlockImpacstDocsEnum https://github.com/apache/lucene/pull/12668'),
+
 
 ]

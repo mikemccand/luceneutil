@@ -83,6 +83,12 @@ cd $LUCENE_BENCH_HOME/util
 python src/python/localrun.py -source wikimedium10k
 ```
 
+Then once you confirm that everything works, use the `wikimediumall` corpus for all subsequent runs.
+Using this much much larger corpus (33+ million docs) is necessary to draw conclusions from your benchmark results.
+```
+python src/python/localrun.py -source wikimediumall
+```
+
 If you get ClassNotFound exceptions, your Lucene checkouts may need to be rebuilt. Run `./gradlew jar` in both `lucene_candidate/` and `lucene_baseline/` dirs.
 
 If your benchmark fails with "facetDim Date was not indexed" or similar, try adding
@@ -96,12 +102,12 @@ in `localrun.py`, and use that index in your benchmarks.
 You can also make the benchmark use baseline or candidate repository that exists outside of the directory structure above. 
 Simply use `-b <Baseline repo path>` or `-c <Candidate repo path>` as shown below:
 ```bash
-python src/python/localrun.py -source wikimedium10k -b /Users/vigyas/repos/lucene -c /Users/vigyas/forks/lucene
+python src/python/localrun.py -source wikimediumall -b /Users/vigyas/repos/lucene -c /Users/vigyas/forks/lucene
 ```
 
 While benchmarking an indexing side change, you might want to recreate the index for your candidate run. Use the `-r / --reindex` arg as follows:
 ```bash
-python src/python/localrun.py -source wikimedium10k -r
+python src/python/localrun.py -source wikimediumall -r
 ```
 
 For details on all the available options, use the `-h` or `--help` parameter.

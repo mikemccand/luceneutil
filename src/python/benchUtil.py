@@ -1565,6 +1565,7 @@ def getClassPath(checkout):
   cp.append('%s/lucene/highlighter/build/classes/java/main' % path)
   cp.append('%s/lucene/codecs/build/classes/java/main' % path)
   cp.append('%s/lucene/queries/build/classes/java/main' % path)
+  cp.append('%s/lucene/join/build/classes/java/main' % path)
 
   # self.addJars(cp, '%s/lucene/facet/lib' % path)
 

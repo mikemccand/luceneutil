@@ -211,6 +211,12 @@ public class KnnGraphTester {
         case "-metric":
           String metric = args[++iarg];
           switch (metric) {
+            case "mip":
+              similarityFunction = VectorSimilarityFunction.MAXIMUM_INNER_PRODUCT;
+              break;
+            case "cosine":
+              similarityFunction = VectorSimilarityFunction.COSINE;
+              break;
             case "euclidean":
               similarityFunction = VectorSimilarityFunction.EUCLIDEAN;
               break;
@@ -218,7 +224,7 @@ public class KnnGraphTester {
               similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
               break;
             default:
-              throw new IllegalArgumentException("-metric can be 'angular' or 'euclidean' only");
+              throw new IllegalArgumentException("-metric can be 'angular', 'euclidean', 'cosine', or 'mip' only");
           }
           break;
         case "-forceMerge":
@@ -296,6 +302,7 @@ public class KnnGraphTester {
             ((PerFieldKnnVectorsFormat.FieldsReader) ((CodecReader) leafReader).getVectorReader())
                 .getFieldReader(KNN_FIELD);
         HnswGraph knnValues = ((Lucene95HnswVectorsReader) vectorsReader).getGraph(KNN_FIELD);
+        System.out.printf("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
         System.out.printf("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
       }
@@ -583,7 +590,7 @@ public class KnnGraphTester {
 
   private int[][] getNN(Path docPath, Path queryPath) throws IOException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK), 36);
+    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK, similarityFunction.ordinal()), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {

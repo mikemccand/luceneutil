@@ -55,10 +55,12 @@ def createLineFileDocsWithRandomLabels(original_file, target_file):
             line_arr = line.split('\t')
 
             if skip_header:
-                if line_arr != ['FIELDS_HEADER_INDICATOR###', 'doctitle', 'docdate', 'body']:
+                # nocommit -- why the difference :)
+                if line_arr != ['FIELDS_HEADER_INDICATOR###', 'doctitle', 'docdate', 'body'] and \
+                   line_arr != ['FIELDS_HEADER_INDICATOR###', 'title', 'timestamp', 'text']:
                     # prolly only succeeds on Unix-like filesystems:
                     os.remove(target_file)
-                    raise RuntimeError(f'unsuported header: {line_arr} -- expected [FIELDS_HEADER_INDICATOR###, doctitle, docdate, body]')
+                    raise RuntimeError(f'unsupported header: {line_arr} -- expected [FIELDS_HEADER_INDICATOR###, doctitle, docdate, body]')
                 skip_header = False
                 # we already (optimistically) pre-wrote the header above
                 continue

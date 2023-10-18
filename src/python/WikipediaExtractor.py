@@ -36,7 +36,9 @@ Extracts and cleans text from Wikipedia database dump and stores output in a
 number of files of similar size in a given directory.
 Each file contains several documents in Tanl document format:
 	<doc id="" url="" title="">
-        ...
+~.
+
+...
         </doc>
 
 Usage:
@@ -96,6 +98,9 @@ discardElements = set([
         'ul', 'li', 'ol', 'dl', 'dt', 'dd', 'menu', 'dir',
         'ref', 'references', 'img', 'imagemap', 'source'
         ])
+
+# MKM
+discardElements = set()
 
 # MKM
 PARAGRAPH_SEP = u'\u2029'

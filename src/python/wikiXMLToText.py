@@ -141,6 +141,10 @@ def convert(fIn, fOut):
         if len(text) > 0:
           if tag == 'timestamp':
             text = fixDate(text)
+          if tag in attrs and len(attrs[tag]) > 0:
+            raise RuntimeError(f'already saw tag {tag}: old={attrs[tag]} new={text}')
+          if tag == 'text':
+            print(f'\n\ntitle={attrs["title"]}\n{text}')
           attrs[tag] = text
 
     if tag == 'redirect':

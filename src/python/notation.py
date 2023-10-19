@@ -735,5 +735,8 @@ KNOWN_CHANGES = [
      'Lazy decoding of frequencies in BlockImpacstDocsEnum https://github.com/apache/lucene/pull/12668',
      'Lazy decoding of frequencies in BlockImpacstDocsEnum https://github.com/apache/lucene/pull/12668'),
 
+   ('2023-10-17',
+     'Specialize BlockImpactsDocsEnum#nextDoc() https://github.com/apache/lucene/pull/12670',
+     'Specialize BlockImpactsDocsEnum#nextDoc() https://github.com/apache/lucene/pull/12670'),
 
 ]

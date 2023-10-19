@@ -42,7 +42,7 @@ Should be able to open by IntelliJ automatically. The gradle will write a local 
 which you can configure your local lucene repository so that intellij will use it as external library and code suggestion
 will work. Also because the compilation is looking for jar so you have to build your lucene repo (run `./gradlew jar`) manually if you haven't 
 done so.
-Note the gradle build will NOT be able to compile the whole project because
+Note the gradle build will NOT be able to compile the whole project because (TODO: nitiraj : all files are compiling. May be we can remove this section)
 some codes do have errors so we still need to filter which files to compile (see competitions.py). So you still
 need to follow the rest procedure.
 

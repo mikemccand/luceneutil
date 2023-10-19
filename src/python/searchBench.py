@@ -26,6 +26,7 @@ from competition import *
 import benchUtil
 import common
 import constants
+from logger import *
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
@@ -33,6 +34,7 @@ if '-ea' in sys.argv:
   JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 osName = common.osName
+
 
 def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None, requireOverlap=1.0):
   competitors = [challenger, base]
@@ -43,8 +45,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
   #verifyScores = False
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
   if '-noc' not in sys.argv:
-    print()
-    print('Compile:')
+    log()
+    log('Compile:')
     for c in competitors:
       r.compile(c)
   if not search:
@@ -68,8 +70,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         raise RuntimeError('inconsistent taskFile %s vs %s' % (taskFile, c.taskFile))
       if c.index not in seen:
         if not p:
-          print()
-          print('Create indices:')
+          log()
+          log('Create indices:')
           p = True
         seen.add(c.index)
         r.makeIndex(id, c.index, doCharts)
@@ -88,13 +90,13 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       pos, neg = taskPatterns
       if pos is None:
         if neg is None:
-          print('    tasks file: %s' % tasksFile)
+          log('    tasks file: %s' % tasksFile)
         else:
-          print('    tasks file: NOT %s from %s' % (','.join(neg), tasksFile))
+          log('    tasks file: NOT %s from %s' % (','.join(neg), tasksFile))
       elif neg is None:
-        print('    tasks file: %s from %s' % (','.join(pos), tasksFile))
+        log('    tasks file: %s from %s' % (','.join(pos), tasksFile))
       else:
-        print('    tasks file: %s, NOT %s from %s' % (','.join(pos), ','.join(neg), tasksFile))
+        log('    tasks file: %s, NOT %s from %s' % (','.join(pos), ','.join(neg), tasksFile))
       newTasksFile = '%s/%s.tasks' % (constants.BENCH_BASE_DIR, os.getpid())
       pos, neg = taskPatterns
       if pos is None:
@@ -140,7 +142,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         c.tasksFile = newTasksFile
         
     else:
-      print('    tasks file: %s' % c.tasksFile)
+      log('    tasks file: %s' % c.tasksFile)
       newTasksFile = None
 
     try:
@@ -148,12 +150,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       results = {}
 
       if constants.JAVA_COMMAND.find(' -ea') != -1:
-        print()
-        print('WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND)
-        print()
+        log()
+        log('WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND)
+        log()
 
-      print()
-      print('Search:')
+      log()
+      log('Search:')
 
       taskFiles = {}
 
@@ -168,12 +170,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
       for iter in range(base.competition.jvmCount):
 
-        print('  iter %d' % iter)
+        log('  iter %d' % iter)
 
         seed = rand.randint(-10000000, 1000000)
 
         for c in competitors:
-          print('    %s:' % c.name)
+          log('    %s:' % c.name)
           t0 = time.time()
           if c not in results:
             results[c] = []
@@ -182,8 +184,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
                                            filter=None, taskPatterns=taskPatterns) 
           results[c].append(logFile)
 
-        print()
-        print('Report after iter %d:' % iter)
+        log()
+        log('Report after iter %d:' % iter)
         #print '  results: %s' % results
         details, cmpDiffs, cmpHeap = r.simpleReport(results[base],
                                                     results[challenger],
@@ -204,8 +206,8 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     # TODO: maybe print this after each iter, not just in the end, for the impatient/progressive?
     for mode in 'cpu', 'heap':
       for c in competitors:
-        print(f'\n{mode.upper()} merged search profile for {c.name}:')
-        print(c.getAggregateProfilerResult(id, mode)[0][1])
+        log(f'\n{mode.upper()} merged search profile for {c.name}:')
+        log(c.getAggregateProfilerResult(id, mode)[0][1])
                            
   else:
     results = {}

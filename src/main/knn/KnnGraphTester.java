@@ -1,4 +1,4 @@
-/*
+package knn;/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -35,17 +35,13 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsReader;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.KnnByteVectorField;
-import org.apache.lucene.document.KnnFloatVectorField;
-import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -78,13 +74,13 @@ import org.apache.lucene.util.hnsw.NeighborQueue;
 /**
  * For testing indexing and search performance of a knn-graph
  *
- * <p>java -cp .../lib/*.jar org.apache.lucene.util.hnsw.KnnGraphTester -ndoc 1000000 -search
+ * <p>java -cp .../lib/*.jar org.apache.lucene.util.hnsw.knn.KnnGraphTester -ndoc 1000000 -search
  * .../vectors.bin
  */
 public class KnnGraphTester {
 
-  private static final String KNN_FIELD = "knn";
-  private static final String ID_FIELD = "id";
+  public static final String KNN_FIELD = "knn";
+  public static final String ID_FIELD = "id";
 
   private int numDocs;
   private int dim;
@@ -255,7 +251,8 @@ public class KnnGraphTester {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
-      reindexTimeMsec = createIndex(docVectorsPath, indexPath);
+      reindexTimeMsec = new KnnIndexer(docVectorsPath, indexPath, maxConn, beamWidth, vectorEncoding, dim,
+              similarityFunction, numDocs, quiet ).createIndex();
       if (forceMerge) {
         forceMerge();
       }
@@ -475,75 +472,6 @@ public class KnnGraphTester {
     }
   }
 
-  private abstract static class VectorReader {
-    final float[] target;
-    final ByteBuffer bytes;
-    final FileChannel input;
-
-    static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding) {
-      int bufferSize = dim * vectorEncoding.byteSize;
-      return switch (vectorEncoding) {
-        case BYTE -> new VectorReaderByte(input, dim, bufferSize);
-        case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize);
-      };
-    }
-
-    VectorReader(FileChannel input, int dim, int bufferSize) {
-      this.bytes = ByteBuffer.wrap(new byte[bufferSize]).order(ByteOrder.LITTLE_ENDIAN);
-      this.input = input;
-      target = new float[dim];
-    }
-
-    void reset() throws IOException {
-      input.position(0);
-    }
-
-    protected final void readNext() throws IOException {
-      this.input.read(bytes);
-      bytes.position(0);
-    }
-
-    abstract float[] next() throws IOException;
-  }
-
-  private static class VectorReaderFloat32 extends VectorReader {
-    VectorReaderFloat32(FileChannel input, int dim, int bufferSize) {
-      super(input, dim, bufferSize);
-    }
-
-    @Override
-    float[] next() throws IOException {
-      readNext();
-      bytes.asFloatBuffer().get(target);
-      return target;
-    }
-  }
-
-  private static class VectorReaderByte extends VectorReader {
-    private final byte[] scratch;
-
-    VectorReaderByte(FileChannel input, int dim, int bufferSize) {
-      super(input, dim, bufferSize);
-      scratch = new byte[dim];
-    }
-
-    @Override
-    float[] next() throws IOException {
-      readNext();
-      bytes.get(scratch);
-      for (int i = 0; i < scratch.length; i++) {
-        target[i] = scratch[i];
-      }
-      return target;
-    }
-
-    byte[] nextBytes() throws IOException {
-      readNext();
-      bytes.get(scratch);
-      return scratch;
-    }
-  }
-
   private static TopDocs doKnnVectorQuery(
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter)
       throws IOException {
@@ -692,59 +620,6 @@ public class KnnGraphTester {
       }
     }
     return result;
-  }
-
-  private int createIndex(Path docsPath, Path indexPath) throws IOException {
-    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setCodec(
-        new Lucene95Codec() {
-          @Override
-          public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            return new Lucene95HnswVectorsFormat(maxConn, beamWidth);
-          }
-        });
-    // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
-    iwc.setRAMBufferSizeMB(1994d);
-    iwc.setUseCompoundFile(false);
-    // iwc.setMaxBufferedDocs(10000);
-
-    FieldType fieldType =
-        switch (vectorEncoding) {
-          case BYTE -> KnnByteVectorField.createFieldType(dim, similarityFunction);
-          case FLOAT32 -> KnnFloatVectorField.createFieldType(dim, similarityFunction);
-        };
-    if (quiet == false) {
-      iwc.setInfoStream(new PrintStreamInfoStream(System.out));
-      System.out.println("creating index in " + indexPath);
-    }
-    long start = System.nanoTime();
-    try (FSDirectory dir = FSDirectory.open(indexPath);
-        IndexWriter iw = new IndexWriter(dir, iwc)) {
-      try (FileChannel in = FileChannel.open(docsPath)) {
-        VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding);
-        for (int i = 0; i < numDocs; i++) {
-          Document doc = new Document();
-          switch (vectorEncoding) {
-            case BYTE -> doc.add(
-                new KnnByteVectorField(
-                    KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
-            case FLOAT32 -> doc.add(
-                new KnnFloatVectorField(KNN_FIELD, vectorReader.next(), fieldType));
-          }
-          doc.add(new StoredField(ID_FIELD, i));
-          iw.addDocument(doc);
-        }
-        if (quiet == false) {
-          System.out.println("Done indexing " + numDocs + " documents; now flush");
-        }
-      }
-    }
-    long elapsed = System.nanoTime() - start;
-    if (quiet == false) {
-      System.out.println(
-          "Indexed " + numDocs + " documents in " + TimeUnit.NANOSECONDS.toSeconds(elapsed) + "s");
-    }
-    return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
   }
 
   private static void usage() {

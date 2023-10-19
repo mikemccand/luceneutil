@@ -17,7 +17,7 @@
 
     <javac srcdir="src/main"
            destdir="build"
-           includes="KnnGraphTester.java,WikiVectors.java,perf/VectorDictionary.java"
+           includes="knn.KnnGraphTester.java,WikiVectors.java,perf/VectorDictionary.java"
            classpathref="build.classpath"
            includeantruntime="false"/>
 

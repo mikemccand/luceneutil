@@ -1,5 +1,18 @@
 plugins {
   id 'java'
+  id 'application'
+}
+
+application {
+  mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NULL"
+}
+
+task checkHnswConnected(type:JavaExec) {
+  mainClass = "knn.CheckHNSWConnectedness"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [project.getProperty("index"), project.getProperty("knn-field")]
+  jvmArguments = ["-ea"]
+  dependsOn = [build]
 }
 
 sourceSets {
@@ -8,7 +21,104 @@ sourceSets {
 
 def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
 
+def dataDir = "../../../data"
+def taskDir = "./tasks"
+
+
 dependencies {
   implementation fileTree(dir: luceneDir, include: '**/*.jar')
 }
+
+task vectors300Docs(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 300 dimension 32 bit (float) document vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [dataDir + "/glove.6B.300d.txt", dataDir + "/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt",
+          dataDir + "/enwiki-20120502-lines-1k-300d.vec"]
+//  dependsOn = [build]
+}
+
+task vectors300Tasks(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 300 dimension 32 bit (float) query (task) vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [dataDir + "/glove.6B.300d.txt", taskDir + "/vector.task.txt",
+          taskDir + "/vector-task-300d.vec"]
+}
+
+task vectors300Docs8Bit(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 300 dimension 8 bit (byte) document vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [ "-scale", "256", dataDir + "/glove.6B.300d.txt",
+           dataDir + "/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt",
+          dataDir + "/enwiki-20120502-lines-1k-300d.vec"]
+}
+
+task vectors300Tasks8Bit(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 300 dimension 8 bit (byte) query (task) vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["-scale", "256", dataDir + "/glove.6B.300d.txt", taskDir + "/vector.task.txt",
+          taskDir + "/vector-task-300d-8bit.vec"]
+}
+
+task vectors300(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate all 300 dimension document and query (task) vectors for wiki lines"
+  dependsOn = [vectors300Docs, vectors300Tasks, vectors300Docs8Bit, vectors300Tasks8Bit]
+}
+
+task vectors100Docs(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 100 dimension 32 bit (float) document vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [dataDir + "/glove.6B.100d.txt", dataDir + "/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt",
+          dataDir + "/enwiki-20120502-lines-1k-100d.vec"]
+}
+
+task vectors100Tasks(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 100 dimension 32 bit (float) query (task) vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [dataDir + "/glove.6B.100d.txt", dataDir + "/vector.task.txt",
+          dataDir + "/vector-task-100d.vec"]
+}
+
+task vectors100Docs8Bit(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 100 dimension 8 bit (byte) document vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+//  Why is the -scale here 128 but it is 256 everywhere else?
+  args = [ "-scale", "128", dataDir + "/glove.6B.100d.txt",
+           dataDir + "/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt",
+           dataDir + "/enwiki-20120502-lines-1k-100d.vec"]
+}
+
+task vectors100Tasks8Bit(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate 300 dimension 8 bit (byte) query (task) vectors for the wiki lines"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["-scale", "256", dataDir + "/glove.6B.100d.txt", taskDir + "/vector.task.txt",
+          taskDir + "/vector-task-100d-8bit.vec"]
+}
+
+task vectors100(type:JavaExec) {
+  mainClass = "WikiVectors"
+  description = "Generate all 300 dimension document and query (task) vectors for wiki lines"
+  dependsOn = [vectors100Docs, vectors100Tasks, vectors100Docs8Bit, vectors100Tasks8Bit]
+}
+
+//task vectorsMinilmTasks(type:JavaExec) {
+//  main = "WikiVectors"
+//  description = "Generate all 300 dimension document and query (task) vectors for wiki lines"
+//  dependsOn = [vectors100Docs, vectors100Tasks, vectors100Docs8Bit, vectors100Tasks8Bit]
+//}
+
+
+tasks.withType(Tar).all { duplicatesStrategy 'exclude' }
+tasks.withType(Zip).all { duplicatesStrategy 'exclude' }
+
+
+
 

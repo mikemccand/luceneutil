@@ -26,11 +26,7 @@ import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.lucene.index.VectorEncoding;
 
@@ -177,6 +173,7 @@ public class VectorDictionary {
         vectorDiv(dvec, vectorNorm(dvec));
       }
     }
+//    System.out.println("created vector for '" + text + "': " + Arrays.toString(dvec));
     return dvec;
   }
 

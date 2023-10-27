@@ -96,7 +96,7 @@ public class VectorDictionary {
       throw e;
     }
     dimension = dim;
-    System.out.println("loaded " + dict.size());
+    System.out.println("loaded dictionary having " + dict.size() + " tokens");
   }
 
   private int parseLine(String line) {

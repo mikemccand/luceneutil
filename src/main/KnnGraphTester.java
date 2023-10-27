@@ -38,9 +38,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
-import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
-import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsReader;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
+import org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldType;
@@ -296,7 +297,7 @@ public class KnnGraphTester {
         KnnVectorsReader vectorsReader =
             ((PerFieldKnnVectorsFormat.FieldsReader) ((CodecReader) leafReader).getVectorReader())
                 .getFieldReader(KNN_FIELD);
-        HnswGraph knnValues = ((Lucene95HnswVectorsReader) vectorsReader).getGraph(KNN_FIELD);
+        HnswGraph knnValues = ((Lucene99HnswVectorsReader) vectorsReader).getGraph(KNN_FIELD);
         System.out.printf("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
       }
@@ -310,7 +311,7 @@ public class KnnGraphTester {
             new Lucene99Codec() {
               @Override
               public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-                return new Lucene95HnswVectorsFormat(maxConn, beamWidth);
+                return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat());
               }
             });
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -701,7 +702,7 @@ public class KnnGraphTester {
         new Lucene99Codec() {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            return new Lucene95HnswVectorsFormat(maxConn, beamWidth);
+            return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat());
           }
         });
     // iwc.setMergePolicy(NoMergePolicy.INSTANCE);

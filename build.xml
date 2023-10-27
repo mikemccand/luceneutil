@@ -160,6 +160,41 @@
     </java>
   </target>
   
+  <target name="vectors-minilm-8bit-docs" depends="build">
+    <!--
+       1 Percentile =  -0.11017321050167084
+       10 Percentile =  -0.05411912873387337
+       50 Percentile =  -7.801504744490034e-33
+       90 Percentile =  0.05798458680510521
+       99 Percentile =  0.1421949714422226
+       100 Percentile =  0.4781419634819031
+       average: 0.0022993074
+       stddev: 0.05091949
+       min .. max: -0.2604693 .. 0.47814196
+    -->
+    <java className="WikiVectors" classpathref="build.classpath" fork="true">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-minilm-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors-minilm-8bit-tasks" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath" fork="true">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-minilm-8bit.vec"/>
+    </java>
+  </target>
+
   <!-- 768-dim vectors trained using mpnet from https://www.sbert.net/ -->
 
   <target name="vectors-mpnet-tasks" depends="build,extract-vector-tasks">

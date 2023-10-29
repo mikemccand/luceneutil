@@ -739,4 +739,8 @@ KNOWN_CHANGES = [
      'Specialize BlockImpactsDocsEnum#nextDoc() https://github.com/apache/lucene/pull/12670',
      'Specialize BlockImpactsDocsEnum#nextDoc() https://github.com/apache/lucene/pull/12670'),
 
+   ('2023-10-28',
+     'Intersect clauses in disjunctions when block max scores require multiple clauses to match https://github.com/apache/lucene/pull/12589',
+     'Intersect clauses in disjunctions when block max scores require multiple clauses to match https://github.com/apache/lucene/pull/12589'),
+
 ]

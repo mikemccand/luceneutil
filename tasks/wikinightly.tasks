@@ -263,3 +263,46 @@ CountTerm: count(names) # freq=402762
 CountTerm: count(nbsp) # freq=492778
 CountTerm: count(part) # freq=588644
 CountTerm: count(st) # freq=306811
+
+# Disjunction of 2 terms and 2 stop words
+Or2Terms2StopWords: lord of the rings
+Or2Terms2StopWords: the book of life
+Or2Terms2StopWords: the garden of eden
+Or2Terms2StopWords: battle of the bulge
+Or2Terms2StopWords: story of my life
+
+# Conjunction of 2 terms and 2 stop words
+And2Terms2StopWords: +lord +of +the +rings
+And2Terms2StopWords: +the +book +of +life
+And2Terms2StopWords: +the +garden +of +eden
+And2Terms2StopWords: +battle +of +the +bulge
+And2Terms2StopWords: +story +of +a +girl
+
+# Disjunction of terms that are all stop words
+OrStopWords: to be or not to be
+OrStopWords: the who
+
+# Conjunction of terms that are all stop words
+AndStopWords: +to +be +or +not +to +be
+AndStopWords: +the +who
+
+# Disjunction of 3 terms
+Or3Terms: new york population
+Or3Terms: world bank president
+Or3Terms: national book award
+Or3Terms: united states constitution
+Or3Terms: law school rankings
+
+# Conjunction of 3 terms
+And3Terms: +new +york +population
+And3Terms: +world +bank +president
+And3Terms: +national +book +award
+And3Terms: +united +states +constitution
+And3Terms: +law +school +rankings
+
+# Disjunction of a high-frequency term (e.g. stop word) with a very rare term that has a couple 100s
+# hits at most. This is a hard query as it takes time until the top-k-th hit score gets higher than
+# typical scores of the frequent term.
+OrHighRare: the incredibles
+OrHighRare: a horsefly
+OrHighRare: some groundnuts

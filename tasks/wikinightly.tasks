@@ -276,7 +276,7 @@ And2Terms2StopWords: +lord +of +the +rings
 And2Terms2StopWords: +the +book +of +life
 And2Terms2StopWords: +the +garden +of +eden
 And2Terms2StopWords: +battle +of +the +bulge
-And2Terms2StopWords: +story +of +a +girl
+And2Terms2StopWords: +story +of +my +life
 
 # Disjunction of terms that are all stop words
 OrStopWords: to be or not to be

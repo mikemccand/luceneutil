@@ -269,14 +269,14 @@ Or2Terms2StopWords: lord of the rings
 Or2Terms2StopWords: the book of life
 Or2Terms2StopWords: the garden of eden
 Or2Terms2StopWords: battle of the bulge
-Or2Terms2StopWords: story of my life
+Or2Terms2StopWords: story of a girl
 
 # Conjunction of 2 terms and 2 stop words
 And2Terms2StopWords: +lord +of +the +rings
 And2Terms2StopWords: +the +book +of +life
 And2Terms2StopWords: +the +garden +of +eden
 And2Terms2StopWords: +battle +of +the +bulge
-And2Terms2StopWords: +story +of +my +life
+And2Terms2StopWords: +story +of +a +girl
 
 # Disjunction of terms that are all stop words
 OrStopWords: to be or not to be

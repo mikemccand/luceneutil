@@ -34,8 +34,11 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
@@ -72,6 +75,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
@@ -87,6 +91,7 @@ public class KnnGraphTester {
 
   private static final String KNN_FIELD = "knn";
   private static final String ID_FIELD = "id";
+  private static final double WRITER_BUFFER_MB = 1994d;
 
   private int numDocs;
   private int dim;
@@ -100,6 +105,9 @@ public class KnnGraphTester {
   private int reindexTimeMsec;
   private int beamWidth;
   private int maxConn;
+  private int numMergeThread;
+  private int numMergeWorker;
+  private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
   private FixedBitSet matchDocs;
@@ -112,6 +120,8 @@ public class KnnGraphTester {
     numIters = 1000;
     dim = 256;
     topK = 100;
+    numMergeThread = 1;
+    numMergeWorker = 1;
     fanout = topK;
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
@@ -120,7 +130,21 @@ public class KnnGraphTester {
   }
 
   public static void main(String... args) throws Exception {
-    new KnnGraphTester().run(args);
+    new KnnGraphTester().runWithCleanUp(args);
+  }
+
+  private void runWithCleanUp(String... args) throws Exception {
+    try {
+      run(args);
+    } finally {
+      cleanUp();
+    }
+  }
+
+  private void cleanUp() {
+    if (exec != null) {
+      exec.shutdownNow();
+    }
   }
 
   private void run(String... args) throws Exception {
@@ -241,6 +265,19 @@ public class KnnGraphTester {
         case "-quiet":
           quiet = true;
           break;
+        case "-numMergeWorker":
+          numMergeWorker = Integer.parseInt(args[++iarg]);
+          if (numMergeWorker <= 0) {
+            throw new IllegalArgumentException("-numMergeWorker should be >= 1");
+          }
+          break;
+        case "-numMergeThread":
+          numMergeThread = Integer.parseInt(args[++iarg]);
+          exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
+          if (numMergeThread <= 0) {
+            throw new IllegalArgumentException("-numMergeThread should be >= 1");
+          }
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -307,18 +344,16 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(
-            new Lucene99Codec() {
-              @Override
-              public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-                return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat());
-              }
-            });
-    iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker));
+    if (!quiet) {
+      iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+    }
     System.out.println("Force merge index in " + indexPath);
+    long start = System.currentTimeMillis();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1);
     }
+    System.out.println("Force merge done in: " + (System.currentTimeMillis() - start) + " ms");
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -698,15 +733,9 @@ public class KnnGraphTester {
 
   private int createIndex(Path docsPath, Path indexPath) throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setCodec(
-        new Lucene99Codec() {
-          @Override
-          public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat());
-          }
-        });
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker));
     // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
-    iwc.setRAMBufferSizeMB(1994d);
+    iwc.setRAMBufferSizeMB(WRITER_BUFFER_MB);
     iwc.setUseCompoundFile(false);
     // iwc.setMaxBufferedDocs(10000);
 
@@ -747,6 +776,25 @@ public class KnnGraphTester {
           "Indexed " + numDocs + " documents in " + TimeUnit.NANOSECONDS.toSeconds(elapsed) + "s");
     }
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
+  }
+
+  private static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker) {
+    if (exec == null) {
+      return new Lucene99Codec() {
+        @Override
+        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat());
+        }
+      };
+    } else {
+      return new Lucene99Codec() {
+        @Override
+        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat(),
+                  numMergeWorker, exec);
+        }
+      };
+    }
   }
 
   private static void usage() {

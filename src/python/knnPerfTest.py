@@ -1,6 +1,5 @@
 #!/usr/bin/env/python
 
-import os
 import subprocess
 import benchUtil
 import constants
@@ -98,8 +97,11 @@ def run_knn_benchmark(checkout, values):
             '-docs', doc_vectors,
             '-reindex',
             '-search', query_vectors,
+            # '-numMergeThread', '8', '-numMergeWorker', '8',
+            # '-forceMerge',
             '-quiet']
         #print(this_cmd)
         subprocess.run(this_cmd)
+
 
 run_knn_benchmark(LUCENE_CHECKOUT, VALUES)

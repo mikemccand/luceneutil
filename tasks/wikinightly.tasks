@@ -278,13 +278,13 @@ And2Terms2StopWords: +the +garden +of +eden
 And2Terms2StopWords: +battle +of +the +bulge
 And2Terms2StopWords: +story +of +a +girl
 
-# Disjunction of terms that are all stop words
+# Disjunction of 3+ terms that are all stop words
 OrStopWords: to be or not to be
-OrStopWords: the who
+OrStopWords: who are the who
 
-# Conjunction of terms that are all stop words
+# Conjunction of 3+ terms that are all stop words
 AndStopWords: +to +be +or +not +to +be
-AndStopWords: +the +who
+AndStopWords: +who +are +the +who
 
 # Disjunction of 3 terms
 Or3Terms: new york population

@@ -31,6 +31,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -40,9 +43,16 @@ import org.apache.lucene.analysis.shingle.ShingleAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.codecs.KnnVectorsFormat;
+import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
+import org.apache.lucene.codecs.lucene99.Lucene99Codec;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
+import org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -67,6 +77,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
 import perf.IndexThreads.Mode;
@@ -338,6 +349,34 @@ public final class Indexer {
       facetDVFormatName = args.getString("-facetDVFormat");
     }
 
+    // how much concurrency a single HNSW merge uses
+    final int hnswThreadsPerMerge;;
+    if (args.hasArg("-hnswThreadsPerMerge")) {
+      hnswThreadsPerMerge = args.getInt("-hnswThreadsPerMerge");
+    } else {
+      // no concurrency during HNSW merge
+      hnswThreadsPerMerge = 1;
+    }
+
+    final int hnswThreadPoolCount;
+    if (args.hasArg("-hnswThreadPoolCount")) {
+      hnswThreadPoolCount = args.getInt("-hnswThreadPoolCount");
+    } else {
+      hnswThreadPoolCount = 1;
+    }
+
+    // sanity check HNSW merge concurrency
+    if (hnswThreadsPerMerge > 1 && hnswThreadPoolCount <= 1) {
+      throw new IllegalArgumentException("when -hnswThreadsPerMerge is > 1 (got: " + hnswThreadsPerMerge + "), -numHnswMergeThreadsTotal must be provided and be > 1 (got: " + hnswThreadPoolCount + ")"); 
+    }
+
+    final ExecutorService hnswMergeExec;
+    if (hnswThreadPoolCount > 1) {
+      hnswMergeExec = Executors.newFixedThreadPool(hnswThreadPoolCount, new NamedThreadFactory("hnsw-merge"));
+    } else {
+      hnswMergeExec = null;
+    }
+    
     if (addGroupingFields && docCountLimit == -1) {
     	a.close();
       throw new RuntimeException("cannot add grouping fields unless docCount is set");
@@ -385,12 +424,16 @@ public final class Indexer {
       System.out.println("Open & close NRT reader every: never");
     }
     System.out.println("Repeat docs: " + repeatDocs);
+
+    if (hnswMergeExec != null) {
+      System.out.println("Concurrent HNSW merge enabled: " + hnswThreadsPerMerge + " threads per merge, drawing from shared thread pool with " + hnswThreadPoolCount + " fixed threads");
+    }
     
     if (verbose) {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    // Use codec at defaults:
+    // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
     final Codec codec = new Lucene99Codec() {
         @Override
         public PostingsFormat getPostingsFormatForField(String field) {
@@ -409,6 +452,17 @@ public final class Indexer {
             // Use default DVFormat for all else:
             return super.getDocValuesFormatForField(field);
           }
+        }
+
+        @Override
+        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+          // TODO: add option for Lucene99ScalarQuantizedVectorsFormat instead of null below:
+          // System.out.println("KNN Codec: " + hnswThreadsPerMerge + " exec=" + hnswMergeExec);
+          return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                                               Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                                               null,
+                                               hnswThreadsPerMerge,
+                                               hnswMergeExec);
         }
       };
 

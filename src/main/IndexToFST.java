@@ -1,5 +1,3 @@
-// nocommit temporary tool
-
 import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -23,41 +21,6 @@ import org.apache.lucene.util.fst.Outputs;
 import org.apache.lucene.util.fst.PositiveIntOutputs;
 import org.apache.lucene.util.fst.Util;
 
-/*
-2
-4
-8
-16
-32
-64
-128
-256
-512
-1024
-2048
-4096
-8192
-16384
-32768
-65536
-131072
-262144
-524288
-1048576
-2097152
-4194304
-8388608
-16777216
-33554432
-67108864
-134217728
-268435456
-536870912
-1073741824
-2147483648
-4294967296
-*/  
-
 // javac -cp lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar IndexToFST.java; java -cp .:lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar IndexToFST /l/indices/wikimediumall.trunk.facets.taxonomy:Date.taxonomy:Month.taxonomy:DayOfYear.taxonomy:RandomLabel.taxonomy.sortedset:Date.sortedset:Month.sortedset:DayOfYear.sortedset:RandomLabel.sortedset.Lucene90.Lucene90.dvfields.nd33.3326M/index
 
 public class IndexToFST {
@@ -68,7 +31,7 @@ public class IndexToFST {
   
   public static void main(String[] args) throws Exception {
     if (args.length != 2) {
-      System.err.println("Usage: IndexToFST <path-to-index-dir> <size-of-suffix-hash>");
+      System.err.println("Usage: IndexToFST <path-to-index-dir> <size-of-suffix-hash-in-mb-or-inf>");
       System.exit(1);
     }
 

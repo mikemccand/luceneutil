@@ -968,6 +968,9 @@ class RunAlgs:
       if index.rearrange != 0:
         w('-rearrange', index.rearrange)
 
+      w('-hnswThreadsPerMerge', index.hnswThreadsPerMerge)
+      w('-hnswThreadPoolCount', index.hnswThreadPoolCount)
+
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
 
       print('    log %s' % fullLogFile)

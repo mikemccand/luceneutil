@@ -392,6 +392,7 @@ class Competitor(object):
       'StringFieldDocSelector.java',
       'UnparsedTask.java',
       'TaskParserFactory.java',
+      'DocGrouper.java',
       )]
 
     print('files %s' % files)

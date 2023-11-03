@@ -524,7 +524,7 @@ public final class Indexer {
 
     LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
                                                  taxoWriter, facetDimMethods, facetsConfig, addDVFields,
-                                                 vectorFile, vectorDimension, vectorEncoding);
+                                                 vectorFile, vectorDimension, vectorEncoding, addGroupingFields, docCountLimit);
 
     float docsPerSecPerThread = -1f;
     //float docsPerSecPerThread = 100f;

@@ -345,7 +345,8 @@ public class KnnGraphTester {
   private void forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker));
-    if (!quiet) {
+    if (quiet == false) {
+      // not a quiet place!
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     }
     System.out.println("Force merge index in " + indexPath);

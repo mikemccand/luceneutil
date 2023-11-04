@@ -376,329 +376,335 @@ public final class Indexer {
     } else {
       hnswMergeExec = null;
     }
-    
-    if (addGroupingFields && docCountLimit == -1) {
+
+    try {
+      if (addGroupingFields && docCountLimit == -1) {
     	a.close();
-      throw new RuntimeException("cannot add grouping fields unless docCount is set");
-    }
+        throw new RuntimeException("cannot add grouping fields unless docCount is set");
+      }
 
-    args.check();
+      args.check();
 
-    System.out.println("Dir: " + dirImpl);
-    System.out.println("Index path: " + dirPath);
-    System.out.println("Analyzer: " + analyzer);
-    System.out.println("Line file: " + lineFile);
-    System.out.println("Vector file: " + vectorFile + ", dim=" + vectorDimension);
-    System.out.println("Doc count limit: " + (docCountLimit == -1 ? "all docs" : ""+docCountLimit));
-    System.out.println("Threads: " + numThreads);
-    System.out.println("Force merge: " + (doForceMerge ? "yes" : "no"));
-    System.out.println("Rearrange to (0 for no rearrange): " + arrangement);
-    System.out.println("Verbose: " + (verbose ? "yes" : "no"));
-    System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
-    System.out.println("Max buffered docs: " + maxBufferedDocs);
-    System.out.println("Default postings format: " + defaultPostingsFormat);
-    System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
-    System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
-    System.out.println("Wait for commit: " + (waitForCommit ? "yes" : "no"));
-    System.out.println("IO throttle: " + (disableIOThrottle ? "no" : "yes"));
-    System.out.println("Merge policy: " + mergePolicy);
-    System.out.println("Mode: " + mode);
-    if (mode == Mode.UPDATE) {
-      System.out.println("DocIDMax: " + randomDocIDMax);
-    }
-    System.out.println("ID field postings format: " + idFieldPostingsFormat);
-    System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
-    System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
-    System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
-    System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
-    System.out.println("Facet DV Format: " + facetDVFormatName);
-    System.out.println("Facet dimension methods: " + facetDimMethods);
-    System.out.println("Facet fields: " + facetFields);
-    System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
-    System.out.println("Max concurrent merges: " + maxConcurrentMerges);
-    System.out.println("Add DocValues fields: " + addDVFields);
-    System.out.println("Use ConcurrentMergeScheduler: " + useCMS);
-    if (nrtEverySec > 0.0) {
-      System.out.println("Open & close NRT reader every: " + nrtEverySec + " sec");
-    } else {
-      System.out.println("Open & close NRT reader every: never");
-    }
-    System.out.println("Repeat docs: " + repeatDocs);
+      System.out.println("Dir: " + dirImpl);
+      System.out.println("Index path: " + dirPath);
+      System.out.println("Analyzer: " + analyzer);
+      System.out.println("Line file: " + lineFile);
+      System.out.println("Vector file: " + vectorFile + ", dim=" + vectorDimension);
+      System.out.println("Doc count limit: " + (docCountLimit == -1 ? "all docs" : ""+docCountLimit));
+      System.out.println("Threads: " + numThreads);
+      System.out.println("Force merge: " + (doForceMerge ? "yes" : "no"));
+      System.out.println("Rearrange to (0 for no rearrange): " + arrangement);
+      System.out.println("Verbose: " + (verbose ? "yes" : "no"));
+      System.out.println("RAM Buffer MB: " + ramBufferSizeMB);
+      System.out.println("Max buffered docs: " + maxBufferedDocs);
+      System.out.println("Default postings format: " + defaultPostingsFormat);
+      System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
+      System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
+      System.out.println("Wait for commit: " + (waitForCommit ? "yes" : "no"));
+      System.out.println("IO throttle: " + (disableIOThrottle ? "no" : "yes"));
+      System.out.println("Merge policy: " + mergePolicy);
+      System.out.println("Mode: " + mode);
+      if (mode == Mode.UPDATE) {
+        System.out.println("DocIDMax: " + randomDocIDMax);
+      }
+      System.out.println("ID field postings format: " + idFieldPostingsFormat);
+      System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
+      System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
+      System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
+      System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
+      System.out.println("Facet DV Format: " + facetDVFormatName);
+      System.out.println("Facet dimension methods: " + facetDimMethods);
+      System.out.println("Facet fields: " + facetFields);
+      System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
+      System.out.println("Max concurrent merges: " + maxConcurrentMerges);
+      System.out.println("Add DocValues fields: " + addDVFields);
+      System.out.println("Use ConcurrentMergeScheduler: " + useCMS);
+      if (nrtEverySec > 0.0) {
+        System.out.println("Open & close NRT reader every: " + nrtEverySec + " sec");
+      } else {
+        System.out.println("Open & close NRT reader every: never");
+      }
+      System.out.println("Repeat docs: " + repeatDocs);
 
-    if (hnswMergeExec != null) {
-      System.out.println("Concurrent HNSW merge enabled: " + hnswThreadsPerMerge + " threads per merge, drawing from shared thread pool with " + hnswThreadPoolCount + " fixed threads");
-    }
+      if (hnswMergeExec != null) {
+        System.out.println("Concurrent HNSW merge enabled: " + hnswThreadsPerMerge + " threads per merge, drawing from shared thread pool with " + hnswThreadPoolCount + " fixed threads");
+      }
     
-    if (verbose) {
-      InfoStream.setDefault(new PrintStreamInfoStream(System.out));
-    }
+      if (verbose) {
+        InfoStream.setDefault(new PrintStreamInfoStream(System.out));
+      }
 
-    // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
-    final Codec codec = new Lucene99Codec() {
-        @Override
-        public PostingsFormat getPostingsFormatForField(String field) {
-          return PostingsFormat.forName(field.equals("id") ?
-                                        idFieldPostingsFormat : defaultPostingsFormat);
-        }
-
-        // Use doc values format at defaults:
-        private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat();
-
-        @Override
-        public DocValuesFormat getDocValuesFormatForField(String field) {
-          if (facetFields.contains(field)) {
-            return facetsDVFormat;
-          } else {
-            // Use default DVFormat for all else:
-            return super.getDocValuesFormatForField(field);
+      // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
+      final Codec codec = new Lucene99Codec() {
+          @Override
+          public PostingsFormat getPostingsFormatForField(String field) {
+            return PostingsFormat.forName(field.equals("id") ?
+                                          idFieldPostingsFormat : defaultPostingsFormat);
           }
+
+          // Use doc values format at defaults:
+          private final DocValuesFormat facetsDVFormat = new Lucene90DocValuesFormat();
+
+          @Override
+          public DocValuesFormat getDocValuesFormatForField(String field) {
+            if (facetFields.contains(field)) {
+              return facetsDVFormat;
+            } else {
+              // Use default DVFormat for all else:
+              return super.getDocValuesFormatForField(field);
+            }
+          }
+
+          @Override
+          public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+            // TODO: add option for Lucene99ScalarQuantizedVectorsFormat instead of null below:
+            // System.out.println("KNN Codec: " + hnswThreadsPerMerge + " exec=" + hnswMergeExec);
+            return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                                                 Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                                                 null,
+                                                 hnswThreadsPerMerge,
+                                                 hnswMergeExec);
+          }
+        };
+
+      final AtomicBoolean indexingFailed = new AtomicBoolean();
+
+      final String finalIndexSortField = indexSortField;
+      final SortField.Type finalIndexSortType = indexSortType;
+
+      Callable<IndexWriterConfig> getIWC = () -> {
+        final IndexWriterConfig iwc = new IndexWriterConfig(a);
+
+        if (finalIndexSortField != null) {
+          iwc.setIndexSort(new Sort(new SortField(finalIndexSortField, finalIndexSortType)));
         }
 
-        @Override
-        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          // TODO: add option for Lucene99ScalarQuantizedVectorsFormat instead of null below:
-          // System.out.println("KNN Codec: " + hnswThreadsPerMerge + " exec=" + hnswMergeExec);
-          return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                                               Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                               null,
-                                               hnswThreadsPerMerge,
-                                               hnswMergeExec);
+        if (mode == Mode.UPDATE) {
+          iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+        } else {
+          iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
         }
+
+        iwc.setMaxBufferedDocs(maxBufferedDocs);
+        iwc.setRAMBufferSizeMB(ramBufferSizeMB);
+
+        // So flushed segments do/don't use CFS:
+        iwc.setUseCompoundFile(useCFS);
+
+
+        iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
+        iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
+
+        // Keep all commit points:
+        if (doDeletions || doForceMerge) {
+          iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+        }
+        iwc.setCodec(codec);
+        return iwc;
       };
 
-    final AtomicBoolean indexingFailed = new AtomicBoolean();
+      final IndexWriterConfig iwc = getIWC.call();
 
-    final String finalIndexSortField = indexSortField;
-    final SortField.Type finalIndexSortType = indexSortType;
 
-    Callable<IndexWriterConfig> getIWC = () -> {
-      final IndexWriterConfig iwc = new IndexWriterConfig(a);
+      System.out.println("IW config=" + iwc);
 
-      if (finalIndexSortField != null) {
-        iwc.setIndexSort(new Sort(new SortField(finalIndexSortField, finalIndexSortType)));
-      }
+      IndexWriter w = new IndexWriter(dir, iwc);
 
-      if (mode == Mode.UPDATE) {
-        iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+      System.out.println("Index has " + w.getDocStats().maxDoc + " docs");
+
+      final TaxonomyWriter taxoWriter;
+      if (facetFields.isEmpty() == false) {
+        taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
+                                                 IndexWriterConfig.OpenMode.CREATE);
       } else {
-        iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+        taxoWriter = null;
       }
 
-      iwc.setMaxBufferedDocs(maxBufferedDocs);
-      iwc.setRAMBufferSizeMB(ramBufferSizeMB);
+      // Fixed seed so group field values are always consistent:
+      final Random random = new Random(17);
 
-      // So flushed segments do/don't use CFS:
-      iwc.setUseCompoundFile(useCFS);
+      LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
+                                                   taxoWriter, facetDimMethods, facetsConfig, addDVFields,
+                                                   vectorFile, vectorDimension, vectorEncoding);
 
+      float docsPerSecPerThread = -1f;
+      //float docsPerSecPerThread = 100f;
 
-      iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
-      iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
+      IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
+                                              randomDocIDMax);
 
-      // Keep all commit points:
-      if (doDeletions || doForceMerge) {
-        iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
-      }
-      iwc.setCodec(codec);
-      return iwc;
-    };
+      System.out.println("\nIndexer: start");
+      final long t0 = System.currentTimeMillis();
 
-    final IndexWriterConfig iwc = getIWC.call();
+      threads.start();
 
-
-    System.out.println("IW config=" + iwc);
-
-    IndexWriter w = new IndexWriter(dir, iwc);
-
-    System.out.println("Index has " + w.getDocStats().maxDoc + " docs");
-
-    final TaxonomyWriter taxoWriter;
-    if (facetFields.isEmpty() == false) {
-      taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
-                                               IndexWriterConfig.OpenMode.CREATE);
-    } else {
-      taxoWriter = null;
-    }
-
-    // Fixed seed so group field values are always consistent:
-    final Random random = new Random(17);
-
-    LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
-                                                 taxoWriter, facetDimMethods, facetsConfig, addDVFields,
-                                                 vectorFile, vectorDimension, vectorEncoding);
-
-    float docsPerSecPerThread = -1f;
-    //float docsPerSecPerThread = 100f;
-
-    IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
-                                            randomDocIDMax);
-
-    System.out.println("\nIndexer: start");
-    final long t0 = System.currentTimeMillis();
-
-    threads.start();
-
-    while (!threads.done() && indexingFailed.get() == false) {
-      Thread.sleep(100);
+      while (!threads.done() && indexingFailed.get() == false) {
+        Thread.sleep(100);
       
-      // Commits once per minute on average:
-      if (doRandomCommit && random.nextInt(600) == 17) {
-        System.out.println("Indexer: now commit");
-        long commitStartNS = System.nanoTime();
-        w.commit();
-        System.out.println(String.format(Locale.ROOT, "Indexer: commit took %.1f msec", (System.nanoTime()-commitStartNS)/1000000.));
-      }
-    }
-
-    threads.stop();
-
-    final long t1 = System.currentTimeMillis();
-    System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.getDocStats().maxDoc + " docs");
-    // if we update we can not tell how many docs
-    if (threads.failed.get()) {
-      throw new RuntimeException("exceptions during indexing");
-    }
-
-    boolean countShouldMatch;
-
-    if (docCountLimit == -1) {
-      countShouldMatch = false;
-    } else {
-      countShouldMatch = mode != Mode.UPDATE;
-    }
-
-    if (countShouldMatch) {
-      if (w.getDocStats().maxDoc != docCountLimit) {
-        throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.getDocStats().maxDoc) + ")");
-      }
-      if (w.getDocStats().maxDoc != countUniqueTerms(w, "id")) {
-        throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but countUniqueIds=" + countUniqueTerms(w, "id"));
-      }
-    }
-
-    final Map<String,String> commitData = new HashMap<String,String>();
-
-    if (waitForMerges) {
-      w.close();
-      IndexWriterConfig iwc2 = getIWC.call();
-      iwc2.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-      w = new IndexWriter(dir, iwc2);
-      long t2 = System.currentTimeMillis();
-      System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
-    }
-
-    if (waitForCommit) {
-      commitData.put("userData", "multi");
-      w.setLiveCommitData(commitData.entrySet());
-      long t2 = System.currentTimeMillis();
-      w.commit();
-      long t3 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
-    } else {
-      w.rollback();
-      w = null;
-    }
-
-    if (doForceMerge) {
-      long forceMergeStartMSec = System.currentTimeMillis();
-      w.forceMerge(1);
-      long forceMergeEndMSec = System.currentTimeMillis();
-      System.out.println("\nIndexer: force merge done (took " + (forceMergeEndMSec-forceMergeStartMSec) + " msec)");
-
-      commitData.put("userData", "single");
-      w.setLiveCommitData(commitData.entrySet());
-      w.commit();
-      final long t5 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit single done (took " + (t5-forceMergeEndMSec) + " msec)");
-    }
-
-    if (doDeletions) {
-      final long t5 = System.currentTimeMillis();
-      // Randomly delete 5% of the docs
-      final Set<Integer> deleted = new HashSet<Integer>();
-      IndexWriter.DocStats docStats = w.getDocStats();
-      final int maxDoc = docStats.maxDoc;
-      final int numDocs = docStats.numDocs;
-      final int toDeleteCount = (int) (maxDoc * 0.05);
-      System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
-      while(deleted.size() < toDeleteCount) {
-        final int id = random.nextInt(maxDoc);
-        if (!deleted.contains(id)) {
-          deleted.add(id);
-          w.deleteDocuments(new Term("id", LineFileDocs.intToID(id)));
+        // Commits once per minute on average:
+        if (doRandomCommit && random.nextInt(600) == 17) {
+          System.out.println("Indexer: now commit");
+          long commitStartNS = System.nanoTime();
+          w.commit();
+          System.out.println(String.format(Locale.ROOT, "Indexer: commit took %.1f msec", (System.nanoTime()-commitStartNS)/1000000.));
         }
       }
-      final long t6 = System.currentTimeMillis();
-      System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
 
-      commitData.put("userData", doForceMerge ? "delsingle" : "delmulti");
-      w.setLiveCommitData(commitData.entrySet());
-      w.commit();
-      final long t7 = System.currentTimeMillis();
-      System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
+      threads.stop();
 
-      if (doUpdate || numDocs != maxDoc - toDeleteCount) {
-        throw new RuntimeException("count mismatch: w.numDocs()=" + numDocs + " but expected " + (maxDoc - toDeleteCount));
+      final long t1 = System.currentTimeMillis();
+      System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.getDocStats().maxDoc + " docs");
+      // if we update we can not tell how many docs
+      if (threads.failed.get()) {
+        throw new RuntimeException("exceptions during indexing");
       }
-    }
 
-    if (taxoWriter != null) {
-      System.out.println("Taxonomy has " + taxoWriter.getSize() + " ords");
-      taxoWriter.commit();
-      taxoWriter.close();
-    }
+      boolean countShouldMatch;
 
-    final long tCloseStart = System.currentTimeMillis();
-    if (w != null) {
-      w.close();
-      w = null;
-    }
-    if (waitForCommit) {
-      System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
-      System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
-    }
+      if (docCountLimit == -1) {
+        countShouldMatch = false;
+      } else {
+        countShouldMatch = mode != Mode.UPDATE;
+      }
 
-    if (arrangement != 0) {
-      // rearrange after normal indexing routine is completed
-      System.out.println("\nIndexer: rearrange start");
-      long rearrangeStartMSec = System.currentTimeMillis();
-      Path tmpDirPath = Files.createTempDirectory("rearrange");
-      System.out.println("Created tmp dir for rearranging: " + tmpDirPath);
-      try (Directory tmpDir = od.open(tmpDirPath)) {
+      if (countShouldMatch) {
+        if (w.getDocStats().maxDoc != docCountLimit) {
+          throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but expected " + docCountLimit + " (off by " + (docCountLimit - w.getDocStats().maxDoc) + ")");
+        }
+        if (w.getDocStats().maxDoc != countUniqueTerms(w, "id")) {
+          throw new RuntimeException("w.maxDoc()=" + w.getDocStats().maxDoc + " but countUniqueIds=" + countUniqueTerms(w, "id"));
+        }
+      }
+
+      final Map<String,String> commitData = new HashMap<String,String>();
+
+      if (waitForMerges) {
+        w.close();
+        IndexWriterConfig iwc2 = getIWC.call();
+        iwc2.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+        w = new IndexWriter(dir, iwc2);
+        long t2 = System.currentTimeMillis();
+        System.out.println("\nIndexer: waitForMerges done (" + (t2-t1) + " msec)");
+      }
+
+      if (waitForCommit) {
+        commitData.put("userData", "multi");
+        w.setLiveCommitData(commitData.entrySet());
+        long t2 = System.currentTimeMillis();
+        w.commit();
+        long t3 = System.currentTimeMillis();
+        System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
+      } else {
+        w.rollback();
+        w = null;
+      }
+
+      if (doForceMerge) {
+        long forceMergeStartMSec = System.currentTimeMillis();
+        w.forceMerge(1);
+        long forceMergeEndMSec = System.currentTimeMillis();
+        System.out.println("\nIndexer: force merge done (took " + (forceMergeEndMSec-forceMergeStartMSec) + " msec)");
+
+        commitData.put("userData", "single");
+        w.setLiveCommitData(commitData.entrySet());
+        w.commit();
+        final long t5 = System.currentTimeMillis();
+        System.out.println("\nIndexer: commit single done (took " + (t5-forceMergeEndMSec) + " msec)");
+      }
+
+      if (doDeletions) {
+        final long t5 = System.currentTimeMillis();
+        // Randomly delete 5% of the docs
+        final Set<Integer> deleted = new HashSet<Integer>();
+        IndexWriter.DocStats docStats = w.getDocStats();
+        final int maxDoc = docStats.maxDoc;
+        final int numDocs = docStats.numDocs;
+        final int toDeleteCount = (int) (maxDoc * 0.05);
+        System.out.println("\nIndexer: delete " + toDeleteCount + " docs");
+        while(deleted.size() < toDeleteCount) {
+          final int id = random.nextInt(maxDoc);
+          if (!deleted.contains(id)) {
+            deleted.add(id);
+            w.deleteDocuments(new Term("id", LineFileDocs.intToID(id)));
+          }
+        }
+        final long t6 = System.currentTimeMillis();
+        System.out.println("\nIndexer: deletes done (took " + (t6-t5) + " msec)");
+
+        commitData.put("userData", doForceMerge ? "delsingle" : "delmulti");
+        w.setLiveCommitData(commitData.entrySet());
+        w.commit();
+        final long t7 = System.currentTimeMillis();
+        System.out.println("\nIndexer: commit delmulti done (took " + (t7-t6) + " msec)");
+
+        if (doUpdate || numDocs != maxDoc - toDeleteCount) {
+          throw new RuntimeException("count mismatch: w.numDocs()=" + numDocs + " but expected " + (maxDoc - toDeleteCount));
+        }
+      }
+
+      if (taxoWriter != null) {
+        System.out.println("Taxonomy has " + taxoWriter.getSize() + " ords");
+        taxoWriter.commit();
+        taxoWriter.close();
+      }
+
+      final long tCloseStart = System.currentTimeMillis();
+      if (w != null) {
+        w.close();
+        w = null;
+      }
+      if (waitForCommit) {
+        System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
+        System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
+      }
+
+      if (arrangement != 0) {
+        // rearrange after normal indexing routine is completed
+        System.out.println("\nIndexer: rearrange start");
+        long rearrangeStartMSec = System.currentTimeMillis();
+        Path tmpDirPath = Files.createTempDirectory("rearrange");
+        System.out.println("Created tmp dir for rearranging: " + tmpDirPath);
+        try (Directory tmpDir = od.open(tmpDirPath)) {
           BenchRearranger.rearrange(dir, tmpDir, getIWC.call() , arrangement);
           PerfUtils.clearDir(dir);
           PerfUtils.copyDir(tmpDir, dir);
-      } finally {
+        } finally {
           Files.walk(tmpDirPath)
-                  .sorted(Comparator.reverseOrder())
-                  .map(Path::toFile)
-                  .forEach(File::delete);
+            .sorted(Comparator.reverseOrder())
+            .map(Path::toFile)
+            .forEach(File::delete);
           tmpDirPath.toFile().delete();
           System.out.println("Deleted tmp dir: " + tmpDirPath);
+        }
+        long rearrangeEndMSec = System.currentTimeMillis();
+        //      IndexReader reader = DirectoryReader.open(dir);
+        //      for (LeafReaderContext context: reader.leaves()) {
+        //        System.out.println(context.reader().numDocs());
+        //      }
+        //      reader.close();
+        /* code above will print '1810' once, '1800' 4 times, '180' 5 times, '18' 5 times
+           on a 10000 doc, 555 arrangement */
+        System.out.println("\nIndexer: rearrange done (took " + (rearrangeEndMSec-rearrangeStartMSec) + " msec)");
       }
-      long rearrangeEndMSec = System.currentTimeMillis();
-//      IndexReader reader = DirectoryReader.open(dir);
-//      for (LeafReaderContext context: reader.leaves()) {
-//        System.out.println(context.reader().numDocs());
-//      }
-//      reader.close();
-      /* code above will print '1810' once, '1800' 4 times, '180' 5 times, '18' 5 times
-       on a 10000 doc, 555 arrangement */
-      System.out.println("\nIndexer: rearrange done (took " + (rearrangeEndMSec-rearrangeStartMSec) + " msec)");
-    }
 
-    dir.close();
-    final long tFinal = System.currentTimeMillis();
-    System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
+      dir.close();
+      final long tFinal = System.currentTimeMillis();
+      System.out.println("\nIndexer: net bytes indexed " + threads.getBytesIndexed());
 
-    final long indexingTime;
-    if (waitForCommit) {
-      indexingTime = tFinal - t0;
-      System.out.println("\nIndexer: finished (" + indexingTime + " msec)");
-    } else {
-      indexingTime = t1 - t0;
-      System.out.println("\nIndexer: finished (" + indexingTime + " msec), excluding commit");
+      final long indexingTime;
+      if (waitForCommit) {
+        indexingTime = tFinal - t0;
+        System.out.println("\nIndexer: finished (" + indexingTime + " msec)");
+      } else {
+        indexingTime = t1 - t0;
+        System.out.println("\nIndexer: finished (" + indexingTime + " msec), excluding commit");
+      }
+      System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./(indexingTime/3600000.)) + " GB/hour plain text");
+    } finally {
+      if (hnswMergeExec != null) {
+        hnswMergeExec.shutdownNow();
+      }
     }
-    System.out.println("\nIndexer: " + (threads.getBytesIndexed()/1024./1024./1024./(indexingTime/3600000.)) + " GB/hour plain text");
   }
 
   private static long countUniqueTerms(IndexWriter iw, String fld) throws IOException {

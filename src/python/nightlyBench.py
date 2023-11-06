@@ -336,8 +336,10 @@ def run():
         # parse git log to see if there were any commits requesting regold
         command = ['git', 'log', f'{lastLuceneRev}^..{luceneRev}']
         result = subprocess.run(command, check=True, capture_output=True)
-        if '## nightly-benchmarks-results-changed ##' in result.stdout.decode('utf-8'):
-            print(f'Saw commit with "## nightly-benchmarks-results-changed" comment from {" ".join(command)}; will regold results files')
+
+        regold_string = '// nightly-benchmarks-results-changed //'
+        if regold_string in result.stdout.decode('utf-8'):
+            print(f'Saw commit with "{regold_string}" comment from {" ".join(command)}; will regold results files')
             DO_RESET = True
         else:
             print(f'No commit message asking for regold of results files')

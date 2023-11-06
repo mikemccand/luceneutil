@@ -30,6 +30,7 @@ import tarfile
 import time
 import traceback
 import urllib.request
+import subprocess
 import runStoredFieldsBenchmark
 import runFacetsBenchmark
 
@@ -270,16 +271,16 @@ def run():
         BIG_INDEX_NUM_DOCS //= 100
 
     DO_RESET = '-reset' in sys.argv
+    if DO_RESET:
+        print('will regold results files (command line specified)')
+
+    # TODO: remove this mechanism?  best if we must commit a message to Lucene recording this instead?
     regold_marker_file = f'{constants.BENCH_BASE_DIR}/regold_next_run'
     if os.path.exists(regold_marker_file):
         DO_RESET = True
         os.remove(regold_marker_file)
-
-    if DO_RESET:
-        print('will reset results files!')
-    else:
-        print('will compare to last goot result files!')
-
+        print(f'saw regold marker file {regold_marker_file}; will regold results files')
+        
     validate_nightly_task_count(f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks', COUNTS_PER_CAT)
 
     # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
@@ -304,44 +305,48 @@ def run():
         os.makedirs(runLogDir)
     message('log dir %s' % runLogDir)
 
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+    javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
+    print('%s' % javaVersion)
+    print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
+    print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
+
     if not REAL:
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
         svnRev = '1102160'
         luceneUtilRev = '2270c7a8b3ac+ tip'
         print('SVN rev is %s' % svnRev)
         print('luceneutil rev is %s' % luceneUtilRev)
-    else:
-        os.chdir(constants.BENCH_BASE_DIR)
 
+        luceneRev = os.popen('git rev-parse HEAD').read().strip()
+        
+    else:
+        # nightly_strict.cmd has already git pull'd luceneutil & lucene
+        os.chdir(constants.BENCH_BASE_DIR)
         luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
+        print(f'luceneutil rev is {luceneUtilRev}')
 
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
-        # runCommand('%s cleanup' % constants.SVN_EXE)
-        runCommand('%s clean -xfd' % constants.GIT_EXE)
         luceneRev = os.popen('git rev-parse HEAD').read().strip()
-        if True:
-            iters = 30
-            for i in range(iters):
-                try:
-                    # runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-                    runCommand('%s checkout main; %s pull origin main > %s/update.log' % (
-                    constants.GIT_EXE, constants.GIT_EXE, runLogDir))
-                except RuntimeError:
-                    message('  retry...')
-                    time.sleep(60.0)
-                else:
-                    luceneRev = os.popen('git rev-parse HEAD').read().strip()
-                    # svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-                    print('LUCENE rev is %s' % luceneRev)
-                    break
-            else:
-                raise RuntimeError('failed to run git pull after %d tries' % iters)
+        print(f'LUCENE rev is {luceneRev}')
 
-        print('luceneutil rev is %s' % luceneUtilRev)
-        javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
-        print('%s' % javaVersion)
-        print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
-        print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
+        lastLuceneRev, lastLuceneUtilRev, lastLogFile = findLastSuccessfulGitHashes()
+        print(f'last successfull Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}')
+
+        # parse git log to see if there were any commits requesting regold
+        command = ['git', 'log', f'{lastLuceneRev}^..{luceneRev}']
+        result = subprocess.run(command, check=True, capture_output=True)
+        if '## nightly-benchmarks-results-changed ##' in result.stdout.decode('utf-8'):
+            print(f'Saw commit with "## nightly-benchmarks-results-changed" comment from {" ".join(command)}; will regold results files')
+            DO_RESET = True
+        else:
+            print(f'No commit message asking for regold of results files')
+
+        os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+        runCommand('%s clean -xfd' % constants.GIT_EXE)
+
+    if not DO_RESET:
+        print('will NOT regold results files but rather compare to last good result files')
 
     print('Java command-line: %s' % constants.JAVA_COMMAND)
     try:
@@ -584,8 +589,6 @@ def run():
         if os.path.exists(prevFName):
             resultsPrev.append(prevFName)
 
-    lastLuceneRev, lastLuceneUtilRev, lastLogFile = findLastSuccessfulGitHashes()
-
     output = []
     results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev,
                                                     resultsNow,
@@ -598,6 +601,9 @@ def run():
         w = f.write
         w('<html>\n')
         w('<h1>%s</h1>' % timeStamp2)
+
+        if DO_RESET:
+            w('<b>NOTE</b>: this run regolded the results gold files<br><br>')
 
         w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
         if lastLuceneRev != luceneRev:
@@ -786,7 +792,7 @@ def run():
         if False:
             runCommand('chmod -R a-w %s' % runLogDir)
 
-    message('done: total time %s' % (now() - start))
+    message(f'done: total time {now() - start}')
 
 
 def countGitHubPullRequests():

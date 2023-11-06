@@ -747,4 +747,7 @@ KNOWN_CHANGES = [
      'Add a specialized bulk scorer for regular conjunctions https://github.com/apache/lucene/pull/12719',
      'Add a specialized bulk scorer for regular conjunctions https://github.com/apache/lucene/pull/12719'),
 
+   ('2023-11-06',
+     'Removed patching for doc blocks https://github.com/apache/lucene/pull/12741',
+     'Removed patching for doc blocks https://github.com/apache/lucene/pull/12741'),
 ]

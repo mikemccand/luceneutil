@@ -403,9 +403,7 @@ def run():
                                            useCMS=True,
                                            vectorFile=constants.VECTORS_DOCS_FILE,
                                            vectorDimension=constants.VECTORS_DIMENSIONS,
-                                           vectorEncoding=constants.VECTORS_TYPE,
-                                           hnswThreadsPerMerge = constants.HNSW_THREADS_PER_MERGE,
-                                           hnswThreadPoolCount = constants.HNSW_THREAD_POOL_COUNT)
+                                           vectorEncoding=constants.VECTORS_TYPE)
                                            
 
     nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,

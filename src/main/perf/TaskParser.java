@@ -69,7 +69,7 @@ class TaskParser {
   private final Random random;
   private final boolean doStoredLoads;
   private final IndexState state;
-  private final VectorDictionary<?> vectorDictionary;
+  private final VectorDictionary vectorDictionary;
   private final String vectorField;
 
   public TaskParser(IndexState state,
@@ -77,7 +77,7 @@ class TaskParser {
                     String fieldName,
                     int topN,
                     Random random,
-                    VectorDictionary<?> vectorDictionary,
+                    VectorDictionary vectorDictionary,
                     boolean doStoredLoads) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
@@ -99,6 +99,7 @@ class TaskParser {
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
+  private final static Pattern countOnlyPattern = Pattern.compile("count\\((.*?)\\)");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
@@ -176,6 +177,7 @@ class TaskParser {
     SearchTask buildSearchTask(String input) throws ParseException {
       text = input;
       Query filter = parseFilter();
+      boolean isCountOnly = parseIsCountOnly();
       facets = parseFacets();
       List<String> drillDowns = parseDrillDowns();
       doStoredLoadsTask = TaskParser.this.doStoredLoads;
@@ -188,7 +190,7 @@ class TaskParser {
       Query query = buildQuery(taskType, text, msm, combinedFields);
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
-      return new SearchTask(category, query3, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
+      return new SearchTask(category, isCountOnly, query3, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
     }
 
     String[] parseTaskType(String line) {
@@ -250,6 +252,17 @@ class TaskParser {
         return new RandomQuery(filterPct);
       }
       return null;
+    }
+
+    boolean parseIsCountOnly() {
+      // Check for count: "count(...)"
+      final Matcher m = countOnlyPattern.matcher(text);
+      if (m.find()) {
+        // Splice out the count string:
+        text = (text.substring(0, m.start(0)) + m.group(1) + text.substring(m.end(0), text.length())).trim();
+        return true;
+      }
+      return false;
     }
 
     int parseMinShouldMatch() {

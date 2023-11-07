@@ -681,6 +681,66 @@ KNOWN_CHANGES = [
 
     ('2023-04-11',
      'Upgrade Java 19.0.2+7 to 20+36-2344',
-     'Upgrade Java 19.0.2+7 to 20+36-2344',)
+     'Upgrade Java 19.0.2+7 to 20+36-2344',),
+
+    ('2023-05-12',
+     'Allocate one NeighborQueue per search for results #12255',
+     'Allocate one NeighborQueue per search for results #12255'),
+
+    ('2023-05-20',
+     'Revert allocate one NeighborQueue per search for results #12255',
+     'Revert allocate one NeighborQueue per search for results #12255'),
+
+    ('2023-05-29',
+     'Use the incubating Panama API to accelerate KNN indexing and searching #12311',
+     'Use the incubating Panama API to accelerate KNN indexing and searching #12311',),
+
+    ('2023-06-22',
+     'Implement top-level disjunctions as a bulk scorer',
+     'Implement top-level disjunctions as a bulk scorer',),
+
+    ('2023-07-20',
+     'Add BS1 optimization to MaxScoreBulkScorer; also increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33',
+     'Add BS1 optimization to MaxScoreBulkScorer; also increase vectors dimensions to 768: https://github.com/mikemccand/luceneutil/commit/ce6901ca05f3b944144e3a1e47e1efcc13a30e33'),
+
+    ('2023-07-28',
+     'Initialize facet counting data structures lazily (https://github.com/apache/lucene/commit/179b45bc23e4496278b7058811577b66ef3af77d); but this also incorrectly shifted which facet tasks are executed, making results incomparable: https://github.com/mikemccand/luceneutil/issues/226',
+     'Initialize facet counting data structures lazily (https://github.com/apache/lucene/commit/179b45bc23e4496278b7058811577b66ef3af77d); but this also incorrectly shifted which facet tasks are executed, making results incomparable: https://github.com/mikemccand/luceneutil/issues/226'),
+
+    ('2023-08-03 06:31:03',
+     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226, reduce overhead of BooleanScorer in non-scoring mode: https://github.com/apache/lucene/pull/12475, and reduce overhead of intersecting the scorer with the collector\'s competitive iterator: https://github.com/apache/lucene/pull/12481',
+     'Fix non-determinism in nightly benchmarks for vector and taxo facets tasks: https://github.com/mikemccand/luceneutil/issues/226, reduce overhead of BooleanScorer in non-scoring mode: https://github.com/apache/lucene/pull/12475, and reduce overhead of intersecting the scorer with the collector\'s competitive iterator: https://github.com/apache/lucene/pull/12481'),
+
+    ('2023-08-11',
+     'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415',
+     'Optimized counts on disjunctive queries https://github.com/apache/lucene/pull/12415'),
+
+   ('2023-09-15',
+     'No longer propagate min competitive scores through the query tree https://github.com/apache/lucene/pull/12490',
+     'No longer propagate min competitive scores through the query tree https://github.com/apache/lucene/pull/12490'),
+
+    ('2023-09-28',
+     'Specialized bulk scorer for conjunctions https://github.com/apache/lucene/pull/12382',
+     'Specialized bulk scorer for conjunctions https://github.com/apache/lucene/pull/12382'),
+
+    ('2023-10-04',
+     'Reduced FST block size for BlockTreeTermsWriter https://github.com/apache/lucene/pull/12604',
+     'Reduced FST block size for BlockTreeTermsWriter https://github.com/apache/lucene/pull/12604'),
+
+   ('2023-10-10',
+     'Better output prefix sharing in terms index https://github.com/apache/lucene/pull/12631',
+     'Better output prefix sharing in terms index https://github.com/apache/lucene/pull/12631'),
+
+    ('2023-10-13',
+     'Lazy decoding of frequencies in BlockImpacstDocsEnum https://github.com/apache/lucene/pull/12668',
+     'Lazy decoding of frequencies in BlockImpacstDocsEnum https://github.com/apache/lucene/pull/12668'),
+
+   ('2023-10-17',
+     'Specialize BlockImpactsDocsEnum#nextDoc() https://github.com/apache/lucene/pull/12670',
+     'Specialize BlockImpactsDocsEnum#nextDoc() https://github.com/apache/lucene/pull/12670'),
+
+   ('2023-10-28',
+     'Intersect clauses in disjunctions when block max scores require multiple clauses to match https://github.com/apache/lucene/pull/12589',
+     'Intersect clauses in disjunctions when block max scores require multiple clauses to match https://github.com/apache/lucene/pull/12589'),
 
 ]

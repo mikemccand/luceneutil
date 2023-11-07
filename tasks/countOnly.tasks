@@ -1,0 +1,18 @@
+HighTermCount: count(the) # freq=893062
+MedTermCount: count(much) # freq=40379
+LowTermCount: count(turned) # freq=8360
+Prefix3Count: count(sta*)
+IntNRQCount: count(nrq//timesecnum) 6754 51441
+AndHighHighCount: count(+have +had) # freq=167696 freq=147287 1.1
+AndHighMedCount: count(+had +larger) # freq=147287 freq=12467
+AndHighLowCount: count(+such +clyde) # freq=111526 freq=816
+OrHighHighCount: count(a states) # freq=729467 freq=111614
+OrHighMedCount: count(than president) # freq=93211 freq=31710
+OrHighLowCount: count(all mckinnon) # freq=131974 freq=88
+WildcardCount: count(th*e)
+HighSpanNearCount: count(near//on the) # freq=166120|420928|893062
+HighIntervalsOrderedCount: count(ordered//on the) # freq=166120|420928|893062
+HighPhraseCount: count("by the") # freq=141100|454649|893062
+HighSloppyPhraseCount: count("by the"~4) # freq=141100|454649|893062
+Fuzzy2Count: count(25000~2)
+Fuzzy1Count: count(theoi~1)

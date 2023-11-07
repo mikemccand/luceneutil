@@ -26,28 +26,29 @@ import java.util.Set;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.index.TermState;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.util.BytesRef;
 
-final class PKLookupTask extends Task {
+final class PKLookupWithTermStateTask extends Task {
   private final BytesRef[] ids;
   private final int[] answers;
   private final int ord;
 
   @Override
   public String getCategory() {
-    return "PKLookup";
+    return "PKLookupWithTermState";
   }
 
-  private PKLookupTask(PKLookupTask other) {
+  private PKLookupWithTermStateTask(PKLookupWithTermStateTask other) {
     ids = other.ids;
     ord = other.ord;
     answers = new int[ids.length];
     Arrays.fill(answers, -1);
   }
 
-  public PKLookupTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
+  public PKLookupWithTermStateTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
     this.ord = ord;
     ids = new BytesRef[count];
     answers = new int[count];
@@ -64,7 +65,7 @@ final class PKLookupTask extends Task {
 
   @Override
   public Task clone() {
-    return new PKLookupTask(this);
+    return new PKLookupWithTermStateTask(this);
   }
 
   @Override
@@ -73,41 +74,56 @@ final class PKLookupTask extends Task {
     final IndexSearcher searcher = state.mgr.acquire();
     try {
       final List<LeafReaderContext> subReaders = searcher.getIndexReader().leaves();
-      IndexState.PKLookupState[] pkStates = new IndexState.PKLookupState[subReaders.size()];
+      IndexState.PKLookupWithTermStateState[] pkStates = new IndexState.PKLookupWithTermStateState[subReaders.size()];
       for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
         LeafReaderContext ctx = subReaders.get(subIDX);
-        ThreadLocal<IndexState.PKLookupState> states = state.pkLookupStates.get(ctx.reader().getCoreCacheHelper().getKey());
+        ThreadLocal<IndexState.PKLookupWithTermStateState> states = state.pkLookupWithTermStateStates.get(ctx.reader().getCoreCacheHelper().getKey());
         // NPE here means you are trying to use this task on a newly refreshed NRT reader!
-        IndexState.PKLookupState pkState = states.get();
+        IndexState.PKLookupWithTermStateState pkState = states.get();
         if (pkState == null) {
-          pkState = new IndexState.PKLookupState(ctx.reader(), "id");
+          pkState = new IndexState.PKLookupWithTermStateState(ctx.reader(), "id");
           states.set(pkState);
         }
         pkStates[subIDX] = pkState;
       }
 
+      // first pass: seek by term and record TermState when a segment has the term
       for(int idx=0;idx<ids.length;idx++) {
-        int base = 0;
         final BytesRef id = ids[idx];
         for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
-          IndexState.PKLookupState pkState = pkStates[subIDX];
+          IndexState.PKLookupWithTermStateState pkState = pkStates[subIDX];
           //System.out.println("\nTASK: sub=" + sub);
           //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
           if (pkState.termsEnum.seekExact(id)) { 
             //System.out.println("  found!");
+            pkState.termStates.put(id, pkState.termsEnum.termState());
+          }
+        }
+      }
+
+      // second pass: actually resolve each term to docid
+      for(int idx=0;idx<ids.length;idx++) {
+        final BytesRef id = ids[idx];
+        int base = 0;
+        for(int subIDX=0;subIDX<subReaders.size();subIDX++) {
+          IndexState.PKLookupWithTermStateState pkState = pkStates[subIDX];
+          TermState termState = pkState.termStates.get(id);
+          if (termState != null) {
+            // this segment has this id
+            pkState.termsEnum.seekExact(id, termState);
             PostingsEnum docs = pkState.termsEnum.postings(pkState.postingsEnum, 0);
             assert docs != null;
             int docID = DocIdSetIterator.NO_MORE_DOCS;
             for (int d = docs.nextDoc(); d != DocIdSetIterator.NO_MORE_DOCS; d = docs.nextDoc()) {
               if (pkState.liveDocs == null || pkState.liveDocs.get(d)) {
-                docID = d;
                 // stop iterating for additional docs since we know this is a unique id
+                docID = d;
                 break;
               }
             }
             if (docID != DocIdSetIterator.NO_MORE_DOCS) {
               answers[idx] = base + docID;
-              // stop checking further segments since we know this is a unique id
+              // break out of subIDX loop since we know this is a unique id, no other segment will have it
               break;
             }
           }
@@ -121,7 +137,7 @@ final class PKLookupTask extends Task {
 
   @Override
   public String toString() {
-    return "PK" + ord + "[" + ids.length + "]";
+    return "PKTS" + ord + "[" + ids.length + "]";
   }
 
   @Override
@@ -136,7 +152,7 @@ final class PKLookupTask extends Task {
     for(int idx=0;idx<ids.length;idx++) {
       if (answers[idx] == -1) {
         if (!state.hasDeletions) {
-          throw new RuntimeException("PKLookup: id=" + ids[idx].utf8ToString() + " failed to find a matching document");
+          throw new RuntimeException("PKLookupWithTermState: id=" + LineFileDocs.idToInt(ids[idx].utf8ToString()) + " failed to find a matching document");
         } else {
           // TODO: we should verify that these are in fact
           // the deleted docs...

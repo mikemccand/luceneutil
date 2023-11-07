@@ -39,7 +39,6 @@ import constants
 import competition
 import stats
 import blunders
-import localconstants
 from notation import KNOWN_CHANGES
 
 """
@@ -77,7 +76,11 @@ DIR_IMPL = 'MMapDirectory'
 
 INDEXING_RAM_BUFFER_MB = 2048
 
+# "randomly" pick 5 queries for each category, but see validate_nightly_task_count where we
+# enforce no more than this number of tasks in each category so that adding a new category
+# of tasks will not cause other categories to pick different tasks
 COUNTS_PER_CAT = 5
+
 TASK_REPEAT_COUNT = 50
 
 # MED_WIKI_BYTES_PER_DOC = 950.21921304868431
@@ -228,6 +231,31 @@ def runNRTTest(r, indexPath, runLogDir):
 
     return mean, stdDev
 
+def validate_nightly_task_count(tasks_file, max_count):
+    '''
+    we don't want tasks to randomly shift in the nightly benchy when we add a new category
+    of tasks, as we did/saw for count(*) tasks. so we enforce here that there are NO MORE
+    than N tasks in each category in the nightly tasks file.
+    '''
+
+    re_cat_and_task = re.compile('^([^:]+): (.*?)(?:#.*)?$')
+    
+    by_cat = {}
+    with open(tasks_file, 'r', encoding='utf-8') as f:
+        for line in f.readlines():
+            line = line.strip()
+            if len(line) >  0 and line[0] != '#':
+                # not a blank line nor comment line.  it's real!
+                m = re_cat_and_task.match(line)
+                cat, task = m.groups()
+                if cat not in by_cat:
+                    by_cat[cat] = set()
+                by_cat[cat].add(task)
+
+    for cat, tasks in by_cat.items():
+        if len(tasks) > max_count:
+            tasks_str = '\n  '.join(tasks)
+            raise RuntimeError(f'nightly tasks file {tasks_file} must have at most {max_count} tasks in each category, but saw {len(tasks)}:\n  {tasks_str}')
 
 def run():
     openPRCount, closedPRCount = countGitHubPullRequests()
@@ -247,6 +275,8 @@ def run():
         print('will reset results files!')
     else:
         print('will compare to last goot result files!')
+
+    validate_nightly_task_count(f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks', COUNTS_PER_CAT)
 
     # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
     for fileName in glob.glob(f'{constants.LOGS_DIR}/bench-search-*.jfr'):
@@ -362,9 +392,9 @@ def run():
                                            mergePolicy='TieredMergePolicy',
                                            maxConcurrentMerges=12,
                                            useCMS=True,
-                                           vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                                           vectorDimension=100,
-                                           vectorEncoding='FLOAT32')
+                                           vectorFile=constants.VECTORS_DOCS_FILE,
+                                           vectorDimension=constants.VECTORS_DIMENSIONS,
+                                           vectorEncoding=constants.VECTORS_TYPE)
 
     nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                    analyzer='StandardAnalyzerNoStopWords',
@@ -422,13 +452,13 @@ def run():
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')),
                           addDVFields=True,
-                          vectorFile=constants.GLOVE_VECTOR_DOCS_FILE,
-                          vectorDimension=100,
-                          vectorEncoding='FLOAT32')
+                          vectorFile=constants.VECTORS_DOCS_FILE,
+                          vectorDimension=constants.VECTORS_DIMENSIONS,
+                          vectorEncoding=constants.VECTORS_TYPE)
 
     c = comp.competitor(id, NIGHTLY_DIR,
                         index=index,
-                        vectorDict=constants.GLOVE_WORD_VECTORS_FILE,
+                        vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
                         directory=DIR_IMPL,
                         commitPoint='multi')
 
@@ -445,9 +475,9 @@ def run():
         else:
             # do all docs in the file
             doc_limit = -1
-        runStoredFieldsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}',
-                                               localconstants.GEONAMES_LINE_FILE_DOCS,
-                                               f'{localconstants.INDEX_DIR_BASE}/geonames-stored-fields-nightly',
+        runStoredFieldsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
+                                               constants.GEONAMES_LINE_FILE_DOCS,
+                                               f'{constants.INDEX_DIR_BASE}/geonames-stored-fields-nightly',
                                                runLogDir, doc_limit)
         message('done run stored fields benchmark')
     finally:
@@ -462,9 +492,9 @@ def run():
         else:
             doc_limit = -1
             num_iters = 30
-        runFacetsBenchmark.run_benchmark(f'{localconstants.BASE_DIR}/{NIGHTLY_DIR}',
-                                         f'{localconstants.INDEX_DIR_BASE}/nad-facets-nightly',
-                                         f'{localconstants.BASE_DIR}/data', runLogDir, doc_limit, num_iters)
+        runFacetsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
+                                         f'{constants.INDEX_DIR_BASE}/nad-facets-nightly',
+                                         f'{constants.BASE_DIR}/data', runLogDir, doc_limit, num_iters)
         message('done run NAD facets benchmark')
     finally:
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
@@ -524,7 +554,7 @@ def run():
 
     coldRun = False
     comp = c
-    comp.tasksFile = '%s/tasks/wikinightly.tasks' % constants.BENCH_BASE_DIR
+    comp.tasksFile = f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks'
     comp.printHeap = True
     if REAL:
         resultsNow = []
@@ -779,7 +809,7 @@ def findLastSuccessfulGitHashes():
     nightlyBenchResult = re.compile(r'\d\d\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.html')
 
     for logFile in logFiles:
-        if nightlyBenchResult.match(logFile) is not None:
+        if nightlyBenchResult.match(logFile) is not None and os.path.exists(f'{constants.NIGHTLY_LOG_DIR}/{logFile[:-5]}/results.pk'):
 
             luceneGitHash = None
             luceneUtilGitHash = None
@@ -937,6 +967,9 @@ def makeGraphs():
                 continue
             if date in ('05/16/2014'):
                 # Bug in luceneutil made it look like 0 qps on all queries
+                continue
+            if date in ('05/28/2023'):
+                # Skip partially successfull first run with Panama -- the next run (05/29) was complete
                 continue
 
             gcIndexTimes = getIndexGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
@@ -1291,6 +1324,14 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Fuzzy1', 'Edit distance 1')
     writeOneLine(w, done, 'Fuzzy2', 'Edit distance 2')
 
+    w('<br><br><b>Count:</b>')
+    writeOneLine(w, done, 'CountTerm', 'Count(Term)')
+    writeOneLine(w, done, 'CountPhrase', 'Count(Phrase)')
+    writeOneLine(w, done, 'CountAndHighHigh', 'Count(+high-freq +high-freq)')
+    writeOneLine(w, done, 'CountAndHighMed', 'Count(+high-freq +med-freq)')
+    writeOneLine(w, done, 'CountOrHighHigh', 'Count(high-freq high-freq)')
+    writeOneLine(w, done, 'CountOrHighMed', 'Count(high-freq med-freq)')
+
     w('<br><br><b>Other queries:</b>')
     writeOneLine(w, done, 'Term', 'TermQuery')
     writeOneLine(w, done, 'Respell', 'Respell (DirectSpellChecker)')
@@ -1298,6 +1339,7 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Wildcard', 'WildcardQuery')
     writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')
     writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')
+    writeOneLine(w, done, 'VectorSearch', 'VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)')
 
     w('<br><br><b>Faceting:</b>')
     writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')

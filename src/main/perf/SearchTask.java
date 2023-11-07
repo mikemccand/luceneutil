@@ -78,8 +78,10 @@ final class SearchTask extends Task {
   private final boolean doHilite;
   private final boolean doStoredLoads;
   private final boolean doDrillSideways;
+  private final boolean isCountOnly;
 
   private TopDocs hits;
+  private int count = -1;
   private TopGroups<?> groupsResultBlock;
   private TopGroups<BytesRef> groupsResultTerms;
   private FieldQuery fieldQuery;
@@ -90,10 +92,29 @@ final class SearchTask extends Task {
   private List<String> facetRequests;
   private String vectorField;
 
-  public SearchTask(String category, Query q, Sort s, String group, int topN,
+  public SearchTask(String category, boolean isCountOnly, Query q, Sort s, String group, int topN,
                     boolean doHilite, boolean doStoredLoads, List<String> facetRequests,
                     String vectorField, boolean doDrillSideways) {
     this.category = category;
+    this.isCountOnly = isCountOnly;
+    if (isCountOnly) {
+      // some attempt at catching mistakes!
+      if (s != null) {
+        throw new IllegalArgumentException("sorting with count-only queries makes no sense?");
+      }
+      if (facetRequests != null && facetRequests.isEmpty() == false) {
+        throw new IllegalArgumentException("cannot do faceting and count-only at once");
+      }
+      if (doHilite) {
+        throw new IllegalArgumentException("cannot do hiliting and count-only at once");
+      }
+      if (doStoredLoads) {
+        throw new IllegalArgumentException("cannot load stored fields and do count-only at once");
+      }
+      if (group != null) {
+        throw new IllegalArgumentException("cannot do grouping and count-only at once");
+      }
+    }
     this.q = q;
     this.s = s;
     if (group != null && group.startsWith("groupblock")) {
@@ -116,9 +137,9 @@ final class SearchTask extends Task {
   @Override
   public Task clone() {
     if (singlePassGroup) {
-      return new SearchTask(category, q, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
+      return new SearchTask(category, isCountOnly, q, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
     } else {
-      return new SearchTask(category, q, s, group, topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
+      return new SearchTask(category, isCountOnly, q, s, group, topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
     }
   }
 
@@ -187,7 +208,7 @@ final class SearchTask extends Task {
             }
           }
         }
-      } else if (!facetRequests.isEmpty()) {
+      } else if (facetRequests.isEmpty() == false) {
         if (state.facetsConfig == null) {
           throw new IllegalStateException("Missing facet config, cannot run facet requests");
         }
@@ -261,11 +282,17 @@ final class SearchTask extends Task {
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         }
       } else if (s == null) {
-        hits = searcher.search(q, topN);
+        // no sort
+        if (isCountOnly) {
+          countOnlyCount = searcher.count(q);
+        } else {
+          hits = searcher.search(q, topN);
+        }
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }
       } else {
+        // yes sort
         hits = searcher.search(q, topN, s);
         if (doHilite) {
           hilite(hits, state, searcher, q);
@@ -402,12 +429,12 @@ final class SearchTask extends Task {
   public boolean equals(Object other) {
     if (other instanceof SearchTask) {
       final SearchTask otherSearchTask = (SearchTask) other;
-      if (!q.equals(otherSearchTask.q)) {
+      if (q.equals(otherSearchTask.q) == false) {
         return false;
       }
       if (s != null) {
         if (otherSearchTask.s != null) {
-          if (!s.equals(otherSearchTask.s)) {
+          if (s.equals(otherSearchTask.s) == false) {
             return false;
           }
         } else {
@@ -415,6 +442,9 @@ final class SearchTask extends Task {
             return false;
           }
         }
+      }
+      if (isCountOnly != otherSearchTask.isCountOnly) {
+        return false;
       }
       if (topN != otherSearchTask.topN) {
         return false;
@@ -452,6 +482,9 @@ final class SearchTask extends Task {
     if (facetRequests != null) {
       hashCode ^= facetRequests.hashCode();
     }
+    if (isCountOnly) {
+      hashCode ^= 59236321;
+    }
     hashCode *= topN;
     return hashCode;
   }
@@ -485,6 +518,11 @@ final class SearchTask extends Task {
           }
         }
       }
+    } else if (hits == null) {
+      if (countOnlyCount == -1) {
+        throw new AssertionError("either hits should be non-null or countOnlyCount should not be -1");
+      }
+      sum = countOnlyCount;
     } else {
       sum = hits.totalHits.value;
       for(ScoreDoc hit : hits.scoreDocs) {
@@ -509,11 +547,53 @@ final class SearchTask extends Task {
 
   @Override
   public String toString() {
-    return "cat=" + category + " q=" + q + " s=" + s + " group=" + (group == null ?  null : group.replace("\n", "\\n")) +
-      (group == null ? " hits=" + (hits==null ? "null" : hits.totalHits.value + (hits.totalHits.relation == TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO ? "+" : "")) :
-       " groups=" + (singlePassGroup ?
-                     (groupsResultBlock.groups.length + " hits=" + groupsResultBlock.totalHitCount + " groupTotHits=" + groupsResultBlock.totalGroupedHitCount + " totGroupCount=" + groupsResultBlock.totalGroupCount) :
-                     (groupsResultTerms.groups.length + " hits=" + groupsResultTerms.totalHitCount + " groupTotHits=" + groupsResultTerms.totalGroupedHitCount + " totGroupCount=" + groupsResultTerms.totalGroupCount))) + " facets=" + facetRequests;
+    StringBuilder b = new StringBuilder();
+    b.append("cat=");
+    b.append(category);
+    b.append(" q=");
+    b.append(q);
+    if (countOnlyCount != -1) {
+      b.append(" countOnlyCount=" + countOnlyCount);
+    } else {
+      b.append(" s=");
+      b.append(s);
+      b.append(" group=");
+      if (group == null) {
+        b.append("null");
+        b.append(" hits=");
+        if (hits == null) {
+          b.append("null");
+        } else {
+          b.append(hits.totalHits.value);
+          if (hits.totalHits.relation == TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO) {
+            b.append('+');
+          }
+        }
+      } else {
+        b.append(group.replace("\n", "\\n"));
+        b.append(" groups=");
+        if (singlePassGroup) {
+          b.append(groupsResultBlock.groups.length);
+          b.append(" hits=");
+          b.append(groupsResultBlock.totalHitCount);
+          b.append(" groupTotHits=");
+          b.append(groupsResultBlock.totalGroupedHitCount);
+          b.append(" totGroupCount=");
+          b.append(groupsResultBlock.totalGroupCount);
+        } else {
+          b.append(groupsResultTerms.groups.length);
+          b.append(" hits=");
+          b.append(groupsResultTerms.totalHitCount);
+          b.append(" groupTotHits=");
+          b.append(groupsResultTerms.totalGroupedHitCount);
+          b.append(" totGroupCount=");
+          b.append(groupsResultTerms.totalGroupCount);
+        }
+      }
+      b.append(" facets=" + facetRequests);
+    }
+
+    return b.toString();
   }
 
   @Override

@@ -15,16 +15,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import competition
-import sys
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
 # Baseline here is ../lucene_baseline versus ../lucene_candidate
 if __name__ == '__main__':
-  sourceData = competition.sourceData()
+  parser = argparse.ArgumentParser(prog='Local Benchmark Run',
+                                   description='Run a local benchmark on provided source dataset.')
+  parser.add_argument('-s', '-source', '--source',
+                      help='Data source to run the benchmark on.')
+  parser.add_argument('-concurrentSearches', '--concurrentSearches', action='store_true',
+                      help='Run concurrent searches')
+  parser.add_argument('-b', '--baseline', default='lucene_baseline',
+                      help='Path to lucene repo to be used for baseline')
+  parser.add_argument('-c', '--candidate', default='lucene_candidate',
+                      help='Path to lucene repo to be used for candidate')
+  parser.add_argument('-r', '--reindex', action='store_true',
+                      help='Reindex data for candidate run')
+  args = parser.parse_args()
+  print('Running benchmarks with the following args: %s' % args)
+
+  sourceData = competition.sourceData(args.source)
   comp =  competition.Competition()
 
-  index = comp.newIndex('lucene_baseline', sourceData,
+  index = comp.newIndex(args.baseline, sourceData,
                         addDVFields = True,
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
@@ -35,23 +50,29 @@ if __name__ == '__main__':
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')))
 
-  #Warning -- Do not break the order of arguments
-  #TODO -- Fix the following by using argparser
-  if len(sys.argv) > 3 and sys.argv[3] == '-concurrentSearches':
-    concurrentSearches = True
-  else:
-    concurrentSearches = False
-
   # create a competitor named baseline with sources in the ../trunk folder
-  comp.competitor('baseline', 'lucene_baseline',
-                  index = index, concurrentSearches = concurrentSearches)
+  comp.competitor('baseline', args.baseline,
+                  index = index, concurrentSearches = args.concurrentSearches)
 
-  # use the same index here
-  # create a competitor named my_modified_version with sources in the ../patch folder
-  # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
+  # use the same index as baseline unless --reindex was passed.
+  # create a competitor named my_modified_version (or provided candidate name) with sources in the ../patch folder
+  # if --reindex flag is not used, luceneutil will automatically use the index from the base competitor for searching
   # while the codec that is used for running this competitor is taken from this competitor.
-  comp.competitor('my_modified_version', 'lucene_candidate',
-                  index = index, concurrentSearches = concurrentSearches)
+  candidate_index = index
+  if args.reindex:
+    candidate_index = comp.newIndex(args.candidate, sourceData,
+                        addDVFields = True,
+                        extraNamePart = 'candidate',
+                        facets = (('taxonomy:Date', 'Date'),
+                                  ('taxonomy:Month', 'Month'),
+                                  ('taxonomy:DayOfYear', 'DayOfYear'),
+                                  ('sortedset:Date', 'Date'),
+                                  ('sortedset:Month', 'Month'),
+                                  ('sortedset:DayOfYear', 'DayOfYear'),
+                                  ('taxonomy:RandomLabel', 'RandomLabel'),
+                                  ('sortedset:RandomLabel', 'RandomLabel')))
+  comp.competitor('my_modified_version', args.candidate,
+                  index = candidate_index, concurrentSearches = args.concurrentSearches)
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("baseline_vs_patch")

@@ -32,7 +32,7 @@ public class TaskParserFactory {
     private final Analyzer analyzer;
     private final int topN;
     private final Random random;
-    private final VectorDictionary<?> vectorDictionary;
+    private final VectorDictionary vectorDictionary;
     private final boolean doStoredLoads;
 
     public TaskParserFactory(IndexState state,
@@ -41,7 +41,7 @@ public class TaskParserFactory {
                              String fieldForQueryParser,
                              int topN,
                              Random random,
-                             VectorDictionary<?> vectorDictionary,
+                             VectorDictionary vectorDictionary,
                              boolean doStoredLoads) {
         this.indexState = state;
         this.field = field;

@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import os
 import sys
 try:
@@ -134,9 +135,11 @@ class Downloader:
   
 
 if __name__ == '__main__':
-  if '-help' in sys.argv or '--help' in sys.argv:
-    print(USAGE)
-  else:
-    download = '-download' in sys.argv
-    runSetup(download)
+  parser = argparse.ArgumentParser(prog='luceneutil setup',
+                                   description='Benchmarking setup for lucene')
+  parser.add_argument('-d', '-download', '--download', action='store_true',
+                      help='Download datasets to run benchmarks. A 6 GB compressed Wikipedia line doc file, '
+                           'and a 13 GB vectors file is downloaded from Apache mirrors')
+  args = parser.parse_args()
+  runSetup(args.download)
 

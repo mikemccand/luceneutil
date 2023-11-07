@@ -1,207 +1,265 @@
+#
+# NOTE: do not put any more than 5 unique queries under each task!  See https://github.com/mikemccand/luceneutil/issues/226
+#
+
 AndHighHigh: +be +up # freq=2115632 freq=824628
 AndHighHigh: +cite +had # freq=1367577 freq=1223103
 AndHighHigh: +is +he # freq=4214104 freq=1663980
 AndHighHigh: +no +4 # freq=1060681 freq=944177
 AndHighHigh: +title +see # freq=2077102 freq=1100862
+
 AndHighMed: +2010 +16 # freq=933686 freq=531050
 AndHighMed: +5 +power # freq=849829 freq=257919
 AndHighMed: +only +particularly # freq=895806 freq=100045
 AndHighMed: +united +1983 # freq=1185528 freq=150075
 AndHighMed: +who +ed # freq=1201585 freq=127497
+
 Fuzzy1: changer~1
 Fuzzy1: danes~1
 Fuzzy1: maher~1
 Fuzzy1: manic~1
 Fuzzy1: provo~1
+
 Fuzzy2: bates~2
 Fuzzy2: fined~2
 Fuzzy2: insta~2
 Fuzzy2: sings~2
 Fuzzy2: titel~2
+
 IntNRQ: nrq//timesecnum 10044 66714
 IntNRQ: nrq//timesecnum 1069 86092
 IntNRQ: nrq//timesecnum 150 34646
 IntNRQ: nrq//timesecnum 3110 51452
 IntNRQ: nrq//timesecnum 3773 78558
+
 OrHighHigh: are last # freq=1921211 freq=830278
 OrHighHigh: at united # freq=2834104 freq=1185528
 OrHighHigh: but year # freq=1484398 freq=1098425
 OrHighHigh: name its # freq=2577591 freq=1160703
 OrHighHigh: to but # freq=6105155 freq=1484398
+
 OrHighMed: at mostly # freq=2834104 freq=89401
 OrHighMed: his interview # freq=1771920 freq=94736
 OrHighMed: http 9 # freq=3289683 freq=541405
 OrHighMed: they hard # freq=1031516 freq=92045
 OrHighMed: title bay # freq=2077102 freq=117167
+
 Phrase: "it was" # freq=597450
 Phrase: "red please" # freq=43948
 Phrase: "the average" # freq=55409
 Phrase: "the us" # freq=68781
 Phrase: "when a" # freq=45309
+
 Prefix3: any*
 Prefix3: cul*
 Prefix3: his*
 Prefix3: mak*
 Prefix3: man*
+
 Respell: biker
 Respell: bowed
 Respell: dries
 Respell: montes
 Respell: stove
+
 SloppyPhrase: "after his"~4 # freq=50193
 SloppyPhrase: "in an"~4 # freq=181581
 SloppyPhrase: "nomination when"~4 # freq=55609
 SloppyPhrase: "one of"~4 # freq=587897
 SloppyPhrase: "was also"~4 # freq=163302
+
 SpanNear: near//see the # freq=52117
-IntervalsOrdered: ordered//see the # freq=52117
 SpanNear: near//states american # freq=52681
-IntervalsOrdered: ordered//states american # freq=52681
 SpanNear: near//the modern # freq=37712
-IntervalsOrdered: ordered//the modern # freq=37712
 SpanNear: near//when it # freq=63385
-IntervalsOrdered: ordered//when it # freq=63385
 SpanNear: near//your nomination # freq=55938
+
+IntervalsOrdered: ordered//see the # freq=52117
+IntervalsOrdered: ordered//states american # freq=52681
+IntervalsOrdered: ordered//the modern # freq=37712
+IntervalsOrdered: ordered//when it # freq=63385
 IntervalsOrdered: ordered//your nomination # freq=55938
+
 Term: 0 # freq=708472
 Term: names # freq=402762
 Term: nbsp # freq=492778
 Term: part # freq=588644
 Term: st # freq=306811
+
 BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
+
 BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
+
 BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
+
 BrowseDateSSDVFacets: *:* +facets:Date.sortedset
+
 BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
+
 BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
+
 BrowseRandomLabelTaxoFacets: *:* +facets:RandomLabel.taxonomy
+
 BrowseRandomLabelSSDVFacets: *:* +facets:RandomLabel.sortedset
+
 TermDateFacets: 0 +facets:Date.taxonomy # freq=708472
 TermDateFacets: names +facets:Date.taxonomy # freq=402762
 TermDateFacets: nbsp +facets:Date.taxonomy # freq=492778
 TermDateFacets: part +facets:Date.taxonomy # freq=588644
 TermDateFacets: st +facets:Date.taxonomy # freq=306811
+
 TermDateTimeSort: lastmodndvsort//0 # freq=708472
 TermDateTimeSort: lastmodndvsort//names # freq=402762
 TermDateTimeSort: lastmodndvsort//nbsp # freq=492778
 TermDateTimeSort: lastmodndvsort//part # freq=588644
 TermDateTimeSort: lastmodndvsort//st # freq=306811
+
 TermTitleSort: titledvsort//0 # freq=708472
 TermTitleSort: titledvsort//names # freq=402762
 TermTitleSort: titledvsort//nbsp # freq=492778
 TermTitleSort: titledvsort//part # freq=588644
 TermTitleSort: titledvsort//st # freq=306811
+
 TermMonthSort: monthdvsort//0 # freq=708472
 TermMonthSort: monthdvsort//names # freq=402762
 TermMonthSort: monthdvsort//nbsp # freq=492778
 TermMonthSort: monthdvsort//part # freq=588644
 TermMonthSort: monthdvsort//st # freq=306811
+
 TermDayOfYearSort: dayofyeardvsort//0 # freq=708472
 TermDayOfYearSort: dayofyeardvsort//names # freq=402762
 TermDayOfYearSort: dayofyeardvsort//nbsp # freq=492778
 TermDayOfYearSort: dayofyeardvsort//part # freq=588644
 TermDayOfYearSort: dayofyeardvsort//st # freq=306811
+
 TermGroup100: group100//0 # freq=708472
 TermGroup100: group100//names # freq=402762
 TermGroup100: group100//nbsp # freq=492778
 TermGroup100: group100//part # freq=588644
 TermGroup100: group100//st # freq=306811
+
 TermGroup10K: group10K//0 # freq=708472
 TermGroup10K: group10K//names # freq=402762
 TermGroup10K: group10K//nbsp # freq=492778
 TermGroup10K: group10K//part # freq=588644
 TermGroup10K: group10K//st # freq=306811
+
 TermGroup1M: group1M//0 # freq=708472
 TermGroup1M: group1M//names # freq=402762
 TermGroup1M: group1M//nbsp # freq=492778
 TermGroup1M: group1M//part # freq=588644
 TermGroup1M: group1M//st # freq=306811
+
 TermBGroup1M: groupblock//0 # freq=708472
 TermBGroup1M: groupblock//names # freq=402762
 TermBGroup1M: groupblock//nbsp # freq=492778
 TermBGroup1M: groupblock//part # freq=588644
 TermBGroup1M: groupblock//st # freq=306811
+
 TermBGroup1M1P: groupblock1pass//0 # freq=708472
 TermBGroup1M1P: groupblock1pass//names # freq=402762
 TermBGroup1M1P: groupblock1pass//nbsp # freq=492778
 TermBGroup1M1P: groupblock1pass//part # freq=588644
 TermBGroup1M1P: groupblock1pass//st # freq=306811
+
 Wildcard: bu*s
 Wildcard: fu*r
 Wildcard: no*n
 Wildcard: pr*t
 Wildcard: un*l
+
 AndHighOrMedMed: +be +(mostly interview) # freq=2115632 freq=89401 freq=94736
 AndHighOrMedMed: +cite +(9 hard) # freq=1367577 freq=541405 freq=92045
 AndHighOrMedMed: +is +(bay 16) # freq=4214104 freq=117167 freq=531050
 AndHighOrMedMed: +no +(power particularly) # freq=1060681 freq=257919 freq=100045
 AndHighOrMedMed: +title +(1983 ed) # freq=2077102 freq=150075 freq=127497
+
 AndMedOrHighHigh: +mostly +(are last) # freq=89401 freq=1921211 freq=830278
 AndMedOrHighHigh: +interview +(at united) # freq=94736 freq=2834104 freq=1185528
 AndMedOrHighHigh: +hard +(but year) # freq=92045 freq=1484398 freq=1098425
 AndMedOrHighHigh: +9 +(name its) # freq=541405 freq=2577591 freq=1160703
 AndMedOrHighHigh: +bay +(to but) # freq=117167 freq=6105155 freq=1484398
+
 VectorSearch: vector//publisher backstory # freq=194856 freq=148
 VectorSearch: vector//many geografia # freq=99550 freq=104
 VectorSearch: vector//many foundation # freq=99550 freq=10894
 VectorSearch: vector//this school # freq=238551 freq=29912
 VectorSearch: vector//such 2007 # freq=111526 freq=90200 1.2
-VectorSearch: vector//year work # freq=175324 freq=102732 1.7
-VectorSearch: vector//interviews # freq=31768
-VectorSearch: vector//golf # freq=31760
-VectorSearch: vector//http # freq=389790
-OrHighMedDayTaxoFacets: but census +facets:DayOfYear.taxonomy # freq=1456553 freq=205166
-OrHighMedDayTaxoFacets: work replaced +facets:DayOfYear.taxonomy # freq=853422 freq=112506
-OrHighMedDayTaxoFacets: some groups +facets:DayOfYear.taxonomy # freq=839919 freq=146670
-OrHighMedDayTaxoFacets: 10 collection +facets:DayOfYear.taxonomy # freq=918339 freq=110483
-OrHighMedDayTaxoFacets: not opening +facets:DayOfYear.taxonomy # freq=1713264 freq=84576
-OrHighMedDayTaxoFacets: see september +facets:DayOfYear.taxonomy # freq=1044180 freq=553409
+
 OrHighMedDayTaxoFacets: 4 steve +facets:DayOfYear.taxonomy # freq=986452 freq=84364
-OrHighMedDayTaxoFacets: ref appears +facets:DayOfYear.taxonomy # freq=3793973 freq=104511
+OrHighMedDayTaxoFacets: some groups +facets:DayOfYear.taxonomy # freq=839919 freq=146670
 OrHighMedDayTaxoFacets: a named +facets:DayOfYear.taxonomy # freq=6560531 freq=310150
+OrHighMedDayTaxoFacets: not opening +facets:DayOfYear.taxonomy # freq=1713264 freq=84576
 OrHighMedDayTaxoFacets: which pre +facets:DayOfYear.taxonomy # freq=1963428 freq=90549
-AndHighMedDayTaxoFacets: +more +standard +facets:DayOfYear.taxonomy # freq=963533 freq=185039
-AndHighMedDayTaxoFacets: +into +process +facets:DayOfYear.taxonomy # freq=888684 freq=152588
-AndHighMedDayTaxoFacets: +for +website +facets:DayOfYear.taxonomy # freq=4380011 freq=435941
-AndHighMedDayTaxoFacets: +name +parts +facets:DayOfYear.taxonomy # freq=2827713 freq=123891
-AndHighMedDayTaxoFacets: +for +few +facets:DayOfYear.taxonomy # freq=4380011 freq=226422
+
 AndHighMedDayTaxoFacets: +web +available +facets:DayOfYear.taxonomy # freq=1118334 freq=175514
 AndHighMedDayTaxoFacets: +other +christian +facets:DayOfYear.taxonomy # freq=1269961 freq=140312
-AndHighMedDayTaxoFacets: +2 +imperial +facets:DayOfYear.taxonomy # freq=1549245 freq=86508
-AndHighMedDayTaxoFacets: +at +space +facets:DayOfYear.taxonomy # freq=2857534 freq=163436
 AndHighMedDayTaxoFacets: +into +70 +facets:DayOfYear.taxonomy # freq=888684 freq=90305
-AndHighHighDayTaxoFacets: +in +2011 +facets:DayOfYear.taxonomy # freq=7320987 freq=871410
+AndHighMedDayTaxoFacets: +at +space +facets:DayOfYear.taxonomy # freq=2857534 freq=163436
+AndHighMedDayTaxoFacets: +for +few +facets:DayOfYear.taxonomy # freq=4380011 freq=226422
+
 AndHighHighDayTaxoFacets: +a +work +facets:DayOfYear.taxonomy # freq=6560531 freq=853422
-AndHighHighDayTaxoFacets: +they +4 +facets:DayOfYear.taxonomy # freq=1021945 freq=986452
 AndHighHighDayTaxoFacets: +and +2 +facets:DayOfYear.taxonomy # freq=7318061 freq=1549245
-AndHighHighDayTaxoFacets: +to +an +facets:DayOfYear.taxonomy # freq=6155577 freq=2628056
-AndHighHighDayTaxoFacets: +an +which +facets:DayOfYear.taxonomy # freq=2628056 freq=1963428
+AndHighHighDayTaxoFacets: +in +2011 +facets:DayOfYear.taxonomy # freq=7320987 freq=871410
 AndHighHighDayTaxoFacets: +was +also +facets:DayOfYear.taxonomy # freq=3763623 freq=1959419
-AndHighHighDayTaxoFacets: +this +see +facets:DayOfYear.taxonomy # freq=2224932 freq=1044180
-AndHighHighDayTaxoFacets: +all +2010 +facets:DayOfYear.taxonomy # freq=1203572 freq=950573
-AndHighHighDayTaxoFacets: +2 +2010 +facets:DayOfYear.taxonomy # freq=1549245 freq=950573
-MedTermDayTaxoFacets: present +facets:DayOfYear.taxonomy # freq=278449
-MedTermDayTaxoFacets: man +facets:DayOfYear.taxonomy # freq=278112
-MedTermDayTaxoFacets: college +facets:DayOfYear.taxonomy # freq=278094
-MedTermDayTaxoFacets: f +facets:DayOfYear.taxonomy # freq=278015
-MedTermDayTaxoFacets: site +facets:DayOfYear.taxonomy # freq=277788
-MedTermDayTaxoFacets: football +facets:DayOfYear.taxonomy # freq=277738
-MedTermDayTaxoFacets: en +facets:DayOfYear.taxonomy # freq=277463
+AndHighHighDayTaxoFacets: +to +an +facets:DayOfYear.taxonomy # freq=6155577 freq=2628056
+
 MedTermDayTaxoFacets: result +facets:DayOfYear.taxonomy # freq=276803
-MedTermDayTaxoFacets: include +facets:DayOfYear.taxonomy # freq=276466
-MedTermDayTaxoFacets: began +facets:DayOfYear.taxonomy # freq=276036
+MedTermDayTaxoFacets: college +facets:DayOfYear.taxonomy # freq=278094
+MedTermDayTaxoFacets: site +facets:DayOfYear.taxonomy # freq=277788
+MedTermDayTaxoFacets: man +facets:DayOfYear.taxonomy # freq=278112
+MedTermDayTaxoFacets: football +facets:DayOfYear.taxonomy # freq=277738
+
 CombinedTerm: 0 +combinedFields=titleTokenized^8.0,body
 CombinedTerm: names +combinedFields=titleTokenized^8.0,body
 CombinedTerm: nbsp +combinedFields=titleTokenized^8.0,body
 CombinedTerm: part +combinedFields=titleTokenized^8.0,body
 CombinedTerm: st +combinedFields=titleTokenized^8.0,body
+
 CombinedHighMed: at mostly +combinedFields=titleTokenized^8.0,body
 CombinedHighMed: his interview +combinedFields=titleTokenized^8.0,body
 CombinedHighMed: http 9 +combinedFields=titleTokenized^8.0,body
 CombinedHighMed: they hard +combinedFields=titleTokenized^8.0,body
 CombinedHighMed: title bay +combinedFields=titleTokenized^8.0,body
+
 CombinedHighHigh: are last +combinedFields=titleTokenized^8.0,body
 CombinedHighHigh: at united +combinedFields=titleTokenized^8.0,body
 CombinedHighHigh: but year +combinedFields=titleTokenized^8.0,body
 CombinedHighHigh: name its +combinedFields=titleTokenized^8.0,body
 CombinedHighHigh: to but +combinedFields=titleTokenized^8.0,body
+
+CountAndHighHigh: count(+be +up) # freq=2115632 freq=824628
+CountAndHighHigh: count(+cite +had) # freq=1367577 freq=1223103
+CountAndHighHigh: count(+is +he) # freq=4214104 freq=1663980
+CountAndHighHigh: count(+no +4) # freq=1060681 freq=944177
+CountAndHighHigh: count(+title +see) # freq=2077102 freq=1100862
+
+CountAndHighMed: count(+2010 +16) # freq=933686 freq=531050
+CountAndHighMed: count(+5 +power) # freq=849829 freq=257919
+CountAndHighMed: count(+only +particularly) # freq=895806 freq=100045
+CountAndHighMed: count(+united +1983) # freq=1185528 freq=150075
+CountAndHighMed: count(+who +ed) # freq=1201585 freq=127497
+
+CountOrHighHigh: count(are last) # freq=1921211 freq=830278
+CountOrHighHigh: count(at united) # freq=2834104 freq=1185528
+CountOrHighHigh: count(but year) # freq=1484398 freq=1098425
+CountOrHighHigh: count(name its) # freq=2577591 freq=1160703
+CountOrHighHigh: count(to but) # freq=6105155 freq=1484398
+
+CountOrHighMed: count(at mostly) # freq=2834104 freq=89401
+CountOrHighMed: count(his interview) # freq=1771920 freq=94736
+CountOrHighMed: count(http 9) # freq=3289683 freq=541405
+CountOrHighMed: count(they hard) # freq=1031516 freq=92045
+CountOrHighMed: count(title bay) # freq=2077102 freq=117167
+
+CountPhrase: count("it was") # freq=597450
+CountPhrase: count("red please") # freq=43948
+CountPhrase: count("the average") # freq=55409
+CountPhrase: count("the us") # freq=68781
+CountPhrase: count("when a") # freq=45309
+
+CountTerm: count(0) # freq=708472
+CountTerm: count(names) # freq=402762
+CountTerm: count(nbsp) # freq=492778
+CountTerm: count(part) # freq=588644
+CountTerm: count(st) # freq=306811

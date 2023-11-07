@@ -12,6 +12,8 @@ def flush(pending, pendingDocCount, fOut):
   fOut.write(struct.pack('i', pending.tell()))
   fOut.write(pending.getbuffer())
 
+print(f'build binary file from {sys.argv[1]} to {sys.argv[2]}')
+
 with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as fOut:
   first = True
   pending = io.BytesIO()

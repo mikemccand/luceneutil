@@ -131,8 +131,11 @@ def getArg(argName, default, hasArg=True):
       del sys.argv[idx]
   return v
 
+def checkoutToName(checkout):
+  return checkout.split('/')[-1]
+
 def checkoutToPath(checkout):
-  return '%s/%s' % (constants.BASE_DIR, checkout)
+  return checkout if '/' in checkout else '%s/%s' % (constants.BASE_DIR, checkout)
 
 def checkoutToBenchPath(checkout):
   return '%s/lucene/benchmark' % checkoutToPath(checkout)
@@ -158,6 +161,9 @@ def decode(str_or_bytes):
 class SearchTask:
   # TODO: subclass SearchGroupTask
 
+  countOnlyCount = None
+  isCountOnly = False
+  
   def verifySame(self, other, verifyScores, verifyCounts):
     if self.query.startswith('KnnVectorQuery:vector'):
       # KNN search is deterministically randomized, such that the seed changes with each re-indexing, so we cannot compare results
@@ -175,8 +181,11 @@ class SearchTask:
           print('WARNING: expandedTermCounts differ for %s: %s vs %s' % (self, self.expandedTermCount, other.expandedTermCount))
           # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
 
-      if verifyCounts and self.hitCount != other.hitCount:
-        self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
+      if verifyCounts:
+        if self.hitCount != other.hitCount:
+          self.fail('wrong hitCount: %s vs %s' % (self.hitCount, other.hitCount))
+        if self.countOnlyCount != other.countOnlyCount:
+          self.fail('wrong countOnlyCount: %s vs %s' % (self.countOnlyCount, other.coutnOnlyCount))
 
       if len(self.hits) != len(other.hits):
         self.fail('wrong top hit count: %s vs %s' % (len(self.hits), len(other.hits)))
@@ -252,22 +261,30 @@ class SearchTask:
 
   def __str__(self):
     s = self.query
-    if self.sort is not None:
-      s += ' [sort=%s]' % self.sort
-    if self.groupField is not None:
-      s += ' [groupField=%s]' % self.groupField
-    if self.facets is not None:
-      s += ' [facets=%s]' % self.facets
+    if self.isCountOnly:
+      s += ' [count-only]'
+    else:
+      if self.sort is not None:
+        s += ' [sort=%s]' % self.sort
+      if self.groupField is not None:
+        s += ' [groupField=%s]' % self.groupField
+      if self.facets is not None:
+        s += ' [facets=%s]' % self.facets
     return s
 
   def __eq__(self, other):
     if not isinstance(other, SearchTask):
       return False
     else:
-      return self.query == other.query and self.sort == other.sort and self.groupField == other.groupField and self.filter == other.filter and self.facets == other.facets
+      return self.query == other.query and \
+        self.sort == other.sort and \
+        self.groupField == other.groupField and \
+        self.filter == other.filter and \
+        self.facets == other.facets and \
+        self.isCountOnly == other.isCountOnly
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets))
+    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets)) + hash(self.isCountOnly)
 
 
 class RespellTask:
@@ -317,6 +334,26 @@ class PKLookupTask:
   def __hash__(self):
     return hash(self.pkOrd)
 
+class PKLookupWithTermStateTask:
+  cat = 'PKLookupWithTermState'
+
+  def verifySame(self, other, verifyScores, verifyCounts):
+    # already "verified" in search perf test, ie, that the docID
+    # returned in fact has the id that was asked for
+    pass
+
+  def __str__(self):
+    return 'PKTS%s' % self.pkOrd
+
+  def __eq__(self, other):
+    if not isinstance(other, PKLookupWithTermStateTask):
+      return False
+    else:
+      return self.pkOrd == other.pkOrd
+
+  def __hash__(self):
+    return hash(self.pkOrd)
+
 class PointsPKLookupTask:
   cat = 'PointsPKLookup'
 
@@ -351,10 +388,11 @@ reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0
 reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
 reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\+?)$')
 reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
+reCountOnlyTask = re.compile('cat=(.*?) q=(.*?) countOnlyCount=(.*?)?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
 reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
-rePKOrd = re.compile(r'PK(.*?)\[')
+rePKOrd = re.compile(r'PK(?:TS)?(.*?)\[')
 reOneGroup = re.compile('group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$', re.DOTALL)
 reHeap = re.compile('HEAP: ([0-9]+)$')
 
@@ -398,7 +436,17 @@ def parseResults(resultsFiles):
             cat, task.query, sort, hitCount, facets = m.groups()
             filter = None
           else:
-            cat = None
+            m = reCountOnlyTask.search(decode(line))
+            if m is not None:
+              cat = m.group(1)
+              task.query = m.group(2)
+              task.isCountOnly = True
+              task.countOnlyCount = int(m.group(3))
+              hitCount = None
+              filter = None
+              sort = 'null'
+            else:
+              cat = None
 
         if cat is not None:
           task.cat = cat
@@ -543,6 +591,11 @@ def parseResults(resultsFiles):
           suggest, freq, score = m.groups()
           task.hits.append((suggest, int(freq), float(score)))
 
+      elif line.startswith(b'TASK: PKTS'):
+        task = PKLookupWithTermStateTask()
+        task.pkOrd = rePKOrd.search(decode(line)).group(1)
+        task.msec = float(f.readline().strip().split()[0])
+        task.threadID = int(f.readline().strip().split()[1])
       elif line.startswith(b'TASK: PK'):
         task = PKLookupTask()
         task.pkOrd = rePKOrd.search(decode(line)).group(1)
@@ -630,6 +683,7 @@ def agg(iters, cat, name, verifyCounts):
       raise RuntimeError('only %s tasks in cat %s' % (len(tasks[0]), cat))
 
     totHitCount = 0
+    totCountOnlyCount = 0
     count = 0
     sumMS = 0.0
     if VERBOSE:
@@ -691,7 +745,9 @@ def agg(iters, cat, name, verifyCounts):
         raise RuntimeError('unrecognized SELECT=%s: should be min, median or mean' % SELECT)
 
       if isinstance(task, SearchTask):
-        if task.groupField is None:
+        if task.countOnlyCount is not None:
+          totCountOnlyCount += task.countOnlyCount
+        elif task.groupField is None:
           totHitCount = sum_hit_count(totHitCount, task.hitCount)
         else:
           for group in task.groups:
@@ -704,8 +760,12 @@ def agg(iters, cat, name, verifyCounts):
 
     if lastHitCount is None:
       lastHitCount = totHitCount
-    elif verifyCounts and totHitCount != lastHitCount:
-      raise RuntimeError('different hit counts: %s vs %s' % (lastHitCount, totHitCount))
+      lastCountOnlyCount = totCountOnlyCount
+    elif verifyCounts:
+      if totHitCount != lastHitCount:
+        raise RuntimeError('different hit counts: %s vs %s' % (lastHitCount, totHitCount))
+      if totCountOnlyCount != lastCountOnlyCount:
+        raise RuntimeError('different count only counts: %s vs %s' % (lastCountOnlyCount, totCountOnlyCount))
 
   if VERBOSE:
     #accumMS.sort()

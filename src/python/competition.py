@@ -115,9 +115,8 @@ SEGS_PER_LEVEL = 5
 
 def sourceData(key=None):
   if not key:
-    import sys
-    if '-source' in sys.argv:
-      key = sys.argv[1+sys.argv.index('-source')]
+    raise RuntimeError('Data source required for benchmark run. '
+                       'Use "-s/-source/--source" option to provide data source. \nValid options: %s' % DATA.keys())
   if key in DATA:
     return DATA[key]
   raise RuntimeError('unknown data source "%s" (valid keys: %s)' % (key, DATA.keys()))
@@ -217,7 +216,7 @@ class Index(object):
       return self.assignedName
 
     name = [self.dataSource.name,
-            self.checkout]
+            benchUtil.checkoutToName(self.checkout)]
 
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
@@ -228,6 +227,8 @@ class Index(object):
     if self.useCFS:
       name.append('cfs')
 
+    # TODO: adding facets to filename makes it too long and runs into limits on some machines
+    # Can we remove this from file name and record it in a different logfile.
     if self.facets is not None:
       name.append('facets')
       for arg in self.facets:
@@ -369,6 +370,7 @@ class Competitor(object):
       'LocalTaskSource.java',
       'OpenDirectory.java',
       'PKLookupTask.java',
+      'PKLookupWithTermStateTask.java',
       'PointsPKLookupTask.java',
       'PerfUtils.java',
       'RandomQuery.java',
@@ -469,6 +471,7 @@ class Competition(object):
     for c in self.competitors:
       if c.name == name:
         raise RuntimeError(f'competitor named {name} already added')
+    print('Using checkout:[%s] for competitor:[%s]' % (benchUtil.checkoutToPath(checkout), name))
     c = Competitor(name, checkout, **kwArgs)
     c.competition = self
     self.competitors.append(c)

@@ -33,6 +33,7 @@ import org.apache.lucene.index.PointValues.IntersectVisitor;
 import org.apache.lucene.index.PointValues.Relation;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermState;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -58,6 +59,7 @@ class IndexState {
   public final Map<String,Integer> facetFields;
   public final Map<Object, ThreadLocal<PKLookupState>> pkLookupStates = new HashMap<>();
   public final Map<Object, ThreadLocal<PointsPKLookupState>> pointsPKLookupStates = new HashMap<>();
+  public final Map<Object, ThreadLocal<PKLookupWithTermStateState>> pkLookupWithTermStateStates = new HashMap<>();
 
   public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker,
                     String hiliteImpl, FacetsConfig facetsConfig, Map<String,Integer> facetFields) throws IOException {
@@ -87,6 +89,7 @@ class IndexState {
       for(LeafReaderContext ctx : searcher.getIndexReader().leaves()) {
         pkLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupState>());
         pointsPKLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PointsPKLookupState>());
+        pkLookupWithTermStateStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupWithTermStateState>());
       }
     } finally {
       mgr.release(searcher);
@@ -118,6 +121,22 @@ class IndexState {
       termsEnum.seekCeil(new BytesRef(""));
       postingsEnum = termsEnum.postings(null, 0);
       liveDocs = reader.getLiveDocs();
+    }
+  }
+
+  /** Holds re-used thread-private classes for postings primary key lookup for one LeafReader */
+  public static class PKLookupWithTermStateState {
+    public final TermsEnum termsEnum;
+    public final PostingsEnum postingsEnum;
+    public final Bits liveDocs;
+    public final HashMap<BytesRef,TermState> termStates;
+
+    public PKLookupWithTermStateState(LeafReader reader, String field) throws IOException {
+      termsEnum = reader.terms(field).iterator();
+      termsEnum.seekCeil(new BytesRef(""));
+      postingsEnum = termsEnum.postings(null, 0);
+      liveDocs = reader.getLiveDocs();
+      termStates = new HashMap<>();
     }
   }
 

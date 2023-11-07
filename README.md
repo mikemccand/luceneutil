@@ -17,13 +17,25 @@ git clone https://github.com/mikemccand/luceneutil.git util
 # 2. Run the setup script
 cd util
 python src/python/setup.py -download
+
+# you can run with -h option for help
+python src/python/setup.py -h
 ```
   
-In the second step, the setup procedure creates all necessary directories in the clones parent directory and downloads a
-6 GB compressed Wikipedia line doc file from an Apache mirror. If you don't want to
-download the large data file just remove the `-download` flag from the commandline. 
+In the second step, the setup procedure creates all necessary directories in the clones parent directory and downloads
+datasets to run the benchmarks on. By default, it downloads a 6 GB compressed Wikipedia line doc file, and a 13 GB vectors
+file from Apache mirrors. If you don't want to download the large data files,
+just remove the `-download` flag from the commandline.
 
-After the download has completed, extract the lzma file in `$LUCENE_BENCH_HOME/data`.
+After the download has completed, extract the lzma file in `$LUCENE_BENCH_HOME/data`. You can do this using the `xz` tool,
+or the `lmza` tool, or any other tool of your choice. For example:
+```bash
+cd $LUCENE_BENCH_HOME/data
+# using xz
+xz -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
+# using lmza
+lzma -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
+```
 
 ### (Optional, for development) set up IntelliJ
 Should be able to open by IntelliJ automatically. The gradle will write a local configuration file `gradle.properties` in
@@ -54,7 +66,7 @@ Adjust the command accordingly for `lucene_candidate`.
 
 `setup.py` has created two files: `localconstants.py`, and `localrun.py` in `$LUCENE_BENCH_HOME/util/src/python/`. 
 
-The file `localconstants.py` should be used to override any existing constants in `constants.py`, for example if you want to change the Java commandline used to run benchmarks. To run an inintal benchmark you don't need to modify this file. 
+The file `localconstants.py` should be used to override any existing constants in `constants.py`, for example if you want to change the Java commandline used to run benchmarks. To run an initial benchmark you don't need to modify this file.
 
 Now you can start editing `localrun.py` to define your comparison, at the
 bottom near its `__main__`:
@@ -71,6 +83,12 @@ cd $LUCENE_BENCH_HOME/util
 python src/python/localrun.py -source wikimedium10k
 ```
 
+Then once you confirm that everything works, use the `wikimediumall` corpus for all subsequent runs.
+Using this much much larger corpus (33+ million docs) is necessary to draw conclusions from your benchmark results.
+```
+python src/python/localrun.py -source wikimediumall
+```
+
 If you get ClassNotFound exceptions, your Lucene checkouts may need to be rebuilt. Run `./gradlew jar` in both `lucene_candidate/` and `lucene_baseline/` dirs.
 
 If your benchmark fails with "facetDim Date was not indexed" or similar, try adding
@@ -79,6 +97,20 @@ If your benchmark fails with "facetDim Date was not indexed" or similar, try add
     index = comp.newIndex('lucene_baseline', sourceData, facets=facets, indexSort='dayOfYearNumericDV:long')
 
 in `localrun.py`, and use that index in your benchmarks.
+
+### Additional Run Options
+You can also make the benchmark use baseline or candidate repository that exists outside of the directory structure above. 
+Simply use `-b <Baseline repo path>` or `-c <Candidate repo path>` as shown below:
+```bash
+python src/python/localrun.py -source wikimediumall -b /Users/vigyas/repos/lucene -c /Users/vigyas/forks/lucene
+```
+
+While benchmarking an indexing side change, you might want to recreate the index for your candidate run. Use the `-r / --reindex` arg as follows:
+```bash
+python src/python/localrun.py -source wikimediumall -r
+```
+
+For details on all the available options, use the `-h` or `--help` parameter.
 
 # Running the geo benchmark
 
@@ -135,3 +167,10 @@ Some knn-related tasks are included in the main benchmarks. If you specifically 
 KNN/HNSW there is a script dedicated to that in src/python/knnPerfTest.py which has instructions on
 how to run it in its comments.
 
+## Testing with higher dimension vectors
+
+By default we use 100 dimension vectors, to use higher dimension vectors, you need to:
+
+1. run `src/python/infer_token_vectors.py` to get `xxx.vec` and `xxx.tok` file, also do not forget to set the model you need by editing `infer_token_vectors.py`, The supported models are listed there in comments. E.g. for 768 dimensions you need `enwiki-20120502-mpnet.vec` and `enwiki-20120502-mpnet.tok` as output file and you need to set the model to `model = SentenceTransformer('all-mpnet-base-v2')` by edit `infer_token_vectors.py` (which is already the default).
+2. run corresponding ant tasks to generate embeddings for docs and queries. E.g. for 768 dimensions you need to run `ant vectors-mpnet-docs` and `vectors-mpnet-tasks`.
+3. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 

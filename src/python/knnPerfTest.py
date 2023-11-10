@@ -1,6 +1,5 @@
 #!/usr/bin/env/python
 
-import os
 import subprocess
 import benchUtil
 import constants
@@ -23,16 +22,18 @@ import constants
 
 # Where the version of Lucene is that will be tested. Expected to be in the base dir above luceneutil.
 #LUCENE_CHECKOUT = 'baseline'
-LUCENE_CHECKOUT = 'lucene_candidate'
+LUCENE_CHECKOUT = 'candidate'
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 VALUES = {
-    'ndoc': (100_000_000,),# 100000, 200000),
+    #'ndoc': (10000, 100000, 1000000),
+    #'ndoc': (10000, 100000, 200000, 500000),
+    'ndoc': (10000, 100000, 200000),
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
-    'maxConn': (16, ),
+    'maxConn': (64, ),
     #'beamWidthIndex': (250, 500),
-    'beamWidthIndex': (100, ),
+    'beamWidthIndex': (250, ),
     #'fanout': (20, 100, 250)
     'fanout': (0,),
     #'topK': (10,),
@@ -60,9 +61,9 @@ def run_knn_benchmark(checkout, values):
     #dim = 768
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
-    dim = 96
-    doc_vectors = '%s/util/deep-100M.dat' % constants.BASE_DIR
-    query_vectors = '%s/util/deep-100M_queries.dat' % constants.BASE_DIR
+    dim = 384
+    doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
+    query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
     #dim = 300
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
@@ -70,7 +71,7 @@ def run_knn_benchmark(checkout, values):
     #doc_vectors = '/d/electronics_asin_emb.bin'
     #query_vectors = '/d/electronics_query_vectors.bin'
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
-    cmd = [constants.JAVA_EXE, "-XX:+HeapDumpOnOutOfMemoryError", "-Xms12g", '-Xmx12g', '-cp', cp,
+    cmd = [constants.JAVA_EXE, '-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
            'KnnGraphTester']
@@ -94,10 +95,13 @@ def run_knn_benchmark(checkout, values):
         this_cmd = cmd + args + [
             '-dim', str(dim),
             '-docs', doc_vectors,
-            #'-forceMerge',
-            #'-reindex',
-            '-search', query_vectors]
+            '-reindex',
+            '-search', query_vectors,
+            # '-numMergeThread', '8', '-numMergeWorker', '8',
+            # '-forceMerge',
+            '-quiet']
         #print(this_cmd)
         subprocess.run(this_cmd)
+
 
 run_knn_benchmark(LUCENE_CHECKOUT, VALUES)

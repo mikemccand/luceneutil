@@ -104,7 +104,7 @@ if 'JAVA_EXE' not in globals():
 if 'JAVAC_EXE' not in globals():
   JAVAC_EXE = 'javac'
 if 'JAVA_COMMAND' not in globals():
-  JAVA_COMMAND = '%s -server -Xms12g -Xmx12g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
+  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
 else:
   print('use java command %s' % JAVA_COMMAND)
 
@@ -124,7 +124,7 @@ if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
-POSTINGS_FORMAT_DEFAULT='Lucene90'
+POSTINGS_FORMAT_DEFAULT='Lucene99'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT=POSTINGS_FORMAT_DEFAULT
 FACET_FIELD_DV_FORMAT_DEFAULT='Lucene90' # this field is not used as a default. Change the code in src/main/perf/Indexer.java to use a different DV format
 ANALYZER_DEFAULT='StandardAnalyzer'

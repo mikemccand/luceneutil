@@ -103,6 +103,7 @@ public class KnnGraphTester {
   private int reindexTimeMsec;
   private int beamWidth;
   private int maxConn;
+  private boolean quantize;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
   private FixedBitSet matchDocs;
@@ -188,6 +189,9 @@ public class KnnGraphTester {
         case "-reindex":
           reindex = true;
           break;
+        case "-quantize":
+          quantize = true;
+          break;
         case "-topK":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-topK requires a following number");
@@ -262,14 +266,14 @@ public class KnnGraphTester {
       throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
     }
     indexPath = Paths.get(formatIndexPath(docVectorsPath));
-    if (forceMerge) {
-      forceMerge();
-    }
     if (reindex) {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
       reindexTimeMsec = createIndex(docVectorsPath, indexPath);
+      if (forceMerge) {
+        forceMerge();
+      }
     }
     if (operation != null) {
       switch (operation) {
@@ -316,21 +320,19 @@ public class KnnGraphTester {
 
   @SuppressForbidden(reason = "Prints stuff")
   private void forceMerge() throws IOException {
-    ExecutorService executorService = Executors.newFixedThreadPool(8);
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     iwc.setCodec(
             new Lucene99Codec() {
               @Override
               public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-                return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, 8, null, executorService);
+                return quantize ? new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, 1, null, null) :
+                  new Lucene99HnswVectorsFormat(maxConn, beamWidth);
               }
             });
     iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     System.out.println("Force merge index in " + indexPath);
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
-      iw.forceMerge(8);
-    } finally {
-      executorService.shutdown();
+      iw.forceMerge(1);
     }
   }
 
@@ -713,19 +715,19 @@ public class KnnGraphTester {
   }
 
   private int createIndex(Path docsPath, Path indexPath) throws IOException {
-    ExecutorService executorService = Executors.newFixedThreadPool(8);
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     iwc.setCodec(
         new Lucene99Codec() {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, 8, null, executorService);
+            return quantize ? new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, 1, null, null) :
+              new Lucene99HnswVectorsFormat(maxConn, beamWidth);
           }
         });
     iwc.setMergePolicy(NoMergePolicy.INSTANCE);
-    iwc.setRAMBufferSizeMB(8192d);
+    iwc.setMaxBufferedDocs(34_000);
+    iwc.setRAMBufferSizeMB(-1);
     iwc.setUseCompoundFile(false);
-    // iwc.setMaxBufferedDocs(10000);
 
     FieldType fieldType =
         switch (vectorEncoding) {

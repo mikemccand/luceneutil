@@ -743,4 +743,8 @@ KNOWN_CHANGES = [
      'Intersect clauses in disjunctions when block max scores require multiple clauses to match https://github.com/apache/lucene/pull/12589',
      'Intersect clauses in disjunctions when block max scores require multiple clauses to match https://github.com/apache/lucene/pull/12589'),
 
+   ('2023-11-02',
+     'Add a specialized bulk scorer for regular conjunctions https://github.com/apache/lucene/pull/12719',
+     'Add a specialized bulk scorer for regular conjunctions https://github.com/apache/lucene/pull/12719'),
+
 ]

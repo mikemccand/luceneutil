@@ -161,7 +161,9 @@ class Index(object):
                # (rearrange % 100) / 10 gives how many medium segments desired
                # rearrange % 10 gives how many small segments desired
                # For example, rearrange = 555 means 5 large segments, 5 medium segments and 5 small segments
-               rearrange = 0
+               rearrange = 0,
+               hnswThreadsPerMerge = 1,
+               hnswThreadPoolCount = 1
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -210,6 +212,8 @@ class Index(object):
       raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
     self.useCMS = useCMS
     self.rearrange = rearrange
+    self.hnswThreadsPerMerge = hnswThreadsPerMerge
+    self.hnswThreadPoolCount = hnswThreadPoolCount
 
   def getName(self):
     if self.assignedName is not None:

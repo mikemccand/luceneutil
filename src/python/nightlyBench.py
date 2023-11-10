@@ -30,6 +30,7 @@ import tarfile
 import time
 import traceback
 import urllib.request
+import subprocess
 import runStoredFieldsBenchmark
 import runFacetsBenchmark
 
@@ -270,12 +271,16 @@ def run():
         BIG_INDEX_NUM_DOCS //= 100
 
     DO_RESET = '-reset' in sys.argv
-
     if DO_RESET:
-        print('will reset results files!')
-    else:
-        print('will compare to last goot result files!')
+        print('will regold results files (command line specified)')
 
+    # TODO: remove this mechanism?  best if we must commit a message to Lucene recording this instead?
+    regold_marker_file = f'{constants.BENCH_BASE_DIR}/regold_next_run'
+    if os.path.exists(regold_marker_file):
+        DO_RESET = True
+        os.remove(regold_marker_file)
+        print(f'saw regold marker file {regold_marker_file}; will regold results files')
+        
     validate_nightly_task_count(f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks', COUNTS_PER_CAT)
 
     # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
@@ -300,44 +305,50 @@ def run():
         os.makedirs(runLogDir)
     message('log dir %s' % runLogDir)
 
+    os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+    javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
+    print('%s' % javaVersion)
+    print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
+    print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
+
     if not REAL:
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
         svnRev = '1102160'
         luceneUtilRev = '2270c7a8b3ac+ tip'
         print('SVN rev is %s' % svnRev)
         print('luceneutil rev is %s' % luceneUtilRev)
-    else:
-        os.chdir(constants.BENCH_BASE_DIR)
 
+        luceneRev = os.popen('git rev-parse HEAD').read().strip()
+        
+    else:
+        # nightly_strict.cmd has already git pull'd luceneutil & lucene
+        os.chdir(constants.BENCH_BASE_DIR)
         luceneUtilRev = os.popen('git rev-parse HEAD').read().strip()
+        print(f'luceneutil rev is {luceneUtilRev}')
 
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
-        # runCommand('%s cleanup' % constants.SVN_EXE)
-        runCommand('%s clean -xfd' % constants.GIT_EXE)
         luceneRev = os.popen('git rev-parse HEAD').read().strip()
-        if True:
-            iters = 30
-            for i in range(iters):
-                try:
-                    # runCommand('%s update > %s/update.log' % (constants.SVN_EXE, runLogDir))
-                    runCommand('%s checkout main; %s pull origin main > %s/update.log' % (
-                    constants.GIT_EXE, constants.GIT_EXE, runLogDir))
-                except RuntimeError:
-                    message('  retry...')
-                    time.sleep(60.0)
-                else:
-                    luceneRev = os.popen('git rev-parse HEAD').read().strip()
-                    # svnRev = int(reSVNRev.search(open('%s/update.log' % runLogDir, 'rb').read()).group(1))
-                    print('LUCENE rev is %s' % luceneRev)
-                    break
-            else:
-                raise RuntimeError('failed to run git pull after %d tries' % iters)
+        print(f'LUCENE rev is {luceneRev}')
 
-        print('luceneutil rev is %s' % luceneUtilRev)
-        javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
-        print('%s' % javaVersion)
-        print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
-        print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
+        lastLuceneRev, lastLuceneUtilRev, lastLogFile = findLastSuccessfulGitHashes()
+        print(f'last successfull Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}')
+
+        # parse git log to see if there were any commits requesting regold
+        command = ['git', 'log', f'{lastLuceneRev}^..{luceneRev}']
+        result = subprocess.run(command, check=True, capture_output=True)
+
+        regold_string = '// nightly-benchmarks-results-changed //'
+        if regold_string in result.stdout.decode('utf-8'):
+            print(f'Saw commit with "{regold_string}" comment from {" ".join(command)}; will regold results files')
+            DO_RESET = True
+        else:
+            print(f'No commit message asking for regold of results files')
+
+        os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+        runCommand('%s clean -xfd' % constants.GIT_EXE)
+
+    if not DO_RESET:
+        print('will NOT regold results files but rather compare to last good result files')
 
     print('Java command-line: %s' % constants.JAVA_COMMAND)
     try:
@@ -363,10 +374,10 @@ def run():
 
     fastIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                     analyzer='StandardAnalyzerNoStopWords',
-                                    postingsFormat='Lucene90',
+                                    postingsFormat='Lucene99',
                                     numThreads=constants.INDEX_NUM_THREADS,
                                     directory=DIR_IMPL,
-                                    idFieldPostingsFormat='Lucene90',
+                                    idFieldPostingsFormat='Lucene99',
                                     ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                     waitForMerges=False,
                                     waitForCommit=False,
@@ -379,10 +390,10 @@ def run():
 
     fastIndexMediumVectors = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                            analyzer='StandardAnalyzerNoStopWords',
-                                           postingsFormat='Lucene90',
+                                           postingsFormat='Lucene99',
                                            numThreads=constants.INDEX_NUM_THREADS,
                                            directory=DIR_IMPL,
-                                           idFieldPostingsFormat='Lucene90',
+                                           idFieldPostingsFormat='Lucene99',
                                            ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                            waitForMerges=False,
                                            waitForCommit=False,
@@ -395,13 +406,14 @@ def run():
                                            vectorFile=constants.VECTORS_DOCS_FILE,
                                            vectorDimension=constants.VECTORS_DIMENSIONS,
                                            vectorEncoding=constants.VECTORS_TYPE)
+                                           
 
     nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                    analyzer='StandardAnalyzerNoStopWords',
-                                   postingsFormat='Lucene90',
+                                   postingsFormat='Lucene99',
                                    numThreads=constants.INDEX_NUM_THREADS,
                                    directory=DIR_IMPL,
-                                   idFieldPostingsFormat='Lucene90',
+                                   idFieldPostingsFormat='Lucene99',
                                    ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                    waitForMerges=True,
                                    waitForCommit=True,
@@ -420,10 +432,10 @@ def run():
 
     fastIndexBig = comp.newIndex(NIGHTLY_DIR, bigSource,
                                  analyzer='StandardAnalyzerNoStopWords',
-                                 postingsFormat='Lucene90',
+                                 postingsFormat='Lucene99',
                                  numThreads=constants.INDEX_NUM_THREADS,
                                  directory=DIR_IMPL,
-                                 idFieldPostingsFormat='Lucene90',
+                                 idFieldPostingsFormat='Lucene99',
                                  ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                  waitForMerges=False,
                                  waitForCommit=False,
@@ -437,11 +449,11 @@ def run():
     # Must use only 1 thread so we get same index structure, always:
     index = comp.newIndex(NIGHTLY_DIR, mediumSource,
                           analyzer='StandardAnalyzerNoStopWords',
-                          postingsFormat='Lucene90',
+                          postingsFormat='Lucene99',
                           numThreads=1,
                           useCMS=False,
                           directory=DIR_IMPL,
-                          idFieldPostingsFormat='Lucene90',
+                          idFieldPostingsFormat='Lucene99',
                           mergePolicy='LogDocMergePolicy',
                           facets=(('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
@@ -454,7 +466,10 @@ def run():
                           addDVFields=True,
                           vectorFile=constants.VECTORS_DOCS_FILE,
                           vectorDimension=constants.VECTORS_DIMENSIONS,
-                          vectorEncoding=constants.VECTORS_TYPE)
+                          vectorEncoding=constants.VECTORS_TYPE,
+                          hnswThreadsPerMerge = constants.HNSW_THREADS_PER_MERGE,
+                          hnswThreadPoolCount = constants.HNSW_THREAD_POOL_COUNT
+                          )
 
     c = comp.competitor(id, NIGHTLY_DIR,
                         index=index,
@@ -574,161 +589,160 @@ def run():
         if os.path.exists(prevFName):
             resultsPrev.append(prevFName)
 
-    if not DO_RESET:
+    output = []
+    results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev,
+                                                    resultsNow,
+                                                    False, True,
+                                                    'prev', 'now',
+                                                    writer=output.append)
 
-        lastLuceneRev, lastLuceneUtilRev, lastLogFile = findLastSuccessfulGitHashes()
+    with open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w') as f:
+        timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
+        w = f.write
+        w('<html>\n')
+        w('<h1>%s</h1>' % timeStamp2)
 
-        output = []
-        results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev,
-                                                        resultsNow,
-                                                        False, True,
-                                                        'prev', 'now',
-                                                        writer=output.append)
+        if DO_RESET:
+            w('<b>NOTE</b>: this run regolded the results gold files<br><br>')
 
-        with open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w') as f:
-            timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
-            w = f.write
-            w('<html>\n')
-            w('<h1>%s</h1>' % timeStamp2)
+        w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
+        if lastLuceneRev != luceneRev:
+            w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
+        else:
+            w(f'\nLucene/Solr trunk rev {luceneRev} (no changes since last successful run)<br>')
+        if lastLuceneUtilRev != luceneUtilRev:
+            w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
+        else:
+            w(f'\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>')
+        w('%s<br>' % javaVersion)
+        w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
+        w('Index: %s<br>' % fixedIndexAtClose)
+        w('<br><br><b>Search perf vs day before</b>\n')
+        w(''.join(output))
+        w('<br><br>')
+        w('<img src="%s.png"/>\n' % timeStamp)
 
-            w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
-            if lastLuceneRev != luceneRev:
-                w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
-            else:
-                w(f'\nLucene/Solr trunk rev {luceneRev} (no changes since last successful run)<br>')
-            if lastLuceneUtilRev != luceneUtilRev:
-                w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
-            else:
-                w(f'\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>')
-            w('%s<br>' % javaVersion)
-            w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
-            w('Index: %s<br>' % fixedIndexAtClose)
-            w('<br><br><b>Search perf vs day before</b>\n')
-            w(''.join(output))
-            w('<br><br>')
-            w('<img src="%s.png"/>\n' % timeStamp)
+        w('Jump to profiler results:')
+        w('<br>indexing 1KB\n<ul>')
+        for stackSize in JFR_STACK_SIZES:
+            w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_{stackSize}_heap">heap</a>')
+        w('</ul>')
 
-            w('Jump to profiler results:')
-            w('<br>indexing 1KB\n<ul>')
-            for stackSize in JFR_STACK_SIZES:
-                w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_{stackSize}_heap">heap</a>')
-            w('</ul>')
+        w('<br>indexing 1KB (with vectors)\n<ul>')
+        for stackSize in JFR_STACK_SIZES:
+            w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_vectors_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_vectors_{stackSize}_heap">heap</a>')
+        w('</ul>')
 
-            w('<br>indexing 1KB (with vectors)\n<ul>')
-            for stackSize in JFR_STACK_SIZES:
-                w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_vectors_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_vectors_{stackSize}_heap">heap</a>')
-            w('</ul>')
+        w('<br>indexing 4KB\n<ul>')
+        for stackSize in JFR_STACK_SIZES:
+            w(f'<li>stackSize={stackSize}: <a href="#profiler_4kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_4kb_indexing_{stackSize}_heap">heap</a>')
+        w('</ul>')
 
-            w('<br>indexing 4KB\n<ul>')
-            for stackSize in JFR_STACK_SIZES:
-                w(f'<li>stackSize={stackSize}: <a href="#profiler_4kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_4kb_indexing_{stackSize}_heap">heap</a>')
-            w('</ul>')
+        w('<br>indexing near-real-timeB\n<ul>')
+        for stackSize in JFR_STACK_SIZES:
+            w(f'<li>stackSize={stackSize}: <a href="#profiler_nrt_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_nrt_indexing_{stackSize}_heap">heap</a>')
+        w('</ul>')
 
-            w('<br>indexing near-real-timeB\n<ul>')
-            for stackSize in JFR_STACK_SIZES:
-                w(f'<li>stackSize={stackSize}: <a href="#profiler_nrt_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_nrt_indexing_{stackSize}_heap">heap</a>')
-            w('</ul>')
+        w('<br>deterministic (single threaded) indexing<ul>')
+        for stackSize in JFR_STACK_SIZES:
+            w(f'<li>stackSize={stackSize}: <a href="#profiler_deterministic_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_deterministic_indexing_{stackSize}_heap">heap</a>')
+        w('</ul>')
 
-            w('<br>deterministic (single threaded) indexing<ul>')
-            for stackSize in JFR_STACK_SIZES:
-                w(f'<li>stackSize={stackSize}: <a href="#profiler_deterministic_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_deterministic_indexing_{stackSize}_heap">heap</a>')
-            w('</ul>')
+        w('<br>searching<ul>')
+        for stackSize in JFR_STACK_SIZES:
+            w(f'<li>stackSize={stackSize}: <a href="#profiler_searching_{stackSize}_cpu">cpu</a>, <a href="#profiler_searching_{stackSize}_heap">heap</a>')
+        w('</ul>')
 
-            w('<br>searching<ul>')
-            for stackSize in JFR_STACK_SIZES:
-                w(f'<li>stackSize={stackSize}: <a href="#profiler_searching_{stackSize}_cpu">cpu</a>, <a href="#profiler_searching_{stackSize}_heap">heap</a>')
-            w('</ul>')
+        w('<br><br><h2>Profiler results (indexing)</h2>\n')
+        if profilerMediumIndex is not None:
+            w('<b>~1KB docs</b>')
+            for mode, stackSize, output in profilerMediumIndex:
+                w(f'\n<a id="profiler_1kb_indexing_{stackSize}_{mode}"></a>')
+                w(f'\n<pre>{output}</pre>\n')
+        if profilerBigIndex is not None:
+            w('<b>~4KB docs</b>')
+            for mode, stackSize, output in profilerBigIndex:
+                w(f'\n<a id="profiler_4kb_indexing_{stackSize}_{mode}"></a>')
+                w(f'\n<pre>{output}</pre>\n')
+        if profilerNRTIndex is not None:
+            w('<b>NRT indexing</b>')
+            for mode, stackSize, output in profilerNRTIndex:
+                w(f'\n<a id="profiler_nrt_indexing_{stackSize}_{mode}"></a>')
+                w(f'\n<pre>{output}</pre>\n')
+        if profilerSearchIndex is not None:
+            w('<b>Deterministic (for search benchmarking) indexing</b>')
+            for mode, stackSize, output in profilerSearchIndex:
+                w(f'\n<a id="profiler_deterministic_indexing_{stackSize}_{mode}"></a>')
+                w(f'\n<pre>{output}</pre>\n')
+        if profilerMediumVectorsIndex is not None:
+            w('<b>~1KB docs</b>')
+            for mode, stackSize, output in profilerMediumVectorsIndex:
+                w(f'\n<a id="profiler_1kb_indexing_vectors_{stackSize}_{mode}"></a>')
+                w(f'\n<pre>{output}</pre>\n')
 
-            w('<br><br><h2>Profiler results (indexing)</h2>\n')
-            if profilerMediumIndex is not None:
-                w('<b>~1KB docs</b>')
-                for mode, stackSize, output in profilerMediumIndex:
-                    w(f'\n<a id="profiler_1kb_indexing_{stackSize}_{mode}"></a>')
-                    w(f'\n<pre>{output}</pre>\n')
-            if profilerBigIndex is not None:
-                w('<b>~4KB docs</b>')
-                for mode, stackSize, output in profilerBigIndex:
-                    w(f'\n<a id="profiler_4kb_indexing_{stackSize}_{mode}"></a>')
-                    w(f'\n<pre>{output}</pre>\n')
-            if profilerNRTIndex is not None:
-                w('<b>NRT indexing</b>')
-                for mode, stackSize, output in profilerNRTIndex:
-                    w(f'\n<a id="profiler_nrt_indexing_{stackSize}_{mode}"></a>')
-                    w(f'\n<pre>{output}</pre>\n')
-            if profilerSearchIndex is not None:
-                w('<b>Deterministic (for search benchmarking) indexing</b>')
-                for mode, stackSize, output in profilerSearchIndex:
-                    w(f'\n<a id="profiler_deterministic_indexing_{stackSize}_{mode}"></a>')
-                    w(f'\n<pre>{output}</pre>\n')
-            if profilerMediumVectorsIndex is not None:
-                w('<b>~1KB docs</b>')
-                for mode, stackSize, output in profilerMediumVectorsIndex:
-                    w(f'\n<a id="profiler_1kb_indexing_vectors_{stackSize}_{mode}"></a>')
-                    w(f'\n<pre>{output}</pre>\n')
+        w('<br><br><h2>Profiler results (searching)</h2>\n')
+        w(f'<a id="profiler_searching_cpu"></a>')
+        w('<b>CPU:</b><br>')
+        w('<pre>\n')
+        for stackSize, result in comp.getAggregateProfilerResult(id, 'cpu', stackSize=JFR_STACK_SIZES, count=50):
+            w(f'\n<a id="profiler_searching_{stackSize}_cpu"></a>')
+            w(f'\n<pre>{result}</pre>')
 
-            w('<br><br><h2>Profiler results (searching)</h2>\n')
-            w(f'<a id="profiler_searching_cpu"></a>')
-            w('<b>CPU:</b><br>')
-            w('<pre>\n')
-            for stackSize, result in comp.getAggregateProfilerResult(id, 'cpu', stackSize=JFR_STACK_SIZES, count=50):
-                w(f'\n<a id="profiler_searching_{stackSize}_cpu"></a>')
-                w(f'\n<pre>{result}</pre>')
+        w('<br><br>')
+        w('<b>HEAP:</b><br>')
+        w(f'<a id="profiler_searching_heap"></a>')
+        w('<pre>\n')
+        for stackSize, result in comp.getAggregateProfilerResult(id, 'heap', stackSize=JFR_STACK_SIZES, count=50):
+            w(f'\n<a id="profiler_searching_{stackSize}_heap"></a>')
+            w(f'\n<pre>{result}</pre>')
+        w('</pre>')
+        w('</html>\n')
 
-            w('<br><br>')
-            w('<b>HEAP:</b><br>')
-            w(f'<a id="profiler_searching_heap"></a>')
-            w('<pre>\n')
-            for stackSize, result in comp.getAggregateProfilerResult(id, 'heap', stackSize=JFR_STACK_SIZES, count=50):
-                w(f'\n<a id="profiler_searching_{stackSize}_heap"></a>')
-                w(f'\n<pre>{result}</pre>')
-            w('</pre>')
-            w('</html>\n')
+        if not DEBUG and REAL:
+            # Blunders upload:
+            blunders.upload(f'Searching ({timeStamp})',
+                            f'searching-{timeStamp}',
+                            f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                            #glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+                            glob.glob(f'{constants.NIGHTLY_LOG_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
 
-            if not DEBUG and REAL:
-                # Blunders upload:
-                blunders.upload(f'Searching ({timeStamp})',
-                                f'searching-{timeStamp}',
-                                f"Profiled results during search benchmarks in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                #glob.glob(f'{constants.BENCH_BASE_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
-                                glob.glob(f'{constants.NIGHTLY_LOG_DIR}/bench-search-{id}-{comp.name}-*.jfr'))
+            blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
+                            f'indexing-1kb-{timeStamp}',
+                            f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                            profilerMediumJFR)
 
-                blunders.upload(f'Indexing fast ~1 KB docs ({timeStamp})',
-                                f'indexing-1kb-{timeStamp}',
-                                f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                profilerMediumJFR)
+            blunders.upload(f'Indexing fast ~1 KB docs with vectors ({timeStamp})',
+                            f'indexing-1kb-vectors-{timeStamp}',
+                            f"Profiled results during indexing ~1 KB docs with KNN vectors in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                            profilerMediumVectorsJFR)
 
-                blunders.upload(f'Indexing fast ~1 KB docs with vectors ({timeStamp})',
-                                f'indexing-1kb-vectors-{timeStamp}',
-                                f"Profiled results during indexing ~1 KB docs with KNN vectors in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                profilerMediumVectorsJFR)
+            blunders.upload(f'Indexing fast ~4 KB docs ({timeStamp})',
+                            f'indexing-4kb-{timeStamp}',
+                            f"Profiled results during indexing ~4 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                            profilerBigJFR)
 
-                blunders.upload(f'Indexing fast ~4 KB docs ({timeStamp})',
-                                f'indexing-4kb-{timeStamp}',
-                                f"Profiled results during indexing ~4 KB docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                profilerBigJFR)
+            blunders.upload(f'Indexing single-threaded ~1 KB docs into fixed searching index ({timeStamp})',
+                            f'indexing-1kb-fixed-search-single-thread-{timeStamp}',
+                            f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks, single-threaded, for fixed searching index on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                            profilerSearchJFR)
 
-                blunders.upload(f'Indexing single-threaded ~1 KB docs into fixed searching index ({timeStamp})',
-                                f'indexing-1kb-fixed-search-single-thread-{timeStamp}',
-                                f"Profiled results during indexing ~1 KB docs in Lucene's nightly benchmarks, single-threaded, for fixed searching index on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                profilerSearchJFR)
+        if False:
+            blunders.upload(f'Indexing NRT ~1 KB docs ({timeStamp})',
+                            f'indexing-1kb-nrt-{timeStamp}',
+                            f"Profiled results during indexing ~1 KB near-real-time docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
+                            profilerNRTJFR)
 
-            if False:
-                blunders.upload(f'Indexing NRT ~1 KB docs ({timeStamp})',
-                                f'indexing-1kb-nrt-{timeStamp}',
-                                f"Profiled results during indexing ~1 KB near-real-time docs in Lucene's nightly benchmarks on {timeStamp}.  See <a href='https://home.apache.org/~mikemccand/lucenebench/{timeStamp}.html'>here</a> for full details.",
-                                profilerNRTJFR)
+    if os.path.exists('out.png'):
+        shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
+    searchResults = results
 
-        if os.path.exists('out.png'):
-            shutil.move('out.png', '%s/%s.png' % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
-        searchResults = results
+    print('  heaps: %s' % str(searchHeaps))
 
-        print('  heaps: %s' % str(searchHeaps))
-
-        if cmpDiffs is not None:
-            warnings, errors, overlap = cmpDiffs
-            print('WARNING: search result differences: %s' % str(warnings))
-            if len(errors) > 0:
-                raise RuntimeError('search result differences: %s' % str(errors))
+    if cmpDiffs is not None:
+        warnings, errors, overlap = cmpDiffs
+        print('WARNING: search result differences: %s' % str(warnings))
+        if len(errors) > 0 and not DO_RESET:
+            raise RuntimeError('search result differences: %s' % str(errors))
     else:
         cmpDiffs = None
         searchHeaps = None
@@ -778,7 +792,7 @@ def run():
         if False:
             runCommand('chmod -R a-w %s' % runLogDir)
 
-    message('done: total time %s' % (now() - start))
+    message(f'done: total time {now() - start}')
 
 
 def countGitHubPullRequests():
@@ -1308,6 +1322,13 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'OrHighMed', 'high-freq medium-freq')
     writeOneLine(w, done, 'AndHighOrMedMed', '+high-freq +(medium-freq medium-freq)')
     writeOneLine(w, done, 'AndMedOrHighHigh', '+medium-freq +(high-freq high-freq)')
+    writeOneLine(w, done, 'Or2Terms2StopWords', 'Disjunction of 2 regular terms and 2 stop words')
+    writeOneLine(w, done, 'And2Terms2StopWords', 'Conjunction of 2 regular terms and 2 stop words')
+    writeOneLine(w, done, 'OrStopWords', 'Disjunction of 2 or more stop words')
+    writeOneLine(w, done, 'AndStopWords', 'Conjunction of 2 or more stop words')
+    writeOneLine(w, done, 'Or3Terms', 'Disjunction of 3 terms')
+    writeOneLine(w, done, 'And3Terms', 'Conjunction of 3 terms')
+    writeOneLine(w, done, 'OrHighRare', 'Disjunction of a very frequent term and a very rare term')
 
     w('<br><br><b>CombinedFieldsQuery:</b>')
     writeOneLine(w, done, 'CombinedTerm', 'Combined high-freq')

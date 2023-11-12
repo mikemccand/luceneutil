@@ -461,7 +461,6 @@ public final class Indexer {
             // System.out.println("KNN Codec: " + hnswThreadsPerMerge + " exec=" + hnswMergeExec);
             return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
                                                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                                 null,
                                                  hnswThreadsPerMerge,
                                                  hnswMergeExec);
           }

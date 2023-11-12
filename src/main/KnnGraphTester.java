@@ -784,15 +784,14 @@ public class KnnGraphTester {
       return new Lucene99Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat());
+          return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth);
         }
       };
     } else {
       return new Lucene99Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, new Lucene99ScalarQuantizedVectorsFormat(),
-                  numMergeWorker, exec);
+          return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
         }
       };
     }

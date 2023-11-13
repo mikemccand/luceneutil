@@ -407,7 +407,26 @@ def run():
                                            vectorDimension=constants.VECTORS_DIMENSIONS,
                                            vectorEncoding=constants.VECTORS_TYPE)
                                            
-
+    fastIndexMediumVectorsQuantized = comp.newIndex(NIGHTLY_DIR, mediumSource,
+                                                    analyzer='StandardAnalyzerNoStopWords',
+                                                    postingsFormat='Lucene99',
+                                                    numThreads=constants.INDEX_NUM_THREADS,
+                                                    directory=DIR_IMPL,
+                                                    idFieldPostingsFormat='Lucene99',
+                                                    ramBufferMB=INDEXING_RAM_BUFFER_MB,
+                                                    waitForMerges=False,
+                                                    waitForCommit=False,
+                                                    disableIOThrottle=True,
+                                                    grouping=False,
+                                                    verbose=False,
+                                                    mergePolicy='TieredMergePolicy',
+                                                    maxConcurrentMerges=12,
+                                                    useCMS=True,
+                                                    vectorFile=constants.VECTORS_DOCS_FILE,
+                                                    vectorDimension=constants.VECTORS_DIMENSIONS,
+                                                    vectorEncoding=constants.VECTORS_TYPE,
+                                                    quantizeKNNGraph=True)
+                                           
     nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                    analyzer='StandardAnalyzerNoStopWords',
                                    postingsFormat='Lucene99',
@@ -525,6 +544,12 @@ def run():
     # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
     medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(
         r, runLogDir, 'medium vectors index (fast)', fastIndexMediumVectors, 'fastIndexMediumDocsWithVectors.log')
+    message('medIndexVectorsAtClose %s' % atClose)
+
+    # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
+    # TODO: render profiler data for thias run too
+    medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(
+        r, runLogDir, 'medium quantized vectors index (fast)', fastIndexMediumVectorsQuantized, 'fastIndexMediumDocsWithVectorsQuantized.log')
     message('medIndexVectorsAtClose %s' % atClose)
 
     # 3: build index for NRT test
@@ -756,7 +781,9 @@ def run():
                luceneUtilRev,
                searchHeaps,
                medVectorsIndexTime, medVectorsBytesIndexed,
-               openPRCount, closedPRCount)
+               openPRCount, closedPRCount,
+               medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed)
+
 
     for fname in resultsNow:
         shutil.copy(fname, runLogDir)
@@ -907,6 +934,7 @@ def makeGraphs():
     global annotations
     medIndexChartData = ['Date,GB/hour']
     medIndexVectorsChartData = ['Date,GB/hour']
+    medIndexQuantizedVectorsChartData = ['Date,GB/hour']
     bigIndexChartData = ['Date,GB/hour']
     nrtChartData = ['Date,Reopen Time (msec)']
     gcIndexTimesChartData = ['Date,JIT (sec),Young GC (sec),Old GC (sec)']
@@ -958,6 +986,11 @@ def makeGraphs():
             else:
                 searchHeaps = None
 
+            if len(tup) > 16:
+                medQuantizedVectorsIndexTimeSec, medQuantizedVectorsBytesIndexed = tup[16:18]
+            else:
+                medQuantizedVectorsIndexTimeSec, medQuantizedVectorsBytesIndexed = None, None
+               
             if len(tup) > 12:
                 medVectorsIndexTimeSec, medVectorsBytesIndexed = tup[12:14]
             else:
@@ -1012,6 +1045,9 @@ def makeGraphs():
             if medVectorsBytesIndexed is not None:
                 medIndexVectorsChartData.append('%s,%.1f' % (
                 timeStampString, (medVectorsBytesIndexed / (1024 * 1024 * 1024.)) / (medVectorsIndexTimeSec / 3600.)))
+            if medQuantizedVectorsBytesIndexed is not None:
+                medIndexQuantizedVectorsChartData.append('%s,%.1f' % (
+                timeStampString, (medQuantizedVectorsBytesIndexed / (1024 * 1024 * 1024.)) / (medQuantizedVectorsIndexTimeSec / 3600.)))
             bigIndexChartData.append(
                 '%s,%.1f' % (timeStampString, (bigBytesIndexed / (1024 * 1024 * 1024.)) / (bigIndexTimeSec / 3600.)))
             mean, stdDev = nrtResults
@@ -1125,13 +1161,14 @@ def makeGraphs():
     sort(gitHubPRChartData)
     sort(medIndexChartData)
     sort(medIndexVectorsChartData)
+    sort(medIndexQuantizedVectorsChartData)
     sort(bigIndexChartData)
     sort(gcIndexTimesChartData)
     for k, v in list(searchChartData.items()):
         sort(v)
 
     # Index time, including GC/JIT times
-    writeIndexingHTML(medIndexChartData, medIndexVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
+    writeIndexingHTML(medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
 
     # CheckIndex time
     writeCheckIndexTimeHTML()
@@ -1580,7 +1617,7 @@ def writeNADFacetBenchmarkHTML(nadFacetBenchmarkData):
         footer(w)
 
 
-def writeIndexingHTML(medChartData, medVectorsChartData, bigChartData, gcTimesChartData):
+def writeIndexingHTML(medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
     f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'w', encoding='utf-8')
     w = f.write
     header(w, 'Lucene nightly indexing benchmark')
@@ -1599,18 +1636,25 @@ def writeIndexingHTML(medChartData, medVectorsChartData, bigChartData, gcTimesCh
     w('<br>')
     w('<br>')
     w('<br>')
+    w(getOneGraphHTML('MedQuantizedVectorsIndexTime', medQuantizedVectorsChartData, "Plain text GB/hour",
+                      "~4 KB Wikipedia English docs, with KNN Scalar Quantized Vectors", errorBars=False, pctOffset=170))
+    w('\n')
+
+    w('<br>')
+    w('<br>')
+    w('<br>')
     w(getOneGraphHTML('BigIndexTime', bigChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs",
-                      errorBars=False, pctOffset=170))
+                      errorBars=False, pctOffset=250))
     w('\n')
 
     w('<br>')
     w('<br>')
     w('<br>')
     w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False,
-                      pctOffset=250))
+                      pctOffset=330))
     w('\n')
 
-    writeKnownChanges(w, pctOffset=330)
+    writeKnownChanges(w, pctOffset=410)
 
     w('<br><br>')
     w('<b>Notes</b>:\n')

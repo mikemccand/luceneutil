@@ -163,7 +163,8 @@ class Index(object):
                # For example, rearrange = 555 means 5 large segments, 5 medium segments and 5 small segments
                rearrange = 0,
                hnswThreadsPerMerge = 1,
-               hnswThreadPoolCount = 1
+               hnswThreadPoolCount = 1,
+               quantizeKNNGraph = False
                ):
     self.checkout = checkout
     self.dataSource = dataSource
@@ -214,6 +215,7 @@ class Index(object):
     self.rearrange = rearrange
     self.hnswThreadsPerMerge = hnswThreadsPerMerge
     self.hnswThreadPoolCount = hnswThreadPoolCount
+    self.quantizeKNNGraph = quantizeKNNGraph
 
   def getName(self):
     if self.assignedName is not None:

@@ -970,6 +970,8 @@ class RunAlgs:
 
       w('-hnswThreadsPerMerge', index.hnswThreadsPerMerge)
       w('-hnswThreadPoolCount', index.hnswThreadPoolCount)
+      if index.quantizeKNNGraph:
+        w('-quantizeKNNGraph')
 
       fullLogFile = '%s/%s.%s.log' % (constants.LOGS_DIR, id, index.getName())
 

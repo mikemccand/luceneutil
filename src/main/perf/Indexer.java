@@ -49,6 +49,7 @@ import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat;
@@ -314,6 +315,7 @@ public final class Indexer {
     final boolean doRandomCommit = args.getFlag("-randomCommit");
     final boolean useCMS = args.getFlag("-useCMS");
     final boolean disableIOThrottle = args.getFlag("-disableIOThrottle");
+    final boolean quantizeKNNGraph = args.getFlag("-quantizeKNNGraph");
 
     if (waitForCommit == false && waitForMerges) {
       throw new RuntimeException("pass -waitForCommit if you pass -waitForMerges");
@@ -457,12 +459,18 @@ public final class Indexer {
 
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            // TODO: add option for Lucene99ScalarQuantizedVectorsFormat instead of null below:
-            // System.out.println("KNN Codec: " + hnswThreadsPerMerge + " exec=" + hnswMergeExec);
-            return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                                                 Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                                 hnswThreadsPerMerge,
-                                                 hnswMergeExec);
+            if (quantizeKNNGraph) {
+              return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                                                   Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                                                   hnswThreadsPerMerge,
+                                                   hnswMergeExec);
+            } else {
+              return new Lucene99HnswScalarQuantizedVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                                                                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                                                                  hnswThreadsPerMerge,
+                                                                  null,  // configuredQuantile  
+                                                                  hnswMergeExec);
+            }
           }
         };
 

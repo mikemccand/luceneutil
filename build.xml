@@ -2,7 +2,7 @@
 
   <property name="data.dir" value="${basedir}/../data"/>
   <property name="tasks.dir" value="${basedir}/tasks"/>
-  <property name="lucene.checkout" value="${basedir}/../lucene"/>
+  <property name="lucene.checkout" value="${basedir}/../candidate"/>
 
   <target name="build">
 
@@ -11,6 +11,9 @@
     <path id="build.classpath">
       <pathelement location="build"/>
       <fileset dir="${lucene.checkout}/lucene/core/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
+      <fileset dir="${lucene.checkout}/lucene/join/build/libs/">
         <include name="*.jar"/>
       </fileset>
     </path>

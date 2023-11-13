@@ -35,16 +35,16 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
-import org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldType;
@@ -105,6 +105,7 @@ public class KnnGraphTester {
   private int reindexTimeMsec;
   private int beamWidth;
   private int maxConn;
+  private boolean quantize;
   private int numMergeThread;
   private int numMergeWorker;
   private ExecutorService exec;
@@ -209,6 +210,9 @@ public class KnnGraphTester {
         case "-reindex":
           reindex = true;
           break;
+        case "-quantize":
+          quantize = true;
+          break;
         case "-topK":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-topK requires a following number");
@@ -237,6 +241,12 @@ public class KnnGraphTester {
         case "-metric":
           String metric = args[++iarg];
           switch (metric) {
+            case "mip":
+              similarityFunction = VectorSimilarityFunction.MAXIMUM_INNER_PRODUCT;
+              break;
+            case "cosine":
+              similarityFunction = VectorSimilarityFunction.COSINE;
+              break;
             case "euclidean":
               similarityFunction = VectorSimilarityFunction.EUCLIDEAN;
               break;
@@ -244,7 +254,7 @@ public class KnnGraphTester {
               similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
               break;
             default:
-              throw new IllegalArgumentException("-metric can be 'angular' or 'euclidean' only");
+              throw new IllegalArgumentException("-metric can be 'angular', 'euclidean', 'cosine', or 'mip' only");
           }
           break;
         case "-forceMerge":
@@ -335,6 +345,7 @@ public class KnnGraphTester {
             ((PerFieldKnnVectorsFormat.FieldsReader) ((CodecReader) leafReader).getVectorReader())
                 .getFieldReader(KNN_FIELD);
         HnswGraph knnValues = ((Lucene99HnswVectorsReader) vectorsReader).getGraph(KNN_FIELD);
+        System.out.printf("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
         System.out.printf("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
       }
@@ -344,7 +355,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize));
     if (quiet == false) {
       // not a quiet place!
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -405,6 +416,7 @@ public class KnnGraphTester {
       throws IOException {
     TopDocs[] results = new TopDocs[numIters];
     long elapsed, totalCpuTime, totalVisited = 0;
+    ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = FileChannel.open(queryPath)) {
       VectorReader targetReader = VectorReader.create(input, dim, vectorEncoding);
       if (quiet == false) {
@@ -478,6 +490,8 @@ public class KnnGraphTester {
                 + totalCpuTime
                 + "ms");
       }
+    } finally {
+      executorService.shutdown();
     }
     if (outputPath != null) {
       ByteBuffer buf = ByteBuffer.allocate(4);
@@ -628,7 +642,7 @@ public class KnnGraphTester {
 
   private int[][] getNN(Path docPath, Path queryPath) throws IOException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK), 36);
+    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK, similarityFunction.ordinal()), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {
@@ -734,11 +748,10 @@ public class KnnGraphTester {
 
   private int createIndex(Path docsPath, Path indexPath) throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize));
     // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     iwc.setRAMBufferSizeMB(WRITER_BUFFER_MB);
     iwc.setUseCompoundFile(false);
-    // iwc.setMaxBufferedDocs(10000);
 
     FieldType fieldType =
         switch (vectorEncoding) {
@@ -779,19 +792,23 @@ public class KnnGraphTester {
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
   }
 
-  private static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker) {
+  private static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize) {
     if (exec == null) {
       return new Lucene99Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth);
+          return quantize ?
+            new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth) :
+            new Lucene99HnswVectorsFormat(maxConn, beamWidth);
         }
       };
     } else {
       return new Lucene99Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+          return quantize ?
+            new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null, exec) :
+            new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
         }
       };
     }

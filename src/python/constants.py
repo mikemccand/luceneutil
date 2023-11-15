@@ -70,7 +70,6 @@ COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = '%s/tasks/combinedfields.unevenly
 # wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-with-random-label.txt.lzma
 WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-with-random-label.txt' % BASE_DIR
 #WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
-WIKI_BIG_TASKS_FILE = '%s/data/wikibig.tasks' % BASE_DIR
 
 # 33332620 docs in enwiki-20120502-lines-1k.txt'
 # 6726515 docs in enwiki-20120502-lines.txt

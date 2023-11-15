@@ -47,10 +47,11 @@ MEME_ALL = Data('memeall',
                 210999824,
                 constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 
-WIKI_BIG = Data('wikibigall', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_BIG_TASKS_FILE)
-WIKI_BIG_10K = Data('wikibig10k', constants.WIKI_BIG_DOCS_LINE_FILE, 10000, constants.WIKI_BIG_TASKS_FILE)
-WIKI_BIG_100K = Data('wikibig100k', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_BIG_TASKS_FILE)
-WIKI_BIG_1M = Data('wikibig1m', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_BIG_TASKS_FILE)
+# wikibig uses the same task files as wikimedium
+WIKI_BIG = Data('wikibigall', constants.WIKI_BIG_DOCS_LINE_FILE, constants.WIKI_BIG_DOCS_COUNT, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+WIKI_BIG_10K = Data('wikibig10k', constants.WIKI_BIG_DOCS_LINE_FILE, 10000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
+WIKI_BIG_100K = Data('wikibig100k', constants.WIKI_BIG_DOCS_LINE_FILE, 100000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
+WIKI_BIG_1M = Data('wikibig1m', constants.WIKI_BIG_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
 
 EURO_MEDIUM = Data('euromedium', constants.EUROPARL_MEDIUM_DOCS_LINE_FILE, 5000000, constants.EUROPARL_MEDIUM_TASKS_FILE)
 

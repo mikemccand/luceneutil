@@ -169,8 +169,8 @@ def extractSearchStats(searchLog):
     # median result:
     allResults.append(l[len(l)//2])
 
-  key1 = ('green_pickup_latitude:[40.75 TO 40.9] yellow_pickup_latitude:[40.75 TO 40.9]', None)
-  key2 = ('pickup_latitude:[40.75 TO 40.9]', None)
+  key1 = ('IndexOrDocValuesQuery(indexQuery=green_pickup_latitude:[40.75 TO 40.9], dvQuery=green_pickup_latitude:[4630931869959979008 TO 4630952980583232307]) IndexOrDocValuesQuery(indexQuery=yellow_pickup_latitude:[40.75 TO 40.9], dvQuery=yellow_pickup_latitude:[4630931869959979008 TO 4630952980583232307])', None)
+  key2 = ('IndexOrDocValuesQuery(indexQuery=pickup_latitude:[40.75 TO 40.9], dvQuery=pickup_latitude:[4630931869959979008 TO 4630952980583232307])', None)
   if key1 in byQuerySort:
     l = byQuerySort[key1]
   else:

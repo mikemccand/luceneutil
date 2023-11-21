@@ -69,6 +69,7 @@ import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.MergeScheduler;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
@@ -142,6 +143,22 @@ public final class Indexer {
     }
 
     return mp;
+  }
+
+  private static long sizeInBytes(SegmentInfos infos) throws IOException {
+    long totalIndexBytes = 0;
+    for (SegmentCommitInfo info : infos) {
+      totalIndexBytes += info.sizeInBytes();
+    }
+    return totalIndexBytes;
+  }
+
+  private static long sizeInBytes(Directory dir) throws IOException {
+    long totalDirBytes = 0;
+    for (String file : dir.listAll()) {
+      totalDirBytes += dir.fileLength(file);
+    }
+    return totalDirBytes;
   }
 
   private static void _main(String[] clArgs) throws Exception {
@@ -520,10 +537,13 @@ public final class Indexer {
       System.out.println("Index has " + w.getDocStats().maxDoc + " docs");
 
       final TaxonomyWriter taxoWriter;
+      final Directory taxoDir;
       if (facetFields.isEmpty() == false) {
-        taxoWriter = new DirectoryTaxonomyWriter(od.open(Paths.get(args.getString("-indexPath"), "facets")),
+        taxoDir = od.open(Paths.get(args.getString("-indexPath"), "facets"));
+        taxoWriter = new DirectoryTaxonomyWriter(taxoDir,
                                                  IndexWriterConfig.OpenMode.CREATE);
       } else {
+        taxoDir = null;
         taxoWriter = null;
       }
 
@@ -653,6 +673,9 @@ public final class Indexer {
         System.out.println("Taxonomy has " + taxoWriter.getSize() + " ords");
         taxoWriter.commit();
         taxoWriter.close();
+        SegmentInfos infos = SegmentInfos.readLatestCommit(dir);
+        System.out.println("Taxonomy size (as committed) " + sizeInBytes(infos) + " bytes");
+        System.out.println("Taxonomy Directory total size " + sizeInBytes(taxoDir) + " bytes");
       }
 
       final long tCloseStart = System.currentTimeMillis();
@@ -661,9 +684,14 @@ public final class Indexer {
         w = null;
       }
       if (waitForCommit) {
-        System.out.println("\nIndexer: at close: " + SegmentInfos.readLatestCommit(dir));
+        SegmentInfos infos = SegmentInfos.readLatestCommit(dir);
+        System.out.println("\nIndex size (as committed): " + sizeInBytes(infos) + " bytes");
+        System.out.println("\nIndexer: at close: " + infos);
         System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
       }
+
+      // separately print total disk usage in the dir in case IndexWriter sprouts a bug that fails to reclaim temp files or killed merges or whatnot:
+      System.out.println("Directory total size: " + sizeInBytes(dir) + " bytes");
 
       if (arrangement != 0) {
         // rearrange after normal indexing routine is completed

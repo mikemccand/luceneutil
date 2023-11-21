@@ -41,6 +41,7 @@ import competition
 import stats
 import blunders
 from notation import KNOWN_CHANGES
+import fillNightlyTotalIndexSizes
 
 """
 This script runs certain benchmarks, once per day, and generates graphs so we can see performance over time:
@@ -808,6 +809,8 @@ def run():
             if f != 'logs.tar.bz2' and not f.endswith('.pk'):
                 os.remove(f)
 
+        fillNightlyTotalIndexSizes.extract_one_file(f'{runLogDir}/logs.tar.bz2')
+
     if DEBUG:
         resultsFileName = 'results.debug.pk'
     else:
@@ -938,6 +941,7 @@ def makeGraphs():
     bigIndexChartData = ['Date,GB/hour']
     nrtChartData = ['Date,Reopen Time (msec)']
     gcIndexTimesChartData = ['Date,JIT (sec),Young GC (sec),Old GC (sec)']
+    fixedIndexSizeChartData = ['Date,Size (GB)']
     gcSearchTimesChartData = ['Date,JIT (sec),Young GC (sec),Old GC (sec)']
     searchChartData = {}
     storedFieldsResults = {'Index size': ['Date,Index size BEST_SPEED (MB),Index size BEST_COMPRESSION (MB)'],
@@ -1101,6 +1105,13 @@ def makeGraphs():
                     searchChartData[cat].append(
                         '%s,%.3f,%.3f' % (timeStampString, avgQPS * qpsMult, stdDevQPS * qpsMult))
 
+                fixed_index_size_file_name = f'{constants.NIGHTLY_LOG_DIR}/{subDir}/fixed_index_bytes.pk'
+                if os.path.exists(fixed_index_size_file_name):
+                  with open(fixed_index_size_file_name, 'rb') as f:
+                      size_in_mb = pickle.load(f)
+                  fixedIndexSizeChartData.append(f'{timeStampString},{size_in_mb/1024}')
+            
+
             label = 0
             for date, desc, fullDesc in KNOWN_CHANGES:
                 # e.g. timeStampString: 2021-01-09 13:35:50
@@ -1158,17 +1169,22 @@ def makeGraphs():
                 nadFacetsResults['getTopChildren() time'].append(','.join([str(x) for x in get_children_row]))
                 nadFacetsResults['getAllChildren() time'].append(','.join([str(x) for x in get_all_children_row]))
 
+            #else:
+            #  fixedIndexSizeChartData.append(f'{timeStampString},null')
+
+
     sort(gitHubPRChartData)
     sort(medIndexChartData)
     sort(medIndexVectorsChartData)
     sort(medIndexQuantizedVectorsChartData)
     sort(bigIndexChartData)
     sort(gcIndexTimesChartData)
+    sort(fixedIndexSizeChartData)
     for k, v in list(searchChartData.items()):
         sort(v)
 
     # Index time, including GC/JIT times
-    writeIndexingHTML(medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
+    writeIndexingHTML(fixedIndexSizeChartData, medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
 
     # CheckIndex time
     writeCheckIndexTimeHTML()
@@ -1351,6 +1367,12 @@ def writeIndexHTML(searchChartData, days):
     w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html">Indexing throughput</a>')
     w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="analyzers.html">Analyzers throughput</a>')
     w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="nrt.html">Near-real-time refresh latency</a>')
+    w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#MedIndexTime">GB/hour for medium docs index</a>')
+    w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#MedVectorsIndexTime">GB/hour for medium docs index with vectors</a>')
+    w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#MedQuantizedVectorsIndexTime">GB/hour for medium docs index with int8 quantized vectors</a>')
+    w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#BigIndexTime">GB/hour for big docs index</a>')
+    w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#GCTimes">Indexing JIT/GC times</a>')
+    w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#FixedIndexSize">Index disk usage</a>')
 
     w('<br><br><b>BooleanQuery:</b>')
     writeOneLine(w, done, 'AndHighHigh', '+high-freq +high-freq')
@@ -1617,7 +1639,7 @@ def writeNADFacetBenchmarkHTML(nadFacetBenchmarkData):
         footer(w)
 
 
-def writeIndexingHTML(medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
+def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
     f = open('%s/indexing.html' % constants.NIGHTLY_REPORTS_DIR, 'w', encoding='utf-8')
     w = f.write
     header(w, 'Lucene nightly indexing benchmark')
@@ -1652,9 +1674,16 @@ def writeIndexingHTML(medChartData, medVectorsChartData, medQuantizedVectorsChar
     w('<br>')
     w(getOneGraphHTML('GCTimes', gcTimesChartData, "Seconds", "JIT/GC times indexing ~1 KB docs", errorBars=False,
                       pctOffset=330))
+
+    w('\n')
+    w('<br>')
+    w('<br>')
+    w('<br>')
+    w(getOneGraphHTML('FixedIndexSize', fixedIndexSizeChartData, "GB", 'Disk usage of fixed search index', errorBars=False,
+                      pctOffset=410))
     w('\n')
 
-    writeKnownChanges(w, pctOffset=410)
+    writeKnownChanges(w, pctOffset=490)
 
     w('<br><br>')
     w('<b>Notes</b>:\n')

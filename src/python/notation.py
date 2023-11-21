@@ -751,4 +751,7 @@ KNOWN_CHANGES = [
      'Remove patching for doc blocks https://github.com/apache/lucene/pull/12741',
      'Remove patching for doc blocks https://github.com/apache/lucene/pull/12741'),
 
+   ('2023-11-13',
+     'Also index int8 quantized HNSW vectors',
+     'Also index int8 quantized HNSW vectors'),
 ]

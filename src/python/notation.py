@@ -754,4 +754,8 @@ KNOWN_CHANGES = [
    ('2023-11-13',
      'Also index int8 quantized HNSW vectors',
      'Also index int8 quantized HNSW vectors'),
+
+  ('2023-11-21',
+     'Switch tail postings to group-varint https://github.com/apache/lucene/pull/12782',
+     'Switch tail postings to group-varint https://github.com/apache/lucene/pull/12782'),
 ]

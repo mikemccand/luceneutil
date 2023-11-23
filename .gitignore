@@ -1,4 +1,5 @@
 ## intellij files
+libs/
 .idea/
 *.iml
 *.ipr

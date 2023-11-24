@@ -758,4 +758,9 @@ KNOWN_CHANGES = [
   ('2023-11-21',
      'Switch tail postings to group-varint https://github.com/apache/lucene/pull/12782',
      'Switch tail postings to group-varint https://github.com/apache/lucene/pull/12782'),
+
+  ('2023-11-23',
+     'Skip decoding tail freqs when they are not needed https://github.com/apache/lucene/pull/12832',
+     'Skip decoding tail freqs when they are not needed https://github.com/apache/lucene/pull/12832'),
+
 ]

@@ -263,6 +263,8 @@ class Index(object):
 
     if self.vectorFile:
       name.append('vectors=%d' % self.vectorDimension)
+      if self.quantizeKNNGraph:
+        name.append('int8-quantized')
 
     name.append('nd%gM' % (self.numDocs/1000000.0))
     return '.'.join(name)

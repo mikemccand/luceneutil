@@ -477,16 +477,16 @@ public final class Indexer {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
             if (quantizeKNNGraph) {
-              return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                                                   Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                                   hnswThreadsPerMerge,
-                                                   hnswMergeExec);
-            } else {
               return new Lucene99HnswScalarQuantizedVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                                                                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                                                  hnswThreadsPerMerge,
-                                                                  null,  // configuredQuantile  
-                                                                  hnswMergeExec);
+                Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                hnswThreadsPerMerge,
+                null,  // configuredQuantile
+                hnswMergeExec);
+            } else {
+              return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                hnswThreadsPerMerge,
+                hnswMergeExec);
             }
           }
         };

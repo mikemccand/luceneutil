@@ -20,11 +20,22 @@ This project uses Ant + Ivy to build and has been test to work correctly with an
 Install Apache ant and configure your path to use ant binaries. You may find [this page](https://ant.apache.org/manual/install.html) useful for the same.
 
 Next, configure the project to use Ivy by
-`ant bootstrap`
+
+```
+# 2. Initialize Ivy
+ant bootstrap
+```
+Use `ant -projecthelp` to know more about all the targets that can be used.
+
+Update the `lucene.checkout` path in the `build.properties` file which can be used by Ant to compile java class in this 
+project. By default it is set the lucene_baseline path as also mentioned in the section
+[Preparing the benchmark candidates](#Preparing the benchmark candidates)
+
+
 This will download ivy jars in the $USER_HOME/.ant folder.
 
 ```
-# 2. Run the setup script
+# 3. Run the setup script
 cd util
 python src/python/setup.py -download
 
@@ -49,7 +60,7 @@ lzma -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
 
 ### Preparing the benchmark candidates
 
-The benchmark compares a baseline version of Lucene to a patched one. Therefor we need two checkouts of Lucene, for example:
+The benchmark compares a baseline version of Lucene to a patched one. Therefore we need two checkouts of Lucene, for example:
 
 * `$LUCENE_BENCH_HOME/lucene_baseline`: contains a complete svn checkout of Lucene, this is the baseline for comparison
 * `$LUCENE_BENCH_HOME/lucene_candidate`: contains a complete svn checkout of Lucene with some change applied that should be benchmarked against the baseline.

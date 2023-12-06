@@ -67,7 +67,7 @@
 
     <import file="./data-build.xml"/>
 
-    <target name="download-ivy">
+    <target name="download-ivy" description="Download the ivy jars into ${ivy.jar.dir}">
 
         <mkdir dir="${ivy.home}"/>
         <mkdir dir="${ivy.jar.dir}"/>
@@ -94,22 +94,23 @@
         <delete dir="${build.dir}"/>
     </target>
 
-    <target name="compile" depends="resolve">
+    <target name="compile" depends="resolve" description="Compile all java sources in ${src.dir}">
         <mkdir dir="${classes.dir}"/>
         <javac srcdir="${src.dir}" destdir="${classes.dir}" includeantruntime="false" classpathref="lib.path"/>
     </target>
 
-    <target name="compile-test" depends="compile">
+    <target name="compile-test" depends="compile" description="Compile all test classes in ${test.src.dir}">
         <mkdir dir="${test.classes.dir}"/>
         <javac srcdir="${test.src.dir}" destdir="${test.classes.dir}" includeantruntime="false"
                classpathref="test.classpath"/>
     </target>
 
-    <target name="resolve" description="retrieve dependencies with Ivy">
+    <target name="resolve" description="Retrieve dependencies with Ivy into ${lib.dir}">
         <ivy:retrieve  pattern="${lib.dir}/[conf]/[organisation]/[artifact]-[revision].[ext]" sync="true"/>
     </target>
 
-    <target name="run" depends="compile">
+    <target name="run" depends="compile" description="Run any particular java main class. Pass the class name as`-Dmain.class=`
+     and any arguments as a doubley quoted string in `-Dargs=`. You can also pass any jvm args in `-DjvmArgs=`">
         <java fork="true" classname="${main.class}">
             <classpath>
                 <path refid="app.path"/>
@@ -119,7 +120,7 @@
         </java>
     </target>
 
-    <target name="test" depends="compile-test">
+    <target name="test" depends="compile-test" description="Run all the Junit tests in ${test.classes.dir}">
         <junit>
             <classpath refid="test.path" />
             <batchtest>
@@ -131,7 +132,7 @@
         </junit>
     </target>
 
-    <target name="test-single" depends="compile-test">
+    <target name="test-single" depends="compile-test" description="Run a single test class file. Provide fully classified test class name in `-Dtest.class=`">
         <junit>
             <classpath refid="test.path" />
             <test name="${test.class}" />
@@ -139,7 +140,8 @@
         </junit>
     </target>
 
-    <target name="test-methods" depends="compile-test">
+    <target name="test-methods" depends="compile-test" description="Run selected test methods of a test class.
+    Provide fully classified test class name in `-Dtest.class=`. And comma separated method names in `-Dtest.methods=`" >
         <junit>
             <classpath refid="test.path" />
             <test name="${test.class}" methods="${test.methods}"/>

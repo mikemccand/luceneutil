@@ -753,7 +753,7 @@ KNOWN_CHANGES = [
 
    ('2023-11-13',
      'Also index int8 quantized HNSW vectors',
-     'Also index int8 quantized HNSW vectors'),
+     'Also index int8 quantized HNSW vectors, but introduced a bug where quantized usage is flipped, this is fixed on 2023-12-04'),
 
   ('2023-11-21',
      'Switch tail postings to group-varint https://github.com/apache/lucene/pull/12782',
@@ -763,4 +763,7 @@ KNOWN_CHANGES = [
      'Skip decoding tail freqs when they are not needed https://github.com/apache/lucene/pull/12832',
      'Skip decoding tail freqs when they are not needed https://github.com/apache/lucene/pull/12832'),
 
+  ('2023-12-04',
+   'Correct int8 quantized vectors usage',
+   'Correct int8 quantized vectors usage, this was flipped in the 2023-11-13 change and is now corrected'),
 ]

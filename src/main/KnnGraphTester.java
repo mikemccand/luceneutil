@@ -70,6 +70,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -599,7 +600,9 @@ public class KnnGraphTester {
   private static TopDocs doKnnVectorQuery(
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter)
       throws IOException {
-    return searcher.search(new KnnFloatVectorQuery(field, vector, k + fanout, filter), k);
+    ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
+    TopDocs docs = searcher.search(profiledQuery, k);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
   }
 
   private float checkResults(TopDocs[] results, int[][] nn) {
@@ -819,6 +822,36 @@ public class KnnGraphTester {
         "Usage: TestKnnGraph [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-niter N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
     System.err.println(error);
     System.exit(1);
+  }
+
+  private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
+    private final Query filter;
+    private final int k;
+    private final int fanout;
+    private final String field;
+    private final float[] target;
+    private long totalVectorCount;
+
+    ProfiledKnnFloatVectorQuery(String field, float[] target, int k, int fanout, Query filter) {
+      super(field, target, k + fanout, filter);
+      this.field = field;
+      this.target = target;
+      this.k = k;
+      this.fanout = fanout;
+      this.filter = filter;
+    }
+
+    @Override
+    protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
+      TopDocs td = TopDocs.merge(k, perLeafResults);
+      totalVectorCount = td.totalHits.value;
+      return td;
+    }
+
+    long totalVectorCount() {
+      return totalVectorCount;
+    }
+
   }
 
   private static class BitSetQuery extends Query {

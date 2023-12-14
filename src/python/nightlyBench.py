@@ -179,7 +179,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
 
 def checkIndex(r, indexPath, checkLogFileName):
     message('run CheckIndex')
-    cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex -threadCount 16 "%s" > %s 2>&1' % \
+    cmd = '%s -classpath "%s" -ea org.apache.lucene.index.CheckIndex -threadCount 16 -level 2 "%s" > %s 2>&1' % \
           (constants.JAVA_COMMAND,
            benchUtil.classPathToString(benchUtil.getClassPath(NIGHTLY_DIR)),
            indexPath + '/index',

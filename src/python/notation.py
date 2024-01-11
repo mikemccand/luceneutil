@@ -766,4 +766,12 @@ KNOWN_CHANGES = [
   ('2023-12-04',
    'Correct int8 quantized vectors usage',
    'Correct int8 quantized vectors usage, this was flipped in the 2023-11-13 change and is now corrected'),
+
+  ('2023-12-14',
+   'Change CheckIndex level back to 2 https://github.com/mikemccand/luceneutil/pull/251',
+   'Change CheckIndex level back to 2 https://github.com/mikemccand/luceneutil/pull/251'),
+
+  ('2023-12-24',
+   'Move group-varint encoding/decoding logic to DataOutput/DataInput https://github.com/apache/lucene/pull/12841',
+   'Move group-varint encoding/decoding logic to DataOutput/DataInput https://github.com/apache/lucene/pull/12841'),
 ]

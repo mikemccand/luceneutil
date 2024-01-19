@@ -38,6 +38,7 @@ import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
@@ -65,6 +66,7 @@ public class DiskUsage {
     }
 
     IndexWriterConfig conf = new IndexWriterConfig(null);
+
     conf.setOpenMode(OpenMode.CREATE);
     // force codec to write per-field filenames.
     conf.setCodec(new Lucene99Codec(Mode.valueOf(System.getProperty("mode", "BEST_SPEED"))) {
@@ -83,20 +85,30 @@ public class DiskUsage {
     System.err.println("analyzing... (using " + tmp + " for temporary storage)");
     
     try (Directory dir = FSDirectory.open(Paths.get(args[0]));
-         DirectoryReader reader = DirectoryReader.open(dir);
-         Directory scratch = FSDirectory.open(tmp);
-         IndexWriter writer = new IndexWriter(scratch, conf)) {
+         DirectoryReader reader = DirectoryReader.open(dir)) {
+      if (reader.leaves().isEmpty() == false) {
+
+        FieldInfos fis = reader.leaves().get(0).reader().getFieldInfos();
+        String parentFieldName = fis.getParentField();
+        if (parentFieldName != null) {
+          // new IndexWriter must have matching parent field of incoming DirectoryReader:
+          conf.setParentField(parentFieldName);
+        }
+        try (Directory scratch = FSDirectory.open(tmp);
+             IndexWriter writer = new IndexWriter(scratch, conf)) {
       
-      CodecReader inputs[] = new CodecReader[reader.leaves().size()];
-      for (int i = 0; i < inputs.length; i++) {
-        inputs[i] = (CodecReader) reader.leaves().get(i).reader();
-      }
-      writer.addIndexes(inputs);
+          CodecReader inputs[] = new CodecReader[reader.leaves().size()];
+          for (int i = 0; i < inputs.length; i++) {
+            inputs[i] = (CodecReader) reader.leaves().get(i).reader();
+          }
+          writer.addIndexes(inputs);
       
-      try (DirectoryReader newReader = DirectoryReader.open(writer)) {
-        assert newReader.leaves().size() == 1;
-        SegmentReader sr = (SegmentReader) newReader.leaves().get(0).reader();
-        report(sr, analyzeFields(sr));
+          try (DirectoryReader newReader = DirectoryReader.open(writer)) {
+            assert newReader.leaves().size() == 1;
+            SegmentReader sr = (SegmentReader) newReader.leaves().get(0).reader();
+            report(sr, analyzeFields(sr));
+          }
+        }
       }
     } finally {
       IOUtils.rm(tmp);

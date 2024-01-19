@@ -331,6 +331,10 @@ public class IndexTaxis {
       iwc.setIndexSort(new Sort(new SortedSetSortField("cab_color", false)));
     }
 
+    // we don't actually rely on doc blocks -- just index in chunks pulled from binary source
+    // for faster throughput
+    iwc.setParentField("parent");
+
     final IndexWriter w = new IndexWriter(dir, iwc);
 
     BufferedInputStream docs = new BufferedInputStream(Files.newInputStream(docsPath, StandardOpenOption.READ));

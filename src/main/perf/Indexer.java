@@ -524,6 +524,12 @@ public final class Indexer {
           iwc.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
         }
         iwc.setCodec(codec);
+
+        if (addGroupingFields) {
+          // we already add our own grouping parent postings field ("groupend" in IndexThreads), but Lucene wants
+          // to add/manage its own private parent DV field too:
+          iwc.setParentField("parent");
+        }
         return iwc;
       };
 

@@ -336,6 +336,7 @@ def run():
 
         # parse git log to see if there were any commits requesting regold
         command = ['git', 'log', f'{lastLuceneRev}^..{luceneRev}']
+        print(f'run {command}')
         result = subprocess.run(command, check=True, capture_output=True)
 
         regold_string = '// nightly-benchmarks-results-changed //'

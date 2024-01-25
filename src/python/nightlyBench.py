@@ -284,10 +284,11 @@ def run():
         
     validate_nightly_task_count(f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks', COUNTS_PER_CAT)
 
-    # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
-    for fileName in glob.glob(f'{constants.LOGS_DIR}/bench-search-*.jfr'):
-        print('Removing old JFR %s...' % fileName)
-        os.remove(fileName)
+    if not DEBUG:
+      # TODO: understand why the attempted removal in Competition.benchmark did not actually run for nightly bench!
+      for fileName in glob.glob(f'{constants.LOGS_DIR}/bench-search-*.jfr'):
+          print('Removing old JFR %s...' % fileName)
+          os.remove(fileName)
 
     print()
     print()
@@ -349,7 +350,7 @@ def run():
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
         runCommand('%s clean -xfd' % constants.GIT_EXE)
 
-    if not DO_RESET:
+    if not DEBUG and not DO_RESET:
         print('will NOT regold results files but rather compare to last good result files')
 
     print('Java command-line: %s' % constants.JAVA_COMMAND)
@@ -503,37 +504,38 @@ def run():
     if REAL:
         r.compile(c)
 
-    os.chdir(constants.BENCH_BASE_DIR)
-    try:
-        message('now run stored fields benchmark')
-        if not REAL or DEBUG:
-            doc_limit = 100000
-        else:
-            # do all docs in the file
-            doc_limit = -1
-        runStoredFieldsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
-                                               constants.GEONAMES_LINE_FILE_DOCS,
-                                               f'{constants.INDEX_DIR_BASE}/geonames-stored-fields-nightly',
-                                               runLogDir, doc_limit)
-        message('done run stored fields benchmark')
-    finally:
-        os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+    if not DEBUG:
+      os.chdir(constants.BENCH_BASE_DIR)
+      try:
+          message('now run stored fields benchmark')
+          if not REAL or DEBUG:
+              doc_limit = 100000
+          else:
+              # do all docs in the file
+              doc_limit = -1
+          runStoredFieldsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
+                                                 constants.GEONAMES_LINE_FILE_DOCS,
+                                                 f'{constants.INDEX_DIR_BASE}/geonames-stored-fields-nightly',
+                                                 runLogDir, doc_limit)
+          message('done run stored fields benchmark')
+      finally:
+          os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
-    os.chdir(constants.BENCH_BASE_DIR)
-    try:
-        message('now run NAD facets benchmark')
-        if not REAL or DEBUG:
-            doc_limit = 100000
-            num_iters = 2
-        else:
-            doc_limit = -1
-            num_iters = 30
-        runFacetsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
-                                         f'{constants.INDEX_DIR_BASE}/nad-facets-nightly',
-                                         f'{constants.BASE_DIR}/data', runLogDir, doc_limit, num_iters)
-        message('done run NAD facets benchmark')
-    finally:
-        os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+      os.chdir(constants.BENCH_BASE_DIR)
+      try:
+          message('now run NAD facets benchmark')
+          if not REAL or DEBUG:
+              doc_limit = 100000
+              num_iters = 2
+          else:
+              doc_limit = -1
+              num_iters = 30
+          runFacetsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
+                                           f'{constants.INDEX_DIR_BASE}/nad-facets-nightly',
+                                           f'{constants.BASE_DIR}/data', runLogDir, doc_limit, num_iters)
+          message('done run NAD facets benchmark')
+      finally:
+          os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
     # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
     medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r,

@@ -774,4 +774,8 @@ KNOWN_CHANGES = [
   ('2023-12-24',
    'Move group-varint encoding/decoding logic to DataOutput/DataInput https://github.com/apache/lucene/pull/12841',
    'Move group-varint encoding/decoding logic to DataOutput/DataInput https://github.com/apache/lucene/pull/12841'),
+
+  ('2024-01-16',
+   'Override #readVInt and #readVLong for ByteBufferDataInput https://github.com/apache/lucene/pull/592',
+   'Override #readVInt and #readVLong for ByteBufferDataInput https://github.com/apache/lucene/pull/592'),
 ]

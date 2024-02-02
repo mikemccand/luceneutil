@@ -74,7 +74,7 @@ def run_knn_benchmark(checkout, values):
     cmd = [constants.JAVA_EXE, '-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
-           'KnnGraphTester']
+           'knn.KnnGraphTester']
     print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
     while advance(indexes, values):
         pv = {}

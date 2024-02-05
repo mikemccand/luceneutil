@@ -778,4 +778,8 @@ KNOWN_CHANGES = [
   ('2024-01-16',
    'Override #readVInt and #readVLong for ByteBufferDataInput https://github.com/apache/lucene/pull/592',
    'Override #readVInt and #readVLong for ByteBufferDataInput https://github.com/apache/lucene/pull/592'),
+
+  ('2024-02-02',
+   'Optimize counts on two clause term disjunctions https://github.com/apache/lucene/pull/13036',
+   'Optimize counts on two clause term disjunctions https://github.com/apache/lucene/pull/13036'),
 ]

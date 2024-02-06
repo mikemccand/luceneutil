@@ -30,6 +30,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.util.Arrays;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Objects;
@@ -81,6 +83,7 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.NeighborQueue;
+import org.apache.lucene.util.hppc.IntIntHashMap;
 
 /**
  * For testing indexing and search performance of a knn-graph
@@ -115,6 +118,7 @@ public class KnnGraphTester {
   private FixedBitSet matchDocs;
   private float selectivity;
   private boolean prefilter;
+  private boolean randomCommits;
 
   private KnnGraphTester() {
     // set defaults
@@ -129,6 +133,7 @@ public class KnnGraphTester {
     vectorEncoding = VectorEncoding.FLOAT32;
     selectivity = 1f;
     prefilter = false;
+    randomCommits = false;
   }
 
   public static void main(String... args) throws Exception {
@@ -264,6 +269,9 @@ public class KnnGraphTester {
         case "-prefilter":
           prefilter = true;
           break;
+        case "-randomCommits":
+          randomCommits = true;
+          break;
         case "-filterSelectivity":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-filterSelectivity requires a following float");
@@ -306,9 +314,9 @@ public class KnnGraphTester {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
       reindexTimeMsec = createIndex(docVectorsPath, indexPath);
-      if (forceMerge) {
-        forceMerge();
-      }
+    }
+    if (forceMerge) {
+      forceMerge();
     }
     if (operation != null) {
       switch (operation) {
@@ -349,6 +357,7 @@ public class KnnGraphTester {
         System.out.printf("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
         System.out.printf("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
+        printGraphConnectedNess(knnValues);
       }
     }
   }
@@ -370,28 +379,62 @@ public class KnnGraphTester {
   }
 
   @SuppressForbidden(reason = "Prints stuff")
-  private void printGraphFanout(HnswGraph knnValues, int numDocs) throws IOException {
-    int min = Integer.MAX_VALUE, max = 0, total = 0;
-    int count = 0;
-    int[] leafHist = new int[numDocs];
-    for (int node = 0; node < numDocs; node++) {
-      knnValues.seek(0, node);
-      int n = 0;
-      while (knnValues.nextNeighbor() != NO_MORE_DOCS) {
-        ++n;
+  private void printGraphConnectedNess(HnswGraph knnValues) throws IOException {
+    int numLevels = knnValues.numLevels();
+    for (int level = numLevels - 1; level >= 0; level--) {
+      HnswGraph.NodesIterator nodesIterator = knnValues.getNodesOnLevel(level);
+      int numNodesOnLayer = nodesIterator.size();
+      IntIntHashMap connectedNodes = new IntIntHashMap(numNodesOnLayer);
+      // Start at entry point and search all nodes on this level
+      int entryPoint = knnValues.entryNode();
+      Deque<Integer> stack = new ArrayDeque<>();
+      stack.push(entryPoint);
+      while (!stack.isEmpty()) {
+        int node = stack.pop();
+        if (connectedNodes.containsKey(node)) {
+          continue;
+        }
+        connectedNodes.put(node, 1);
+        knnValues.seek(level, node);
+        int friendOrd;
+        while ((friendOrd = knnValues.nextNeighbor()) != NO_MORE_DOCS) {
+          stack.push(friendOrd);
+        }
       }
-      ++leafHist[n];
-      max = Math.max(max, n);
-      min = Math.min(min, n);
-      if (n > 0) {
-        ++count;
-        total += n;
-      }
+      System.out.printf(
+        "Graph level=%d size=%d, connectedness=%.2f\n",
+        level, numNodesOnLayer, connectedNodes.size() / (float) numNodesOnLayer);
     }
-    System.out.printf(
-        "Graph size=%d, Fanout min=%d, mean=%.2f, max=%d\n",
-        count, min, total / (float) count, max);
-    printHist(leafHist, max, count, 10);
+  }
+
+  @SuppressForbidden(reason = "Prints stuff")
+  private void printGraphFanout(HnswGraph knnValues, int numDocs) throws IOException {
+    int numLevels = knnValues.numLevels();
+    for (int level = numLevels - 1; level >= 0; level--) {
+      int count = 0;
+      int min = Integer.MAX_VALUE, max = 0, total = 0;
+      HnswGraph.NodesIterator nodesIterator = knnValues.getNodesOnLevel(level);
+      int[] leafHist = new int[nodesIterator.size()];
+      while (nodesIterator.hasNext()) {
+        int node = nodesIterator.nextInt();
+        int n = 0;
+        knnValues.seek(level, node);
+        while (knnValues.nextNeighbor() != NO_MORE_DOCS) {
+          ++n;
+        }
+        ++leafHist[n];
+        max = Math.max(max, n);
+        min = Math.min(min, n);
+        if (n > 0) {
+          ++count;
+          total += n;
+        }
+      }
+      System.out.printf(
+        "Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d\n",
+        level, count, min, total / (float) count, max);
+      printHist(leafHist, max, count, 10);
+    }
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -781,6 +824,9 @@ public class KnnGraphTester {
           }
           doc.add(new StoredField(ID_FIELD, i));
           iw.addDocument(doc);
+          if (randomCommits && i % 500 == 0 && Math.random() < 0.5) {
+            iw.commit();
+          }
         }
         if (quiet == false) {
           System.out.println("Done indexing " + numDocs + " documents; now flush");

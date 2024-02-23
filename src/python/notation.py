@@ -782,4 +782,8 @@ KNOWN_CHANGES = [
   ('2024-02-02',
    'Optimize counts on two clause term disjunctions https://github.com/apache/lucene/pull/13036',
    'Optimize counts on two clause term disjunctions https://github.com/apache/lucene/pull/13036'),
+
+  ('2024-02-07',
+   'Speedup concurrent multi-segment HNWS graph search by exchanging the global top scores collected so far across segments https://github.com/apache/lucene/pull/12962',
+   'Speedup concurrent multi-segment HNWS graph search by exchanging the global top scores collected so far across segments https://github.com/apache/lucene/pull/12962'),
 ]

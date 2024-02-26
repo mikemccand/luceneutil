@@ -565,22 +565,7 @@ public class KnnGraphTester {
       totalVisited /= numIters;
       System.out.printf(
           Locale.ROOT,
-          "|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s|\n",
-          "recall",
-          "avgCpuTime",
-          "numDocs",
-          "fanout",
-          "maxConn",
-          "beamWidth",
-          "totalVisited",
-          "reindexTimeMsec",
-          "selectivity",
-          "prefilter");
-      System.out.println(
-          "|---|---|---|---|---|---|---|---|---|---|");
-      System.out.printf(
-          Locale.ROOT,
-          "|%5.3f\t|%5.2f\t|%d\t|%d\t|%d\t|%d\t|%d\t|%d\t|%.2f\t|%s|\n",
+          "%5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\n",
           recall,
           totalCpuTime / (float) numIters,
           numDocs,

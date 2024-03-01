@@ -786,4 +786,8 @@ KNOWN_CHANGES = [
   ('2024-02-07',
    'Speedup concurrent multi-segment HNWS graph search by exchanging the global top scores collected so far across segments https://github.com/apache/lucene/pull/12962',
    'Speedup concurrent multi-segment HNWS graph search by exchanging the global top scores collected so far across segments https://github.com/apache/lucene/pull/12962'),
+
+  ('2024-03-01',
+   'Upgrade to OpenJDK 21',
+   'Upgrade to OpenJDK 21'),
 ]

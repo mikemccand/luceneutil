@@ -70,6 +70,11 @@ def run_knn_benchmark(checkout, values):
     #dim = 256
     #doc_vectors = '/d/electronics_asin_emb.bin'
     #query_vectors = '/d/electronics_query_vectors.bin'
+
+    # Cohere dataset
+    #dim = 768
+    #doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
+    #query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = [constants.JAVA_EXE, '-cp', cp,
            '--add-modules', 'jdk.incubator.vector',

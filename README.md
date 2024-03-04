@@ -174,3 +174,9 @@ By default we use 100 dimension vectors, to use higher dimension vectors, you ne
 1. run `src/python/infer_token_vectors.py` to get `xxx.vec` and `xxx.tok` file, also do not forget to set the model you need by editing `infer_token_vectors.py`, The supported models are listed there in comments. E.g. for 768 dimensions you need `enwiki-20120502-mpnet.vec` and `enwiki-20120502-mpnet.tok` as output file and you need to set the model to `model = SentenceTransformer('all-mpnet-base-v2')` by edit `infer_token_vectors.py` (which is already the default).
 2. run corresponding ant tasks to generate embeddings for docs and queries. E.g. for 768 dimensions you need to run `ant vectors-mpnet-docs` and `vectors-mpnet-tasks`.
 3. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 
+
+To test vector search with [Cohere/wikipedia-22-12-en-embeddings](https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings) dataset, you need to do:
+1. run `python src/python/infer_token_vectors_cohere.py ../data/cohere-wikipedia-768.vec 10000000 ../data/cohere-wikipedia-queries-768.vec 10000` to generate vectors
+in the format that luceneutil vector search can understand. Instead of `10000000` increase the number of documents to `100000000` if you want to run vector search on 10M documents.
+2. In `src/python/knnPerTest.py` uncomment lines that define doc and query vectors for cohere dataset.
+3. run `src/python/knnPerTest.py` 

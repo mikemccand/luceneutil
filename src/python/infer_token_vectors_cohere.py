@@ -1,3 +1,4 @@
+import os
 import datasets
 import numpy as np
 import sys
@@ -21,15 +22,29 @@ filename_queries= sys.argv[3]
 num_queries = int(sys.argv[4])
 dims = 768
 
-ds = datasets.load_dataset("Cohere/wikipedia-22-12-en-embeddings", split="train")
+for name in (filename, filename_queries):
+  if os.path.exists(name):
+      raise RuntimeError(f'please remove {name} first')
+
+ds = datasets.load_dataset("Cohere/wikipedia-22-12-en-embeddings",
+                           split="train", keep_in_memory=False)
 print(f"total number of rows: {len(ds)}")
 print(f"embeddings dims: {len(ds[0]['emb'])}")
 
-ds_embs = ds[0:num_docs]['emb']
-embs = np.array(ds_embs)
-print(f"saving docs of shape: {embs.shape} to file")
-with open(filename, "w") as out_f:
-    embs.tofile(out_f)
+# ds = ds[:num_docs]
+
+# do this in windows, else the RAM usage is crazy (OOME even with 256
+# GB RAM since I think this step makes 2X copy of the dataset?)
+doc_upto = 0
+window_num_docs = 1000000
+while doc_upto < num_docs:
+  next_doc_upto = min(doc_upto + window_num_docs, num_docs)
+  ds_embs = ds[doc_upto:next_doc_upto]['emb']
+  embs = np.array(ds_embs)
+  print(f"saving docs[{doc_upto}:{next_doc_upto} of shape: {embs.shape} to file")
+  with open(filename, "ab") as out_f:
+      embs.tofile(out_f)
+  doc_upto = next_doc_upto
 
 ds_embs_queries = ds[num_docs : num_docs + num_queries]['emb']
 embs_queries = np.array(ds_embs_queries)

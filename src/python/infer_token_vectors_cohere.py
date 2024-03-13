@@ -27,7 +27,7 @@ for name in (filename, filename_queries):
       raise RuntimeError(f'please remove {name} first')
 
 ds = datasets.load_dataset("Cohere/wikipedia-22-12-en-embeddings",
-                           split="train", keep_in_memory=False)
+                           split="train")
 print(f"total number of rows: {len(ds)}")
 print(f"embeddings dims: {len(ds[0]['emb'])}")
 

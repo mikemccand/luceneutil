@@ -14,7 +14,28 @@ etc.. We'll refer to this directory as `$LUCENE_BENCH_HOME` here.
 mkdir $LUCENE_BENCH_HOME && cd $LUCENE_BENCH_HOME
 git clone https://github.com/mikemccand/luceneutil.git util
 
-# 2. Run the setup script
+```
+
+This project uses Ant + Ivy to build and has been test to work correctly with ant version >= 1.10.13.
+Install Apache ant and configure your path to use ant binaries. You may find [this page](https://ant.apache.org/manual/install.html) useful for the same.
+
+Next, configure the project to use Ivy by
+
+```
+# 2. Initialize Ivy
+ant bootstrap
+```
+Use `ant -projecthelp` to know more about all the targets that can be used.
+
+Update the `lucene.checkout` path in the `build.properties` file which can be used by Ant to compile java class in this 
+project. By default it is set the lucene_baseline path as also mentioned in the section
+[Preparing the benchmark candidates](#Preparing the benchmark candidates)
+
+
+This will download ivy jars in the $USER_HOME/.ant folder.
+
+```
+# 3. Run the setup script
 cd util
 python src/python/setup.py -download
 
@@ -37,15 +58,6 @@ xz -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
 lzma -d enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma
 ```
 
-### (Optional, for development) set up IntelliJ
-Should be able to open by IntelliJ automatically. The gradle will write a local configuration file `gradle.properties` in
-which you can configure your local lucene repository so that intellij will use it as external library and code suggestion
-will work. Also because the compilation is looking for jar so you have to build your lucene repo (run `./gradlew jar`) manually if you haven't 
-done so.
-Note the gradle build will NOT be able to compile the whole project because
-some codes do have errors so we still need to filter which files to compile (see competitions.py). So you still
-need to follow the rest procedure.
-
 ### Preparing the benchmark candidates
 
 The benchmark compares a baseline version of Lucene to a patched one. Therefore we need two checkouts of Lucene, for example:
@@ -61,6 +73,51 @@ git clone https://github.com/apache/lucene.git lucene_baseline
 ```
 
 Adjust the command accordingly for `lucene_candidate`.
+
+Compile and build the lucene_baseline and lucene_candidate projects as per its README.txt
+
+If you checkout Lucene in a different directory, update the same in the build.properties to use the right lucene jars in
+this project for compilation. 
+
+### (Optional, for development) set up IntelliJ
+You can open the project as usual in IntelliJ. 
+
+Select src/main folder as Source Root. `Right Click src/main --> Mark Directory As --> Source Root`
+
+Select src/python folder as source Root. `Right Click src/python --> Mark Directory As --> Source Root`
+
+For configuring the right jar files you will have to do the following.
+The jars that you need are present in at 3 places.
+1. Apache Lucene jars. Which are present in your ${lucene.checkout}/lucene folder. 
+2. Some jars will be downloaded by Ant-Ivy build system of this project into the `./libs` folder of this package.
+3. Some jars are shipped with this project which are present in the `./lib` folder.
+
+IntelliJ Idea does not automatically detect these jars in the classpath. So you will have to do following steps to 
+include them. Also, IntelliJ Idea by default do not recursively include all the jars in sub folders, so follow the below
+instructions to enable recursive search in folder for both the above jar paths.
+
+``
+IntelliJ IDEA --> File --> Project Structure --> Modules --> luceneutil-root --> Dependencies --> + 
+--> Jars And Directories -->  Select the path to ${lucene.checkout}/lucene --> Open --> Choose Roots (Unselect All) --> 
+OK --> Choose Categories of Selected Files --> Jar Directory --> OK --> Apply --> OK
+``
+
+After this you will have to update the file in .idea folder manually to enable 'recursive' jar discovery. Open your 
+project's `.iml` file and change the `<jarDirectory>` xml tag's recursive attribute to `true`
+` vim $luceneutil.root/.idea/luceneutil.iml `
+
+Change line like below from recursive="false" to recursive="true"
+``` xml
+<library>
+  ...
+  <jarDirectory url="file://$MODULE_DIR$/../../lucene/lucene" recursive="false" />
+</library>
+  ```
+
+This will make idea search jar files recursively in lucene project.
+Alternatively, you can configure idea with the source code of Lucene as a library, by not doing "unselecting all" in the `Choose Roots` step above.
+
+Repeat the same process for lib and libs folder in $luceneutil.root folder.
 
 ### Running a first benchmark
 

@@ -54,7 +54,7 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 
 // Then: javac -cp build/core/classes/java /l/util/src/main/perf/IndexTaxis.java ; java -cp build/core/classes/java:/l/util/src/main/perf IndexTaxis /c/taxisjava 1 /lucenedata/nyc-taxi-data/alltaxis.25M.csv.blocks 
 
-public class IndexTaxis {
+class IndexTaxis {
 
   private static final int NEWLINE = (byte) '\n';
   private static final int COMMA = (byte) ',';

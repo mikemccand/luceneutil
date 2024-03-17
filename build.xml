@@ -1,223 +1,151 @@
-<project name="luceneutil-1.0" basedir="." default="build">
+<project xmlns:ivy="antlib:org.apache.ivy.ant" name="luceneutil" basedir="." default="" xmlns:if="ant:if"
+         xmlns:unless="ant:unless">
 
-  <property name="data.dir" value="${basedir}/../data"/>
-  <property name="tasks.dir" value="${basedir}/tasks"/>
-  <property name="lucene.checkout" value="${basedir}/../candidate"/>
+    <property file="build.properties"/>
 
-  <target name="build">
+    <property name="lucene.jars" value="${lucene.checkout}/lucene"/>
 
-    <mkdir dir="build"/>
+    <property name="src.dir" value="src/main"/>
+    <property name="test.src.dir" value="src/test/java"/>
 
-    <path id="build.classpath">
-      <pathelement location="build"/>
-      <fileset dir="${lucene.checkout}/lucene/core/build/libs/">
-        <include name="*.jar"/>
-      </fileset>
-      <fileset dir="${lucene.checkout}/lucene/join/build/libs/">
-        <include name="*.jar"/>
-      </fileset>
+    <property name="build.dir" value="target"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="jar.dir" value="${build.dir}/jar"/>
+
+    <property name="test.classes.dir" value="${build.dir}/test-classes"/>
+    <property name="test.jar.dir" value="${build.dir}/test-jar"/>
+
+    <property name="lib.dir" value="libs"/>
+    <property name="main.lib.dir" value="${lib.dir}/main"/>
+    <property name="test.lib.dir" value="${lib.dir}/test"/>
+
+    <path id="lib.path">
+        <fileset dir="${main.lib.dir}" includes="**/*.jar"/>
+        <fileset dir="${lucene.jars}" includes="**/*.jar"/>
     </path>
 
-    <javac srcdir="src/main"
-           destdir="build"
-           includes="KnnGraphTester.java,WikiVectors.java,perf/VectorDictionary.java"
-           classpathref="build.classpath"
-           includeantruntime="false"/>
+    <path id="app.classpath">
+        <dirset dir="${classes.dir}">
+        </dirset>
+    </path>
 
-    <!-- run a test; we don't have any framework, just call a test method -->
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="--test"/>
-    </java>
-  </target>
+    <path id="app.path">
+        <path refid="lib.path" />
+        <path refid="app.classpath" />
+    </path>
 
-  <target name="extract-vector-tasks">
-    <copy file="${tasks.dir}/vector.tasks" tofile="${tasks.dir}/vector.task.txt">
-      <filterchain>
-        <tokenfilter>
-          <replaceregex pattern=".*//(.*) # .*" replace="\1"/>
-        </tokenfilter>
-      </filterchain>
-    </copy>
-  </target>
+    <path id="test.path">
+        <path refid="test.classpath" />
+    </path>
 
-  <target name="vectors300-tasks" depends="build,extract-vector-tasks">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/glove.6B.300d.txt"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-300d.vec"/>
-    </java>
-  </target>
+    <path id="build.test.classpath">
+        <path refid="lib.path"/>
+        <fileset dir="${test.lib.dir}" includes="**/*.jar"/>
+        <path refid="app.classpath"/>
+    </path>
 
-  <target name="vectors300-docs" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/glove.6B.300d.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-300d.vec"/>
-    </java>
-  </target>
+    <path id="test.classpath">
+        <path refid="build.test.classpath"/>
+        <path>
+            <dirset dir="${test.classes.dir}">
+            </dirset>
+        </path>
+    </path>
 
-  <target name="vectors300-8bit-docs" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <!-- scale extrapolated from 100-dim by comparing 1/99%ile -->
-      <!--
-          1 Percentile =  -0.16812261939048767
-          10 Percentile =  -0.05280676484107971
-          50 Percentile =  0.0016044741496443748
-          90 Percentile =  0.052327241748571396
-          99 Percentile =  0.12062523514032364
-          100 Percentile =  0.500967800617218
-          average: -0.0013391887
-          stddev: 0.05804375
-          min .. max: -0.6463034 .. 0.5009678
-      -->
-      <arg value="-scale"/>
-      <arg value="256"/>
-      <arg value="${data.dir}/glove.6B.300d.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-300d-8bit.vec"/>
-    </java>
-  </target>
+<!--    <echo message="classpath: ${toString:lib.path}"/>-->
+<!--    <echo message="test.classpath: ${toString:test.classpath}"/>-->
+<!--    <echo message="app.test.classpath: ${toString:app.test.classpath}"/>-->
 
-  <target name="vectors300-8bit-tasks" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="-scale"/>
-      <arg value="256"/>
-      <arg value="${data.dir}/glove.6B.300d.txt"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-300d-8bit.vec"/>
-    </java>
-  </target>
+<!--  BEGIN GET IVY on my machine -->
+    <property name="ivy.install.version" value="2.5.2"/>
+    <condition property="ivy.home" value="${env.IVY_HOME}">
+        <isset property="env.IVY_HOME"/>
+    </condition>
+    <property name="ivy.home" value="${user.home}/.ant"/>
+    <property name="ivy.jar.dir" value="${ivy.home}/lib"/>
+    <property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar"/>
 
-  <target name="vectors300" depends="vectors300-tasks,vectors300-docs,vectors300-8bit-docs,vectors300-8bit-tasks"/>
+    <import file="./data-build.xml"/>
 
-  <target name="vectors100-tasks" depends="build,extract-vector-tasks">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/glove.6B.100d.txt"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-100d.vec"/>
-    </java>
-  </target>
+    <target name="download-ivy" description="Download the ivy jars into ${ivy.jar.dir}">
 
-  <target name="vectors100-docs" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/glove.6B.100d.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-100d.vec"/>
-    </java>
-  </target>
+        <mkdir dir="${ivy.home}"/>
+        <mkdir dir="${ivy.jar.dir}"/>
+        <!-- download Ivy from web site so that it can be used even without any special installation -->
+        <get src="https://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar"
+             dest="${ivy.jar.file}" usetimestamp="true"/>
+    </target>
 
-  <target name="vectors100-8bit-docs" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <!-- scale was determined empirically, testing recall -->
-      <!--
-          1 Percentile =  -0.325579971075058
-          10 Percentile =  -0.09507450535893414
-          50 Percentile =  -0.00024916713300626725
-          90 Percentile =  0.10140283405780792
-          99 Percentile =  0.25520724058151245
-          100 Percentile =  0.5750676989555359
-          average: -0.0012661816
-          stddev: 0.10003442
-          min .. max: -0.7082266 .. 0.5750677
-      -->
-      <arg value="-scale"/>
-      <arg value="128"/>
-      <arg value="${data.dir}/glove.6B.100d.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-100d-8bit.vec"/>
-    </java>
-  </target>
+    <target name="bootstrap" depends="init-ivy" />
 
-  <target name="vectors100-8bit-tasks" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="-scale"/>
-      <arg value="256"/>
-      <arg value="${data.dir}/glove.6B.100d.txt"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-100d-8bit.vec"/>
-    </java>
-  </target>
+    <target name="init-ivy" depends="download-ivy">
+        <!-- try to load Ivy here from Ivy home, in case the user has not already dropped
+                it into Ant's lib dir (note that the latter copy will always take precedence).
+                We will not fail as long as local lib dir exists (it may be empty) and
+                Ivy is in at least one of Ant's lib dir or the local lib dir. -->
+        <path id="ivy.lib.path">
+            <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
 
-  <!-- don't scale the task data here; we'll do it later after summing vectors for each term -->
-  <target name="vectors100" depends="vectors100-tasks,vectors100-docs,vectors100-8bit-docs,vectors100-8bit-tasks"/>
+        </path>
+    </target>
+<!-- END GET IVY -->
 
-  <!-- 384-dim vectors trained using all-MiniLM-L6-v2 from https://www.sbert.net/ -->
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+    </target>
 
-  <target name="vectors-minilm-tasks" depends="build,extract-vector-tasks">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/../data/enwiki-20120502-minilm.tok"/>
-      <arg value="${data.dir}/../data/enwiki-20120502-minilm.vec"/>
-      <arg value="384"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-minilm.vec"/>
-    </java>
-  </target>
+    <target name="compile" depends="resolve" description="Compile all java sources in ${src.dir}">
+        <mkdir dir="${classes.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" includeantruntime="false" classpathref="lib.path"/>
+    </target>
 
-  <target name="vectors-minilm-docs" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/../data/enwiki-20120502-minilm.tok"/>
-      <arg value="${data.dir}/../data/enwiki-20120502-minilm.vec"/>
-      <arg value="384"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-minilm.vec"/>
-    </java>
-  </target>
-  
-  <target name="vectors-minilm-8bit-docs" depends="build">
-    <!--
-       1 Percentile =  -0.11017321050167084
-       10 Percentile =  -0.05411912873387337
-       50 Percentile =  -7.801504744490034e-33
-       90 Percentile =  0.05798458680510521
-       99 Percentile =  0.1421949714422226
-       100 Percentile =  0.4781419634819031
-       average: 0.0022993074
-       stddev: 0.05091949
-       min .. max: -0.2604693 .. 0.47814196
-    -->
-    <java className="WikiVectors" classpathref="build.classpath" fork="true">
-      <arg value="-scale"/>
-      <arg value="256"/>
-      <arg value="${data.dir}/enwiki-20120502-minilm.tok"/>
-      <arg value="${data.dir}/enwiki-20120502-minilm.vec"/>
-      <arg value="384"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-minilm-8bit.vec"/>
-    </java>
-  </target>
+    <target name="compile-test" depends="compile" description="Compile all test classes in ${test.src.dir}">
+        <mkdir dir="${test.classes.dir}"/>
+        <javac srcdir="${test.src.dir}" destdir="${test.classes.dir}" includeantruntime="false"
+               classpathref="test.classpath"/>
+    </target>
 
-  <target name="vectors-minilm-8bit-tasks" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath" fork="true">
-      <arg value="-scale"/>
-      <arg value="256"/>
-      <arg value="${data.dir}/enwiki-20120502-minilm.tok"/>
-      <arg value="${data.dir}/enwiki-20120502-minilm.vec"/>
-      <arg value="384"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-minilm-8bit.vec"/>
-    </java>
-  </target>
+    <target name="resolve" description="Retrieve dependencies with Ivy into ${lib.dir}">
+        <ivy:retrieve  pattern="${lib.dir}/[conf]/[organisation]/[artifact]-[revision].[ext]" sync="true"/>
+    </target>
 
-  <!-- 768-dim vectors trained using mpnet from https://www.sbert.net/ -->
+    <target name="run" depends="compile" description="Run any particular java main class. Pass the class name as`-Dmain.class=`
+     and any arguments as a doubley quoted string in `-Dargs=`. You can also pass any jvm args in `-DjvmArgs=`">
+        <java fork="true" classname="${main.class}">
+            <classpath>
+                <path refid="app.path"/>
+            </classpath>
+            <arg line="${args}" if:set="args"/>
+            <jvmarg line="${jvmArgs}" if:set="jvmArgs"/>
+        </java>
+    </target>
 
-  <target name="vectors-mpnet-tasks" depends="build,extract-vector-tasks">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.tok"/>
-      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.vec"/>
-      <arg value="768"/>
-      <arg value="${tasks.dir}/vector.task.txt"/>
-      <arg value="${tasks.dir}/vector-task-mpnet.vec"/>
-    </java>
-  </target>
+    <target name="test" depends="compile-test" description="Run all the Junit tests in ${test.classes.dir}">
+        <junit>
+            <classpath refid="test.path" />
+            <batchtest>
+                <fileset dir="${test.classes.dir}">
+                    <include name="**/*Test*"/>
+                </fileset>
+            </batchtest>
+            <formatter type="brief" usefile="false"/>
+        </junit>
+    </target>
 
-  <target name="vectors-mpnet-docs" depends="build">
-    <java className="WikiVectors" classpathref="build.classpath">
-      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.tok"/>
-      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.vec"/>
-      <arg value="768"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
-      <arg value="${data.dir}/enwiki-20120502-lines-1k-mpnet.vec"/>
-    </java>
-  </target>
+    <target name="test-single" depends="compile-test" description="Run a single test class file. Provide fully classified test class name in `-Dtest.class=`">
+        <junit>
+            <classpath refid="test.path" />
+            <test name="${test.class}" />
+            <formatter type="plain" usefile="false"/>
+        </junit>
+    </target>
 
+    <target name="test-methods" depends="compile-test" description="Run selected test methods of a test class.
+    Provide fully classified test class name in `-Dtest.class=`. And comma separated method names in `-Dtest.methods=`" >
+        <junit>
+            <classpath refid="test.path" />
+            <test name="${test.class}" methods="${test.methods}"/>
+            <formatter type="plain" usefile="false"/>
+        </junit>
+    </target>
 </project>

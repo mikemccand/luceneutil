@@ -790,4 +790,9 @@ KNOWN_CHANGES = [
   ('2024-03-01',
    'Upgrade to OpenJDK 21',
    'Upgrade to OpenJDK 21'),
+
+  ('2024-03-04',
+   'Upgrade from JDK 21+35 -> 21.0.2+13, and OS from 6.4.1-arch1-1 to 6.7.8-arch1-1',
+   'Upgrade from JDK 21+35 -> 21.0.2+13, and OS from 6.4.1-arch1-1 to 6.7.8-arch1-1'),
+   
 ]

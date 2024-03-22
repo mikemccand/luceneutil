@@ -17368,3 +17368,1003 @@ HighTermTitleSort: titledvsort//century # freq=385541
 HighTermTitleSort: titledvsort//government # freq=384004
 HighTermTitleSort: titledvsort//27 # freq=383042
 HighTermTitleSort: titledvsort//old # freq=381809
+OrNegatedHighHigh: (-of) | (-s) # freq=8184358 freq=1581243
+OrNegatedHighHigh: (-date) | (-he) # freq=2020626 freq=1659434
+OrNegatedHighHigh: (-cite) | (-2005) # freq=1741194 freq=835460
+OrNegatedHighHigh: (-i) | (-10) # freq=956148 freq=918339
+OrNegatedHighHigh: (-date) | (-2009) # freq=2020626 freq=887702
+OrNegatedHighHigh: (-for) | (-cite) # freq=4380011 freq=1741194
+OrNegatedHighHigh: (-as) | (-its) # freq=3925535 freq=1173450
+OrNegatedHighHigh: (-which) | (-2011) # freq=1963428 freq=871410
+OrNegatedHighHigh: (-have) | (-see) # freq=1297121 freq=1044180
+OrNegatedHighHigh: (-first) | (-accessdate) # freq=1933372 freq=1228887
+OrNegatedHighHigh: (-also) | (-no) # freq=1959419 freq=1045000
+OrNegatedHighHigh: (-first) | (-new) # freq=1933372 freq=1657293
+OrNegatedHighHigh: (-publisher) | (-web) # freq=1289029 freq=1118334
+OrNegatedHighHigh: (-states) | (-work) # freq=1034872 freq=853422
+OrNegatedHighHigh: (-more) | (-work) # freq=963533 freq=853422
+OrNegatedHighHigh: (-1) | (-their) # freq=1641090 freq=1158682
+OrNegatedHighHigh: (-http) | (-an) # freq=3493581 freq=2628056
+OrNegatedHighHigh: (-year) | (-5) # freq=1235231 freq=891361
+OrNegatedHighHigh: (-4) | (-there) # freq=986452 freq=956153
+OrNegatedHighHigh: (-s) | (-who) # freq=1581243 freq=1196171
+OrNegatedHighHigh: (-who) | (-may) # freq=1196171 freq=1071932
+OrNegatedHighHigh: (-united) | (-time) # freq=1196944 freq=1032071
+OrNegatedHighHigh: (-other) | (-no) # freq=1269961 freq=1045000
+OrNegatedHighHigh: (-time) | (-when) # freq=1032071 freq=1027487
+OrNegatedHighHigh: (-that) | (-cite) # freq=2931020 freq=1741194
+OrNegatedHighHigh: (-to) | (-its) # freq=6155577 freq=1173450
+OrNegatedHighHigh: (-2011) | (-2008) # freq=871410 freq=831253
+OrNegatedHighHigh: (-been) | (-2005) # freq=1041183 freq=835460
+OrNegatedHighHigh: (-1) | (-year) # freq=1641090 freq=1235231
+OrNegatedHighHigh: (-was) | (-more) # freq=3763623 freq=963533
+OrNegatedHighHigh: (-3) | (-2005) # freq=1148799 freq=835460
+OrNegatedHighHigh: (-a) | (-they) # freq=6560531 freq=1021945
+OrNegatedHighHigh: (-s) | (-time) # freq=1581243 freq=1032071
+OrNegatedHighHigh: (-in) | (-2011) # freq=7320987 freq=871410
+OrNegatedHighHigh: (-a) | (-work) # freq=6560531 freq=853422
+OrNegatedHighHigh: (-they) | (-4) # freq=1021945 freq=986452
+OrNegatedHighHigh: (-and) | (-2) # freq=7318061 freq=1549245
+OrNegatedHighHigh: (-to) | (-an) # freq=6155577 freq=2628056
+OrNegatedHighHigh: (-an) | (-which) # freq=2628056 freq=1963428
+OrNegatedHighHigh: (-was) | (-also) # freq=3763623 freq=1959419
+OrNegatedHighHigh: (-this) | (-see) # freq=2224932 freq=1044180
+OrNegatedHighHigh: (-all) | (-2010) # freq=1203572 freq=950573
+OrNegatedHighHigh: (-2) | (-2010) # freq=1549245 freq=950573
+OrNegatedHighHigh: (-first) | (-work) # freq=1933372 freq=853422
+OrNegatedHighHigh: (-he) | (-10) # freq=1659434 freq=918339
+OrNegatedHighHigh: (-http) | (-that) # freq=3493581 freq=2931020
+OrNegatedHighHigh: (-new) | (-2011) # freq=1657293 freq=871410
+OrNegatedHighHigh: (-as) | (-by) # freq=3925535 freq=3826691
+OrNegatedHighHigh: (-there) | (-2008) # freq=956153 freq=831253
+OrNegatedHighHigh: (-is) | (-they) # freq=4074455 freq=1021945
+OrNegatedHighHigh: (-2010) | (-2011) # freq=950573 freq=871410
+OrNegatedHighHigh: (-accessdate) | (-2005) # freq=1228887 freq=835460
+OrNegatedHighHigh: (-at) | (-this) # freq=2857534 freq=2224932
+OrNegatedHighHigh: (-as) | (-some) # freq=3925535 freq=839919
+OrNegatedHighHigh: (-after) | (-all) # freq=1247398 freq=1203572
+OrNegatedHighHigh: (-year) | (-they) # freq=1235231 freq=1021945
+OrNegatedHighHigh: (-1) | (-accessdate) # freq=1641090 freq=1228887
+OrNegatedHighHigh: (-on) | (-web) # freq=4074624 freq=1118334
+OrNegatedHighHigh: (-first) | (-5) # freq=1933372 freq=891361
+OrNegatedHighHigh: (-he) | (-but) # freq=1659434 freq=1456553
+OrNegatedHighHigh: (-title) | (-when) # freq=2397378 freq=1027487
+OrNegatedHighHigh: (-who) | (-two) # freq=1196171 freq=1104053
+OrNegatedHighHigh: (-last) | (-2006) # freq=958437 freq=889954
+OrNegatedHighHigh: (-from) | (-name) # freq=3224339 freq=2827713
+OrNegatedHighHigh: (-new) | (-i) # freq=1657293 freq=956148
+OrNegatedHighHigh: (-was) | (-publisher) # freq=3763623 freq=1289029
+OrNegatedHighHigh: (-and) | (-not) # freq=7318061 freq=1713264
+OrNegatedHighHigh: (-is) | (-their) # freq=4074455 freq=1158682
+OrNegatedHighHigh: (-ref) | (-that) # freq=3793973 freq=2931020
+OrNegatedHighHigh: (-of) | (-for) # freq=8184358 freq=4380011
+OrNegatedHighHigh: (-name) | (-which) # freq=2827713 freq=1963428
+OrNegatedHighHigh: (-after) | (-2008) # freq=1247398 freq=831253
+OrNegatedHighHigh: (-that) | (-an) # freq=2931020 freq=2628056
+OrNegatedHighHigh: (-by) | (-2006) # freq=3826691 freq=889954
+OrNegatedHighHigh: (-that) | (-or) # freq=2931020 freq=1858841
+OrNegatedHighHigh: (-be) | (-which) # freq=2051702 freq=1963428
+OrNegatedHighHigh: (-with) | (-2010) # freq=3709421 freq=950573
+OrNegatedHighHigh: (-by) | (-with) # freq=3826691 freq=3709421
+OrNegatedHighHigh: (-by) | (-4) # freq=3826691 freq=986452
+OrNegatedHighHigh: (-was) | (-cite) # freq=3763623 freq=1741194
+OrNegatedHighHigh: (-was) | (-they) # freq=3763623 freq=1021945
+OrNegatedHighHigh: (-on) | (-was) # freq=4074624 freq=3763623
+OrNegatedHighHigh: (-is) | (-time) # freq=4074455 freq=1032071
+OrNegatedHighHigh: (-the) | (-be) # freq=8217362 freq=2051702
+OrNegatedHighHigh: (-were) | (-2010) # freq=1524630 freq=950573
+OrNegatedHighHigh: (-they) | (-2006) # freq=1021945 freq=889954
+OrNegatedHighHigh: (-he) | (-may) # freq=1659434 freq=1071932
+OrNegatedHighHigh: (-an) | (-title) # freq=2628056 freq=2397378
+OrNegatedHighHigh: (-into) | (-some) # freq=888684 freq=839919
+OrNegatedHighHigh: (-first) | (-some) # freq=1933372 freq=839919
+OrNegatedHighHigh: (-name) | (-new) # freq=2827713 freq=1657293
+OrNegatedHighHigh: (-cite) | (-3) # freq=1741194 freq=1148799
+OrNegatedHighHigh: (-to) | (-web) # freq=6155577 freq=1118334
+OrNegatedHighHigh: (-for) | (-it) # freq=4380011 freq=2675552
+OrNegatedHighHigh: (-year) | (-there) # freq=1235231 freq=956153
+OrNegatedHighHigh: (-but) | (-been) # freq=1456553 freq=1041183
+OrNegatedHighHigh: (-this) | (-who) # freq=2224932 freq=1196171
+OrNegatedHighHigh: (-ref) | (-web) # freq=3793973 freq=1118334
+OrNegatedHighHigh: (-cite) | (-2011) # freq=1741194 freq=871410
+OrNegatedHighHigh: (-by) | (-he) # freq=3826691 freq=1659434
+OrNegatedHighHigh: (-name) | (-first) # freq=2827713 freq=1933372
+OrNegatedHighHigh: (-has) | (-about) # freq=1502961 freq=850283
+OrNegatedHighHigh: (-were) | (-two) # freq=1524630 freq=1104053
+OrNegatedHighHigh: (-two) | (-work) # freq=1104053 freq=853422
+OrNegatedHighHigh: (-he) | (-been) # freq=1659434 freq=1041183
+OrNegatedHighHigh: (-from) | (-2) # freq=3224339 freq=1549245
+OrNegatedHighHigh: (-all) | (-some) # freq=1203572 freq=839919
+OrNegatedHighHigh: (-on) | (-only) # freq=4074624 freq=875561
+OrNegatedHighHigh: (-was) | (-no) # freq=3763623 freq=1045000
+OrNegatedHighHigh: (-name) | (-see) # freq=2827713 freq=1044180
+OrNegatedHighHigh: (-of) | (-as) # freq=8184358 freq=3925535
+OrNegatedHighHigh: (-be) | (-has) # freq=2051702 freq=1502961
+OrNegatedHighHigh: (-url) | (-into) # freq=1513595 freq=888684
+OrNegatedHighHigh: (-of) | (-2006) # freq=8184358 freq=889954
+OrNegatedHighHigh: (-ref) | (-or) # freq=3793973 freq=1858841
+OrNegatedHighHigh: (-by) | (-url) # freq=3826691 freq=1513595
+OrNegatedHighHigh: (-3) | (-into) # freq=1148799 freq=888684
+OrNegatedHighHigh: (-which) | (-year) # freq=1963428 freq=1235231
+OrNegatedHighHigh: (-at) | (-only) # freq=2857534 freq=875561
+OrNegatedHighHigh: (-http) | (-publisher) # freq=3493581 freq=1289029
+OrNegatedHighHigh: (-with) | (-accessdate) # freq=3709421 freq=1228887
+OrNegatedHighHigh: (-had) | (-work) # freq=1246743 freq=853422
+OrNegatedHighHigh: (-as) | (-they) # freq=3925535 freq=1021945
+OrNegatedHighHigh: (-the) | (-2009) # freq=8217362 freq=887702
+OrNegatedHighHigh: (-are) | (-but) # freq=1877802 freq=1456553
+OrNegatedHighHigh: (-other) | (-10) # freq=1269961 freq=918339
+OrNegatedHighHigh: (-two) | (-they) # freq=1104053 freq=1021945
+OrNegatedHighHigh: (-all) | (-they) # freq=1203572 freq=1021945
+OrNegatedHighHigh: (-2011) | (-about) # freq=871410 freq=850283
+OrNegatedHighHigh: (-name) | (-states) # freq=2827713 freq=1034872
+OrNegatedHighHigh: (-were) | (-may) # freq=1524630 freq=1071932
+OrNegatedHighHigh: (-the) | (-into) # freq=8217362 freq=888684
+OrNegatedHighHigh: (-new) | (-united) # freq=1657293 freq=1196944
+OrNegatedHighHigh: (-their) | (-only) # freq=1158682 freq=875561
+OrNegatedHighHigh: (-be) | (-10) # freq=2051702 freq=918339
+OrNegatedHighHigh: (-that) | (-not) # freq=2931020 freq=1713264
+OrNegatedHighHigh: (-title) | (-all) # freq=2397378 freq=1203572
+OrNegatedHighHigh: (-with) | (-have) # freq=3709421 freq=1297121
+OrNegatedHighHigh: (-as) | (-been) # freq=3925535 freq=1041183
+OrNegatedHighHigh: (-it) | (-more) # freq=2675552 freq=963533
+OrNegatedHighHigh: (-all) | (-united) # freq=1203572 freq=1196944
+OrNegatedHighHigh: (-other) | (-two) # freq=1269961 freq=1104053
+OrNegatedHighHigh: (-he) | (-url) # freq=1659434 freq=1513595
+OrNegatedHighHigh: (-to) | (-3) # freq=6155577 freq=1148799
+OrNegatedHighHigh: (-in) | (-from) # freq=7320987 freq=3224339
+OrNegatedHighHigh: (-not) | (-there) # freq=1713264 freq=956153
+OrNegatedHighHigh: (-other) | (-see) # freq=1269961 freq=1044180
+OrNegatedHighHigh: (-its) | (-i) # freq=1173450 freq=956148
+OrNegatedHighHigh: (-as) | (-2008) # freq=3925535 freq=831253
+OrNegatedHighHigh: (-http) | (-s) # freq=3493581 freq=1581243
+OrNegatedHighHigh: (-or) | (-web) # freq=1858841 freq=1118334
+OrNegatedHighHigh: (-new) | (-publisher) # freq=1657293 freq=1289029
+OrNegatedHighHigh: (-of) | (-who) # freq=8184358 freq=1196171
+OrNegatedHighHigh: (-10) | (-2009) # freq=918339 freq=887702
+OrNegatedHighHigh: (-that) | (-he) # freq=2931020 freq=1659434
+OrNegatedHighHigh: (-url) | (-2005) # freq=1513595 freq=835460
+OrNegatedHighHigh: (-the) | (-a) # freq=8217362 freq=6560531
+OrNegatedHighHigh: (-more) | (-there) # freq=963533 freq=956153
+OrNegatedHighHigh: (-and) | (-an) # freq=7318061 freq=2628056
+OrNegatedHighHigh: (-with) | (-they) # freq=3709421 freq=1021945
+OrNegatedHighHigh: (-title) | (-time) # freq=2397378 freq=1032071
+OrNegatedHighHigh: (-states) | (-4) # freq=1034872 freq=986452
+OrNegatedHighHigh: (-united) | (-when) # freq=1196944 freq=1027487
+OrNegatedHighHigh: (-is) | (-title) # freq=4074455 freq=2397378
+OrNegatedHighHigh: (-from) | (-who) # freq=3224339 freq=1196171
+OrNegatedHighHigh: (-more) | (-some) # freq=963533 freq=839919
+OrNegatedHighHigh: (-title) | (-year) # freq=2397378 freq=1235231
+OrNegatedHighHigh: (-one) | (-after) # freq=1527689 freq=1247398
+OrNegatedHighHigh: (-with) | (-title) # freq=3709421 freq=2397378
+OrNegatedHighHigh: (-in) | (-first) # freq=7320987 freq=1933372
+OrNegatedHighHigh: (-are) | (-i) # freq=1877802 freq=956148
+OrNegatedHighHigh: (-the) | (-two) # freq=8217362 freq=1104053
+OrNegatedHighHigh: (-but) | (-there) # freq=1456553 freq=956153
+OrNegatedHighHigh: (-from) | (-all) # freq=3224339 freq=1203572
+OrNegatedHighHigh: (-2) | (-more) # freq=1549245 freq=963533
+OrNegatedHighHigh: (-had) | (-its) # freq=1246743 freq=1173450
+OrNegatedHighHigh: (-in) | (-no) # freq=7320987 freq=1045000
+OrNegatedHighHigh: (-other) | (-more) # freq=1269961 freq=963533
+OrNegatedHighHigh: (-his) | (-united) # freq=1777780 freq=1196944
+OrNegatedHighHigh: (-more) | (-last) # freq=963533 freq=958437
+OrNegatedHighHigh: (-ref) | (-more) # freq=3793973 freq=963533
+OrNegatedHighHigh: (-ref) | (-been) # freq=3793973 freq=1041183
+OrNegatedHighHigh: (-cite) | (-time) # freq=1741194 freq=1032071
+OrNegatedHighHigh: (-http) | (-3) # freq=3493581 freq=1148799
+OrNegatedHighHigh: (-has) | (-they) # freq=1502961 freq=1021945
+OrNegatedHighHigh: (-and) | (-2011) # freq=7318061 freq=871410
+OrNegatedHighHigh: (-be) | (-accessdate) # freq=2051702 freq=1228887
+OrNegatedHighHigh: (-are) | (-2010) # freq=1877802 freq=950573
+OrNegatedHighHigh: (-at) | (-2009) # freq=2857534 freq=887702
+OrNegatedHighHigh: (-also) | (-united) # freq=1959419 freq=1196944
+OrNegatedHighHigh: (-united) | (-been) # freq=1196944 freq=1041183
+OrNegatedHighHigh: (-also) | (-1) # freq=1959419 freq=1641090
+OrNegatedHighHigh: (-he) | (-last) # freq=1659434 freq=958437
+OrNegatedHighHigh: (-was) | (-from) # freq=3763623 freq=3224339
+OrNegatedHighHigh: (-ref) | (-when) # freq=3793973 freq=1027487
+OrNegatedHighHigh: (-not) | (-they) # freq=1713264 freq=1021945
+OrNegatedHighHigh: (-the) | (-other) # freq=8217362 freq=1269961
+OrNegatedHighHigh: (-cite) | (-work) # freq=1741194 freq=853422
+OrNegatedHighHigh: (-was) | (-were) # freq=3763623 freq=1524630
+OrNegatedHighHigh: (-in) | (-after) # freq=7320987 freq=1247398
+OrNegatedHighHigh: (-and) | (-first) # freq=7318061 freq=1933372
+OrNegatedHighHigh: (-have) | (-their) # freq=1297121 freq=1158682
+OrNegatedHighHigh: (-also) | (-4) # freq=1959419 freq=986452
+OrNegatedHighHigh: (-he) | (-2006) # freq=1659434 freq=889954
+OrNegatedHighHigh: (-may) | (-time) # freq=1071932 freq=1032071
+OrNegatedHighHigh: (-is) | (-url) # freq=4074455 freq=1513595
+OrNegatedHighHigh: (-for) | (-has) # freq=4380011 freq=1502961
+OrNegatedHighHigh: (-and) | (-be) # freq=7318061 freq=2051702
+OrNegatedHighHigh: (-url) | (-had) # freq=1513595 freq=1246743
+OrNegatedHighHigh: (-his) | (-5) # freq=1777780 freq=891361
+OrNegatedHighHigh: (-on) | (-he) # freq=4074624 freq=1659434
+OrNegatedHighHigh: (-this) | (-first) # freq=2224932 freq=1933372
+OrNegatedHighHigh: (-new) | (-its) # freq=1657293 freq=1173450
+OrNegatedHighHigh: (-s) | (-2009) # freq=1581243 freq=887702
+OrNegatedHighHigh: (-see) | (-2010) # freq=1044180 freq=950573
+OrNegatedHighHigh: (-or) | (-but) # freq=1858841 freq=1456553
+OrNegatedHighHigh: (-its) | (-into) # freq=1173450 freq=888684
+OrNegatedHighHigh: (-on) | (-accessdate) # freq=4074624 freq=1228887
+OrNegatedHighHigh: (-are) | (-accessdate) # freq=1877802 freq=1228887
+OrNegatedHighHigh: (-2) | (-there) # freq=1549245 freq=956153
+OrNegatedHighHigh: (-united) | (-3) # freq=1196944 freq=1148799
+OrNegatedHighHigh: (-which) | (-no) # freq=1963428 freq=1045000
+OrNegatedHighHigh: (-s) | (-2006) # freq=1581243 freq=889954
+OrNegatedHighHigh: (-ref) | (-there) # freq=3793973 freq=956153
+OrNegatedHighHigh: (-he) | (-more) # freq=1659434 freq=963533
+OrNegatedHighHigh: (-had) | (-two) # freq=1246743 freq=1104053
+OrNegatedHighHigh: (-the) | (-only) # freq=8217362 freq=875561
+OrNegatedHighHigh: (-be) | (-about) # freq=2051702 freq=850283
+OrNegatedHighHigh: (-in) | (-has) # freq=7320987 freq=1502961
+OrNegatedHighHigh: (-2009) | (-work) # freq=887702 freq=853422
+OrNegatedHighHigh: (-on) | (-10) # freq=4074624 freq=918339
+OrNegatedHighHigh: (-ref) | (-2010) # freq=3793973 freq=950573
+OrNegatedHighHigh: (-other) | (-2006) # freq=1269961 freq=889954
+OrNegatedHighHigh: (-with) | (-all) # freq=3709421 freq=1203572
+OrNegatedHighHigh: (-in) | (-work) # freq=7320987 freq=853422
+OrNegatedHighHigh: (-url) | (-about) # freq=1513595 freq=850283
+OrNegatedHighHigh: (-after) | (-some) # freq=1247398 freq=839919
+OrNegatedHighHigh: (-this) | (-when) # freq=2224932 freq=1027487
+OrNegatedHighHigh: (-not) | (-1) # freq=1713264 freq=1641090
+OrNegatedHighHigh: (-1) | (-more) # freq=1641090 freq=963533
+OrNegatedHighHigh: (-not) | (-2) # freq=1713264 freq=1549245
+OrNegatedHighHigh: (-publisher) | (-2005) # freq=1289029 freq=835460
+OrNegatedHighHigh: (-in) | (-at) # freq=7320987 freq=2857534
+OrNegatedHighHigh: (-1) | (-some) # freq=1641090 freq=839919
+OrNegatedHighHigh: (-s) | (-its) # freq=1581243 freq=1173450
+OrNegatedHighHigh: (-date) | (-more) # freq=2020626 freq=963533
+OrNegatedHighHigh: (-from) | (-his) # freq=3224339 freq=1777780
+OrNegatedHighHigh: (-was) | (-when) # freq=3763623 freq=1027487
+OrNegatedHighHigh: (-time) | (-2010) # freq=1032071 freq=950573
+OrNegatedHighHigh: (-it) | (-2) # freq=2675552 freq=1549245
+OrNegatedHighHigh: (-of) | (-http) # freq=8184358 freq=3493581
+OrNegatedHighHigh: (-2) | (-2011) # freq=1549245 freq=871410
+OrNegatedHighHigh: (-who) | (-2009) # freq=1196171 freq=887702
+OrNegatedHighHigh: (-in) | (-2009) # freq=7320987 freq=887702
+OrNegatedHighHigh: (-by) | (-3) # freq=3826691 freq=1148799
+OrNegatedHighHigh: (-when) | (-2011) # freq=1027487 freq=871410
+OrNegatedHighHigh: (-not) | (-have) # freq=1713264 freq=1297121
+OrNegatedHighHigh: (-all) | (-their) # freq=1203572 freq=1158682
+OrNegatedHighHigh: (-an) | (-2005) # freq=2628056 freq=835460
+OrNegatedHighHigh: (-of) | (-is) # freq=8184358 freq=4074455
+OrNegatedHighHigh: (-of) | (-url) # freq=8184358 freq=1513595
+OrNegatedHighHigh: (-also) | (-year) # freq=1959419 freq=1235231
+OrNegatedHighHigh: (-is) | (-new) # freq=4074455 freq=1657293
+OrNegatedHighHigh: (-http) | (-name) # freq=3493581 freq=2827713
+OrNegatedHighHigh: (-i) | (-into) # freq=956148 freq=888684
+OrNegatedHighHigh: (-are) | (-united) # freq=1877802 freq=1196944
+OrNegatedHighHigh: (-or) | (-only) # freq=1858841 freq=875561
+OrNegatedHighHigh: (-who) | (-their) # freq=1196171 freq=1158682
+OrNegatedHighHigh: (-name) | (-been) # freq=2827713 freq=1041183
+OrNegatedHighHigh: (-last) | (-2009) # freq=958437 freq=887702
+OrNegatedHighHigh: (-they) | (-2005) # freq=1021945 freq=835460
+OrNegatedHighHigh: (-new) | (-1) # freq=1657293 freq=1641090
+OrNegatedHighHigh: (-title) | (-some) # freq=2397378 freq=839919
+OrNegatedHighHigh: (-name) | (-5) # freq=2827713 freq=891361
+OrNegatedHighHigh: (-and) | (-or) # freq=7318061 freq=1858841
+OrNegatedHighHigh: (-3) | (-2006) # freq=1148799 freq=889954
+OrNegatedHighHigh: (-of) | (-has) # freq=8184358 freq=1502961
+OrNegatedHighHigh: (-which) | (-i) # freq=1963428 freq=956148
+OrNegatedHighHigh: (-see) | (-5) # freq=1044180 freq=891361
+OrNegatedHighHigh: (-has) | (-2011) # freq=1502961 freq=871410
+OrNegatedHighHigh: (-new) | (-accessdate) # freq=1657293 freq=1228887
+OrNegatedHighHigh: (-united) | (-i) # freq=1196944 freq=956148
+OrNegatedHighHigh: (-are) | (-10) # freq=1877802 freq=918339
+OrNegatedHighHigh: (-the) | (-is) # freq=8217362 freq=4074455
+OrNegatedHighHigh: (-other) | (-web) # freq=1269961 freq=1118334
+OrNegatedHighHigh: (-i) | (-2006) # freq=956148 freq=889954
+OrNegatedHighHigh: (-were) | (-publisher) # freq=1524630 freq=1289029
+OrNegatedHighHigh: (-be) | (-when) # freq=2051702 freq=1027487
+OrNegatedHighHigh: (-to) | (-date) # freq=6155577 freq=2020626
+OrNegatedHighHigh: (-for) | (-2006) # freq=4380011 freq=889954
+OrNegatedHighHigh: (-for) | (-at) # freq=4380011 freq=2857534
+OrNegatedHighHigh: (-his) | (-s) # freq=1777780 freq=1581243
+OrNegatedHighHigh: (-from) | (-or) # freq=3224339 freq=1858841
+OrNegatedHighHigh: (-ref) | (-an) # freq=3793973 freq=2628056
+OrNegatedHighHigh: (-which) | (-had) # freq=1963428 freq=1246743
+OrNegatedHighHigh: (-an) | (-were) # freq=2628056 freq=1524630
+OrNegatedHighHigh: (-web) | (-only) # freq=1118334 freq=875561
+OrNegatedHighHigh: (-ref) | (-one) # freq=3793973 freq=1527689
+OrNegatedHighHigh: (-a) | (-one) # freq=6560531 freq=1527689
+OrNegatedHighHigh: (-they) | (-into) # freq=1021945 freq=888684
+OrNegatedHighHigh: (-of) | (-2008) # freq=8184358 freq=831253
+OrNegatedHighHigh: (-in) | (-which) # freq=7320987 freq=1963428
+OrNegatedHighHigh: (-united) | (-2010) # freq=1196944 freq=950573
+OrNegatedHighHigh: (-after) | (-i) # freq=1247398 freq=956148
+OrNegatedHighHigh: (-he) | (-web) # freq=1659434 freq=1118334
+OrNegatedHighHigh: (-are) | (-states) # freq=1877802 freq=1034872
+OrNegatedHighHigh: (-after) | (-time) # freq=1247398 freq=1032071
+OrNegatedHighHigh: (-its) | (-web) # freq=1173450 freq=1118334
+OrNegatedHighHigh: (-for) | (-when) # freq=4380011 freq=1027487
+OrNegatedHighHigh: (-has) | (-states) # freq=1502961 freq=1034872
+OrNegatedHighHigh: (-the) | (-no) # freq=8217362 freq=1045000
+OrNegatedHighHigh: (-title) | (-one) # freq=2397378 freq=1527689
+OrNegatedHighHigh: (-i) | (-2009) # freq=956148 freq=887702
+OrNegatedHighHigh: (-1) | (-states) # freq=1641090 freq=1034872
+OrNegatedHighHigh: (-other) | (-only) # freq=1269961 freq=875561
+OrNegatedHighHigh: (-by) | (-they) # freq=3826691 freq=1021945
+OrNegatedHighHigh: (-http) | (-its) # freq=3493581 freq=1173450
+OrNegatedHighHigh: (-for) | (-two) # freq=4380011 freq=1104053
+OrNegatedHighHigh: (-all) | (-may) # freq=1203572 freq=1071932
+OrNegatedHighHigh: (-after) | (-last) # freq=1247398 freq=958437
+OrNegatedHighHigh: (-there) | (-only) # freq=956153 freq=875561
+OrNegatedHighHigh: (-2) | (-no) # freq=1549245 freq=1045000
+OrNegatedHighHigh: (-an) | (-he) # freq=2628056 freq=1659434
+OrNegatedHighHigh: (-his) | (-i) # freq=1777780 freq=956148
+OrNegatedHighHigh: (-first) | (-not) # freq=1933372 freq=1713264
+OrNegatedHighHigh: (-a) | (-5) # freq=6560531 freq=891361
+OrNegatedHighHigh: (-from) | (-2005) # freq=3224339 freq=835460
+OrNegatedHighHigh: (-after) | (-web) # freq=1247398 freq=1118334
+OrNegatedHighHigh: (-to) | (-which) # freq=6155577 freq=1963428
+OrNegatedHighHigh: (-this) | (-into) # freq=2224932 freq=888684
+OrNegatedHighHigh: (-its) | (-last) # freq=1173450 freq=958437
+OrNegatedHighHigh: (-it) | (-there) # freq=2675552 freq=956153
+OrNegatedHighHigh: (-name) | (-are) # freq=2827713 freq=1877802
+OrNegatedHighHigh: (-are) | (-4) # freq=1877802 freq=986452
+OrNegatedHighHigh: (-name) | (-cite) # freq=2827713 freq=1741194
+OrNegatedHighHigh: (-more) | (-2008) # freq=963533 freq=831253
+OrNegatedHighHigh: (-of) | (-that) # freq=8184358 freq=2931020
+OrNegatedHighHigh: (-ref) | (-at) # freq=3793973 freq=2857534
+OrNegatedHighHigh: (-new) | (-web) # freq=1657293 freq=1118334
+OrNegatedHighHigh: (-the) | (-2) # freq=8217362 freq=1549245
+OrNegatedHighHigh: (-for) | (-1) # freq=4380011 freq=1641090
+OrNegatedHighHigh: (-by) | (-no) # freq=3826691 freq=1045000
+OrNegatedHighHigh: (-all) | (-i) # freq=1203572 freq=956148
+OrNegatedHighHigh: (-5) | (-2006) # freq=891361 freq=889954
+OrNegatedHighHigh: (-4) | (-work) # freq=986452 freq=853422
+OrNegatedHighHigh: (-was) | (-new) # freq=3763623 freq=1657293
+OrNegatedHighHigh: (-year) | (-see) # freq=1235231 freq=1044180
+OrNegatedHighHigh: (-s) | (-had) # freq=1581243 freq=1246743
+OrNegatedHighHigh: (-an) | (-last) # freq=2628056 freq=958437
+OrNegatedHighHigh: (-had) | (-4) # freq=1246743 freq=986452
+OrNegatedHighHigh: (-from) | (-publisher) # freq=3224339 freq=1289029
+OrNegatedHighHigh: (-new) | (-url) # freq=1657293 freq=1513595
+OrNegatedHighHigh: (-4) | (-5) # freq=986452 freq=891361
+OrNegatedHighHigh: (-by) | (-cite) # freq=3826691 freq=1741194
+OrNegatedHighHigh: (-2010) | (-2009) # freq=950573 freq=887702
+OrNegatedHighHigh: (-their) | (-4) # freq=1158682 freq=986452
+OrNegatedHighHigh: (-publisher) | (-who) # freq=1289029 freq=1196171
+OrNegatedHighHigh: (-that) | (-more) # freq=2931020 freq=963533
+OrNegatedHighHigh: (-ref) | (-see) # freq=3793973 freq=1044180
+OrNegatedHighHigh: (-publisher) | (-last) # freq=1289029 freq=958437
+OrNegatedHighHigh: (-but) | (-their) # freq=1456553 freq=1158682
+OrNegatedHighHigh: (-is) | (-1) # freq=4074455 freq=1641090
+OrNegatedHighHigh: (-new) | (-have) # freq=1657293 freq=1297121
+OrNegatedHighHigh: (-title) | (-also) # freq=2397378 freq=1959419
+OrNegatedHighHigh: (-also) | (-i) # freq=1959419 freq=956148
+OrNegatedHighHigh: (-had) | (-into) # freq=1246743 freq=888684
+OrNegatedHighHigh: (-first) | (-when) # freq=1933372 freq=1027487
+OrNegatedHighHigh: (-in) | (-be) # freq=7320987 freq=2051702
+OrNegatedHighHigh: (-are) | (-2008) # freq=1877802 freq=831253
+OrNegatedHighHigh: (-two) | (-2006) # freq=1104053 freq=889954
+OrNegatedHighHigh: (-date) | (-about) # freq=2020626 freq=850283
+OrNegatedHighHigh: (-its) | (-only) # freq=1173450 freq=875561
+OrNegatedHighHigh: (-title) | (-new) # freq=2397378 freq=1657293
+OrNegatedHighHigh: (-2) | (-10) # freq=1549245 freq=918339
+OrNegatedHighHigh: (-2) | (-one) # freq=1549245 freq=1527689
+OrNegatedHighHigh: (-is) | (-an) # freq=4074455 freq=2628056
+OrNegatedHighHigh: (-at) | (-no) # freq=2857534 freq=1045000
+OrNegatedHighHigh: (-has) | (-its) # freq=1502961 freq=1173450
+OrNegatedHighHigh: (-were) | (-there) # freq=1524630 freq=956153
+OrNegatedHighHigh: (-with) | (-were) # freq=3709421 freq=1524630
+OrNegatedHighHigh: (-on) | (-i) # freq=4074624 freq=956148
+OrNegatedHighHigh: (-as) | (-was) # freq=3925535 freq=3763623
+OrNegatedHighHigh: (-date) | (-cite) # freq=2020626 freq=1741194
+OrNegatedHighHigh: (-or) | (-united) # freq=1858841 freq=1196944
+OrNegatedHighHigh: (-to) | (-http) # freq=6155577 freq=3493581
+OrNegatedHighHigh: (-he) | (-have) # freq=1659434 freq=1297121
+OrNegatedHighHigh: (-s) | (-about) # freq=1581243 freq=850283
+OrNegatedHighHigh: (-this) | (-s) # freq=2224932 freq=1581243
+OrNegatedHighHigh: (-is) | (-but) # freq=4074455 freq=1456553
+OrNegatedHighHigh: (-web) | (-2010) # freq=1118334 freq=950573
+OrNegatedHighHigh: (-first) | (-are) # freq=1933372 freq=1877802
+OrNegatedHighHigh: (-have) | (-2008) # freq=1297121 freq=831253
+OrNegatedHighHigh: (-to) | (-no) # freq=6155577 freq=1045000
+OrNegatedHighHigh: (-or) | (-2) # freq=1858841 freq=1549245
+OrNegatedHighHigh: (-was) | (-about) # freq=3763623 freq=850283
+OrNegatedHighHigh: (-cite) | (-more) # freq=1741194 freq=963533
+OrNegatedHighHigh: (-date) | (-their) # freq=2020626 freq=1158682
+OrNegatedHighHigh: (-from) | (-work) # freq=3224339 freq=853422
+OrNegatedHighHigh: (-at) | (-2010) # freq=2857534 freq=950573
+OrNegatedHighHigh: (-other) | (-last) # freq=1269961 freq=958437
+OrNegatedHighHigh: (-date) | (-into) # freq=2020626 freq=888684
+OrNegatedHighHigh: (-they) | (-more) # freq=1021945 freq=963533
+OrNegatedHighHigh: (-to) | (-ref) # freq=6155577 freq=3793973
+OrNegatedHighHigh: (-be) | (-but) # freq=2051702 freq=1456553
+OrNegatedHighHigh: (-or) | (-into) # freq=1858841 freq=888684
+OrNegatedHighHigh: (-has) | (-last) # freq=1502961 freq=958437
+OrNegatedHighHigh: (-to) | (-time) # freq=6155577 freq=1032071
+OrNegatedHighHigh: (-the) | (-some) # freq=8217362 freq=839919
+OrNegatedHighHigh: (-ref) | (-united) # freq=3793973 freq=1196944
+OrNegatedHighHigh: (-all) | (-last) # freq=1203572 freq=958437
+OrNegatedHighHigh: (-url) | (-all) # freq=1513595 freq=1203572
+OrNegatedHighHigh: (-other) | (-some) # freq=1269961 freq=839919
+OrNegatedHighHigh: (-cite) | (-new) # freq=1741194 freq=1657293
+OrNegatedHighHigh: (-and) | (-by) # freq=7318061 freq=3826691
+OrNegatedHighHigh: (-publisher) | (-i) # freq=1289029 freq=956148
+OrNegatedHighHigh: (-to) | (-publisher) # freq=6155577 freq=1289029
+OrNegatedHighHigh: (-the) | (-about) # freq=8217362 freq=850283
+OrNegatedHighHigh: (-as) | (-are) # freq=3925535 freq=1877802
+OrNegatedHighHigh: (-it) | (-title) # freq=2675552 freq=2397378
+OrNegatedHighHigh: (-by) | (-are) # freq=3826691 freq=1877802
+OrNegatedHighHigh: (-has) | (-have) # freq=1502961 freq=1297121
+OrNegatedHighHigh: (-one) | (-2011) # freq=1527689 freq=871410
+OrNegatedHighHigh: (-are) | (-2005) # freq=1877802 freq=835460
+OrNegatedHighHigh: (-had) | (-some) # freq=1246743 freq=839919
+OrNegatedHighHigh: (-by) | (-when) # freq=3826691 freq=1027487
+OrNegatedHighHigh: (-it) | (-2011) # freq=2675552 freq=871410
+OrNegatedHighHigh: (-1) | (-they) # freq=1641090 freq=1021945
+OrNegatedHighHigh: (-on) | (-their) # freq=4074624 freq=1158682
+OrNegatedHighHigh: (-been) | (-10) # freq=1041183 freq=918339
+OrNegatedHighHigh: (-was) | (-only) # freq=3763623 freq=875561
+OrNegatedHighHigh: (-also) | (-other) # freq=1959419 freq=1269961
+OrNegatedHighHigh: (-who) | (-its) # freq=1196171 freq=1173450
+OrNegatedHighHigh: (-3) | (-may) # freq=1148799 freq=1071932
+OrNegatedHighHigh: (-with) | (-2006) # freq=3709421 freq=889954
+OrNegatedHighHigh: (-from) | (-but) # freq=3224339 freq=1456553
+OrNegatedHighHigh: (-was) | (-work) # freq=3763623 freq=853422
+OrNegatedHighHigh: (-as) | (-also) # freq=3925535 freq=1959419
+OrNegatedHighHigh: (-which) | (-into) # freq=1963428 freq=888684
+OrNegatedHighHigh: (-see) | (-i) # freq=1044180 freq=956148
+OrNegatedHighHigh: (-have) | (-more) # freq=1297121 freq=963533
+OrNegatedHighHigh: (-were) | (-after) # freq=1524630 freq=1247398
+OrNegatedHighHigh: (-on) | (-2010) # freq=4074624 freq=950573
+OrNegatedHighHigh: (-is) | (-had) # freq=4074455 freq=1246743
+OrNegatedHighHigh: (-he) | (-5) # freq=1659434 freq=891361
+OrNegatedHighHigh: (-first) | (-year) # freq=1933372 freq=1235231
+OrNegatedHighHigh: (-not) | (-url) # freq=1713264 freq=1513595
+OrNegatedHighHigh: (-first) | (-his) # freq=1933372 freq=1777780
+OrNegatedHighHigh: (-date) | (-10) # freq=2020626 freq=918339
+OrNegatedHighHigh: (-was) | (-not) # freq=3763623 freq=1713264
+OrNegatedHighHigh: (-and) | (-may) # freq=7318061 freq=1071932
+OrNegatedHighHigh: (-no) | (-more) # freq=1045000 freq=963533
+OrNegatedHighHigh: (-it) | (-url) # freq=2675552 freq=1513595
+OrNegatedHighHigh: (-as) | (-no) # freq=3925535 freq=1045000
+OrNegatedHighHigh: (-other) | (-all) # freq=1269961 freq=1203572
+OrNegatedHighHigh: (-as) | (-2) # freq=3925535 freq=1549245
+OrNegatedHighHigh: (-for) | (-as) # freq=4380011 freq=3925535
+OrNegatedHighHigh: (-for) | (-there) # freq=4380011 freq=956153
+OrNegatedHighHigh: (-the) | (-new) # freq=8217362 freq=1657293
+OrNegatedHighHigh: (-is) | (-no) # freq=4074455 freq=1045000
+OrNegatedHighHigh: (-also) | (-their) # freq=1959419 freq=1158682
+OrNegatedHighHigh: (-that) | (-2010) # freq=2931020 freq=950573
+OrNegatedHighHigh: (-s) | (-2008) # freq=1581243 freq=831253
+OrNegatedHighHigh: (-were) | (-2009) # freq=1524630 freq=887702
+OrNegatedHighHigh: (-of) | (-after) # freq=8184358 freq=1247398
+OrNegatedHighHigh: (-of) | (-an) # freq=8184358 freq=2628056
+OrNegatedHighHigh: (-the) | (-10) # freq=8217362 freq=918339
+OrNegatedHighHigh: (-title) | (-web) # freq=2397378 freq=1118334
+OrNegatedHighHigh: (-on) | (-they) # freq=4074624 freq=1021945
+OrNegatedHighHigh: (-to) | (-have) # freq=6155577 freq=1297121
+OrNegatedHighHigh: (-was) | (-its) # freq=3763623 freq=1173450
+OrNegatedHighHigh: (-at) | (-time) # freq=2857534 freq=1032071
+OrNegatedHighHigh: (-2) | (-accessdate) # freq=1549245 freq=1228887
+OrNegatedHighHigh: (-with) | (-united) # freq=3709421 freq=1196944
+OrNegatedHighHigh: (-in) | (-about) # freq=7320987 freq=850283
+OrNegatedHighHigh: (-in) | (-2005) # freq=7320987 freq=835460
+OrNegatedHighHigh: (-for) | (-last) # freq=4380011 freq=958437
+OrNegatedHighHigh: (-and) | (-when) # freq=7318061 freq=1027487
+OrNegatedHighHigh: (-an) | (-their) # freq=2628056 freq=1158682
+OrNegatedHighHigh: (-2010) | (-into) # freq=950573 freq=888684
+OrNegatedHighHigh: (-web) | (-two) # freq=1118334 freq=1104053
+OrNegatedHighHigh: (-two) | (-4) # freq=1104053 freq=986452
+OrNegatedHighHigh: (-1) | (-there) # freq=1641090 freq=956153
+OrNegatedHighHigh: (-name) | (-url) # freq=2827713 freq=1513595
+OrNegatedHighHigh: (-united) | (-who) # freq=1196944 freq=1196171
+OrNegatedHighHigh: (-they) | (-there) # freq=1021945 freq=956153
+OrNegatedHighHigh: (-http) | (-5) # freq=3493581 freq=891361
+OrNegatedHighHigh: (-not) | (-2008) # freq=1713264 freq=831253
+OrNegatedHighHigh: (-are) | (-2009) # freq=1877802 freq=887702
+OrNegatedHighHigh: (-on) | (-may) # freq=4074624 freq=1071932
+OrNegatedHighHigh: (-is) | (-are) # freq=4074455 freq=1877802
+OrNegatedHighHigh: (-been) | (-there) # freq=1041183 freq=956153
+OrNegatedHighHigh: (-other) | (-into) # freq=1269961 freq=888684
+OrNegatedHighHigh: (-be) | (-their) # freq=2051702 freq=1158682
+OrNegatedHighHigh: (-new) | (-other) # freq=1657293 freq=1269961
+OrNegatedHighHigh: (-its) | (-2011) # freq=1173450 freq=871410
+OrNegatedHighHigh: (-ref) | (-3) # freq=3793973 freq=1148799
+OrNegatedHighHigh: (-name) | (-be) # freq=2827713 freq=2051702
+OrNegatedHighHigh: (-had) | (-see) # freq=1246743 freq=1044180
+OrNegatedHighHigh: (-also) | (-or) # freq=1959419 freq=1858841
+OrNegatedHighHigh: (-but) | (-4) # freq=1456553 freq=986452
+OrNegatedHighHighOpt: -(+of +s) # freq=8184358 freq=1581243
+OrNegatedHighHighOpt: -(+date +he) # freq=2020626 freq=1659434
+OrNegatedHighHighOpt: -(+cite +2005) # freq=1741194 freq=835460
+OrNegatedHighHighOpt: -(+i +10) # freq=956148 freq=918339
+OrNegatedHighHighOpt: -(+date +2009) # freq=2020626 freq=887702
+OrNegatedHighHighOpt: -(+for +cite) # freq=4380011 freq=1741194
+OrNegatedHighHighOpt: -(+as +its) # freq=3925535 freq=1173450
+OrNegatedHighHighOpt: -(+which +2011) # freq=1963428 freq=871410
+OrNegatedHighHighOpt: -(+have +see) # freq=1297121 freq=1044180
+OrNegatedHighHighOpt: -(+first +accessdate) # freq=1933372 freq=1228887
+OrNegatedHighHighOpt: -(+also +no) # freq=1959419 freq=1045000
+OrNegatedHighHighOpt: -(+first +new) # freq=1933372 freq=1657293
+OrNegatedHighHighOpt: -(+publisher +web) # freq=1289029 freq=1118334
+OrNegatedHighHighOpt: -(+states +work) # freq=1034872 freq=853422
+OrNegatedHighHighOpt: -(+more +work) # freq=963533 freq=853422
+OrNegatedHighHighOpt: -(+1 +their) # freq=1641090 freq=1158682
+OrNegatedHighHighOpt: -(+http +an) # freq=3493581 freq=2628056
+OrNegatedHighHighOpt: -(+year +5) # freq=1235231 freq=891361
+OrNegatedHighHighOpt: -(+4 +there) # freq=986452 freq=956153
+OrNegatedHighHighOpt: -(+s +who) # freq=1581243 freq=1196171
+OrNegatedHighHighOpt: -(+who +may) # freq=1196171 freq=1071932
+OrNegatedHighHighOpt: -(+united +time) # freq=1196944 freq=1032071
+OrNegatedHighHighOpt: -(+other +no) # freq=1269961 freq=1045000
+OrNegatedHighHighOpt: -(+time +when) # freq=1032071 freq=1027487
+OrNegatedHighHighOpt: -(+that +cite) # freq=2931020 freq=1741194
+OrNegatedHighHighOpt: -(+to +its) # freq=6155577 freq=1173450
+OrNegatedHighHighOpt: -(+2011 +2008) # freq=871410 freq=831253
+OrNegatedHighHighOpt: -(+been +2005) # freq=1041183 freq=835460
+OrNegatedHighHighOpt: -(+1 +year) # freq=1641090 freq=1235231
+OrNegatedHighHighOpt: -(+was +more) # freq=3763623 freq=963533
+OrNegatedHighHighOpt: -(+3 +2005) # freq=1148799 freq=835460
+OrNegatedHighHighOpt: -(+a +they) # freq=6560531 freq=1021945
+OrNegatedHighHighOpt: -(+s +time) # freq=1581243 freq=1032071
+OrNegatedHighHighOpt: -(+in +2011) # freq=7320987 freq=871410
+OrNegatedHighHighOpt: -(+a +work) # freq=6560531 freq=853422
+OrNegatedHighHighOpt: -(+they +4) # freq=1021945 freq=986452
+OrNegatedHighHighOpt: -(+and +2) # freq=7318061 freq=1549245
+OrNegatedHighHighOpt: -(+to +an) # freq=6155577 freq=2628056
+OrNegatedHighHighOpt: -(+an +which) # freq=2628056 freq=1963428
+OrNegatedHighHighOpt: -(+was +also) # freq=3763623 freq=1959419
+OrNegatedHighHighOpt: -(+this +see) # freq=2224932 freq=1044180
+OrNegatedHighHighOpt: -(+all +2010) # freq=1203572 freq=950573
+OrNegatedHighHighOpt: -(+2 +2010) # freq=1549245 freq=950573
+OrNegatedHighHighOpt: -(+first +work) # freq=1933372 freq=853422
+OrNegatedHighHighOpt: -(+he +10) # freq=1659434 freq=918339
+OrNegatedHighHighOpt: -(+http +that) # freq=3493581 freq=2931020
+OrNegatedHighHighOpt: -(+new +2011) # freq=1657293 freq=871410
+OrNegatedHighHighOpt: -(+as +by) # freq=3925535 freq=3826691
+OrNegatedHighHighOpt: -(+there +2008) # freq=956153 freq=831253
+OrNegatedHighHighOpt: -(+is +they) # freq=4074455 freq=1021945
+OrNegatedHighHighOpt: -(+2010 +2011) # freq=950573 freq=871410
+OrNegatedHighHighOpt: -(+accessdate +2005) # freq=1228887 freq=835460
+OrNegatedHighHighOpt: -(+at +this) # freq=2857534 freq=2224932
+OrNegatedHighHighOpt: -(+as +some) # freq=3925535 freq=839919
+OrNegatedHighHighOpt: -(+after +all) # freq=1247398 freq=1203572
+OrNegatedHighHighOpt: -(+year +they) # freq=1235231 freq=1021945
+OrNegatedHighHighOpt: -(+1 +accessdate) # freq=1641090 freq=1228887
+OrNegatedHighHighOpt: -(+on +web) # freq=4074624 freq=1118334
+OrNegatedHighHighOpt: -(+first +5) # freq=1933372 freq=891361
+OrNegatedHighHighOpt: -(+he +but) # freq=1659434 freq=1456553
+OrNegatedHighHighOpt: -(+title +when) # freq=2397378 freq=1027487
+OrNegatedHighHighOpt: -(+who +two) # freq=1196171 freq=1104053
+OrNegatedHighHighOpt: -(+last +2006) # freq=958437 freq=889954
+OrNegatedHighHighOpt: -(+from +name) # freq=3224339 freq=2827713
+OrNegatedHighHighOpt: -(+new +i) # freq=1657293 freq=956148
+OrNegatedHighHighOpt: -(+was +publisher) # freq=3763623 freq=1289029
+OrNegatedHighHighOpt: -(+and +not) # freq=7318061 freq=1713264
+OrNegatedHighHighOpt: -(+is +their) # freq=4074455 freq=1158682
+OrNegatedHighHighOpt: -(+ref +that) # freq=3793973 freq=2931020
+OrNegatedHighHighOpt: -(+of +for) # freq=8184358 freq=4380011
+OrNegatedHighHighOpt: -(+name +which) # freq=2827713 freq=1963428
+OrNegatedHighHighOpt: -(+after +2008) # freq=1247398 freq=831253
+OrNegatedHighHighOpt: -(+that +an) # freq=2931020 freq=2628056
+OrNegatedHighHighOpt: -(+by +2006) # freq=3826691 freq=889954
+OrNegatedHighHighOpt: -(+that +or) # freq=2931020 freq=1858841
+OrNegatedHighHighOpt: -(+be +which) # freq=2051702 freq=1963428
+OrNegatedHighHighOpt: -(+with +2010) # freq=3709421 freq=950573
+OrNegatedHighHighOpt: -(+by +with) # freq=3826691 freq=3709421
+OrNegatedHighHighOpt: -(+by +4) # freq=3826691 freq=986452
+OrNegatedHighHighOpt: -(+was +cite) # freq=3763623 freq=1741194
+OrNegatedHighHighOpt: -(+was +they) # freq=3763623 freq=1021945
+OrNegatedHighHighOpt: -(+on +was) # freq=4074624 freq=3763623
+OrNegatedHighHighOpt: -(+is +time) # freq=4074455 freq=1032071
+OrNegatedHighHighOpt: -(+the +be) # freq=8217362 freq=2051702
+OrNegatedHighHighOpt: -(+were +2010) # freq=1524630 freq=950573
+OrNegatedHighHighOpt: -(+they +2006) # freq=1021945 freq=889954
+OrNegatedHighHighOpt: -(+he +may) # freq=1659434 freq=1071932
+OrNegatedHighHighOpt: -(+an +title) # freq=2628056 freq=2397378
+OrNegatedHighHighOpt: -(+into +some) # freq=888684 freq=839919
+OrNegatedHighHighOpt: -(+first +some) # freq=1933372 freq=839919
+OrNegatedHighHighOpt: -(+name +new) # freq=2827713 freq=1657293
+OrNegatedHighHighOpt: -(+cite +3) # freq=1741194 freq=1148799
+OrNegatedHighHighOpt: -(+to +web) # freq=6155577 freq=1118334
+OrNegatedHighHighOpt: -(+for +it) # freq=4380011 freq=2675552
+OrNegatedHighHighOpt: -(+year +there) # freq=1235231 freq=956153
+OrNegatedHighHighOpt: -(+but +been) # freq=1456553 freq=1041183
+OrNegatedHighHighOpt: -(+this +who) # freq=2224932 freq=1196171
+OrNegatedHighHighOpt: -(+ref +web) # freq=3793973 freq=1118334
+OrNegatedHighHighOpt: -(+cite +2011) # freq=1741194 freq=871410
+OrNegatedHighHighOpt: -(+by +he) # freq=3826691 freq=1659434
+OrNegatedHighHighOpt: -(+name +first) # freq=2827713 freq=1933372
+OrNegatedHighHighOpt: -(+has +about) # freq=1502961 freq=850283
+OrNegatedHighHighOpt: -(+were +two) # freq=1524630 freq=1104053
+OrNegatedHighHighOpt: -(+two +work) # freq=1104053 freq=853422
+OrNegatedHighHighOpt: -(+he +been) # freq=1659434 freq=1041183
+OrNegatedHighHighOpt: -(+from +2) # freq=3224339 freq=1549245
+OrNegatedHighHighOpt: -(+all +some) # freq=1203572 freq=839919
+OrNegatedHighHighOpt: -(+on +only) # freq=4074624 freq=875561
+OrNegatedHighHighOpt: -(+was +no) # freq=3763623 freq=1045000
+OrNegatedHighHighOpt: -(+name +see) # freq=2827713 freq=1044180
+OrNegatedHighHighOpt: -(+of +as) # freq=8184358 freq=3925535
+OrNegatedHighHighOpt: -(+be +has) # freq=2051702 freq=1502961
+OrNegatedHighHighOpt: -(+url +into) # freq=1513595 freq=888684
+OrNegatedHighHighOpt: -(+of +2006) # freq=8184358 freq=889954
+OrNegatedHighHighOpt: -(+ref +or) # freq=3793973 freq=1858841
+OrNegatedHighHighOpt: -(+by +url) # freq=3826691 freq=1513595
+OrNegatedHighHighOpt: -(+3 +into) # freq=1148799 freq=888684
+OrNegatedHighHighOpt: -(+which +year) # freq=1963428 freq=1235231
+OrNegatedHighHighOpt: -(+at +only) # freq=2857534 freq=875561
+OrNegatedHighHighOpt: -(+http +publisher) # freq=3493581 freq=1289029
+OrNegatedHighHighOpt: -(+with +accessdate) # freq=3709421 freq=1228887
+OrNegatedHighHighOpt: -(+had +work) # freq=1246743 freq=853422
+OrNegatedHighHighOpt: -(+as +they) # freq=3925535 freq=1021945
+OrNegatedHighHighOpt: -(+the +2009) # freq=8217362 freq=887702
+OrNegatedHighHighOpt: -(+are +but) # freq=1877802 freq=1456553
+OrNegatedHighHighOpt: -(+other +10) # freq=1269961 freq=918339
+OrNegatedHighHighOpt: -(+two +they) # freq=1104053 freq=1021945
+OrNegatedHighHighOpt: -(+all +they) # freq=1203572 freq=1021945
+OrNegatedHighHighOpt: -(+2011 +about) # freq=871410 freq=850283
+OrNegatedHighHighOpt: -(+name +states) # freq=2827713 freq=1034872
+OrNegatedHighHighOpt: -(+were +may) # freq=1524630 freq=1071932
+OrNegatedHighHighOpt: -(+the +into) # freq=8217362 freq=888684
+OrNegatedHighHighOpt: -(+new +united) # freq=1657293 freq=1196944
+OrNegatedHighHighOpt: -(+their +only) # freq=1158682 freq=875561
+OrNegatedHighHighOpt: -(+be +10) # freq=2051702 freq=918339
+OrNegatedHighHighOpt: -(+that +not) # freq=2931020 freq=1713264
+OrNegatedHighHighOpt: -(+title +all) # freq=2397378 freq=1203572
+OrNegatedHighHighOpt: -(+with +have) # freq=3709421 freq=1297121
+OrNegatedHighHighOpt: -(+as +been) # freq=3925535 freq=1041183
+OrNegatedHighHighOpt: -(+it +more) # freq=2675552 freq=963533
+OrNegatedHighHighOpt: -(+all +united) # freq=1203572 freq=1196944
+OrNegatedHighHighOpt: -(+other +two) # freq=1269961 freq=1104053
+OrNegatedHighHighOpt: -(+he +url) # freq=1659434 freq=1513595
+OrNegatedHighHighOpt: -(+to +3) # freq=6155577 freq=1148799
+OrNegatedHighHighOpt: -(+in +from) # freq=7320987 freq=3224339
+OrNegatedHighHighOpt: -(+not +there) # freq=1713264 freq=956153
+OrNegatedHighHighOpt: -(+other +see) # freq=1269961 freq=1044180
+OrNegatedHighHighOpt: -(+its +i) # freq=1173450 freq=956148
+OrNegatedHighHighOpt: -(+as +2008) # freq=3925535 freq=831253
+OrNegatedHighHighOpt: -(+http +s) # freq=3493581 freq=1581243
+OrNegatedHighHighOpt: -(+or +web) # freq=1858841 freq=1118334
+OrNegatedHighHighOpt: -(+new +publisher) # freq=1657293 freq=1289029
+OrNegatedHighHighOpt: -(+of +who) # freq=8184358 freq=1196171
+OrNegatedHighHighOpt: -(+10 +2009) # freq=918339 freq=887702
+OrNegatedHighHighOpt: -(+that +he) # freq=2931020 freq=1659434
+OrNegatedHighHighOpt: -(+url +2005) # freq=1513595 freq=835460
+OrNegatedHighHighOpt: -(+the +a) # freq=8217362 freq=6560531
+OrNegatedHighHighOpt: -(+more +there) # freq=963533 freq=956153
+OrNegatedHighHighOpt: -(+and +an) # freq=7318061 freq=2628056
+OrNegatedHighHighOpt: -(+with +they) # freq=3709421 freq=1021945
+OrNegatedHighHighOpt: -(+title +time) # freq=2397378 freq=1032071
+OrNegatedHighHighOpt: -(+states +4) # freq=1034872 freq=986452
+OrNegatedHighHighOpt: -(+united +when) # freq=1196944 freq=1027487
+OrNegatedHighHighOpt: -(+is +title) # freq=4074455 freq=2397378
+OrNegatedHighHighOpt: -(+from +who) # freq=3224339 freq=1196171
+OrNegatedHighHighOpt: -(+more +some) # freq=963533 freq=839919
+OrNegatedHighHighOpt: -(+title +year) # freq=2397378 freq=1235231
+OrNegatedHighHighOpt: -(+one +after) # freq=1527689 freq=1247398
+OrNegatedHighHighOpt: -(+with +title) # freq=3709421 freq=2397378
+OrNegatedHighHighOpt: -(+in +first) # freq=7320987 freq=1933372
+OrNegatedHighHighOpt: -(+are +i) # freq=1877802 freq=956148
+OrNegatedHighHighOpt: -(+the +two) # freq=8217362 freq=1104053
+OrNegatedHighHighOpt: -(+but +there) # freq=1456553 freq=956153
+OrNegatedHighHighOpt: -(+from +all) # freq=3224339 freq=1203572
+OrNegatedHighHighOpt: -(+2 +more) # freq=1549245 freq=963533
+OrNegatedHighHighOpt: -(+had +its) # freq=1246743 freq=1173450
+OrNegatedHighHighOpt: -(+in +no) # freq=7320987 freq=1045000
+OrNegatedHighHighOpt: -(+other +more) # freq=1269961 freq=963533
+OrNegatedHighHighOpt: -(+his +united) # freq=1777780 freq=1196944
+OrNegatedHighHighOpt: -(+more +last) # freq=963533 freq=958437
+OrNegatedHighHighOpt: -(+ref +more) # freq=3793973 freq=963533
+OrNegatedHighHighOpt: -(+ref +been) # freq=3793973 freq=1041183
+OrNegatedHighHighOpt: -(+cite +time) # freq=1741194 freq=1032071
+OrNegatedHighHighOpt: -(+http +3) # freq=3493581 freq=1148799
+OrNegatedHighHighOpt: -(+has +they) # freq=1502961 freq=1021945
+OrNegatedHighHighOpt: -(+and +2011) # freq=7318061 freq=871410
+OrNegatedHighHighOpt: -(+be +accessdate) # freq=2051702 freq=1228887
+OrNegatedHighHighOpt: -(+are +2010) # freq=1877802 freq=950573
+OrNegatedHighHighOpt: -(+at +2009) # freq=2857534 freq=887702
+OrNegatedHighHighOpt: -(+also +united) # freq=1959419 freq=1196944
+OrNegatedHighHighOpt: -(+united +been) # freq=1196944 freq=1041183
+OrNegatedHighHighOpt: -(+also +1) # freq=1959419 freq=1641090
+OrNegatedHighHighOpt: -(+he +last) # freq=1659434 freq=958437
+OrNegatedHighHighOpt: -(+was +from) # freq=3763623 freq=3224339
+OrNegatedHighHighOpt: -(+ref +when) # freq=3793973 freq=1027487
+OrNegatedHighHighOpt: -(+not +they) # freq=1713264 freq=1021945
+OrNegatedHighHighOpt: -(+the +other) # freq=8217362 freq=1269961
+OrNegatedHighHighOpt: -(+cite +work) # freq=1741194 freq=853422
+OrNegatedHighHighOpt: -(+was +were) # freq=3763623 freq=1524630
+OrNegatedHighHighOpt: -(+in +after) # freq=7320987 freq=1247398
+OrNegatedHighHighOpt: -(+and +first) # freq=7318061 freq=1933372
+OrNegatedHighHighOpt: -(+have +their) # freq=1297121 freq=1158682
+OrNegatedHighHighOpt: -(+also +4) # freq=1959419 freq=986452
+OrNegatedHighHighOpt: -(+he +2006) # freq=1659434 freq=889954
+OrNegatedHighHighOpt: -(+may +time) # freq=1071932 freq=1032071
+OrNegatedHighHighOpt: -(+is +url) # freq=4074455 freq=1513595
+OrNegatedHighHighOpt: -(+for +has) # freq=4380011 freq=1502961
+OrNegatedHighHighOpt: -(+and +be) # freq=7318061 freq=2051702
+OrNegatedHighHighOpt: -(+url +had) # freq=1513595 freq=1246743
+OrNegatedHighHighOpt: -(+his +5) # freq=1777780 freq=891361
+OrNegatedHighHighOpt: -(+on +he) # freq=4074624 freq=1659434
+OrNegatedHighHighOpt: -(+this +first) # freq=2224932 freq=1933372
+OrNegatedHighHighOpt: -(+new +its) # freq=1657293 freq=1173450
+OrNegatedHighHighOpt: -(+s +2009) # freq=1581243 freq=887702
+OrNegatedHighHighOpt: -(+see +2010) # freq=1044180 freq=950573
+OrNegatedHighHighOpt: -(+or +but) # freq=1858841 freq=1456553
+OrNegatedHighHighOpt: -(+its +into) # freq=1173450 freq=888684
+OrNegatedHighHighOpt: -(+on +accessdate) # freq=4074624 freq=1228887
+OrNegatedHighHighOpt: -(+are +accessdate) # freq=1877802 freq=1228887
+OrNegatedHighHighOpt: -(+2 +there) # freq=1549245 freq=956153
+OrNegatedHighHighOpt: -(+united +3) # freq=1196944 freq=1148799
+OrNegatedHighHighOpt: -(+which +no) # freq=1963428 freq=1045000
+OrNegatedHighHighOpt: -(+s +2006) # freq=1581243 freq=889954
+OrNegatedHighHighOpt: -(+ref +there) # freq=3793973 freq=956153
+OrNegatedHighHighOpt: -(+he +more) # freq=1659434 freq=963533
+OrNegatedHighHighOpt: -(+had +two) # freq=1246743 freq=1104053
+OrNegatedHighHighOpt: -(+the +only) # freq=8217362 freq=875561
+OrNegatedHighHighOpt: -(+be +about) # freq=2051702 freq=850283
+OrNegatedHighHighOpt: -(+in +has) # freq=7320987 freq=1502961
+OrNegatedHighHighOpt: -(+2009 +work) # freq=887702 freq=853422
+OrNegatedHighHighOpt: -(+on +10) # freq=4074624 freq=918339
+OrNegatedHighHighOpt: -(+ref +2010) # freq=3793973 freq=950573
+OrNegatedHighHighOpt: -(+other +2006) # freq=1269961 freq=889954
+OrNegatedHighHighOpt: -(+with +all) # freq=3709421 freq=1203572
+OrNegatedHighHighOpt: -(+in +work) # freq=7320987 freq=853422
+OrNegatedHighHighOpt: -(+url +about) # freq=1513595 freq=850283
+OrNegatedHighHighOpt: -(+after +some) # freq=1247398 freq=839919
+OrNegatedHighHighOpt: -(+this +when) # freq=2224932 freq=1027487
+OrNegatedHighHighOpt: -(+not +1) # freq=1713264 freq=1641090
+OrNegatedHighHighOpt: -(+1 +more) # freq=1641090 freq=963533
+OrNegatedHighHighOpt: -(+not +2) # freq=1713264 freq=1549245
+OrNegatedHighHighOpt: -(+publisher +2005) # freq=1289029 freq=835460
+OrNegatedHighHighOpt: -(+in +at) # freq=7320987 freq=2857534
+OrNegatedHighHighOpt: -(+1 +some) # freq=1641090 freq=839919
+OrNegatedHighHighOpt: -(+s +its) # freq=1581243 freq=1173450
+OrNegatedHighHighOpt: -(+date +more) # freq=2020626 freq=963533
+OrNegatedHighHighOpt: -(+from +his) # freq=3224339 freq=1777780
+OrNegatedHighHighOpt: -(+was +when) # freq=3763623 freq=1027487
+OrNegatedHighHighOpt: -(+time +2010) # freq=1032071 freq=950573
+OrNegatedHighHighOpt: -(+it +2) # freq=2675552 freq=1549245
+OrNegatedHighHighOpt: -(+of +http) # freq=8184358 freq=3493581
+OrNegatedHighHighOpt: -(+2 +2011) # freq=1549245 freq=871410
+OrNegatedHighHighOpt: -(+who +2009) # freq=1196171 freq=887702
+OrNegatedHighHighOpt: -(+in +2009) # freq=7320987 freq=887702
+OrNegatedHighHighOpt: -(+by +3) # freq=3826691 freq=1148799
+OrNegatedHighHighOpt: -(+when +2011) # freq=1027487 freq=871410
+OrNegatedHighHighOpt: -(+not +have) # freq=1713264 freq=1297121
+OrNegatedHighHighOpt: -(+all +their) # freq=1203572 freq=1158682
+OrNegatedHighHighOpt: -(+an +2005) # freq=2628056 freq=835460
+OrNegatedHighHighOpt: -(+of +is) # freq=8184358 freq=4074455
+OrNegatedHighHighOpt: -(+of +url) # freq=8184358 freq=1513595
+OrNegatedHighHighOpt: -(+also +year) # freq=1959419 freq=1235231
+OrNegatedHighHighOpt: -(+is +new) # freq=4074455 freq=1657293
+OrNegatedHighHighOpt: -(+http +name) # freq=3493581 freq=2827713
+OrNegatedHighHighOpt: -(+i +into) # freq=956148 freq=888684
+OrNegatedHighHighOpt: -(+are +united) # freq=1877802 freq=1196944
+OrNegatedHighHighOpt: -(+or +only) # freq=1858841 freq=875561
+OrNegatedHighHighOpt: -(+who +their) # freq=1196171 freq=1158682
+OrNegatedHighHighOpt: -(+name +been) # freq=2827713 freq=1041183
+OrNegatedHighHighOpt: -(+last +2009) # freq=958437 freq=887702
+OrNegatedHighHighOpt: -(+they +2005) # freq=1021945 freq=835460
+OrNegatedHighHighOpt: -(+new +1) # freq=1657293 freq=1641090
+OrNegatedHighHighOpt: -(+title +some) # freq=2397378 freq=839919
+OrNegatedHighHighOpt: -(+name +5) # freq=2827713 freq=891361
+OrNegatedHighHighOpt: -(+and +or) # freq=7318061 freq=1858841
+OrNegatedHighHighOpt: -(+3 +2006) # freq=1148799 freq=889954
+OrNegatedHighHighOpt: -(+of +has) # freq=8184358 freq=1502961
+OrNegatedHighHighOpt: -(+which +i) # freq=1963428 freq=956148
+OrNegatedHighHighOpt: -(+see +5) # freq=1044180 freq=891361
+OrNegatedHighHighOpt: -(+has +2011) # freq=1502961 freq=871410
+OrNegatedHighHighOpt: -(+new +accessdate) # freq=1657293 freq=1228887
+OrNegatedHighHighOpt: -(+united +i) # freq=1196944 freq=956148
+OrNegatedHighHighOpt: -(+are +10) # freq=1877802 freq=918339
+OrNegatedHighHighOpt: -(+the +is) # freq=8217362 freq=4074455
+OrNegatedHighHighOpt: -(+other +web) # freq=1269961 freq=1118334
+OrNegatedHighHighOpt: -(+i +2006) # freq=956148 freq=889954
+OrNegatedHighHighOpt: -(+were +publisher) # freq=1524630 freq=1289029
+OrNegatedHighHighOpt: -(+be +when) # freq=2051702 freq=1027487
+OrNegatedHighHighOpt: -(+to +date) # freq=6155577 freq=2020626
+OrNegatedHighHighOpt: -(+for +2006) # freq=4380011 freq=889954
+OrNegatedHighHighOpt: -(+for +at) # freq=4380011 freq=2857534
+OrNegatedHighHighOpt: -(+his +s) # freq=1777780 freq=1581243
+OrNegatedHighHighOpt: -(+from +or) # freq=3224339 freq=1858841
+OrNegatedHighHighOpt: -(+ref +an) # freq=3793973 freq=2628056
+OrNegatedHighHighOpt: -(+which +had) # freq=1963428 freq=1246743
+OrNegatedHighHighOpt: -(+an +were) # freq=2628056 freq=1524630
+OrNegatedHighHighOpt: -(+web +only) # freq=1118334 freq=875561
+OrNegatedHighHighOpt: -(+ref +one) # freq=3793973 freq=1527689
+OrNegatedHighHighOpt: -(+a +one) # freq=6560531 freq=1527689
+OrNegatedHighHighOpt: -(+they +into) # freq=1021945 freq=888684
+OrNegatedHighHighOpt: -(+of +2008) # freq=8184358 freq=831253
+OrNegatedHighHighOpt: -(+in +which) # freq=7320987 freq=1963428
+OrNegatedHighHighOpt: -(+united +2010) # freq=1196944 freq=950573
+OrNegatedHighHighOpt: -(+after +i) # freq=1247398 freq=956148
+OrNegatedHighHighOpt: -(+he +web) # freq=1659434 freq=1118334
+OrNegatedHighHighOpt: -(+are +states) # freq=1877802 freq=1034872
+OrNegatedHighHighOpt: -(+after +time) # freq=1247398 freq=1032071
+OrNegatedHighHighOpt: -(+its +web) # freq=1173450 freq=1118334
+OrNegatedHighHighOpt: -(+for +when) # freq=4380011 freq=1027487
+OrNegatedHighHighOpt: -(+has +states) # freq=1502961 freq=1034872
+OrNegatedHighHighOpt: -(+the +no) # freq=8217362 freq=1045000
+OrNegatedHighHighOpt: -(+title +one) # freq=2397378 freq=1527689
+OrNegatedHighHighOpt: -(+i +2009) # freq=956148 freq=887702
+OrNegatedHighHighOpt: -(+1 +states) # freq=1641090 freq=1034872
+OrNegatedHighHighOpt: -(+other +only) # freq=1269961 freq=875561
+OrNegatedHighHighOpt: -(+by +they) # freq=3826691 freq=1021945
+OrNegatedHighHighOpt: -(+http +its) # freq=3493581 freq=1173450
+OrNegatedHighHighOpt: -(+for +two) # freq=4380011 freq=1104053
+OrNegatedHighHighOpt: -(+all +may) # freq=1203572 freq=1071932
+OrNegatedHighHighOpt: -(+after +last) # freq=1247398 freq=958437
+OrNegatedHighHighOpt: -(+there +only) # freq=956153 freq=875561
+OrNegatedHighHighOpt: -(+2 +no) # freq=1549245 freq=1045000
+OrNegatedHighHighOpt: -(+an +he) # freq=2628056 freq=1659434
+OrNegatedHighHighOpt: -(+his +i) # freq=1777780 freq=956148
+OrNegatedHighHighOpt: -(+first +not) # freq=1933372 freq=1713264
+OrNegatedHighHighOpt: -(+a +5) # freq=6560531 freq=891361
+OrNegatedHighHighOpt: -(+from +2005) # freq=3224339 freq=835460
+OrNegatedHighHighOpt: -(+after +web) # freq=1247398 freq=1118334
+OrNegatedHighHighOpt: -(+to +which) # freq=6155577 freq=1963428
+OrNegatedHighHighOpt: -(+this +into) # freq=2224932 freq=888684
+OrNegatedHighHighOpt: -(+its +last) # freq=1173450 freq=958437
+OrNegatedHighHighOpt: -(+it +there) # freq=2675552 freq=956153
+OrNegatedHighHighOpt: -(+name +are) # freq=2827713 freq=1877802
+OrNegatedHighHighOpt: -(+are +4) # freq=1877802 freq=986452
+OrNegatedHighHighOpt: -(+name +cite) # freq=2827713 freq=1741194
+OrNegatedHighHighOpt: -(+more +2008) # freq=963533 freq=831253
+OrNegatedHighHighOpt: -(+of +that) # freq=8184358 freq=2931020
+OrNegatedHighHighOpt: -(+ref +at) # freq=3793973 freq=2857534
+OrNegatedHighHighOpt: -(+new +web) # freq=1657293 freq=1118334
+OrNegatedHighHighOpt: -(+the +2) # freq=8217362 freq=1549245
+OrNegatedHighHighOpt: -(+for +1) # freq=4380011 freq=1641090
+OrNegatedHighHighOpt: -(+by +no) # freq=3826691 freq=1045000
+OrNegatedHighHighOpt: -(+all +i) # freq=1203572 freq=956148
+OrNegatedHighHighOpt: -(+5 +2006) # freq=891361 freq=889954
+OrNegatedHighHighOpt: -(+4 +work) # freq=986452 freq=853422
+OrNegatedHighHighOpt: -(+was +new) # freq=3763623 freq=1657293
+OrNegatedHighHighOpt: -(+year +see) # freq=1235231 freq=1044180
+OrNegatedHighHighOpt: -(+s +had) # freq=1581243 freq=1246743
+OrNegatedHighHighOpt: -(+an +last) # freq=2628056 freq=958437
+OrNegatedHighHighOpt: -(+had +4) # freq=1246743 freq=986452
+OrNegatedHighHighOpt: -(+from +publisher) # freq=3224339 freq=1289029
+OrNegatedHighHighOpt: -(+new +url) # freq=1657293 freq=1513595
+OrNegatedHighHighOpt: -(+4 +5) # freq=986452 freq=891361
+OrNegatedHighHighOpt: -(+by +cite) # freq=3826691 freq=1741194
+OrNegatedHighHighOpt: -(+2010 +2009) # freq=950573 freq=887702
+OrNegatedHighHighOpt: -(+their +4) # freq=1158682 freq=986452
+OrNegatedHighHighOpt: -(+publisher +who) # freq=1289029 freq=1196171
+OrNegatedHighHighOpt: -(+that +more) # freq=2931020 freq=963533
+OrNegatedHighHighOpt: -(+ref +see) # freq=3793973 freq=1044180
+OrNegatedHighHighOpt: -(+publisher +last) # freq=1289029 freq=958437
+OrNegatedHighHighOpt: -(+but +their) # freq=1456553 freq=1158682
+OrNegatedHighHighOpt: -(+is +1) # freq=4074455 freq=1641090
+OrNegatedHighHighOpt: -(+new +have) # freq=1657293 freq=1297121
+OrNegatedHighHighOpt: -(+title +also) # freq=2397378 freq=1959419
+OrNegatedHighHighOpt: -(+also +i) # freq=1959419 freq=956148
+OrNegatedHighHighOpt: -(+had +into) # freq=1246743 freq=888684
+OrNegatedHighHighOpt: -(+first +when) # freq=1933372 freq=1027487
+OrNegatedHighHighOpt: -(+in +be) # freq=7320987 freq=2051702
+OrNegatedHighHighOpt: -(+are +2008) # freq=1877802 freq=831253
+OrNegatedHighHighOpt: -(+two +2006) # freq=1104053 freq=889954
+OrNegatedHighHighOpt: -(+date +about) # freq=2020626 freq=850283
+OrNegatedHighHighOpt: -(+its +only) # freq=1173450 freq=875561
+OrNegatedHighHighOpt: -(+title +new) # freq=2397378 freq=1657293
+OrNegatedHighHighOpt: -(+2 +10) # freq=1549245 freq=918339
+OrNegatedHighHighOpt: -(+2 +one) # freq=1549245 freq=1527689
+OrNegatedHighHighOpt: -(+is +an) # freq=4074455 freq=2628056
+OrNegatedHighHighOpt: -(+at +no) # freq=2857534 freq=1045000
+OrNegatedHighHighOpt: -(+has +its) # freq=1502961 freq=1173450
+OrNegatedHighHighOpt: -(+were +there) # freq=1524630 freq=956153
+OrNegatedHighHighOpt: -(+with +were) # freq=3709421 freq=1524630
+OrNegatedHighHighOpt: -(+on +i) # freq=4074624 freq=956148
+OrNegatedHighHighOpt: -(+as +was) # freq=3925535 freq=3763623
+OrNegatedHighHighOpt: -(+date +cite) # freq=2020626 freq=1741194
+OrNegatedHighHighOpt: -(+or +united) # freq=1858841 freq=1196944
+OrNegatedHighHighOpt: -(+to +http) # freq=6155577 freq=3493581
+OrNegatedHighHighOpt: -(+he +have) # freq=1659434 freq=1297121
+OrNegatedHighHighOpt: -(+s +about) # freq=1581243 freq=850283
+OrNegatedHighHighOpt: -(+this +s) # freq=2224932 freq=1581243
+OrNegatedHighHighOpt: -(+is +but) # freq=4074455 freq=1456553
+OrNegatedHighHighOpt: -(+web +2010) # freq=1118334 freq=950573
+OrNegatedHighHighOpt: -(+first +are) # freq=1933372 freq=1877802
+OrNegatedHighHighOpt: -(+have +2008) # freq=1297121 freq=831253
+OrNegatedHighHighOpt: -(+to +no) # freq=6155577 freq=1045000
+OrNegatedHighHighOpt: -(+or +2) # freq=1858841 freq=1549245
+OrNegatedHighHighOpt: -(+was +about) # freq=3763623 freq=850283
+OrNegatedHighHighOpt: -(+cite +more) # freq=1741194 freq=963533
+OrNegatedHighHighOpt: -(+date +their) # freq=2020626 freq=1158682
+OrNegatedHighHighOpt: -(+from +work) # freq=3224339 freq=853422
+OrNegatedHighHighOpt: -(+at +2010) # freq=2857534 freq=950573
+OrNegatedHighHighOpt: -(+other +last) # freq=1269961 freq=958437
+OrNegatedHighHighOpt: -(+date +into) # freq=2020626 freq=888684
+OrNegatedHighHighOpt: -(+they +more) # freq=1021945 freq=963533
+OrNegatedHighHighOpt: -(+to +ref) # freq=6155577 freq=3793973
+OrNegatedHighHighOpt: -(+be +but) # freq=2051702 freq=1456553
+OrNegatedHighHighOpt: -(+or +into) # freq=1858841 freq=888684
+OrNegatedHighHighOpt: -(+has +last) # freq=1502961 freq=958437
+OrNegatedHighHighOpt: -(+to +time) # freq=6155577 freq=1032071
+OrNegatedHighHighOpt: -(+the +some) # freq=8217362 freq=839919
+OrNegatedHighHighOpt: -(+ref +united) # freq=3793973 freq=1196944
+OrNegatedHighHighOpt: -(+all +last) # freq=1203572 freq=958437
+OrNegatedHighHighOpt: -(+url +all) # freq=1513595 freq=1203572
+OrNegatedHighHighOpt: -(+other +some) # freq=1269961 freq=839919
+OrNegatedHighHighOpt: -(+cite +new) # freq=1741194 freq=1657293
+OrNegatedHighHighOpt: -(+and +by) # freq=7318061 freq=3826691
+OrNegatedHighHighOpt: -(+publisher +i) # freq=1289029 freq=956148
+OrNegatedHighHighOpt: -(+to +publisher) # freq=6155577 freq=1289029
+OrNegatedHighHighOpt: -(+the +about) # freq=8217362 freq=850283
+OrNegatedHighHighOpt: -(+as +are) # freq=3925535 freq=1877802
+OrNegatedHighHighOpt: -(+it +title) # freq=2675552 freq=2397378
+OrNegatedHighHighOpt: -(+by +are) # freq=3826691 freq=1877802
+OrNegatedHighHighOpt: -(+has +have) # freq=1502961 freq=1297121
+OrNegatedHighHighOpt: -(+one +2011) # freq=1527689 freq=871410
+OrNegatedHighHighOpt: -(+are +2005) # freq=1877802 freq=835460
+OrNegatedHighHighOpt: -(+had +some) # freq=1246743 freq=839919
+OrNegatedHighHighOpt: -(+by +when) # freq=3826691 freq=1027487
+OrNegatedHighHighOpt: -(+it +2011) # freq=2675552 freq=871410
+OrNegatedHighHighOpt: -(+1 +they) # freq=1641090 freq=1021945
+OrNegatedHighHighOpt: -(+on +their) # freq=4074624 freq=1158682
+OrNegatedHighHighOpt: -(+been +10) # freq=1041183 freq=918339
+OrNegatedHighHighOpt: -(+was +only) # freq=3763623 freq=875561
+OrNegatedHighHighOpt: -(+also +other) # freq=1959419 freq=1269961
+OrNegatedHighHighOpt: -(+who +its) # freq=1196171 freq=1173450
+OrNegatedHighHighOpt: -(+3 +may) # freq=1148799 freq=1071932
+OrNegatedHighHighOpt: -(+with +2006) # freq=3709421 freq=889954
+OrNegatedHighHighOpt: -(+from +but) # freq=3224339 freq=1456553
+OrNegatedHighHighOpt: -(+was +work) # freq=3763623 freq=853422
+OrNegatedHighHighOpt: -(+as +also) # freq=3925535 freq=1959419
+OrNegatedHighHighOpt: -(+which +into) # freq=1963428 freq=888684
+OrNegatedHighHighOpt: -(+see +i) # freq=1044180 freq=956148
+OrNegatedHighHighOpt: -(+have +more) # freq=1297121 freq=963533
+OrNegatedHighHighOpt: -(+were +after) # freq=1524630 freq=1247398
+OrNegatedHighHighOpt: -(+on +2010) # freq=4074624 freq=950573
+OrNegatedHighHighOpt: -(+is +had) # freq=4074455 freq=1246743
+OrNegatedHighHighOpt: -(+he +5) # freq=1659434 freq=891361
+OrNegatedHighHighOpt: -(+first +year) # freq=1933372 freq=1235231
+OrNegatedHighHighOpt: -(+not +url) # freq=1713264 freq=1513595
+OrNegatedHighHighOpt: -(+first +his) # freq=1933372 freq=1777780
+OrNegatedHighHighOpt: -(+date +10) # freq=2020626 freq=918339
+OrNegatedHighHighOpt: -(+was +not) # freq=3763623 freq=1713264
+OrNegatedHighHighOpt: -(+and +may) # freq=7318061 freq=1071932
+OrNegatedHighHighOpt: -(+no +more) # freq=1045000 freq=963533
+OrNegatedHighHighOpt: -(+it +url) # freq=2675552 freq=1513595
+OrNegatedHighHighOpt: -(+as +no) # freq=3925535 freq=1045000
+OrNegatedHighHighOpt: -(+other +all) # freq=1269961 freq=1203572
+OrNegatedHighHighOpt: -(+as +2) # freq=3925535 freq=1549245
+OrNegatedHighHighOpt: -(+for +as) # freq=4380011 freq=3925535
+OrNegatedHighHighOpt: -(+for +there) # freq=4380011 freq=956153
+OrNegatedHighHighOpt: -(+the +new) # freq=8217362 freq=1657293
+OrNegatedHighHighOpt: -(+is +no) # freq=4074455 freq=1045000
+OrNegatedHighHighOpt: -(+also +their) # freq=1959419 freq=1158682
+OrNegatedHighHighOpt: -(+that +2010) # freq=2931020 freq=950573
+OrNegatedHighHighOpt: -(+s +2008) # freq=1581243 freq=831253
+OrNegatedHighHighOpt: -(+were +2009) # freq=1524630 freq=887702
+OrNegatedHighHighOpt: -(+of +after) # freq=8184358 freq=1247398
+OrNegatedHighHighOpt: -(+of +an) # freq=8184358 freq=2628056
+OrNegatedHighHighOpt: -(+the +10) # freq=8217362 freq=918339
+OrNegatedHighHighOpt: -(+title +web) # freq=2397378 freq=1118334
+OrNegatedHighHighOpt: -(+on +they) # freq=4074624 freq=1021945
+OrNegatedHighHighOpt: -(+to +have) # freq=6155577 freq=1297121
+OrNegatedHighHighOpt: -(+was +its) # freq=3763623 freq=1173450
+OrNegatedHighHighOpt: -(+at +time) # freq=2857534 freq=1032071
+OrNegatedHighHighOpt: -(+2 +accessdate) # freq=1549245 freq=1228887
+OrNegatedHighHighOpt: -(+with +united) # freq=3709421 freq=1196944
+OrNegatedHighHighOpt: -(+in +about) # freq=7320987 freq=850283
+OrNegatedHighHighOpt: -(+in +2005) # freq=7320987 freq=835460
+OrNegatedHighHighOpt: -(+for +last) # freq=4380011 freq=958437
+OrNegatedHighHighOpt: -(+and +when) # freq=7318061 freq=1027487
+OrNegatedHighHighOpt: -(+an +their) # freq=2628056 freq=1158682
+OrNegatedHighHighOpt: -(+2010 +into) # freq=950573 freq=888684
+OrNegatedHighHighOpt: -(+web +two) # freq=1118334 freq=1104053
+OrNegatedHighHighOpt: -(+two +4) # freq=1104053 freq=986452
+OrNegatedHighHighOpt: -(+1 +there) # freq=1641090 freq=956153
+OrNegatedHighHighOpt: -(+name +url) # freq=2827713 freq=1513595
+OrNegatedHighHighOpt: -(+united +who) # freq=1196944 freq=1196171
+OrNegatedHighHighOpt: -(+they +there) # freq=1021945 freq=956153
+OrNegatedHighHighOpt: -(+http +5) # freq=3493581 freq=891361
+OrNegatedHighHighOpt: -(+not +2008) # freq=1713264 freq=831253
+OrNegatedHighHighOpt: -(+are +2009) # freq=1877802 freq=887702
+OrNegatedHighHighOpt: -(+on +may) # freq=4074624 freq=1071932
+OrNegatedHighHighOpt: -(+is +are) # freq=4074455 freq=1877802
+OrNegatedHighHighOpt: -(+been +there) # freq=1041183 freq=956153
+OrNegatedHighHighOpt: -(+other +into) # freq=1269961 freq=888684
+OrNegatedHighHighOpt: -(+be +their) # freq=2051702 freq=1158682
+OrNegatedHighHighOpt: -(+new +other) # freq=1657293 freq=1269961
+OrNegatedHighHighOpt: -(+its +2011) # freq=1173450 freq=871410
+OrNegatedHighHighOpt: -(+ref +3) # freq=3793973 freq=1148799
+OrNegatedHighHighOpt: -(+name +be) # freq=2827713 freq=2051702
+OrNegatedHighHighOpt: -(+had +see) # freq=1246743 freq=1044180
+OrNegatedHighHighOpt: -(+also +or) # freq=1959419 freq=1858841
+OrNegatedHighHighOpt: -(+but +4) # freq=1456553 freq=986452

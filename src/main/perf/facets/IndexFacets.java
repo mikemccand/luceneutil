@@ -76,6 +76,7 @@ public class IndexFacets {
         dir = od.open(indexPath.toPath());
 
         IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
+        iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
         IndexWriter writer = new IndexWriter(dir, iwc);
 
         final Directory taxoDir;
@@ -113,10 +114,10 @@ public class IndexFacets {
             doc2.add(new FacetField("address.taxonomy", lineArr));
 
             try {
-                writer.addDocument(config.build(doc));
-                writer.addDocument(config.build(taxo, doc2));
-            } catch (Exception e) {
-                System.out.println("Problem adding document");
+              writer.addDocument(config.build(doc));
+              writer.addDocument(config.build(taxo, doc2));
+            } catch (IOException e) {
+              throw new RuntimeException(e);
             }
 
             if (i % 100000 == 0) {

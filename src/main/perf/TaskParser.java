@@ -30,6 +30,7 @@ import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.intervals.IntervalQuery;
@@ -495,9 +496,12 @@ class TaskParser {
         throw new RuntimeException("failed to parse query=" + text);
       }
       final String nrqFieldName = text.substring(0, spot3);
-      final int start = Integer.parseInt(text.substring(1+spot3, spot4));
-      final int end = Integer.parseInt(text.substring(1+spot4));
-      return IntPoint.newRangeQuery(nrqFieldName, start, end);
+      final long start = Long.parseLong(text.substring(1+spot3, spot4));
+      final long end = Long.parseLong(text.substring(1+spot4));
+      if(nrqFieldName.equals("lastMod")) {
+        return LongField.newRangeQuery(nrqFieldName,start, end);
+      }
+      return IntPoint.newRangeQuery(nrqFieldName, (int) start, (int) end);
     }
 
     Query parseOrderedQuery() {

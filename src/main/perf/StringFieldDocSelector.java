@@ -40,8 +40,10 @@ public class StringFieldDocSelector implements IndexRearranger.DocumentSelector 
         this.keySet = keySet;
     }
 
-    @Override
     public BitSet getFilteredDocs(CodecReader reader) throws IOException {
+        return getFilteredLiveDocs(reader);
+    }
+    public BitSet getFilteredLiveDocs(CodecReader reader) throws IOException {
         TermsEnum termsEnum = reader.terms(field).iterator();
         Bits oldLiveDocs = reader.getLiveDocs();
         FixedBitSet bits = new FixedBitSet(reader.maxDoc());

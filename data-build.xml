@@ -1,0 +1,224 @@
+<project name="luceneutil-1.0" basedir="." default="build">
+
+  <property file="build.properties"/>
+
+  <property name="data.dir" value="${basedir}/../data"/>
+  <property name="tasks.dir" value="${basedir}/tasks"/>
+
+  <target name="build">
+
+    <mkdir dir="build"/>
+
+    <path id="build.classpath">
+      <pathelement location="build"/>
+      <fileset dir="${lucene.checkout}/lucene/core/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
+      <fileset dir="${lucene.checkout}/lucene/join/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
+    </path>
+
+    <javac srcdir="src/main"
+           destdir="build"
+           includes="KnnGraphTester.java,WikiVectors.java,perf/VectorDictionary.java"
+           classpathref="build.classpath"
+           includeantruntime="false"/>
+
+    <!-- run a test; we don't have any framework, just call a test method -->
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="--test"/>
+    </java>
+  </target>
+
+  <target name="extract-vector-tasks">
+    <copy file="${tasks.dir}/vector.tasks" tofile="${tasks.dir}/vector.task.txt">
+      <filterchain>
+        <tokenfilter>
+          <replaceregex pattern=".*//(.*) # .*" replace="\1"/>
+        </tokenfilter>
+      </filterchain>
+    </copy>
+  </target>
+
+  <target name="vectors300-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-300d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-300d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300-8bit-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <!-- scale extrapolated from 100-dim by comparing 1/99%ile -->
+      <!--
+          1 Percentile =  -0.16812261939048767
+          10 Percentile =  -0.05280676484107971
+          50 Percentile =  0.0016044741496443748
+          90 Percentile =  0.052327241748571396
+          99 Percentile =  0.12062523514032364
+          100 Percentile =  0.500967800617218
+          average: -0.0013391887
+          stddev: 0.05804375
+          min .. max: -0.6463034 .. 0.5009678
+      -->
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-300d-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300-8bit-tasks" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/glove.6B.300d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-300d-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors300" depends="vectors300-tasks,vectors300-docs,vectors300-8bit-docs,vectors300-8bit-tasks"/>
+
+  <target name="vectors100-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-100d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors100-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-100d.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors100-8bit-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <!-- scale was determined empirically, testing recall -->
+      <!--
+          1 Percentile =  -0.325579971075058
+          10 Percentile =  -0.09507450535893414
+          50 Percentile =  -0.00024916713300626725
+          90 Percentile =  0.10140283405780792
+          99 Percentile =  0.25520724058151245
+          100 Percentile =  0.5750676989555359
+          average: -0.0012661816
+          stddev: 0.10003442
+          min .. max: -0.7082266 .. 0.5750677
+      -->
+      <arg value="-scale"/>
+      <arg value="128"/>
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-100d-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors100-8bit-tasks" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/glove.6B.100d.txt"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-100d-8bit.vec"/>
+    </java>
+  </target>
+
+  <!-- don't scale the task data here; we'll do it later after summing vectors for each term -->
+  <target name="vectors100" depends="vectors100-tasks,vectors100-docs,vectors100-8bit-docs,vectors100-8bit-tasks"/>
+
+  <!-- 384-dim vectors trained using all-MiniLM-L6-v2 from https://www.sbert.net/ -->
+
+  <target name="vectors-minilm-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-minilm.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors-minilm-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-minilm.vec"/>
+    </java>
+  </target>
+  
+  <target name="vectors-minilm-8bit-docs" depends="build">
+    <!--
+       1 Percentile =  -0.11017321050167084
+       10 Percentile =  -0.05411912873387337
+       50 Percentile =  -7.801504744490034e-33
+       90 Percentile =  0.05798458680510521
+       99 Percentile =  0.1421949714422226
+       100 Percentile =  0.4781419634819031
+       average: 0.0022993074
+       stddev: 0.05091949
+       min .. max: -0.2604693 .. 0.47814196
+    -->
+    <java className="WikiVectors" classpathref="build.classpath" fork="true">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-minilm-8bit.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors-minilm-8bit-tasks" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath" fork="true">
+      <arg value="-scale"/>
+      <arg value="256"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.tok"/>
+      <arg value="${data.dir}/enwiki-20120502-minilm.vec"/>
+      <arg value="384"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-minilm-8bit.vec"/>
+    </java>
+  </target>
+
+  <!-- 768-dim vectors trained using mpnet from https://www.sbert.net/ -->
+
+  <target name="vectors-mpnet-tasks" depends="build,extract-vector-tasks">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.vec"/>
+      <arg value="768"/>
+      <arg value="${tasks.dir}/vector.task.txt"/>
+      <arg value="${tasks.dir}/vector-task-mpnet.vec"/>
+    </java>
+  </target>
+
+  <target name="vectors-mpnet-docs" depends="build">
+    <java className="WikiVectors" classpathref="build.classpath">
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.tok"/>
+      <arg value="${data.dir}/../data/enwiki-20120502-mpnet.vec"/>
+      <arg value="768"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"/>
+      <arg value="${data.dir}/enwiki-20120502-lines-1k-mpnet.vec"/>
+    </java>
+  </target>
+
+</project>

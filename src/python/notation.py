@@ -797,6 +797,10 @@ KNOWN_CHANGES = [
 
   ('2024-03-26',
    'Break point estimation when threshold exceeded https://github.com/apache/lucene/pull/13199',
-   'Break point estimation when threshold exceeded https://github.com/apache/lucene/pull/13199')
+   'Break point estimation when threshold exceeded https://github.com/apache/lucene/pull/13199'),
+   
+  ('2024-04-01',
+   '#11888: optimize terms dictionary lookups when all terms have the same suffix length, which helps primary key lookup for fixed-length fields',
+   '#11888: optimize terms dictionary lookups when all terms have the same suffix length, which helps primary key lookup for fixed-length fields'),
    
 ]

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+package knn;
+
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
 import java.io.IOException;
@@ -88,13 +90,13 @@ import org.apache.lucene.util.hppc.IntIntHashMap;
 /**
  * For testing indexing and search performance of a knn-graph
  *
- * <p>java -cp .../lib/*.jar org.apache.lucene.util.hnsw.KnnGraphTester -ndoc 1000000 -search
+ * <p>java -cp .../lib/*.jar knn.KnnGraphTester -ndoc 1000000 -search
  * .../vectors.bin
  */
 public class KnnGraphTester {
 
-  private static final String KNN_FIELD = "knn";
-  private static final String ID_FIELD = "id";
+  public static final String KNN_FIELD = "knn";
+  public static final String ID_FIELD = "id";
   private static final double WRITER_BUFFER_MB = 1994d;
 
   private int numDocs;
@@ -231,6 +233,9 @@ public class KnnGraphTester {
         case "-docs":
           docVectorsPath = Paths.get(args[++iarg]);
           break;
+        case "-indexPath":
+          indexPath = Paths.get(args[++iarg]);
+          break;
         case "-encoding":
           String encoding = args[++iarg];
           switch (encoding) {
@@ -308,12 +313,15 @@ public class KnnGraphTester {
     if (prefilter && selectivity == 1f) {
       throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
     }
-    indexPath = Paths.get(formatIndexPath(docVectorsPath));
+    if (indexPath == null) {
+      indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
+    }
     if (reindex) {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
-      reindexTimeMsec = createIndex(docVectorsPath, indexPath);
+      reindexTimeMsec = new KnnIndexer(docVectorsPath, indexPath, maxConn, beamWidth, vectorEncoding, dim,
+          similarityFunction, numDocs, quiet).createIndex();
     }
     if (forceMerge) {
       forceMerge();
@@ -347,7 +355,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void printFanoutHist(Path indexPath) throws IOException {
     try (Directory dir = FSDirectory.open(indexPath);
-        DirectoryReader reader = DirectoryReader.open(dir)) {
+         DirectoryReader reader = DirectoryReader.open(dir)) {
       for (LeafReaderContext context : reader.leaves()) {
         LeafReader leafReader = context.reader();
         KnnVectorsReader vectorsReader =
@@ -470,7 +478,7 @@ public class KnnGraphTester {
       ThreadMXBean bean = ManagementFactory.getThreadMXBean();
       long cpuTimeStartNs;
       try (Directory dir = FSDirectory.open(indexPath);
-          DirectoryReader reader = DirectoryReader.open(dir)) {
+           DirectoryReader reader = DirectoryReader.open(dir)) {
         IndexSearcher searcher = new IndexSearcher(reader);
         numDocs = reader.maxDoc();
         Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
@@ -568,75 +576,6 @@ public class KnnGraphTester {
           reindexTimeMsec,
           selectivity,
           prefilter ? "pre-filter" : "post-filter");
-    }
-  }
-
-  private abstract static class VectorReader {
-    final float[] target;
-    final ByteBuffer bytes;
-    final FileChannel input;
-
-    static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding) {
-      int bufferSize = dim * vectorEncoding.byteSize;
-      return switch (vectorEncoding) {
-        case BYTE -> new VectorReaderByte(input, dim, bufferSize);
-        case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize);
-      };
-    }
-
-    VectorReader(FileChannel input, int dim, int bufferSize) {
-      this.bytes = ByteBuffer.wrap(new byte[bufferSize]).order(ByteOrder.LITTLE_ENDIAN);
-      this.input = input;
-      target = new float[dim];
-    }
-
-    void reset() throws IOException {
-      input.position(0);
-    }
-
-    protected final void readNext() throws IOException {
-      this.input.read(bytes);
-      bytes.position(0);
-    }
-
-    abstract float[] next() throws IOException;
-  }
-
-  private static class VectorReaderFloat32 extends VectorReader {
-    VectorReaderFloat32(FileChannel input, int dim, int bufferSize) {
-      super(input, dim, bufferSize);
-    }
-
-    @Override
-    float[] next() throws IOException {
-      readNext();
-      bytes.asFloatBuffer().get(target);
-      return target;
-    }
-  }
-
-  private static class VectorReaderByte extends VectorReader {
-    private final byte[] scratch;
-
-    VectorReaderByte(FileChannel input, int dim, int bufferSize) {
-      super(input, dim, bufferSize);
-      scratch = new byte[dim];
-    }
-
-    @Override
-    float[] next() throws IOException {
-      readNext();
-      bytes.get(scratch);
-      for (int i = 0; i < scratch.length; i++) {
-        target[i] = scratch[i];
-      }
-      return target;
-    }
-
-    byte[] nextBytes() throws IOException {
-      readNext();
-      bytes.get(scratch);
-      return scratch;
     }
   }
 
@@ -763,7 +702,7 @@ public class KnnGraphTester {
       System.out.println("computing true nearest neighbors of " + numIters + " target vectors");
     }
     try (FileChannel in = FileChannel.open(docPath);
-        FileChannel qIn = FileChannel.open(queryPath)) {
+         FileChannel qIn = FileChannel.open(queryPath)) {
       VectorReader docReader = VectorReader.create(in, dim, encoding);
       VectorReader queryReader = VectorReader.create(qIn, dim, encoding);
       for (int i = 0; i < numIters; i++) {
@@ -810,7 +749,7 @@ public class KnnGraphTester {
     }
     long start = System.nanoTime();
     try (FSDirectory dir = FSDirectory.open(indexPath);
-        IndexWriter iw = new IndexWriter(dir, iwc)) {
+         IndexWriter iw = new IndexWriter(dir, iwc)) {
       try (FileChannel in = FileChannel.open(docsPath)) {
         VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding);
         for (int i = 0; i < numDocs; i++) {
@@ -847,8 +786,8 @@ public class KnnGraphTester {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           return quantize ?
-            new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth) :
-            new Lucene99HnswVectorsFormat(maxConn, beamWidth);
+              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth) :
+              new Lucene99HnswVectorsFormat(maxConn, beamWidth);
         }
       };
     } else {
@@ -856,8 +795,8 @@ public class KnnGraphTester {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           return quantize ?
-            new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null, exec) :
-            new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null, exec) :
+              new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
         }
       };
     }
@@ -927,7 +866,8 @@ public class KnnGraphTester {
     }
 
     @Override
-    public void visit(QueryVisitor visitor) {}
+    public void visit(QueryVisitor visitor) {
+    }
 
     @Override
     public String toString(String field) {

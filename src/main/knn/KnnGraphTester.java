@@ -97,7 +97,6 @@ public class KnnGraphTester {
 
   public static final String KNN_FIELD = "knn";
   public static final String ID_FIELD = "id";
-  private static final double WRITER_BUFFER_MB = 1994d;
 
   private int numDocs;
   private int dim;
@@ -112,6 +111,8 @@ public class KnnGraphTester {
   private int beamWidth;
   private int maxConn;
   private boolean quantize;
+  private int quantizeBits;
+  private boolean quantizeCompress;
   private int numMergeThread;
   private int numMergeWorker;
   private ExecutorService exec;
@@ -136,6 +137,8 @@ public class KnnGraphTester {
     selectivity = 1f;
     prefilter = false;
     randomCommits = false;
+    quantizeBits = 7;
+    quantizeCompress = false;
   }
 
   public static void main(String... args) throws Exception {
@@ -220,6 +223,15 @@ public class KnnGraphTester {
           break;
         case "-quantize":
           quantize = true;
+          break;
+        case "-quantizeBits":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-quantizeBits requires a following number");
+          }
+          quantizeBits = Integer.parseInt(args[++iarg]);
+          break;
+        case "-quantizeCompress":
+          quantizeCompress = true;
           break;
         case "-topK":
           if (iarg == args.length - 1) {
@@ -320,8 +332,17 @@ public class KnnGraphTester {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
-      reindexTimeMsec = new KnnIndexer(docVectorsPath, indexPath, maxConn, beamWidth, vectorEncoding, dim,
-          similarityFunction, numDocs, quiet).createIndex();
+      reindexTimeMsec = new KnnIndexer(
+        docVectorsPath,
+        indexPath,
+        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
+        vectorEncoding,
+        dim,
+        similarityFunction,
+        numDocs,
+        0,
+        quiet
+      ).createIndex();
     }
     if (forceMerge) {
       forceMerge();
@@ -349,6 +370,9 @@ public class KnnGraphTester {
   }
 
   private String formatIndexPath(Path docsPath) {
+    if (quantize) {
+      return docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + "-" + quantizeBits + (quantizeCompress ? "-compressed" : "" ) + ".index";
+    }
     return docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + ".index";
   }
 
@@ -373,7 +397,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress));
     if (quiet == false) {
       // not a quiet place!
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
@@ -731,63 +755,14 @@ public class KnnGraphTester {
     return result;
   }
 
-  private int createIndex(Path docsPath, Path indexPath) throws IOException {
-    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize));
-    // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
-    iwc.setRAMBufferSizeMB(WRITER_BUFFER_MB);
-    iwc.setUseCompoundFile(false);
-
-    FieldType fieldType =
-        switch (vectorEncoding) {
-          case BYTE -> KnnByteVectorField.createFieldType(dim, similarityFunction);
-          case FLOAT32 -> KnnFloatVectorField.createFieldType(dim, similarityFunction);
-        };
-    if (quiet == false) {
-      iwc.setInfoStream(new PrintStreamInfoStream(System.out));
-      System.out.println("creating index in " + indexPath);
-    }
-    long start = System.nanoTime();
-    try (FSDirectory dir = FSDirectory.open(indexPath);
-         IndexWriter iw = new IndexWriter(dir, iwc)) {
-      try (FileChannel in = FileChannel.open(docsPath)) {
-        VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding);
-        for (int i = 0; i < numDocs; i++) {
-          Document doc = new Document();
-          switch (vectorEncoding) {
-            case BYTE -> doc.add(
-                new KnnByteVectorField(
-                    KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
-            case FLOAT32 -> doc.add(
-                new KnnFloatVectorField(KNN_FIELD, vectorReader.next(), fieldType));
-          }
-          doc.add(new StoredField(ID_FIELD, i));
-          iw.addDocument(doc);
-          if (randomCommits && i % 500 == 0 && Math.random() < 0.5) {
-            iw.commit();
-          }
-        }
-        if (quiet == false) {
-          System.out.println("Done indexing " + numDocs + " documents; now flush");
-        }
-      }
-    }
-    long elapsed = System.nanoTime() - start;
-    if (quiet == false) {
-      System.out.println(
-          "Indexed " + numDocs + " documents in " + TimeUnit.NANOSECONDS.toSeconds(elapsed) + "s");
-    }
-    return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
-  }
-
-  private static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize) {
+  private static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, boolean quantizeCompress) {
     if (exec == null) {
       return new Lucene99Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           return quantize ?
-              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth) :
-              new Lucene99HnswVectorsFormat(maxConn, beamWidth);
+              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, null) :
+              new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
         }
       };
     } else {
@@ -795,7 +770,7 @@ public class KnnGraphTester {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           return quantize ?
-              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null, exec) :
+              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, exec) :
               new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
         }
       };

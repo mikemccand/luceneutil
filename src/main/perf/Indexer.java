@@ -480,6 +480,8 @@ public final class Indexer {
               return new Lucene99HnswScalarQuantizedVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
                 Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
                 hnswThreadsPerMerge,
+                7,     // bits
+                false, // compress
                 null,  // configuredQuantile
                 hnswMergeExec);
             } else {

@@ -19,9 +19,7 @@ package knn;
 
 import knn.KnnGraphTester;
 import knn.VectorReader;
-import org.apache.lucene.codecs.KnnVectorsFormat;
-import org.apache.lucene.codecs.lucene99.Lucene99Codec;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -36,29 +34,23 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 public class KnnIndexer {
+  private static final double WRITER_BUFFER_MB = 1994d;
 
   Path docsPath;
   Path indexPath;
-  int maxConn;
-  int beamWidth;
   VectorEncoding vectorEncoding;
   int dim;
   VectorSimilarityFunction similarityFunction;
+  Codec codec;
   int numDocs;
   int docsStartIndex;
   boolean quiet;
 
-  public KnnIndexer(Path docsPath, Path indexPath, int maxConn, int beamWidth, VectorEncoding vectorEncoding, int dim,
-                    VectorSimilarityFunction similarityFunction, int numDocs, boolean quiet) {
-    this(docsPath, indexPath, maxConn, beamWidth, vectorEncoding, dim, similarityFunction, numDocs, 0, quiet);
-  }
-
-  public KnnIndexer(Path docsPath, Path indexPath, int maxConn, int beamWidth, VectorEncoding vectorEncoding, int dim,
+  public KnnIndexer(Path docsPath, Path indexPath, Codec codec, VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
-    this.maxConn = maxConn;
-    this.beamWidth = beamWidth;
+    this.codec = codec;
     this.vectorEncoding = vectorEncoding;
     this.dim = dim;
     this.similarityFunction = similarityFunction;
@@ -69,15 +61,9 @@ public class KnnIndexer {
 
   public int createIndex() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setCodec(
-        new Lucene99Codec() {
-          @Override
-          public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            return new Lucene99HnswVectorsFormat(maxConn, beamWidth);
-          }
-        });
+    iwc.setCodec(codec);
     // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
-    iwc.setRAMBufferSizeMB(1994d);
+    iwc.setRAMBufferSizeMB(WRITER_BUFFER_MB);
     iwc.setUseCompoundFile(false);
     // iwc.setMaxBufferedDocs(10000);
 

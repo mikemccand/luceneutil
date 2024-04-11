@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class Args {
   private final String[] args;
@@ -79,6 +80,10 @@ public class Args {
     return Integer.parseInt(getString(argName));
   }
 
+  public int getInt(String argName, int defaultValue) {
+    return Integer.parseInt(getString(argName, Integer.toString(defaultValue)));
+  }
+
   public double getDouble(String argName) {
     return Double.parseDouble(getString(argName));
   }
@@ -108,6 +113,14 @@ public class Args {
     }
 
     return false;
+  }
+
+  public Optional<Boolean> getOptionalBoolean(String argName) {
+    if (hasArg(argName)) {
+      return Optional.of(Boolean.parseBoolean(argName));
+    } else {
+      return Optional.empty();
+    }
   }
 
   public boolean hasArg(String argName) {

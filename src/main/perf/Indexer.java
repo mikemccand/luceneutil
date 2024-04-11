@@ -28,12 +28,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -44,16 +44,11 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.KnnVectorsFormat;
-import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
-import org.apache.lucene.codecs.lucene99.Lucene99Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
-import org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -99,7 +94,7 @@ public final class Indexer {
     }
   }
 
-  private static MergeScheduler getMergeScheduler(AtomicBoolean indexingFailed, boolean useCMS, int maxConcurrentMerges, boolean disableIOThrottle) {
+  private static MergeScheduler getMergeScheduler(AtomicBoolean indexingFailed, boolean useCMS, int maxConcurrentMerges, Optional<Boolean> ioThrottle) {
     if (useCMS) {
       ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler() {
           @Override
@@ -110,9 +105,15 @@ public final class Indexer {
             super.handleMergeException(exc);
           }
         };
-      cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
-      if (disableIOThrottle) {
-        cms.disableAutoIOThrottle();
+      if (maxConcurrentMerges != -1) {
+        cms.setMaxMergesAndThreads(maxConcurrentMerges+4, maxConcurrentMerges);
+      }
+      if (ioThrottle.isPresent()) {
+        if (ioThrottle.get()) {
+          cms.enableAutoIOThrottle();
+        } else {
+          cms.disableAutoIOThrottle();
+        }
       }
       return cms;
     } else {
@@ -327,11 +328,11 @@ public final class Indexer {
     final boolean storeBody = args.getFlag("-store");
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
-    final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges");
+    final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges", -1);
     final boolean addDVFields = args.getFlag("-dvfields");
     final boolean doRandomCommit = args.getFlag("-randomCommit");
     final boolean useCMS = args.getFlag("-useCMS");
-    final boolean disableIOThrottle = args.getFlag("-disableIOThrottle");
+    final Optional<Boolean> ioThrottle = args.getOptionalBoolean("-ioThrottle");
     final boolean quantizeKNNGraph = args.getFlag("-quantizeKNNGraph");
 
     if (waitForCommit == false && waitForMerges) {
@@ -346,8 +347,12 @@ public final class Indexer {
       throw new RuntimeException("pass -waitForCommit if you pass -deletions");
     }
 
-    if (useCMS == false && disableIOThrottle) {
-      throw new RuntimeException("-disableIOThrottle only makes sense with -useCMS");
+    if (useCMS == false && ioThrottle.isPresent()) {
+      throw new RuntimeException("-ioThrottle only makes sense with -useCMS");
+    }
+
+    if (useCMS == false && maxConcurrentMerges != -1) {
+      throw new RuntimeException("-maxConcurrentMerges only makes sense with -useCMS");
     }
 
     final double nrtEverySec;
@@ -420,7 +425,7 @@ public final class Indexer {
       System.out.println("Do deletions: " + (doDeletions ? "yes" : "no"));
       System.out.println("Wait for merges: " + (waitForMerges ? "yes" : "no"));
       System.out.println("Wait for commit: " + (waitForCommit ? "yes" : "no"));
-      System.out.println("IO throttle: " + (disableIOThrottle ? "no" : "yes"));
+      System.out.println("IO throttle: " + ioThrottle);
       System.out.println("Merge policy: " + mergePolicy);
       System.out.println("Mode: " + mode);
       if (mode == Mode.UPDATE) {
@@ -435,7 +440,7 @@ public final class Indexer {
       System.out.println("Facet dimension methods: " + facetDimMethods);
       System.out.println("Facet fields: " + facetFields);
       System.out.println("Body postings offsets: " + (bodyPostingsOffsets ? "yes" : "no"));
-      System.out.println("Max concurrent merges: " + maxConcurrentMerges);
+      System.out.println("Max concurrent merges: " + (maxConcurrentMerges == -1 ? "default" : maxConcurrentMerges));
       System.out.println("Add DocValues fields: " + addDVFields);
       System.out.println("Use ConcurrentMergeScheduler: " + useCMS);
       if (nrtEverySec > 0.0) {
@@ -518,7 +523,7 @@ public final class Indexer {
         iwc.setUseCompoundFile(useCFS);
 
 
-        iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, disableIOThrottle));
+        iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, ioThrottle));
         iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
 
         // Keep all commit points:

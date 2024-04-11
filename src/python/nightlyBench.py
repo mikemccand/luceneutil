@@ -384,11 +384,9 @@ def run():
                                     ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                     waitForMerges=False,
                                     waitForCommit=False,
-                                    disableIOThrottle=True,
                                     grouping=False,
                                     verbose=False,
                                     mergePolicy='TieredMergePolicy',
-                                    maxConcurrentMerges=12,
                                     useCMS=True)
 
     fastIndexMediumVectors = comp.newIndex(NIGHTLY_DIR, mediumSource,
@@ -400,11 +398,9 @@ def run():
                                            ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                            waitForMerges=False,
                                            waitForCommit=False,
-                                           disableIOThrottle=True,
                                            grouping=False,
                                            verbose=False,
                                            mergePolicy='TieredMergePolicy',
-                                           maxConcurrentMerges=12,
                                            useCMS=True,
                                            vectorFile=constants.VECTORS_DOCS_FILE,
                                            vectorDimension=constants.VECTORS_DIMENSIONS,
@@ -419,11 +415,9 @@ def run():
                                                     ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                                     waitForMerges=False,
                                                     waitForCommit=False,
-                                                    disableIOThrottle=True,
                                                     grouping=False,
                                                     verbose=False,
                                                     mergePolicy='TieredMergePolicy',
-                                                    maxConcurrentMerges=12,
                                                     useCMS=True,
                                                     vectorFile=constants.VECTORS_DOCS_FILE,
                                                     vectorDimension=constants.VECTORS_DIMENSIONS,
@@ -439,11 +433,9 @@ def run():
                                    ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                    waitForMerges=True,
                                    waitForCommit=True,
-                                   disableIOThrottle=True,
                                    grouping=False,
                                    verbose=False,
                                    mergePolicy='TieredMergePolicy',
-                                   maxConcurrentMerges=12,
                                    useCMS=True,
                                    addDVFields=True)
 
@@ -461,11 +453,9 @@ def run():
                                  ramBufferMB=INDEXING_RAM_BUFFER_MB,
                                  waitForMerges=False,
                                  waitForCommit=False,
-                                 disableIOThrottle=True,
                                  grouping=False,
                                  verbose=False,
                                  mergePolicy='TieredMergePolicy',
-                                 maxConcurrentMerges=12,
                                  useCMS=True)
 
     # Must use only 1 thread so we get same index structure, always:

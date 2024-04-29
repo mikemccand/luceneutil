@@ -803,4 +803,7 @@ KNOWN_CHANGES = [
    '#11888: optimize terms dictionary lookups when all terms have the same suffix length, which helps primary key lookup for fixed-length fields',
    '#11888: optimize terms dictionary lookups when all terms have the same suffix length, which helps primary key lookup for fixed-length fields'),
    
+  ('2024-04-29',
+   '#264: use Lucene defaults for ConcurrentMergeSchedular',
+   '#264: use Lucene defaults for ConcurrentMergeSchedular'),
 ]

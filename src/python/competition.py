@@ -142,7 +142,7 @@ class Index(object):
                printDPS = False,
                waitForMerges = True,
                waitForCommit = True,
-               disableIOThrottle = False,
+               ioThrottle = None,
                bodyTermVectors = False,
                bodyStoredFields = False,
                bodyPostingsOffsets = False,
@@ -150,7 +150,7 @@ class Index(object):
                facets = None,
                extraNamePart = None,
                facetDVFormat = constants.FACET_FIELD_DV_FORMAT_DEFAULT,
-               maxConcurrentMerges = 1,  # use 1 for spinning-magnets and 3 for fast SSD
+               maxConcurrentMerges = None,
                addDVFields = False,
                name = None,
                indexSort = None,
@@ -197,7 +197,7 @@ class Index(object):
     self.printDPS = printDPS
     self.waitForMerges = waitForMerges
     self.waitForCommit = waitForCommit
-    self.disableIOThrottle = disableIOThrottle
+    self.ioThrottle = ioThrottle
     self.idFieldPostingsFormat = idFieldPostingsFormat
     self.bodyTermVectors = bodyTermVectors
     self.bodyStoredFields = bodyStoredFields

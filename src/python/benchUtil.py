@@ -894,7 +894,8 @@ class RunAlgs:
       w('-lineDocsFile', index.lineDocSource)
       w('-docCountLimit', index.numDocs)
       w('-threadCount', index.numThreads)
-      w('-maxConcurrentMerges', index.maxConcurrentMerges)
+      if index.maxConcurrentMerges is not None:
+        w('-maxConcurrentMerges', index.maxConcurrentMerges)
 
       if index.addDVFields:
         w('-dvfields')
@@ -959,8 +960,8 @@ class RunAlgs:
       if index.waitForCommit:
         w('-waitForCommit')
 
-      if index.disableIOThrottle:
-        w('-disableIOThrottle')
+      if index.ioThrottle is not None:
+        w('-ioThrottle', str(index.ioThrottle).lower())
 
       if index.indexSort:
         w('-indexSort', index.indexSort)

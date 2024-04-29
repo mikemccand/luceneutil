@@ -28,10 +28,19 @@ for name in (filename, filename_queries):
 
 ds = datasets.load_dataset("Cohere/wikipedia-22-12-en-embeddings",
                            split="train")
+print(f'features: {ds.features}')
 print(f"total number of rows: {len(ds)}")
 print(f"embeddings dims: {len(ds[0]['emb'])}")
 
 # ds = ds[:num_docs]
+
+if False:
+  # we just want the vector embeddings:
+  for feature_name in ds.features.keys():
+    if feature_name != 'emb':
+      ds = ds.remove_columns(feature_name)
+
+  ds = ds.cast(datasets.Features({'emb': datasets.Sequence(feature=datasets.Value("float32"))}))
 
 # do this in windows, else the RAM usage is crazy (OOME even with 256
 # GB RAM since I think this step makes 2X copy of the dataset?)
@@ -40,7 +49,7 @@ window_num_docs = 1000000
 while doc_upto < num_docs:
   next_doc_upto = min(doc_upto + window_num_docs, num_docs)
   ds_embs = ds[doc_upto:next_doc_upto]['emb']
-  embs = np.array(ds_embs)
+  embs = np.array(ds_embs, dtype=np.single)
   print(f"saving docs[{doc_upto}:{next_doc_upto} of shape: {embs.shape} to file")
   with open(filename, "ab") as out_f:
       embs.tofile(out_f)

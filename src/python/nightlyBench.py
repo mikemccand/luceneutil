@@ -869,7 +869,7 @@ def findLastSuccessfulGitHashes():
             return luceneGitHash, luceneUtilGitHash, logFile
 
 
-reTimeIn = re.compile('^\s*Time in (.*?): (\d+) ms')
+reTimeIn = re.compile(r'^\s*Time in (.*?): (\d+) ms')
 
 
 def getIndexGCTimes(subDir):

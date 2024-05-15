@@ -404,7 +404,7 @@ class Competitor(object):
     cmd = [self.javacCommand, '-g', '-d', buildDir, '-classpath', cp]
     cmd += files
     
-    print(f'compile: {cmd}')
+    print(f'compile: {" ".join(cmd)}')
     
     benchUtil.run(cmd, os.path.join(constants.LOGS_DIR, 'compile.log'))
     # copy resources/META-INF

@@ -44,7 +44,7 @@ public class RandomQuery extends Query {
   public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
     return new ConstantScoreWeight(this, boost) {
       @Override
-      public Scorer scorerSupplier(LeafReaderContext context) throws IOException {
+      public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
         final int maxDoc = context.reader().maxDoc();
         final int interval = (int) (1 / fractionKeep);
         final DocIdSetIterator iterator = new DocIdSetIterator() {
@@ -87,7 +87,7 @@ public class RandomQuery extends Query {
           }
 
         };
-        return new DefaultScorerSupplier(ConstantScoreScorer(this, score(), ScoreMode.COMPLETE, iterator));
+        return new DefaultScorerSupplier(new ConstantScoreScorer(this, score(), ScoreMode.COMPLETE, iterator));
       }
 
       @Override

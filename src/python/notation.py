@@ -806,4 +806,8 @@ KNOWN_CHANGES = [
   ('2024-04-29',
    '#264: use Lucene defaults for ConcurrentMergeSchedular',
    '#264: use Lucene defaults for ConcurrentMergeSchedular'),
+
+  ('2024-03-26',
+   'Disjunction as CompetitiveIterator for numeric dynamic pruning https://github.com/apache/lucene/pull/13221',
+   'Disjunction as CompetitiveIterator for numeric dynamic pruning https://github.com/apache/lucene/pull/13221'),
 ]

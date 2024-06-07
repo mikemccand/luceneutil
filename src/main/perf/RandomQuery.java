@@ -87,7 +87,7 @@ public class RandomQuery extends Query {
           }
 
         };
-        return new DefaultScorerSupplier(new ConstantScoreScorer(this, score(), ScoreMode.COMPLETE, iterator));
+        return new DefaultScorerSupplier(new ConstantScoreScorer(score(), ScoreMode.COMPLETE, iterator));
       }
 
       @Override

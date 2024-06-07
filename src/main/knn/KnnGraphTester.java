@@ -73,6 +73,7 @@ import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
@@ -85,7 +86,8 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.NeighborQueue;
-import org.apache.lucene.util.hppc.IntIntHashMap;
+//TODO Lucene may make these unavailable, we should pull in this from hppc directly
+import org.apache.lucene.internal.hppc.IntIntHashMap;
 
 /**
  * For testing indexing and search performance of a knn-graph
@@ -827,11 +829,19 @@ public class KnnGraphTester {
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
         throws IOException {
       return new ConstantScoreWeight(this, boost) {
+        Scorer scorer = new ConstantScoreScorer(this, score(), scoreMode, new BitSetIterator(docs, cardinality));
         @Override
-        public Scorer scorer(LeafReaderContext context) throws IOException {
-          return new ConstantScoreScorer(
-              this, score(), scoreMode, new BitSetIterator(docs, cardinality));
-        }
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+          return new ScorerSupplier() {
+            @Override
+            public Scorer get(long leadCost) throws IOException {
+              return scorer;
+            }
+            @Override
+            public long cost() {
+              return cardinality;
+            }
+          };
 
         @Override
         public boolean isCacheable(LeafReaderContext ctx) {

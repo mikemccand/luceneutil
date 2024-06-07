@@ -837,11 +837,13 @@ public class KnnGraphTester {
             public Scorer get(long leadCost) throws IOException {
               return scorer;
             }
+
             @Override
             public long cost() {
               return cardinality;
             }
           };
+        }
 
         @Override
         public boolean isCacheable(LeafReaderContext ctx) {

@@ -288,7 +288,7 @@ class Competitor(object):
                vectorScale = None,
                loadStoredFields = False,
                exitable = False,
-               concurrentSearches = False,
+               searchConcurrency = 0,
                javacCommand = constants.JAVAC_EXE,
                topN = 100):
     self.name = name
@@ -313,7 +313,7 @@ class Competitor(object):
     self.vectorDict = vectorDict
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
-    self.concurrentSearches = concurrentSearches
+    self.searchConcurrency = searchConcurrency
     # TopN: how many hits are retrieved
     self.topN = topN
 

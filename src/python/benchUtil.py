@@ -1129,11 +1129,6 @@ class RunAlgs:
     else:
       doSort = ''
 
-    if c.concurrentSearches:
-      doConcurrentSegmentReads = '-concurrentSearches'
-    else:
-      doConcurrentSegmentReads = ''
-
     command = []
     command += c.javaCommand.split()
 
@@ -1160,8 +1155,7 @@ class RunAlgs:
     w('-tasksPerCat', c.competition.taskCountPerCat)
     if c.doSort:
       w('-sort')
-    if c.concurrentSearches:
-      w('-concurrentSearches')
+    w('-searchConcurrency', c.searchConcurrency)
     w('-staticSeed', staticSeed)
     w('-seed', seed)
     w('-similarity', c.similarity)

@@ -196,16 +196,19 @@ public class SearchPerfTest {
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
-    final boolean doConcurrentSearches = args.getFlag("-concurrentSearches");
+    // search concurrency: 0 means "disabled", -1 means "auto"
+    int searchConcurrency = args.getInt("-searchConcurrency", 0);
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
     final boolean exitable = args.getFlag("-exitable");
 
-    int cores = Runtime.getRuntime().availableProcessors();
+    if (searchConcurrency == -1) {
+      searchConcurrency = Runtime.getRuntime().availableProcessors();
+    }
 
     final ExecutorService executorService;
-    if (doConcurrentSearches) {
-      executorService = new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+    if (searchConcurrency != 0) {
+      executorService = new ThreadPoolExecutor(searchConcurrency, searchConcurrency, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                                                new NamedThreadFactory("ConcurrentSearches"));
     } else {
       executorService = null;
@@ -233,7 +236,7 @@ public class SearchPerfTest {
     System.out.println("topN " + topN);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
-    System.out.println("Concurrent segment reads is " + doConcurrentSearches);
+    System.out.println("Concurrent segment reads is " + searchConcurrency);
  
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
@@ -557,7 +560,7 @@ public class SearchPerfTest {
       final int taskRepeatCount = args.getInt("-taskRepeatCount");
       final int numTaskPerCat = args.getInt("-tasksPerCat");
       tasks = new LocalTaskSource(indexState, tasksFile, taskParserFactory.getTaskParser(), staticRandom, random,
-              numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
+              numTaskPerCat, taskRepeatCount, doPKLookup, searchConcurrency != 0);
       System.out.println("Task repeat count " + taskRepeatCount);
       System.out.println("Tasks file " + tasksFile);
       System.out.println("Num task per cat " + numTaskPerCat);

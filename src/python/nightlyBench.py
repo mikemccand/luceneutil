@@ -76,6 +76,11 @@ else:
 
 DIR_IMPL = 'MMapDirectory'
 
+# Configure a concurrency of 1. This ensures that we exercise code paths for
+# search concurrency while still running searches in a single thread in
+# practice.
+SEARCH_CONCURRENCY = 1
+
 INDEXING_RAM_BUFFER_MB = 2048
 
 # "randomly" pick 5 queries for each category, but see validate_nightly_task_count where we
@@ -487,7 +492,8 @@ def run():
                         index=index,
                         vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
                         directory=DIR_IMPL,
-                        commitPoint='multi')
+                        commitPoint='multi',
+                        searchConcurrency=SEARCH_CONCURRENCY)
 
     # c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 

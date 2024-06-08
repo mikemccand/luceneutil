@@ -1635,19 +1635,6 @@ def getClassPath(checkout):
 
   # self.addJars(cp, '%s/lucene/facet/lib' % path)
 
-  # TODO: this is horrible hackity abstraction violation!!  can i somehow just ask
-  # gradle to tell me necessary dependency paths?
-  found = False
-  hppc_dependency = 'hppc-0.9.1.jar'
-  for root_path, dirs, files in os.walk(os.path.expanduser('~/.gradle/caches/modules-2/files-2.1/com.carrotsearch/hppc')):
-    for file in files:
-      if file == hppc_dependency:
-        cp.append('%s/%s' % (root_path, file))
-        found = True
-
-  if not found:
-    raise RuntimeError(f'unable to locate {hppc_dependency} dependency for lucene/facet!')
-
   # so perf.* is found:
   lib = os.path.join(checkoutToUtilPath(checkout), "lib")
   for f in os.listdir(lib):

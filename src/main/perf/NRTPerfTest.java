@@ -374,7 +374,7 @@ public class NRTPerfTest {
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
     final IndexState indexState = new IndexState(manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
     TaskParserFactory taskParserFactory =
-            new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, true);
+      new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, null, -1, true);
     final TaskSource tasks = new RandomTaskSource(tasksFile, random, taskParserFactory.getTaskParser()) {
         @Override
         public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {

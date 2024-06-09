@@ -19,6 +19,7 @@ package perf;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.queryparser.classic.QueryParser;
 
+import java.nio.file.Path;
 import java.io.IOException;
 import java.util.Random;
 
@@ -33,6 +34,8 @@ public class TaskParserFactory {
     private final int topN;
     private final Random random;
     private final VectorDictionary vectorDictionary;
+    private final Path vectorFilePath;
+    private final int vectorDimension;
     private final boolean doStoredLoads;
 
     public TaskParserFactory(IndexState state,
@@ -42,6 +45,8 @@ public class TaskParserFactory {
                              int topN,
                              Random random,
                              VectorDictionary vectorDictionary,
+                             Path vectorFilePath,
+                             int vectorDimension,
                              boolean doStoredLoads) {
         this.indexState = state;
         this.field = field;
@@ -50,11 +55,13 @@ public class TaskParserFactory {
         this.topN = topN;
         this.random = random;
         this.vectorDictionary = vectorDictionary;
+        this.vectorFilePath = vectorFilePath;
+        this.vectorDimension = vectorDimension;
         this.doStoredLoads = doStoredLoads;
     }
 
     public TaskParser getTaskParser() throws IOException {
         QueryParser qp = new QueryParser(fieldForQueryParser, analyzer);
-        return new TaskParser(indexState, qp, field, topN, random, vectorDictionary, doStoredLoads);
+        return new TaskParser(indexState, qp, field, topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads);
     }
 }

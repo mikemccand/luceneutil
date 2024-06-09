@@ -268,10 +268,31 @@ public class SearchPerfTest {
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
     final String vectorDict;
+    final Path vectorFilePath;
+    final int vectorDimension;
+    
     if (args.hasArg("-vectorDict")) {
       vectorDict = args.getString("-vectorDict");
-    } else {
+      vectorFilePath = null;
+      vectorDimension = -1;
+    } else if (args.hasArg("-vectorFile")) {
+      vectorFilePath = Paths.get(args.getString("-vectorFile"));
+      if (args.hasArg("-vectorDimension")) {
+        vectorDimension = args.getInt("-vectorDimension");
+        if (vectorDimension < 1) {
+          throw new RuntimeException("-vectorDimension must be > 0; got: " + vectorDimension);
+        }
+      } else {
+        throw new RuntimeException("with -vectorFile you must also provide -vectorDimension");
+      }
       vectorDict = null;
+    } else {
+      if (args.hasArg("-vectorDimension")) {
+        throw new RuntimeException("with -vectorDimension you must also provide -vectorFile");
+      }
+      vectorDict = null;
+      vectorFilePath = null;
+      vectorDimension = -1;
     }
 
     if (recacheFilterDeletes) {
@@ -540,29 +561,33 @@ public class SearchPerfTest {
       vectorDictionary = null;
     }
     TaskParserFactory taskParserFactory =
-            new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, doStoredLoads);
+      new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads);
 
     final TaskSource tasks;
 
-    if (tasksFile.startsWith("server:")) {
-      int idx = tasksFile.indexOf(':', 8);
-      if (idx == -1) {
-        throw new RuntimeException("server is missing the port; should be server:interface:port (got: " + tasksFile + ")");
+    try (TaskParser taskParser = taskParserFactory.getTaskParser()) {
+      if (tasksFile.startsWith("server:")) {
+        // TODO: what is this "server:" tasks source!?  does it still work?
+        int idx = tasksFile.indexOf(':', 8);
+        if (idx == -1) {
+          throw new RuntimeException("server is missing the port; should be server:interface:port (got: " + tasksFile + ")");
         }
-      String iface = tasksFile.substring(7, idx);
-      int port = Integer.valueOf(tasksFile.substring(1+idx));
-      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, numConcurrentQueries, taskParserFactory.getTaskParser());
-      // nocommit must stop thread?
-      tasks = remoteTasks;
-    } else {
-      // Load the tasks from a file:
-      final int taskRepeatCount = args.getInt("-taskRepeatCount");
-      final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, tasksFile, taskParserFactory.getTaskParser(), staticRandom, random,
-              numTaskPerCat, taskRepeatCount, doPKLookup, searchConcurrency != 0);
-      System.out.println("Task repeat count " + taskRepeatCount);
-      System.out.println("Tasks file " + tasksFile);
-      System.out.println("Num task per cat " + numTaskPerCat);
+        String iface = tasksFile.substring(7, idx);
+        int port = Integer.valueOf(tasksFile.substring(1+idx));
+        RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, numConcurrentQueries, taskParser);
+
+        // nocommit must stop thread?
+        tasks = remoteTasks;
+      } else {
+        // Load the tasks from a file:
+        final int taskRepeatCount = args.getInt("-taskRepeatCount");
+        final int numTaskPerCat = args.getInt("-tasksPerCat");
+        tasks = new LocalTaskSource(indexState, tasksFile, taskParser, staticRandom, random,
+                                    numTaskPerCat, taskRepeatCount, doPKLookup, searchConcurrency != 0);
+        System.out.println("Task repeat count " + taskRepeatCount);
+        System.out.println("Tasks file " + tasksFile);
+        System.out.println("Num task per cat " + numTaskPerCat);
+      }
     }
 
     args.check();

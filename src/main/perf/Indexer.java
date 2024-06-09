@@ -248,13 +248,13 @@ public final class Indexer {
     int vectorDimension;
     VectorEncoding vectorEncoding;
     if (args.hasArg("-vectorFile")) {
-        vectorFile = args.getString("-vectorFile");
-        vectorDimension = args.getInt("-vectorDimension");
-        vectorEncoding = VectorEncoding.valueOf(args.getString("-vectorEncoding"));
+      vectorFile = args.getString("-vectorFile");
+      vectorDimension = args.getInt("-vectorDimension");
+      vectorEncoding = VectorEncoding.valueOf(args.getString("-vectorEncoding"));
     } else {
-        vectorFile = null;
-        vectorDimension = 0;
-        vectorEncoding = null;
+      vectorFile = null;
+      vectorDimension = 0;
+      vectorEncoding = null;
     }
 
     // -1 means all docs in the line file:

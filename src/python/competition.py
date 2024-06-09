@@ -211,6 +211,8 @@ class Index(object):
     self.indexSort = indexSort
     self.vectorFile = vectorFile
     self.vectorDimension = vectorDimension
+    if vectorEncoding not in ('FLOAT32', 'BYTE'):
+      raise RuntimeError(f'vectorEncoding must be FLOAT32 or BYTE; got: {vectorEncoding}')
     self.vectorEncoding = vectorEncoding
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
@@ -287,8 +289,10 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               vectorDict = None,
-               vectorScale = None,
+               vectorDict = None,     # query time vectors
+               vectorFileName = None, # query time vectors
+               vectorDimension = -1,  # query time vectors
+               vectorScale = None,    # query time vectors
                loadStoredFields = False,
                exitable = False,
                searchConcurrency = 0,
@@ -312,7 +316,15 @@ class Competitor(object):
     self.pk = pk
     self.loadStoredFields = loadStoredFields
     self.exitable = exitable
+    if vectorDict is not None and vectorFileName is not None:
+      raise RuntimeError('specify either vectorDict or vectorFileName, not both')
+    if vectorFileName is not None and vectorDimension < 1:
+      raise RuntimeError(f'with vectorFileNamee you must specific vectorDimension > 0 (got: {vectorDimension})')
+    if vectorDict is not None and vectorDimension != -1:
+      raise RuntimeError(f'with vectorDict, vectorDimension should be -1 (got: {vectorDimension})')
     self.vectorDict = vectorDict
+    self.vectorFileName = vectorFileName
+    self.vectorDimension = vectorDimension
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
 

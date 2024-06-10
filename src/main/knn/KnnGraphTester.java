@@ -829,7 +829,7 @@ public class KnnGraphTester {
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
         throws IOException {
       return new ConstantScoreWeight(this, boost) {
-        Scorer scorer = new ConstantScoreScorer(this, score(), scoreMode, new BitSetIterator(docs, cardinality));
+        Scorer scorer = new ConstantScoreScorer(score(), scoreMode, new BitSetIterator(docs, cardinality));
         @Override
         public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
           return new ScorerSupplier() {

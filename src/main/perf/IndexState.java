@@ -56,6 +56,7 @@ class IndexState {
   public final boolean hasDeletions;
   public final TaxonomyReader taxoReader;
   public final FacetsConfig facetsConfig;
+  public final boolean groupBlocksExist;
   // maps facet dimension to method (sortedset, taxonomy)
   public final Map<String,Integer> facetFields;
   public final Map<Object, ThreadLocal<PKLookupState>> pkLookupStates = new HashMap<>();
@@ -94,6 +95,9 @@ class IndexState {
         pointsPKLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PointsPKLookupState>());
         pkLookupWithTermStateStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupWithTermStateState>());
       }
+
+      groupBlocksExist = searcher.count(groupEndQuery) > 0;
+
     } finally {
       mgr.release(searcher);
     }

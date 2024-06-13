@@ -450,6 +450,12 @@ class TaskParser implements Closeable {
       if (query.toString().equals("")) {
         throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
       }
+      if (group != null && group.equals("groupblock1pass")) {
+        // confirm the index really indexed doc blocks for grouping to avoid scary confusing NPEs
+        if (state.groupBlocksExist == false) {
+          throw new IllegalStateException("cannot execute 'groupblock1pass': index was not built with grouping doc blocks");
+        }
+      }
 
       if (combinedFields != null) {
         CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder();

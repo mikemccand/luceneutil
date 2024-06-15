@@ -1173,6 +1173,9 @@ class RunAlgs:
       w('-loadStoredFields')
     if c.vectorDict:
       w('-vectorDict', c.vectorDict)
+    elif c.vectorFileName is not None:
+      w('-vectorFile', c.vectorFileName)
+      w('-vectorDimension', c.vectorDimension)
     if c.vectorScale:
       w('-vectorScale', c.vectorScale)
     if c.exitable:

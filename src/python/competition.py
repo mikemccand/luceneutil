@@ -422,7 +422,7 @@ class Competition(object):
                # Pass fixed randomSeed so separate runs are comparable (pick the same tasks):
                randomSeed=None,
                benchSearch=True,
-               taskCountPerCat = 1,
+               taskCountPerCat = 20,
                taskRepeatCount = 20,
                jvmCount = 20):
     self.cold = cold

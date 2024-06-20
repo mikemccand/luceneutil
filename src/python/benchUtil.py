@@ -1559,12 +1559,15 @@ def getAntClassPath(checkout):
 
   # We use the jar file for core to leverage the MR JAR
   core_jar_file = None
+  jars_found = 0
   for filename in os.listdir('%s/lucene/build/core' % path):
     if reCoreJar.match(filename) is not None:
       core_jar_file = '%s/lucene/build/core/%s' % (path, filename)
-      break
+      jars_found += 1
   if core_jar_file is None:
     raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/build/core' % path))
+  if jars_found > 1:
+    raise RuntimeError('Found %d jars in %s, please only include 1 jar file' % (jars_found,'%s/lucene/build/core' % path))
 
   cp.append(core_jar_file)
   cp.append('%s/lucene/build/sandbox/classes/java' % path)
@@ -1606,12 +1609,15 @@ def getClassPath(checkout):
 
   # We use the jar file for core to leverage the MR JAR
   core_jar_file = None
+  jars_found = 0
   for filename in os.listdir('%s/lucene/core/build/libs' % path):
     if reCoreJar.match(filename) is not None:
       core_jar_file = '%s/lucene/core/build/libs/%s' % (path, filename)
-      break
+      jars_found += 1
   if core_jar_file is None:
     raise RuntimeError('can\'t find core JAR file in %s' % ('%s/lucene/core/build/libs' % path))
+  if jars_found > 1:
+    raise RuntimeError('Found %d jars in "%s"; please run "gradle clean" to clean up' % (jars_found,'%s/lucene/build/core/libs' % path))
 
   cp.append(core_jar_file)
   cp.append('%s/lucene/sandbox/build/classes/java/main' % path)

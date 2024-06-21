@@ -146,20 +146,18 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     indexPath = benchUtil.nameToIndexPath(index.getName())
     if os.path.exists(indexPath):
         shutil.rmtree(indexPath)
-    if REAL:
-        # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
-        indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50,
-                                                                       profilerStackSize=JFR_STACK_SIZES)
-    else:
-        profilerResults = None
-        jfrFile = None
+    # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
+    indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50,
+                                                                   profilerStackSize=JFR_STACK_SIZES)
+                                                                   
     # indexTime = (now()-t0)
 
+    newLogFileName = '%s/%s' % (runLogDir, logFile)
     if REAL:
-        print(('Move log to %s/%s' % (runLogDir, logFile)))
-        os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
+        print('Move log to %s' % newLogFileName)
+        shutil.move(fullLogFile, newLogFileName)
 
-    s = open('%s/%s' % (runLogDir, logFile)).read()
+    s = open(newLogFileName).read()
     bytesIndexed = int(reBytesIndexed.search(s).group(1))
     m = reIndexAtClose.search(s)
     if m is not None:
@@ -500,7 +498,7 @@ def run():
     if REAL:
         r.compile(c)
 
-    if not DEBUG:
+    if not DEBUG and not DO_RESET:
       os.chdir(constants.BENCH_BASE_DIR)
       try:
           message('now run stored fields benchmark')

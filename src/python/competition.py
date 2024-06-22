@@ -332,7 +332,7 @@ class Competitor(object):
 
       command = constants.JAVA_COMMAND.split(' ') + \
         ['-cp',
-         f'{benchUtil.checkoutToPath(index.checkout)}/build-tools/build-infra/build/classes/java/main',
+         f'{benchUtil.checkoutToPath(self.checkout)}/build-tools/build-infra/build/classes/java/main',
          f'-Dtests.profile.mode={mode}',
          f'-Dtests.profile.stacksize={size}',
          f'-Dtests.profile.count={count}',

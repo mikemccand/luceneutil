@@ -1005,17 +1005,23 @@ class RunAlgs:
     
     for mode in 'cpu', 'heap':
       for stackSize in profilerStackSize:
-        result = subprocess.run(index.javaCommand.split(' ') +
+        profileCommand = index.javaCommand.split(' ') + \
                                 ['-cp',
-                                 f'{checkoutToPath(index.checkout)}/buildSrc/build/classes/java/main',
+                                 f'{checkoutToPath(index.checkout)}/build-tools/build-infra/build/classes/java/main',
                                  f'-Dtests.profile.mode={mode}',
                                  f'-Dtests.profile.count={profilerCount}',
                                  f'-Dtests.profile.stacksize={stackSize}',
                                  'org.apache.lucene.gradle.ProfileResults',
-                                 jfrOutput],
-                                stdout = subprocess.PIPE,
-                                stderr = subprocess.STDOUT,
-                                check = True)
+                                 jfrOutput]
+        print(f'profile command: {profileCommand}')
+        try:
+          result = subprocess.run(profileCommand,
+                                  stdout = subprocess.PIPE,
+                                  stderr = subprocess.STDOUT,
+                                  check = True)
+        except subprocess.CalledProcessError as e:
+          print(f'command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}')
+          raise
         output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
         print(output)
         profilerResults.append((mode, stackSize, output))

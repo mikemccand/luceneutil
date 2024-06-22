@@ -332,19 +332,24 @@ class Competitor(object):
 
       command = constants.JAVA_COMMAND.split(' ') + \
         ['-cp',
-         f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
+         f'{benchUtil.checkoutToPath(index.checkout)}/build-tools/build-infra/build/classes/java/main',
          f'-Dtests.profile.mode={mode}',
          f'-Dtests.profile.stacksize={size}',
          f'-Dtests.profile.count={count}',
          'org.apache.lucene.gradle.ProfileResults'] + \
          glob.glob(f'{constants.LOGS_DIR}/bench-search-{id}-{self.name}-*.jfr')
 
-      # print(f'JFR aggregation command: {" ".join(command)}')
+      print(f'JFR aggregation command: {" ".join(command)}')
       t0 = time.time()
-      result = subprocess.run(command,
-                              stdout = subprocess.PIPE,
-                              stderr = subprocess.STDOUT,
-                              check = True)
+      try:
+        result = subprocess.run(command,
+                                stdout = subprocess.PIPE,
+                                stderr = subprocess.STDOUT,
+                                check = True)
+      except subprocess.CalledProcessError as e:
+        print(f'command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}')
+        raise
+        
       t1 = time.time()
       print(f'Took {t1-t0:.2f} seconds')
       results.append((size, result.stdout.decode('utf-8')))

@@ -76,10 +76,8 @@ else:
 
 DIR_IMPL = 'MMapDirectory'
 
-# Configure a concurrency of 1. This ensures that we exercise code paths for
-# search concurrency while still running searches in a single thread in
-# practice.
-SEARCH_CONCURRENCY = 1
+# Make sure we exercise Lucene's intra-query concurrency code paths:
+SEARCH_CONCURRENCY = 8
 
 INDEXING_RAM_BUFFER_MB = 2048
 
@@ -371,7 +369,8 @@ def run():
 
     comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
                                    taskCountPerCat=COUNTS_PER_CAT,
-                                   verifyCounts=False)  # only verify top hits, not counts
+                                   verifyCounts=False,  # only verify top hits, not counts
+                                   jvmCount = 20)
 
     mediumSource = competition.Data('wikimedium',
                                     constants.NIGHTLY_MEDIUM_LINE_FILE,
@@ -491,6 +490,7 @@ def run():
                         vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
                         directory=DIR_IMPL,
                         commitPoint='multi',
+                        numConcurrentQueries=1,
                         searchConcurrency=SEARCH_CONCURRENCY)
 
     # c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)

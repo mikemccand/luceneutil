@@ -92,7 +92,7 @@ import perf.IndexThreads.Mode;
 
 // trunk:
 //   javac -Xlint -Xlint:deprecation -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomQuery.java
-//   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -searchThreadCount 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
+//   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -numConcurrentQueries 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
 @SuppressWarnings("deprecation")
 public class SearchPerfTest {
@@ -192,7 +192,7 @@ public class SearchPerfTest {
 
     final String analyzer = args.getString("-analyzer");
     final String tasksFile = args.getString("-taskSource");
-    final int searchThreadCount = args.getInt("-searchThreadCount");
+    final int numConcurrentQueries = args.getInt("-numConcurrentQueries");
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
@@ -232,7 +232,7 @@ public class SearchPerfTest {
     System.out.println("Using dir impl " + dir0.getClass().getName());
     System.out.println("Analyzer " + analyzer);
     System.out.println("Similarity " + similarity);
-    System.out.println("Search thread count " + searchThreadCount);
+    System.out.println("Number of concurrent queries " + numConcurrentQueries);
     System.out.println("topN " + topN);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
@@ -548,11 +548,10 @@ public class SearchPerfTest {
       int idx = tasksFile.indexOf(':', 8);
       if (idx == -1) {
         throw new RuntimeException("server is missing the port; should be server:interface:port (got: " + tasksFile + ")");
-      }
+        }
       String iface = tasksFile.substring(7, idx);
       int port = Integer.valueOf(tasksFile.substring(1+idx));
-      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParserFactory.getTaskParser());
-
+      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, numConcurrentQueries, taskParserFactory.getTaskParser());
       // nocommit must stop thread?
       tasks = remoteTasks;
     } else {
@@ -571,7 +570,7 @@ public class SearchPerfTest {
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount, taskParserFactory);
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numConcurrentQueries, taskParserFactory);
     Thread.sleep(10);
 
     final long startNanos = System.nanoTime();

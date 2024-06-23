@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import multiprocessing
 
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -109,7 +110,10 @@ else:
 
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1
-SEARCH_NUM_THREADS = 2
+
+# when testing natural query latency we do not want to saturate CPU:
+SEARCH_NUM_CONCURRENT_QUERIES = max(2, int(multiprocessing.cpu_count()/3))
+
 # geonames: http://download.geonames.org/export/dump/
 
 REPRO_COMMAND_START = 'python -u %s/repeatLuceneTest.py -once -verbose -nolog' % BENCH_BASE_DIR

@@ -1155,7 +1155,7 @@ class RunAlgs:
 
     w('-analyzer', c.analyzer)
     w('-taskSource', c.tasksFile)
-    w('-searchThreadCount', c.numThreads)
+    w('-numConcurrentQueries', c.numConcurrentQueries)
     w('-taskRepeatCount', c.competition.taskRepeatCount)
     w('-field', 'body')
     w('-tasksPerCat', c.competition.taskCountPerCat)

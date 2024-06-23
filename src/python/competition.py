@@ -25,6 +25,9 @@ import searchBench
 import subprocess
 import time
 
+if hasattr(constants, 'SEARCH_NUM_THREADS'):
+  raise RuntimeError('please rename your localconstants.py SEARCH_NUM_THREADS to SEARCH_NUM_CONCURRENT_QUERIES')
+
 class Data(object):
   
   def __init__(self, name, lineFile, numDocs, tasksFile):
@@ -275,7 +278,7 @@ class Competitor(object):
 
   def __init__(self, name, checkout,
                index = None,
-               numThreads = constants.SEARCH_NUM_THREADS,
+               numConcurrentQueries = constants.SEARCH_NUM_CONCURRENT_QUERIES,
                directory = 'MMapDirectory',
                analyzer = None,
                commitPoint = 'multi',
@@ -293,7 +296,6 @@ class Competitor(object):
                topN = 100):
     self.name = name
     self.checkout = checkout
-    self.numThreads = numThreads
     self.index = index
     self.directory = directory
     if analyzer is None:
@@ -313,7 +315,16 @@ class Competitor(object):
     self.vectorDict = vectorDict
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
+
+    if searchConcurrency != 0 and numConcurrentQueries > 1:
+      raise RuntimeError(f'when searchConcurrency != 0 (got: {searchConcurrency}) you must specify numConcurrentQueries = 1 (got: {numConcurrentQueries}), otherwise you might see falsely low effective QPS')
+
+    # how many queries are in flight at once (one query per request thread)
+    self.numConcurrentQueries = numConcurrentQueries
+
+    # how many "worker threads" are used when executing each query concurrently
     self.searchConcurrency = searchConcurrency
+
     # TopN: how many hits are retrieved
     self.topN = topN
 

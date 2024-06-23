@@ -35,15 +35,15 @@ import org.apache.lucene.search.TotalHits;
 // Serves up tasks from remote client
 class RemoteTaskSource extends Thread implements TaskSource {
   private final ServerSocket serverSocket;
-  private final int numThreads;
+  private final int numConcurrentQueries;
   private static final int MAX_BYTES = 70;
   private final TaskParser taskParser;
 
   // nocommit maybe fair=true?
   private final BlockingQueue<Task> queue = new ArrayBlockingQueue<Task>(100000);
 
-  public RemoteTaskSource(String iface, int port, int numThreads, TaskParser taskParser) throws IOException {
-    this.numThreads = numThreads;
+  public RemoteTaskSource(String iface, int port, int numConcurrentQueries, TaskParser taskParser) throws IOException {
+    this.numConcurrentQueries = numConcurrentQueries;
     this.taskParser = taskParser;
     serverSocket = new ServerSocket(port, 50, InetAddress.getByName(iface));
     System.out.println("Waiting for client connection on interface " + iface + ", port " + port);
@@ -111,7 +111,7 @@ class RemoteTaskSource extends Thread implements TaskSource {
 
           String s = new String(buffer, "UTF-8");
           if (s.startsWith("END//")) {
-            for(int threadID=0;threadID<numThreads;threadID++) {
+            for(int threadID=0;threadID<numConcurrentQueries;threadID++) {
               queue.put(Task.END_TASK);
             }
             break;

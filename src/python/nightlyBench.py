@@ -365,7 +365,13 @@ def run():
     runCommand('%s clean > %s/clean-lucene.log 2>&1' % (constants.GRADLE_EXE, runLogDir))
     runCommand('%s jar > %s/jar-lucene.log 2>&1' % (constants.GRADLE_EXE, runLogDir))
 
-    r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
+    verifyScores = True
+
+    # When intra-query concurrency is used we will not consistently return the same
+    # estimated hit counts (I think?)
+    verifyCounts = SEARCH_CONCURRENCY == 1
+    
+    r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
 
     comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
                                    taskCountPerCat=COUNTS_PER_CAT,

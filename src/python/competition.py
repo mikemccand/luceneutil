@@ -211,8 +211,12 @@ class Index(object):
     self.indexSort = indexSort
     self.vectorFile = vectorFile
     self.vectorDimension = vectorDimension
-    if vectorEncoding not in ('FLOAT32', 'BYTE'):
-      raise RuntimeError(f'vectorEncoding must be FLOAT32 or BYTE; got: {vectorEncoding}')
+    if vectorFile is not None:
+      if vectorEncoding not in ('FLOAT32', 'BYTE'):
+        raise RuntimeError(f'vectorEncoding must be FLOAT32 or BYTE; got: {vectorEncoding}')
+    elif vectorEncoding is not None:
+      raise RuntimeError(f'vectorEncoding must be None when there are no vectors to index (vectorFile is None)')
+      
     self.vectorEncoding = vectorEncoding
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:

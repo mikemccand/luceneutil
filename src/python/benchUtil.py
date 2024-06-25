@@ -37,6 +37,17 @@ import IndexChart
 import subprocess
 import shlex
 
+try:
+  import distutils
+  PERF_EXE = distutils.spawn.find_executable('perf')
+except:
+  PERF_EXE = None
+
+if PERF_EXE is None:
+  print(f'no perf executable; will not collect aggregate CPU profiling data')
+else:
+  print(f'perf executable is {PERF_EXE}; will collect aggregate CPU profiling data')
+
 PYTHON_MAJOR_VER = sys.version_info.major
 
 if PYTHON_MAJOR_VER < 3:
@@ -1136,6 +1147,8 @@ class RunAlgs:
       doSort = ''
 
     command = []
+    if PERF_EXE is not None:
+      command += [PERF_EXE, 'stat', '-dd']
     command += c.javaCommand.split()
 
     # 77: always enable Java Flight Recorder profiling

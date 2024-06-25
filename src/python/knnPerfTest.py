@@ -24,6 +24,11 @@ import constants
 #LUCENE_CHECKOUT = 'baseline'
 LUCENE_CHECKOUT = 'candidate'
 
+# e.g. to compile KnnIndexer:
+#
+#   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
+#
+
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 VALUES = {
     #'ndoc': (10000, 100000, 1000000),
@@ -61,9 +66,9 @@ def run_knn_benchmark(checkout, values):
     #dim = 768
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
-    dim = 384
-    doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
-    query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
+    #dim = 384
+    #doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
+    #query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
     #dim = 300
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
@@ -72,11 +77,11 @@ def run_knn_benchmark(checkout, values):
     #query_vectors = '/d/electronics_query_vectors.bin'
 
     # Cohere dataset
-    #dim = 768
-    #doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
-    #query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
+    dim = 768
+    doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
+    query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
-    cmd = [constants.JAVA_EXE, '-cp', cp,
+    cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
            'knn.KnnGraphTester']

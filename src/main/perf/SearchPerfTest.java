@@ -583,7 +583,7 @@ public class SearchPerfTest {
         final int taskRepeatCount = args.getInt("-taskRepeatCount");
         final int numTaskPerCat = args.getInt("-tasksPerCat");
         tasks = new LocalTaskSource(indexState, tasksFile, taskParser, staticRandom, random,
-                                    numTaskPerCat, taskRepeatCount, doPKLookup, searchConcurrency != 0);
+                                    numTaskPerCat, taskRepeatCount, doPKLookup, false);
         System.out.println("Task repeat count " + taskRepeatCount);
         System.out.println("Tasks file " + tasksFile);
         System.out.println("Num task per cat " + numTaskPerCat);

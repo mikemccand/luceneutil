@@ -810,4 +810,8 @@ KNOWN_CHANGES = [
   ('2024-05-20',
    'Disjunction as CompetitiveIterator for numeric dynamic pruning https://github.com/apache/lucene/pull/13221',
    'Disjunction as CompetitiveIterator for numeric dynamic pruning https://github.com/apache/lucene/pull/13221'),
+
+  ('2024-06-24',
+   'Enable intra-query concurrency across 8 threads',
+   'Enable intra-query concurrency across 8 threads'),
 ]

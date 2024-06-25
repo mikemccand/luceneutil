@@ -1025,6 +1025,11 @@ def makeGraphs():
             if date in ('05/28/2023'):
                 # Skip partially successfull first run with Panama -- the next run (05/29) was complete
                 continue
+            if date in ('06/22/2024', '06/23/2024'):
+                # Super confusing: these two runs ran with inter-query concurrency 6 (6 queries in flight at once) and
+                # intra-query concurrency 1 (only one worker thread), making the effective QPS measured ~1/6th of true
+                # QPS
+                continue
 
             gcIndexTimes = getIndexGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
             s = timeStampString

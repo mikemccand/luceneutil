@@ -1554,7 +1554,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
     w('<li> Each of the %s instances are run %s times per JVM instance; we keep the best (fastest) time per task/query instance' % (
     COUNTS_PER_CAT, TASK_REPEAT_COUNT))
     w('<li> %s JVM instances are run; we compute mean/stddev from these' % JVM_COUNT)
-    w('<li> %d searching threads\n' % constants.SEARCH_NUM_THREADS)
+    w('<li> %d concurrent queries\n' % constants.SEARCH_NUM_CONCURRENT_QUERIES)
     w('<li> One sigma error bars')
     w('<li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/SearchPerfTest.java"><tt>SearchPerfTest.java</tt></a>')
     w('<li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')

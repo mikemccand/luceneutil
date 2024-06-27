@@ -34,7 +34,10 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 public class KnnIndexer {
-  private static final double WRITER_BUFFER_MB = 1994d;
+  // use smaller ram buffer so we get to merging sooner, making better use of
+  // many cores (TODO: use multiple indexing threads):
+  // private static final double WRITER_BUFFER_MB = 1994d;
+  private static final double WRITER_BUFFER_MB = 64;
 
   Path docsPath;
   Path indexPath;
@@ -101,7 +104,7 @@ public class KnnIndexer {
           doc.add(new StoredField(KnnGraphTester.ID_FIELD, i));
           iw.addDocument(doc);
 
-          if (quiet == false && i % 10000 == 0) {
+          if ((i+1) % 25000 == 0) {
             System.out.println("Done indexing " + (i + 1) + " documents.");
           }
         }

@@ -22,7 +22,8 @@ import constants
 
 # Where the version of Lucene is that will be tested. Expected to be in the base dir above luceneutil.
 #LUCENE_CHECKOUT = 'baseline'
-LUCENE_CHECKOUT = 'candidate'
+# LUCENE_CHECKOUT = 'candidate'
+LUCENE_CHECKOUT = 'trunk'
 
 # e.g. to compile KnnIndexer:
 #
@@ -33,23 +34,32 @@ LUCENE_CHECKOUT = 'candidate'
 VALUES = {
     #'ndoc': (10000, 100000, 1000000),
     #'ndoc': (10000, 100000, 200000, 500000),
-    'ndoc': (10000, 100000, 200000),
+    #'ndoc': (10000, 100000, 200000, 500000),
+    'ndoc': (250_000,),
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
     'maxConn': (64, ),
     #'beamWidthIndex': (250, 500),
     'beamWidthIndex': (250, ),
     #'fanout': (20, 100, 250)
-    'fanout': (0,),
+    'fanout': (20,),
+    #'quantize': None,
+    'quantizeBits': (32, 4, 7, 8),
+    'numMergeWorker': (12,),
+    'numMergeThread': (4,),
+    'encoding': ('float32',),
+    #'quantize': (True,),
+    #'fanout': (0,),
     #'topK': (10,),
     #'niter': (10,),
 }
 
 def advance(ix, values):
     for i in reversed(range(len(ix))):
+        # scary to rely on dict key enumeration order?  but i guess if dict never changes while we do this, it's stable?
         param = list(values.keys())[i]
         #print("advance " + param)
-        if ix[i] == len(values[param]) - 1:
+        if type(values[param]) in (list, tuple) and ix[i] == len(values[param]) - 1:
             ix[i] = 0
         else:
             ix[i] += 1
@@ -63,9 +73,10 @@ def run_knn_benchmark(checkout, values):
     #dim = 100
     #doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
     #query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
-    #dim = 768
-    #doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
-    #query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
+    dim = 768
+    doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
+    query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
+    query_vectors = doc_vectors
     #dim = 384
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
@@ -77,9 +88,9 @@ def run_knn_benchmark(checkout, values):
     #query_vectors = '/d/electronics_query_vectors.bin'
 
     # Cohere dataset
-    dim = 768
-    doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
-    query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
+    #dim = 768
+    #doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
+    #query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
@@ -87,19 +98,25 @@ def run_knn_benchmark(checkout, values):
            'knn.KnnGraphTester']
     print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
     while advance(indexes, values):
+        print('\nNEXT:')
         pv = {}
         args = []
-        for (i, p) in enumerate(list(values.keys())):
-            #print(f"i={i}, p={p}")
-            if p in values:
-                if values[p]:
-                    value = values[p][indexes[i]]
-                    pv[p] = value
-                    #print(values[p])
-                    #print(indexes)
-                    #print(p)
+        do_quantize = False
+        for (i, p) in enumerate(values.keys()):
+            if values[p]:
+                value = values[p][indexes[i]]
+                if p == 'quantizeBits':
+                    if value != 32:
+                        pv[p] = value
+                        print(f'  -{p}={value}')
+                        print(f'  -quantize')
+                        args += ['-quantize']
                 else:
-                    args += ['-' + p]
+                    print(f'  -{p}={value}')
+                    pv[p] = value
+            else:
+                args += ['-' + p]
+                print(f'  -{p}')
         args += [a for (k, v) in pv.items() for a in ('-' + k, str(v)) if a]
 
         this_cmd = cmd + args + [
@@ -110,8 +127,8 @@ def run_knn_benchmark(checkout, values):
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             # '-forceMerge',
             '-quiet']
-        #print(this_cmd)
-        subprocess.run(this_cmd)
+        print(f'  cmd: {this_cmd}')
+        subprocess.run(this_cmd, check=True)
 
 
 run_knn_benchmark(LUCENE_CHECKOUT, VALUES)

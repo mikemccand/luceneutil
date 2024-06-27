@@ -17,11 +17,14 @@
 
 package knn;
 
-import org.apache.lucene.index.VectorEncoding;
-import org.apache.lucene.index.VectorSimilarityFunction;
-
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.apache.lucene.index.VectorEncoding;
+import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.util.NamedThreadFactory;
 
 public class KnnIndexerMain {
   public Path docVectorsPath;
@@ -83,8 +86,17 @@ public class KnnIndexerMain {
       System.out.println("Creating index with following configurations : " + inputs);
     }
 
-    new KnnIndexer(inputs.docVectorsPath, inputs.indexPath, inputs.maxConn, inputs.beamWidth, inputs.vectorEncoding,
-        inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet).createIndex();
+    boolean quantize = true;
+    int quantizeBits = 8;
+    boolean quantizeCompress = true;
+    int numMergeWorker = 16;
+    int numMergeThread = 8;
+    ExecutorService exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
+
+    new KnnIndexer(inputs.docVectorsPath, inputs.indexPath,
+                   KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
+                   inputs.vectorEncoding,
+                   inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet).createIndex();
 
     if (!inputs.quiet) {
       System.out.println("Successfully created index.");

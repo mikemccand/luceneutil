@@ -332,7 +332,8 @@ class Competitor(object):
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
 
-    if searchConcurrency != 0 and numConcurrentQueries > 1:
+    # nocommit
+    if False and searchConcurrency != 0 and numConcurrentQueries > 1:
       raise RuntimeError(f'when searchConcurrency != 0 (got: {searchConcurrency}) you must specify numConcurrentQueries = 1 (got: {numConcurrentQueries}), otherwise you might see falsely low effective QPS')
 
     # how many queries are in flight at once (one query per request thread)

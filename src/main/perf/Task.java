@@ -36,6 +36,7 @@ abstract class Task {
   // fields below will be set after search
   public TotalHits totalHitCount;
   public int countOnlyCount = -1; // set by count-only task (IndexSearcher.count(...))
+  public long startTimeNanos;
   public long runTimeNanos;
 
   public abstract void go(IndexState state, TaskParser taskParser) throws IOException;

@@ -25,6 +25,8 @@ package perf;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -39,6 +41,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
@@ -79,6 +82,7 @@ import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
+import com.sun.management.ThreadMXBean;
 
 import perf.IndexThreads.Mode;
 
@@ -96,6 +100,8 @@ import perf.IndexThreads.Mode;
 
 @SuppressWarnings("deprecation")
 public class SearchPerfTest {
+
+  private static final int WARMUP_MSEC = 5000;
 
   // ReferenceManager that never changes its searcher:
   private static class SingleIndexSearcher extends ReferenceManager<IndexSearcher> {
@@ -133,6 +139,27 @@ public class SearchPerfTest {
       _main(clArgs);
     } finally {
       stats.stopStatistics();
+    }
+  }
+
+  private static final ThreadMXBean threadBean = (ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+
+  private static double nsToMS(long ns) {
+    return ns / 1_000_000.0;
+  }
+
+  /** Snapshots all running threads and their CPU counters */
+  static final class ThreadDetails {
+    public final long[] threadIDs;
+    public final long[] cpuTimesNS;
+    public final ThreadInfo[] threadInfos;
+    public final long ns;
+
+    public ThreadDetails() {
+      ns = System.nanoTime();
+      threadIDs = threadBean.getAllThreadIds();
+      cpuTimesNS = threadBean.getThreadCpuTime(threadIDs);
+      threadInfos = threadBean.getThreadInfo(threadIDs);
     }
   }
 
@@ -595,15 +622,48 @@ public class SearchPerfTest {
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numConcurrentQueries, taskParserFactory);
+
+    // set by the first coordinator thread that sees end of tasks:
+    AtomicReference<ThreadDetails> endThreadDetailsRef = new AtomicReference<>();
+    
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numConcurrentQueries, taskParserFactory, endThreadDetailsRef);
     Thread.sleep(10);
 
     final long startNanos = System.nanoTime();
     taskThreads.start();
-    taskThreads.finish();
-    final long endNanos = System.nanoTime();
 
-    System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
+    // TODO: pull this into thread so that if tasks finish before warmup, we break out of this sleep and exit with TestWasTooShortException!!
+    Thread.sleep(WARMUP_MSEC);
+
+    // capture CPU of all running threads, after warmup:
+    ThreadDetails startThreadDetails = new ThreadDetails();
+    taskThreads.finish();
+
+    ThreadDetails endThreadDetails = endThreadDetailsRef.get();
+    
+    if (startThreadDetails.threadIDs.length != endThreadDetails.threadIDs.length) {
+      for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+        System.out.println(i + ": " + startThreadDetails.threadIDs[i] + " -> " + startThreadDetails.threadInfos[i].getThreadName() + " CPU=" + startThreadDetails.cpuTimesNS[i]);
+      }
+      for(int i=0;i<endThreadDetails.threadIDs.length;i++) {
+        System.out.println(i + ": " + endThreadDetails.threadIDs[i] + " -> " + endThreadDetails.threadInfos[i].getThreadName());
+      }
+      throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " + endThreadDetails.threadIDs.length);
+    }
+
+    long sumCPUTimeNS = 0;
+    for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+      if (startThreadDetails.threadIDs[i] != endThreadDetails.threadIDs[i]) {
+        throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs[i] + " vs " + endThreadDetails.threadIDs[i]);
+      }
+      sumCPUTimeNS += endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i];
+      System.out.println("thread " + startThreadDetails.threadIDs[i] + " name=" + startThreadDetails.threadInfos[i].getThreadName() + " cpu@start=" + startThreadDetails.cpuTimesNS[i] + " cpu@end=" + endThreadDetails.cpuTimesNS[i] +
+                         " deltaMS=" + nsToMS(endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i]));
+    }
+    double elapsedMS = nsToMS(endThreadDetails.ns - startThreadDetails.ns);
+    double avgCPUCount = nsToMS(sumCPUTimeNS) / elapsedMS;
+                                               
+    System.out.println("\nAverage CPU cores used: " + avgCPUCount);
 
     final List<Task> allTasks = tasks.getAllTasks();
 
@@ -616,6 +676,9 @@ public class SearchPerfTest {
 
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 
+      out.println("\nStart of tasks winddown: " + nsToMS(endThreadDetails.ns - startNanos) + " msec");
+      out.println("\nElapsed MS (excluding warmup and winddown): elapsedMS");
+      out.println("\nAverage CPU cores used: " + avgCPUCount);
       out.println("\nResults for " + allTasks.size() + " tasks:");
 
       boolean fail = false;
@@ -636,7 +699,7 @@ public class SearchPerfTest {
           }
         }
         out.println("\nTASK: " + task);
-        out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
+        out.println("  " + nsToMS(task.runTimeNanos) + " msec @ " + ((task.startTimeNanos - startNanos)/1000000.0) + " msec");
         out.println("  thread " + task.threadID);
         task.printResults(out, indexState);
       }

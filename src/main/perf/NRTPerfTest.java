@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -384,7 +385,7 @@ public class NRTPerfTest {
     System.out.println("Task repeat count 1");
     System.out.println("Tasks file " + tasksFile);
     System.out.println("Num task per cat 20");
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numSearchThreads, taskParserFactory);
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numSearchThreads, taskParserFactory, new AtomicReference<SearchPerfTest.ThreadDetails>());
 
     final ReopenThread reopenThread = new ReopenThread(reopenPerSec, manager, reopensByTime, runTimeSec);
     reopenThread.setName("ReopenThread");

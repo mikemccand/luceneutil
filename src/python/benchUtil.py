@@ -59,6 +59,9 @@ WARM_SKIP = 3
 # Skip this pctg of the slowest runs:
 SLOW_SKIP_PCT = 10
 
+# Disregard first N seconds of query tasks for computing avg QPS:
+DISCARD_QPS_WARMUP_SEC = 5
+
 # From the N times we run each task in a single JVM, how do we pick
 # the single QPS to represent those results:
 
@@ -406,6 +409,16 @@ reRespellHit = re.compile('(.*?) freq=(.*?) score=(.*?)$')
 rePKOrd = re.compile(r'PK(?:TS)?(.*?)\[')
 reOneGroup = re.compile('group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$', re.DOTALL)
 reHeap = re.compile('HEAP: ([0-9]+)$')
+reLatencyAndStartTime = re.compile(r'^([\d.]+) msec @ ([\d.]+) msec$')
+reTasksWinddown = re.compile('^Start of tasks winddown: ([0-9.]+) msec$')
+reAvgCPUCores = re.compile('^Average CPU cores used: ([0-9.]+)$')
+
+def parse_times_line(task, line):
+  m = reLatencyAndStartTime.match(line.decode('utf-8'))
+  if m is None:
+    raise RuntimeError(f'unable to parse {line} into latency & start time')
+  task.msec = float(m.group(1))
+  task.startMsec = float(m.group(2))
 
 def parseResults(resultsFiles):
   taskIters = []
@@ -419,6 +432,9 @@ def parseResults(resultsFiles):
     if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 50*1024:
       raise RuntimeError('%s.stdout is %d bytes; leftover System.out.println?' % (resultsFile, os.path.getsize(resultsFile + '.stdout')))
 
+    tasksWindownMS = -1
+    avgCPUCores = -1
+
     # print 'parse %s' % resultsFile
     f = open(resultsFile, 'rb')
     while True:
@@ -427,13 +443,21 @@ def parseResults(resultsFiles):
         break
       line = line.strip()
 
+      if line.startswith(b'Start of tasks winddown: '):
+        tasksWindownMS = float(reTasksWinddown.match(line.decode('utf-8')).group(1))
+        continue
+
+      if line.startswith(b'Average CPU cores used: '):
+        avgCPUCores = float(reAvgCPUCores.match(line.decode('utf-8')).group(1))
+        continue
+
       if line.startswith(b'HEAP: '):
         m = reHeap.match(decode(line))
         heaps.append(int(m.group(1)))
 
       if line.startswith(b'TASK: cat='):
         task = SearchTask()
-        task.msec = float(f.readline().strip().split()[0])
+        parse_times_line(task, f.readline().strip())
         task.threadID = int(f.readline().strip().split()[1])
         task.facets = None
 
@@ -583,7 +607,7 @@ def parseResults(resultsFiles):
             raise RuntimeError('result parsing failed: line=%s' % line)
       elif line.startswith(b'TASK: respell'):
         task = RespellTask()
-        task.msec = float(f.readline().strip().split()[0])
+        parse_times_line(task, f.readline().strip())
         task.threadID = int(f.readline().strip().split()[1])
         task.term = line[14:]
 
@@ -605,17 +629,17 @@ def parseResults(resultsFiles):
       elif line.startswith(b'TASK: PKTS'):
         task = PKLookupWithTermStateTask()
         task.pkOrd = rePKOrd.search(decode(line)).group(1)
-        task.msec = float(f.readline().strip().split()[0])
+        parse_times_line(task, f.readline().strip())
         task.threadID = int(f.readline().strip().split()[1])
       elif line.startswith(b'TASK: PK'):
         task = PKLookupTask()
         task.pkOrd = rePKOrd.search(decode(line)).group(1)
-        task.msec = float(f.readline().strip().split()[0])
+        parse_times_line(task, f.readline().strip())
         task.threadID = int(f.readline().strip().split()[1])
       elif line.startswith(b'TASK: PointsPK'):
         task = PointsPKLookupTask()
         task.pkOrd = rePKOrd.search(decode(line)).group(1)
-        task.msec = float(f.readline().strip().split()[0])
+        parse_times_line(task, f.readline().strip())
         task.threadID = int(f.readline().strip().split()[1])
       else:
         task = None
@@ -627,7 +651,10 @@ def parseResults(resultsFiles):
 
     taskIters.append(tasks)
 
-  return taskIters, heaps
+  if tasksWindownMS == -1:
+    raise RuntimeError(f'did not find "Start of tasks winddown: " line in results file {resultsFile}')
+
+  return taskIters, heaps, tasksWindownMS, avgCPUCores
 
 # Collect task latencies segregated by categories across all the runs of the task
 # This allows calculating P50, P90, P99 and P100 latencies per task
@@ -654,7 +681,7 @@ def collateResults(resultIters):
   iters = []
   for results in resultIters:
     # Keyed first by category (Fuzzy1, Respell, ...) and 2nd be exact
-    # task mapping to list of tasks.  For a cold run (no task repeats)
+    # task mapping to list of runs of that task.  For a cold run (no task repeats)
     # the 2nd map will always map to a length-1 list.
     byCat = {}
     iters.append(byCat)
@@ -1208,7 +1235,8 @@ class RunAlgs:
 
     if DO_PERF:
       perfCommand = []
-      perfCommand.append('sudo')
+      # why sudo needed!?  also, why not just run perf stat full commandline?
+      # perfCommand.append('sudo')
       perfCommand.append('perf')
       perfCommand.append('stat')
       #perfCommand.append('-v')
@@ -1227,7 +1255,9 @@ class RunAlgs:
         f.flush()
       f.close()
       p.wait()
-      run(['sudo', 'kill', '-INT', p2.pid])
+      # run(['sudo', 'kill', '-INT', p2.pid])
+      # why?
+      run(['kill', '-INT', p2.pid])
       #os.kill(p2.pid, signal.SIGINT)
       stdout, stderr = p2.communicate()
       print('PERF: %s' % fixupPerfOutput(stderr))
@@ -1252,6 +1282,11 @@ class RunAlgs:
     #run(command, logFile + '.stdout', indent='      ')
     print('      %.1f s' % (time.time()-t0))
 
+    # nocommit don't wastefully load/process here too!!
+    raw_results, heap_base, tasks_winddown_ms, avg_cpu_cores = parseResults([logFile])
+    qpss = self.compute_qps(raw_results, tasks_winddown_ms)
+    print('      %.1f actual sustained QPS; %.1f CPU cores used' % (qpss[0], avg_cpu_cores))
+    
     return logFile
 
   def getSearchLogFiles(self, id, c):
@@ -1288,10 +1323,59 @@ class RunAlgs:
 
     return resultLatencyMetrics
 
+  def compute_qps(self, raw_results, tasks_winddown_ms):
+
+    # one per JVM iteration
+    qpss = []
+    for tasks in raw_results:
+      # make full copy -- don't mess up sort of incoming tasks
+      sorted_tasks = tasks[:]
+      sorted_tasks.sort(key=lambda x: x.startMsec)
+      # print(f'{len(sorted_tasks)} tasks:')
+      by_second = {}
+      count = 0
+      # nocommit couldn't we dynamically infer warmup by looking for second-by-second QPS
+      keep_after_ms = sorted_tasks[0].startMsec + DISCARD_QPS_WARMUP_SEC * 1000
+      for task in sorted_tasks:
+        #print(f'  {task.startMsec} {task.msec}')
+        finish_time_ms = task.startMsec + task.msec
+        if finish_time_ms < keep_after_ms:
+          # print(f'  task too early {finish_time_ms} vs {keep_after_ms}')
+          continue
+
+        if finish_time_ms > tasks_winddown_ms:
+          # print(f'  task too late {finish_time_ms} vs {tasks_winddown_ms}')
+          continue
+          
+        finish_time_sec = int(finish_time_ms/1000)
+        by_second[finish_time_sec] = 1 + by_second.get(finish_time_sec, 0)
+        count += 1
+
+      qps = count / ((tasks_winddown_ms - keep_after_ms) / 1000.0)
+      qpss.append(qps)
+
+      if False:
+        # curious to see how QPS varies second by second...:
+        l = list(by_second.items())
+        l.sort()
+        for sec, count in l:
+          print(f'  {sec:3d}: qps={count}')
+
+    return qpss
+
+  def only_qps_report(self, baseLogFiles, cmpLogFiles):
+    # nocommit must also validate tasks' results validity
+    baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
+    cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
+
+    base_qpss = self.compute_qps(baseRawResults, baseTasksWindownMS)
+    cmp_qpss = self.compute_qps(cmpRawResults, cmpTasksWindownMS)
+      
+
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
-    baseRawResults, heapBase = parseResults(baseLogFiles)
-    cmpRawResults, heapCmp = parseResults(cmpLogFiles)
+    baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
+    cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
 
     # make sure they got identical results
     cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores, self.verifyCounts)

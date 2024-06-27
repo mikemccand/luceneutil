@@ -63,8 +63,10 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.QueryTimeoutImpl;
+import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
@@ -82,6 +84,7 @@ import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
+
 import com.sun.management.ThreadMXBean;
 
 import perf.IndexThreads.Mode;
@@ -487,6 +490,13 @@ public class SearchPerfTest {
       IndexSearcher s = mgr.acquire();
       try {
         System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc());
+        IndexSearcher.LeafSlice[] slices = IndexSearcher.slices(s.getIndexReader().leaves(), 250_000, 5);
+        System.out.println("Reader has " + slices.length + " slices, from " + s.getIndexReader().leaves().size() + " segments:");
+        // TODO: sort by descending segment size -- it makes it easier to eyeball the segment -> slice mapping.  OR, maybe just
+        // print the slices not the segments?
+        for (LeafReaderContext leaf : s.getIndexReader().leaves()) {
+          System.out.println("  " + ((SegmentReader) leaf.reader()).getSegmentName() + " has maxDoc=" + leaf.reader().maxDoc());
+        }
       } finally {
         mgr.release(s);
       }

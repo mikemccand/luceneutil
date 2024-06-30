@@ -1,15 +1,5 @@
 package perf;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.lucene.document.IntField;
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -27,6 +17,22 @@ import org.apache.lucene.document.IntField;
  * limitations under the License.
  */
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LongField;
@@ -42,10 +48,10 @@ import org.apache.lucene.queries.spans.SpanTermQuery;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.sandbox.search.CombinedFieldQuery;
-import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
@@ -56,7 +62,7 @@ import org.apache.lucene.search.SortedNumericSelector;
 import org.apache.lucene.search.SortedSetSelector;
 import org.apache.lucene.search.TermQuery;
 
-class TaskParser {
+class TaskParser implements Closeable {
 
   private final QueryParser queryParser;
   private final String fieldName;
@@ -69,8 +75,19 @@ class TaskParser {
   private final Random random;
   private final boolean doStoredLoads;
   private final IndexState state;
-  private final VectorDictionary vectorDictionary;
+
+  // non-null if we have vectors to use for KNN search:
   private final String vectorField;
+
+  // these is used when we run search-time inference by tokenizing query text and
+  // summing (averaging? and normalizing) the per-token vectors stored in
+  // vectorDictionary:
+  private final VectorDictionary vectorDictionary;
+  private final int vectorDimension;
+
+  // this is used when we simply use pre-computed (in random order, unassociated
+  // with the specific query text) query vectors.  see src/python/infer_token_vectors_cohere.py:
+  private final SeekableByteChannel vectorChannel;
 
   public TaskParser(IndexState state,
                     QueryParser queryParser,
@@ -78,6 +95,8 @@ class TaskParser {
                     int topN,
                     Random random,
                     VectorDictionary vectorDictionary,
+                    Path vectorFilePath,
+                    int vectorDimension,
                     boolean doStoredLoads) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
@@ -88,14 +107,38 @@ class TaskParser {
     this.vectorDictionary = vectorDictionary;
     if (vectorDictionary != null) {
       vectorField = "vector";
+      vectorChannel = null;
+      if (vectorDimension != -1) {
+        throw new RuntimeException("vectorDimension must be -1 when vectorDictionary is used; got: " + vectorDimension);
+      }
+    } else if (vectorFilePath != null) {
+      vectorField = "vector";
+      vectorChannel = Files.newByteChannel(vectorFilePath, StandardOpenOption.READ);
+      if (vectorDimension < 1) {
+        throw new RuntimeException("vectorDimension must be > 0 when vectorFilePath is non-null; got: " + vectorDimension);
+      }
     } else {
+      vectorChannel = null;
       vectorField = null;
+      if (vectorDimension != -1) {
+        throw new RuntimeException("vectorDimension must be -1 when neither vectorDictionary nor vectorFilePath is used; got: " + vectorDimension);
+      }
     }
+
+    this.vectorDimension = vectorDimension;
+    
     titleDVSort = new Sort(KeywordField.newSortField("title", false, SortedSetSelector.Type.MIN));
     titleBDVSort = new Sort(new SortField("titleBDV", SortField.Type.STRING_VAL));
     monthDVSort = new Sort(KeywordField.newSortField("month", false, SortedSetSelector.Type.MIN));
     dayOfYearSort = new Sort(IntField.newSortField("dayOfYear", false, SortedNumericSelector.Type.MIN));
     lastModSort = new Sort(LongField.newSortField("lastMod", false, SortedNumericSelector.Type.MIN));
+  }
+
+  @Override
+  public void close() throws IOException {
+    if (vectorChannel != null) {
+      vectorChannel.close();
+    }
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
@@ -117,7 +160,7 @@ class TaskParser {
    * Second pass, parsing from UnparsedTask to some concrete tasks, like SearchTask
    * May not be called from the same parser that did the first pass
    */
-  public Task secondPassParse(UnparsedTask unparsedSearchTask) throws ParseException {
+  public Task secondPassParse(UnparsedTask unparsedSearchTask) throws ParseException, IOException {
     return new TaskBuilder(unparsedSearchTask).build();
   }
 
@@ -163,7 +206,7 @@ class TaskParser {
       origText = unparsedSearchTask.getOrigText();
     }
 
-    Task build() throws ParseException {
+    Task build() throws ParseException, IOException {
       if (category.equals("Respell")) {
         return new RespellTask(new Term(fieldName, origText));
       } else {
@@ -174,7 +217,7 @@ class TaskParser {
       }
     }
 
-    SearchTask buildSearchTask(String input) throws ParseException {
+    SearchTask buildSearchTask(String input) throws ParseException, IOException {
       text = input;
       Query filter = parseFilter();
       boolean isCountOnly = parseIsCountOnly();
@@ -330,7 +373,7 @@ class TaskParser {
         text = text.substring(0, i) + text.substring(j);
       }
       return facets;
-   }
+    }
 
     List<String> parseDrillDowns() {
       List<String> drillDowns = new ArrayList<>();
@@ -375,7 +418,7 @@ class TaskParser {
       }
     }
 
-    Query buildQuery(String type, String text, int minShouldMatch, List<FieldAndWeight> fieldAndWeights) throws ParseException {
+    Query buildQuery(String type, String text, int minShouldMatch, List<FieldAndWeight> fieldAndWeights) throws ParseException, IOException {
       Query query;
       switch(type) {
         case "ordered":
@@ -406,6 +449,12 @@ class TaskParser {
       }
       if (query.toString().equals("")) {
         throw new RuntimeException("query text \"" + text + "\" parsed to empty query");
+      }
+      if (group != null && group.equals("groupblock1pass")) {
+        // confirm the index really indexed doc blocks for grouping to avoid scary confusing NPEs
+        if (state.groupBlocksExist == false) {
+          throw new IllegalStateException("cannot execute 'groupblock1pass': index was not built with grouping doc blocks");
+        }
       }
 
       if (combinedFields != null) {
@@ -637,8 +686,23 @@ class TaskParser {
       return new DisjunctionMaxQuery(clauses, 0.1f);
     }
 
-    Query parseVectorQuery() {
-      return new KnnFloatVectorQuery(vectorField, vectorDictionary.computeTextVector(text), topN);
+    Query parseVectorQuery() throws IOException {
+      float[] vector;
+      if (vectorChannel != null) {
+        vector = new float[vectorDimension];
+        ByteBuffer buffer = ByteBuffer.allocate(vectorDimension * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+        int n = vectorChannel.read(buffer);
+        if (n != vectorDimension * Float.BYTES) {
+          throw new RuntimeException("expected " + (vectorDimension * Float.BYTES) + " vector bytes but read " + n);
+        }
+        buffer.position(0);
+        buffer.asFloatBuffer().get(vector);
+      } else {
+        // search (well, task parsing) time inference from query text
+        vector = vectorDictionary.computeTextVector(text);
+      }
+      
+      return new KnnFloatVectorQuery(vectorField, vector, topN);
     }
   }
 }

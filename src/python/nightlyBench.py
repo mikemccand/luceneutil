@@ -76,6 +76,9 @@ else:
 
 DIR_IMPL = 'MMapDirectory'
 
+# Make sure we exercise Lucene's intra-query concurrency code paths:
+SEARCH_CONCURRENCY = 8
+
 INDEXING_RAM_BUFFER_MB = 2048
 
 # "randomly" pick 5 queries for each category, but see validate_nightly_task_count where we
@@ -141,20 +144,18 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     indexPath = benchUtil.nameToIndexPath(index.getName())
     if os.path.exists(indexPath):
         shutil.rmtree(indexPath)
-    if REAL:
-        # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
-        indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50,
-                                                                       profilerStackSize=JFR_STACK_SIZES)
-    else:
-        profilerResults = None
-        jfrFile = None
+    # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
+    indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50,
+                                                                   profilerStackSize=JFR_STACK_SIZES)
+                                                                   
     # indexTime = (now()-t0)
 
+    newLogFileName = '%s/%s' % (runLogDir, logFile)
     if REAL:
-        print(('Move log to %s/%s' % (runLogDir, logFile)))
-        os.rename(fullLogFile, '%s/%s' % (runLogDir, logFile))
+        print('Move log to %s' % newLogFileName)
+        shutil.move(fullLogFile, newLogFileName)
 
-    s = open('%s/%s' % (runLogDir, logFile)).read()
+    s = open(newLogFileName).read()
     bytesIndexed = int(reBytesIndexed.search(s).group(1))
     m = reIndexAtClose.search(s)
     if m is not None:
@@ -364,11 +365,18 @@ def run():
     runCommand('%s clean > %s/clean-lucene.log 2>&1' % (constants.GRADLE_EXE, runLogDir))
     runCommand('%s jar > %s/jar-lucene.log 2>&1' % (constants.GRADLE_EXE, runLogDir))
 
-    r = benchUtil.RunAlgs(constants.JAVA_COMMAND, True, True)
+    verifyScores = True
+
+    # When intra-query concurrency is used we will not consistently return the same
+    # estimated hit counts (I think?)
+    verifyCounts = SEARCH_CONCURRENCY == 1
+    
+    r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
 
     comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
                                    taskCountPerCat=COUNTS_PER_CAT,
-                                   verifyCounts=False)  # only verify top hits, not counts
+                                   verifyCounts=False,  # only verify top hits, not counts
+                                   jvmCount = 20)
 
     mediumSource = competition.Data('wikimedium',
                                     constants.NIGHTLY_MEDIUM_LINE_FILE,
@@ -487,14 +495,16 @@ def run():
                         index=index,
                         vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
                         directory=DIR_IMPL,
-                        commitPoint='multi')
+                        commitPoint='multi',
+                        numConcurrentQueries=1,
+                        searchConcurrency=SEARCH_CONCURRENCY)
 
     # c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)
 
     if REAL:
         r.compile(c)
 
-    if not DEBUG:
+    if not DEBUG and not DO_RESET:
       os.chdir(constants.BENCH_BASE_DIR)
       try:
           message('now run stored fields benchmark')
@@ -1014,6 +1024,11 @@ def makeGraphs():
                 continue
             if date in ('05/28/2023'):
                 # Skip partially successfull first run with Panama -- the next run (05/29) was complete
+                continue
+            if date in ('06/22/2024', '06/23/2024'):
+                # Super confusing: these two runs ran with inter-query concurrency 6 (6 queries in flight at once) and
+                # intra-query concurrency 1 (only one worker thread), making the effective QPS measured ~1/6th of true
+                # QPS
                 continue
 
             gcIndexTimes = getIndexGCTimes('%s/%s' % (constants.NIGHTLY_LOG_DIR, subDir))
@@ -1544,7 +1559,7 @@ def writeOneGraphHTML(title, fileName, chartHTML):
     w('<li> Each of the %s instances are run %s times per JVM instance; we keep the best (fastest) time per task/query instance' % (
     COUNTS_PER_CAT, TASK_REPEAT_COUNT))
     w('<li> %s JVM instances are run; we compute mean/stddev from these' % JVM_COUNT)
-    w('<li> %d searching threads\n' % constants.SEARCH_NUM_THREADS)
+    w('<li> %d concurrent queries\n' % constants.SEARCH_NUM_CONCURRENT_QUERIES)
     w('<li> One sigma error bars')
     w('<li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/SearchPerfTest.java"><tt>SearchPerfTest.java</tt></a>')
     w('<li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')

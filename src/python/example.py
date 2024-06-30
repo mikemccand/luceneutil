@@ -25,8 +25,8 @@ if __name__ == '__main__':
                                    description='Run a local benchmark on provided source dataset.')
   parser.add_argument('-s', '-source', '--source',
                       help='Data source to run the benchmark on.')
-  parser.add_argument('-concurrentSearches', '--concurrentSearches', action='store_true',
-                      help='Run concurrent searches')
+  parser.add_argument('-searchConcurrency', '--searchConcurrency', default='-1', type=int,
+                      help='Search concurrency, 0 for disabled, -1 for using all cores')
   parser.add_argument('-b', '--baseline', default='lucene_baseline',
                       help='Path to lucene repo to be used for baseline')
   parser.add_argument('-c', '--candidate', default='lucene_candidate',
@@ -37,10 +37,13 @@ if __name__ == '__main__':
   print('Running benchmarks with the following args: %s' % args)
 
   sourceData = competition.sourceData(args.source)
-  comp =  competition.Competition()
+  countsAreCorrect = args.searchConcurrency != 0
+  comp =  competition.Competition(verifyCounts = not countsAreCorrect)
 
   index = comp.newIndex(args.baseline, sourceData,
                         addDVFields = True,
+                        useCMS = True,
+                        mergePolicy = 'TieredMergePolicy',
                         facets = (('taxonomy:Date', 'Date'),
                                   ('taxonomy:Month', 'Month'),
                                   ('taxonomy:DayOfYear', 'DayOfYear'),
@@ -52,7 +55,7 @@ if __name__ == '__main__':
 
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('baseline', args.baseline,
-                  index = index, concurrentSearches = args.concurrentSearches)
+                  index = index, searchConcurrency = args.searchConcurrency)
 
   # use the same index as baseline unless --reindex was passed.
   # create a competitor named my_modified_version (or provided candidate name) with sources in the ../patch folder
@@ -72,7 +75,7 @@ if __name__ == '__main__':
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')))
   comp.competitor('my_modified_version', args.candidate,
-                  index = candidate_index, concurrentSearches = args.concurrentSearches)
+                  index = candidate_index, searchConcurrency = args.searchConcurrency)
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("baseline_vs_patch")

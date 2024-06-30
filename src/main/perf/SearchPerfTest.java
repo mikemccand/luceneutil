@@ -25,6 +25,8 @@ package perf;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -39,6 +41,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
@@ -60,8 +63,10 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.QueryTimeoutImpl;
+import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
@@ -80,6 +85,8 @@ import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
 
+import com.sun.management.ThreadMXBean;
+
 import perf.IndexThreads.Mode;
 
 // TODO
@@ -92,10 +99,12 @@ import perf.IndexThreads.Mode;
 
 // trunk:
 //   javac -Xlint -Xlint:deprecation -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/SearchPerfTest.java perf/LineFileDocs.java perf/RandomQuery.java
-//   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -searchThreadCount 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
+//   java -cp .:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest -dirImpl MMapDirectory -indexPath /l/scratch/indices/wikimedium10m.lucene.trunk2.Lucene41.nd10M/index -analyzer StandardAnalyzerNoStopWords -taskSource term.tasks -numConcurrentQueries 2 -field body -topN 10 -staticSeed 0 -seed 0 -similarity DefaultSimilarity -commit multi -hiliteImpl FastVectorHighlighter -log search.log -nrt -indexThreadCount 1 -docsPerSecPerThread 10 -reopenEverySec 5 -postingsFormat Lucene41 -idFieldPostingsFormat Lucene41 -taskRepeatCount 1000 -tasksPerCat 5 -lineDocsFile /lucenedata/enwiki/enwiki-20120502-lines-1k.txt
 
 @SuppressWarnings("deprecation")
 public class SearchPerfTest {
+
+  private static final int WARMUP_MSEC = 5000;
 
   // ReferenceManager that never changes its searcher:
   private static class SingleIndexSearcher extends ReferenceManager<IndexSearcher> {
@@ -133,6 +142,27 @@ public class SearchPerfTest {
       _main(clArgs);
     } finally {
       stats.stopStatistics();
+    }
+  }
+
+  private static final ThreadMXBean threadBean = (ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+
+  private static double nsToMS(long ns) {
+    return ns / 1_000_000.0;
+  }
+
+  /** Snapshots all running threads and their CPU counters */
+  static final class ThreadDetails {
+    public final long[] threadIDs;
+    public final long[] cpuTimesNS;
+    public final ThreadInfo[] threadInfos;
+    public final long ns;
+
+    public ThreadDetails() {
+      ns = System.nanoTime();
+      threadIDs = threadBean.getAllThreadIds();
+      cpuTimesNS = threadBean.getThreadCpuTime(threadIDs);
+      threadInfos = threadBean.getThreadInfo(threadIDs);
     }
   }
 
@@ -192,20 +222,23 @@ public class SearchPerfTest {
 
     final String analyzer = args.getString("-analyzer");
     final String tasksFile = args.getString("-taskSource");
-    final int searchThreadCount = args.getInt("-searchThreadCount");
+    final int numConcurrentQueries = args.getInt("-numConcurrentQueries");
     final String fieldName = args.getString("-field");
     final boolean printHeap = args.getFlag("-printHeap");
     final boolean doPKLookup = args.getFlag("-pk");
-    final boolean doConcurrentSearches = args.getFlag("-concurrentSearches");
+    // search concurrency: 0 means "disabled", -1 means "auto"
+    int searchConcurrency = args.getInt("-searchConcurrency", 0);
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
     final boolean exitable = args.getFlag("-exitable");
 
-    int cores = Runtime.getRuntime().availableProcessors();
+    if (searchConcurrency == -1) {
+      searchConcurrency = Runtime.getRuntime().availableProcessors();
+    }
 
     final ExecutorService executorService;
-    if (doConcurrentSearches) {
-      executorService = new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+    if (searchConcurrency != 0) {
+      executorService = new ThreadPoolExecutor(searchConcurrency, searchConcurrency, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                                                new NamedThreadFactory("ConcurrentSearches"));
     } else {
       executorService = null;
@@ -229,11 +262,11 @@ public class SearchPerfTest {
     System.out.println("Using dir impl " + dir0.getClass().getName());
     System.out.println("Analyzer " + analyzer);
     System.out.println("Similarity " + similarity);
-    System.out.println("Search thread count " + searchThreadCount);
+    System.out.println("Number of concurrent queries " + numConcurrentQueries);
     System.out.println("topN " + topN);
     System.out.println("JVM " + (Constants.JRE_IS_64BIT ? "is" : "is not") + " 64bit");
     System.out.println("Pointer is " + RamUsageEstimator.NUM_BYTES_OBJECT_REF + " bytes");
-    System.out.println("Concurrent segment reads is " + doConcurrentSearches);
+    System.out.println("Concurrent segment reads is " + searchConcurrency);
  
     final Analyzer a;
     if (analyzer.equals("EnglishAnalyzer")) {
@@ -265,10 +298,31 @@ public class SearchPerfTest {
     final boolean verifyCheckSum = !args.getFlag("-skipVerifyChecksum");
     final boolean recacheFilterDeletes = args.getFlag("-recacheFilterDeletes");
     final String vectorDict;
+    final Path vectorFilePath;
+    final int vectorDimension;
+    
     if (args.hasArg("-vectorDict")) {
       vectorDict = args.getString("-vectorDict");
-    } else {
+      vectorFilePath = null;
+      vectorDimension = -1;
+    } else if (args.hasArg("-vectorFile")) {
+      vectorFilePath = Paths.get(args.getString("-vectorFile"));
+      if (args.hasArg("-vectorDimension")) {
+        vectorDimension = args.getInt("-vectorDimension");
+        if (vectorDimension < 1) {
+          throw new RuntimeException("-vectorDimension must be > 0; got: " + vectorDimension);
+        }
+      } else {
+        throw new RuntimeException("with -vectorFile you must also provide -vectorDimension");
+      }
       vectorDict = null;
+    } else {
+      if (args.hasArg("-vectorDimension")) {
+        throw new RuntimeException("with -vectorDimension you must also provide -vectorFile");
+      }
+      vectorDict = null;
+      vectorFilePath = null;
+      vectorDimension = -1;
     }
 
     if (recacheFilterDeletes) {
@@ -436,6 +490,13 @@ public class SearchPerfTest {
       IndexSearcher s = mgr.acquire();
       try {
         System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc());
+        IndexSearcher.LeafSlice[] slices = IndexSearcher.slices(s.getIndexReader().leaves(), 250_000, 5);
+        System.out.println("Reader has " + slices.length + " slices, from " + s.getIndexReader().leaves().size() + " segments:");
+        // TODO: sort by descending segment size -- it makes it easier to eyeball the segment -> slice mapping.  OR, maybe just
+        // print the slices not the segments?
+        for (LeafReaderContext leaf : s.getIndexReader().leaves()) {
+          System.out.println("  " + ((SegmentReader) leaf.reader()).getSegmentName() + " has maxDoc=" + leaf.reader().maxDoc());
+        }
       } finally {
         mgr.release(s);
       }
@@ -537,30 +598,33 @@ public class SearchPerfTest {
       vectorDictionary = null;
     }
     TaskParserFactory taskParserFactory =
-            new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, doStoredLoads);
+      new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads);
 
     final TaskSource tasks;
 
-    if (tasksFile.startsWith("server:")) {
-      int idx = tasksFile.indexOf(':', 8);
-      if (idx == -1) {
-        throw new RuntimeException("server is missing the port; should be server:interface:port (got: " + tasksFile + ")");
-      }
-      String iface = tasksFile.substring(7, idx);
-      int port = Integer.valueOf(tasksFile.substring(1+idx));
-      RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, searchThreadCount, taskParserFactory.getTaskParser());
+    try (TaskParser taskParser = taskParserFactory.getTaskParser()) {
+      if (tasksFile.startsWith("server:")) {
+        // TODO: what is this "server:" tasks source!?  does it still work?
+        int idx = tasksFile.indexOf(':', 8);
+        if (idx == -1) {
+          throw new RuntimeException("server is missing the port; should be server:interface:port (got: " + tasksFile + ")");
+        }
+        String iface = tasksFile.substring(7, idx);
+        int port = Integer.valueOf(tasksFile.substring(1+idx));
+        RemoteTaskSource remoteTasks = new RemoteTaskSource(iface, port, numConcurrentQueries, taskParser);
 
-      // nocommit must stop thread?
-      tasks = remoteTasks;
-    } else {
-      // Load the tasks from a file:
-      final int taskRepeatCount = args.getInt("-taskRepeatCount");
-      final int numTaskPerCat = args.getInt("-tasksPerCat");
-      tasks = new LocalTaskSource(indexState, tasksFile, taskParserFactory.getTaskParser(), staticRandom, random,
-              numTaskPerCat, taskRepeatCount, doPKLookup, doConcurrentSearches);
-      System.out.println("Task repeat count " + taskRepeatCount);
-      System.out.println("Tasks file " + tasksFile);
-      System.out.println("Num task per cat " + numTaskPerCat);
+        // nocommit must stop thread?
+        tasks = remoteTasks;
+      } else {
+        // Load the tasks from a file:
+        final int taskRepeatCount = args.getInt("-taskRepeatCount");
+        final int numTaskPerCat = args.getInt("-tasksPerCat");
+        tasks = new LocalTaskSource(indexState, tasksFile, taskParser, staticRandom, random,
+                                    numTaskPerCat, taskRepeatCount, doPKLookup, false);
+        System.out.println("Task repeat count " + taskRepeatCount);
+        System.out.println("Tasks file " + tasksFile);
+        System.out.println("Num task per cat " + numTaskPerCat);
+      }
     }
 
     args.check();
@@ -568,15 +632,48 @@ public class SearchPerfTest {
     // Evil respeller:
     //spellChecker.setMinPrefix(0);
     //spellChecker.setMaxInspections(1024);
-    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, searchThreadCount, taskParserFactory);
+
+    // set by the first coordinator thread that sees end of tasks:
+    AtomicReference<ThreadDetails> endThreadDetailsRef = new AtomicReference<>();
+    
+    final TaskThreads taskThreads = new TaskThreads(tasks, indexState, numConcurrentQueries, taskParserFactory, endThreadDetailsRef);
     Thread.sleep(10);
 
     final long startNanos = System.nanoTime();
     taskThreads.start();
-    taskThreads.finish();
-    final long endNanos = System.nanoTime();
 
-    System.out.println("\n" + ((endNanos - startNanos)/1000000.0) + " msec total");
+    // TODO: pull this into thread so that if tasks finish before warmup, we break out of this sleep and exit with TestWasTooShortException!!
+    Thread.sleep(WARMUP_MSEC);
+
+    // capture CPU of all running threads, after warmup:
+    ThreadDetails startThreadDetails = new ThreadDetails();
+    taskThreads.finish();
+
+    ThreadDetails endThreadDetails = endThreadDetailsRef.get();
+    
+    if (startThreadDetails.threadIDs.length != endThreadDetails.threadIDs.length) {
+      for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+        System.out.println(i + ": " + startThreadDetails.threadIDs[i] + " -> " + startThreadDetails.threadInfos[i].getThreadName() + " CPU=" + startThreadDetails.cpuTimesNS[i]);
+      }
+      for(int i=0;i<endThreadDetails.threadIDs.length;i++) {
+        System.out.println(i + ": " + endThreadDetails.threadIDs[i] + " -> " + endThreadDetails.threadInfos[i].getThreadName());
+      }
+      throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " + endThreadDetails.threadIDs.length);
+    }
+
+    long sumCPUTimeNS = 0;
+    for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+      if (startThreadDetails.threadIDs[i] != endThreadDetails.threadIDs[i]) {
+        throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs[i] + " vs " + endThreadDetails.threadIDs[i]);
+      }
+      sumCPUTimeNS += endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i];
+      System.out.println("thread " + startThreadDetails.threadIDs[i] + " name=" + startThreadDetails.threadInfos[i].getThreadName() + " cpu@start=" + startThreadDetails.cpuTimesNS[i] + " cpu@end=" + endThreadDetails.cpuTimesNS[i] +
+                         " deltaMS=" + nsToMS(endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i]));
+    }
+    double elapsedMS = nsToMS(endThreadDetails.ns - startThreadDetails.ns);
+    double avgCPUCount = nsToMS(sumCPUTimeNS) / elapsedMS;
+                                               
+    System.out.println("\nAverage CPU cores used: " + avgCPUCount);
 
     final List<Task> allTasks = tasks.getAllTasks();
 
@@ -589,6 +686,9 @@ public class SearchPerfTest {
 
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 
+      out.println("\nStart of tasks winddown: " + nsToMS(endThreadDetails.ns - startNanos) + " msec");
+      out.println("\nElapsed MS (excluding warmup and winddown): elapsedMS");
+      out.println("\nAverage CPU cores used: " + avgCPUCount);
       out.println("\nResults for " + allTasks.size() + " tasks:");
 
       boolean fail = false;
@@ -609,7 +709,7 @@ public class SearchPerfTest {
           }
         }
         out.println("\nTASK: " + task);
-        out.println("  " + (task.runTimeNanos/1000000.0) + " msec");
+        out.println("  " + nsToMS(task.runTimeNanos) + " msec @ " + ((task.startTimeNanos - startNanos)/1000000.0) + " msec");
         out.println("  thread " + task.threadID);
         task.printResults(out, indexState);
       }

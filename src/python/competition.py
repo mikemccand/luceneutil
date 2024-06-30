@@ -25,6 +25,9 @@ import searchBench
 import subprocess
 import time
 
+if hasattr(constants, 'SEARCH_NUM_THREADS'):
+  raise RuntimeError('please rename your localconstants.py SEARCH_NUM_THREADS to SEARCH_NUM_CONCURRENT_QUERIES')
+
 class Data(object):
   
   def __init__(self, name, lineFile, numDocs, tasksFile):
@@ -208,6 +211,12 @@ class Index(object):
     self.indexSort = indexSort
     self.vectorFile = vectorFile
     self.vectorDimension = vectorDimension
+    if vectorFile is not None:
+      if vectorEncoding not in ('FLOAT32', 'BYTE'):
+        raise RuntimeError(f'vectorEncoding must be FLOAT32 or BYTE; got: {vectorEncoding}')
+    elif vectorEncoding is not None:
+      raise RuntimeError(f'vectorEncoding must be None when there are no vectors to index (vectorFile is None)')
+      
     self.vectorEncoding = vectorEncoding
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
@@ -275,7 +284,7 @@ class Competitor(object):
 
   def __init__(self, name, checkout,
                index = None,
-               numThreads = constants.SEARCH_NUM_THREADS,
+               numConcurrentQueries = constants.SEARCH_NUM_CONCURRENT_QUERIES,
                directory = 'MMapDirectory',
                analyzer = None,
                commitPoint = 'multi',
@@ -284,16 +293,17 @@ class Competitor(object):
                printHeap = False,
                hiliteImpl = 'FastVectorHighlighter',
                pk = True,
-               vectorDict = None,
-               vectorScale = None,
+               vectorDict = None,     # query time vectors
+               vectorFileName = None, # query time vectors
+               vectorDimension = -1,  # query time vectors
+               vectorScale = None,    # query time vectors
                loadStoredFields = False,
                exitable = False,
-               concurrentSearches = False,
+               searchConcurrency = 0,
                javacCommand = constants.JAVAC_EXE,
                topN = 100):
     self.name = name
     self.checkout = checkout
-    self.numThreads = numThreads
     self.index = index
     self.directory = directory
     if analyzer is None:
@@ -310,10 +320,28 @@ class Competitor(object):
     self.pk = pk
     self.loadStoredFields = loadStoredFields
     self.exitable = exitable
+    if vectorDict is not None and vectorFileName is not None:
+      raise RuntimeError('specify either vectorDict or vectorFileName, not both')
+    if vectorFileName is not None and vectorDimension < 1:
+      raise RuntimeError(f'with vectorFileNamee you must specific vectorDimension > 0 (got: {vectorDimension})')
+    if vectorDict is not None and vectorDimension != -1:
+      raise RuntimeError(f'with vectorDict, vectorDimension should be -1 (got: {vectorDimension})')
     self.vectorDict = vectorDict
+    self.vectorFileName = vectorFileName
+    self.vectorDimension = vectorDimension
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
-    self.concurrentSearches = concurrentSearches
+
+    # nocommit
+    if False and searchConcurrency != 0 and numConcurrentQueries > 1:
+      raise RuntimeError(f'when searchConcurrency != 0 (got: {searchConcurrency}) you must specify numConcurrentQueries = 1 (got: {numConcurrentQueries}), otherwise you might see falsely low effective QPS')
+
+    # how many queries are in flight at once (one query per request thread)
+    self.numConcurrentQueries = numConcurrentQueries
+
+    # how many "worker threads" are used when executing each query concurrently
+    self.searchConcurrency = searchConcurrency
+
     # TopN: how many hits are retrieved
     self.topN = topN
 
@@ -332,19 +360,24 @@ class Competitor(object):
 
       command = constants.JAVA_COMMAND.split(' ') + \
         ['-cp',
-         f'{benchUtil.checkoutToPath(self.checkout)}/buildSrc/build/classes/java/main',
+         f'{benchUtil.checkoutToPath(self.checkout)}/build-tools/build-infra/build/classes/java/main',
          f'-Dtests.profile.mode={mode}',
          f'-Dtests.profile.stacksize={size}',
          f'-Dtests.profile.count={count}',
          'org.apache.lucene.gradle.ProfileResults'] + \
          glob.glob(f'{constants.LOGS_DIR}/bench-search-{id}-{self.name}-*.jfr')
 
-      # print(f'JFR aggregation command: {" ".join(command)}')
+      print(f'JFR aggregation command: {" ".join(command)}')
       t0 = time.time()
-      result = subprocess.run(command,
-                              stdout = subprocess.PIPE,
-                              stderr = subprocess.STDOUT,
-                              check = True)
+      try:
+        result = subprocess.run(command,
+                                stdout = subprocess.PIPE,
+                                stderr = subprocess.STDOUT,
+                                check = True)
+      except subprocess.CalledProcessError as e:
+        print(f'command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}')
+        raise
+        
       t1 = time.time()
       print(f'Took {t1-t0:.2f} seconds')
       results.append((size, result.stdout.decode('utf-8')))

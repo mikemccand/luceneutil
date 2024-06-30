@@ -344,7 +344,7 @@ final class SearchTask extends Task {
         totalHitCount = new TotalHits(groupsResultBlock.totalHitCount, TotalHits.Relation.EQUAL_TO);
       }
     } catch (Throwable t) {
-      System.out.println("EXC: " + q);
+      System.out.println("EXC: " + this);
       throw new RuntimeException(t);
       //System.out.println("TE: " + TermsEnum.getStats());
     } finally {

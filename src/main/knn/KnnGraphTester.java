@@ -73,6 +73,7 @@ import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
@@ -85,7 +86,12 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.NeighborQueue;
-import org.apache.lucene.util.hppc.IntIntHashMap;
+//TODO Lucene may make these unavailable, we should pull in this from hppc directly
+import org.apache.lucene.internal.hppc.IntIntHashMap;
+
+// e.g. to compile with zero build tooling!:
+//
+//   cd /l/util; javac -d build -cp /l/trunk/lucene/core/build/classes/java/main src/main/knn/*.java 
 
 /**
  * For testing indexing and search performance of a knn-graph
@@ -102,7 +108,7 @@ public class KnnGraphTester {
   private int dim;
   private int topK;
   private int numIters;
-  private int fanout;
+  private int fanout; // nocommit is this used anywhere :)  seems to be query time parameter...?
   private Path indexPath;
   private boolean quiet;
   private boolean reindex;
@@ -719,6 +725,7 @@ public class KnnGraphTester {
     return bitSet;
   }
 
+  /** Brute force computation of "true" nearest neighhbors. */
   private int[][] computeNN(Path docPath, Path queryPath, VectorEncoding encoding)
       throws IOException {
     int[][] result = new int[numIters][];
@@ -731,6 +738,8 @@ public class KnnGraphTester {
       VectorReader queryReader = VectorReader.create(qIn, dim, encoding);
       for (int i = 0; i < numIters; i++) {
         float[] query = queryReader.next();
+        // System.out.println("vec: dim=" + query.length + ": " + Arrays.toString(query));
+        
         NeighborQueue queue = new NeighborQueue(topK, false);
         for (int j = 0; j < numDocs; j++) {
           float[] doc = docReader.next();
@@ -755,7 +764,7 @@ public class KnnGraphTester {
     return result;
   }
 
-  private static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, boolean quantizeCompress) {
+  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, boolean quantizeCompress) {
     if (exec == null) {
       return new Lucene99Codec() {
         @Override
@@ -827,10 +836,20 @@ public class KnnGraphTester {
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
         throws IOException {
       return new ConstantScoreWeight(this, boost) {
+        Scorer scorer = new ConstantScoreScorer(score(), scoreMode, new BitSetIterator(docs, cardinality));
         @Override
-        public Scorer scorer(LeafReaderContext context) throws IOException {
-          return new ConstantScoreScorer(
-              this, score(), scoreMode, new BitSetIterator(docs, cardinality));
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+          return new ScorerSupplier() {
+            @Override
+            public Scorer get(long leadCost) throws IOException {
+              return scorer;
+            }
+
+            @Override
+            public long cost() {
+              return cardinality;
+            }
+          };
         }
 
         @Override

@@ -50,8 +50,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
@@ -209,7 +209,7 @@ public class LineFileDocs implements Closeable {
       .order(ByteOrder.LITTLE_ENDIAN);
     int n = vectorChannel.read(buffer);
     if (n != count * vectorDimension * Float.BYTES) {
-      throw new RuntimeException("expected " + count * vectorDimension * Float.BYTES + " vector bytes but read " + n);
+      throw new RuntimeException("expected " + count * vectorDimension * Float.BYTES + " vector bytes (count=" + count + " vectorDimension=" + vectorDimension + ") but read " + n);
     }
     buffer.position(0);
     buffer.asFloatBuffer().get(vector);
@@ -564,7 +564,6 @@ public class LineFileDocs implements Closeable {
     if (isBinary) {
 
       float[] vector = new float[vectorDimension];
-      FloatBuffer vectorBuffer = null;
 
       LineFileDoc lfd;
 

@@ -248,13 +248,13 @@ public final class Indexer {
     int vectorDimension;
     VectorEncoding vectorEncoding;
     if (args.hasArg("-vectorFile")) {
-        vectorFile = args.getString("-vectorFile");
-        vectorDimension = args.getInt("-vectorDimension");
-        vectorEncoding = VectorEncoding.valueOf(args.getString("-vectorEncoding"));
+      vectorFile = args.getString("-vectorFile");
+      vectorDimension = args.getInt("-vectorDimension");
+      vectorEncoding = VectorEncoding.valueOf(args.getString("-vectorEncoding"));
     } else {
-        vectorFile = null;
-        vectorDimension = 0;
-        vectorEncoding = null;
+      vectorFile = null;
+      vectorDimension = 0;
+      vectorEncoding = null;
     }
 
     // -1 means all docs in the line file:
@@ -454,10 +454,6 @@ public final class Indexer {
         System.out.println("Concurrent HNSW merge enabled: " + hnswThreadsPerMerge + " threads per merge, drawing from shared thread pool with " + hnswThreadPoolCount + " fixed threads");
       }
     
-      if (verbose) {
-        InfoStream.setDefault(new PrintStreamInfoStream(System.out));
-      }
-
       // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
       final Codec codec = new Lucene99Codec() {
           @Override
@@ -518,10 +514,12 @@ public final class Indexer {
 
         iwc.setMaxBufferedDocs(maxBufferedDocs);
         iwc.setRAMBufferSizeMB(ramBufferSizeMB);
+        if (verbose) {
+          iwc.setInfoStream(new PrintStreamInfoStream(System.out));
+        }
 
         // So flushed segments do/don't use CFS:
         iwc.setUseCompoundFile(useCFS);
-
 
         iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, ioThrottle));
         iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
@@ -541,7 +539,6 @@ public final class Indexer {
       };
 
       final IndexWriterConfig iwc = getIWC.call();
-
 
       System.out.println("IW config=" + iwc);
 
@@ -686,7 +683,7 @@ public final class Indexer {
         System.out.println("Taxonomy has " + taxoWriter.getSize() + " ords");
         taxoWriter.commit();
         taxoWriter.close();
-        SegmentInfos infos = SegmentInfos.readLatestCommit(dir);
+        SegmentInfos infos = SegmentInfos.readLatestCommit(taxoDir);
         System.out.println("Taxonomy size (as committed) " + sizeInBytes(infos) + " bytes");
         System.out.println("Taxonomy Directory total size " + sizeInBytes(taxoDir) + " bytes");
       }
@@ -699,7 +696,7 @@ public final class Indexer {
       if (waitForCommit) {
         SegmentInfos infos = SegmentInfos.readLatestCommit(dir);
         System.out.println("\nIndex size (as committed): " + sizeInBytes(infos) + " bytes");
-        System.out.println("\nIndexer: at close: " + infos);
+        System.out.println("\nIndexer: at close: " + infos.size() + " segments: " + infos);
         System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
       }
 

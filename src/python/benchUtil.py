@@ -738,6 +738,9 @@ def agg(iters, cat, name, verifyCounts):
         for t in allMS:
           print('      %.4f' % t)
 
+      if len(allMS) <= WARM_SKIP:
+        raise RuntimeError(f'only {len(allMS)} runs (<= warmup={WARM_SKIP}) in cat {cat} for task {task}')
+
       # Skip warmup runs
       allMS = allMS[WARM_SKIP:]
 

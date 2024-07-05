@@ -42,6 +42,8 @@ import static perf.TaskParser.parseCategory;
 class LocalTaskSource implements TaskSource {
   private final List<Task> tasks;
   private final AtomicInteger nextTask = new AtomicInteger();
+  private double pctNextPrint;
+  private int taskCountNextPrint;
 
   public LocalTaskSource(IndexState indexState, String tasksFile, TaskParser taskParser,
                          Random staticRandom, Random random, int numTaskPerCat, int taskRepeatCount,
@@ -84,6 +86,8 @@ class LocalTaskSource implements TaskSource {
     } else {
       repeatTasksShuffled(prunedTasks, taskRepeatCount, random);
     }
+    pctNextPrint = 5d;
+    taskCountNextPrint = (int) ((pctNextPrint/100) * tasks.size());
     System.out.println("TASK LEN=" + tasks.size());
     if (tasks.size() == 0) {
       throw new RuntimeException("no tasks loaded");
@@ -145,6 +149,13 @@ class LocalTaskSource implements TaskSource {
   @Override
   public Task nextTask() {
     final int next = nextTask.getAndIncrement();
+    if (next == taskCountNextPrint) {
+      System.out.println(pctNextPrint + "%... (" + next + " of " + tasks.size() + ")");
+      pctNextPrint += 5;
+      // NOTE: some risk of thread non-safety causing progress to stop printing entirely!  But this should
+      // only happen on very fast runs where we don't need to see progress anyways:
+      taskCountNextPrint = (int) ((pctNextPrint/100) * tasks.size());
+    }
     if (next >= tasks.size()) {
       return null;
     }

@@ -674,7 +674,7 @@ public class SearchPerfTest {
                                                
         System.out.println("\nAverage CPU cores used: " + avgCPUCount);
       } else {
-        System.out.println("\nAverage CPU cores used: N/A (test run was too short)");
+        System.out.println("\nAverage CPU cores used: -1\n  (test run was too short)");
       }
     } else {
       System.out.println("NOTE: start/end threads changed; cannot compute average CPU");
@@ -687,7 +687,7 @@ public class SearchPerfTest {
         System.out.println(i + ": " + endThreadDetails.threadIDs[i] + " -> " + endThreadDetails.threadInfos[i].getThreadName());
       }
       // throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " endThreadDetails.threadIDs.length);
-      System.out.println("\nAverage CPU cores used: N/A (thread IDs changed during run; maybe due to attached jstack during run?)");
+      System.out.println("\nAverage CPU cores used: -1\n  (thread IDs changed during run; maybe due to attached jstack during run?)");
     }
 
     final List<Task> allTasks = tasks.getAllTasks();

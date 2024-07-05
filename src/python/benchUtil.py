@@ -411,7 +411,7 @@ reOneGroup = re.compile('group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.
 reHeap = re.compile('HEAP: ([0-9]+)$')
 reLatencyAndStartTime = re.compile(r'^([\d.]+) msec @ ([\d.]+) msec$')
 reTasksWinddown = re.compile('^Start of tasks winddown: ([0-9.]+) msec$')
-reAvgCPUCores = re.compile('^Average CPU cores used: ([0-9.]+)$')
+reAvgCPUCores = re.compile('^Average CPU cores used: (-?[0-9.]+)$')
 
 def parse_times_line(task, line):
   m = reLatencyAndStartTime.match(line.decode('utf-8'))

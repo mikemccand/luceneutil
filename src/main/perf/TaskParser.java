@@ -152,8 +152,29 @@ class TaskParser implements Closeable {
    * First pass, parsing from String to some task, may/may not be an UnparsedTask
    * Called within TaskSource while creating tasks
    */
-  public Task firstPassParse(String line) throws ParseException {
-    return new UnparsedTask(parseCategory(line));
+  public Task firstPassParse(String line) throws ParseException, IOException {
+
+    String[] catTask = parseCategory(line);
+
+    float[] vector;
+    
+    // special case when pulling from pre-computed embeddings -- this is to ensure the same vector (copied
+    // during clone()) is searched N times when -taskRepeatCount=N.  this works for the vectorDicionary case
+    // since the same lexical tokens are inferred to embeddings on each query execution.
+    if (catTask[1].startsWith("vector//") && vectorChannel != null) {
+      vector = new float[vectorDimension];
+      ByteBuffer buffer = ByteBuffer.allocate(vectorDimension * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+      int n = vectorChannel.read(buffer);
+      if (n != vectorDimension * Float.BYTES) {
+        throw new RuntimeException("expected " + (vectorDimension * Float.BYTES) + " vector bytes but read " + n);
+      }
+      buffer.position(0);
+      buffer.asFloatBuffer().get(vector);
+    } else {
+      vector = null;
+    }
+    
+    return new UnparsedTask(catTask, vector);
   }
 
   /**
@@ -195,6 +216,9 @@ class TaskParser implements Closeable {
     Sort sort;
     String group;
 
+    // this is only set when pulling pre-computed embeddings from file:
+    private float[] vector;
+
     TaskBuilder(String line) {
       String[] categoryAndText = parseCategory(line);
       category = categoryAndText[0];
@@ -204,6 +228,7 @@ class TaskParser implements Closeable {
     TaskBuilder(UnparsedTask unparsedSearchTask) {
       category = unparsedSearchTask.getCategory();
       origText = unparsedSearchTask.getOrigText();
+      vector = unparsedSearchTask.vector;
     }
 
     Task build() throws ParseException, IOException {
@@ -687,22 +712,18 @@ class TaskParser implements Closeable {
     }
 
     Query parseVectorQuery() throws IOException {
-      float[] vector;
+      float[] queryVector;
       if (vectorChannel != null) {
-        vector = new float[vectorDimension];
-        ByteBuffer buffer = ByteBuffer.allocate(vectorDimension * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-        int n = vectorChannel.read(buffer);
-        if (n != vectorDimension * Float.BYTES) {
-          throw new RuntimeException("expected " + (vectorDimension * Float.BYTES) + " vector bytes but read " + n);
+        if (this.vector == null) {
+          throw new IllegalStateException("reading from pre-computed embeddings but pre-loaded vector is null");
         }
-        buffer.position(0);
-        buffer.asFloatBuffer().get(vector);
+        queryVector = this.vector;
       } else {
-        // search (well, task parsing) time inference from query text
-        vector = vectorDictionary.computeTextVector(text);
+        // search time inference from query text
+        queryVector = vectorDictionary.computeTextVector(text);
       }
       
-      return new KnnFloatVectorQuery(vectorField, vector, topN);
+      return new KnnFloatVectorQuery(vectorField, queryVector, topN);
     }
   }
 }

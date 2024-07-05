@@ -85,6 +85,9 @@ class LocalTaskSource implements TaskSource {
       repeatTasksShuffled(prunedTasks, taskRepeatCount, random);
     }
     System.out.println("TASK LEN=" + tasks.size());
+    if (tasks.size() == 0) {
+      throw new RuntimeException("no tasks loaded");
+    }
   }
 
   private void repeatTasksShuffled(List<Task> someTasks, int taskRepeatCount, Random random) {

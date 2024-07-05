@@ -29,16 +29,19 @@ import java.util.concurrent.atomic.AtomicReference;
 public class UnparsedTask extends Task{
     private final String category;
     private final String origText;
+    final float[] vector;
     private final AtomicReference<Task> parsedTask = new AtomicReference<>();
 
-    public UnparsedTask(String[] categoryAndText) {
+    public UnparsedTask(String[] categoryAndText, float[] vector) {
         this.category = categoryAndText[0];
         this.origText = categoryAndText[1];
+        this.vector = vector;
     }
 
-    private UnparsedTask(String category, String origText) {
+    private UnparsedTask(String category, String origText, float[] vector) {
         this.category = category;
         this.origText = origText;
+        this.vector = vector;
     }
 
     @Override
@@ -67,7 +70,7 @@ public class UnparsedTask extends Task{
 
     @Override
     public Task clone() {
-        return new UnparsedTask(category, origText);
+        return new UnparsedTask(category, origText, vector);
     }
 
     @Override

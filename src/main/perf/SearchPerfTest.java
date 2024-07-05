@@ -29,6 +29,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -149,6 +150,10 @@ public class SearchPerfTest {
 
   private static double nsToMS(long ns) {
     return ns / 1_000_000.0;
+  }
+
+  private static double msToNS(double ms) {
+    return ms * 1_000_000.0;
   }
 
   /** Snapshots all running threads and their CPU counters */
@@ -593,7 +598,7 @@ public class SearchPerfTest {
           vectorDictionary = VectorDictionary.create(vectorDict, 0, VectorEncoding.FLOAT32);
         }
       }
-      System.out.println("vector dictionary loaded from " + vectorDict + " in " + (System.nanoTime() - start) / 1_000_000 + "ms");
+      System.out.println("vector dictionary loaded from " + vectorDict + " in " + nsToMS(System.nanoTime() - start) + "ms");
     } else {
       vectorDictionary = null;
     }
@@ -644,36 +649,46 @@ public class SearchPerfTest {
 
     // TODO: pull this into thread so that if tasks finish before warmup, we break out of this sleep and exit with TestWasTooShortException!!
     Thread.sleep(WARMUP_MSEC);
+    final long postWarmupNanos = System.nanoTime();
 
     // capture CPU of all running threads, after warmup:
     ThreadDetails startThreadDetails = new ThreadDetails();
     taskThreads.finish();
+    final long finishNanos = System.nanoTime();
 
     ThreadDetails endThreadDetails = endThreadDetailsRef.get();
-    
-    if (startThreadDetails.threadIDs.length != endThreadDetails.threadIDs.length) {
+
+    double avgCPUCount = -1d;
+
+    if (Arrays.equals(startThreadDetails.threadIDs, endThreadDetails.threadIDs)) {
+      // only report CPU stats if post-warmup runtime is at least as long as warmup:
+      if ((finishNanos - postWarmupNanos) > msToNS(WARMUP_MSEC)) {
+        long sumCPUTimeNS = 0;
+        for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+          sumCPUTimeNS += endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i];
+          System.out.println("thread " + startThreadDetails.threadIDs[i] + " name=" + startThreadDetails.threadInfos[i].getThreadName() + " cpu@start=" + startThreadDetails.cpuTimesNS[i] + " cpu@end=" + endThreadDetails.cpuTimesNS[i] +
+                             " deltaMS=" + nsToMS(endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i]));
+        }
+        double elapsedMS = nsToMS(endThreadDetails.ns - startThreadDetails.ns);
+        avgCPUCount = nsToMS(sumCPUTimeNS) / elapsedMS;
+                                               
+        System.out.println("\nAverage CPU cores used: " + avgCPUCount);
+      } else {
+        System.out.println("\nAverage CPU cores used: N/A (test run was too short)");
+      }
+    } else {
+      System.out.println("NOTE: start/end threads changed; cannot compute average CPU");
+      System.out.println("\nStart threads:");
       for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
         System.out.println(i + ": " + startThreadDetails.threadIDs[i] + " -> " + startThreadDetails.threadInfos[i].getThreadName() + " CPU=" + startThreadDetails.cpuTimesNS[i]);
       }
+      System.out.println("\nEnd threads:");
       for(int i=0;i<endThreadDetails.threadIDs.length;i++) {
         System.out.println(i + ": " + endThreadDetails.threadIDs[i] + " -> " + endThreadDetails.threadInfos[i].getThreadName());
       }
-      throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " + endThreadDetails.threadIDs.length);
+      // throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " endThreadDetails.threadIDs.length);
+      System.out.println("\nAverage CPU cores used: N/A (thread IDs changed during run; maybe due to attached jstack during run?)");
     }
-
-    long sumCPUTimeNS = 0;
-    for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
-      if (startThreadDetails.threadIDs[i] != endThreadDetails.threadIDs[i]) {
-        throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs[i] + " vs " + endThreadDetails.threadIDs[i]);
-      }
-      sumCPUTimeNS += endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i];
-      System.out.println("thread " + startThreadDetails.threadIDs[i] + " name=" + startThreadDetails.threadInfos[i].getThreadName() + " cpu@start=" + startThreadDetails.cpuTimesNS[i] + " cpu@end=" + endThreadDetails.cpuTimesNS[i] +
-                         " deltaMS=" + nsToMS(endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i]));
-    }
-    double elapsedMS = nsToMS(endThreadDetails.ns - startThreadDetails.ns);
-    double avgCPUCount = nsToMS(sumCPUTimeNS) / elapsedMS;
-                                               
-    System.out.println("\nAverage CPU cores used: " + avgCPUCount);
 
     final List<Task> allTasks = tasks.getAllTasks();
 

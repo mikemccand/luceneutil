@@ -814,4 +814,8 @@ KNOWN_CHANGES = [
   ('2024-06-24',
    'Enable intra-query concurrency across 8 threads',
    'Enable intra-query concurrency across 8 threads'),
+
+  ('2024-07-05',
+   'TaskExecutor should not fork unnecessarily https://github.com/apache/lucene/pull/13472',
+   'TaskExecutor should not fork unnecessarily https://github.com/apache/lucene/pull/13472'),
 ]

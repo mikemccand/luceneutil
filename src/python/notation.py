@@ -818,4 +818,8 @@ KNOWN_CHANGES = [
   ('2024-07-05',
    'TaskExecutor should not fork unnecessarily https://github.com/apache/lucene/pull/13472',
    'TaskExecutor should not fork unnecessarily https://github.com/apache/lucene/pull/13472'),
+
+  ('2024-07-08',
+   'Replace AtomicLong with LongAdder in HitsThresholdChecker https://github.com/apache/lucene/pull/13546',
+   'Replace AtomicLong with LongAdder in HitsThresholdChecker https://github.com/apache/lucene/pull/13546'),
 ]

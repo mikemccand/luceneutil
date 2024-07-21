@@ -84,8 +84,7 @@ if __name__ == '__main__':
   # create a competitor named my_modified_version with sources in the ../patch folder
   # note that we haven't specified an index here, luceneutil will automatically use the index from the base competitor for searching 
   # while the codec that is used for running this competitor is taken from this competitor.
-  JAVA_EXE = '/usr/lib/jvm/jdk-20.0.1/bin/java'
-  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
+  JAVA_COMMAND = '%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % constants.JAVA_EXE
 
   comp.competitor('candidate', args.candidate,
                   javaCommand=JAVA_COMMAND,

@@ -822,4 +822,8 @@ KNOWN_CHANGES = [
   ('2024-07-08',
    'Replace AtomicLong with LongAdder in HitsThresholdChecker https://github.com/apache/lucene/pull/13546',
    'Replace AtomicLong with LongAdder in HitsThresholdChecker https://github.com/apache/lucene/pull/13546'),
+
+  ('2024-07-19',
+   "Stop requiring MaxScoreBulkScorer's outer window from having at least INNER_WINDOW_SIZE docs https://github.com/apache/lucene/pull/13582",
+   "Stop requiring MaxScoreBulkScorer's outer window from having at least INNER_WINDOW_SIZE docs https://github.com/apache/lucene/pull/13582"),
 ]

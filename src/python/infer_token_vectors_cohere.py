@@ -80,7 +80,6 @@ def fetch_cohere_vectors():
   while doc_upto < num_docs:
     next_doc_upto = min(doc_upto + window_num_docs, num_docs)
     ds_embs = ds[doc_upto:next_doc_upto]['emb']
-    # wiki_id, paragraph_id, emb
     ds_wiki_id = ds[doc_upto:next_doc_upto]['wiki_id']
     ds_para_id = ds[doc_upto:next_doc_upto]['paragraph_id']
     batch_size = next_doc_upto - doc_upto

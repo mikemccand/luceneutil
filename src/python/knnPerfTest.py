@@ -44,7 +44,7 @@ VALUES = {
     #'fanout': (20, 100, 250)
     'fanout': (20,),
     #'quantize': None,
-    'quantizeBits': (32, 4, 7, 8),
+    'quantizeBits': (4, 7, 8),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     'encoding': ('float32',),
@@ -76,7 +76,6 @@ def run_knn_benchmark(checkout, values):
     dim = 768
     doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
     query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
-    query_vectors = doc_vectors
     #dim = 384
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR

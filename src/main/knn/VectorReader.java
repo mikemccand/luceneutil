@@ -48,7 +48,8 @@ public abstract class VectorReader {
   }
 
   protected final void readNext() throws IOException {
-    if (this.input.read(bytes) < target.length) {
+    int bytesRead = this.input.read(bytes);
+    if (bytesRead < bytes.capacity()) {
       this.input.position(0);
       this.input.read(bytes);
     }

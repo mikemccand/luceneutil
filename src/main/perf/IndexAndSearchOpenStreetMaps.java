@@ -29,6 +29,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
@@ -73,6 +77,7 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SloppyMath;
 import org.apache.lucene.util.bkd.BKDWriter;
+import org.apache.lucene.util.NamedThreadFactory;
 
 import org.apache.lucene.document.LatLonShape;
 import org.apache.lucene.document.ShapeField;
@@ -125,8 +130,8 @@ public class IndexAndSearchOpenStreetMaps {
         DATA_LOCATION = "/home/jpountz/local/lucene/data";
         break;
       case "ivera":
-        INDEX_LOCATION = "/data/bkdtest";
-        DATA_LOCATION = "/data/";
+        INDEX_LOCATION = "/Users/ivera/data/bkdtest";
+        DATA_LOCATION = "/Users/ivera/data/";
         break;
       default:
         throw new UnsupportedOperationException("the benchmark does not know you, "+System.getProperty("user.name")+". please introduce yourself to the code and push");
@@ -604,13 +609,13 @@ public class IndexAndSearchOpenStreetMaps {
     return new double[] {bestQPS, bestMHPS};
   }
 
-  private static void queryIndex(String queryClass, int gons, int nearestTopN, String polyFile, boolean preBuildQueries, Double filterPercent, boolean doDistanceSort) throws IOException {
+  private static void queryIndex(String queryClass, int gons, int nearestTopN, String polyFile, boolean preBuildQueries, Double filterPercent, boolean doDistanceSort, ExecutorService executorService) throws IOException {
     IndexSearcher[] searchers = new IndexSearcher[NUM_PARTS];
     Directory[] dirs = new Directory[NUM_PARTS];
     long sizeOnDisk = 0;
     for(int part=0;part<NUM_PARTS;part++) {
       dirs[part] = FSDirectory.open(Paths.get(getName(part, doDistanceSort)));
-      searchers[part] = new IndexSearcher(DirectoryReader.open(dirs[part]));
+      searchers[part] = new IndexSearcher(DirectoryReader.open(dirs[part]), executorService);
       searchers[part].setQueryCache(null);
       for(String name : dirs[part].listAll()) {
         sizeOnDisk += dirs[part].fileLength(name);
@@ -1129,6 +1134,7 @@ public class IndexAndSearchOpenStreetMaps {
 
   public static void main(String[] args) throws IOException, InterruptedException {
     int count = 0;
+    int numSearchThreads = -1;
     boolean reindex = false;
     boolean fastReindex = false;
     Double filterPercent = null;
@@ -1145,6 +1151,16 @@ public class IndexAndSearchOpenStreetMaps {
         reindex = true;
       } else if (arg.equals("-full")) {
         SMALL = false;
+      } else if (arg.equals("-searchConcurrency")) {
+        if (i + 1 < args.length) {
+          numSearchThreads = Integer.parseInt(args[i+1]);
+          if (numSearchThreads < 0) {
+            throw new IllegalArgumentException("numSearchThreads must be >= 0; got " + numSearchThreads);
+          }
+          i++;
+        } else {
+          throw new IllegalArgumentException("missing numSearchThreads argument to -searchConcurrency");
+        }
       } else if (arg.equals("-reindexFast")) {
         reindex = true;
         fastReindex = true;
@@ -1266,6 +1282,18 @@ public class IndexAndSearchOpenStreetMaps {
     if (reindex) {
       createIndex(fastReindex, forceMerge, doDistanceSort);
     }
-    queryIndex(queryClass, gons, nearestTopN, polyFile, preBuildQueries, filterPercent, doDistanceSort);
+    if (numSearchThreads == -1) {
+      numSearchThreads = Runtime.getRuntime().availableProcessors();
+    }
+    final ExecutorService executorService = numSearchThreads > 0
+            ? new ThreadPoolExecutor(numSearchThreads, numSearchThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("ConcurrentSearches"))
+            : null;
+    try {
+      queryIndex(queryClass, gons, nearestTopN, polyFile, preBuildQueries, filterPercent, doDistanceSort, executorService);
+    } finally {
+      if (executorService != null) {
+        executorService.shutdown();
+      }
+    }
   }
 }

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import multiprocessing
-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -17,10 +15,15 @@ import multiprocessing
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import multiprocessing
+import os
+
+from localconstants import *
+
+
 # NOTE: you must have a localconstants.py that, minimally, defines
 # BASE_DIR; all your checkouts should be under BASE_DIR, ie
 # BASE_DIR/aaa BASE_DIR/bbb etc.
-from localconstants import *
 
 if 'BENCH_BASE_DIR' not in globals():
   BENCH_BASE_DIR = '%s/util' % BASE_DIR
@@ -99,10 +102,15 @@ INDEX_DIR_BASE = '%s/indices' % BASE_DIR
 
 GIT_EXE = 'git'
 
+# configure java executables
+JAVA_HOME = os.environ.get('JAVA_HOME')
+java_bin = JAVA_HOME + '/bin/' if JAVA_HOME else ''
+if java_bin:
+  print('Using java from: %s' % java_bin)
 if 'JAVA_EXE' not in globals():
-  JAVA_EXE = 'java'
+  JAVA_EXE = '{}java'.format(java_bin)
 if 'JAVAC_EXE' not in globals():
-  JAVAC_EXE = 'javac'
+  JAVAC_EXE = '{}javac'.format(java_bin)
 if 'JAVA_COMMAND' not in globals():
   JAVA_COMMAND = '%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
 else:

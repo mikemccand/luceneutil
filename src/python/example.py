@@ -17,6 +17,7 @@
 
 import argparse
 import competition
+import os
 
 # simple example that runs benchmark with WIKI_MEDIUM source and taks files 
 # Baseline here is ../lucene_baseline versus ../lucene_candidate
@@ -27,9 +28,9 @@ if __name__ == '__main__':
                       help='Data source to run the benchmark on.')
   parser.add_argument('-searchConcurrency', '--searchConcurrency', default='-1', type=int,
                       help='Search concurrency, 0 for disabled, -1 for using all cores')
-  parser.add_argument('-b', '--baseline', default='lucene_baseline',
+  parser.add_argument('-b', '--baseline', default=os.environ.get('BASELINE') or 'lucene_baseline',
                       help='Path to lucene repo to be used for baseline')
-  parser.add_argument('-c', '--candidate', default='lucene_candidate',
+  parser.add_argument('-c', '--candidate', default=os.environ.get('CANDIDATE') or 'lucene_candidate',
                       help='Path to lucene repo to be used for candidate')
   parser.add_argument('-r', '--reindex', action='store_true',
                       help='Reindex data for candidate run')

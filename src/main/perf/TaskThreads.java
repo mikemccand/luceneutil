@@ -19,8 +19,11 @@ package perf;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.lucene.util.SameThreadExecutorService;
 
 public class TaskThreads {  
 
@@ -93,6 +96,11 @@ public class TaskThreads {
         return;
       }
 
+      ExecutorService executor = indexState.executor;
+      if (executor == null) {
+        executor = new SameThreadExecutorService();
+      }
+
       try {
         while (stop.get() == false) {
           final Task task = tasks.nextTask();
@@ -103,19 +111,26 @@ public class TaskThreads {
             endThreadDetails.compareAndSet(null, new SearchPerfTest.ThreadDetails());
             break;
           }
-          task.startTimeNanos = System.nanoTime();
-          try {
-            task.go(indexState, taskParser);
-          } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-          }
-          try {
-            tasks.taskDone(task, task.startTimeNanos-task.recvTimeNS, task.totalHitCount);
-          } catch (Exception e) {
-            System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
-            e.printStackTrace();
-          }
-          task.runTimeNanos = System.nanoTime()-task.startTimeNanos;
+
+          // Run the task in the IndexSearcher's executor. This is important because IndexSearcher#search also uses the current thread to
+          // search, so not running #search from the executor would artificially use one more thread than configured via luceneutil.
+          // We're counting time within the task to not include forking time for the top-level search in the reported time.
+          executor.submit(() -> {
+            task.startTimeNanos = System.nanoTime();
+            try {
+              task.go(indexState, taskParser);
+            } catch (IOException ioe) {
+              throw new RuntimeException(ioe);
+            }
+            try {
+              tasks.taskDone(task, task.startTimeNanos-task.recvTimeNS, task.totalHitCount);
+            } catch (Exception e) {
+              System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
+              e.printStackTrace();
+            }
+            task.runTimeNanos = System.nanoTime()-task.startTimeNanos;
+          }).get();
+
           task.threadID = threadID;
         }
       } catch (Exception e) {

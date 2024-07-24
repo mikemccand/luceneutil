@@ -573,7 +573,7 @@ public class SearchPerfTest {
     final Random random = new Random(randomSeed);
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
+    final IndexState indexState = new IndexState(executorService, mgr, taxoReader, fieldName, spellChecker, hiliteImpl, facetsConfig, facetDimMethods);
 
     VectorDictionary vectorDictionary;
     if (vectorDict != null) {

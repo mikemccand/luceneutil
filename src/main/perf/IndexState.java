@@ -22,6 +22,8 @@ import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.facet.FacetsConfig;
@@ -46,6 +48,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
 class IndexState {
+  public final ExecutorService executor;
   public final ReferenceManager<IndexSearcher> mgr;
   public final DirectSpellChecker spellChecker;
   public final Query groupEndQuery;
@@ -63,8 +66,9 @@ class IndexState {
   public final Map<Object, ThreadLocal<PointsPKLookupState>> pointsPKLookupStates = new HashMap<>();
   public final Map<Object, ThreadLocal<PKLookupWithTermStateState>> pkLookupWithTermStateStates = new HashMap<>();
 
-  public IndexState(ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName, DirectSpellChecker spellChecker,
-                    String hiliteImpl, FacetsConfig facetsConfig, Map<String,Integer> facetFields) throws IOException {
+  public IndexState(ExecutorService executor, ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName,
+                    DirectSpellChecker spellChecker, String hiliteImpl, FacetsConfig facetsConfig, Map<String,Integer> facetFields) throws IOException {
+    this.executor = executor;
     this.mgr = mgr;
     this.spellChecker = spellChecker;
     this.textFieldName = textFieldName;

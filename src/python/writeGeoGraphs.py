@@ -61,6 +61,7 @@ KNOWN_CHANGES = (
   ('2022-09-28', 'GITHUB#11824: recover performance regression of LatLonPoint#newPolygonQuery'),
   ('2022-12-13', 'GITHUB#12006: Do int compare instead of ArrayUtil#compareUnsigned4 in LatlonPointQueries'),
   ('2024-03-02', 'Upgrade to Java 21, and improved Lucene\'s MMapDirectory to use only Panama\'s MemorySegment APIs'),
+  ('2024-07-25', 'Enable intra-query concurrency using all cores'),
 )
 
 def toString(timeStamp):

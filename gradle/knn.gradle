@@ -66,7 +66,8 @@ for (entry in baseDataSets) {
         dependsOn compileKnn
         dependsOn extractVectorTasks
 
-        classpath = luceneFT
+        classpath luceneFT
+        classpath buildDir
         mainClass = 'WikiVectors'
 
         args(attachQuantizeArgs(
@@ -81,7 +82,8 @@ for (entry in baseDataSets) {
     task "vector-${entry.key}-docVec" (type: JavaExec) {
         dependsOn compileKnn
 
-        classpath = luceneFT
+        classpath luceneFT
+        classpath buildDir
         mainClass = 'WikiVectors'
 
         args(attachQuantizeArgs(
@@ -120,7 +122,8 @@ for (entry in highDimDataSets) {
         dependsOn extractVectorTasks
         dependsOn "infer-vector-${entry.value.codename}"
 
-        classpath = luceneFT
+        classpath luceneFT
+        classpath buildDir
         mainClass = 'WikiVectors'
 
         args(attachQuantizeArgs(
@@ -137,7 +140,8 @@ for (entry in highDimDataSets) {
         dependsOn compileKnn
         dependsOn "infer-vector-${entry.value.codename}"
 
-        classpath = luceneFT
+        classpath luceneFT
+        classpath buildDir
         mainClass = 'WikiVectors'
 
         args(attachQuantizeArgs(

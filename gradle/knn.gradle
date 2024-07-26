@@ -15,9 +15,9 @@ def baseDataSets = [
         "300-8bit": new VectorDataSet("300d", "glove.6B.300d.txt", "300", "8bit"),
 ]
 def highDimDataSets = [
-        "minilm": new VectorDataSet("minilm", null, "384"),
+        "minilm": new VectorDataSet("minilm", "all-MiniLM-L6-v2", "384"),
         "minilm-8bit": new VectorDataSet("minilm", null, "384", "8bit"),
-        "mpnet": new VectorDataSet("mpnet", null, "768"),
+        "mpnet": new VectorDataSet("mpnet", "all-mpnet-base-v2", "768"),
         "mpnet-8bit": new VectorDataSet("mpnet", null, "768", "8bit")
 ]
 
@@ -94,23 +94,31 @@ for (entry in baseDataSets) {
 }
 
 for (entry in highDimDataSets) {
-    def tokFile = "enwiki-20120502.all-${entry.key}.tok"
-    def vecFile = "enwiki-20120502.all-${entry.key}.vec"
-    task "infer-vector-${entry.key}" (type: Exec) {
-        workingDir rootProject.getRootDir()
+    def tokFile = "enwiki-20120502-${entry.value.codename}.tok"
+    def vecFile = "enwiki-20120502-${entry.value.codename}.vec"
+    if (entry.value.quantized == false) {
+        // only define once
+        task "infer-vector-${entry.value.codename}" (type: Exec) {
+            workingDir rootProject.getRootDir()
 
-        commandLine('python3',
-                'src/python/infer_token_vectors.py',
-                "$dataDir/$textDocFileName",
-                "$dataDir/$tokFile",
-                "$dataDir/$vecFile"
-        )
+            commandLine('python3',
+                    'src/python/infer_token_vectors.py',
+                    "$dataDir/$textDocFileName",
+                    "$dataDir/$tokFile",
+                    "$dataDir/$vecFile",
+                    "${entry.value.dictFileName}"
+            )
+
+            onlyIf("the file has not been generated") {
+                (file("$dataDir/$tokFile").exists() == false) || (file("$dataDir/$vecFile").exists() == false)
+            }
+        }
     }
 
     task "vector-${entry.key}-taskVec" (type: JavaExec) {
         dependsOn compileKnn
         dependsOn extractVectorTasks
-        dependsOn "infer-vector-${entry.key}"
+        dependsOn "infer-vector-${entry.value.codename}"
 
         classpath = luceneFT
         mainClass = 'WikiVectors'
@@ -127,7 +135,7 @@ for (entry in highDimDataSets) {
 
     task "vector-${entry.key}-docVec" (type: JavaExec) {
         dependsOn compileKnn
-        dependsOn "infer-vector-${entry.key}"
+        dependsOn "infer-vector-${entry.value.codename}"
 
         classpath = luceneFT
         mainClass = 'WikiVectors'
@@ -175,7 +183,7 @@ task "vectors-mpnet" {
 
 class VectorDataSet {
     String codename
-    String dictFileName
+    String dictFileName // we use it as model name in high dimension vector data
     String taskVecFileName
     String docVecFileName
     String dimension

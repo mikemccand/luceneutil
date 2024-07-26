@@ -2,7 +2,7 @@
 
   <property name="data.dir" value="${basedir}/../data"/>
   <property name="tasks.dir" value="${basedir}/tasks"/>
-  <property name="lucene.checkout" value="${basedir}/../lucene_baseline"/>
+  <property name="lucene.checkout" value="${basedir}/../candidate"/>
 
   <target name="build">
 

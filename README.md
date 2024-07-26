@@ -171,9 +171,8 @@ how to run it in its comments.
 
 By default we use 100/300 dimension vectors, to use higher dimension vectors (more than 384, check `highDimDataSets` in `gradle/knn.gradle`), you need to:
 
-1. set the model you need by editing `infer_token_vectors.py`, The supported models are listed there in comments. E.g. for 768 dimensions you need `enwiki-20120502-mpnet.vec` and `enwiki-20120502-mpnet.tok` as output file and you need to set the model to `model = SentenceTransformer('all-mpnet-base-v2')` by edit `infer_token_vectors.py` (which is already the default).
-2. run `./gradlew vectors-mpnet` or `./gradlew vectors-minilm` depend on your needs (this step will run `infer_token_vectors.py` for you, and then generate task and document vectors)
-3. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 
+1. run `./gradlew vectors-mpnet` or `./gradlew vectors-minilm` depend on your needs (this step will run `infer_token_vectors.py` for you, and then generate task and document vectors)
+2. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 
 
 To test vector search with [Cohere/wikipedia-22-12-en-embeddings](https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings) dataset, you need to do:
 1. run `python src/python/infer_token_vectors_cohere.py ../data/cohere-wikipedia-768.vec 10000000 ../data/cohere-wikipedia-queries-768.vec 10000` to generate vectors

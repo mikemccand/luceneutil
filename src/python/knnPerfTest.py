@@ -3,6 +3,7 @@
 import subprocess
 import benchUtil
 import constants
+from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
 
@@ -13,17 +14,17 @@ import constants
 # unzip glove.6B.zip
 # unlzma enwiki-20120502-lines-1k.txt.lzma
 ### Create document and task vectors
-# ant vectors100
+# ./gradlew vectors-100
 #
-# then run this file: python src/python/knnPerfTest.py
+# change the parameters below and then run (you can still manually run this file, but using gradle command
+# below will auto recompile if you made any changes to java files in luceneutils)
+# ./gradlew runKnnPerfTest
 #
 # you may want to modify the following settings:
 
 
-# Where the version of Lucene is that will be tested. Expected to be in the base dir above luceneutil.
-#LUCENE_CHECKOUT = 'baseline'
-# LUCENE_CHECKOUT = 'candidate'
-LUCENE_CHECKOUT = 'trunk'
+# Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
+LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
 # e.g. to compile KnnIndexer:
 #
@@ -31,7 +32,7 @@ LUCENE_CHECKOUT = 'trunk'
 #
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
-VALUES = {
+PARAMS = {
     #'ndoc': (10000, 100000, 1000000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
@@ -96,7 +97,6 @@ def run_knn_benchmark(checkout, values):
            '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
            'knn.KnnGraphTester']
-    print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
     while advance(indexes, values):
         print('\nNEXT:')
         pv = {}
@@ -128,7 +128,8 @@ def run_knn_benchmark(checkout, values):
             # '-forceMerge',
             '-quiet']
         print(f'  cmd: {this_cmd}')
+        print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
         subprocess.run(this_cmd, check=True)
 
 
-run_knn_benchmark(LUCENE_CHECKOUT, VALUES)
+run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

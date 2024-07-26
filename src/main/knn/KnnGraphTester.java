@@ -103,6 +103,7 @@ public class KnnGraphTester {
 
   public static final String KNN_FIELD = "knn";
   public static final String ID_FIELD = "id";
+  private static final String INDEX_DIR = "knnIndices";
 
   private int numDocs;
   private int dim;
@@ -349,6 +350,7 @@ public class KnnGraphTester {
         0,
         quiet
       ).createIndex();
+      System.out.println("reindex takes " + reindexTimeMsec + " ms");
     }
     if (forceMerge) {
       forceMerge();
@@ -377,9 +379,10 @@ public class KnnGraphTester {
 
   private String formatIndexPath(Path docsPath) {
     if (quantize) {
-      return docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + "-" + quantizeBits + (quantizeCompress ? "-compressed" : "" ) + ".index";
+      return INDEX_DIR + "/" + docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + "-"
+              + quantizeBits + (quantizeCompress ? "-compressed" : "" ) + ".index";
     }
-    return docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + ".index";
+    return INDEX_DIR + "/" + docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + ".index";
   }
 
   @SuppressForbidden(reason = "Prints stuff")

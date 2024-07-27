@@ -205,3 +205,6 @@ def getLuceneDirFromGradleProperties():
   except FileNotFoundError as e:
     print("gradle.properties not found, try run ./gradlew :localSettings")
     raise e
+
+  raise ValueError("Cannot find lucene repo, please define 'external.lucene.repo' in gradle.properties")
+

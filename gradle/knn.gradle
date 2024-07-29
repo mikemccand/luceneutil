@@ -1,0 +1,213 @@
+apply plugin: 'java'
+
+
+def srcDir = "${rootProject.getRootDir()}/src/main"
+def buildDir = "${rootProject.getRootDir()}/build"
+def taskDir = "${rootProject.getRootDir()}/tasks"
+def dataDir = "${rootProject.getRootDir()}/../data"
+def textDocFileName = "enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt"
+def copiedTaskName = "vector.task.txt"
+
+def baseDataSets = [
+        "100": new VectorDataSet("100d", "glove.6B.100d.txt", "100"),
+        "100-8bit": new VectorDataSet("100d", "glove.6B.100d.txt", "100", "8bit"),
+        "300": new VectorDataSet("300d", "glove.6B.300d.txt", "300"),
+        "300-8bit": new VectorDataSet("300d", "glove.6B.300d.txt", "300", "8bit"),
+]
+def highDimDataSets = [
+        "minilm": new VectorDataSet("minilm", "all-MiniLM-L6-v2", "384"),
+        "minilm-8bit": new VectorDataSet("minilm", null, "384", "8bit"),
+        "mpnet": new VectorDataSet("mpnet", "all-mpnet-base-v2", "768"),
+        "mpnet-8bit": new VectorDataSet("mpnet", null, "768", "8bit")
+]
+
+
+def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
+def luceneVersion = (String) findProperty("lucene.version")
+def luceneFT = fileTree(dir: luceneDir, include: "**/*$luceneVersion-SNAPSHOT.jar")
+
+task compileKnn (type: JavaCompile) {
+    source = [srcDir]
+    include "knn/KnnGraphTester.java", "WikiVectors.java", "perf/VectorDictionary.java"
+    classpath = luceneFT
+    getDestinationDirectory().set(file(buildDir))
+    getOptions().sourcepath = files(srcDir)
+}
+
+task runKnnPerfTest (type: Exec) {
+    dependsOn compileKnn
+
+    workingDir rootProject.getRootDir()
+
+    commandLine 'python3', 'src/python/knnPerfTest.py'
+}
+
+task extractVectorTasks (type: Copy) {
+    from "$taskDir/vector.tasks"
+    into "$taskDir"
+    rename {
+        any -> copiedTaskName
+    }
+
+    filter {
+        line -> line.replaceAll(".*//(.*) # .*", '$1')
+    }
+}
+
+static def attachQuantizeArgs(quantized, argList) {
+    if (quantized) {
+        return ['-scale', '256'] + argList
+    }
+    return argList
+}
+
+for (entry in baseDataSets) {
+    task "vector-${entry.key}-taskVec" (type: JavaExec) {
+        dependsOn compileKnn
+        dependsOn extractVectorTasks
+
+        classpath luceneFT
+        classpath buildDir
+        mainClass = 'WikiVectors'
+
+        args(attachQuantizeArgs(
+                entry.value.quantized,
+                ["$dataDir/${entry.value.dictFileName}",
+                 "$taskDir/$copiedTaskName",
+                 "$taskDir/${entry.value.taskVecFileName}"
+        ]))
+
+    }
+
+    task "vector-${entry.key}-docVec" (type: JavaExec) {
+        dependsOn compileKnn
+
+        classpath luceneFT
+        classpath buildDir
+        mainClass = 'WikiVectors'
+
+        args(attachQuantizeArgs(
+                entry.value.quantized,
+                ["$dataDir/${entry.value.dictFileName}",
+                "$taskDir/$textDocFileName",
+                "$taskDir/${entry.value.docVecFileName}"
+        ]))
+    }
+}
+
+for (entry in highDimDataSets) {
+    def tokFile = "enwiki-20120502-${entry.value.codename}.tok"
+    def vecFile = "enwiki-20120502-${entry.value.codename}.vec"
+    if (entry.value.quantized == false) {
+        // only define once
+        task "infer-vector-${entry.value.codename}" (type: Exec) {
+            workingDir rootProject.getRootDir()
+
+            commandLine('python3',
+                    'src/python/infer_token_vectors.py',
+                    "$dataDir/$textDocFileName",
+                    "$dataDir/$tokFile",
+                    "$dataDir/$vecFile",
+                    "${entry.value.dictFileName}"
+            )
+
+            onlyIf("the file has not been generated") {
+                (file("$dataDir/$tokFile").exists() == false) || (file("$dataDir/$vecFile").exists() == false)
+            }
+        }
+    }
+
+    task "vector-${entry.key}-taskVec" (type: JavaExec) {
+        dependsOn compileKnn
+        dependsOn extractVectorTasks
+        dependsOn "infer-vector-${entry.value.codename}"
+
+        classpath luceneFT
+        classpath buildDir
+        mainClass = 'WikiVectors'
+
+        args(attachQuantizeArgs(
+                entry.value.quantized,
+                ["$dataDir/$tokFile",
+                 "$dataDir/$vecFile",
+                 entry.value.dimension,
+                 "$taskDir/$copiedTaskName",
+                 "$taskDir/${entry.value.taskVecFileName}"
+        ]))
+    }
+
+    task "vector-${entry.key}-docVec" (type: JavaExec) {
+        dependsOn compileKnn
+        dependsOn "infer-vector-${entry.value.codename}"
+
+        classpath luceneFT
+        classpath buildDir
+        mainClass = 'WikiVectors'
+
+        args(attachQuantizeArgs(
+                entry.value.quantized,
+                ["$dataDir/$tokFile",
+                 "$dataDir/$vecFile",
+                 entry.value.dimension,
+                 "$taskDir/$textDocFileName",
+                 "$taskDir/${entry.value.docVecFileName}"
+                ]))
+    }
+}
+
+task "vectors-100" {
+    dependsOn "vector-100-taskVec"
+    dependsOn "vector-100-docVec"
+    dependsOn "vector-100-8bit-taskVec"
+    dependsOn "vector-100-8bit-docVec"
+}
+
+task "vectors-300" {
+    dependsOn "vector-300-taskVec"
+    dependsOn "vector-300-docVec"
+    dependsOn "vector-300-8bit-taskVec"
+    dependsOn "vector-300-8bit-docVec"
+}
+
+task "vectors-minilm" {
+    dependsOn "vector-minilm-taskVec"
+    dependsOn "vector-minilm-docVec"
+    dependsOn "vector-minilm-8bit-taskVec"
+    dependsOn "vector-minilm-8bit-docVec"
+}
+
+task "vectors-mpnet" {
+    dependsOn "vector-mpnet-taskVec"
+    dependsOn "vector-mpnet-docVec"
+    dependsOn "vector-mpnet-8bit-taskVec"
+    dependsOn "vector-mpnet-8bit-docVec"
+}
+
+
+
+class VectorDataSet {
+    String codename
+    String dictFileName // we use it as model name in high dimension vector data
+    String taskVecFileName
+    String docVecFileName
+    String dimension
+    boolean quantized
+
+    VectorDataSet(codename, dictFileName, dimension) {
+        this.codename = codename
+        this.dictFileName = dictFileName
+        this.dimension = dimension
+        this.taskVecFileName = "vector-task-${codename}.vec"
+        this.docVecFileName = "enwiki-20120502-lines-1k-${codename}.vec"
+        this.quantized = false
+    }
+
+    VectorDataSet(codename, dictFileName, dimension, quantize) {
+        this.codename = codename
+        this.dictFileName = dictFileName
+        this.dimension = dimension
+        this.taskVecFileName = "vector-task-${codename}-${quantize}.vec"
+        this.docVecFileName = "enwiki-20120502-lines-1k-${codename}-${quantize}.vec"
+        this.quantized = true
+    }
+}

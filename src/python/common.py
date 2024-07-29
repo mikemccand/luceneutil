@@ -192,3 +192,19 @@ def getLatestModTime(path, extension=None):
           modTime = max(os.path.getmtime(fullPath), modTime)
   return modTime
   
+def getLuceneDirFromGradleProperties():
+  try:
+    with open(os.path.join(constants.BENCH_BASE_DIR, "gradle.properties"), "r") as f:
+      for line in f:
+        if line.find("=") == -1:
+          continue
+
+        key, value = line.strip().split("=")
+        if key == "external.lucene.repo":
+          return value
+  except FileNotFoundError as e:
+    print("gradle.properties not found, try run ./gradlew :localSettings")
+    raise e
+
+  raise ValueError("Cannot find lucene repo, please define 'external.lucene.repo' in gradle.properties")
+

@@ -1,3 +1,5 @@
+apply from:"gradle/knn.gradle"
+
 def hasDefaults = rootProject.file("gradle.properties").exists()
 
 configure(rootProject) {
@@ -12,6 +14,7 @@ configure(rootProject) {
                 rootProject.file("gradle.properties").write("""
 # These settings have been generated automatically on the first run.
 external.lucene.repo=$parentDir
+lucene.version=10.0.0
 """, "UTF-8")
                 logger.log(LogLevel.WARN, "\nIMPORTANT. This is the first time you ran the build. " +
                         "I wrote some sane defaults (for this machine) to 'gradle.properties', " +
@@ -28,6 +31,14 @@ if (hasDefaults == false) {
             if (task != rootProject.localSettings) {
                 task.dependsOn rootProject.localSettings
             }
+        }
+    }
+}
+
+allprojects {
+    tasks.withType(Exec) {
+        doFirst {
+            println "cmd: $commandLine"
         }
     }
 }

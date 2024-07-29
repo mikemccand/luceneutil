@@ -13,17 +13,23 @@ EG:
 
 python src/python/infer_token_vectors.py ../data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt \
     ../data/enwiki-20120502.all-MiniLM-L6-v2.tok \
-    ../data/enwiki-20120502.all-MiniLM-L6-v2.vec
+    ../data/enwiki-20120502.all-MiniLM-L6-v2.vec \
+    all-MiniLM-L6-v2
 
 
 Here we just get embeddings for single tokens out of context. This is kind of abusive use of
 sentence transformers which use sliding "attention" windows to take context into account, but
 for our performance-testing it seems adequate.
+
+known models: 
+all-MiniLM-L6-v2 -> 384 dimension
+all-mpnet-base-v2 -> 768 dimension
  """
 
 input_file = sys.argv[1]
 token_file = sys.argv[2]
 vector_file = sys.argv[3]
+model_name = sys.argv[4]
 
 dic = dict()
 TOKENIZE_RE = re.compile('[][ \t,\-()!@#$%^&*\'"{}<>/?\\|+=_:;.]+')
@@ -40,8 +46,7 @@ with open(input_file, 'rt') as input:
                 dic[tl] = 1
 
 BATCH_SIZE = 256
-#model = SentenceTransformer('all-MiniLM-L6-v2')
-model = SentenceTransformer('all-mpnet-base-v2')
+model = SentenceTransformer(model_name)
 model.eval()
 
 with open(token_file, 'wt') as tokens_out:

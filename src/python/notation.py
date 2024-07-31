@@ -834,4 +834,8 @@ KNOWN_CHANGES = [
   ('2024-07-25',
    'Bump the window size of disjunctions from 2,048 to 4,096 https://github.com/apache/lucene/pull/13605',
    'Bump the window size of disjunctions from 2,048 to 4,096 https://github.com/apache/lucene/pull/13605'),
+
+  ('2024-07-31',
+   'Move to 2 levels of skip data, inlined in postings lists https://github.com/apache/lucene/pull/13585',
+   'Move to 2 levels of skip data, inlined in postings lists https://github.com/apache/lucene/pull/13585'),
 ]

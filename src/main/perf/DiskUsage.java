@@ -232,6 +232,7 @@ public class DiskUsage {
             stats.get(postingsSuffixes.get(suffix)).termsBytes += bytes;
             break;
           case "doc":
+          case "psm":
             stats.get(postingsSuffixes.get(suffix)).postingsBytes += bytes;
             break;
           case "pos":
@@ -283,6 +284,7 @@ public class DiskUsage {
             break;
           case "tim":
           case "tip":
+          case "tmd": // terms metadata
             termsSize += size;
             break;
           case "pos":
@@ -290,6 +292,7 @@ public class DiskUsage {
             proxSize += size;
             break;
           case "doc":
+          case "psm":
             postingsSize += size;
             break;
           case "kdm":
@@ -297,6 +300,13 @@ public class DiskUsage {
           case "kdd":
             pointsSize += size;
             break;
+          case "si": // segment info
+          case "fnm": // field infos
+            // TODO: where to account for these!
+          case "lock":  // write.lock
+            break;
+          default: 
+            throw new AssertionError("unexpected suffixed file: " + file);
         }
       }
     }

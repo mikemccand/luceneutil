@@ -1,0 +1,878 @@
+
+<html>
+<head>
+<script type="text/javascript" src="dygraph-combined-dev.js"></script>
+<script type="text/javascript">
+gitHashes = ['d9df295bb73e011b72425d62ce609a14e4644aa4', '7ddd57b2ace8126060d9e76bf47b19724179c613', '18306628a9658fe6b9fcb1e409e63a5876257e84', 'ecbb588f978152ba5871d1463ec1d692103794e8', '286b35b0200a84cd734073574081195987b6e236', 'e8767daa7b6df51e618d49c06fa2b7c8c3ab2233', '4a3d1342abeca44be5deddf3a2347ffc1388c5d5', '3488f12170a6b035391fda719ce69380dc4b2882', '4a12a260a8f783ec893dc1b1e6e01881cb8d8d72'];
+
+function onPointClick(e, p) {
+  if (p.idx > 0) {
+    top.location = "https://github.com/apache/lucene-solr/compare/" + gitHashes[p.idx-1] + "..." + gitHashes[p.idx];
+  } else {
+    top.location = "https://github.com/apache/lucene-solr/commit/" + gitHashes[p.idx];
+  }
+}
+</script>
+<style type="text/css">
+a:hover * {
+  text-decoration: underline;
+}
+
+html * {
+  #font-size: 1em !important;
+  text-decoration: none;
+  #color: #000 !important;
+  font-family: Verdana !important;
+}
+
+.dygraph-legend > span.highlight { border: 1px solid grey}
+
+.dygraph-legend > span.highlight { display: inline; }
+</style>
+</head>
+<body>
+
+<style type="text/css">
+#summary {
+  position: absolute;
+  left: 10px;
+  top: %3%%;
+}
+</style>
+<div id="summary" style="height:17%%; width:95%%">
+This benchmark indexes a 20 M document subset of the <a href="http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml">New York City taxi ride corpus</a>, in both a sparse and dense way.  Green taxi rides make up ~11.5% of the 20 M documents, and yellow are ~88.5%.  See <a href="">this blog post</a> for details.<p>Click and drag to zoom; shift + click and drag to scroll after zooming; hover over an annotation to see details; click on a data point to see its source code changes.
+</div>
+
+<style type="text/css">
+#index_size {
+  position: absolute;
+  left: 10px;
+  top: 20%;
+}
+</style>
+
+<div id="index_size" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("index_size"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,3.9239273071289062,3.9565086364746094,2.484294891357422\n"
+  + "2016-08-13 22:08:19,3.924346923828125,3.9752578735351562,2.501312255859375\n"
+  + "2016-08-25 12:20:53,3.9243431091308594,3.975250244140625,2.501293182373047\n"
+  + "2016-09-06 06:09:32,3.9243392944335938,3.9752578735351562,2.501300811767578\n"
+  + "2016-09-17 07:34:31,3.924335479736328,3.9752540588378906,2.5012855529785156\n"
+  + "2016-09-29 06:03:22,3.924335479736328,3.975269317626953,2.5013084411621094\n"
+  + "2016-10-10 14:16:16,3.9186058044433594,3.9695167541503906,2.5012969970703125\n"
+  + "2016-10-22 00:31:27,2.4924774169921875,2.6276893615722656,2.5010414123535156\n"
+  + "2016-11-02 21:06:27,2.4924774169921875,2.6276817321777344,2.5010337829589844\n"
+
+  , { "title": "<a href='#index_size'><font size=+2>Index size (GB)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Index size (GB)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 5],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#index_size_parts {
+  position: absolute;
+  left: 10px;
+  top: 75%;
+}
+</style>
+
+<div id="index_size_parts" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("index_size_parts"),
+  "Date,Doc values (dense),Doc values (sparse),Doc values (sparse-sorted),Points (dense),Points (sparse),Points (sparse-sorted)\n"
+  + "2016-08-02 09:10:30,1604.5618286132812,3035.078960418701,3035.078960418701,802.3739795684814,834.990008354187,829.7042798995972\n"
+  + "2016-08-13 22:08:19,1604.5618286132812,3035.078960418701,3035.078960418701,842.0421152114868,873.8786735534668,868.9394674301147\n"
+  + "2016-08-25 12:20:53,1604.5618286132812,3035.078960418701,3035.078960418701,842.0421152114868,873.8786735534668,868.9394674301147\n"
+  + "2016-09-06 06:09:32,1604.5618286132812,3035.078960418701,3035.078960418701,842.0421152114868,873.8786735534668,868.9394674301147\n"
+  + "2016-09-17 07:34:31,1604.5618286132812,3035.078960418701,3035.078960418701,842.0421152114868,873.8786735534668,868.9394674301147\n"
+  + "2016-09-29 06:03:22,1604.5618286132812,3035.078960418701,3035.078960418701,842.0421152114868,873.8786735534668,868.9394674301147\n"
+  + "2016-10-10 14:16:16,1604.5618286132812,3035.078960418701,3035.078960418701,842.0421152114868,873.8786735534668,868.9394674301147\n"
+  + "2016-10-22 00:31:27,1604.562653541565,1660.8029403686523,1575.835988998413,841.7627077102661,873.5992660522461,868.660059928894\n"
+  + "2016-11-02 21:06:27,1604.562653541565,1660.8029403686523,1575.835988998413,841.7627077102661,873.5992660522461,868.660059928894\n"
+
+  , { "title": "<a href='#index_size_parts'><font size=+2>Index size by part (MB)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Index size by part (MB)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 3945],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Doc values (sparse)", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Doc values (sparse)", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Doc values (sparse)", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Doc values (sparse)", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Doc values (sparse)", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Doc values (sparse)", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Doc values (sparse)", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Doc values (sparse)", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Doc values (sparse)", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#index_size_by_field {
+  position: absolute;
+  left: 10px;
+  top: 130%;
+}
+</style>
+
+<div id="index_size_by_field" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("index_size_by_field"),
+  "Date,Dropoff latitude (dense),Dropoff latitude (sparse),Dropoff latitude (sparse-sorted),Fare amount (dense),Fare amount (sparse),Fare amount (sparse-sorted),Dropoff datetime (dense),Dropoff datetime (sparse),Dropoff datetime (sparse-sorted)\n"
+  + "2016-08-02 09:10:30,275.8507604598999,437.1662883758545,437.0608129501343,176.13739585876465,335.52100944519043,334.1105766296387,194.45061492919922,275.7793436050415,275.7808084487915\n"
+  + "2016-08-13 22:08:19,284.0677795410156,444.11720180511475,444.0651912689209,176.2065029144287,335.8714590072632,334.4703416824341,194.43299770355225,275.802041053772,275.803994178772\n"
+  + "2016-08-25 12:20:53,284.0677795410156,444.11720180511475,444.0651912689209,176.2065029144287,335.8714590072632,334.4703416824341,194.43299770355225,275.802041053772,275.803994178772\n"
+  + "2016-09-06 06:09:32,284.0677795410156,444.11720180511475,444.0651912689209,176.2065029144287,335.8714590072632,334.4703416824341,194.43299770355225,275.802041053772,275.803994178772\n"
+  + "2016-09-17 07:34:31,284.0677795410156,444.11720180511475,444.0651912689209,176.2065029144287,335.8714590072632,334.4703416824341,194.43299770355225,275.802041053772,275.803994178772\n"
+  + "2016-09-29 06:03:22,284.0677795410156,444.11720180511475,444.0651912689209,176.2065029144287,335.8714590072632,334.4703416824341,194.43299770355225,275.802041053772,275.803994178772\n"
+  + "2016-10-10 14:16:16,284.0677795410156,444.11720180511475,444.0651912689209,176.2065029144287,335.8714590072632,334.4703416824341,194.43299770355225,275.802041053772,275.803994178772\n"
+  + "2016-10-22 00:31:27,284.0491762161255,291.520432472229,286.9964771270752,176.18789958953857,183.27468967437744,177.40162754058838,194.43301391601562,196.2252607345581,191.75526905059814\n"
+  + "2016-11-02 21:06:27,284.0491762161255,291.520432472229,286.9964771270752,176.18789958953857,183.27468967437744,177.40162754058838,194.43301391601562,196.2252607345581,191.75526905059814\n"
+
+  , { "title": "<a href='#index_size_by_field'><font size=+2>Index size by field (MB)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Index size by field (MB)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 577],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Dropoff latitude (sparse)", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Dropoff latitude (sparse)", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Dropoff latitude (sparse)", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Dropoff latitude (sparse)", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Dropoff latitude (sparse)", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Dropoff latitude (sparse)", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Dropoff latitude (sparse)", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Dropoff latitude (sparse)", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Dropoff latitude (sparse)", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#index_throughput {
+  position: absolute;
+  left: 10px;
+  top: 185%;
+}
+</style>
+
+<div id="index_throughput" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("index_throughput"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,79.8686,59.861599999999996,31.255\n"
+  + "2016-08-13 22:08:19,82.4381,61.0651,34.5769\n"
+  + "2016-08-25 12:20:53,84.20689999999999,61.940400000000004,34.786300000000004\n"
+  + "2016-09-06 06:09:32,84.20110000000001,62.0709,34.827\n"
+  + "2016-09-17 07:34:31,85.0865,61.9348,34.5998\n"
+  + "2016-09-29 06:03:22,82.9855,63.518800000000006,38.7787\n"
+  + "2016-10-10 14:16:16,83.1233,63.3603,38.4193\n"
+  + "2016-10-22 00:31:27,84.48639999999999,74.3746,42.2131\n"
+  + "2016-11-02 21:06:27,85.42360000000001,75.7072,42.536300000000004\n"
+
+  , { "title": "<a href='#index_throughput'><font size=+2>Indexing rate 1 thread (K docs/sec)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Indexing rate 1 thread (K docs/sec)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 111],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#index_docs_per_mb {
+  position: absolute;
+  left: 10px;
+  top: 240%;
+}
+</style>
+
+<div id="index_docs_per_mb" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("index_docs_per_mb"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,7.599663469835466,4.954627846435098,4.954627846435098\n"
+  + "2016-08-13 22:08:19,7.484360765996341,4.904757243144423,4.904757243144423\n"
+  + "2016-08-25 12:20:53,7.484360765996341,4.904757243144423,4.904757243144423\n"
+  + "2016-09-06 06:09:32,7.484360765996341,4.904757243144423,4.904757243144423\n"
+  + "2016-09-17 07:34:31,7.484360765996341,4.904757243144423,4.904757243144423\n"
+  + "2016-09-29 06:03:22,7.484360765996341,4.904757243144423,4.904757243144423\n"
+  + "2016-10-10 14:16:16,7.484360765996341,5.528681491773314,5.528681491773314\n"
+  + "2016-10-22 00:31:27,7.483809287020115,6.88056436928702,6.88056436928702\n"
+  + "2016-11-02 21:06:27,7.483809287020115,6.88056436928702,6.88056436928702\n"
+
+  , { "title": "<a href='#index_docs_per_mb'><font size=+2>Docs per MB RAM at flush (K docs)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Docs per MB RAM at flush (K docs)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 9],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#check_index_time {
+  position: absolute;
+  left: 10px;
+  top: 295%;
+}
+</style>
+
+<div id="check_index_time" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("check_index_time"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,24.85364580154419,25.310556173324585,19.65526032447815\n"
+  + "2016-08-13 22:08:19,25.18000602722168,25.799891710281372,19.962107181549072\n"
+  + "2016-08-25 12:20:53,25.143414735794067,25.832584619522095,19.829463481903076\n"
+  + "2016-09-06 06:09:32,25.04767346382141,25.775867700576782,19.833989143371582\n"
+  + "2016-09-17 07:34:31,24.9626362323761,25.79983115196228,19.748536348342896\n"
+  + "2016-09-29 06:03:22,21.92422604560852,22.34371781349182,18.934794664382935\n"
+  + "2016-10-10 14:16:16,21.083924531936646,21.062450885772705,18.814640283584595\n"
+  + "2016-10-22 00:31:27,21.89069700241089,21.652780055999756,19.41338801383972\n"
+  + "2016-11-02 21:06:27,27.683581352233887,27.635589361190796,21.812212467193604\n"
+
+  , { "title": "<a href='#check_index_time'><font size=+2>CheckIndex time (sec)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "CheckIndex time (sec)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 35],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#flush_times {
+  position: absolute;
+  left: 10px;
+  top: 350%;
+}
+</style>
+
+<div id="flush_times" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("flush_times"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,58.40743059999995,75.663408936,81.09475350499993\n"
+  + "2016-08-13 22:08:19,47.793461441999995,65.62130432200003,69.00192059299991\n"
+  + "2016-08-25 12:20:53,47.84232922000002,65.83243039100002,69.12261837999996\n"
+  + "2016-09-06 06:09:32,47.88023796700004,65.78440961099994,68.939393675\n"
+  + "2016-09-17 07:34:31,47.16423979400002,65.95378838200001,69.19803463500006\n"
+  + "2016-09-29 06:03:22,48.106140191,68.46614916699995,72.01389934900014\n"
+  + "2016-10-10 14:16:16,48.89614651100001,72.42527447599998,75.5527748040001\n"
+  + "2016-10-22 00:31:27,49.77011883800002,52.94457749900005,55.875463990999954\n"
+  + "2016-11-02 21:06:27,49.38588823800002,52.45368728799998,55.102331511999985\n"
+
+  , { "title": "<a href='#flush_times'><font size=+2>New segment flush time (sec)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "New segment flush time (sec)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 105],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#dv_merge_times {
+  position: absolute;
+  left: 10px;
+  top: 405%;
+}
+</style>
+
+<div id="dv_merge_times" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("dv_merge_times"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,33.724999999999994,89.87099999999992,157.8410000000001\n"
+  + "2016-08-13 22:08:19,35.03099999999999,91.76499999999999,159.74\n"
+  + "2016-08-25 12:20:53,34.74900000000002,91.598,161.751\n"
+  + "2016-09-06 06:09:32,34.887000000000015,91.95599999999999,159.68400000000003\n"
+  + "2016-09-17 07:34:31,33.51,91.59799999999998,164.30599999999995\n"
+  + "2016-09-29 06:03:22,38.287,80.49099999999999,102.88400000000001\n"
+  + "2016-10-10 14:16:16,37.46099999999999,81.66799999999998,106.32299999999996\n"
+  + "2016-10-22 00:31:27,32.82499999999999,56.64700000000001,82.71400000000003\n"
+  + "2016-11-02 21:06:27,31.35600000000001,51.59999999999998,80.24599999999998\n"
+
+  , { "title": "<a href='#dv_merge_times'><font size=+2>Doc values merge time (sec)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Doc values merge time (sec)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 213],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#searcher_heap {
+  position: absolute;
+  left: 10px;
+  top: 460%;
+}
+</style>
+
+<div id="searcher_heap" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("searcher_heap"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,6.713445663452148,6.761137962341309,6.514786720275879\n"
+  + "2016-08-13 22:08:19,5.154653549194336,5.202106475830078,6.496115684509277\n"
+  + "2016-08-25 12:20:53,5.154653549194336,5.202106475830078,6.496115684509277\n"
+  + "2016-09-06 06:09:32,5.154653549194336,5.202106475830078,6.496115684509277\n"
+  + "2016-09-17 07:34:31,5.154653549194336,5.202106475830078,6.496115684509277\n"
+  + "2016-09-29 06:03:22,5.154653549194336,5.202106475830078,6.496115684509277\n"
+  + "2016-10-10 14:16:16,5.154653549194336,5.209934234619141,6.50394344329834\n"
+  + "2016-10-22 00:31:27,4.880500793457031,4.934745788574219,6.142417907714844\n"
+  + "2016-11-02 21:06:27,4.880500793457031,4.934745788574219,6.142417907714844\n"
+
+  , { "title": "<a href='#searcher_heap'><font size=+2>Searcher heap used (MB)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Searcher heap used (MB)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 8],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#search_sort_qps {
+  position: absolute;
+  left: 10px;
+  top: 515%;
+}
+</style>
+
+<div id="search_sort_qps" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("search_sort_qps"),
+  "Date,Green cab (dense),Green cab (sparse),Green cab (sparse-sorted),Yellow cab (dense),Yellow cab (sparse),Yellow cab (sparse-sorted)\n"
+  + "2016-08-02 09:10:30,36.384341038287566,34.83241116846926,40.847048512773256,5.890582639531674,6.143177024227971,6.367189272615545\n"
+  + "2016-08-13 22:08:19,34.81729519892479,34.46826649746884,39.911323425161044,5.755891700526227,5.995612926083403,6.1414643947219885\n"
+  + "2016-08-25 12:20:53,35.29835511077118,33.888909241061604,38.74243302169437,6.017882233342493,6.111172270365155,5.70183860062056\n"
+  + "2016-09-06 06:09:32,35.66634886760947,34.518366100755316,40.26202688142539,5.84558551494774,5.935502608775074,6.093871099501258\n"
+  + "2016-09-17 07:34:31,35.88610325006083,32.78777427833863,39.8440218109363,5.927100738758577,5.830279933136717,6.048725520528065\n"
+  + "2016-09-29 06:03:22,34.13869589430632,31.376175367217343,34.944230929369425,5.752957356629312,4.999692943857853,4.903741106752889\n"
+  + "2016-10-10 14:16:16,34.1868525501563,30.036420661873553,35.22976819587582,5.7340738063947665,4.918825822562576,5.036361396098517\n"
+  + "2016-10-22 00:31:27,34.31237872933095,24.375111714183877,29.641687428939612,5.8532706217821096,3.886072872089282,4.1779924382013505\n"
+  + "2016-11-02 21:06:27,36.71439366509292,26.53782728438944,31.811921810368116,6.089407518855744,4.099568936475682,4.342052007318702\n"
+
+  , { "title": "<a href='#search_sort_qps'><font size=+2>TermQuery, sort by longitude (QPS)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "TermQuery, sort by longitude (QPS)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 53],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Green cab (sparse)", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Green cab (sparse)", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Green cab (sparse)", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Green cab (sparse)", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Green cab (sparse)", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Green cab (sparse)", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Green cab (sparse)", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Green cab (sparse)", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Green cab (sparse)", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#search_qps {
+  position: absolute;
+  left: 10px;
+  top: 570%;
+}
+</style>
+
+<div id="search_qps" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("search_qps"),
+  "Date,Green cab (dense),Green cab (sparse),Green cab (sparse-sorted),Yellow cab (dense),Yellow cab (sparse),Yellow cab (sparse-sorted)\n"
+  + "2016-08-02 09:10:30,48.699226612452094,54.89379861463423,59.199091933289026,6.452403718151186,7.294198634975339,7.799532302605381\n"
+  + "2016-08-13 22:08:19,53.90537138456,56.64667435588625,59.34815664328725,7.202816837272946,7.549284066665251,7.810240643823755\n"
+  + "2016-08-25 12:20:53,53.890480424471605,60.57760748739228,50.58587549278231,7.074638575993543,8.116985040388453,6.634362584142875\n"
+  + "2016-09-06 06:09:32,53.747472659466865,57.337993077354746,59.67343711538606,7.114006492782989,7.615485138616832,7.845841393366197\n"
+  + "2016-09-17 07:34:31,53.62958890292256,56.477337875165546,59.216735502173904,7.13906961146149,7.563358137668881,7.830606196825388\n"
+  + "2016-09-29 06:03:22,54.287950018604484,60.536986070500035,49.28768452569771,7.230943515419652,8.063481402289732,6.686330451315404\n"
+  + "2016-10-10 14:16:16,53.73044574455407,57.2934144142095,58.589186451649034,7.154534518579277,7.632290180405359,7.714569685391671\n"
+  + "2016-10-22 00:31:27,54.443297142696,56.571187513516975,53.72794575282738,7.249009672919029,7.553358662866985,7.064140167516901\n"
+  + "2016-11-02 21:06:27,54.460411147784754,55.72814562254859,60.030322516509536,7.2284633698594565,7.354914564944667,7.911574170976206\n"
+
+  , { "title": "<a href='#search_qps'><font size=+2>TermQuery (QPS)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "TermQuery (QPS)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 78],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Green cab (sparse)", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Green cab (sparse)", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Green cab (sparse)", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Green cab (sparse)", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Green cab (sparse)", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Green cab (sparse)", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Green cab (sparse)", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Green cab (sparse)", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Green cab (sparse)", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#search_bq_qps {
+  position: absolute;
+  left: 10px;
+  top: 625%;
+}
+</style>
+
+<div id="search_bq_qps" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("search_bq_qps"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,4.146871214075048,4.296757424939697,8.085486163424768\n"
+  + "2016-08-13 22:08:19,4.832888969329641,5.085731963718591,8.096743256675959\n"
+  + "2016-08-25 12:20:53,5.22884784638398,5.081738699821502,6.357190940664707\n"
+  + "2016-09-06 06:09:32,4.864660025864133,5.110932770223028,7.958744415746981\n"
+  + "2016-09-17 07:34:31,4.84033541336583,5.048560130961265,8.069626350073706\n"
+  + "2016-09-29 06:03:22,4.874739997211454,5.07908895751562,6.344516039840642\n"
+  + "2016-10-10 14:16:16,4.836551381966931,5.115522985952866,8.0627321845144\n"
+  + "2016-10-22 00:31:27,5.178041252626173,5.065456718167081,6.514056183513104\n"
+  + "2016-11-02 21:06:27,4.842155230122265,5.090435584144256,8.072794454229165\n"
+
+  , { "title": "<a href='#search_bq_qps'><font size=+2>BooleanQuery SHOULD + SHOULD (QPS)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "BooleanQuery SHOULD + SHOULD (QPS)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 10],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+
+<style type="text/css">
+#search_range_qps {
+  position: absolute;
+  left: 10px;
+  top: 680%;
+}
+</style>
+
+<div id="search_range_qps" style="height:50%; width:95%"></div>
+<script type="text/javascript">
+  g = new Dygraph(
+
+  // containing div
+  document.getElementById("search_range_qps"),
+  "Date,Dense,Sparse,Sparse (sorted)\n"
+  + "2016-08-02 09:10:30,9.532806223168429,7.877132115165311,10.820998927530797\n"
+  + "2016-08-13 22:08:19,9.220975221589025,8.04993814548278,10.79891729191318\n"
+  + "2016-08-25 12:20:53,9.614060186151088,8.07489953815612,10.61948782210234\n"
+  + "2016-09-06 06:09:32,9.560035959884061,8.161543786694658,9.590400883360317\n"
+  + "2016-09-17 07:34:31,9.711635231446865,7.832808759686952,10.81490340409467\n"
+  + "2016-09-29 06:03:22,9.634630995126255,8.06567641561211,10.635643374157436\n"
+  + "2016-10-10 14:16:16,9.619379710267554,7.937347783497219,10.847497751828973\n"
+  + "2016-10-22 00:31:27,9.814737698239668,8.033388304202822,9.590437397887616\n"
+  + "2016-11-02 21:06:27,9.843874768036473,8.06600853575674,10.850289677778731\n"
+
+  , { "title": "<a href='#search_range_qps'><font size=+2>Pickup latitude range (QPS)</font></a>",
+    // "colors": ["#DD1E2F", "#EBB035", "#06A2CB", "#218559", "#B0A691", "#192823"],
+    "colors": ["#00BFB3", "#FED10A", "#0078A0", "#DF4998", "#93C90E", "#00A9E5", "#222", "#AAA", "#777"],
+    "drawGapEdgePoints": true,
+    "xlabel": "Date",
+    "ylabel": "Pickup latitude range (QPS)",
+    "pointClickCallback": onPointClick,
+    //"labelsDivWidth": 500,
+    "labelsSeparateLines": true,
+    "pointSize": 2,
+    "gridLineColor": "#BBB",
+    "colorSaturation": 0.5,
+    "highlightCircleSize": 4,
+    //"strokeWidth": 2.0,
+    "connectSeparatedPoints": true,
+    "drawPoints": true,
+    "includeZero": true,
+    "axisLabelColor": "#555",
+    "axisLineColor": "#555",
+    "dateWindow": [1470107430000.0, 1478142387000.0],
+    highlightSeriesOpts: {
+      strokeWidth: 3,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 5
+    },
+        "valueRange": [0.0, 14],
+  });
+  g.ready(function() {g.setAnnotations([{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "A", text: "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"},
+{series: "Sparse", x: "2016-08-13 22:08:19", shortText: "B", text: "LUCENE-7409: improve MockDirectoryWrapper's IndexInput to detect if a clone is being used after its parent was closed"},
+{series: "Sparse", x: "2016-09-29 06:03:22", shortText: "C", text: "LUCENE-7407: Switch doc values to iterator API"},
+{series: "Sparse", x: "2016-10-10 14:16:16", shortText: "D", text: "LUCENE-7474: Doc values writers should use sparse encoding"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "E", text: "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"},
+{series: "Sparse", x: "2016-10-22 00:31:27", shortText: "F", text: "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "G", text: "LUCENE-7462: Give doc values an advanceExact method"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "H", text: "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"},
+{series: "Sparse", x: "2016-11-02 21:06:27", shortText: "I", text: "LUCENE-7135: Fixed this issue so we use MMapDirectory again"},
+]);});
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<html>
+<h1>Fri 04/21/2017</h1>Lucene/Solr trunk rev 3316f47bcf110851ebf7f70b835027a9769bccd2<br>luceneutil rev 6d71c1225331115551010707b9033c42a73bee75<br>java full version "1.8.0_65-b17"<br>Java command-line: /usr/local/src/jdk1.8.0_65/bin/java -Xmx8g -Xms8g -server<br>Index: segments_2: _32(7.0.0):C49725 _65(7.0.0):C49725 _98(7.0.0):C49725 _cb(7.0.0):C49725 _fe(7.0.0):C49725 _fp(7.0.0):C4972 _g0(7.0.0):C4973 _gb(7.0.0):C4972 _gm(7.0.0):C4973 _gx(7.0.0):C4972 _gy(7.0.0):C497 _gz(7.0.0):C498 _h0(7.0.0):C497 _h1(7.0.0):C497 _h2(7.0.0):C497 _h3(7.0.0):C277<br><br><br><b>Search perf vs day before</b>
+<table><tr><th>Task</th><th>QPS prev</th><th>StdDev prev</th><th>QPS now</th><th>StdDev now</th><th>% change</th></tr>
+<tr><td>AndHighHigh</td><td>0.0</td><td>(n/a%)</td><td>544.1</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndHighMed</td><td>0.0</td><td>(n/a%)</td><td>1468.0</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndHighOrMedMed</td><td>0.0</td><td>(n/a%)</td><td>648.7</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndMedOrHighHigh</td><td>0.0</td><td>(n/a%)</td><td>660.5</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseDateTaxoFacets</td><td>0.0</td><td>(n/a%)</td><td>80.0</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseDayOfYearSSDVFacets</td><td>0.0</td><td>(n/a%)</td><td>231.9</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseDayOfYearTaxoFacets</td><td>0.0</td><td>(n/a%)</td><td>79.8</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseMonthSSDVFacets</td><td>0.0</td><td>(n/a%)</td><td>221.6</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseMonthTaxoFacets</td><td>0.0</td><td>(n/a%)</td><td>89.3</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Fuzzy1</td><td>0.0</td><td>(n/a%)</td><td>216.6</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Fuzzy2</td><td>0.0</td><td>(n/a%)</td><td>68.0</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>IntNRQ</td><td>0.0</td><td>(n/a%)</td><td>295.4</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>OrHighHigh</td><td>0.0</td><td>(n/a%)</td><td>215.0</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>OrHighMed</td><td>0.0</td><td>(n/a%)</td><td>341.2</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>PKLookup</td><td>0.0</td><td>(n/a%)</td><td>238.9</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Phrase</td><td>0.0</td><td>(n/a%)</td><td>238.8</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Prefix3</td><td>0.0</td><td>(n/a%)</td><td>588.0</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Respell</td><td>0.0</td><td>(n/a%)</td><td>240.1</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>SloppyPhrase</td><td>0.0</td><td>(n/a%)</td><td>133.5</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>SpanNear</td><td>0.0</td><td>(n/a%)</td><td>241.5</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Term</td><td>0.0</td><td>(n/a%)</td><td>2129.9</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermBGroup1M1P</td><td>0.0</td><td>(n/a%)</td><td>972.5</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermBGroup1M</td><td>0.0</td><td>(n/a%)</td><td>432.5</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermDTSort</td><td>0.0</td><td>(n/a%)</td><td>1423.7</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermDateFacets</td><td>0.0</td><td>(n/a%)</td><td>587.5</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermDayOfYearSort</td><td>0.0</td><td>(n/a%)</td><td>970.3</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermGroup100</td><td>0.0</td><td>(n/a%)</td><td>452.0</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermGroup10K</td><td>0.0</td><td>(n/a%)</td><td>300.4</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermGroup1M</td><td>0.0</td><td>(n/a%)</td><td>292.3</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermMonthSort</td><td>0.0</td><td>(n/a%)</td><td>1888.2</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermTitleSort</td><td>0.0</td><td>(n/a%)</td><td>1585.8</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Wildcard</td><td>0.0</td><td>(n/a%)</td><td>570.9</td><td>(n/a%)</td><td><font color="green">1.0 X</font></td>
+</table><br><br><img src="2017.04.21.18.47.46.png"/>
+</html>

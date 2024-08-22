@@ -1,0 +1,37 @@
+<html>
+<h1>Tue 01/24/2017</h1>Lucene/Solr trunk rev 9899cbd031dc3fc37a384b1f9e2b379e90a9a3a6<br>luceneutil rev 560648d8b484b5e6e7460579b313ad6911ff43ed<br>java full version "1.8.0_65-b17"<br>Java command-line: /usr/local/src/jdk1.8.0_65/bin/java -Xmx8g -Xms8g -server<br>Index: segments_2: _32(7.0.0):C4978031 _65(7.0.0):C4978032 _98(7.0.0):C4978032 _cb(7.0.0):C4978032 _fe(7.0.0):C4978032 _fp(7.0.0):C497803 _g0(7.0.0):C497803 _gb(7.0.0):C497803 _gm(7.0.0):C497803 _gx(7.0.0):C497804 _gy(7.0.0):C49780 _gz(7.0.0):C49780 _h0(7.0.0):C49781 _h1(7.0.0):C49780 _h2(7.0.0):C46742<br><br><br><b>Search perf vs day before</b>
+<table><tr><th>Task</th><th>QPS prev</th><th>StdDev prev</th><th>QPS now</th><th>StdDev now</th><th>% change</th></tr>
+<tr><td>BrowseMonthSSDVFacets</td><td>4.3</td><td>(10.2%)</td><td>4.1</td><td>(8.7%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>SloppyPhrase</td><td>2.6</td><td>(4.0%)</td><td>2.6</td><td>(5.1%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>Fuzzy2</td><td>52.6</td><td>(2.1%)</td><td>52.2</td><td>(2.1%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>Fuzzy1</td><td>47.6</td><td>(3.2%)</td><td>47.3</td><td>(3.3%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>Respell</td><td>51.9</td><td>(1.4%)</td><td>51.8</td><td>(1.2%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>TermTitleSort</td><td>27.0</td><td>(2.5%)</td><td>26.9</td><td>(5.9%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>SpanNear</td><td>4.7</td><td>(2.8%)</td><td>4.7</td><td>(2.8%)</td><td><font color="red">1.0 X</font></td>
+<tr><td>TermDayOfYearSort</td><td>22.9</td><td>(5.3%)</td><td>22.9</td><td>(6.7%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndHighMed</td><td>37.4</td><td>(1.8%)</td><td>37.4</td><td>(2.4%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermGroup1M</td><td>11.7</td><td>(0.8%)</td><td>11.7</td><td>(2.1%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>PKLookup</td><td>190.2</td><td>(2.4%)</td><td>190.6</td><td>(1.7%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Phrase</td><td>4.3</td><td>(3.6%)</td><td>4.4</td><td>(3.3%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>OrHighHigh</td><td>3.9</td><td>(12.7%)</td><td>3.9</td><td>(15.0%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndMedOrHighHigh</td><td>15.4</td><td>(1.3%)</td><td>15.4</td><td>(0.9%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndHighHigh</td><td>10.1</td><td>(1.7%)</td><td>10.1</td><td>(1.6%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermGroup100</td><td>12.4</td><td>(1.2%)</td><td>12.4</td><td>(2.4%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermDateFacets</td><td>9.0</td><td>(2.2%)</td><td>9.1</td><td>(2.9%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>AndHighOrMedMed</td><td>14.9</td><td>(1.6%)</td><td>14.9</td><td>(1.3%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermBGroup1M</td><td>14.4</td><td>(1.1%)</td><td>14.5</td><td>(2.3%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>OrHighMed</td><td>6.0</td><td>(12.6%)</td><td>6.1</td><td>(15.1%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermBGroup1M1P</td><td>16.5</td><td>(1.0%)</td><td>16.6</td><td>(1.4%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermMonthSort</td><td>37.3</td><td>(7.3%)</td><td>37.5</td><td>(7.0%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermGroup10K</td><td>12.0</td><td>(1.2%)</td><td>12.1</td><td>(2.5%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseDayOfYearSSDVFacets</td><td>3.7</td><td>(4.0%)</td><td>3.7</td><td>(4.0%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseMonthTaxoFacets</td><td>1.1</td><td>(4.7%)</td><td>1.1</td><td>(5.9%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseDateTaxoFacets</td><td>1.0</td><td>(5.0%)</td><td>1.0</td><td>(6.4%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>TermDTSort</td><td>24.4</td><td>(1.6%)</td><td>24.7</td><td>(4.4%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Term</td><td>37.0</td><td>(1.4%)</td><td>37.4</td><td>(3.2%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Prefix3</td><td>15.8</td><td>(7.0%)</td><td>16.0</td><td>(7.7%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>BrowseDayOfYearTaxoFacets</td><td>1.0</td><td>(5.2%)</td><td>1.0</td><td>(6.4%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>Wildcard</td><td>21.1</td><td>(5.9%)</td><td>21.3</td><td>(6.0%)</td><td><font color="green">1.0 X</font></td>
+<tr><td>IntNRQ</td><td>4.6</td><td>(2.2%)</td><td>4.7</td><td>(8.7%)</td><td><font color="green">1.0 X</font></td>
+</table><br><br><img src="2017.01.24.22.15.39.png"/>
+</html>

@@ -618,15 +618,22 @@ public class KnnGraphTester {
       }
       float recall = checkResults(results, nn);
       totalVisited /= numIters;
+      String quantizeDesc;
+      if (quantize) {
+        quantizeDesc = Integer.toString(quantizeBits) + " bits";
+      } else {
+        quantizeDesc = "no";
+      }
       System.out.printf(
           Locale.ROOT,
-          "%5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\n",
+          "SUMMARY: %5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%s\n",
           recall,
           totalCpuTime / (float) numIters,
           numDocs,
           fanout,
           maxConn,
           beamWidth,
+          quantizeDesc,
           totalVisited,
           reindexTimeMsec,
           selectivity,

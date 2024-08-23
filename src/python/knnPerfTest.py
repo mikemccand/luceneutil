@@ -1,8 +1,10 @@
 #!/usr/bin/env/python
 
 import subprocess
+import sys
 import benchUtil
 import constants
+import re
 from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
@@ -39,9 +41,11 @@ PARAMS = {
     'ndoc': (250_000,),
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
-    'maxConn': (64, ),
+    #'maxConn': (64, ),
+    'maxConn': (32, ),
     #'beamWidthIndex': (250, 500),
-    'beamWidthIndex': (250, ),
+    #'beamWidthIndex': (250, ),
+    'beamWidthIndex': (50, ),
     #'fanout': (20, 100, 250)
     'fanout': (20,),
     #'quantize': None,
@@ -75,8 +79,8 @@ def run_knn_benchmark(checkout, values):
     #doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
     #query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
     dim = 768
-    doc_vectors = '%s/data/enwiki-20120502-lines-1k-mpnet.vec' % constants.BASE_DIR
-    query_vectors = '%s/luceneutil/tasks/vector-task-mpnet.vec' % constants.BASE_DIR
+    doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
+    query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
     #dim = 384
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
@@ -96,6 +100,7 @@ def run_knn_benchmark(checkout, values):
            '--add-modules', 'jdk.incubator.vector',
            '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
            'knn.KnnGraphTester']
+    all_results = []
     while advance(indexes, values):
         print('\nNEXT:')
         pv = {}
@@ -123,12 +128,33 @@ def run_knn_benchmark(checkout, values):
             '-docs', doc_vectors,
             '-reindex',
             '-search', query_vectors,
+            '-metric', 'euclidean',
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             # '-forceMerge',
             '-quiet']
         print(f'  cmd: {this_cmd}')
-        print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tvisited\tindex ms")
-        subprocess.run(this_cmd, check=True)
+        job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
+        re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)
+        summary = None
+        while True:
+            line = job.stdout.readline()
+            if line == '':
+                break
+            sys.stdout.write(line)
+            m = re_summary.match(line)
+            if m is not None:
+                summary = m.group(1)
+        if summary is None:
+            raise RuntimeError('could not find summary line in output!')
+        job.wait()
+        if job.returncode != 0:
+            raise RuntimeError(f'command failed with exit {job.returncode}')
+        all_results.append(summary)
+    print('\nResults:')
+    print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType")
+    for result in all_results:
+        print(result)
+    
 
 
 run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

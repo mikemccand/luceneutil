@@ -2,7 +2,6 @@ import datetime
 import pickle
 import os
 import re
-import pysftp
 
 CHANGES = [
   ('2016-07-04 07:13:41', 'LUCENE-7351: Doc id compression for dimensional points'),
@@ -424,7 +423,7 @@ def main():
   # This way it's clear we are seeing the whole date range:
   dateWindow = (toMSEpoch(startDateTime - sixHours), toMSEpoch(endDateTime + sixHours))
 
-  with open('/x/tmp/sparseResults.html', 'w') as f:
+  with open('/l/lucenenightly/docs/sparseResults.html', 'w') as f:
     f.write('''
 <html>
 <head>
@@ -509,12 +508,6 @@ This benchmark indexes and searches a 20 M document subset of the <a href="http:
     writeOneGraph(f, searchRangeQPSData, 'search_range_qps', 'Pickup latitude range (QPS)')
 
     f.write('</body>\n</html>\n')
-
-  if True:
-    print('Copy charts up...')
-    with pysftp.Connection('home.apache.org', username='mikemccand') as c:
-      with c.cd('public_html/lucenebench'):
-        c.put('/x/tmp/sparseResults.html', 'sparseResults.html')
 
 topPct = 20
 

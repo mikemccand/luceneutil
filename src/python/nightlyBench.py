@@ -1232,28 +1232,8 @@ def makeGraphs():
     # runCommand('rsync -rv -e ssh %s/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs' % constants.BASE_DIR)
 
     if not DEBUG:
-        # runCommand('rsync -r -e ssh %s/reports.nightly/ %s' % (constants.BASE_DIR, constants.NIGHTLY_PUBLISH_LOCATION))
         open(f'{constants.BASE_DIR}/reports.nightly/for_all_time.json', 'w').write(json.dumps(all_graph_data, indent=2))
-        pushReports()
-
-
-def pushReports():
-    print('Copy reports...')
-    with pysftp.Connection('home.apache.org', username='mikemccand') as c:
-        with c.cd('public_html'):
-            # c.mkdir('lucenebench')
-            to_copy = []
-            # anything changed in the past 4 days
-            then = time.time() - 4 * 24 * 3600
-            for file_name in os.listdir(f'{constants.BASE_DIR}/reports.nightly'):
-                full_path = f'{constants.BASE_DIR}/reports.nightly/{file_name}'
-                if os.path.getmtime(full_path) >= then:
-                    print(f'  copy {file_name}...')
-                    if os.path.isdir(full_path):
-                        put = c.put_r
-                    else:
-                        put = c.put
-                    put(full_path, f'lucenebench/{file_name}')
+        # we no longer push reports here -- the nightly shell script does git add/commit/push
 
 
 reTookSec = re.compile('took ([0-9.]+) sec')

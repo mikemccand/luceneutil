@@ -838,4 +838,8 @@ KNOWN_CHANGES = [
   ('2024-07-31',
    'Move to 2 levels of skip data, inlined in postings lists https://github.com/apache/lucene/pull/13585',
    'Move to 2 levels of skip data, inlined in postings lists https://github.com/apache/lucene/pull/13585'),
+
+  ('2024-08-25',
+   'Switch to 768 dimension Cohere vectors (from MPNet 768 dimensions)',
+   'Switch to 768 dimension Cohere vectors (from MPNet 768 dimensions)'),
 ]

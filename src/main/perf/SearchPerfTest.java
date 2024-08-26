@@ -659,6 +659,7 @@ public class SearchPerfTest {
     ThreadDetails endThreadDetails = endThreadDetailsRef.get();
 
     double avgCPUCount = -1d;
+    double elapsedMS = nsToMS(endThreadDetails.ns - startThreadDetails.ns);
 
     if (Arrays.equals(startThreadDetails.threadIDs, endThreadDetails.threadIDs)) {
       // only report CPU stats if post-warmup runtime is at least as long as warmup:
@@ -669,7 +670,6 @@ public class SearchPerfTest {
           System.out.println("thread " + startThreadDetails.threadIDs[i] + " name=" + startThreadDetails.threadInfos[i].getThreadName() + " cpu@start=" + startThreadDetails.cpuTimesNS[i] + " cpu@end=" + endThreadDetails.cpuTimesNS[i] +
                              " deltaMS=" + nsToMS(endThreadDetails.cpuTimesNS[i] - startThreadDetails.cpuTimesNS[i]));
         }
-        double elapsedMS = nsToMS(endThreadDetails.ns - startThreadDetails.ns);
         avgCPUCount = nsToMS(sumCPUTimeNS) / elapsedMS;
                                                
         System.out.println("\nAverage CPU cores used: " + avgCPUCount);
@@ -702,7 +702,7 @@ public class SearchPerfTest {
       final Map<Task,Task> tasksSeen = new HashMap<Task,Task>();
 
       out.println("\nStart of tasks winddown: " + nsToMS(endThreadDetails.ns - startNanos) + " msec");
-      out.println("\nElapsed MS (excluding warmup and winddown): elapsedMS");
+      out.println("\nElapsed MS (excluding warmup and winddown): " + elapsedMS);
       out.println("\nAverage CPU cores used: " + avgCPUCount);
       out.println("\nResults for " + allTasks.size() + " tasks:");
 

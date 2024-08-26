@@ -493,7 +493,9 @@ def run():
 
     c = comp.competitor(id, NIGHTLY_DIR,
                         index=index,
-                        vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
+                        # vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),
+                        vectorFileName=constants.VECTORS_QUERY_FILE,
+                        vectorDimension=constants.VECTORS_DIMENSIONS,
                         directory=DIR_IMPL,
                         commitPoint='multi',
                         numConcurrentQueries=1,

@@ -620,6 +620,10 @@ def run():
         if os.path.exists(prevFName):
             resultsPrev.append(prevFName)
 
+    if len(resultsPrev) == 0 and DEBUG:
+        # sidestep exception when we can't find any previous results because DEBUG
+        resultsPrev = resultsNow
+
     output = []
     results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev,
                                                     resultsNow,

@@ -2,7 +2,6 @@ import bisect
 import os
 import datetime
 import pickle
-import pysftp
 
 nextGraph = 500
 graphCount = 0
@@ -203,7 +202,7 @@ def add(data, key, timeStamp, value):
     data[key] = {}
   data[key][timeStamp] = value
 
-with open('/tmp/geoshapebench.html', 'w') as f:
+with open('/l/reports.nightly/geoshapebench.html', 'w') as f:
   f.write('''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -326,7 +325,3 @@ with open('/tmp/geoshapebench.html', 'w') as f:
 </body>
 </html>
 ''')
-
-with pysftp.Connection('people.apache.org', username='ivera', private_key='/Users/ivera/.ssh/id_rsa') as c:
-  with c.cd('public_html'):
-    c.put('/tmp/geoshapebench.html', 'geoshapebench.html')

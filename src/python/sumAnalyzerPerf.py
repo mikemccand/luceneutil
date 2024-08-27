@@ -92,7 +92,9 @@ readResults(LOGS_JA_ROOT, 'ja')
 allResults.sort()
 allResultsJa.sort()
 
-with open('analyzers.html', 'w') as f:
+# write report directly into local (beast3) clone of lucenenightly repo; nightly
+# build script will add/commit/push this change each night:
+with open('/l/reports.nightly/analyzers.html', 'w') as f:
 
   f.write('''
   <html>
@@ -244,11 +246,6 @@ with open('analyzers.html', 'w') as f:
   </body>
   </html>
   ''')
-
-import pysftp
-with pysftp.Connection('home.apache.org', username='mikemccand') as c:
-  with c.cd('public_html/lucenebench'):
-    c.put('analyzers.html', 'analyzers.html')
 
 print
 print('done sumAnalyzerPerf.py')

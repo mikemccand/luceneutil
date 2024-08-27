@@ -1,4 +1,3 @@
-import pysftp
 import re
 import shutil
 import time
@@ -360,13 +359,6 @@ def getLogFile(then, what):
           then.month,
           then.day,
           what)
-
-def copyChart():
-  with pysftp.Connection('home.apache.org', username='mikemccand') as c:
-    with c.cd('public_html/lucenebench'):
-      #c.mkdir('lucenebench')
-      # TODO: this is not incremental...
-      c.put('%s/antcleantest.html' % constants.NIGHTLY_REPORTS_DIR, 'antcleantest.html')
 
 if __name__ == '__main__':
   if '-chart' in sys.argv: 

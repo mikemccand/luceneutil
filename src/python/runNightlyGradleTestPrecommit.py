@@ -363,9 +363,7 @@ def getLogFile(then, what):
 if __name__ == '__main__':
   if '-chart' in sys.argv: 
     writeGraph()
-    copyChart()
   else:
     runLuceneTests(getLogFile(datetime.datetime.now(), 'lucene-tests'))
     runPrecommit(getLogFile(datetime.datetime.now(), 'precommit'))
     writeGraph()
-    copyChart()

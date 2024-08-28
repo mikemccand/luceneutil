@@ -281,7 +281,10 @@ public class KnnGraphTester {
             case "euclidean":
               similarityFunction = VectorSimilarityFunction.EUCLIDEAN;
               break;
-            case "angular":
+            case "angular": // TODO: why is angular a synonym for DOT_PRODUCT?  this only holds true if vectors are normalized to unit
+                            // sphere?  but also, low values for angular mean the vectors are similar, but high values of dot_product mean
+                            // the vectors are similar
+            case "dot_product":
               similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
               break;
             default:

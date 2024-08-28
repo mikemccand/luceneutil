@@ -53,6 +53,7 @@ PARAMS = {
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     'encoding': ('float32',),
+    # 'metric': ('angular',),  # default is angular (dot_product)
     #'quantize': (True,),
     #'fanout': (0,),
     #'topK': (10,),
@@ -78,9 +79,9 @@ def run_knn_benchmark(checkout, values):
     #dim = 100
     #doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
     #query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
-    dim = 768
-    doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
-    query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
+    #dim = 768
+    #doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
+    #query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
     #dim = 384
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
@@ -92,9 +93,9 @@ def run_knn_benchmark(checkout, values):
     #query_vectors = '/d/electronics_query_vectors.bin'
 
     # Cohere dataset
-    #dim = 768
-    #doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
-    #query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
+    dim = 768
+    doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
+    query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
@@ -128,7 +129,7 @@ def run_knn_benchmark(checkout, values):
             '-docs', doc_vectors,
             '-reindex',
             '-search', query_vectors,
-            '-metric', 'euclidean',
+            #'-metric', 'euclidean',
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             # '-forceMerge',
             '-quiet']

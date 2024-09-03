@@ -99,7 +99,7 @@ def run_knn_benchmark(checkout, values):
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
-           '-Dorg.apache.lucene.store.MMapDirectory.enableMemorySegments=false',
+           '--enable-native-access=ALL-UNNAMED',
            'knn.KnnGraphTester']
     all_results = []
     while advance(indexes, values):

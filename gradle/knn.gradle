@@ -89,7 +89,7 @@ for (entry in baseDataSets) {
         args(attachQuantizeArgs(
                 entry.value.quantized,
                 ["$dataDir/${entry.value.dictFileName}",
-                "$taskDir/$textDocFileName",
+                "$dataDir/$textDocFileName",
                 "$taskDir/${entry.value.docVecFileName}"
         ]))
     }
@@ -149,7 +149,7 @@ for (entry in highDimDataSets) {
                 ["$dataDir/$tokFile",
                  "$dataDir/$vecFile",
                  entry.value.dimension,
-                 "$taskDir/$textDocFileName",
+                 "$dataDir/$textDocFileName",
                  "$taskDir/${entry.value.docVecFileName}"
                 ]))
     }

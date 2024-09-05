@@ -152,7 +152,7 @@ def run_knn_benchmark(checkout, values):
             raise RuntimeError(f'command failed with exit {job.returncode}')
         all_results.append(summary)
     print('\nResults:')
-    print("recall\tlatency\tnDoc\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType")
+    print("recall\tlatency (ms)\tnDoc\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType")
     for result in all_results:
         print(result)
     

@@ -504,7 +504,7 @@ public class KnnGraphTester {
   private void testSearch(Path indexPath, Path queryPath, Path outputPath, int[][] nn)
       throws IOException {
     TopDocs[] results = new TopDocs[numIters];
-    long elapsed, totalCpuTime, totalVisited = 0;
+    long elapsed, totalCpuTimeMS, totalVisited = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = FileChannel.open(queryPath)) {
       VectorReader targetReader = VectorReader.create(input, dim, vectorEncoding);
@@ -569,7 +569,7 @@ public class KnnGraphTester {
                     .toArray(ScoreDoc[]::new);
           }
         }
-        totalCpuTime =
+        totalCpuTimeMS =
             TimeUnit.NANOSECONDS.toMillis(bean.getCurrentThreadCpuTime() - cpuTimeStartNs);
         elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start); // ns -> ms
         StoredFields storedFields = reader.storedFields();
@@ -597,7 +597,7 @@ public class KnnGraphTester {
                 + ((1000 * numIters) / elapsed)
                 + " QPS "
                 + "CPU time="
-                + totalCpuTime
+                + totalCpuTimeMS
                 + "ms");
       }
     } finally {
@@ -631,7 +631,7 @@ public class KnnGraphTester {
           Locale.ROOT,
           "SUMMARY: %5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%s\n",
           recall,
-          totalCpuTime / (float) numIters,
+          totalCpuTimeMS / (float) numIters,
           numDocs,
           fanout,
           maxConn,

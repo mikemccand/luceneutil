@@ -31,14 +31,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 
@@ -92,7 +96,7 @@ import org.apache.lucene.internal.hppc.IntIntHashMap;
 
 // e.g. to compile with zero build tooling!:
 //
-//   cd /l/util; javac -d build -cp /l/trunk/lucene/core/build/classes/java/main src/main/knn/*.java 
+//   cd /l/util; javac -d build -cp /l/trunk/lucene/core/build/classes/java/main src/main/knn/*.java
 
 /**
  * For testing indexing and search performance of a knn-graph
@@ -458,13 +462,21 @@ public class KnnGraphTester {
     for (int level = numLevels - 1; level >= 0; level--) {
       int count = 0;
       int min = Integer.MAX_VALUE, max = 0, total = 0;
+      long sumDelta = 0;
       HnswGraph.NodesIterator nodesIterator = knnValues.getNodesOnLevel(level);
       int[] leafHist = new int[nodesIterator.size()];
       while (nodesIterator.hasNext()) {
         int node = nodesIterator.nextInt();
         int n = 0;
         knnValues.seek(level, node);
-        while (knnValues.nextNeighbor() != NO_MORE_DOCS) {
+        int nbr, lastNeighbor = -1, firstNeighbor = -1;
+        while ((nbr = knnValues.nextNeighbor()) != NO_MORE_DOCS) {
+          if (firstNeighbor == -1) {
+            firstNeighbor = nbr;
+          }
+          // we see repeated neighbor nodes?!
+          assert nbr >= lastNeighbor : "neighbors out of order for node " + node + ": " + nbr + "<" + lastNeighbor + " 1st=" + firstNeighbor;
+          lastNeighbor = nbr;
           ++n;
         }
         ++leafHist[n];
@@ -473,11 +485,12 @@ public class KnnGraphTester {
         if (n > 0) {
           ++count;
           total += n;
+          sumDelta += lastNeighbor - firstNeighbor;
         }
       }
       System.out.printf(
-        "Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d\n",
-        level, count, min, total / (float) count, max);
+        "Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d, meandelta=%.2f\n",
+        level, count, min, total / (float) count, max, sumDelta / (float) total);
       printHist(leafHist, max, count, 10);
     }
   }
@@ -697,7 +710,7 @@ public class KnnGraphTester {
       // checking low-precision recall
       int[][] nn;
       if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-        nn = computeNNBytes(docPath, queryPath);
+        nn = computeNNByte(docPath, queryPath);
       } else {
         nn = computeNN(docPath, queryPath);
       }
@@ -760,38 +773,64 @@ public class KnnGraphTester {
     return bitSet;
   }
 
-  private int[][] computeNNBytes(Path docPath, Path queryPath) throws IOException {
+  private int[][] computeNNByte(Path docPath, Path queryPath) throws IOException {
     int[][] result = new int[numIters][];
     if (quiet == false) {
       System.out.println("computing true nearest neighbors of " + numIters + " target vectors");
     }
-    try (FileChannel in = FileChannel.open(docPath);
-         FileChannel qIn = FileChannel.open(queryPath)) {
-      VectorReaderByte docReader = (VectorReaderByte)VectorReader.create(in, dim, VectorEncoding.BYTE);
-      VectorReaderByte queryReader = (VectorReaderByte)VectorReader.create(qIn, dim, VectorEncoding.BYTE);
+    List<ComputeNNByteTask> tasks = new ArrayList<>();
+    try (FileChannel qIn = FileChannel.open(queryPath)) {
+      VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE);
       for (int i = 0; i < numIters; i++) {
-        byte[] query = queryReader.nextBytes();
-        NeighborQueue queue = new NeighborQueue(topK, false);
-        for (int j = 0; j < numDocs; j++) {
-          byte[] doc = docReader.nextBytes();
-          float d = similarityFunction.compare(query, doc);
-          if (matchDocs == null || matchDocs.get(j)) {
-            queue.insertWithOverflow(j, d);
-          }
-        }
-        docReader.reset();
-        result[i] = new int[topK];
-        for (int k = topK - 1; k >= 0; k--) {
-          result[i][k] = queue.topNode();
-          queue.pop();
-        }
-        if (quiet == false && (i + 1) % 10 == 0) {
-          System.out.print(" " + (i + 1));
-          System.out.flush();
-        }
+        byte[] query = queryReader.nextBytes().clone();
+        tasks.add(new ComputeNNByteTask(i, query, docPath, result));
       }
     }
+    ForkJoinPool.commonPool().invokeAll(tasks);
     return result;
+  }
+
+  class ComputeNNByteTask implements Callable<Void> {
+
+    private final int queryOrd;
+    private final byte[] query;
+    private final Path docPath;
+    private final int[][] result;
+
+    ComputeNNByteTask(int queryOrd, byte[] query, Path docPath, int[][] result) {
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.docPath = docPath;
+      this.result = result;
+    }
+
+    @Override
+    public Void call() {
+        NeighborQueue queue = new NeighborQueue(topK, false);
+        try (FileChannel in = FileChannel.open(docPath)) {
+          VectorReaderByte docReader = (VectorReaderByte)VectorReader.create(in, dim, VectorEncoding.BYTE);
+          for (int j = 0; j < numDocs; j++) {
+            byte[] doc = docReader.nextBytes();
+            float d = similarityFunction.compare(query, doc);
+            if (matchDocs == null || matchDocs.get(j)) {
+              queue.insertWithOverflow(j, d);
+            }
+          }
+          docReader.reset();
+          result[queryOrd] = new int[topK];
+          for (int k = topK - 1; k >= 0; k--) {
+            result[queryOrd][k] = queue.topNode();
+            queue.pop();
+          }
+          if (quiet == false && (queryOrd + 1) % 10 == 0) {
+            System.out.print(" " + (queryOrd + 1));
+            System.out.flush();
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+    }
   }
 
   /** Brute force computation of "true" nearest neighhbors. */
@@ -801,33 +840,59 @@ public class KnnGraphTester {
     if (quiet == false) {
       System.out.println("computing true nearest neighbors of " + numIters + " target vectors");
     }
-    try (FileChannel in = FileChannel.open(docPath);
-         FileChannel qIn = FileChannel.open(queryPath)) {
-      VectorReader docReader = VectorReader.create(in, dim, VectorEncoding.FLOAT32);
-      VectorReader queryReader = VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
+    List<ComputeNNFloatTask> tasks = new ArrayList<>();
+    try (FileChannel qIn = FileChannel.open(queryPath)) {
+      VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
       for (int i = 0; i < numIters; i++) {
-        float[] query = queryReader.next();
-        NeighborQueue queue = new NeighborQueue(topK, false);
-        for (int j = 0; j < numDocs; j++) {
-          float[] doc = docReader.next();
-          float d = similarityFunction.compare(query, doc);
-          if (matchDocs == null || matchDocs.get(j)) {
-            queue.insertWithOverflow(j, d);
-          }
-        }
-        docReader.reset();
-        result[i] = new int[topK];
-        for (int k = topK - 1; k >= 0; k--) {
-          result[i][k] = queue.topNode();
-          queue.pop();
-        }
-        if (quiet == false && (i + 1) % 10 == 0) {
-          System.out.print(" " + (i + 1));
-          System.out.flush();
-        }
+        float[] query = queryReader.next().clone();
+        tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
       }
     }
+    ForkJoinPool.commonPool().invokeAll(tasks);
     return result;
+  }
+
+  class ComputeNNFloatTask implements Callable<Void> {
+
+    private final int queryOrd;
+    private final float[] query;
+    private final Path docPath;
+    private final int[][] result;
+
+    ComputeNNFloatTask(int queryOrd, float[] query, Path docPath, int[][] result) {
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.docPath = docPath;
+      this.result = result;
+    }
+
+    @Override
+    public Void call() {
+        NeighborQueue queue = new NeighborQueue(topK, false);
+        try (FileChannel in = FileChannel.open(docPath)) {
+          VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32);
+          for (int j = 0; j < numDocs; j++) {
+            float[] doc = docReader.next();
+            float d = similarityFunction.compare(query, doc);
+            if (matchDocs == null || matchDocs.get(j)) {
+              queue.insertWithOverflow(j, d);
+            }
+          }
+          docReader.reset();
+          result[queryOrd] = new int[topK];
+          for (int k = topK - 1; k >= 0; k--) {
+            result[queryOrd][k] = queue.topNode();
+            queue.pop();
+          }
+          if (quiet == false && (queryOrd + 1) % 10 == 0) {
+            System.out.print(" " + (queryOrd + 1));
+            System.out.flush();
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+    }
   }
 
   static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, boolean quantizeCompress) {

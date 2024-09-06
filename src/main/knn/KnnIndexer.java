@@ -193,10 +193,6 @@ public class KnnIndexer {
     }
     long elapsed = System.nanoTime() - start;
     log("Indexed %d docs in %d seconds", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsed));
-//    if (quiet == false) {
-//      System.out.println(
-//          "Indexed " + numDocs + " documents in " + TimeUnit.NANOSECONDS.toSeconds(elapsed) + "s");
-//    }
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
   }
 

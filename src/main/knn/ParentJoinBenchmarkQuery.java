@@ -50,9 +50,6 @@ public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVector
     BitSetProducer parentsFilter =
         new QueryBitSetProducer(new TermQuery(new Term(parentField, "_parent")));
     CheckJoinIndex.check(reader, parentsFilter);
-    System.out.println("Index is parentJoin eligible...");
-    System.out.println("Creating ParentJoinQuery. Reader statistics:");
-    System.out.flush();
     return new ParentJoinBenchmarkQuery(reader, knnField, queryVector, null, topK, parentsFilter);
   }
 
@@ -73,25 +70,11 @@ public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVector
     List<LeafReaderContext> leafReaderContexts = reader.leaves();
     TopDocs[] perLeafResults = new TopDocs[leafReaderContexts.size()];
     int leaf = 0;
-    System.out.println("Num leaves in index: " + leafReaderContexts.size());
     for (LeafReaderContext ctx : leafReaderContexts) {
       final LeafReader r = ctx.reader();
       TermQuery children = new TermQuery(new Term("docType", "_child"));
       Weight childrenWeight = children.createWeight(searcher, ScoreMode.COMPLETE_NO_SCORES, 1f);
       DocIdSetIterator acceptDocs = childrenWeight.scorer(ctx).iterator();
-//      Bits liveDocs = r.getLiveDocs();
-//      FilteredDocIdSetIterator acceptDocs =
-//          new FilteredDocIdSetIterator(DocIdSetIterator.all(r.maxDoc())) {
-//            @Override
-//            protected boolean match(int doc) {
-//              return liveDocs == null || liveDocs.get(doc);
-//            }
-//          };
-      System.out.println("Running exactSearch for leaf: " + leaf);
-      System.out.println("Leaf maxdoc: " + r.maxDoc());
-      System.out.println("Leaf numDocs: " + r.numDocs());
-      System.out.println("Accept Docs with childrenWeight DISI cost: " + acceptDocs.cost());
-      System.out.flush();
       perLeafResults[leaf] = exactSearch(ctx, acceptDocs, null);
       if (ctx.docBase > 0) {
         for (ScoreDoc scoreDoc : perLeafResults[leaf].scoreDocs) {
@@ -101,9 +84,5 @@ public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVector
       leaf++;
     }
     return super.mergeLeafResults(perLeafResults);
-  }
-
-  private static void log(String msg, Object... args) {
-    System.out.printf((msg) + "%n", args);
   }
 }

@@ -585,7 +585,6 @@ public class KnnGraphTester {
         Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
         for (int i = 0; i < numIters; i++) {
           // warm up
-          log("\t...warm up for query #%d", i);
           if (vectorEncoding.equals(VectorEncoding.BYTE)) {
             byte[] target = targetReaderByte.nextBytes();
             if (prefilter) {
@@ -606,7 +605,6 @@ public class KnnGraphTester {
         start = System.nanoTime();
         cpuTimeStartNs = bean.getCurrentThreadCpuTime();
         for (int i = 0; i < numIters; i++) {
-          log("\t...running search for query #%d", i);
           if (vectorEncoding.equals(VectorEncoding.BYTE)) {
             byte[] target = targetReaderByte.nextBytes();
             if (prefilter) {
@@ -718,7 +716,6 @@ public class KnnGraphTester {
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
-      System.out.println("\trunning ParentJoin knnVectorQuery using approx. search");
       ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(searcher.getIndexReader(), KNN_FIELD, DOCTYPE_FIELD, vector, k);
       return searcher.search(parentJoinQuery, k);
     }
@@ -757,7 +754,7 @@ public class KnnGraphTester {
    * The method runs "numIters" target queries and returns "topK" nearest neighbors
    * for each of them. Nearest Neighbors are computed using exact match.
    */
-  private int[][] getNN(Path docPath, Path queryPath) throws IOException {
+  private int[][] getNN(Path docPath, Path queryPath) throws IOException, InterruptedException {
     // look in working directory for cached nn file
     String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK, similarityFunction.ordinal(), parentJoin), 36);
     String nnFileName = "nn-" + hash + ".bin";
@@ -832,7 +829,7 @@ public class KnnGraphTester {
     return bitSet;
   }
 
-  private int[][] computeNNByte(Path docPath, Path queryPath) throws IOException {
+  private int[][] computeNNByte(Path docPath, Path queryPath) throws IOException, InterruptedException {
     int[][] result = new int[numIters][];
     if (quiet == false) {
       System.out.println("computing true nearest neighbors of " + numIters + " target vectors");
@@ -894,7 +891,7 @@ public class KnnGraphTester {
 
   /** Brute force computation of "true" nearest neighhbors. */
   private int[][] computeNN(Path docPath, Path queryPath)
-      throws IOException {
+      throws IOException, InterruptedException {
     int[][] result = new int[numIters][];
     log("computing true nearest neighbors of " + numIters + " target vectors");
     List<ComputeNNFloatTask> tasks = new ArrayList<>();

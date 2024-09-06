@@ -38,6 +38,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static knn.KnnGraphTester.DOCTYPE_CHILD;
+import static knn.KnnGraphTester.DOCTYPE_PARENT;
+
 public class KnnIndexer {
   // use smaller ram buffer so we get to merging sooner, making better use of
   // many cores (TODO: use multiple indexing threads):
@@ -148,14 +151,14 @@ public class KnnIndexer {
               doc.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
               doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
               doc.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, currParaId, Field.Store.YES));
-              doc.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, "_child", Field.Store.NO));
+              doc.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_CHILD, Field.Store.NO));
               childDocs++;
 
               // Close block and create a new one when wiki article changes.
               if (!currWikiId.equals(prevWikiId) && !"null".equals(prevWikiId)) {
                 Document parent = new Document();
                 parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
-                parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, "_parent", Field.Store.NO));
+                parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
                 parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
                 parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
                 block.add(parent);
@@ -179,7 +182,7 @@ public class KnnIndexer {
             if (!block.isEmpty()) {
               Document parent = new Document();
               parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
-              parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, "_parent", Field.Store.NO));
+              parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
               parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
               parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
               block.add(parent);

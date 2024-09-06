@@ -122,6 +122,8 @@ public class KnnGraphTester {
   public static final String ID_FIELD = "id";
   private static final String INDEX_DIR = "knnIndices";
   public static final String DOCTYPE_FIELD = "docType";
+  public static final String DOCTYPE_PARENT = "_parent";
+  public static final String DOCTYPE_CHILD = "_child";
   public static final String WIKI_ID_FIELD = "wikiID";
   public static final String WIKI_PARA_ID_FIELD = "wikiParaID";
 
@@ -716,7 +718,7 @@ public class KnnGraphTester {
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
-      ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(searcher.getIndexReader(), KNN_FIELD, DOCTYPE_FIELD, vector, k);
+      ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(searcher.getIndexReader(), vector, k);
       return searcher.search(parentJoinQuery, k);
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
@@ -926,7 +928,7 @@ public class KnnGraphTester {
         // Use DiversifyingChildrenFloatKnnVectorQuery for parentJoins
         try (Directory dir = FSDirectory.open(indexPath);
              DirectoryReader reader = DirectoryReader.open(dir)) {
-          ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(reader, KNN_FIELD, DOCTYPE_FIELD, query, topK);
+          ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(reader, query, topK);
           TopDocs topHits = parentJoinQuery.runExactSearch();
           result[queryOrd] = new int[topK];
           int k = 0;

@@ -41,20 +41,22 @@ import org.apache.lucene.util.Bits;
 import java.io.IOException;
 import java.util.List;
 
+import static knn.KnnGraphTester.*;
+
 public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVectorQuery {
 
   IndexReader reader;
   int topK;
 
-  static ParentJoinBenchmarkQuery create(IndexReader reader, String knnField, String parentField, float[] queryVector, int topK) throws IOException {
+  static ParentJoinBenchmarkQuery create(IndexReader reader, float[] queryVector, int topK) throws IOException {
     BitSetProducer parentsFilter =
-        new QueryBitSetProducer(new TermQuery(new Term(parentField, "_parent")));
+        new QueryBitSetProducer(new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_PARENT)));
     CheckJoinIndex.check(reader, parentsFilter);
-    return new ParentJoinBenchmarkQuery(reader, knnField, queryVector, null, topK, parentsFilter);
+    return new ParentJoinBenchmarkQuery(reader, queryVector, null, topK, parentsFilter);
   }
 
-  ParentJoinBenchmarkQuery(IndexReader reader, String field, float[] query, Query childFilter, int k, BitSetProducer parentsFilter) throws IOException {
-    super(field, query, childFilter, k, parentsFilter);
+  ParentJoinBenchmarkQuery(IndexReader reader, float[] query, Query childFilter, int k, BitSetProducer parentsFilter) throws IOException {
+    super(KNN_FIELD, query, childFilter, k, parentsFilter);
     this.reader = reader;
     this.topK = k;
   }
@@ -71,8 +73,7 @@ public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVector
     TopDocs[] perLeafResults = new TopDocs[leafReaderContexts.size()];
     int leaf = 0;
     for (LeafReaderContext ctx : leafReaderContexts) {
-      final LeafReader r = ctx.reader();
-      TermQuery children = new TermQuery(new Term("docType", "_child"));
+      TermQuery children = new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_CHILD));
       Weight childrenWeight = children.createWeight(searcher, ScoreMode.COMPLETE_NO_SCORES, 1f);
       DocIdSetIterator acceptDocs = childrenWeight.scorer(ctx).iterator();
       perLeafResults[leaf] = exactSearch(ctx, acceptDocs, null);

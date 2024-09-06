@@ -140,7 +140,7 @@ public class KnnGraphTester {
   private KnnGraphTester() {
     // set defaults
     numDocs = 1000;
-    numIters = 100;
+    numIters = 1000;
     dim = 256;
     topK = 100;
     numMergeThread = 1;

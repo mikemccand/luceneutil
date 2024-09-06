@@ -6,7 +6,6 @@ import benchUtil
 import constants
 import re
 from common import getLuceneDirFromGradleProperties
-import localconstants
 
 # Measure vector search recall and latency while exploring hyperparameters
 
@@ -28,10 +27,6 @@ import localconstants
 
 # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
 LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-# Where the version of Lucene is that will be tested. Expected to be in the base dir above luceneutil.
-# LUCENE_CHECKOUT = 'baseline'
-# LUCENE_CHECKOUT = 'candidate'
-# LUCENE_CHECKOUT = 'trunk'
 
 # e.g. to compile KnnIndexer:
 #
@@ -43,7 +38,7 @@ PARAMS = {
     #'ndoc': (10000, 100000, 1000000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
-    'ndoc': (50_000,),
+    'ndoc': (250_000,),
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
     #'maxConn': (64, ),
@@ -54,7 +49,7 @@ PARAMS = {
     #'fanout': (20, 100, 250)
     'fanout': (20,),
     #'quantize': None,
-    # 'quantizeBits': (4, 7, 8),
+    'quantizeBits': (4, 7, 8),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     'encoding': ('float32',),
@@ -96,15 +91,12 @@ def run_knn_benchmark(checkout, values):
     #dim = 256
     #doc_vectors = '/d/electronics_asin_emb.bin'
     #query_vectors = '/d/electronics_query_vectors.bin'
-    dim = 768
-    doc_vectors = f"{localconstants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
-    query_vectors = f"{localconstants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
-    parentJoin_meta_file = f"{localconstants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
     # Cohere dataset
-#     dim = 768
-#     doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
-#     query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
+    dim = 768
+    doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
+    query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
+    parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
            '--add-modules', 'jdk.incubator.vector',
@@ -139,10 +131,10 @@ def run_knn_benchmark(checkout, values):
             '-reindex',
             '-search', query_vectors,
             #'-metric', 'euclidean',
-            '-parentJoin', parentJoin_meta_file,
+            # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             # '-forceMerge',
-            # '-quiet'
+            '-quiet'
         ]
         print(f'  cmd: {this_cmd}')
         job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')

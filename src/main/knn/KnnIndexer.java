@@ -17,8 +17,6 @@
 
 package knn;
 
-import knn.KnnGraphTester;
-import knn.VectorReader;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
@@ -26,7 +24,6 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.PrintStreamInfoStream;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -105,6 +102,7 @@ public class KnnIndexer {
           seekToStartDoc(in, dim, vectorEncoding, docsStartIndex);
         }
         VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding);
+        log("parentJoin=%s", parentJoin);
         if (parentJoin == false) {
           for (int i = 0; i < numDocs; i++) {
             Document doc = new Document();
@@ -164,10 +162,6 @@ public class KnnIndexer {
                 block.add(parent);
                 iw.addDocuments(block);
                 parentDocs++;
-                if (parentDocs % 1000 == 0) {
-                  String subDocs = block.stream().map(d -> d.get(KnnGraphTester.WIKI_PARA_ID_FIELD)).collect(Collectors.joining("-"));
-                  log("parentDocId = %s, numSubDocs = %d, subDocs = %s", currWikiId, block.size() - 1, subDocs);
-                }
                 // create new block for the next article
                 block = new ArrayList<>();
                 block.add(doc);
@@ -191,7 +185,6 @@ public class KnnIndexer {
             log("Indexed %d documents with %d parent docs. now flush", childDocs, parentDocs);
           }
         }
-//        iw.flush();
       }
     }
     long elapsed = System.nanoTime() - start;

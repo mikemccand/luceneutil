@@ -54,26 +54,17 @@ import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.KnnByteVectorField;
-import org.apache.lucene.document.KnnFloatVectorField;
-import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.QueryTimeout;
 import org.apache.lucene.index.StoredFields;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.FilteredDocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
@@ -83,20 +74,12 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
-import org.apache.lucene.search.join.BitSetProducer;
-import org.apache.lucene.search.join.CheckJoinIndex;
-import org.apache.lucene.search.join.DiversifyingChildrenFloatKnnVectorQuery;
-import org.apache.lucene.search.join.QueryBitSetProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
-import org.apache.lucene.util.Bits;
-import org.apache.lucene.util.DocIdSetBuilder;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
@@ -568,6 +551,7 @@ public class KnnGraphTester {
   private void testSearch(Path indexPath, Path queryPath, Path outputPath, int[][] nn)
       throws IOException {
     TopDocs[] results = new TopDocs[numIters];
+    int[][] resultIds = new int[numIters][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = FileChannel.open(queryPath)) {
@@ -634,19 +618,12 @@ public class KnnGraphTester {
         totalCpuTimeMS =
             TimeUnit.NANOSECONDS.toMillis(bean.getCurrentThreadCpuTime() - cpuTimeStartNs);
         elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start); // ns -> ms
+
+        // Fetch, validate and write result document ids.
         StoredFields storedFields = reader.storedFields();
         for (int i = 0; i < numIters; i++) {
           totalVisited += results[i].totalHits.value;
-          for (ScoreDoc doc : results[i].scoreDocs) {
-            if (doc.doc != NO_MORE_DOCS) {
-              // there is a bug somewhere that can result in doc=NO_MORE_DOCS!  I think it happens
-              // in some degenerate case (like input query has NaN in it?) that causes no results to
-              // be returned from HNSW search?
-              doc.doc = Integer.parseInt(storedFields.document(doc.doc).get("id"));
-            } else {
-              System.out.println("NO_MORE_DOCS!");
-            }
-          }
+          resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
         }
       }
       if (quiet == false) {
@@ -666,22 +643,17 @@ public class KnnGraphTester {
       executorService.shutdown();
     }
     if (outputPath != null) {
-      ByteBuffer buf = ByteBuffer.allocate(4);
-      IntBuffer ibuf = buf.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+      ByteBuffer tmp =
+        ByteBuffer.allocate(resultIds[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
       try (OutputStream out = Files.newOutputStream(outputPath)) {
         for (int i = 0; i < numIters; i++) {
-          for (ScoreDoc doc : results[i].scoreDocs) {
-            ibuf.position(0);
-            ibuf.put(doc.doc);
-            out.write(buf.array());
-          }
+          tmp.asIntBuffer().put(nn[i]);
+          out.write(tmp.array());
         }
       }
     } else {
-      if (quiet == false) {
-        System.out.println("checking results");
-      }
-      float recall = checkResults(results, nn);
+      log("checking results");
+      float recall = checkResults(resultIds, nn);
       totalVisited /= numIters;
       String quantizeDesc;
       if (quantize) {
@@ -726,7 +698,7 @@ public class KnnGraphTester {
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
   }
 
-  private float checkResults(TopDocs[] results, int[][] nn) {
+  private float checkResults(int[][] results, int[][] nn) {
     int totalMatches = 0;
     int totalResults = results.length * topK;
     for (int i = 0; i < results.length; i++) {
@@ -737,14 +709,14 @@ public class KnnGraphTester {
     return totalMatches / (float) totalResults;
   }
 
-  private int compareNN(int[] expected, TopDocs results) {
+  private int compareNN(int[] expected, int[] results) {
     int matched = 0;
     Set<Integer> expectedSet = new HashSet<>();
     for (int i = 0; i < topK; i++) {
       expectedSet.add(expected[i]);
     }
-    for (ScoreDoc scoreDoc : results.scoreDocs) {
-      if (expectedSet.contains(scoreDoc.doc)) {
+    for (int docId : results) {
+      if (expectedSet.contains(docId)) {
         ++matched;
       }
     }
@@ -930,15 +902,13 @@ public class KnnGraphTester {
              DirectoryReader reader = DirectoryReader.open(dir)) {
           ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(reader, query, topK);
           TopDocs topHits = parentJoinQuery.runExactSearch();
-          result[queryOrd] = new int[topK];
-          int k = 0;
-          for (ScoreDoc scoreDoc : topHits.scoreDocs) {
-            result[queryOrd][k++] = scoreDoc.doc;
-          }
+          StoredFields storedFields = reader.storedFields();
+          result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
       } else {
+        // TODO: Use exactSearch here?
         NeighborQueue queue = new NeighborQueue(topK, false);
         try (FileChannel in = FileChannel.open(docPath)) {
           VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32);
@@ -961,9 +931,6 @@ public class KnnGraphTester {
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
-      }
-      if ((queryOrd + 1) % 10 == 0) {
-        log("(parentJoin=%s) top-%d results for iteration %d: %s", parentJoin, topK, queryOrd, Arrays.toString(result[queryOrd]));
       }
       return null;
     }

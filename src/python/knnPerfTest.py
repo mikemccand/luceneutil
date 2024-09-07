@@ -42,21 +42,21 @@ PARAMS = {
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
     #'maxConn': (64, ),
-    'maxConn': (32, ),
+    'maxConn': (8, 16, 32),
     #'beamWidthIndex': (250, 500),
     #'beamWidthIndex': (250, ),
     'beamWidthIndex': (50, ),
     #'fanout': (20, 100, 250)
-    'fanout': (20,),
+    'fanout': (0,),
     #'quantize': None,
-    'quantizeBits': (4, 7, 8),
+    'quantizeBits': (32,),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     'encoding': ('float32',),
     # 'metric': ('angular',),  # default is angular (dot_product)
     #'quantize': (True,),
     #'fanout': (0,),
-    #'topK': (10,),
+    'topK': (10,),
     #'niter': (10,),
 }
 
@@ -155,10 +155,28 @@ def run_knn_benchmark(checkout, values):
             raise RuntimeError(f'command failed with exit {job.returncode}')
         all_results.append(summary)
     print('\nResults:')
-    print("recall\tlatency (ms)\tnDoc\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType")
-    for result in all_results:
-        print(result)
-    
+
+    header = 'recall\tlatency (ms)\tnDoc\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType'
+
+    # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
+    num_columns = len(header.split('\t'))
+    # print(f'{num_columns} columns')
+    max_by_col = [0] * num_columns
+
+    rows_to_print = [header] + all_results
+
+    for row in rows_to_print:
+        by_column = row.split('\t')
+        if len(by_column) != num_columns:
+            raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)}')
+        for i, s in enumerate(by_column):
+            max_by_col[i] = max(max_by_col[i], len(s))
+
+    row_fmt = '  '.join([f'%{max_by_col[i]}s' for i in range(num_columns)])
+    # print(f'using row format {row_fmt}')
+
+    for row in rows_to_print:
+        print(row_fmt % tuple(row.split('\t')))
 
 
 run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

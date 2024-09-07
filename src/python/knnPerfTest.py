@@ -153,27 +153,36 @@ def run_knn_benchmark(checkout, values):
         all_results.append(summary)
     print('\nResults:')
 
-    header = 'recall\tlatency (ms)\tnDoc\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType'
+    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
-    num_columns = len(header.split('\t'))
+    headers = header.split('\t')
+    num_columns = len(headers)
     # print(f'{num_columns} columns')
     max_by_col = [0] * num_columns
 
     rows_to_print = [header] + all_results
 
+    # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
+    # turn filterType/selectivity back on for all runs
+    skip_headers = {'selectivity', 'filterType', 'visited'}
+
+    skip_column_index = {headers.index(h) for h in skip_headers}
+
     for row in rows_to_print:
         by_column = row.split('\t')
         if len(by_column) != num_columns:
-            raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)}')
+            raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)} in "{row}"')
         for i, s in enumerate(by_column):
             max_by_col[i] = max(max_by_col[i], len(s))
 
-    row_fmt = '  '.join([f'%{max_by_col[i]}s' for i in range(num_columns)])
+    row_fmt = '  '.join([f'%{max_by_col[i]}s' for i in range(num_columns) if i not in skip_column_index])
     # print(f'using row format {row_fmt}')
 
     for row in rows_to_print:
-        print(row_fmt % tuple(row.split('\t')))
+        cols = row.split('\t')
+        cols = tuple(cols[x] for x in range(len(cols)) if x not in skip_column_index)
+        print(row_fmt % cols)
 
 
 run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

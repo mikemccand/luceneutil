@@ -17,8 +17,6 @@
 
 package knn;
 
-import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
@@ -31,9 +29,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -42,16 +40,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.Executors;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene912.Lucene912Codec;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.index.CodecReader;
@@ -63,6 +61,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.internal.hppc.IntIntHashMap;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.IndexSearcher;
@@ -79,6 +78,7 @@ import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NamedThreadFactory;
@@ -86,8 +86,9 @@ import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.NeighborQueue;
+
+import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 //TODO Lucene may make these unavailable, we should pull in this from hppc directly
-import org.apache.lucene.internal.hppc.IntIntHashMap;
 
 // e.g. to compile with zero build tooling!:
 //
@@ -564,71 +565,71 @@ public class KnnGraphTester {
       long start;
       ThreadMXBean bean = ManagementFactory.getThreadMXBean();
       long cpuTimeStartNs;
-      try (Directory dir = FSDirectory.open(indexPath);
-           DirectoryReader reader = DirectoryReader.open(dir)) {
-        IndexSearcher searcher = new IndexSearcher(reader);
-        numDocs = reader.maxDoc();
-        Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
-        for (int i = 0; i < numIters; i++) {
-          // warm up
-          if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-            byte[] target = targetReaderByte.nextBytes();
-            if (prefilter) {
-              doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
+      try (MMapDirectory dir = new MMapDirectory(indexPath)) {
+        dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+        try (DirectoryReader reader = DirectoryReader.open(dir)) {
+          IndexSearcher searcher = new IndexSearcher(reader);
+          numDocs = reader.maxDoc();
+          Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
+          for (int i = 0; i < numIters; i++) {
+            // warm up
+            if (vectorEncoding.equals(VectorEncoding.BYTE)) {
+              byte[] target = targetReaderByte.nextBytes();
+              if (prefilter) {
+                doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
+              } else {
+                doKnnByteVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
+              }
             } else {
-              doKnnByteVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
-            }
-          } else {
-            float[] target = targetReader.next();
-            if (prefilter) {
-              doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
-            } else {
-              doKnnVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
-            }
-          }
-        }
-        targetReader.reset();
-        start = System.nanoTime();
-        cpuTimeStartNs = bean.getCurrentThreadCpuTime();
-        for (int i = 0; i < numIters; i++) {
-          if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-            byte[] target = targetReaderByte.nextBytes();
-            if (prefilter) {
-              results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
-            } else {
-              results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
-            }
-          } else {
-            float[] target = targetReader.next();
-            if (prefilter) {
-              results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
-            } else {
-              results[i] =
-                doKnnVectorQuery(
-                  searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
+              float[] target = targetReader.next();
+              if (prefilter) {
+                doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
+              } else {
+                doKnnVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
+              }
             }
           }
-          if (prefilter == false && matchDocs != null) {
-            results[i].scoreDocs =
-                Arrays.stream(results[i].scoreDocs)
+          targetReader.reset();
+          start = System.nanoTime();
+          cpuTimeStartNs = bean.getCurrentThreadCpuTime();
+          for (int i = 0; i < numIters; i++) {
+            if (vectorEncoding.equals(VectorEncoding.BYTE)) {
+              byte[] target = targetReaderByte.nextBytes();
+              if (prefilter) {
+                results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
+              } else {
+                results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
+              }
+            } else {
+              float[] target = targetReader.next();
+              if (prefilter) {
+                results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
+              } else {
+                results[i] =
+                  doKnnVectorQuery(
+                    searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
+              }
+              if (prefilter == false && matchDocs != null) {
+                results[i].scoreDocs =
+                  Arrays.stream(results[i].scoreDocs)
                     .filter(scoreDoc -> matchDocs.get(scoreDoc.doc))
                     .toArray(ScoreDoc[]::new);
+              }
+            }
           }
-        }
-        totalCpuTimeMS =
+          totalCpuTimeMS =
             TimeUnit.NANOSECONDS.toMillis(bean.getCurrentThreadCpuTime() - cpuTimeStartNs);
-        elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start); // ns -> ms
+          elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start); // ns -> ms
 
-        // Fetch, validate and write result document ids.
-        StoredFields storedFields = reader.storedFields();
-        for (int i = 0; i < numIters; i++) {
-          totalVisited += results[i].totalHits.value;
-          resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
-        }
-      }
-      if (quiet == false) {
-        System.out.println(
-            "completed "
+          // Fetch, validate and write result document ids.
+          StoredFields storedFields = reader.storedFields();
+          for (int i = 0; i < numIters; i++) {
+            totalVisited += results[i].totalHits.value;
+            resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
+          }
+          if (quiet == false) {
+            System.out.println(
+              "completed "
                 + numIters
                 + " searches in "
                 + elapsed
@@ -638,6 +639,8 @@ public class KnnGraphTester {
                 + "CPU time="
                 + totalCpuTimeMS
                 + "ms");
+          }
+        }
       }
     } finally {
       executorService.shutdown();
@@ -663,10 +666,11 @@ public class KnnGraphTester {
       }
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%s\n",
+          "SUMMARY: %5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%s\n",
           recall,
           totalCpuTimeMS / (float) numIters,
           numDocs,
+          topK,
           fanout,
           maxConn,
           beamWidth,

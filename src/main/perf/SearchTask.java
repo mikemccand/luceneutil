@@ -22,6 +22,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
+import org.apache.lucene.facet.FacetsCollectorManager;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
@@ -241,8 +242,9 @@ final class SearchTask extends Task {
           getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         } else {
           facetResults = new ArrayList<FacetResult>();
-          FacetsCollector fc = new FacetsCollector();
-          hits = FacetsCollector.search(searcher, q, 10, fc);
+          FacetsCollectorManager.FacetsResult fr = FacetsCollectorManager.search(searcher, q, 10, new FacetsCollectorManager());
+          hits = fr.topDocs();
+          FacetsCollector fc = fr.facetsCollector();
           long t0 = System.nanoTime();
           for(String request : facetRequests) {
             if (request.startsWith("range:")) {

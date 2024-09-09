@@ -59,10 +59,12 @@ import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.StandardDirectoryReader;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
@@ -121,6 +123,8 @@ public class KnnGraphTester {
   private boolean reindex;
   private boolean forceMerge;
   private int reindexTimeMsec;
+  private int indexNumSegments;
+  private double indexSizeOnDiskMB;
   private int beamWidth;
   private int maxConn;
   private boolean quantize;
@@ -363,6 +367,16 @@ public class KnnGraphTester {
     }
     if (forceMerge) {
       forceMerge();
+    }
+    try (Directory dir = FSDirectory.open(indexPath); IndexReader reader = DirectoryReader.open(dir)) {
+      indexNumSegments = reader.leaves().size();
+      System.out.println("index has " + indexNumSegments + " segments");
+      long indexSizeOnDiskBytes = 0;
+      for(String fileName : ((StandardDirectoryReader) reader).getSegmentInfos().files(true)) {
+        indexSizeOnDiskBytes += dir.fileLength(fileName);
+      }
+      indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
+      System.out.println(String.format(Locale.ROOT, "index disk uage is %.2f MB", indexSizeOnDiskMB));
     }
     if (operation != null) {
       switch (operation) {
@@ -646,7 +660,7 @@ public class KnnGraphTester {
       }
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%d\t%.2f\t%.2f\t%s\n",
           recall,
           totalCpuTimeMS / (float) numIters,
           numDocs,
@@ -657,6 +671,8 @@ public class KnnGraphTester {
           quantizeDesc,
           totalVisited,
           reindexTimeMsec,
+          indexNumSegments,
+          indexSizeOnDiskMB,
           selectivity,
           prefilter ? "pre-filter" : "post-filter");
     }

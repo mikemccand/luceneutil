@@ -50,8 +50,12 @@ public abstract class VectorReader {
   protected final void readNext() throws IOException {
     int bytesRead = this.input.read(bytes);
     if (bytesRead < bytes.capacity()) {
+      // wrap around back to the start of the file if we hit the end:
       this.input.position(0);
-      this.input.read(bytes);
+      bytesRead = this.input.read(bytes);
+      if (bytesRead < bytes.capacity()) {
+        throw new IllegalStateException("vector file " + input + " doesn't even have enough bytes for a single vector?  got bytesRead=" + bytesRead);
+      }
     }
     bytes.position(0);
   }

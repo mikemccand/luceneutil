@@ -78,6 +78,7 @@ import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -710,7 +711,7 @@ public class KnnGraphTester {
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
-      ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(searcher.getIndexReader(), vector, k);
+      ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
       return searcher.search(parentJoinQuery, k);
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
@@ -888,15 +889,33 @@ public class KnnGraphTester {
       throws IOException, InterruptedException {
     int[][] result = new int[numIters][];
     log("computing true nearest neighbors of " + numIters + " target vectors");
-    List<ComputeNNFloatTask> tasks = new ArrayList<>();
-    try (FileChannel qIn = FileChannel.open(queryPath)) {
-      VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
-      for (int i = 0; i < numIters; i++) {
-        float[] query = queryReader.next().clone();
-        tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
+    log("parentJoin = %s", parentJoin);
+    if (parentJoin) {
+      try (Directory dir = FSDirectory.open(indexPath);
+           DirectoryReader reader = DirectoryReader.open(dir)) {
+        CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
+        List<ComputeExactSearchNNFloatTask> tasks = new ArrayList<>();
+        try (FileChannel qIn = FileChannel.open(queryPath)) {
+          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
+          for (int i = 0; i < numIters; i++) {
+            float[] query = queryReader.next().clone();
+            tasks.add(new ComputeExactSearchNNFloatTask(i, query, docPath, result, reader));
+          }
+        }
+        ForkJoinPool.commonPool().invokeAll(tasks);
       }
+    } else {
+      // TODO: Use exactSearch here?
+      List<ComputeNNFloatTask> tasks = new ArrayList<>();
+      try (FileChannel qIn = FileChannel.open(queryPath)) {
+        VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
+        for (int i = 0; i < numIters; i++) {
+          float[] query = queryReader.next().clone();
+          tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
+        }
+      }
+      ForkJoinPool.commonPool().invokeAll(tasks);
     }
-    ForkJoinPool.commonPool().invokeAll(tasks);
     return result;
   }
 
@@ -916,41 +935,60 @@ public class KnnGraphTester {
 
     @Override
     public Void call() {
-      if (parentJoin) {
-        // Use DiversifyingChildrenFloatKnnVectorQuery for parentJoins
-        try (Directory dir = FSDirectory.open(indexPath);
-             DirectoryReader reader = DirectoryReader.open(dir)) {
-          ParentJoinBenchmarkQuery parentJoinQuery = ParentJoinBenchmarkQuery.create(reader, query, topK);
-          TopDocs topHits = parentJoinQuery.runExactSearch();
-          StoredFields storedFields = reader.storedFields();
-          result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+      NeighborQueue queue = new NeighborQueue(topK, false);
+      try (FileChannel in = FileChannel.open(docPath)) {
+        VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32);
+        for (int j = 0; j < numDocs; j++) {
+          float[] doc = docReader.next();
+          float d = similarityFunction.compare(query, doc);
+          if (matchDocs == null || matchDocs.get(j)) {
+            queue.insertWithOverflow(j, d);
+          }
         }
-      } else {
-        // TODO: Use exactSearch here?
-        NeighborQueue queue = new NeighborQueue(topK, false);
-        try (FileChannel in = FileChannel.open(docPath)) {
-          VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32);
-          for (int j = 0; j < numDocs; j++) {
-            float[] doc = docReader.next();
-            float d = similarityFunction.compare(query, doc);
-            if (matchDocs == null || matchDocs.get(j)) {
-              queue.insertWithOverflow(j, d);
-            }
-          }
-          docReader.reset();
-          result[queryOrd] = new int[topK];
-          for (int k = topK - 1; k >= 0; k--) {
-            result[queryOrd][k] = queue.topNode();
-            queue.pop();
-          }
-          if ((queryOrd + 1) % 10 == 0) {
-            log(" " + (queryOrd + 1));
-          }
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+        docReader.reset();
+        result[queryOrd] = new int[topK];
+        for (int k = topK - 1; k >= 0; k--) {
+          result[queryOrd][k] = queue.topNode();
+          queue.pop();
         }
+        if ((queryOrd + 1) % 10 == 0) {
+          log(" " + (queryOrd + 1));
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+  }
+
+  /** Uses ExactSearch from Lucene queries to compute nearest neighbors.
+   */
+  class ComputeExactSearchNNFloatTask implements Callable<Void> {
+
+    private final int queryOrd;
+    private final float[] query;
+    private final Path docPath;
+    private final int[][] result;
+    private final IndexReader reader;
+
+    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, Path docPath, int[][] result, IndexReader reader) {
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.docPath = docPath;
+      this.result = result;
+      this.reader = reader;
+    }
+
+    @Override
+    public Void call() {
+      // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeNN needs.
+      try {
+        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
+        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+        StoredFields storedFields = reader.storedFields();
+        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
       return null;
     }

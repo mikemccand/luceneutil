@@ -30,7 +30,6 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.BitSetProducer;
-import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.search.join.DiversifyingChildrenFloatKnnVectorQuery;
 import org.apache.lucene.search.join.QueryBitSetProducer;
 
@@ -41,20 +40,13 @@ import static knn.KnnGraphTester.*;
 
 public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVectorQuery {
 
-  IndexReader reader;
-  int topK;
+  public static final BitSetProducer parentsFilter =
+    new QueryBitSetProducer(new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_PARENT)));
 
-  static ParentJoinBenchmarkQuery create(IndexReader reader, float[] queryVector, int topK) throws IOException {
-    BitSetProducer parentsFilter =
-        new QueryBitSetProducer(new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_PARENT)));
-    CheckJoinIndex.check(reader, parentsFilter);
-    return new ParentJoinBenchmarkQuery(reader, queryVector, null, topK, parentsFilter);
-  }
+  private static final TermQuery childDocQuery = new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_CHILD));
 
-  ParentJoinBenchmarkQuery(IndexReader reader, float[] query, Query childFilter, int k, BitSetProducer parentsFilter) throws IOException {
-    super(KNN_FIELD, query, childFilter, k, parentsFilter);
-    this.reader = reader;
-    this.topK = k;
+  ParentJoinBenchmarkQuery(float[] queryVector, Query childFilter, int k) throws IOException {
+    super(KNN_FIELD, queryVector, childFilter, k, parentsFilter);
   }
 
   // expose for benchmarking
@@ -63,16 +55,15 @@ public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVector
     return super.exactSearch(context, acceptIterator, queryTimeout);
   }
 
-  public TopDocs runExactSearch() throws IOException {
+  public static TopDocs runExactSearch(IndexReader reader, ParentJoinBenchmarkQuery query) throws IOException {
     IndexSearcher searcher = new IndexSearcher(reader);
     List<LeafReaderContext> leafReaderContexts = reader.leaves();
     TopDocs[] perLeafResults = new TopDocs[leafReaderContexts.size()];
     int leaf = 0;
     for (LeafReaderContext ctx : leafReaderContexts) {
-      TermQuery children = new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_CHILD));
-      Weight childrenWeight = children.createWeight(searcher, ScoreMode.COMPLETE_NO_SCORES, 1f);
+      Weight childrenWeight = childDocQuery.createWeight(searcher, ScoreMode.COMPLETE_NO_SCORES, 1f);
       DocIdSetIterator acceptDocs = childrenWeight.scorer(ctx).iterator();
-      perLeafResults[leaf] = exactSearch(ctx, acceptDocs, null);
+      perLeafResults[leaf] = query.exactSearch(ctx, acceptDocs, null);
       if (ctx.docBase > 0) {
         for (ScoreDoc scoreDoc : perLeafResults[leaf].scoreDocs) {
           scoreDoc.doc += ctx.docBase;
@@ -80,6 +71,6 @@ public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVector
       }
       leaf++;
     }
-    return super.mergeLeafResults(perLeafResults);
+    return query.mergeLeafResults(perLeafResults);
   }
 }

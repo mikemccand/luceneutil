@@ -123,6 +123,7 @@ public class KnnGraphTester {
   private boolean reindex;
   private boolean forceMerge;
   private int reindexTimeMsec;
+  private double forceMergeTimeSec;
   private int indexNumSegments;
   private double indexSizeOnDiskMB;
   private int beamWidth;
@@ -153,6 +154,7 @@ public class KnnGraphTester {
     vectorEncoding = VectorEncoding.FLOAT32;
     selectivity = 1f;
     prefilter = false;
+    quantize = false;
     randomCommits = false;
     quantizeBits = 7;
     quantizeCompress = false;
@@ -297,7 +299,7 @@ public class KnnGraphTester {
               similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
               break;
             default:
-              throw new IllegalArgumentException("-metric can be 'angular', 'euclidean', 'cosine', or 'mip' only");
+              throw new IllegalArgumentException("-metric can be 'mip', 'cosine', 'euclidean', 'angular' (or 'dot_product' -- same as 'angular') only; got: " + metric);
           }
           break;
         case "-forceMerge":
@@ -363,10 +365,10 @@ public class KnnGraphTester {
         0,
         quiet
       ).createIndex();
-      System.out.println("reindex takes " + reindexTimeMsec + " ms");
+      System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec));
     }
     if (forceMerge) {
-      forceMerge();
+      forceMergeTimeSec = forceMerge();
     }
     try (Directory dir = FSDirectory.open(indexPath); IndexReader reader = DirectoryReader.open(dir)) {
       indexNumSegments = reader.leaves().size();
@@ -427,7 +429,7 @@ public class KnnGraphTester {
   }
 
   @SuppressForbidden(reason = "Prints stuff")
-  private void forceMerge() throws IOException {
+  private double forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress));
     if (quiet == false) {
@@ -435,11 +437,14 @@ public class KnnGraphTester {
       iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     }
     System.out.println("Force merge index in " + indexPath);
-    long start = System.currentTimeMillis();
+    long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1);
     }
-    System.out.println("Force merge done in: " + (System.currentTimeMillis() - start) + " ms");
+    long endNS = System.nanoTime();
+    double elapsedSec = nsToSec(endNS - startNS);
+    System.out.println(String.format(Locale.ROOT, "Force merge done in %.2f sec", elapsedSec));
+    return elapsedSec;
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -660,7 +665,7 @@ public class KnnGraphTester {
       }
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%d\t%.2f\t%.2f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\n",
           recall,
           totalCpuTimeMS / (float) numIters,
           numDocs,
@@ -670,12 +675,21 @@ public class KnnGraphTester {
           beamWidth,
           quantizeDesc,
           totalVisited,
-          reindexTimeMsec,
+          reindexTimeMsec / 1000.0,
+          forceMergeTimeSec,
           indexNumSegments,
           indexSizeOnDiskMB,
           selectivity,
           prefilter ? "pre-filter" : "post-filter");
     }
+  }
+
+  private static double nsToSec(long ns) {
+    return ns / (double) 1_000_000_000;
+  }
+
+  private static double msToSec(long ms) {
+    return ns / (double) 1_000;
   }
 
   private static TopDocs doKnnByteVectorQuery(

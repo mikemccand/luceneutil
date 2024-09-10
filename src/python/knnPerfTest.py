@@ -1,5 +1,13 @@
 #!/usr/bin/env/python
 
+# TODO
+#   - why force merge 12X slower
+#   - why only one thread
+#   - try turning off diversity
+#   - report forceMerge time in the final table
+#   - report net concurrency utilized in the table
+#   - add -stats option here that just runs KnnGraphTest 2nd time with -stats and includes/summarizes output or so
+
 import subprocess
 import sys
 import benchUtil
@@ -38,16 +46,16 @@ PARAMS = {
     #'ndoc': (10000, 100000, 1000000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
-    'ndoc': (250_000,),
+    'ndoc': (1_500_000,),
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
     #'maxConn': (64, ),
-    'maxConn': (8, 16, 32),
+    'maxConn': (8, 16, 32, 50),
     #'beamWidthIndex': (250, 500),
     #'beamWidthIndex': (250, ),
-    'beamWidthIndex': (50, ),
+    'beamWidthIndex': (50,),
     #'fanout': (20, 100, 250)
-    'fanout': (0,),
+    'fanout': (6,),
     #'quantize': None,
     'quantizeBits': (32,),
     'numMergeWorker': (12,),
@@ -131,7 +139,8 @@ def run_knn_benchmark(checkout, values):
             '-search', query_vectors,
             #'-metric', 'euclidean',
             # '-numMergeThread', '8', '-numMergeWorker', '8',
-            #'-forceMerge',
+            '-forceMerge',
+            #'-stats',
             '-quiet']
         print(f'  cmd: {this_cmd}')
         job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
@@ -153,7 +162,7 @@ def run_knn_benchmark(checkout, values):
         all_results.append(summary)
     print('\nResults:')
 
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tnum segments\tindex size (MB)\tselectivity\tfilterType'
+    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')
@@ -166,6 +175,9 @@ def run_knn_benchmark(checkout, values):
     # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
     # turn filterType/selectivity back on for all runs
     skip_headers = {'selectivity', 'filterType', 'visited'}
+
+    if '-forceMerge' not in this_cmd:
+        skip_headers.add('force merge s')
 
     skip_column_index = {headers.index(h) for h in skip_headers}
 

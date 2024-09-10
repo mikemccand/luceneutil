@@ -38,6 +38,8 @@ import java.util.List;
 
 import static knn.KnnGraphTester.*;
 
+/** Exposes functions to directly invoke {@link DiversifyingChildrenFloatKnnVectorQuery#exactSearch}
+ */
 public class ParentJoinBenchmarkQuery extends DiversifyingChildrenFloatKnnVectorQuery {
 
   public static final BitSetProducer parentsFilter =

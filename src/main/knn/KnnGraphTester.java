@@ -365,7 +365,7 @@ public class KnnGraphTester {
       indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
       log("Index Path = %s", indexPath);
     }
-    if (parentJoin && !reindex && !isParentJoinIndex(indexPath)) {
+    if (parentJoin && reindex == false && isParentJoinIndex(indexPath) == false) {
       throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
           "document relationships. Rerun with -reindex or without -parentJoin argument");
     }

@@ -156,7 +156,7 @@ def run_knn_benchmark(checkout, values):
         all_results.append(summary)
     print('\nResults:')
 
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tselectivity\tfilterType'
+    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex ms\tnum segments\tindex size (MB)\tselectivity\tfilterType'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')

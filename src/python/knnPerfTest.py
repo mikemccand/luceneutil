@@ -1,6 +1,7 @@
 #!/usr/bin/env/python
 
 # TODO
+#   - try turning diversity off -- faster forceMerge?  better recall?
 #   - why force merge 12X slower
 #   - why only one thread
 #   - try turning off diversity

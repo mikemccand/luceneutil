@@ -365,7 +365,7 @@ public class KnnGraphTester {
         0,
         quiet
       ).createIndex();
-      System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec));
+      System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec)));
     }
     if (forceMerge) {
       forceMergeTimeSec = forceMerge();
@@ -689,7 +689,7 @@ public class KnnGraphTester {
   }
 
   private static double msToSec(long ms) {
-    return ns / (double) 1_000;
+    return ms / (double) 1_000;
   }
 
   private static TopDocs doKnnByteVectorQuery(

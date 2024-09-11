@@ -495,7 +495,7 @@ public class SearchPerfTest {
       IndexSearcher s = mgr.acquire();
       try {
         System.out.println("Searcher: numDocs=" + s.getIndexReader().numDocs() + " maxDoc=" + s.getIndexReader().maxDoc());
-        IndexSearcher.LeafSlice[] slices = IndexSearcher.slices(s.getIndexReader().leaves(), 250_000, 5);
+        IndexSearcher.LeafSlice[] slices = IndexSearcher.slices(s.getIndexReader().leaves(), 250_000, 5, false);
         System.out.println("Reader has " + slices.length + " slices, from " + s.getIndexReader().leaves().size() + " segments:");
         // TODO: sort by descending segment size -- it makes it easier to eyeball the segment -> slice mapping.  OR, maybe just
         // print the slices not the segments?

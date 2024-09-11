@@ -358,7 +358,7 @@ final class SearchTask extends Task {
 
   private void hilite(TopGroups<?> groups, IndexState indexState, IndexSearcher searcher) throws IOException {
     for(GroupDocs<?> group : groups.groups) {
-      for(ScoreDoc sd : group.scoreDocs) {
+      for(ScoreDoc sd : group.scoreDocs()) {
         hilite(sd.doc, indexState, searcher);
       }
     }
@@ -499,15 +499,15 @@ final class SearchTask extends Task {
     if (group != null) {
       if (singlePassGroup) {
         for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-          sum += groupDocs.totalHits.value;
-          for(ScoreDoc hit : groupDocs.scoreDocs) {
+          sum += groupDocs.totalHits().value;
+          for(ScoreDoc hit : groupDocs.scoreDocs()) {
             sum = sum * PRIME + hit.doc;
           }
         }
       } else {
         for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-          sum += groupDocs.totalHits.value;
-          for(ScoreDoc hit : groupDocs.scoreDocs) {
+          sum += groupDocs.totalHits().value;
+          for(ScoreDoc hit : groupDocs.scoreDocs()) {
             sum = sum * PRIME + hit.doc;
             if (hit instanceof FieldDoc) {
               final FieldDoc fd = (FieldDoc) hit;
@@ -605,15 +605,16 @@ final class SearchTask extends Task {
       if (group != null) {
         if (singlePassGroup) {
           for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-            out.println("  group=null" + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-            for(ScoreDoc hit : groupDocs.scoreDocs) {
+            out.println("  group=null" + " totalHits=" + groupDocs.totalHits() + " groupRelevance=" + groupDocs.groupSortValues()[0]);
+            for(ScoreDoc hit : groupDocs.scoreDocs()) {
               out.println("    doc=" + hit.doc + " score=" + hit.score);
             }
           }
         } else {
           for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-            out.println("  group=" + (groupDocs.groupValue == null ? "null" : groupDocs.groupValue.utf8ToString().replace("\n", "\\n")) + " totalHits=" + groupDocs.totalHits + " groupRelevance=" + groupDocs.groupSortValues[0]);
-            for(ScoreDoc hit : groupDocs.scoreDocs) {
+            out.println("  group=" + (groupDocs.groupValue() == null ? "null" : groupDocs.groupValue().utf8ToString().replace("\n", "\\n"))
+                        + " totalHits=" + groupDocs.totalHits() + " groupRelevance=" + groupDocs.groupSortValues()[0]);
+            for(ScoreDoc hit : groupDocs.scoreDocs()) {
               out.println("    doc=" + hit.doc + " score=" + hit.score);
             }
           }

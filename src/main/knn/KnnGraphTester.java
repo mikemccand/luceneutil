@@ -609,7 +609,7 @@ public class KnnGraphTester {
           elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start); // ns -> ms
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numIters; i++) {
-            totalVisited += results[i].totalHits.value;
+            totalVisited += results[i].totalHits.value();
             for (ScoreDoc doc : results[i].scoreDocs) {
               if (doc.doc != NO_MORE_DOCS) {
                 // there is a bug somewhere that can result in doc=NO_MORE_DOCS!  I think it happens
@@ -697,7 +697,7 @@ public class KnnGraphTester {
     throws IOException {
     ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
   private static TopDocs doKnnVectorQuery(
@@ -705,7 +705,7 @@ public class KnnGraphTester {
       throws IOException {
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
   private float checkResults(TopDocs[] results, int[][] nn) {
@@ -979,7 +979,7 @@ public class KnnGraphTester {
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
-      totalVectorCount = td.totalHits.value;
+      totalVectorCount = td.totalHits.value();
       return td;
     }
 
@@ -1008,7 +1008,7 @@ public class KnnGraphTester {
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
-      totalVectorCount = td.totalHits.value;
+      totalVectorCount = td.totalHits.value();
       return td;
     }
 

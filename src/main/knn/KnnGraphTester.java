@@ -188,6 +188,7 @@ public class KnnGraphTester {
       String arg = args[iarg];
       switch (arg) {
         case "-search":
+        case "-search-and-stats":
         case "-check":
         case "-stats":
         case "-dump":
@@ -196,7 +197,7 @@ public class KnnGraphTester {
                 "Specify only one operation, not both " + arg + " and " + operation);
           }
           operation = arg;
-          if (operation.equals("-search")) {
+          if (operation.equals("-search") || operation.equals("-search-and-stats")) {
             if (iarg == args.length - 1) {
               throw new IllegalArgumentException(
                   "Operation " + arg + " requires a following pathname");
@@ -416,6 +417,7 @@ public class KnnGraphTester {
     if (operation != null) {
       switch (operation) {
         case "-search":
+        case "-search-and-stats":
           if (docVectorsPath == null) {
             throw new IllegalArgumentException("missing -docs arg");
           }
@@ -426,6 +428,10 @@ public class KnnGraphTester {
             testSearch(indexPath, queryPath, outputPath, null);
           } else {
             testSearch(indexPath, queryPath, null, getNN(docVectorsPath, queryPath));
+          }
+          if (operation.equals("-search-and-stats")) {
+            // also print stats, after searching
+            printFanoutHist(indexPath);
           }
           break;
         case "-stats":
@@ -728,7 +734,7 @@ public class KnnGraphTester {
     throws IOException {
     ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
   private static TopDocs doKnnVectorQuery(
@@ -740,7 +746,7 @@ public class KnnGraphTester {
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
   private float checkResults(int[][] results, int[][] nn) {
@@ -1074,7 +1080,7 @@ public class KnnGraphTester {
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
-      totalVectorCount = td.totalHits.value;
+      totalVectorCount = td.totalHits.value();
       return td;
     }
 
@@ -1103,7 +1109,7 @@ public class KnnGraphTester {
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
-      totalVectorCount = td.totalHits.value;
+      totalVectorCount = td.totalHits.value();
       return td;
     }
 

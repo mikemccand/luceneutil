@@ -185,6 +185,7 @@ public class KnnGraphTester {
       String arg = args[iarg];
       switch (arg) {
         case "-search":
+        case "-search-and-stats":
         case "-check":
         case "-stats":
         case "-dump":
@@ -193,7 +194,7 @@ public class KnnGraphTester {
                 "Specify only one operation, not both " + arg + " and " + operation);
           }
           operation = arg;
-          if (operation.equals("-search")) {
+          if (operation.equals("-search") || operation.equals("-search-and-stats")) {
             if (iarg == args.length - 1) {
               throw new IllegalArgumentException(
                   "Operation " + arg + " requires a following pathname");
@@ -383,6 +384,7 @@ public class KnnGraphTester {
     if (operation != null) {
       switch (operation) {
         case "-search":
+        case "-search-and-stats":
           if (docVectorsPath == null) {
             throw new IllegalArgumentException("missing -docs arg");
           }
@@ -393,6 +395,10 @@ public class KnnGraphTester {
             testSearch(indexPath, queryPath, outputPath, null);
           } else {
             testSearch(indexPath, queryPath, null, getNN(docVectorsPath, queryPath));
+          }
+          if (operation.equals("-search-and-stats")) {
+            // also print stats, after searching
+            printFanoutHist(indexPath);
           }
           break;
         case "-stats":

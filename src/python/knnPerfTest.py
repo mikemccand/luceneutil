@@ -1,13 +1,11 @@
 #!/usr/bin/env/python
 
 # TODO
+#   - hmm what is "normalized" boolean at KNN indexing time? -- COSINE similarity sets this to true
 #   - try turning diversity off -- faster forceMerge?  better recall?
 #   - why force merge 12X slower
 #   - why only one thread
-#   - try turning off diversity
-#   - report forceMerge time in the final table
 #   - report net concurrency utilized in the table
-#   - add -stats option here that just runs KnnGraphTest 2nd time with -stats and includes/summarizes output or so
 
 import subprocess
 import sys
@@ -51,7 +49,7 @@ PARAMS = {
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
     #'maxConn': (64, ),
-    'maxConn': (8, 16, 32, 50),
+    'maxConn': (32,),
     #'beamWidthIndex': (250, 500),
     #'beamWidthIndex': (250, ),
     'beamWidthIndex': (50,),
@@ -64,8 +62,10 @@ PARAMS = {
     'encoding': ('float32',),
     # 'metric': ('angular',),  # default is angular (dot_product)
     #'quantize': (True,),
+    'quantizeBits': (4,),
     #'fanout': (0,),
     'topK': (10,),
+    'quantizeCompress': (True, False),
     #'niter': (10,),
 }
 
@@ -107,8 +107,8 @@ def run_knn_benchmark(checkout, values):
     query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
-           '--add-modules', 'jdk.incubator.vector',
-           '--enable-native-access=ALL-UNNAMED',
+           #'--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
+           #'--enable-native-access=ALL-UNNAMED',
            'knn.KnnGraphTester']
     all_results = []
     while advance(indexes, values):
@@ -125,6 +125,10 @@ def run_knn_benchmark(checkout, values):
                         print(f'  -{p}={value}')
                         print(f'  -quantize')
                         args += ['-quantize']
+                elif type(value) is bool:
+                    if value:
+                        args += ['-' + p]
+                        print(f'  -{p}')
                 else:
                     print(f'  -{p}={value}')
                     pv[p] = value
@@ -137,7 +141,7 @@ def run_knn_benchmark(checkout, values):
             '-dim', str(dim),
             '-docs', doc_vectors,
             '-reindex',
-            '-search', query_vectors,
+            '-search-and-stats', query_vectors,
             #'-metric', 'euclidean',
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             '-forceMerge',

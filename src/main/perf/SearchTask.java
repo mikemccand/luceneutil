@@ -499,14 +499,14 @@ final class SearchTask extends Task {
     if (group != null) {
       if (singlePassGroup) {
         for(GroupDocs<?> groupDocs : groupsResultBlock.groups) {
-          sum += groupDocs.totalHits().value;
+          sum += groupDocs.totalHits().value();
           for(ScoreDoc hit : groupDocs.scoreDocs()) {
             sum = sum * PRIME + hit.doc;
           }
         }
       } else {
         for(GroupDocs<BytesRef> groupDocs : groupsResultTerms.groups) {
-          sum += groupDocs.totalHits().value;
+          sum += groupDocs.totalHits().value();
           for(ScoreDoc hit : groupDocs.scoreDocs()) {
             sum = sum * PRIME + hit.doc;
             if (hit instanceof FieldDoc) {
@@ -526,7 +526,7 @@ final class SearchTask extends Task {
       }
       sum = countOnlyCount;
     } else {
-      sum = hits.totalHits.value;
+      sum = hits.totalHits.value();
       for(ScoreDoc hit : hits.scoreDocs) {
         //System.out.println("  " + hit.doc);
         sum = sum * PRIME + hit.doc;
@@ -566,8 +566,8 @@ final class SearchTask extends Task {
         if (hits == null) {
           b.append("null");
         } else {
-          b.append(hits.totalHits.value);
-          if (hits.totalHits.relation == TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO) {
+          b.append(hits.totalHits.value());
+          if (hits.totalHits.relation() == TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO) {
             b.append('+');
           }
         }

@@ -905,7 +905,7 @@ public class IndexAndSearchOpenStreetMaps {
                     for(IndexSearcher s : searchers) {
                       TopFieldDocs hits = s.search(q, 10, sort);
                       queries.add(q);
-                      totHits += hits.totalHits.value;
+                      totHits += hits.totalHits.value();
                     }
                   } else {
                     //System.out.println("\nRUN QUERY " + q);

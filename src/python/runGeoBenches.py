@@ -6,7 +6,7 @@ import re
 import datetime
 import time
 
-reTotHits = re.compile('totHits=(\d+)$')
+reTotHits = re.compile(r'totHits=(\d+)$')
 
 GEO_LOGS_DIR = '/l/logs.nightly/geo'
 

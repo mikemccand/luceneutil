@@ -842,4 +842,12 @@ KNOWN_CHANGES = [
   ('2024-08-25',
    'Switch to 768 dimension Cohere vectors (from MPNet 768 dimensions)',
    'Switch to 768 dimension Cohere vectors (from MPNet 768 dimensions)'),
+
+  ('2024-08-28',
+   'Speed up advancing within a block https://github.com/apache/lucene/pull/13692',
+   'Speed up advancing within a block https://github.com/apache/lucene/pull/13692'),
+
+  ('2024-09-16',
+   'Revert: Speed up advancing within a block https://github.com/apache/lucene/pull/13692',
+   'Revert: Speed up advancing within a block https://github.com/apache/lucene/pull/13692'),
 ]

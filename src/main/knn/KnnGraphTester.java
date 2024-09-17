@@ -650,7 +650,7 @@ public class KnnGraphTester {
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numIters; i++) {
-            totalVisited += results[i].totalHits.value;
+            totalVisited += results[i].totalHits.value();
             resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
           }
           if (quiet == false) {

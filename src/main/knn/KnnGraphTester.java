@@ -404,16 +404,6 @@ public class KnnGraphTester {
       indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
       System.out.println(String.format(Locale.ROOT, "index disk uage is %.2f MB", indexSizeOnDiskMB));
     }
-    try (Directory dir = FSDirectory.open(indexPath); IndexReader reader = DirectoryReader.open(dir)) {
-      indexNumSegments = reader.leaves().size();
-      System.out.println("index has " + indexNumSegments + " segments");
-      long indexSizeOnDiskBytes = 0;
-      for(String fileName : ((StandardDirectoryReader) reader).getSegmentInfos().files(true)) {
-        indexSizeOnDiskBytes += dir.fileLength(fileName);
-      }
-      indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
-      System.out.println(String.format(Locale.ROOT, "index disk uage is %.2f MB", indexSizeOnDiskMB));
-    }
     if (operation != null) {
       switch (operation) {
         case "-search":
@@ -734,7 +724,7 @@ public class KnnGraphTester {
     throws IOException {
     ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
   }
 
   private static TopDocs doKnnVectorQuery(
@@ -746,7 +736,7 @@ public class KnnGraphTester {
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation), docs.scoreDocs);
   }
 
   private float checkResults(int[][] results, int[][] nn) {

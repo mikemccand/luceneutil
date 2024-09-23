@@ -103,8 +103,9 @@ def run_knn_benchmark(checkout, values):
 
     # Cohere dataset
     dim = 768
-    doc_vectors = '%s/data/cohere-wikipedia-768.vec' % constants.BASE_DIR
-    query_vectors = '%s/data/cohere-wikipedia-queries-768.vec' % constants.BASE_DIR
+    doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
+    query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
+    parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
     cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
            #'--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
@@ -143,10 +144,12 @@ def run_knn_benchmark(checkout, values):
             '-reindex',
             '-search-and-stats', query_vectors,
             #'-metric', 'euclidean',
+            # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             '-forceMerge',
             #'-stats',
-            '-quiet']
+            '-quiet'
+        ]
         print(f'  cmd: {this_cmd}')
         job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
         re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)

@@ -52,11 +52,6 @@ import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsForma
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.KnnByteVectorField;
-import org.apache.lucene.document.KnnFloatVectorField;
-import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -83,6 +78,7 @@ import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -112,6 +108,11 @@ public class KnnGraphTester {
   public static final String KNN_FIELD = "knn";
   public static final String ID_FIELD = "id";
   private static final String INDEX_DIR = "knnIndices";
+  public static final String DOCTYPE_FIELD = "docType";
+  public static final String DOCTYPE_PARENT = "_parent";
+  public static final String DOCTYPE_CHILD = "_child";
+  public static final String WIKI_ID_FIELD = "wikiID";
+  public static final String WIKI_PARA_ID_FIELD = "wikiParaID";
 
   private int numDocs;
   private int dim;
@@ -140,6 +141,8 @@ public class KnnGraphTester {
   private float selectivity;
   private boolean prefilter;
   private boolean randomCommits;
+  private boolean parentJoin = false;
+  private Path parentJoinMetaFile;
 
   private KnnGraphTester() {
     // set defaults
@@ -213,30 +216,35 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("-beamWidthIndex requires a following number");
           }
           beamWidth = Integer.parseInt(args[++iarg]);
+          log("beamWidth = %d", beamWidth);
           break;
         case "-maxConn":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-maxConn requires a following number");
           }
           maxConn = Integer.parseInt(args[++iarg]);
+          log("maxConn = %d", maxConn);
           break;
         case "-dim":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-dim requires a following number");
           }
           dim = Integer.parseInt(args[++iarg]);
+          log("Vector Dimensions: %d", dim);
           break;
         case "-ndoc":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-ndoc requires a following number");
           }
           numDocs = Integer.parseInt(args[++iarg]);
+          log("numDocs = %d", numDocs);
           break;
         case "-niter":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-niter requires a following number");
           }
           numIters = Integer.parseInt(args[++iarg]);
+          log("numIters = %d", numIters);
           break;
         case "-reindex":
           reindex = true;
@@ -302,6 +310,7 @@ public class KnnGraphTester {
             default:
               throw new IllegalArgumentException("-metric can be 'mip', 'cosine', 'euclidean', 'angular' (or 'dot_product' -- same as 'angular') only; got: " + metric);
           }
+          log("similarity = %s", similarityFunction);
           break;
         case "-forceMerge":
           forceMerge = true;
@@ -337,6 +346,13 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
           break;
+        case "-parentJoin":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-parentJoin requires a following Path for parentJoinMetaFile");
+          }
+          parentJoinMetaFile = Paths.get(args[++iarg]);
+          parentJoin = true;
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -350,6 +366,11 @@ public class KnnGraphTester {
     }
     if (indexPath == null) {
       indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
+      log("Index Path = %s", indexPath);
+    }
+    if (parentJoin && reindex == false && isParentJoinIndex(indexPath) == false) {
+      throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
+          "document relationships. Rerun with -reindex or without -parentJoin argument");
     }
     if (reindex) {
       if (docVectorsPath == null) {
@@ -364,7 +385,9 @@ public class KnnGraphTester {
         similarityFunction,
         numDocs,
         0,
-        quiet
+        quiet,
+        parentJoin,
+        parentJoinMetaFile
       ).createIndex();
       System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec)));
     }
@@ -409,11 +432,23 @@ public class KnnGraphTester {
   }
 
   private String formatIndexPath(Path docsPath) {
+    List<String> suffix = new ArrayList<>();
+    suffix.add(Integer.toString(maxConn));
+    suffix.add(Integer.toString(beamWidth));
     if (quantize) {
-      return INDEX_DIR + "/" + docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + "-"
-              + quantizeBits + (quantizeCompress ? "-compressed" : "" ) + ".index";
+      suffix.add(Integer.toString(quantizeBits));
+      if (quantizeCompress == true) {
+        suffix.add("-compressed");
+      }
     }
-    return INDEX_DIR + "/" + docsPath.getFileName() + "-" + maxConn + "-" + beamWidth + ".index";
+    if (parentJoin) {
+      suffix.add("parentJoin");
+    }
+    return INDEX_DIR + "/" + docsPath.getFileName() + "-" + String.join("-", suffix) + ".index";
+  }
+
+  private boolean isParentJoinIndex(Path indexPath) {
+    return indexPath.toString().contains("parentJoin");
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -543,6 +578,7 @@ public class KnnGraphTester {
   private void testSearch(Path indexPath, Path queryPath, Path outputPath, int[][] nn)
       throws IOException {
     TopDocs[] results = new TopDocs[numIters];
+    int[][] resultIds = new int[numIters][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = FileChannel.open(queryPath)) {
@@ -551,16 +587,13 @@ public class KnnGraphTester {
       if (targetReader instanceof VectorReaderByte b) {
         targetReaderByte = b;
       }
-      if (quiet == false) {
-        System.out.println("running " + numIters + " targets; topK=" + topK + ", fanout=" + fanout);
-      }
+      log("running " + numIters + " targets; topK=" + topK + ", fanout=" + fanout);
       long start;
       ThreadMXBean bean = ManagementFactory.getThreadMXBean();
       long cpuTimeStartNs;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
-        try (
-           DirectoryReader reader = DirectoryReader.open(dir)) {
+        try (DirectoryReader reader = DirectoryReader.open(dir)) {
           IndexSearcher searcher = new IndexSearcher(reader);
           numDocs = reader.maxDoc();
           Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
@@ -576,9 +609,9 @@ public class KnnGraphTester {
             } else {
               float[] target = targetReader.next();
               if (prefilter) {
-                doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
+                doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
               } else {
-                doKnnVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
+                doKnnVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
               }
             }
           }
@@ -596,72 +629,60 @@ public class KnnGraphTester {
             } else {
               float[] target = targetReader.next();
               if (prefilter) {
-                results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
+                results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
               } else {
                 results[i] =
                   doKnnVectorQuery(
-                                   searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
+                    searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
               }
-            }
-            if (prefilter == false && matchDocs != null) {
-              results[i].scoreDocs =
-                Arrays.stream(results[i].scoreDocs)
-                .filter(scoreDoc -> matchDocs.get(scoreDoc.doc))
-                .toArray(ScoreDoc[]::new);
+              if (prefilter == false && matchDocs != null) {
+                results[i].scoreDocs =
+                  Arrays.stream(results[i].scoreDocs)
+                    .filter(scoreDoc -> matchDocs.get(scoreDoc.doc))
+                    .toArray(ScoreDoc[]::new);
+              }
             }
           }
           totalCpuTimeMS =
             TimeUnit.NANOSECONDS.toMillis(bean.getCurrentThreadCpuTime() - cpuTimeStartNs);
           elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start); // ns -> ms
+
+          // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numIters; i++) {
             totalVisited += results[i].totalHits.value();
-            for (ScoreDoc doc : results[i].scoreDocs) {
-              if (doc.doc != NO_MORE_DOCS) {
-                // there is a bug somewhere that can result in doc=NO_MORE_DOCS!  I think it happens
-                // in some degenerate case (like input query has NaN in it?) that causes no results to
-                // be returned from HNSW search?
-                doc.doc = Integer.parseInt(storedFields.document(doc.doc).get("id"));
-              } else {
-                System.out.println("NO_MORE_DOCS!");
-              }
-            }
+            resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
           }
-        }
-        if (quiet == false) {
-          System.out.println(
-                             "completed "
-                             + numIters
-                             + " searches in "
-                             + elapsed
-                             + " ms: "
-                             + ((1000 * numIters) / elapsed)
-                             + " QPS "
-                             + "CPU time="
-                             + totalCpuTimeMS
-                             + "ms");
+          if (quiet == false) {
+            System.out.println(
+              "completed "
+                + numIters
+                + " searches in "
+                + elapsed
+                + " ms: "
+                + ((1000 * numIters) / elapsed)
+                + " QPS "
+                + "CPU time="
+                + totalCpuTimeMS
+                + "ms");
+          }
         }
       }
     } finally {
       executorService.shutdown();
     }
     if (outputPath != null) {
-      ByteBuffer buf = ByteBuffer.allocate(4);
-      IntBuffer ibuf = buf.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+      ByteBuffer tmp =
+        ByteBuffer.allocate(resultIds[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
       try (OutputStream out = Files.newOutputStream(outputPath)) {
         for (int i = 0; i < numIters; i++) {
-          for (ScoreDoc doc : results[i].scoreDocs) {
-            ibuf.position(0);
-            ibuf.put(doc.doc);
-            out.write(buf.array());
-          }
+          tmp.asIntBuffer().put(nn[i]);
+          out.write(tmp.array());
         }
       }
     } else {
-      if (quiet == false) {
-        System.out.println("checking results");
-      }
-      float recall = checkResults(results, nn);
+      log("checking results");
+      float recall = checkResults(resultIds, nn);
       totalVisited /= numIters;
       String quantizeDesc;
       if (quantize) {
@@ -707,14 +728,18 @@ public class KnnGraphTester {
   }
 
   private static TopDocs doKnnVectorQuery(
-      IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter)
+      IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter, boolean isParentJoinQuery)
       throws IOException {
+    if (isParentJoinQuery) {
+      ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
+      return searcher.search(parentJoinQuery, k);
+    }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
     TopDocs docs = searcher.search(profiledQuery, k);
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
-  private float checkResults(TopDocs[] results, int[][] nn) {
+  private float checkResults(int[][] results, int[][] nn) {
     int totalMatches = 0;
     int totalResults = results.length * topK;
     for (int i = 0; i < results.length; i++) {
@@ -725,23 +750,28 @@ public class KnnGraphTester {
     return totalMatches / (float) totalResults;
   }
 
-  private int compareNN(int[] expected, TopDocs results) {
+  private int compareNN(int[] expected, int[] results) {
     int matched = 0;
     Set<Integer> expectedSet = new HashSet<>();
     for (int i = 0; i < topK; i++) {
       expectedSet.add(expected[i]);
     }
-    for (ScoreDoc scoreDoc : results.scoreDocs) {
-      if (expectedSet.contains(scoreDoc.doc)) {
+    for (int docId : results) {
+      if (expectedSet.contains(docId)) {
         ++matched;
       }
     }
     return matched;
   }
 
-  private int[][] getNN(Path docPath, Path queryPath) throws IOException {
+  /** Returns the topK nearest neighbors for each target query.
+   *
+   * The method runs "numIters" target queries and returns "topK" nearest neighbors
+   * for each of them. Nearest Neighbors are computed using exact match.
+   */
+  private int[][] getNN(Path docPath, Path queryPath) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK, similarityFunction.ordinal()), 36);
+    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK, similarityFunction.ordinal(), parentJoin), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {
@@ -814,7 +844,7 @@ public class KnnGraphTester {
     return bitSet;
   }
 
-  private int[][] computeNNByte(Path docPath, Path queryPath) throws IOException {
+  private int[][] computeNNByte(Path docPath, Path queryPath) throws IOException, InterruptedException {
     int[][] result = new int[numIters][];
     if (quiet == false) {
       System.out.println("computing true nearest neighbors of " + numIters + " target vectors");
@@ -876,20 +906,36 @@ public class KnnGraphTester {
 
   /** Brute force computation of "true" nearest neighhbors. */
   private int[][] computeNN(Path docPath, Path queryPath)
-      throws IOException {
+      throws IOException, InterruptedException {
     int[][] result = new int[numIters][];
-    if (quiet == false) {
-      System.out.println("computing true nearest neighbors of " + numIters + " target vectors");
-    }
-    List<ComputeNNFloatTask> tasks = new ArrayList<>();
-    try (FileChannel qIn = FileChannel.open(queryPath)) {
-      VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
-      for (int i = 0; i < numIters; i++) {
-        float[] query = queryReader.next().clone();
-        tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
+    log("computing true nearest neighbors of " + numIters + " target vectors");
+    log("parentJoin = %s", parentJoin);
+    if (parentJoin) {
+      try (Directory dir = FSDirectory.open(indexPath);
+           DirectoryReader reader = DirectoryReader.open(dir)) {
+        CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
+        List<ComputeExactSearchNNFloatTask> tasks = new ArrayList<>();
+        try (FileChannel qIn = FileChannel.open(queryPath)) {
+          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
+          for (int i = 0; i < numIters; i++) {
+            float[] query = queryReader.next().clone();
+            tasks.add(new ComputeExactSearchNNFloatTask(i, query, docPath, result, reader));
+          }
+        }
+        ForkJoinPool.commonPool().invokeAll(tasks);
       }
+    } else {
+      // TODO: Use exactSearch here?
+      List<ComputeNNFloatTask> tasks = new ArrayList<>();
+      try (FileChannel qIn = FileChannel.open(queryPath)) {
+        VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32);
+        for (int i = 0; i < numIters; i++) {
+          float[] query = queryReader.next().clone();
+          tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
+        }
+      }
+      ForkJoinPool.commonPool().invokeAll(tasks);
     }
-    ForkJoinPool.commonPool().invokeAll(tasks);
     return result;
   }
 
@@ -909,30 +955,69 @@ public class KnnGraphTester {
 
     @Override
     public Void call() {
-        NeighborQueue queue = new NeighborQueue(topK, false);
-        try (FileChannel in = FileChannel.open(docPath)) {
-          VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32);
-          for (int j = 0; j < numDocs; j++) {
-            float[] doc = docReader.next();
-            float d = similarityFunction.compare(query, doc);
-            if (matchDocs == null || matchDocs.get(j)) {
-              queue.insertWithOverflow(j, d);
-            }
+      NeighborQueue queue = new NeighborQueue(topK, false);
+      try (FileChannel in = FileChannel.open(docPath)) {
+        VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32);
+        for (int j = 0; j < numDocs; j++) {
+          float[] doc = docReader.next();
+          float d = similarityFunction.compare(query, doc);
+          if (matchDocs == null || matchDocs.get(j)) {
+            queue.insertWithOverflow(j, d);
           }
-          docReader.reset();
-          result[queryOrd] = new int[topK];
-          for (int k = topK - 1; k >= 0; k--) {
-            result[queryOrd][k] = queue.topNode();
-            queue.pop();
-          }
-          if (quiet == false && (queryOrd + 1) % 10 == 0) {
-            System.out.print(" " + (queryOrd + 1));
-            System.out.flush();
-          }
-        } catch (IOException e) {
-          throw new RuntimeException(e);
         }
-        return null;
+        docReader.reset();
+        result[queryOrd] = new int[topK];
+        for (int k = topK - 1; k >= 0; k--) {
+          result[queryOrd][k] = queue.topNode();
+          queue.pop();
+        }
+        if ((queryOrd + 1) % 10 == 0) {
+          log(" " + (queryOrd + 1));
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+  }
+
+  /** Uses ExactSearch from Lucene queries to compute nearest neighbors.
+   */
+  class ComputeExactSearchNNFloatTask implements Callable<Void> {
+
+    private final int queryOrd;
+    private final float[] query;
+    private final Path docPath;
+    private final int[][] result;
+    private final IndexReader reader;
+
+    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, Path docPath, int[][] result, IndexReader reader) {
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.docPath = docPath;
+      this.result = result;
+      this.reader = reader;
+    }
+
+    @Override
+    public Void call() {
+      // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeNN needs.
+      try {
+        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
+        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+        StoredFields storedFields = reader.storedFields();
+        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+  }
+
+  private void log(String msg, Object... args) {
+    if (quiet == false) {
+      System.out.printf((msg) + "%n", args);
+      System.out.flush();
     }
   }
 

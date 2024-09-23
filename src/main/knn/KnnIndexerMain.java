@@ -19,6 +19,7 @@ package knn;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -38,6 +39,8 @@ public class KnnIndexerMain {
 
   public int docStartIndex = 0;
   boolean quiet = false;
+  boolean parentJoin = false;
+  Path parentJoinMetaFile = null;
 
   @Override
   public String toString() {
@@ -73,6 +76,10 @@ public class KnnIndexerMain {
           case "-docstartindex" -> inputs.docStartIndex = Integer.parseInt(args[++i]);
           case "-dimension" -> inputs.dimension = Integer.parseInt(args[++i]);
           case "-quiet" -> inputs.quiet = true;
+          case "-parentjoin" -> {
+            inputs.parentJoin = true;
+            inputs.parentJoinMetaFile = Paths.get(args[++i]);
+          }
           default -> throw new IllegalArgumentException("Cannot recognize the option " + args[i]);
         }
         i++;
@@ -96,7 +103,8 @@ public class KnnIndexerMain {
     new KnnIndexer(inputs.docVectorsPath, inputs.indexPath,
                    KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
                    inputs.vectorEncoding,
-                   inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet).createIndex();
+                   inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet,
+                   inputs.parentJoin, inputs.parentJoinMetaFile).createIndex();
 
     if (!inputs.quiet) {
       System.out.println("Successfully created index.");
@@ -114,6 +122,7 @@ public class KnnIndexerMain {
         "\t -similarityFunction : similarity function for vector comparison. One of ( EUCLIDEAN, DOT_PRODUCT, COSINE, MAXIMUM_INNER_PRODUCT )\n" +
         "\t -numDocs : number of document vectors to be used from the file\n" +
         "\t -docStartIndex : Start index of first document vector. This can be helpful when we want to run different with set of documents from within the same file.\n" +
-        "\t -quiet : don't print anything on console if mentioned.\n";
+        "\t -quiet : don't print anything on console if mentioned.\n" +
+        "\t -parentJoin : create parentJoin index. Requires '*-metadata.csv'\n";
   }
 }

@@ -363,7 +363,7 @@ public class DiskUsage {
     if (fi.hasNorms()) {
       sb.append("norms ");
     }
-    if (fi.hasVectors()) {
+    if (fi.hasTermVectors()) {
       sb.append("vectors ");
     }
     if (fi.getPointDimensionCount() != 0) {

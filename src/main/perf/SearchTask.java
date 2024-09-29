@@ -336,8 +336,7 @@ final class SearchTask extends Task {
             int segment = ReaderUtil.subIndex(doc, leaves);
             FloatVectorValues floatVectors = perLeafFloatVectors.get(segment);
             if (floatVectors != null) {
-              floatVectors.advance(doc - leaves.get(segment).docBase);
-              floatVectors.vectorValue();
+              floatVectors.vectorValue(doc - leaves.get(segment).docBase);
             }
           }
         }

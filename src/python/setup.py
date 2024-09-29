@@ -29,11 +29,12 @@ PYTHON_MAJOR_VER = sys.version_info.major
 
 BASE_URL = 'https://home.apache.org/~mikemccand'
 BASE_URL2 = 'https://home.apache.org/~sokolov'
+BASE_URL3 = 'https://githubsearch.mikemccandless.com'
 DATA_FILES = [
-  ('enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma', BASE_URL),
+  ('enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma', BASE_URL3),
   ('enwiki-20120502-lines-1k-100d.vec', BASE_URL2),
   #('enwiki-20120502-lines-1k-100d-8bit.vec', BASE_URL2),
-  ('wikimedium500.tasks', BASE_URL),
+  ('wikimedium500.tasks', BASE_URL3),
   ('glove.6B.zip', 'https://downloads.cs.stanford.edu/nlp/data/')
 ]
 USAGE= """

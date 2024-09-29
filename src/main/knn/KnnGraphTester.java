@@ -402,7 +402,7 @@ public class KnnGraphTester {
         indexSizeOnDiskBytes += dir.fileLength(fileName);
       }
       indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
-      System.out.println(String.format(Locale.ROOT, "index disk uage is %.2f MB", indexSizeOnDiskMB));
+      System.out.println(String.format(Locale.ROOT, "index disk usage is %.2f MB", indexSizeOnDiskMB));
     }
     if (operation != null) {
       switch (operation) {

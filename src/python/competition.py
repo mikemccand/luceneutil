@@ -401,7 +401,8 @@ class Competitor(object):
       return
 
     perfSrcDir = os.path.join(perfSrc, 'perf')
-    files = list(filter(os.path.isfile, [os.path.join(perfSrcDir, f) for f in os.listdir(perfSrcDir)]))
+    files = list(filter(lambda f: os.path.isfile(f) and f.endswith('.java'),
+                        [os.path.join(perfSrcDir, f) for f in os.listdir(perfSrcDir)]))
 
     print('files %s' % files)
 

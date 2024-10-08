@@ -427,6 +427,7 @@ def parseResults(resultsFiles):
     tasks = []
 
     if not os.path.exists(resultsFile):
+      # nocommit -- why would we pass this file in, if it does not exist?
       continue
 
     if os.path.exists(resultsFile + '.stdout') and os.path.getsize(resultsFile + '.stdout') > 50*1024:
@@ -651,9 +652,11 @@ def parseResults(resultsFiles):
 
     taskIters.append(tasks)
 
-  if tasksWindownMS == -1:
-    raise RuntimeError(f'did not find "Start of tasks winddown: " line in results file {resultsFile}')
+    if tasksWindownMS == -1:
+      raise RuntimeError(f'did not find "Start of tasks winddown: " line in results file {resultsFile}')
 
+  # TODO: why are we returning tasksWindownMS (which is per-result-file) here when
+  # we were given multiple results files?
   return taskIters, heaps, tasksWindownMS, avgCPUCores
 
 # Collect task latencies segregated by categories across all the runs of the task
@@ -844,17 +847,33 @@ def stats(l):
   else:
     return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
 
-def run(cmd, logFile=None, indent='    '):
+def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
   #print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))
   if logFile is not None:
     out = open(logFile, 'wb')
   else:
     out = subprocess.STDOUT
+
+  if vmstatLogFile is not None:
+    vmstatCmd = f'vmstat --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>/dev/null &'
+    print(f'run vmstat: {vmstatCmd}')
+    vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
+    # pgid = os.getpgid(vmstatProcess.pid)
+    # print(f'pgid is {pgid}')
+    
   p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
     if logFile is not None and os.path.getsize(logFile) < 50*1024:
       print(open(logFile).read())
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
+  if vmstatLogFile is not None:
+    # kill whole process group: shell and subprocess
+    print(f'now kill vmstat: pid={vmstatProcess.pid}')
+    # os.killpg(pgid, signal.SIGTERM) -- does not work!  leaves zombies!  so we just kill all vmstat:
+    subprocess.check_call(['pkill', 'vmstat'])
+    if vmstatProcess.poll() is None:
+      raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
+    
 
 reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]\.[0-9](?:-SNAPSHOT)?\.jar')
 
@@ -1020,7 +1039,7 @@ class RunAlgs:
       print('    log %s' % fullLogFile)
 
       t0 = time.time()
-      run(cmd, fullLogFile)
+      run(cmd, fullLogFile, vmstatLogFile=f'{constants.LOGS_DIR}/{id}.vmstat.log')
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:
         chart = IndexChart.IndexChart(fullLogFile, index.getName())
@@ -1155,7 +1174,7 @@ class RunAlgs:
       # flush OS buffer cache
       print('Drop buffer caches...')
       if osName == 'linux':
-        run(["sudo", "%s/dropCaches.sh" % constants.BENCH_BASE_DIR])
+        run(['sudo', '%s/dropCaches.sh' % constants.BENCH_BASE_DIR])
       elif osName in ('windows', 'cygwin'):
         # NOTE: requires you have admin priv
         run(['%s/dropCaches.bat' % constants.BENCH_BASE_DIR])
@@ -1366,19 +1385,19 @@ class RunAlgs:
 
     return qpss
 
-  def only_qps_report(self, baseLogFiles, cmpLogFiles):
-    # nocommit must also validate tasks' results validity
-    baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
-    cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
+  if False:
+    def only_qps_report(self, baseLogFiles, cmpLogFiles):
+      # nocommit must also validate tasks' results validity
+      baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
+      cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
 
-    base_qpss = self.compute_qps(baseRawResults, baseTasksWindownMS)
-    cmp_qpss = self.compute_qps(cmpRawResults, cmpTasksWindownMS)
-      
+      base_qpss = self.compute_qps(baseRawResults, baseTasksWindownMS)
+      cmp_qpss = self.compute_qps(cmpRawResults, cmpTasksWindownMS)
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc='Standard', cmpDesc=None, writer=sys.stdout.write):
 
-    baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
-    cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
+    baseRawResults, heapBase, ignore, baseAvgCpuCores = parseResults(baseLogFiles)
+    cmpRawResults, heapCmp, ignore, cmpAvgCpuCores = parseResults(cmpLogFiles)
 
     # make sure they got identical results
     cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores, self.verifyCounts)

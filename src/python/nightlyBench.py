@@ -151,8 +151,13 @@ def buildIndex(r, runLogDir, desc, index, logFile):
 
     newLogFileName = '%s/%s' % (runLogDir, logFile)
     if REAL:
-        print('Move log to %s' % newLogFileName)
+        print('move log to %s' % newLogFileName)
         shutil.move(fullLogFile, newLogFileName)
+
+    newVmstatLogFileName = f'{runLogDir}/{logFile.replace(".log", ".vmstat.log")}'
+    if REAL:
+        print('move vmstat log to %s' % newVmstatLogFileName)
+        shutil.move(f'{constants.LOGS_DIR}/nightly.vmstat.log', newVmstatLogFileName)
 
     s = open(newLogFileName).read()
     bytesIndexed = int(reBytesIndexed.search(s).group(1))

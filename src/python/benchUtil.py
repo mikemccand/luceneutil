@@ -50,6 +50,8 @@ else:
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
+VMSTAT_PATH = shutil.which('vmstat')
+
 if PYTHON_MAJOR_VER < 3:
   raise RuntimeError('Please run with Python 3.x!  Got: %s' % str(sys.version))
 
@@ -1039,7 +1041,11 @@ class RunAlgs:
       print('    log %s' % fullLogFile)
 
       t0 = time.time()
-      run(cmd, fullLogFile, vmstatLogFile=f'{constants.LOGS_DIR}/{id}.vmstat.log')
+      if VMSTAT_PATH is not None:
+        vmstatLogFile = f'{constants.LOGS_DIR}/{id}.vmstat.log'
+      else:
+        vmstatLogFile = None
+      run(cmd, fullLogFile, vmstatLogFile=vmstatLogFile)
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:
         chart = IndexChart.IndexChart(fullLogFile, index.getName())

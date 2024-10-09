@@ -850,4 +850,13 @@ KNOWN_CHANGES = [
   ('2024-09-16',
    'Revert: Speed up advancing within a block https://github.com/apache/lucene/pull/13692',
    'Revert: Speed up advancing within a block https://github.com/apache/lucene/pull/13692'),
+
+  ('2024-10-03',
+   'Speedup GlobalHitsThresholdChecker a little https://github.com/apache/lucene/pull/13836',
+   'Speedup GlobalHitsThresholdChecker a little https://github.com/apache/lucene/pull/13836'),
+
+  ('2024-10-07',
+   'Speedup MaxScoreCache.computeMaxScore https://github.com/apache/lucene/pull/13865',
+   'Speedup MaxScoreCache.computeMaxScore https://github.com/apache/lucene/pull/13865'),
+
 ]

@@ -877,7 +877,7 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
       raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
     
 
-reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]\.[0-9](?:-SNAPSHOT)?\.jar')
+reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]+\.[0-9]+(?:-SNAPSHOT)?\.jar')
 
 class RunAlgs:
 

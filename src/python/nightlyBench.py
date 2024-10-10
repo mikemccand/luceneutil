@@ -337,20 +337,22 @@ def run():
         luceneRev = os.popen('git rev-parse HEAD').read().strip()
         print(f'LUCENE rev is {luceneRev}')
 
-        lastLuceneRev, lastLuceneUtilRev, lastLogFile = findLastSuccessfulGitHashes()
-        print(f'last successfull Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}')
+        lastRevs = findLastSuccessfulGitHashes()
+        if lastRevs is not None:
+            lastLuceneRev, lastLuceneUtilRev, lastLogFile = lastRevs
+            print(f'last successfull Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}')
 
-        # parse git log to see if there were any commits requesting regold
-        command = ['git', 'log', f'{lastLuceneRev}^..{luceneRev}']
-        print(f'run {command}')
-        result = subprocess.run(command, check=True, capture_output=True)
+            # parse git log to see if there were any commits requesting regold
+            command = ['git', 'log', f'{lastLuceneRev}^..{luceneRev}']
+            print(f'run {command}')
+            result = subprocess.run(command, check=True, capture_output=True)
 
-        regold_string = '// nightly-benchmarks-results-changed //'
-        if regold_string in result.stdout.decode('utf-8'):
-            print(f'Saw commit with "{regold_string}" comment from {" ".join(command)}; will regold results files')
-            DO_RESET = True
-        else:
-            print(f'No commit message asking for regold of results files')
+            regold_string = '// nightly-benchmarks-results-changed //'
+            if regold_string in result.stdout.decode('utf-8'):
+                print(f'Saw commit with "{regold_string}" comment from {" ".join(command)}; will regold results files')
+                DO_RESET = True
+            else:
+                print(f'No commit message asking for regold of results files')
 
         os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
         runCommand('%s clean -xfd' % constants.GIT_EXE)

@@ -99,7 +99,7 @@ def computeDiff(dev, base):
   return 100. * (dev - base) / base
 
 def compile(basedir):
-  sources =  '%s/src/main/perf/IndexAndSearchShapes.java' % (GEO_UTIL_DIR)
+  sources =  '%s/src/extra/perf/IndexAndSearchShapes.java' % (GEO_UTIL_DIR)
 
   testFramework = '%s/build/test-framework/classes/java' % (basedir)
   codecs = '%s/build/codecs/classes/java' % (basedir)

@@ -22,19 +22,16 @@ import java.io.IOException;
 
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.standard.*;
-import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.index.*;
 import org.apache.lucene.store.*;
-import org.apache.lucene.util.*;
 
 public class OpenCloseIndexWriter {
   public static void main(String[] args) throws IOException {
     final String dirPath = args[0];
-    final Directory dir = new MMapDirectory(new File(dirPath));
+    final Directory dir = new MMapDirectory(new File(dirPath).toPath());
     final Analyzer a = new StandardAnalyzer(CharArraySet.EMPTY_SET);
     final IndexWriterConfig iwc = new IndexWriterConfig(a);
     final IndexWriter writer = new IndexWriter(dir, iwc);
-    System.out.println("Segments: " + writer.segString());
     writer.close();
     dir.close();
   }

@@ -400,37 +400,11 @@ class Competitor(object):
       print('Skip compiling luceneutil: all .class are up to date')
       return
 
-    # Can we iterate the perf directory and get this list automatically?
-    files = ['%s/perf/%s' % (perfSrc, x) for x in (
-      'Args.java',
-      'IndexState.java',
-      'IndexThreads.java',
-      'NRTPerfTest.java',
-      'Indexer.java',
-      'KeepNoCommitsDeletionPolicy.java',
-      'LineFileDocs.java',
-      'LocalTaskSource.java',
-      'OpenDirectory.java',
-      'PKLookupTask.java',
-      'PKLookupWithTermStateTask.java',
-      'PointsPKLookupTask.java',
-      'PerfUtils.java',
-      'RandomQuery.java',
-      'RemoteTaskSource.java',
-      'RespellTask.java',
-      'SearchPerfTest.java',
-      'SearchTask.java',
-      'StatisticsHelper.java',
-      'Task.java',
-      'TaskParser.java',
-      'TaskSource.java',
-      'TaskThreads.java',
-      'VectorDictionary.java',
-      'BenchRearranger.java',
-      'StringFieldDocSelector.java',
-      'UnparsedTask.java',
-      'TaskParserFactory.java',
-      )]
+    perfSrcDir = os.path.join(perfSrc, 'perf')
+    # This will only look up one level, so it will ignore facet and future possible code under another
+    # layer of directory
+    files = list(filter(lambda f: os.path.isfile(f) and f.endswith('.java'),
+                        [os.path.join(perfSrcDir, f) for f in os.listdir(perfSrcDir)]))
 
     print('files %s' % files)
 

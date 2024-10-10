@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- this is just a simple index.html of the plots that gets copied over -->
+<html>
+  <head>
+    <title>System stats</title>
+  </head>
+  <body>
+    <embed type="image/svg+xml" src="cpu.svg" width="480" height="360">
+    <embed type="image/svg+xml" src="io.svg" width="480" height="360">
+    <embed type="image/svg+xml" src="memory.svg" width="480" height="360">
+    <embed type="image/svg+xml" src="free.svg" width="480" height="360">
+    <embed type="image/svg+xml" src="processes.svg" width="480" height="360">
+    <embed type="image/svg+xml" src="kernel.svg" width="480" height="360">
+    <hr>
+    Notes:
+    <ul>
+      <li>Left-click to enable mouse tracking
+      <li>Zoom with mouse wheel
+      <li>Right-click to reset plot
+      <li>Click legend text to toggle elements on/off
+      <li>See <a href="https://man.archlinux.org/man/vmstat.8.en#FIELD_DESCRIPTION_FOR_VM_MODE" target="_blank">vmstat(8)</a> for more information.
+    </ul>
+    </hr>
+  </body>
+</html>

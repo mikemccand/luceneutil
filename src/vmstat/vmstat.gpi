@@ -1,0 +1,86 @@
+# plot vmstat output
+
+# generate svg
+# we copy the .js file into each dir, feel free to change it
+set terminal svg dynamic enhanced mouse background 'white' jsdir '.'
+
+# use filled curves to make it easier to see
+set style fill solid 1.0 noborder
+
+# set colors to whatever you want
+set border linecolor rgb 'black'
+set title textcolor rgb 'black'
+set key textcolor rgb 'black'
+set xlabel textcolor rgb 'black'
+set ylabel textcolor rgb 'black'
+
+# tweak grid display
+set xtics nomirror
+set grid xtics ytics
+
+# the x-axis is always a timestamp
+# generate label every minute (user can click and hover to see exact seconds)
+set xdata time
+set timefmt '%Y-%m-%d %H:%M:%S'
+set format x '%H:%M'
+set xlabel 'Time (EDT)'
+
+# the y-axis is never negative
+set yrange [0:*]
+
+# data is huge! (gnuplot is "lossless" by default)
+# we do some interpolation (csplines) to prevent enormous files yet still preserve spikes
+set samples 1000
+
+# read data from passed in filename argument
+# filter out the headers
+vmstat = "< grep -v r ". ARG1
+
+# charts for each group in vmstat(8)
+
+set title "Running Processes"
+set output ARG2 . "/processes.svg"
+set ylabel "Processes"
+plot vmstat using 19 : ($1+$2) title 'total' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 1 title 'runnable' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 2 title 'iowait' smooth csplines with filledcurves y1=0
+
+set title "Memory Usage"
+set output ARG2 . "/memory.svg"
+set ylabel "Memory"
+set format y "%.0sGB"
+plot vmstat using 19 : ($5+$6) title 'total used' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 5 title 'inactive' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 6 title 'active' smooth csplines with filledcurves y1=0
+
+set title "Free Memory"
+set output ARG2 . "/free.svg"
+plot vmstat using 19 : 4 title 'free memory' smooth csplines with filledcurves y1=0
+
+set title "I/O operations"
+set output ARG2 . "/io.svg"
+set format y "%.0s%c"
+set ylabel "I/O blocks/second"
+plot vmstat using 19 : ($9+$10) title 'total' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 10 title 'writes' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 9 title 'reads' smooth csplines with filledcurves y1=0
+
+set title "Kernel traps"
+set output ARG2 . "/kernel.svg"
+set format y "%.0s%c"
+set ylabel "Events/second"
+plot vmstat using 19 : ($11+$12) title 'total' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 12 title 'context switches' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 11 title 'interrupts' smooth csplines with filledcurves y1=0
+
+set title "CPU Usage"
+set output ARG2 . "/cpu.svg"
+set format y "%g%%"
+set yrange [0:100]
+set ylabel "CPU Utilization"
+plot vmstat using 19 : ($13+$14+$16+$17+$18) title 'total' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 13 title 'user' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 14 title 'system' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 16 title 'iowait' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 17 title 'stolen' smooth csplines with filledcurves y1=0, \
+     vmstat using 19 : 18 title 'guest' smooth csplines with filledcurves y1=0

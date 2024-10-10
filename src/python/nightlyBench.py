@@ -635,6 +635,25 @@ def run():
                                                     'prev', 'now',
                                                     writer=output.append)
 
+    # generate vmstat pretties
+    print('generate vmstat pretties')
+    timestampLogDir = f'{constants.NIGHTLY_REPORTS_DIR}/{timeStamp}'
+    os.mkdir(timestampLogDir)
+    os.chdir(timestampLogDir)
+    with open('index.html', 'w') as indexOut:
+      indexOut.write('<h2>vmstat charts for indexing tasks</h2>\n')
+      for vmstatLogFileName in glob.glob(f'{runLogDir}/*.vmstat.log'):
+        prefix = os.path.split(vmstatLogFileName)[1][:-11]
+        indexOut.write(f'<a href={prefix}>{prefix}</a><br>\n')
+        # a new sub-directory per run since each vmstat generates a bunch of pretties
+        subDirName = f'{timestampLogDir}/{prefix}'
+        os.mkdir(subDirName)
+        print(f'  {subDirName}')
+        # TODO: optimize to single shared copy!
+        shutil.copy('/usr/share/gnuplot/6.0/js/gnuplot_svg.js', subDirName)
+        shutil.copy(f'{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template', f'{subDirName}/index.html')
+        subprocess.check_call(f'gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstatLogFileName} {prefix}', shell=True)
+
     with open('%s/%s.html' % (constants.NIGHTLY_REPORTS_DIR, timeStamp), 'w') as f:
         timeStamp2 = '%s %02d/%02d/%04d' % (start.strftime('%a'), start.month, start.day, start.year)
         w = f.write
@@ -656,6 +675,7 @@ def run():
         w('%s<br>' % javaVersion)
         w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
         w('Index: %s<br>' % fixedIndexAtClose)
+        w(f'See the <a href="{timeStamp}/index.html">perty vmstat charts</a>\n')
         w('<br><br><b>Search perf vs day before</b>\n')
         w(''.join(output))
         w('<br><br>')

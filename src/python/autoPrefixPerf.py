@@ -53,7 +53,7 @@ print('Compile...')
 os.chdir('core')
 run('ant jar > compile.log 2>&1')
 os.chdir('..')
-run('javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/AutoPrefixPerf.java > compile.log 2>&1')
+run('javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/extra/perf/AutoPrefixPerf.java > compile.log 2>&1')
 
 # Used to validate each run got the same hits:
 totalHits = None

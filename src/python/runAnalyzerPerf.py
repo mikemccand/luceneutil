@@ -63,7 +63,7 @@ with open(logFileJa + '.tmp', 'w') as lf:
   lf.write('java version: %s\n' % os.popen('java -fullversion 2>&1').read().strip())
   os.chdir(LUCENE_ROOT)
 
-run('javac -d %s/build -cp core/build/classes/java/main:analysis/common/build/classes/java/main:analysis/kuromoji/build/classes/java/main %s/src/main/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
+run('javac -d %s/build -cp core/build/classes/java/main:analysis/common/build/classes/java/main:analysis/kuromoji/build/classes/java/main %s/src/extra/perf/TestAnalyzerPerf.java' % (constants.BENCH_BASE_DIR, constants.BENCH_BASE_DIR))
 
 print('  now run en perf')
 run('java -XX:+UseParallelGC -cp %s/build:core/build/classes/java/main:analysis/common/build/classes/java/main:analysis/kuromoji/build/classes/java/main perf.TestAnalyzerPerf /l/data/enwiki-20130102-lines.txt >> %s.tmp 2>&1' % (constants.BENCH_BASE_DIR, logFile))

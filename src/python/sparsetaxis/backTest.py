@@ -200,16 +200,16 @@ for timestamp in getTimesToTest():
 
   if os.path.exists('%s/lucene/core/src/java/org/apache/lucene/codecs/lucene70' % luceneMaster):
     print('  use DiskUsage.70.java')
-    shutil.copy('/l/util/src/main/perf/DiskUsage.70.java', '/l/util/src/main/perf/DiskUsage.java')
+    shutil.copy('/l/util/src/extra/perf/DiskUsage.70.java', '/l/util/src/extra/perf/DiskUsage.java')
   elif 'DocIdSetIterator' in open('%s/lucene/core/src/java/org/apache/lucene/index/NumericDocValues.java' % luceneMaster).read():
     print('  use DiskUsage.62.java')
-    shutil.copy('/l/util/src/main/perf/DiskUsage.62.java', '/l/util/src/main/perf/DiskUsage.java')
+    shutil.copy('/l/util/src/extra/perf/DiskUsage.62.java', '/l/util/src/extra/perf/DiskUsage.java')
   elif os.path.exists('%s/lucene/core/src/java/org/apache/lucene/codecs/lucene62' % luceneMaster):
     print('  use DiskUsage.62.pre-iterators.java')
-    shutil.copy('/l/util/src/main/perf/DiskUsage.62.pre-iterators.java', '/l/util/src/main/perf/DiskUsage.java')
+    shutil.copy('/l/util/src/extra/perf/DiskUsage.62.pre-iterators.java', '/l/util/src/extra/perf/DiskUsage.java')
   else:
     print('  use DiskUsage.60.java')
-    shutil.copy('/l/util/src/main/perf/DiskUsage.60.java', '/l/util/src/main/perf/DiskUsage.java')
+    shutil.copy('/l/util/src/extra/perf/DiskUsage.60.java', '/l/util/src/extra/perf/DiskUsage.java')
   
   run('python3 -u /l/util/src/python/sparsetaxis/runBenchmark.py -rootDir /l/sparseTaxis -logDir %s -luceneMaster %s' % (logDir, luceneMaster))
   run('python3 -u /l/util/src/python/sparsetaxis/writeGraph.py')

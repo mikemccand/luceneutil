@@ -401,6 +401,8 @@ class Competitor(object):
       return
 
     perfSrcDir = os.path.join(perfSrc, 'perf')
+    # This will only look up one level, so it will ignore facet and future possible code under another
+    # layer of directory
     files = list(filter(lambda f: os.path.isfile(f) and f.endswith('.java'),
                         [os.path.join(perfSrcDir, f) for f in os.listdir(perfSrcDir)]))
 

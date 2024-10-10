@@ -859,4 +859,8 @@ KNOWN_CHANGES = [
    'Speedup MaxScoreCache.computeMaxScore https://github.com/apache/lucene/pull/13865',
    'Speedup MaxScoreCache.computeMaxScore https://github.com/apache/lucene/pull/13865'),
 
+  ('2024-10-09',
+   'Speedup OrderedIntervalsSource https://github.com/apache/lucene/pull/13871',
+   'Speedup OrderedIntervalsSource https://github.com/apache/lucene/pull/13871'),
+
 ]

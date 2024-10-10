@@ -4,9 +4,9 @@ cd core
 ant jar
 cd ..
 
-javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/IndexGeoNames.java
+javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/extra/perf/IndexGeoNames.java
 
-javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/main/perf/SearchGeoNames.java
+javac -d /l/util/build -cp build/core/classes/java:build/analysis/common/classes/java /l/util/src/extra/perf/SearchGeoNames.java
 
 java -Xmx4g -Xms4g -cp /l/util/build:build/core/classes/java:build/analysis/common/classes/java perf.IndexGeoNames /lucenedata/geonames/allCountries.txt /l/scratch/indices/geonames4 1 4 >& geo.index4.log
 

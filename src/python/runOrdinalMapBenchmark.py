@@ -30,7 +30,7 @@ def run_benchmark(lucene_dir, geonames_csv_in, index_dir, nightly_log_dir, doc_l
   lucene_core_jar = lucene_core_jar[0]
 
   # compile
-  cmd = f'javac -cp {lucene_core_jar} -d build src/main/perf/OrdinalMapBenchmark.java'
+  cmd = f'javac -cp {lucene_core_jar} -d build src/extra/perf/OrdinalMapBenchmark.java'
   print(f'RUN: {cmd}, cwd={os.getcwd()}')
   subprocess.check_call(cmd, shell=True)
 

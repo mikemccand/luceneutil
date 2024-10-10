@@ -57,10 +57,10 @@ while upto < len(commits):
   if lastTestedDate is not None:
     while True:
       hash, commitTime = commits[upto]
-      oldSrc = '/l/util/src/main/perf/backtest/IndexAndSearchOpenStreetMaps.java.%s' % hash
+      oldSrc = '/l/util/src/extra/perf/backtest/IndexAndSearchOpenStreetMaps.java.%s' % hash
       if os.path.exists(oldSrc):
         print('  switch to %s' % oldSrc)
-        shutil.copy(oldSrc, '/l/util/src/main/perf/IndexAndSearchOpenStreetMaps.java')
+        shutil.copy(oldSrc, '/l/util/src/extra/perf/IndexAndSearchOpenStreetMaps.java')
 
       utc = commitTime.utctimetuple()
       date = datetime.date(year=utc[0], month=utc[1], day=utc[2])

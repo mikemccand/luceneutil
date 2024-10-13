@@ -73,7 +73,7 @@ def run(command, logFile=None):
       print(open(logFile, 'r', encoding='utf-8').read())
     raise RuntimeError('command "%s" failed' % command)
 
-reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
+reIndexingRate = re.compile(r'([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
 def runIndexing(args, cpuCount, sparseOrNot, sortOrNot):
 
   docsSource = '%s/data/20M.subset.nyctaxis.csv.blocks' % rootDir
@@ -192,7 +192,7 @@ def main():
 
   print('\nCompile java benchmark sources...')
 
-  classPath = '%s/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:%s/lucene/analysis/common/build/libs/lucene-analysis-common-9.0.0-SNAPSHOT.jar:%s/../../main' % \
+  classPath = '%s/lucene/core/build/libs/lucene-core-11.0.0-SNAPSHOT.jar:%s/lucene/analysis/common/build/libs/lucene-analysis-common-11.0.0-SNAPSHOT.jar:%s/../../main' % \
               (args.luceneMain, args.luceneMain, luceneUtilPythonPath)
 
   run('javac -cp %s %s/../../main/perf/SearchTaxis.java %s/../../main/perf/IndexTaxis.java %s/../../main/perf/DiskUsage.java' % (classPath, luceneUtilPythonPath, luceneUtilPythonPath, luceneUtilPythonPath))

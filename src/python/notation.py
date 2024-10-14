@@ -863,4 +863,8 @@ KNOWN_CHANGES = [
    'Speedup OrderedIntervalsSource https://github.com/apache/lucene/pull/13871',
    'Speedup OrderedIntervalsSource https://github.com/apache/lucene/pull/13871'),
 
+  ('2024-10-12',
+   'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894',
+   'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894'),
+
 ]

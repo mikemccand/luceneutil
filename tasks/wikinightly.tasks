@@ -306,3 +306,10 @@ And3Terms: +law +school +rankings
 OrHighRare: the incredibles
 OrHighRare: a horsefly
 OrHighRare: some groundnuts
+
+# Disjunctions across many terms
+OrMany: apache lucene is a free and open-source search engine software library originally written in java by doug cutting it is supported by the apache software foundation and is released under the apache software license lucene is widely used as a standard foundation for production search applications
+OrMany: solr pronounced solar is an open-source enterprise-search platform written in java its major features include full-text search hit highlighting faceted search real-time indexing dynamic clustering database integration nosql features and rich document word pdf handling
+OrMany: a database index is a data structure that improves the speed of data retrieval operations on a database table at the cost of additional writes and storage space to maintain the index data structure indexes are used to quickly locate data without having to search every row in a database table every time said table is accessed
+OrMany: in computing a search engine is an information retrieval software system designed to help find information stored on one or more computer systems search engines discover crawl transform and store information for retrieval and presentation in response to user queries
+OrMany: a java virtual machine jvm is a virtual machine that enables a computer to run java programs as well as programs written in other languages that are also compiled to java bytecode the jvm is detailed by a specification that formally describes what is required in a jvm implementation

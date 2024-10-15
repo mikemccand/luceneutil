@@ -1408,6 +1408,7 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Or3Terms', 'Disjunction of 3 terms')
     writeOneLine(w, done, 'And3Terms', 'Conjunction of 3 terms')
     writeOneLine(w, done, 'OrHighRare', 'Disjunction of a very frequent term and a very rare term')
+    writeOneLine(w, done, 'OrMany', 'Disjunction of many terms')
 
     w('<br><br><b>CombinedFieldsQuery:</b>')
     writeOneLine(w, done, 'CombinedTerm', 'Combined high-freq')

@@ -798,11 +798,11 @@ KNOWN_CHANGES = [
   ('2024-03-26',
    'Break point estimation when threshold exceeded https://github.com/apache/lucene/pull/13199',
    'Break point estimation when threshold exceeded https://github.com/apache/lucene/pull/13199'),
-   
+
   ('2024-04-01',
    '#11888: optimize terms dictionary lookups when all terms have the same suffix length, which helps primary key lookup for fixed-length fields',
    '#11888: optimize terms dictionary lookups when all terms have the same suffix length, which helps primary key lookup for fixed-length fields'),
-   
+
   ('2024-04-29',
    '#264: use Lucene defaults for ConcurrentMergeSchedular',
    '#264: use Lucene defaults for ConcurrentMergeSchedular'),
@@ -864,8 +864,8 @@ KNOWN_CHANGES = [
    'Speedup OrderedIntervalsSource https://github.com/apache/lucene/pull/13871'),
 
   ('2024-10-12',
-   'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894',
-   'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894'),
+   'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894, Lazy initialize ForDeltaUtil and ForUtil in Lucene912PostingsReader https://github.com/apache/lucene/pull/13885',
+   'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894 Lazy initialize ForDeltaUtil and ForUtil in               Lucene912PostingsReader https://github.com/apache/lucene/pull/13885'),
 
   ('2024-10-15',
    'Dry up EverythingEnum and BlockDocsEnum in Lucene912PostingsReader https://github.com/apache/lucene/pull/13901',

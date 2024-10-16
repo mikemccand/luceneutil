@@ -867,7 +867,7 @@ KNOWN_CHANGES = [
    'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894, Lazy initialize ForDeltaUtil and ForUtil in Lucene912PostingsReader https://github.com/apache/lucene/pull/13885',
    'Use RandomAccessInput instead of seeking in Lucene90DocValuesProducer https://github.com/apache/lucene/pull/13894 Lazy initialize ForDeltaUtil and ForUtil in               Lucene912PostingsReader https://github.com/apache/lucene/pull/13885'),
 
-  ('2024-10-15',
+  ('2024-10-14',
    'Dry up EverythingEnum and BlockDocsEnum in Lucene912PostingsReader https://github.com/apache/lucene/pull/13901',
    'Dry up EverythingEnum and BlockDocsEnum in Lucene912PostingsReader https://github.com/apache/lucene/pull/13901'),
 

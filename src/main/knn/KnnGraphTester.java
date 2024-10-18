@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
-import org.apache.lucene.codecs.lucene912.Lucene912Codec;
+import org.apache.lucene.codecs.lucene100.Lucene100Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
@@ -1023,7 +1023,7 @@ public class KnnGraphTester {
 
   static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, boolean quantizeCompress) {
     if (exec == null) {
-      return new Lucene912Codec() {
+      return new Lucene100Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           return quantize ?
@@ -1032,7 +1032,7 @@ public class KnnGraphTester {
         }
       };
     } else {
-      return new Lucene912Codec() {
+      return new Lucene100Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           return quantize ?

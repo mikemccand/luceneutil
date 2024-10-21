@@ -172,15 +172,12 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
         seed = rand.randint(-10000000, 1000000)
 
-        for c in competitors:
+        for c in (competitors if iter % 2 == 0 else reversed(competitors)):
           print('    %s:' % c.name)
-          t0 = time.time()
-          if c not in results:
-            results[c] = []
           logFile = r.runSimpleSearchBench(iter, id, c,
                                            coldRun, seed, staticSeed,
                                            filter=None, taskPatterns=taskPatterns) 
-          results[c].append(logFile)
+          results.setdefault(c, []).append(logFile)
 
         print()
         print('Report after iter %d:' % iter)

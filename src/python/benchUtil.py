@@ -842,8 +842,8 @@ def stats(l):
   if len(l) == 0:
     return 0.0, 0.0, 0.0, 0.0
   else:
-    mu = mean(l)
-    return min(l), max(l), mu, stdev(l, mu=mu)
+    mu = statistics.mean(l)
+    return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
 def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
   #print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))

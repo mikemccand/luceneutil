@@ -871,4 +871,7 @@ KNOWN_CHANGES = [
    'Dry up EverythingEnum and BlockDocsEnum in Lucene912PostingsReader https://github.com/apache/lucene/pull/13901',
    'Dry up EverythingEnum and BlockDocsEnum in Lucene912PostingsReader https://github.com/apache/lucene/pull/13901'),
 
+  ('2024-10-21',
+   'Make BooleanScorer work on top of Scorers rather than BulkScorers https://github.com/apache/lucene/pull/13931, Speedup OrderIntervalsSource some more https://github.com/apache/lucene/pull/13937',
+   'Make BooleanScorer work on top of Scorers rather than BulkScorers https://github.com/apache/lucene/pull/13931, Speedup OrderIntervalsSource some more https://github.com/apache/lucene/pull/13937'),
 ]

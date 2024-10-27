@@ -878,4 +878,8 @@ KNOWN_CHANGES = [
   ('2024-10-22',
    'Introduce a heuristic to amortize the per-window overhead in MaxScoreBulkScorer https://github.com/apache/lucene/pull/13941',
    'Introduce a heuristic to amortize the per-window overhead in MaxScoreBulkScorer https://github.com/apache/lucene/pull/13941'),
+
+  ('2024-10-26',
+   'Remove LeafSimScorer abstraction https://github.com/apache/lucene/pull/13957',
+   'Remove LeafSimScorer abstraction https://github.com/apache/lucene/pull/13957'),
 ]

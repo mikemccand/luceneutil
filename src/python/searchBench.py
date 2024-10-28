@@ -172,15 +172,16 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
         seed = rand.randint(-10000000, 1000000)
 
-        for c in competitors:
+        # Change which competitor runs first on every iteration to avoid
+        # biasing results based on which competitors ran first or last.
+        rotation_index = iter % len(competitors)
+        rotated_competitors = competitors[rotation_index:] + competitors[:rotation_index]
+        for c in rotated_competitors:
           print('    %s:' % c.name)
-          t0 = time.time()
-          if c not in results:
-            results[c] = []
           logFile = r.runSimpleSearchBench(iter, id, c,
                                            coldRun, seed, staticSeed,
                                            filter=None, taskPatterns=taskPatterns) 
-          results[c].append(logFile)
+          results.setdefault(c, []).append(logFile)
 
         print()
         print('Report after iter %d:' % iter)

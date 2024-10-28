@@ -882,4 +882,8 @@ KNOWN_CHANGES = [
   ('2024-10-26',
    'Remove LeafSimScorer abstraction https://github.com/apache/lucene/pull/13957',
    'Remove LeafSimScorer abstraction https://github.com/apache/lucene/pull/13957'),
+
+  ('2024-10-28',
+   'Remove HitsThresholdChecker https://github.com/apache/lucene/pull/13943',
+   'Remove HitsThresholdChecker https://github.com/apache/lucene/pull/13943'),
 ]

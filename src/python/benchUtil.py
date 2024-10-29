@@ -36,6 +36,7 @@ import QPSChart
 import IndexChart
 import subprocess
 import shlex
+import statistics
 
 try:
   import distutils
@@ -837,17 +838,12 @@ def sum_hit_count(hc1, hc2):
   return str(hc1+hc2) + (lower_bound and "+" or "")
 
 def stats(l):
-  sum = 0
-  sumSQ = 0
-  for v in l:
-    sum += v
-    sumSQ += v*v
-
   # min, max, mean, stddev
   if len(l) == 0:
     return 0.0, 0.0, 0.0, 0.0
   else:
-    return min(l), max(l), sum/len(l), math.sqrt(len(l)*sumSQ - sum*sum)/len(l)
+    mu = statistics.mean(l)
+    return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
 def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
   #print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))

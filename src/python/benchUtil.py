@@ -401,10 +401,10 @@ def collapseDups(hits):
       newHits[-1][0].sort()
   return newHits
 
-reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\+?) facets=(.*?)$')
-reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
-reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\+?)$')
-reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
+reSearchTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\\+?) facets=(.*?)$')
+reSearchGroupTaskOld = re.compile('cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$', re.DOTALL)
+reSearchTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\\+?)$')
+reSearchGroupTask = re.compile('cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$', re.DOTALL)
 reCountOnlyTask = re.compile('cat=(.*?) q=(.*?) countOnlyCount=(.*?)?$', re.DOTALL)
 reSearchHitScore = re.compile('doc=(.*?) score=(.*?)$')
 reSearchHitField = re.compile('doc=(.*?) .*?=(.*?)$')
@@ -873,7 +873,7 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
       raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
     
 
-reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]+\.[0-9]+(?:-SNAPSHOT)?\.jar')
+reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar')
 
 class RunAlgs:
 
@@ -1847,7 +1847,7 @@ def getSegmentCount(indexPath):
       segCount += 1
   return segCount
 
-reBrokenLine = re.compile('^\ +#')
+reBrokenLine = re.compile('^\\ +#')
 def fixupPerfOutput(s):
   lines = s.split('\n')
   linesOut = []

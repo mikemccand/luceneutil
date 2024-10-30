@@ -56,16 +56,16 @@ PARAMS = {
     #'fanout': (20, 100, 250)
     'fanout': (6,),
     #'quantize': None,
-    'quantizeBits': (32,),
+    #'quantizeBits': (32,),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     'encoding': ('float32',),
     # 'metric': ('angular',),  # default is angular (dot_product)
     #'quantize': (True,),
-    'quantizeBits': (4,),
+    'quantizeBits': (4, 7, 32),
     #'fanout': (0,),
     'topK': (10,),
-    'quantizeCompress': (True, False),
+    'quantizeCompress': (False,),
     #'niter': (10,),
 }
 
@@ -143,7 +143,7 @@ def run_knn_benchmark(checkout, values):
             '-docs', doc_vectors,
             '-reindex',
             '-search-and-stats', query_vectors,
-            #'-metric', 'euclidean',
+            '-metric', 'mip',
             # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             '-forceMerge',
@@ -170,7 +170,7 @@ def run_knn_benchmark(checkout, values):
         all_results.append(summary)
     print('\nResults:')
 
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType'
+    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')

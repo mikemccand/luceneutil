@@ -690,9 +690,10 @@ public class KnnGraphTester {
       } else {
         quantizeDesc = "no";
       }
+      double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\n",
           recall,
           totalCpuTimeMS / (float) numIters,
           numDocs,
@@ -702,7 +703,8 @@ public class KnnGraphTester {
           beamWidth,
           quantizeDesc,
           totalVisited,
-          reindexTimeMsec / 1000.0,
+          reindexSec,
+          numDocs / reindexSec,
           forceMergeTimeSec,
           indexNumSegments,
           indexSizeOnDiskMB,

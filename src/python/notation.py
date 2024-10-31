@@ -886,4 +886,8 @@ KNOWN_CHANGES = [
   ('2024-10-28',
    'Remove HitsThresholdChecker https://github.com/apache/lucene/pull/13943',
    'Remove HitsThresholdChecker https://github.com/apache/lucene/pull/13943'),
+
+  ('2024-10-30',
+   'Speed up advancing within a block https://github.com/apache/lucene/pull/13958',
+   'Speed up advancing within a block https://github.com/apache/lucene/pull/13958'),
 ]

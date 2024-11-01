@@ -135,7 +135,7 @@ if 'ANALYZER' in locals():
   raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
-POSTINGS_FORMAT_DEFAULT='Lucene912'
+POSTINGS_FORMAT_DEFAULT='Lucene101'
 ID_FIELD_POSTINGS_FORMAT_DEFAULT=POSTINGS_FORMAT_DEFAULT
 FACET_FIELD_DV_FORMAT_DEFAULT='Lucene90' # this field is not used as a default. Change the code in src/main/perf/Indexer.java to use a different DV format
 ANALYZER_DEFAULT='StandardAnalyzer'

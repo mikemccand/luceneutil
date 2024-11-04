@@ -890,4 +890,8 @@ KNOWN_CHANGES = [
   ('2024-10-30',
    'Speed up advancing within a block https://github.com/apache/lucene/pull/13958',
    'Speed up advancing within a block https://github.com/apache/lucene/pull/13958'),
+
+  ('2024-11-01',
+   'Move postings back to int[] to take advantage of having more lanes per vector https://github.com/apache/lucene/pull/13968',
+   'Move postings back to int[] to take advantage of having more lanes per vector https://github.com/apache/lucene/pull/13968'),
 ]

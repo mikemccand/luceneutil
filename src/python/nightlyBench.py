@@ -1415,6 +1415,11 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'CombinedHighMed', 'Combined high-freq medium-freq')
     writeOneLine(w, done, 'CombinedHighHigh', 'Combined high-freq high-freq')
 
+    w('<br><br><b>DisjunctionMaxQuery to combine scores across the title and body fields:</b>')
+    writeOneLine(w, done, 'DismaxTerm', 'Term queries combined via dismax')
+    writeOneLine(w, done, 'DismaxOrHighMed', 'Disjunctive queries combined via dismax')
+    writeOneLine(w, done, 'DismaxOrHighHigh', 'Disjunctive queries combined via dismax')
+
     w('<br><br><b>Proximity queries:</b>')
     writeOneLine(w, done, 'Phrase', 'Exact phrase')
     writeOneLine(w, done, 'SloppyPhrase', 'Sloppy (~4) phrase')
@@ -1433,6 +1438,11 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'CountOrHighHigh', 'Count(high-freq high-freq)')
     writeOneLine(w, done, 'CountOrHighMed', 'Count(high-freq med-freq)')
 
+    w('<br><br><b>Vector Search:</b>')
+    writeOneLine(w, done, 'VectorSearch', 'VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)')
+    writeOneLine(w, done, 'PreFilteredVectorSearch', 'Likewise, with a pre-filter')
+    writeOneLine(w, done, 'PostFilteredVectorSearch', 'Same filter, but applied as a post-filter rather than a pre-filter')
+
     w('<br><br><b>Other queries:</b>')
     writeOneLine(w, done, 'Term', 'TermQuery')
     writeOneLine(w, done, 'Respell', 'Respell (DirectSpellChecker)')
@@ -1440,7 +1450,13 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Wildcard', 'WildcardQuery')
     writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')
     writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')
-    writeOneLine(w, done, 'VectorSearch', 'VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)')
+
+    w('<br><br><b>Filtered queries:</b>')
+    writeOneLine(w, done, 'FilteredTerm', '+term #filter')
+    writeOneLine(w, done, 'FilteredAndHighHigh', '+high-freq +high-freq #filter')
+    writeOneLine(w, done, 'FilteredAndHighMed', '+high-freq +medium-freq #filter')
+    writeOneLine(w, done, 'FilteredOrHighHigh', '(high-freq high-freq) #filter')
+    writeOneLine(w, done, 'FilteredOrHighMed', '(high-freq medium-freq) #filter')
 
     w('<br><br><b>Faceting:</b>')
     writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')

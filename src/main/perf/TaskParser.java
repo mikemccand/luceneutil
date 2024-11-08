@@ -142,6 +142,7 @@ class TaskParser implements Closeable {
   }
 
   private final static Pattern filterPattern = Pattern.compile(" \\+filter=([0-9\\.]+)%");
+  private final static Pattern preFilterPattern = Pattern.compile(" \\+preFilter=([0-9\\.]+)%");
   private final static Pattern countOnlyPattern = Pattern.compile("count\\((.*?)\\)");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
@@ -211,6 +212,7 @@ class TaskParser implements Closeable {
 
     List<String> facets;
     List<FieldAndWeight> combinedFields;
+    List<String> dismaxFields;
     String text;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
@@ -255,7 +257,8 @@ class TaskParser implements Closeable {
       text = taskAndType[1];
       int msm = parseMinShouldMatch();
       combinedFields = parseCombinedFields();
-      Query query = buildQuery(taskType, text, msm, combinedFields);
+      dismaxFields = parseDismaxFields();
+      Query query = buildQuery(taskType, text, msm);
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
       return new SearchTask(category, isCountOnly, query3, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
@@ -322,6 +325,18 @@ class TaskParser implements Closeable {
       return null;
     }
 
+    Query parsePreFilter() {
+      // Check for pre-filter (eg: " +preFilter=0.5%"), only relevant to vector search
+      final Matcher m = preFilterPattern.matcher(text);
+      if (m.find()) {
+        final double filterPct = Double.parseDouble(m.group(1));
+        // Splice out the filter string:
+        text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
+        return new RandomQuery(filterPct);
+      }
+      return null;
+    }
+
     boolean parseIsCountOnly() {
       // Check for count: "count(...)"
       final Matcher m = countOnlyPattern.matcher(text);
@@ -372,6 +387,17 @@ class TaskParser implements Closeable {
       } else {
         return null;
       }
+    }
+
+    List<String> parseDismaxFields() {
+      String marker = "+dismaxFields=";
+      int i = text.indexOf(marker);
+      if (i >= 0) {
+        String[] fields = text.substring(i + marker.length()).split(",");
+        text = text.substring(0, i);
+        return Arrays.asList(fields);
+      }
+      return null;
     }
 
     List<String> parseFacets() {
@@ -443,7 +469,7 @@ class TaskParser implements Closeable {
       }
     }
 
-    Query buildQuery(String type, String text, int minShouldMatch, List<FieldAndWeight> fieldAndWeights) throws ParseException, IOException {
+    Query buildQuery(String type, String text, int minShouldMatch) throws ParseException, IOException {
       Query query;
       switch(type) {
         case "ordered":
@@ -485,7 +511,7 @@ class TaskParser implements Closeable {
       if (combinedFields != null) {
         CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder();
 
-        for (FieldAndWeight fieldAndWeight : fieldAndWeights) {
+        for (FieldAndWeight fieldAndWeight : combinedFields) {
           cfqBuilder.addField(fieldAndWeight.field, fieldAndWeight.weight);
         }
 
@@ -503,6 +529,28 @@ class TaskParser implements Closeable {
         }
 
         return cfqBuilder.build();
+      }
+
+      if (dismaxFields != null) {
+        List<Query> dismaxClauses = new ArrayList<>();
+        for (String field : dismaxFields) {
+          if (query instanceof TermQuery tq) {
+            dismaxClauses.add(new TermQuery(new Term(field, tq.getTerm().bytes())));
+          } else if (query instanceof BooleanQuery bq) {
+            BooleanQuery.Builder bqBuilder = new BooleanQuery.Builder();
+            for (BooleanClause clause : bq.clauses()) {
+              if (clause.query() instanceof TermQuery tq) {
+                bqBuilder.add(new TermQuery(new Term(field, tq.getTerm().bytes())), clause.occur());
+              } else {
+                throw new IllegalStateException("Cannot change field of query: " + clause.query());
+              }
+            }
+            dismaxClauses.add(bqBuilder.build());
+          } else {
+            throw new IllegalStateException("Cannot change field of query: " + query);
+          }
+        }
+        return new DisjunctionMaxQuery(dismaxClauses, 0f);
       }
 
       if (minShouldMatch == 0) {
@@ -683,7 +731,6 @@ class TaskParser implements Closeable {
         throw new RuntimeException("failed to parse query=" + text);
       }
       fieldHolder[0] = text.substring("(".length(), colon);
-      MultiPhraseQuery.Builder b = new MultiPhraseQuery.Builder();
       int endParen = text.indexOf(')');
       if (endParen == -1) {
         throw new RuntimeException("failed to parse query=" + text);
@@ -712,6 +759,8 @@ class TaskParser implements Closeable {
     }
 
     Query parseVectorQuery() throws IOException {
+      Query preFilter = parsePreFilter();
+
       float[] queryVector;
       if (vectorChannel != null) {
         if (this.vector == null) {
@@ -723,7 +772,11 @@ class TaskParser implements Closeable {
         queryVector = vectorDictionary.computeTextVector(text);
       }
       
-      return new KnnFloatVectorQuery(vectorField, queryVector, topN);
+      if (preFilter != null) {
+        return new KnnFloatVectorQuery(vectorField, queryVector, topN, preFilter);
+      } else {
+        return new KnnFloatVectorQuery(vectorField, queryVector, topN);
+      }
     }
   }
 }

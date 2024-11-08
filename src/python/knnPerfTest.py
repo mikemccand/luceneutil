@@ -33,10 +33,7 @@ from common import getLuceneDirFromGradleProperties
 
 
 # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
-#LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-#LUCENE_CHECKOUT='../../lucene'
-#LUCENE_CHECKOUT='../lucene_baseline'
-LUCENE_CHECKOUT='../lucene_candidate'
+LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
 # e.g. to compile KnnIndexer:
 #

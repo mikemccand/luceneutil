@@ -14,7 +14,7 @@ configure(rootProject) {
                 rootProject.file("gradle.properties").write("""
 # These settings have been generated automatically on the first run.
 external.lucene.repo=$parentDir
-lucene.version=10.0.0
+lucene.version=11.0.0
 """, "UTF-8")
                 logger.log(LogLevel.WARN, "\nIMPORTANT. This is the first time you ran the build. " +
                         "I wrote some sane defaults (for this machine) to 'gradle.properties', " +

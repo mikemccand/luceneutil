@@ -73,7 +73,9 @@ def fetch_cohere_vectors():
   # do this in windows, else the RAM usage is crazy (OOME even with 256
   # GB RAM since I think this step makes 2X copy of the dataset?)
   doc_upto = 0
-  window_num_docs = 1000000
+  # window_num_docs = 1000000
+  # make it work w/64 GB RAM:
+  window_num_docs = 250000
   # window_num_docs = 100000
 
   # Fetch Document Embeddings

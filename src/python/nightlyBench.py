@@ -665,15 +665,16 @@ def run():
         if DO_RESET:
             w('<b>NOTE</b>: this run regolded the results gold files<br><br>')
 
-        w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
-        if lastLuceneRev != luceneRev:
-            w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
-        else:
-            w(f'\nLucene/Solr trunk rev {luceneRev} (no changes since last successful run)<br>')
-        if lastLuceneUtilRev != luceneUtilRev:
-            w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
-        else:
-            w(f'\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>')
+        if lastRevs is not None:
+            w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
+            if lastLuceneRev != luceneRev:
+                w(f'\nLucene/Solr trunk rev {luceneRev} (<a href="https://github.com/apache/lucene/compare/{lastLuceneRev}...{luceneRev}">commits since last successful run</a>)<br>')
+            else:
+                w(f'\nLucene/Solr trunk rev {luceneRev} (no changes since last successful run)<br>')
+            if lastLuceneUtilRev != luceneUtilRev:
+                w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
+            else:
+                w(f'\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>')
         w('%s<br>' % javaVersion)
         w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
         w('Index: %s<br>' % fixedIndexAtClose)

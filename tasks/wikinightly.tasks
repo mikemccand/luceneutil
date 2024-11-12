@@ -186,6 +186,18 @@ VectorSearch: vector//many foundation # freq=99550 freq=10894
 VectorSearch: vector//this school # freq=238551 freq=29912
 VectorSearch: vector//such 2007 # freq=111526 freq=90200 1.2
 
+PreFilteredVectorSearch: vector//publisher backstory +preFilter=5%
+PreFilteredVectorSearch: vector//many geografia +preFilter=5%
+PreFilteredVectorSearch: vector//many foundation +preFilter=5%
+PreFilteredVectorSearch: vector//this school +preFilter=5%
+PreFilteredVectorSearch: vector//such 2007 +preFilter=5%
+
+PostFilteredVectorSearch: vector//publisher backstory +filter=5%
+PostFilteredVectorSearch: vector//many geografia +filter=5%
+PostFilteredVectorSearch: vector//many foundation +filter=5%
+PostFilteredVectorSearch: vector//this school +filter=5%
+PostFilteredVectorSearch: vector//such 2007 +filter=5%
+
 OrHighMedDayTaxoFacets: 4 steve +facets:DayOfYear.taxonomy # freq=986452 freq=84364
 OrHighMedDayTaxoFacets: some groups +facets:DayOfYear.taxonomy # freq=839919 freq=146670
 OrHighMedDayTaxoFacets: a named +facets:DayOfYear.taxonomy # freq=6560531 freq=310150
@@ -210,6 +222,8 @@ MedTermDayTaxoFacets: site +facets:DayOfYear.taxonomy # freq=277788
 MedTermDayTaxoFacets: man +facets:DayOfYear.taxonomy # freq=278112
 MedTermDayTaxoFacets: football +facets:DayOfYear.taxonomy # freq=277738
 
+# CombinedFieldQuery: does BM25F across the title and body fields, with a boost
+# of 8 on the title field
 CombinedTerm: 0 +combinedFields=titleTokenized^8.0,body
 CombinedTerm: names +combinedFields=titleTokenized^8.0,body
 CombinedTerm: nbsp +combinedFields=titleTokenized^8.0,body
@@ -228,6 +242,30 @@ CombinedHighHigh: but year +combinedFields=titleTokenized^8.0,body
 CombinedHighHigh: name its +combinedFields=titleTokenized^8.0,body
 CombinedHighHigh: to but +combinedFields=titleTokenized^8.0,body
 
+# DisjunctionMaxQuery across the body and text field. Even though this may not
+# be the most effective way to combine scores across fields, it's been used and
+# still is used a lot for this.
+DismaxTerm: 0 +dismaxFields=titleTokenized,body
+DismaxTerm: names +dismaxFields=titleTokenized,body
+DismaxTerm: nbsp +dismaxFields=titleTokenized,body
+DismaxTerm: part +dismaxFields=titleTokenized,body
+DismaxTerm: st +dismaxFields=titleTokenized,body
+
+DismaxOrHighHigh: are last +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: at united +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: but year +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: name its +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: to but +dismaxFields=titleTokenized,body
+
+DismaxOrHighMed: at mostly +dismaxFields=titleTokenized,body
+DismaxOrHighMed: his interview +dismaxFields=titleTokenized,body
+DismaxOrHighMed: http 9 +dismaxFields=titleTokenized,body
+DismaxOrHighMed: they hard +dismaxFields=titleTokenized,body
+DismaxOrHighMed: title bay +dismaxFields=titleTokenized,body
+
+# Counting queries. This helps track performance of exhaustive evaluation, plus
+# some counting-specific optimizations like counting ones in a bitset for
+# disjunctions.
 CountAndHighHigh: count(+be +up) # freq=2115632 freq=824628
 CountAndHighHigh: count(+cite +had) # freq=1367577 freq=1223103
 CountAndHighHigh: count(+is +he) # freq=4214104 freq=1663980
@@ -313,3 +351,40 @@ OrMany: solr pronounced solar is an open-source enterprise-search platform writt
 OrMany: a database index is a data structure that improves the speed of data retrieval operations on a database table at the cost of additional writes and storage space to maintain the index data structure indexes are used to quickly locate data without having to search every row in a database table every time said table is accessed
 OrMany: in computing a search engine is an information retrieval software system designed to help find information stored on one or more computer systems search engines discover crawl transform and store information for retrieval and presentation in response to user queries
 OrMany: a java virtual machine jvm is a virtual machine that enables a computer to run java programs as well as programs written in other languages that are also compiled to java bytecode the jvm is detailed by a specification that formally describes what is required in a jvm implementation
+
+# Filtered variants of some of the most interesting queries
+FilteredTerm: 0 +filter=5%
+FilteredTerm: names +filter=5%
+FilteredTerm: nbsp +filter=5%
+FilteredTerm: part +filter=5%
+FilteredTerm: st +filter=5%
+
+FilteredAndHighHigh: +be +up +filter=5%
+FilteredAndHighHigh: +cite +had +filter=5%
+FilteredAndHighHigh: +is +he +filter=5%
+FilteredAndHighHigh: +no +4 +filter=5%
+FilteredAndHighHigh: +title +see +filter=5%
+
+FilteredAndHighMed: +2010 +16 +filter=5%
+FilteredAndHighMed: +5 +power +filter=5%
+FilteredAndHighMed: +only +particularly +filter=5%
+FilteredAndHighMed: +united +1983 +filter=5%
+FilteredAndHighMed: +who +ed +filter=5%
+
+FilteredOrHighHigh: are last +filter=5%
+FilteredOrHighHigh: at united +filter=5%
+FilteredOrHighHigh: but year +filter=5%
+FilteredOrHighHigh: name its +filter=5%
+FilteredOrHighHigh: to but +filter=5%
+
+FilteredOrHighMed: at mostly +filter=5%
+FilteredOrHighMed: his interview +filter=5%
+FilteredOrHighMed: http 9 +filter=5%
+FilteredOrHighMed: they hard +filter=5%
+FilteredOrHighMed: title bay +filter=5%
+
+FilteredPhrase: "it was" +filter=5%
+FilteredPhrase: "red please" +filter=5%
+FilteredPhrase: "the average" +filter=5%
+FilteredPhrase: "the us" +filter=5%
+FilteredPhrase: "when a" +filter=5%

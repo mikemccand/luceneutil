@@ -182,7 +182,7 @@ class SearchTask:
   isCountOnly = False
   
   def verifySame(self, other, verifyScores, verifyCounts):
-    if re.match('^Knn(Float|Byte)VectorQuery:', self.query) is not None:
+    if re.match('.*Knn(Float|Byte)VectorQuery:', self.query) is not None:
       # While KNN search is statically randomized (seed 42?), the concurrent HNSW merge alters the order of results
       return
     if not isinstance(other, SearchTask):

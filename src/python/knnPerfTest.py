@@ -42,30 +42,35 @@ LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-    #'ndoc': (10000, 100000, 1000000),
+    'ndoc': (50000,),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
-    'ndoc': (1_500_000,),
-    #'ndoc': (100000,),
+    #'ndoc': (1_500_000,),
+    #'ndoc': (1_000_000,),
+    #'ndoc': (50_000,),
     #'maxConn': (32, 64, 96),
-    #'maxConn': (64, ),
-    'maxConn': (32,),
+    'maxConn': (64, ),
+    #'maxConn': (32,),
     #'beamWidthIndex': (250, 500),
-    #'beamWidthIndex': (250, ),
-    'beamWidthIndex': (50,),
+    'beamWidthIndex': (250, ),
+    #'beamWidthIndex': (50,),
     #'fanout': (20, 100, 250)
-    'fanout': (6,),
+    'fanout': (64,),
     #'quantize': None,
-    #'quantizeBits': (32,),
+    #'quantizeBits': (32, 7, 4),
+    'quantizeBits': (32,),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
+    #'numMergeWorker': (1,),
+    #'numMergeThread': (1,),
     'encoding': ('float32',),
     # 'metric': ('angular',),  # default is angular (dot_product)
+    'metric': ('mip',),
     #'quantize': (True,),
-    'quantizeBits': (4, 7, 32),
+    #'quantizeBits': (4,),
     #'fanout': (0,),
     'topK': (10,),
-    'quantizeCompress': (False,),
+    #'quantizeCompress': (True, False),
     #'niter': (10,),
 }
 
@@ -105,12 +110,21 @@ def run_knn_benchmark(checkout, values):
     dim = 768
     doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
     query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
-    parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+    #parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+
+    jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
+
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
-    cmd = constants.JAVA_EXE.split(' ') + ['-cp', cp,
-           #'--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
-           #'--enable-native-access=ALL-UNNAMED',
-           'knn.KnnGraphTester']
+    cmd = constants.JAVA_EXE.split(' ') + [
+        '-cp', cp,
+        '--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
+        '--enable-native-access=ALL-UNNAMED',
+        f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
+        f',filename={jfr_output}',
+        '-XX:+UnlockDiagnosticVMOptions',
+        '-XX:+DebugNonSafepoints',
+        'knn.KnnGraphTester'
+    ]
     all_results = []
     while advance(indexes, values):
         print('\nNEXT:')
@@ -168,6 +182,8 @@ def run_knn_benchmark(checkout, values):
         if job.returncode != 0:
             raise RuntimeError(f'command failed with exit {job.returncode}')
         all_results.append(summary)
+        benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
+
     print('\nResults:')
 
     header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType'

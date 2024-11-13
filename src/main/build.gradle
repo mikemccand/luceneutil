@@ -3,7 +3,7 @@ plugins {
 }
 
 sourceSets {
-  main.java.srcDirs = ['.']
+  main.java.srcDirs = ['knn', 'perf']
 }
 
 def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
@@ -12,4 +12,3 @@ def luceneVersion = (String) findProperty("lucene.version")
 dependencies {
   implementation fileTree(dir: luceneDir, include: "**/*$luceneVersion-SNAPSHOT.jar")
 }
-

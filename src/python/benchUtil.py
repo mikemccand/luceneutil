@@ -1063,30 +1063,7 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
-    profilerResults = []
-    
-    for mode in 'cpu', 'heap':
-      for stackSize in profilerStackSize:
-        profileCommand = index.javaCommand.split(' ') + \
-                                ['-cp',
-                                 f'{checkoutToPath(index.checkout)}/build-tools/build-infra/build/classes/java/main',
-                                 f'-Dtests.profile.mode={mode}',
-                                 f'-Dtests.profile.count={profilerCount}',
-                                 f'-Dtests.profile.stacksize={stackSize}',
-                                 'org.apache.lucene.gradle.ProfileResults',
-                                 jfrOutput]
-        print(f'profile command: {profileCommand}')
-        try:
-          result = subprocess.run(profileCommand,
-                                  stdout = subprocess.PIPE,
-                                  stderr = subprocess.STDOUT,
-                                  check = True)
-        except subprocess.CalledProcessError as e:
-          print(f'command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}')
-          raise
-        output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
-        print(output)
-        profilerResults.append((mode, stackSize, output))
+    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize)
 
     return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
@@ -1765,7 +1742,7 @@ def getClassPath(checkout):
   for f in os.listdir(lib):
     if f.endswith('.jar'):
       cp.append(os.path.join(lib, f))
-  cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))
   return tuple(cp)
 
 def classPathToString(cp):
@@ -1857,3 +1834,30 @@ def fixupPerfOutput(s):
     else:
       linesOut.append(line.rstrip())
   return '\n'.join(linesOut)
+
+def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize):
+  profilerResults = []
+
+  for mode in 'cpu', 'heap':
+    for stackSize in profilerStackSize:
+      profileCommand = javaCommand.split(' ') + \
+                              ['-cp',
+                               f'{checkoutPath}/build-tools/build-infra/build/classes/java/main',
+                               f'-Dtests.profile.mode={mode}',
+                               f'-Dtests.profile.count={profilerCount}',
+                               f'-Dtests.profile.stacksize={stackSize}',
+                               'org.apache.lucene.gradle.ProfileResults',
+                               jfrOutput]
+      print(f'profile command: {profileCommand}')
+      try:
+        result = subprocess.run(profileCommand,
+                                stdout = subprocess.PIPE,
+                                stderr = subprocess.STDOUT,
+                                check = True)
+      except subprocess.CalledProcessError as e:
+        print(f'command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}')
+        raise
+      output = f'\nProfiler for {mode}:\n{result.stdout.decode("utf-8")}'
+      print(output)
+      profilerResults.append((mode, stackSize, output))
+  return profilerResults

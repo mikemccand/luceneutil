@@ -341,7 +341,9 @@ public class KnnGraphTester {
           break;
         case "-numMergeThread":
           numMergeThread = Integer.parseInt(args[++iarg]);
-          exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
+          if (numMergeThread > 1) {
+            exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
+          }
           if (numMergeThread <= 0) {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }

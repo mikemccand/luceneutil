@@ -1742,7 +1742,11 @@ def getClassPath(checkout):
   for f in os.listdir(lib):
     if f.endswith('.jar'):
       cp.append(os.path.join(lib, f))
+
+  # TODO: reconcile this!  one or the other?
   cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
+  
   return tuple(cp)
 
 def classPathToString(cp):

@@ -230,17 +230,29 @@ CombinedTerm: nbsp +combinedFields=titleTokenized^8.0,body
 CombinedTerm: part +combinedFields=titleTokenized^8.0,body
 CombinedTerm: st +combinedFields=titleTokenized^8.0,body
 
-CombinedHighMed: at mostly +combinedFields=titleTokenized^8.0,body
-CombinedHighMed: his interview +combinedFields=titleTokenized^8.0,body
-CombinedHighMed: http 9 +combinedFields=titleTokenized^8.0,body
-CombinedHighMed: they hard +combinedFields=titleTokenized^8.0,body
-CombinedHighMed: title bay +combinedFields=titleTokenized^8.0,body
+CombinedOrHighMed: at mostly +combinedFields=titleTokenized^8.0,body
+CombinedOrHighMed: his interview +combinedFields=titleTokenized^8.0,body
+CombinedOrHighMed: http 9 +combinedFields=titleTokenized^8.0,body
+CombinedOrHighMed: they hard +combinedFields=titleTokenized^8.0,body
+CombinedOrHighMed: title bay +combinedFields=titleTokenized^8.0,body
 
-CombinedHighHigh: are last +combinedFields=titleTokenized^8.0,body
-CombinedHighHigh: at united +combinedFields=titleTokenized^8.0,body
-CombinedHighHigh: but year +combinedFields=titleTokenized^8.0,body
-CombinedHighHigh: name its +combinedFields=titleTokenized^8.0,body
-CombinedHighHigh: to but +combinedFields=titleTokenized^8.0,body
+CombinedOrHighHigh: are last +combinedFields=titleTokenized^8.0,body
+CombinedOrHighHigh: at united +combinedFields=titleTokenized^8.0,body
+CombinedOrHighHigh: but year +combinedFields=titleTokenized^8.0,body
+CombinedOrHighHigh: name its +combinedFields=titleTokenized^8.0,body
+CombinedOrHighHigh: to but +combinedFields=titleTokenized^8.0,body
+
+CombinedAndHighMed: +at +mostly +combinedFields=titleTokenized^8.0,body
+CombinedAndHighMed: +his +interview +combinedFields=titleTokenized^8.0,body
+CombinedAndHighMed: +http +9 +combinedFields=titleTokenized^8.0,body
+CombinedAndHighMed: +they +hard +combinedFields=titleTokenized^8.0,body
+CombinedAndHighMed: +title +bay +combinedFields=titleTokenized^8.0,body
+
+CombinedAndHighHigh: +are +last +combinedFields=titleTokenized^8.0,body
+CombinedAndHighHigh: +at +united +combinedFields=titleTokenized^8.0,body
+CombinedAndHighHigh: +but +year +combinedFields=titleTokenized^8.0,body
+CombinedAndHighHigh: +name +its +combinedFields=titleTokenized^8.0,body
+CombinedAndHighHigh: +to +but +combinedFields=titleTokenized^8.0,body
 
 # DisjunctionMaxQuery across the body and text field. Even though this may not
 # be the most effective way to combine scores across fields, it's been used and

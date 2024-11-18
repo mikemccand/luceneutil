@@ -388,3 +388,39 @@ FilteredPhrase: "red please" +filter=5%
 FilteredPhrase: "the average" +filter=5%
 FilteredPhrase: "the us" +filter=5%
 FilteredPhrase: "when a" +filter=5%
+
+FilteredOr2Terms2StopWords: lord of the rings +filter=5%
+FilteredOr2Terms2StopWords: the book of life +filter=5%
+FilteredOr2Terms2StopWords: the garden of eden +filter=5%
+FilteredOr2Terms2StopWords: battle of the bulge +filter=5%
+FilteredOr2Terms2StopWords: story of a girl +filter=5%
+
+FilteredAnd2Terms2StopWords: +lord +of +the +rings +filter=5%
+FilteredAnd2Terms2StopWords: +the +book +of +life +filter=5%
+FilteredAnd2Terms2StopWords: +the +garden +of +eden +filter=5%
+FilteredAnd2Terms2StopWords: +battle +of +the +bulge +filter=5%
+FilteredAnd2Terms2StopWords: +story +of +a +girl +filter=5%
+
+FilteredOrStopWords: to be or not to be +filter=5%
+FilteredOrStopWords: who are the who +filter=5%
+
+FilteredAndStopWords: +to +be +or +not +to +be +filter=5%
+FilteredAndStopWords: +who +are +the +who +filter=5%
+
+FilteredOr3Terms: new york population +filter=5%
+FilteredOr3Terms: world bank president +filter=5%
+FilteredOr3Terms: national book award +filter=5%
+FilteredOr3Terms: united states constitution +filter=5%
+FilteredOr3Terms: law school rankings +filter=5%
+
+FilteredAnd3Terms: +new +york +population +filter=5%
+FilteredAnd3Terms: +world +bank +president +filter=5%
+FilteredAnd3Terms: +national +book +award +filter=5%
+FilteredAnd3Terms: +united +states +constitution +filter=5%
+FilteredAnd3Terms: +law +school +rankings +filter=5%
+
+FilteredOrMany: apache lucene is a free and open-source search engine software library originally written in java by doug cutting it is supported by the apache software foundation and is released under the apache software license lucene is widely used as a standard foundation for production search applications +filter=5%
+FilteredOrMany: solr pronounced solar is an open-source enterprise-search platform written in java its major features include full-text search hit highlighting faceted search real-time indexing dynamic clustering database integration nosql features and rich document word pdf handling +filter=5%
+FilteredOrMany: a database index is a data structure that improves the speed of data retrieval operations on a database table at the cost of additional writes and storage space to maintain the index data structure indexes are used to quickly locate data without having to search every row in a database table every time said table is accessed +filter=5%
+FilteredOrMany: in computing a search engine is an information retrieval software system designed to help find information stored on one or more computer systems search engines discover crawl transform and store information for retrieval and presentation in response to user queries +filter=5%
+FilteredOrMany: a java virtual machine jvm is a virtual machine that enables a computer to run java programs as well as programs written in other languages that are also compiled to java bytecode the jvm is detailed by a specification that formally describes what is required in a jvm implementation +filter=5%

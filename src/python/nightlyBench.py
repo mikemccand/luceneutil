@@ -1459,6 +1459,13 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'FilteredOrHighHigh', 'Filtered disjunctive query on two high-frequency terms')
     writeOneLine(w, done, 'FilteredOrHighMed', 'Filtered disjunctive query on a high-frequency term and a medium-frequency term')
     writeOneLine(w, done, 'FilteredPhrase', 'Filtered phrase query')
+    writeOneLine(w, done, 'FilteredOr2Terms2StopWords', 'Filtered disjunction of 2 regular terms and 2 stop words')
+    writeOneLine(w, done, 'FilteredAnd2Terms2StopWords', 'Filtered conjunction of 2 regular terms and 2 stop words')
+    writeOneLine(w, done, 'FilteredOrStopWords', 'Filtered disjunction of 2 or more stop words')
+    writeOneLine(w, done, 'FilteredAndStopWords', 'Filtered conjunction of 2 or more stop words')
+    writeOneLine(w, done, 'FilteredOr3Terms', 'Filtered disjunction of 3 terms')
+    writeOneLine(w, done, 'FilteredAnd3Terms', 'Filtered conjunction of 3 terms')
+    writeOneLine(w, done, 'FilteredOrMany', 'Filtered disjunction of many terms')
 
     w('<br><br><b>Faceting:</b>')
     writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')

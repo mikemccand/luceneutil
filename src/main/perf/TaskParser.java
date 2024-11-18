@@ -509,26 +509,7 @@ class TaskParser implements Closeable {
       }
 
       if (combinedFields != null) {
-        CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder();
-
-        for (FieldAndWeight fieldAndWeight : combinedFields) {
-          cfqBuilder.addField(fieldAndWeight.field, fieldAndWeight.weight);
-        }
-
-        if (query instanceof TermQuery) {
-          cfqBuilder.addTerm(((TermQuery) query).getTerm().bytes());
-        } else if (query instanceof BooleanQuery) {
-          for (BooleanClause clause : (BooleanQuery) query) {
-            if (clause.occur() != Occur.SHOULD) {
-              throw new RuntimeException("combinedFields can only be used with TermQuery or BooleanQuery with OR clauses: query=" + origText);
-            }
-            cfqBuilder.addTerm(((TermQuery) clause.query()).getTerm().bytes());
-          }
-        } else {
-          throw new RuntimeException("combinedFields can only be used with TermQuery or BooleanQuery with OR clauses: query=" + origText);
-        }
-
-        return cfqBuilder.build();
+        return rewriteToCombinedFieldQuery(query);
       }
 
       if (dismaxFields != null) {
@@ -565,6 +546,26 @@ class TaskParser implements Closeable {
           b.add(clause);
         }
         return b.build();
+      }
+    }
+
+    private Query rewriteToCombinedFieldQuery(Query query) {
+      if (query instanceof TermQuery tq) {
+        CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder();
+        for (FieldAndWeight fieldAndWeight : combinedFields) {
+          cfqBuilder.addField(fieldAndWeight.field, fieldAndWeight.weight);
+        }
+        cfqBuilder.addTerm(tq.getTerm().bytes());
+        return cfqBuilder.build();
+      } else if (query instanceof BooleanQuery bq) {
+        BooleanQuery.Builder builder = new BooleanQuery.Builder();
+        builder.setMinimumNumberShouldMatch(bq.getMinimumNumberShouldMatch());
+        for (BooleanClause clause : bq.clauses()) {
+          builder.add(rewriteToCombinedFieldQuery(clause.query()), clause.occur());
+        }
+        return builder.build();
+      } else {
+        throw new IllegalArgumentException("Cannot rewrite query " + query + " to a CombinedFieldQuery");
       }
     }
 

@@ -1411,10 +1411,12 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'OrHighRare', 'Disjunction of a very frequent term and a very rare term')
     writeOneLine(w, done, 'OrMany', 'Disjunction of many terms')
 
-    w('<br><br><b>CombinedFieldsQuery:</b>')
+    w('<br><br><b>CombinedFieldQuery:</b>')
     writeOneLine(w, done, 'CombinedTerm', 'Combined high-freq')
-    writeOneLine(w, done, 'CombinedHighMed', 'Combined high-freq medium-freq')
-    writeOneLine(w, done, 'CombinedHighHigh', 'Combined high-freq high-freq')
+    writeOneLine(w, done, 'CombinedOrHighMed', 'Combined OR high-freq medium-freq')
+    writeOneLine(w, done, 'CombinedOrHighHigh', 'Combined OR high-freq high-freq')
+    writeOneLine(w, done, 'CombinedAndHighMed', 'Combined AND high-freq medium-freq')
+    writeOneLine(w, done, 'CombinedAndHighHigh', 'Combined AND high-freq high-freq')
 
     w('<br><br><b>DisjunctionMaxQuery to take the maximum score across the title and body fields:</b>')
     writeOneLine(w, done, 'DismaxTerm', 'Term query')

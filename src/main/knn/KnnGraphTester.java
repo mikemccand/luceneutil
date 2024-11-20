@@ -47,18 +47,22 @@ import java.util.concurrent.TimeUnit;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
+import org.apache.lucene.codecs.bitvectors.HnswBitVectorsFormat;
 import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
+import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.StandardDirectoryReader;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.VectorEncoding;
@@ -118,7 +122,7 @@ public class KnnGraphTester {
   private int dim;
   private int topK;
   private int numIters;
-  private int fanout; // nocommit is this used anywhere :)  seems to be query time parameter...?
+  private int fanout;  // this increases the internal HNSW search queue (search only) from topK to topK + fanout
   private Path indexPath;
   private boolean quiet;
   private boolean reindex;
@@ -127,6 +131,9 @@ public class KnnGraphTester {
   private double forceMergeTimeSec;
   private int indexNumSegments;
   private double indexSizeOnDiskMB;
+  private long vectorDiskSizeBytes;
+  // how much RAM searching needs to keep HNSW fully "hot":
+  private long vectorRAMSizeBytes;
   private int beamWidth;
   private int maxConn;
   private boolean quantize;
@@ -141,7 +148,7 @@ public class KnnGraphTester {
   private float selectivity;
   private boolean prefilter;
   private boolean randomCommits;
-  private boolean parentJoin = false;
+  private boolean parentJoin;
   private Path parentJoinMetaFile;
 
   private KnnGraphTester() {
@@ -257,6 +264,9 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("-quantizeBits requires a following number");
           }
           quantizeBits = Integer.parseInt(args[++iarg]);
+          if (quantizeBits != 1 && quantizeBits != 4 && quantizeBits != 7) {
+            throw new IllegalArgumentException("-quantizeBits must be 1, 4 or 7");
+          }
           break;
         case "-quantizeCompress":
           quantizeCompress = true;
@@ -374,6 +384,7 @@ public class KnnGraphTester {
       throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
           "document relationships. Rerun with -reindex or without -parentJoin argument");
     }
+
     if (reindex) {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
@@ -403,9 +414,95 @@ public class KnnGraphTester {
       for(String fileName : ((StandardDirectoryReader) reader).getSegmentInfos().files(true)) {
         indexSizeOnDiskBytes += dir.fileLength(fileName);
       }
+
+      // long because maybe we at some point we support multi-valued vector fields:
+      long totalVectorCount = 0;
+
+      int encodingByteSize = -1;
+      for (LeafReaderContext ctx : reader.leaves()) {
+        KnnVectorsReader knnReader = ((SegmentReader) ctx.reader()).getVectorReader();
+
+        int segEncodingByteSize;
+        switch (vectorEncoding) {
+        case BYTE:
+          // TODO: does Lucene prevent int4/int7 quantization when input is byte per dimension?
+          {
+            ByteVectorValues vectors = knnReader.getByteVectorValues(KNN_FIELD);
+            segEncodingByteSize = vectors.getEncoding().byteSize;
+            totalVectorCount += vectors.size();
+            break;
+          }
+        case FLOAT32:
+          {
+            FloatVectorValues vectors = knnReader.getFloatVectorValues(KNN_FIELD);
+            segEncodingByteSize = vectors.getEncoding().byteSize;
+            totalVectorCount += vectors.size();
+            break;
+          }
+        default:
+          throw new IllegalStateException("only FLOAT32 and BYTE input vectors are supported; got: " + vectorEncoding);
+        }
+
+        // TODO: why is encodingByteSize 4 for int4/int7 cases?
+        if (encodingByteSize == -1) {
+          encodingByteSize = segEncodingByteSize;
+        } else if (encodingByteSize != segEncodingByteSize) {
+          throw new IllegalStateException("encodingByteSize should not have changed across segments; got " +
+                                          encodingByteSize + " and " + segEncodingByteSize);
+        }
+      }
+
+      int origByteSize;
+      switch (vectorEncoding) {
+      case BYTE:
+        // TODO: does Lucene prevent int4/int7 quantization when input is byte per dimension?
+        origByteSize = Byte.BYTES;
+        break;
+      case FLOAT32:
+        origByteSize = Float.BYTES;
+        break;
+      default:
+        throw new IllegalStateException("only FLOAT32 and BYTE input vectors are supported; got: " + vectorEncoding);
+      }
+      System.out.println("encodingByteSize=" + encodingByteSize + " origByteSize=" + origByteSize);
+
+      // TODO: why is encodingByteSize 4 even for int4/int7 cases?
+      double realEncodingByteSize;
+      if (quantize) {
+        if (quantizeBits == 4) {
+          if (quantizeCompress) {
+            realEncodingByteSize = 0.5;
+          } else {
+            realEncodingByteSize = 1;
+          }
+        } else if (quantizeBits == 7) {
+          realEncodingByteSize = 1;
+        } else {
+          throw new IllegalStateException("can only handle int4 and int7 quantized");
+        }
+      } else {
+        realEncodingByteSize = Float.BYTES;
+      }
+      System.out.println("realEncodingByteSize=" + realEncodingByteSize);
+
+      double diskBytesPerDim;
+      if (origByteSize != (int) realEncodingByteSize) {
+        // int4, int7 add one byte per dimension over the original
+        diskBytesPerDim = origByteSize + realEncodingByteSize;
+      } else {
+        // unquantized
+        diskBytesPerDim = origByteSize;
+      }
+
+      vectorDiskSizeBytes = (long) ((double) totalVectorCount * diskBytesPerDim * dim);
+      vectorRAMSizeBytes = (long) ((double) totalVectorCount * realEncodingByteSize * dim);
+      
       indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
       System.out.println(String.format(Locale.ROOT, "index disk usage is %.2f MB", indexSizeOnDiskMB));
+      System.out.println(String.format(Locale.ROOT, "vector disk usage is %.2f MB", vectorDiskSizeBytes/1024./1024.));
+      System.out.println(String.format(Locale.ROOT, "vector RAM usage is %.2f MB", vectorRAMSizeBytes/1024./1024.));
     }
+    
     if (operation != null) {
       switch (operation) {
         case "-search":
@@ -695,7 +792,7 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numIters,
           numDocs,
@@ -711,7 +808,9 @@ public class KnnGraphTester {
           indexNumSegments,
           indexSizeOnDiskMB,
           selectivity,
-          prefilter ? "pre-filter" : "post-filter");
+          prefilter ? "pre-filter" : "post-filter",
+          vectorDiskSizeBytes / 1024. / 1024.,
+          vectorRAMSizeBytes / 1024. / 1024.);
     }
   }
 
@@ -1030,18 +1129,30 @@ public class KnnGraphTester {
       return new Lucene101Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          return quantize ?
-              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, null) :
-              new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+          if (quantize) {
+            if (quantizeBits == 1) {
+              return new HnswBitVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+            } else {
+              return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, null);
+            }
+          } else {
+            return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+          }
         }
       };
     } else {
       return new Lucene101Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          return quantize ?
-              new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, exec) :
-              new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+          if (quantize) {
+            if (quantizeBits == 1) {
+              return new HnswBitVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+            } else {
+              return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, exec);
+            }
+          } else {
+            return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+          }
         }
       };
     }

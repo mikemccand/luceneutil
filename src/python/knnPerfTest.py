@@ -58,7 +58,6 @@ PARAMS = {
     'fanout': (64,),
     #'quantize': None,
     #'quantizeBits': (32, 7, 4),
-    'quantizeBits': (32,),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     #'numMergeWorker': (1,),
@@ -67,10 +66,11 @@ PARAMS = {
     # 'metric': ('angular',),  # default is angular (dot_product)
     'metric': ('mip',),
     #'quantize': (True,),
-    #'quantizeBits': (4,),
+    'quantizeBits': (4, 7, 32),
     #'fanout': (0,),
     'topK': (10,),
     #'quantizeCompress': (True, False),
+    'quantizeCompress': (True,),
     #'niter': (10,),
 }
 
@@ -114,7 +114,7 @@ def run_knn_benchmark(checkout, values):
 
     jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
 
-    cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout))
+    cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f'{constants.BENCH_BASE_DIR}/build',))
     cmd = constants.JAVA_EXE.split(' ') + [
         '-cp', cp,
         '--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
@@ -130,7 +130,8 @@ def run_knn_benchmark(checkout, values):
         print('\nNEXT:')
         pv = {}
         args = []
-        do_quantize = False
+        quantize_bits = None
+        do_quantize_compress = False
         for (i, p) in enumerate(values.keys()):
             if values[p]:
                 value = values[p][indexes[i]]
@@ -140,8 +141,12 @@ def run_knn_benchmark(checkout, values):
                         print(f'  -{p}={value}')
                         print(f'  -quantize')
                         args += ['-quantize']
+                        quantize_bits = value
                 elif type(value) is bool:
-                    if value:
+                    if p == 'quantizeCompress':
+                        # carefully only add this flag (below) if we are quantizing to 4 bits:
+                        do_quantize_compress = True
+                    elif value:
                         args += ['-' + p]
                         print(f'  -{p}')
                 else:
@@ -150,6 +155,11 @@ def run_knn_benchmark(checkout, values):
             else:
                 args += ['-' + p]
                 print(f'  -{p}')
+
+        if quantize_bits == 4 and do_quantize_compress:
+          args += ['-quantizeCompress']
+          print('  -quantizeCompress')
+          
         args += [a for (k, v) in pv.items() for a in ('-' + k, str(v)) if a]
 
         this_cmd = cmd + args + [
@@ -157,7 +167,7 @@ def run_knn_benchmark(checkout, values):
             '-docs', doc_vectors,
             '-reindex',
             '-search-and-stats', query_vectors,
-            '-metric', 'mip',
+            #'-metric', 'mip',
             # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             '-forceMerge',
@@ -186,7 +196,17 @@ def run_knn_benchmark(checkout, values):
 
     print('\nResults:')
 
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType'
+    # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
+    # turn filterType/selectivity back on for all runs
+    skip_headers = {'selectivity', 'filterType', 'visited'}
+
+    if '-forceMerge' not in this_cmd:
+        skip_headers.add('force merge s')
+
+    print_fixed_width(all_results, skip_headers)
+
+def print_fixed_width(all_results, columns_to_skip):
+    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')
@@ -196,14 +216,7 @@ def run_knn_benchmark(checkout, values):
 
     rows_to_print = [header] + all_results
 
-    # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
-    # turn filterType/selectivity back on for all runs
-    skip_headers = {'selectivity', 'filterType', 'visited'}
-
-    if '-forceMerge' not in this_cmd:
-        skip_headers.add('force merge s')
-
-    skip_column_index = {headers.index(h) for h in skip_headers}
+    skip_column_index = {headers.index(h) for h in columns_to_skip}
 
     for row in rows_to_print:
         by_column = row.split('\t')
@@ -221,4 +234,5 @@ def run_knn_benchmark(checkout, values):
         print(row_fmt % cols)
 
 
-run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+if __name__ == '__main__':
+    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

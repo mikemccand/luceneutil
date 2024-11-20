@@ -497,6 +497,12 @@ def run():
                           hnswThreadPoolCount = constants.HNSW_THREAD_POOL_COUNT
                           )
 
+    # this index is gigantic -- if a turd is leftover from a prior failed run, nuke it now!!
+    index_path = benchUtil.nameToIndexPath(index.getName())
+    if os.path.exists(index_path):
+      print(f'NOTE: now delete old leftover ginormous index {index_path}')
+      shutil.rmtree(index_path)
+
     c = comp.competitor(id, NIGHTLY_DIR,
                         index=index,
                         # vectorDict=(constants.VECTORS_WORD_TOK_FILE, constants.VECTORS_WORD_VEC_FILE, constants.VECTORS_DIMENSIONS),

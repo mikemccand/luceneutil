@@ -150,6 +150,7 @@ public class KnnGraphTester {
   private boolean randomCommits;
   private boolean parentJoin;
   private Path parentJoinMetaFile;
+  private int numIndexThreads;
 
   private KnnGraphTester() {
     // set defaults
@@ -168,6 +169,7 @@ public class KnnGraphTester {
     randomCommits = false;
     quantizeBits = 7;
     quantizeCompress = false;
+    numIndexThreads = 8;
   }
 
   public static void main(String... args) throws Exception {
@@ -365,6 +367,12 @@ public class KnnGraphTester {
           parentJoinMetaFile = Paths.get(args[++iarg]);
           parentJoin = true;
           break;
+        case "-numIndexThreads":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-numIndexThreads requires a following int");
+          }
+          numIndexThreads = Integer.parseInt(args[++iarg]);
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -393,6 +401,7 @@ public class KnnGraphTester {
         docVectorsPath,
         indexPath,
         getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
+        numIndexThreads,
         vectorEncoding,
         dim,
         similarityFunction,
@@ -409,7 +418,7 @@ public class KnnGraphTester {
     }
     try (Directory dir = FSDirectory.open(indexPath); IndexReader reader = DirectoryReader.open(dir)) {
       indexNumSegments = reader.leaves().size();
-      System.out.println("index has " + indexNumSegments + " segments");
+      System.out.println("index has " + indexNumSegments + " segments: " + ((StandardDirectoryReader) reader).getSegmentInfos());
       long indexSizeOnDiskBytes = 0;
       for(String fileName : ((StandardDirectoryReader) reader).getSegmentInfos().files(true)) {
         indexSizeOnDiskBytes += dir.fileLength(fileName);

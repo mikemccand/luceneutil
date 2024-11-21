@@ -33,7 +33,7 @@ SEARCH_VECTORS_FILE = '/l/data/cohere-wikipedia-queries-768d.vec'
 VECTORS_DIM = 768
 VECTORS_ENCODING = 'float32'
 LUCENE_CHECKOUT = '/l/trunk'
-
+INDEX_THREAD_COUNT = 8
 
 INDEX_NUM_VECTORS = 8_000_000
 HNSW_MAX_CONN = 32
@@ -95,6 +95,11 @@ def is_git_clone_dirty(git_clone_path):
   return bool(p.returncode)
 
 def main():
+  all_results = run()
+  if len(sys.argv) == 1:
+      
+
+def run():
   lucene_git_rev = get_git_revision(LUCENE_CHECKOUT)
   lucene_clone_is_dirty = is_git_clone_dirty(LUCENE_CHECKOUT)
   print(f'Lucene HEAD git revision at {LUCENE_CHECKOUT}: {lucene_git_rev} dirty?={lucene_clone_is_dirty}')
@@ -131,11 +136,12 @@ def main():
        '-ndoc', str(INDEX_NUM_VECTORS),
        '-topK', str(HNSW_TOP_K),
        '-reindex',
+       '-indexThreadCount', str(INDEX_THREAD_COUNT),
        '-beamWidthIndex', str(HNSW_INDEX_BEAM_WIDTH),
        '-search-and-stats', SEARCH_VECTORS_FILE,
        '-metric', 'mip',
-       '-numMergeThread', str(8),
-       '-numMergeWorker', str(12),
+       '-numMergeThread', '8',
+       '-numMergeWorker', '12',
        #'-forceMerge'
        ]
 
@@ -230,7 +236,7 @@ def main():
                        graph_level_conn_p_values,  # graph_level_conn_p_values
                        combined_run_time,  # time to run KnnGraphTester (indexing + force-merging + searching)
                        )
-    all_results.append((quantize_bits, result))
+    all_results.append(result)
 
   skip_headers = {'selectivity', 'filterType', 'visited'}
   knnPerfTest.print_fixed_width(all_summaries, skip_headers)

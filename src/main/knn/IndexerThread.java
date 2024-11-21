@@ -1,0 +1,87 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package knn;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.KnnByteVectorField;
+import org.apache.lucene.document.KnnFloatVectorField;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.VectorEncoding;
+
+class IndexerThread extends Thread {
+  private final IndexWriter iw;
+  private final VectorReader vectorReader;
+  private final AtomicInteger numDocsIndexed;
+  private final int numDocsToIndex;
+  private final FieldType fieldType;
+  private final VectorEncoding vectorEncoding;
+  
+  public IndexerThread(IndexWriter iw, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType, AtomicInteger numDocsIndexed, int numDocsToIndex) {
+    this.iw = iw;
+    this.vectorReader = vectorReader;
+    this.vectorEncoding = vectorEncoding;
+    this.fieldType = fieldType;
+    this.numDocsIndexed = numDocsIndexed;
+    this.numDocsToIndex = numDocsToIndex;
+  }
+
+  @Override
+  public void run() {
+    try {
+      _run();
+    } catch (IOException ioe) {
+      throw new UncheckedIOException(ioe);
+    }
+  }
+
+  private void _run() throws IOException {
+    int docsIndexed = 0;
+    while (true) {
+      int id = numDocsIndexed.getAndIncrement();
+      if (id >= numDocsToIndex) {
+        // yay, done!
+        break;
+      }
+      
+      Document doc = new Document();
+      synchronized (vectorReader) {
+        switch (vectorEncoding) {
+          case BYTE -> doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
+          case FLOAT32 -> doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vectorReader.next(), fieldType));
+        }
+
+        // paranoia: a bit of a lie (we didn't index OUR doc yet), but do it in sync block to prevent sysouts from stomping
+        // each other ... not sure if line buffering / atomicity would do this for free?
+        if ((id + 1) % 25000 == 0) {
+          System.out.println("Done indexing " + (id + 1) + " documents.");
+        }
+      }
+      doc.add(new StoredField(KnnGraphTester.ID_FIELD, id));
+      iw.addDocument(doc);
+    }
+  }
+}

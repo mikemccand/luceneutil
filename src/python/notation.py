@@ -894,4 +894,12 @@ KNOWN_CHANGES = [
   ('2024-11-01',
    'Move postings back to int[] to take advantage of having more lanes per vector https://github.com/apache/lucene/pull/13968',
    'Move postings back to int[] to take advantage of having more lanes per vector https://github.com/apache/lucene/pull/13968'),
+
+  ('2024-11-01',
+   'Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003',
+   'Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003'),
+
+  ('2024-11-25',
+   'Stop using SlowImpactsEnum for terms whose docFreq is less than 128. https://github.com/apache/lucene/pull/14017',
+   'Stop using SlowImpactsEnum for terms whose docFreq is less than 128. https://github.com/apache/lucene/pull/14017'),
 ]

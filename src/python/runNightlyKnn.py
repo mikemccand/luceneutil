@@ -97,7 +97,7 @@ def is_git_clone_dirty(git_clone_path):
 def main():
   all_results = run()
   if len(sys.argv) == 1:
-      
+    pass
 
 def run():
   lucene_git_rev = get_git_revision(LUCENE_CHECKOUT)

@@ -902,4 +902,9 @@ KNOWN_CHANGES = [
   ('2024-11-25',
    'Stop using SlowImpactsEnum for terms whose docFreq is less than 128. https://github.com/apache/lucene/pull/14017',
    'Stop using SlowImpactsEnum for terms whose docFreq is less than 128. https://github.com/apache/lucene/pull/14017'),
+
+  ('2024-11-26',
+   'Make WANDScorer compute scores on the fly. https://github.com/apache/lucene/pull/14021',
+   'Make WANDScorer compute scores on the fly. https://github.com/apache/lucene/pull/14021'),
+
 ]

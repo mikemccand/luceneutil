@@ -899,6 +899,10 @@ KNOWN_CHANGES = [
    'Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003',
    'Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003'),
 
+  ('2024-11-22',
+   'Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003',
+   'Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003'),
+
   ('2024-11-25',
    'Stop using SlowImpactsEnum for terms whose docFreq is less than 128. https://github.com/apache/lucene/pull/14017',
    'Stop using SlowImpactsEnum for terms whose docFreq is less than 128. https://github.com/apache/lucene/pull/14017'),
@@ -906,5 +910,9 @@ KNOWN_CHANGES = [
   ('2024-11-26',
    'Make WANDScorer compute scores on the fly. https://github.com/apache/lucene/pull/14021',
    'Make WANDScorer compute scores on the fly. https://github.com/apache/lucene/pull/14021'),
+
+  ('2024-11-27',
+   'Run filtered disjunctions with MaxScoreBulkScorer. https://github.com/apache/lucene/pull/14014',
+   'Run filtered disjunctions with MaxScoreBulkScorer. https://github.com/apache/lucene/pull/14014'),
 
 ]

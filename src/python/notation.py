@@ -915,4 +915,8 @@ KNOWN_CHANGES = [
    'Run filtered disjunctions with MaxScoreBulkScorer. https://github.com/apache/lucene/pull/14014',
    'Run filtered disjunctions with MaxScoreBulkScorer. https://github.com/apache/lucene/pull/14014'),
 
+  ('2024-11-29',
+    'Make inlining decisions a bit more predictable in our main queries https://github.com/apache/lucene/pull/14023',
+    'Make inlining decisions a bit more predictable in our main queries https://github.com/apache/lucene/pull/14023'),
+
 ]

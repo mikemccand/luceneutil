@@ -12,6 +12,7 @@ import sys
 import benchUtil
 import constants
 import re
+import multiprocessing
 from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
@@ -35,6 +36,9 @@ from common import getLuceneDirFromGradleProperties
 # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
 LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
+# nocommit re-enable by default
+DO_PROFILING = True
+
 # e.g. to compile KnnIndexer:
 #
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
@@ -42,17 +46,17 @@ LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-    #'ndoc': (50000,),
+    'ndoc': (200_000,),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
-    'ndoc': (1_500_000,),
+    #'ndoc': (2_000_000,),
     #'ndoc': (1_000_000,),
     #'ndoc': (50_000,),
     #'maxConn': (32, 64, 96),
     'maxConn': (32, ),
     #'maxConn': (32,),
     #'beamWidthIndex': (250, 500),
-    'beamWidthIndex': (250, ),
+    'beamWidthIndex': (100, ),
     #'beamWidthIndex': (50,),
     #'fanout': (20, 100, 250)
     'fanout': (50,),
@@ -71,6 +75,7 @@ PARAMS = {
     'topK': (100,),
     #'quantizeCompress': (True, False),
     'quantizeCompress': (True,),
+    'queryStartIndex': (0,)
     #'niter': (10,),
 }
 
@@ -108,8 +113,8 @@ def run_knn_benchmark(checkout, values):
 
     # Cohere dataset
     dim = 768
-    doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
-    query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
+    doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
+    query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
     #parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
     jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
@@ -119,12 +124,17 @@ def run_knn_benchmark(checkout, values):
         '-cp', cp,
         '--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
         '--enable-native-access=ALL-UNNAMED',
-        f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
-        f',filename={jfr_output}',
+        f'-Djava.util.concurrent.ForkJoinPool.common.parallelism={multiprocessing.cpu_count()}',  # so that brute force computeNN uses all cores
         '-XX:+UnlockDiagnosticVMOptions',
         '-XX:+DebugNonSafepoints',
-        'knn.KnnGraphTester'
     ]
+
+    if DO_PROFILING:
+      cmd += [f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' + \
+              f',filename={jfr_output}']
+
+    cmd += ['knn.KnnGraphTester']
+      
     all_results = []
     while advance(indexes, values):
         print('\nNEXT:')
@@ -173,7 +183,7 @@ def run_knn_benchmark(checkout, values):
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             '-forceMerge',
             #'-stats',
-            '-quiet'
+            #'-quiet'
         ]
         print(f'  cmd: {this_cmd}')
         job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
@@ -193,7 +203,8 @@ def run_knn_benchmark(checkout, values):
         if job.returncode != 0:
             raise RuntimeError(f'command failed with exit {job.returncode}')
         all_results.append(summary)
-        benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
+        if DO_PROFILING:
+          benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
 
     print('\nResults:')
 

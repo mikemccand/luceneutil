@@ -29,28 +29,35 @@ public abstract class VectorReader {
   final ByteBuffer bytes;
   final FileChannel input;
 
-  static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding) {
+  // seek to this vector on init/reset:
+  final int vectorStartIndex;
+
+  static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding, int vectorStartIndex) throws IOException {
     int bufferSize = dim * vectorEncoding.byteSize;
     return switch (vectorEncoding) {
-      case BYTE -> new VectorReaderByte(input, dim, bufferSize);
-      case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize);
+      case BYTE -> new VectorReaderByte(input, dim, bufferSize, vectorStartIndex);
+      case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize, vectorStartIndex);
     };
   }
 
-  VectorReader(FileChannel input, int dim, int bufferSize) {
+  VectorReader(FileChannel input, int dim, int bufferSize, int vectorStartIndex) throws IOException {
     this.bytes = ByteBuffer.wrap(new byte[bufferSize]).order(ByteOrder.LITTLE_ENDIAN);
     this.input = input;
+    this.vectorStartIndex = vectorStartIndex;
     target = new float[dim];
+    reset();
   }
 
   void reset() throws IOException {
-    input.position(0);
+    long pos = vectorStartIndex * (long) bytes.capacity();
+    input.position(pos);
   }
 
   protected final void readNext() throws IOException {
     int bytesRead = this.input.read(bytes);
     if (bytesRead < bytes.capacity()) {
       // wrap around back to the start of the file if we hit the end:
+      System.out.println("WARNING: VectorReader hit EOF when reading " + this.input + "; now wrapping around to start of file again");
       this.input.position(0);
       bytesRead = this.input.read(bytes);
       if (bytesRead < bytes.capacity()) {

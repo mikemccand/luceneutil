@@ -22,8 +22,8 @@ import java.nio.channels.FileChannel;
 
 public class VectorReaderByte extends VectorReader {
 
-  VectorReaderByte(FileChannel input, int dim, int bufferSize) {
-    super(input, dim, bufferSize);
+  VectorReaderByte(FileChannel input, int dim, int bufferSize, int vectorStartIndex) throws IOException {
+    super(input, dim, bufferSize, vectorStartIndex);
   }
 
   @Override

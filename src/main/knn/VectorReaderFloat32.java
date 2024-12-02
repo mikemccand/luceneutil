@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 
 public class VectorReaderFloat32 extends VectorReader {
-  VectorReaderFloat32(FileChannel input, int dim, int bufferSize) {
-    super(input, dim, bufferSize);
+  VectorReaderFloat32(FileChannel input, int dim, int bufferSize, int vectorStartIndex) throws IOException {
+    super(input, dim, bufferSize, vectorStartIndex);
   }
 
   @Override

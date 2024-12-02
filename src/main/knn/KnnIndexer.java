@@ -109,11 +109,13 @@ public class KnnIndexer {
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc)) {
       try (FileChannel in = FileChannel.open(docsPath)) {
-        if (docsStartIndex > 0) {
-          seekToStartDoc(in, dim, vectorEncoding, docsStartIndex);
+        long docsPathSizeInBytes = in.size();
+        if (docsPathSizeInBytes % (dim * vectorEncoding.byteSize) != 0) {
+          throw new IllegalArgumentException("docsPath \"" + docsPath + "\" does not contain a whole number of vectors?  size=" + docsPathSizeInBytes);
         }
+        System.out.println((int) (docsPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " doc vectors in docsPath \"" + docsPath + "\"");
         
-        VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding);
+        VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, docsStartIndex);
         log("parentJoin=%s", parentJoin);
         if (parentJoin == false) {
           ExecutorService exec = Executors.newFixedThreadPool(numIndexThreads);
@@ -199,11 +201,6 @@ public class KnnIndexer {
     long elapsed = System.nanoTime() - start;
     log("Indexed %d docs in %d seconds", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsed));
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
-  }
-
-  private void seekToStartDoc(FileChannel in, int dim, VectorEncoding vectorEncoding, int docsStartIndex) throws IOException {
-    int startByte = docsStartIndex * dim * vectorEncoding.byteSize;
-    in.position(startByte);
   }
 
   private void log(String msg, Object... args) {

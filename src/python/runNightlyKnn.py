@@ -6,13 +6,19 @@ import benchUtil
 import subprocess
 import pickle
 import datetime
+import shutil
+import glob
 from collections import namedtuple
 import knnPerfTest
 
 # TODO
+#   - why is query vector offset not working...
+#   - remove all cached indices / .bin files from nightly area
+#     - hmm maybe don't remove the exact KNN?  takes a long time to recompute!
 #   - test different distance metrics / vector sources?
 #   - test with and without force merge?
 #   - need "hot searcher RAM"
+#   - test both force merged and not?
 #   - compile lucene too?
 #   - test parent join too
 #   - suck metrics out of -stats too?
@@ -28,8 +34,8 @@ import knnPerfTest
 #LUCENE_CHECKOUT = constants.LUCENE_CHECKOUT
 
 # e.g. Cohere v2
-INDEX_VECTORS_FILE = '/l/data/cohere-wikipedia-docs-768d.vec'
-SEARCH_VECTORS_FILE = '/l/data/cohere-wikipedia-queries-768d.vec'
+INDEX_VECTORS_FILE = '/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec'
+SEARCH_VECTORS_FILE = '/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec'
 VECTORS_DIM = 768
 VECTORS_ENCODING = 'float32'
 LUCENE_CHECKOUT = '/l/trunk'
@@ -49,6 +55,7 @@ if not REAL:
 
 re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)
 re_graph_level = re.compile(r'^Graph level=(\d) size=(\d+), Fanout')
+re_leaf_docs = re.compile(r'^Leaf (\d+) has (\d+) documents')
 
 KNNResult = namedtuple('KNNResult',
                        ['lucene_git_rev',
@@ -115,6 +122,16 @@ def run():
     if luceneutil_clone_is_dirty:
       raise RuntimeError(f'luceneutil clone {constants.BENCH_BASE_DIR} is git-dirty')
 
+  # make sure nothing is shared from prior runs
+  indicesDir = f'{constants.BENCH_BASE_DIR}/knnIndices'
+  if os.path.exists(indicesDir):
+    print(f'removing KNN indices dir {indicesDir}')
+    shutil.rmtree(indicesDir)
+    
+  for cacheFileName in glob.glob(f'{constants.BENCH_BASE_DIR}/*.bin'):
+    print(f'removing cached KNN results {cacheFileName}')
+    os.remove(cacheFileName)
+    
   print(f'compile Lucene jars at {LUCENE_CHECKOUT}')
   os.chdir(LUCENE_CHECKOUT)
   subprocess.check_call(['./gradlew', 'jar'])
@@ -136,7 +153,7 @@ def run():
        '-ndoc', str(INDEX_NUM_VECTORS),
        '-topK', str(HNSW_TOP_K),
        '-reindex',
-       '-indexThreadCount', str(INDEX_THREAD_COUNT),
+       '-numIndexThreads', str(INDEX_THREAD_COUNT),
        '-beamWidthIndex', str(HNSW_INDEX_BEAM_WIDTH),
        '-search-and-stats', SEARCH_VECTORS_FILE,
        '-metric', 'mip',
@@ -163,7 +180,7 @@ def run():
 
     job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
     summary = None
-    graph_level_conn_p_values = {}
+    all_graph_level_conn_p_values = []
     while True:
       line = job.stdout.readline()
       if line == '':
@@ -172,6 +189,18 @@ def run():
       m = re_summary.match(line)
       if m is not None:
         summary = m.group(1)
+      m = re_leaf_docs.match(line)
+      if m is not None:
+
+        if len(all_graph_level_conn_p_values) > 0:
+          assert graph_level_conn_p_values == all_graph_level_conn_p_values[-1][2]
+          if len(graph_level_conn_p_values) < 4:
+            raise RuntimeError(f'failed to parse graph level connection stats for leaf {all_graph_level_conn_p_values[-1][0]}?  {graph_level_conn_p_values}')
+        
+        graph_level_conn_p_values = {}
+        # leaf-number, doc-count, dict mapping layer to node connectedness p values
+        all_graph_level_conn_p_values.append((int(m.group(1)), int(m.group(2)), graph_level_conn_p_values))
+        
       m = re_graph_level.match(line)
       if m is not None:
         graph_level = int(m.group(1))
@@ -184,23 +213,28 @@ def run():
           raise RuntimeError(f'unexpected line after graph level output: {line}')
         line = job.stdout.readline()
         sys.stdout.write(line)
-        
-        p_values = [int(x) for x in line.split()]
-        if len(p_values) != 11:
-          raise RuntimeError(f'expected 11 p-values for graph level but got {len(p_values)}: {p_values}')
-        d = {}
-        p = 0
-        for v in p_values:
-          d[p] = v
-          p += 10
+
+        if graph_level_size == 0:
+          # no p-values
+          d = {}
+        else:
+          p_values = [int(x) for x in line.split()]
+          if len(p_values) != 11:
+            raise RuntimeError(f'expected 11 p-values for graph level but got {len(p_values)}: {p_values}')
+          d = {}
+          p = 0
+          for v in p_values:
+            d[p] = v
+            p += 10
+
         graph_level_conn_p_values[graph_level] = (graph_level_size, d)
+
+    if len(graph_level_conn_p_values) < 4:
+      raise RuntimeError(f'failed to parse graph level connection stats?  {graph_level_conn_p_values}')
 
     t1 = datetime.datetime.now()
     combined_run_time = t1 - t0
     print(f'  took {combined_run_time} to run KnnGraphTester')
-
-    if len(graph_level_conn_p_values) < 4:
-      raise RuntimeError(f'failed to parse graph level connection stats?  {graph_level_conn_p_values}')
 
     if summary is None:
       raise RuntimeError('could not find summary line in output!')

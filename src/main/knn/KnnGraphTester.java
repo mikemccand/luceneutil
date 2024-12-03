@@ -121,8 +121,7 @@ public class KnnGraphTester {
   private int numDocs;
   private int dim;
   private int topK;
-  // this is really number of query vectors to test:
-  private int numIters;
+  private int numQueryVectors;
   private int fanout;  // this increases the internal HNSW search queue (search only) from topK to topK + fanout
   private Path indexPath;
   private boolean quiet;
@@ -158,7 +157,7 @@ public class KnnGraphTester {
   private KnnGraphTester() {
     // set defaults
     numDocs = 1000;
-    numIters = 1000;
+    numQueryVectors = 1000;
     dim = 256;
     topK = 100;
     numMergeThread = 1;
@@ -272,8 +271,8 @@ public class KnnGraphTester {
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-niter requires a following number");
           }
-          numIters = Integer.parseInt(args[++iarg]);
-          log("numIters = %d", numIters);
+          numQueryVectors = Integer.parseInt(args[++iarg]);
+          log("numQueryVectors = %d", numQueryVectors);
           break;
         case "-reindex":
           reindex = true;
@@ -545,7 +544,7 @@ public class KnnGraphTester {
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
           } else {
-            testSearch(indexPath, queryPath, queryStartIndex, null, getNN(docVectorsPath, queryPath, queryStartIndex));
+            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, queryPath, queryStartIndex));
           }
           if (operation.equals("-search-and-stats")) {
             // also print stats, after searching
@@ -705,8 +704,8 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
       throws IOException {
-    TopDocs[] results = new TopDocs[numIters];
-    int[][] resultIds = new int[numIters][];
+    TopDocs[] results = new TopDocs[numQueryVectors];
+    int[][] resultIds = new int[numQueryVectors][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
@@ -717,7 +716,7 @@ public class KnnGraphTester {
       if (targetReader instanceof VectorReaderByte b) {
         targetReaderByte = b;
       }
-      log("searching " + numIters + " query vectors; topK=" + topK + ", fanout=" + fanout);
+      log("searching " + numQueryVectors + " query vectors; topK=" + topK + ", fanout=" + fanout);
       long startNS;
       ThreadMXBean bean = ManagementFactory.getThreadMXBean();
       long cpuTimeStartNs;
@@ -728,7 +727,7 @@ public class KnnGraphTester {
           numDocs = reader.maxDoc();
           Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
           // warm up
-          for (int i = 0; i < numIters; i++) {
+          for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
               if (prefilter) {
@@ -748,7 +747,7 @@ public class KnnGraphTester {
           targetReader.reset();
           startNS = System.nanoTime();
           cpuTimeStartNs = bean.getCurrentThreadCpuTime();
-          for (int i = 0; i < numIters; i++) {
+          for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
               if (prefilter) {
@@ -779,18 +778,18 @@ public class KnnGraphTester {
 
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
-          for (int i = 0; i < numIters; i++) {
+          for (int i = 0; i < numQueryVectors; i++) {
             totalVisited += results[i].totalHits.value();
             resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
           }
           if (quiet == false) {
             System.out.println(
               "completed "
-                + numIters
+                + numQueryVectors
                 + " searches in "
                 + elapsed
                 + " ms: "
-                + ((1000 * numIters) / elapsed)
+                + ((1000 * numQueryVectors) / elapsed)
                 + " QPS "
                 + "CPU time="
                 + totalCpuTimeMS
@@ -805,7 +804,7 @@ public class KnnGraphTester {
       ByteBuffer tmp =
         ByteBuffer.allocate(resultIds[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
       try (OutputStream out = Files.newOutputStream(outputPath)) {
-        for (int i = 0; i < numIters; i++) {
+        for (int i = 0; i < numQueryVectors; i++) {
           tmp.asIntBuffer().put(nn[i]);
           out.write(tmp.array());
         }
@@ -813,7 +812,7 @@ public class KnnGraphTester {
     } else {
       log("checking results");
       float recall = checkResults(resultIds, nn);
-      totalVisited /= numIters;
+      totalVisited /= numQueryVectors;
       String quantizeDesc;
       if (quantize) {
         quantizeDesc = Integer.toString(quantizeBits) + " bits";
@@ -825,7 +824,7 @@ public class KnnGraphTester {
           Locale.ROOT,
           "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
-          totalCpuTimeMS / (float) numIters,
+          totalCpuTimeMS / (float) numQueryVectors,
           numDocs,
           topK,
           fanout,
@@ -900,17 +899,17 @@ public class KnnGraphTester {
 
   /** Returns the topK nearest neighbors for each target query.
    *
-   * The method runs "numIters" target queries and returns "topK" nearest neighbors
+   * The method runs "numQueryVectors" target queries and returns "topK" nearest neighbors
    * for each of them. Nearest Neighbors are computed using exact match.
    */
-  private int[][] getNN(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
+  private int[][] getExactNN(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numIters, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex), 36);
+    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {
       System.out.println("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"");
-      return readNN(nnPath);
+      return readExactNN(nnPath);
     } else {
       System.out.println("  now compute brute-force exact KNN matches");
       long startNS = System.nanoTime();
@@ -918,12 +917,12 @@ public class KnnGraphTester {
       // checking low-precision recall
       int[][] nn;
       if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-        nn = computeNNByte(docPath, queryPath, queryStartIndex);
+        nn = computeExactNNByte(docPath, queryPath, queryStartIndex);
       } else {
-        nn = computeNN(docPath, queryPath, queryStartIndex);
+        nn = computeExactNN(docPath, queryPath, queryStartIndex);
       }
       if (selectivity == 1f) {
-        writeNN(nn, nnPath);
+        writeExactNN(nn, nnPath);
       }
       long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
       System.out.printf("took %.3f sec to compute brute-force exact matches\n", elapsedMS / 1000.);
@@ -941,14 +940,14 @@ public class KnnGraphTester {
     return true;
   }
 
-  private int[][] readNN(Path nnPath) throws IOException {
-    int[][] result = new int[numIters][];
+  private int[][] readExactNN(Path nnPath) throws IOException {
+    int[][] result = new int[numQueryVectors][];
     try (FileChannel in = FileChannel.open(nnPath)) {
       IntBuffer intBuffer =
-          in.map(FileChannel.MapMode.READ_ONLY, 0, numIters * topK * Integer.BYTES)
+          in.map(FileChannel.MapMode.READ_ONLY, 0, numQueryVectors * topK * Integer.BYTES)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asIntBuffer();
-      for (int i = 0; i < numIters; i++) {
+      for (int i = 0; i < numQueryVectors; i++) {
         result[i] = new int[topK];
         intBuffer.get(result[i]);
       }
@@ -956,14 +955,14 @@ public class KnnGraphTester {
     return result;
   }
 
-  private void writeNN(int[][] nn, Path nnPath) throws IOException {
+  private void writeExactNN(int[][] nn, Path nnPath) throws IOException {
     if (quiet == false) {
       System.out.println("writing true nearest neighbors to cache file \"" + nnPath + "\"");
     }
     ByteBuffer tmp =
         ByteBuffer.allocate(nn[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
     try (OutputStream out = Files.newOutputStream(nnPath)) {
-      for (int i = 0; i < numIters; i++) {
+      for (int i = 0; i < numQueryVectors; i++) {
         tmp.asIntBuffer().put(nn[i]);
         out.write(tmp.array());
       }
@@ -983,13 +982,13 @@ public class KnnGraphTester {
     return bitSet;
   }
 
-  private int[][] computeNNByte(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
-    int[][] result = new int[numIters][];
-    log("computing true nearest neighbors of " + numIters + " target vectors");
+  private int[][] computeExactNNByte(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
+    int[][] result = new int[numQueryVectors][];
+    log("computing true nearest neighbors of " + numQueryVectors + " target vectors");
     List<ComputeNNByteTask> tasks = new ArrayList<>();
     try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
       VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
-      for (int i = 0; i < numIters; i++) {
+      for (int i = 0; i < numQueryVectors; i++) {
         byte[] query = queryReader.nextBytes().clone();
         tasks.add(new ComputeNNByteTask(i, query, docPath, result));
       }
@@ -1045,10 +1044,10 @@ public class KnnGraphTester {
   }
 
   /** Brute force computation of "true" nearest neighhbors. */
-  private int[][] computeNN(Path docPath, Path queryPath, int queryStartIndex)
+  private int[][] computeExactNN(Path docPath, Path queryPath, int queryStartIndex)
       throws IOException, InterruptedException {
-    int[][] result = new int[numIters][];
-    log("computing true nearest neighbors of " + numIters + " target vectors");
+    int[][] result = new int[numQueryVectors][];
+    log("computing true nearest neighbors of " + numQueryVectors + " target vectors");
     log("parentJoin = %s", parentJoin);
     if (parentJoin) {
       try (Directory dir = FSDirectory.open(indexPath);
@@ -1057,7 +1056,7 @@ public class KnnGraphTester {
         List<ComputeExactSearchNNFloatTask> tasks = new ArrayList<>();
         try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
           VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
-          for (int i = 0; i < numIters; i++) {
+          for (int i = 0; i < numQueryVectors; i++) {
             float[] query = queryReader.next().clone();
             tasks.add(new ComputeExactSearchNNFloatTask(i, query, docPath, result, reader));
           }
@@ -1067,11 +1066,11 @@ public class KnnGraphTester {
     } else {
       // TODO: Use exactSearch here?
       // System.out.println("common pool uses " + ForkJoinPool.getCommonPoolParallelism() + " threads");
-      System.out.println("now compute brute-force KNN hits for " + numIters + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
+      System.out.println("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
       List<ComputeNNFloatTask> tasks = new ArrayList<>();
       try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
         VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
-        for (int i = 0; i < numIters; i++) {
+        for (int i = 0; i < numQueryVectors; i++) {
           float[] query = queryReader.next().clone();
           tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
         }
@@ -1150,7 +1149,7 @@ public class KnnGraphTester {
 
     @Override
     public Void call() {
-      // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeNN needs.
+      // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
       try {
         ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
         TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);

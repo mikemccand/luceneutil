@@ -919,4 +919,12 @@ KNOWN_CHANGES = [
     'Make inlining decisions a bit more predictable in our main queries https://github.com/apache/lucene/pull/14023',
     'Make inlining decisions a bit more predictable in our main queries https://github.com/apache/lucene/pull/14023'),
 
+  ('2024-12-02',
+   'Speed up PostingsEnum when reading positions. https://github.com/apache/lucene/pull/14032',
+   'Speed up PostingsEnum when reading positions. https://github.com/apache/lucene/pull/14032'),
+
+  ('2024-12-04',
+   'Combine all postings enum impls of the default codec into a single class. https://github.com/apache/lucene/pull/14033',
+   'Combine all postings enum impls of the default codec into a single class. https://github.com/apache/lucene/pull/14033'),
+
 ]

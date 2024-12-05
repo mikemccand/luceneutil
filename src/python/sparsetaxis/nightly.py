@@ -1,5 +1,6 @@
 import os
 import datetime
+import shutil
 
 now = datetime.datetime.now()
 
@@ -16,3 +17,9 @@ if os.system('python3 -u /l/util.nightly/src/python/sparsetaxis/runBenchmark.py 
 
 if os.system('python3 -u /l/util.nightly/src/python/sparsetaxis/writeGraph.py'):
   raise RuntimeError('bench failed')
+
+for thing_name in os.listdir('/l/sparseTaxis.nightly/sparseTaxis/indices'):
+  if thing_name.startswith('index.'):
+    full_path = f'/l/sparseTaxis.nightly/sparseTaxis/indices/{thing_name}'
+    print(f'sparseTaxis: now remove {full_path}')
+    shutil.rmtree(full_path)

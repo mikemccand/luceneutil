@@ -544,10 +544,12 @@ def run():
           else:
               doc_limit = -1
               num_iters = 30
+          index_dir_name = f'{constants.INDEX_DIR_BASE}/nad-facets-nightly'
           runFacetsBenchmark.run_benchmark(f'{constants.BASE_DIR}/{NIGHTLY_DIR}',
-                                           f'{constants.INDEX_DIR_BASE}/nad-facets-nightly',
+                                           index_dir_name,
                                            f'{constants.BASE_DIR}/data', runLogDir, doc_limit, num_iters)
           message('done run NAD facets benchmark')
+          shutil.rmtree(index_dir_name)
       finally:
           os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
@@ -558,18 +560,21 @@ def run():
                                                                                                               fastIndexMedium,
                                                                                                               'fastIndexMediumDocs.log')
     message('medIndexAtClose %s' % atClose)
+    shutil.rmtree(medIndexPath)
 
     # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
     medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(
         r, runLogDir, 'medium vectors index (fast)', fastIndexMediumVectors, 'fastIndexMediumDocsWithVectors.log')
     message('medIndexVectorsAtClose %s' % atClose)
+    shutil.rmtree(medVectorsIndexPath)
 
     # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
     # TODO: render profiler data for thias run too
     medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(
         r, runLogDir, 'medium quantized vectors index (fast)', fastIndexMediumVectorsQuantized, 'fastIndexMediumDocsWithVectorsQuantized.log')
     message('medIndexVectorsAtClose %s' % atClose)
-
+    shutil.rmtree(medQuantizedVectorsIndexPath)
+    
     # 3: build index for NRT test
     nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir,
                                                                                                         'nrt medium index',
@@ -579,11 +584,12 @@ def run():
     nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
 
     # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-    ign, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir,
+    bigIndexPath, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir,
                                                                                                'big index (fast)',
                                                                                                fastIndexBig,
                                                                                                'fastIndexBigDocs.log')
     message('bigIndexAtClose %s' % atClose)
+    shutil.rmtree(bigIndexPath)
 
     # 5: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
     # TODO: switch to concurrent yet deterministic indexer: https://markmail.org/thread/cp6jpjuowbhni6xc

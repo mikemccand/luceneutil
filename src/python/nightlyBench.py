@@ -1452,6 +1452,9 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'CountAndHighMed', 'Count(+high-freq +med-freq)')
     writeOneLine(w, done, 'CountOrHighHigh', 'Count(high-freq high-freq)')
     writeOneLine(w, done, 'CountOrHighMed', 'Count(high-freq med-freq)')
+    writeOneLine(w, done, 'CountFilteredPhrase', 'Count(Filtered(Phrase))')
+    writeOneLine(w, done, 'CountFilteredOrHighHigh', 'Count(Filtered(high-freq high-freq))')
+    writeOneLine(w, done, 'CountFilteredOrHighMed', 'Count(Filtered(high-freq med-freq))')
 
     w('<br><br><b>Vector Search:</b>')
     writeOneLine(w, done, 'VectorSearch', 'VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)')
@@ -1480,6 +1483,8 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'FilteredOr3Terms', 'Filtered disjunction of 3 terms')
     writeOneLine(w, done, 'FilteredAnd3Terms', 'Filtered conjunction of 3 terms')
     writeOneLine(w, done, 'FilteredOrMany', 'Filtered disjunction of many terms')
+    writeOneLine(w, done, 'FilteredPrefix3', 'Filtered prefix query on a prefix of 3 chars')
+    writeOneLine(w, done, 'FilteredIntNRQ', 'Filtered numeric range query')
 
     w('<br><br><b>Faceting:</b>')
     writeOneLine(w, done, 'TermDateFacets', 'Term query + date hierarchy')

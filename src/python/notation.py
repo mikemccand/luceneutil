@@ -927,4 +927,7 @@ KNOWN_CHANGES = [
    'Combine all postings enum impls of the default codec into a single class. https://github.com/apache/lucene/pull/14033',
    'Combine all postings enum impls of the default codec into a single class. https://github.com/apache/lucene/pull/14033'),
 
+  ('2024-12-06',
+   'Introduce a BulkScorer for DisjunctionMaxQuery. https://github.com/apache/lucene/pull/14040',
+   'Introduce a BulkScorer for DisjunctionMaxQuery. https://github.com/apache/lucene/pull/14040'),
 ]

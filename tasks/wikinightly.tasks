@@ -302,6 +302,12 @@ CountOrHighMed: count(http 9) # freq=3289683 freq=541405
 CountOrHighMed: count(they hard) # freq=1031516 freq=92045
 CountOrHighMed: count(title bay) # freq=2077102 freq=117167
 
+CountOrMany: count(apache lucene is a free and open-source search engine software library originally written in java by doug cutting it is supported by the apache software foundation and is released under the apache software license lucene is widely used as a standard foundation for production search applications)
+CountOrMany: count(solr pronounced solar is an open-source enterprise-search platform written in java its major features include full-text search hit highlighting faceted search real-time indexing dynamic clustering database integration nosql features and rich document word pdf handling)
+CountOrMany: count(a database index is a data structure that improves the speed of data retrieval operations on a database table at the cost of additional writes and storage space to maintain the index data structure indexes are used to quickly locate data without having to search every row in a database table every time said table is accessed)
+CountOrMany: count(in computing a search engine is an information retrieval software system designed to help find information stored on one or more computer systems search engines discover crawl transform and store information for retrieval and presentation in response to user queries)
+CountOrMany: count(a java virtual machine jvm is a virtual machine that enables a computer to run java programs as well as programs written in other languages that are also compiled to java bytecode the jvm is detailed by a specification that formally describes what is required in a jvm implementation)
+
 CountPhrase: count("it was") # freq=597450
 CountPhrase: count("red please") # freq=43948
 CountPhrase: count("the average") # freq=55409
@@ -325,6 +331,12 @@ CountFilteredOrHighMed: count(his interview +filter=5%)
 CountFilteredOrHighMed: count(http 9 +filter=5%)
 CountFilteredOrHighMed: count(they hard +filter=5%)
 CountFilteredOrHighMed: count(title bay +filter=5%)
+
+CountFilteredOrMany: count(apache lucene is a free and open-source search engine software library originally written in java by doug cutting it is supported by the apache software foundation and is released under the apache software license lucene is widely used as a standard foundation for production search applications +filter=5%)
+CountFilteredOrMany: count(solr pronounced solar is an open-source enterprise-search platform written in java its major features include full-text search hit highlighting faceted search real-time indexing dynamic clustering database integration nosql features and rich document word pdf handling +filter=5%)
+CountFilteredOrMany: count(a database index is a data structure that improves the speed of data retrieval operations on a database table at the cost of additional writes and storage space to maintain the index data structure indexes are used to quickly locate data without having to search every row in a database table every time said table is accessed +filter=5%)
+CountFilteredOrMany: count(in computing a search engine is an information retrieval software system designed to help find information stored on one or more computer systems search engines discover crawl transform and store information for retrieval and presentation in response to user queries +filter=5%)
+CountFilteredOrMany: count(a java virtual machine jvm is a virtual machine that enables a computer to run java programs as well as programs written in other languages that are also compiled to java bytecode the jvm is detailed by a specification that formally describes what is required in a jvm implementation +filter=5%)
 
 CountFilteredPhrase: count("it was" +filter=5%)
 CountFilteredPhrase: count("red please" +filter=5%)

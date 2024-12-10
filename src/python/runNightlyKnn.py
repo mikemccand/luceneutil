@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import time
 import constants
 import benchUtil
 import subprocess
@@ -12,16 +13,11 @@ from collections import namedtuple
 import knnPerfTest
 
 # TODO
-#   - why is query vector offset not working...
 #   - remove all cached indices / .bin files from nightly area
 #     - hmm maybe don't remove the exact KNN?  takes a long time to recompute!
 #   - test different distance metrics / vector sources?
-#   - test with and without force merge?
-#   - need "hot searcher RAM"
-#   - test both force merged and not?
 #   - compile lucene too?
 #   - test parent join too
-#   - suck metrics out of -stats too?
 #   - make nightly charts
 #   - test filters, pre and post
 
@@ -56,31 +52,36 @@ if not REAL:
 re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)
 re_graph_level = re.compile(r'^Graph level=(\d) size=(\d+), Fanout')
 re_leaf_docs = re.compile(r'^Leaf (\d+) has (\d+) documents')
+re_leaf_layers = re.compile(r'^Leaf (\d+) has (\d+) layers')
+re_index_path = re.compile(r'^Index Path = (.*)$')
 
-KNNResult = namedtuple('KNNResult',
-                       ['lucene_git_rev',
-                        'luceneutil_git_rev',
-                        'index_vectors_file',
-                        'search_vectors_file',
-                        'vector_dims',
-                        'recall',
-                        'cpu_time_ms',
-                        'num_docs',
-                        'top_k',
-                        'fanout',
-                        'max_conn',
-                        'beam_width',
-                        'quantize_desc',
-                        'total_visited',
-                        'index_time_sec',
-                        'index_docs_per_sec',
-                        'force_merge_time_sec',
-                        'index_num_segments',
-                        'index_size_on_disk_mb',
-                        'selectivity',
-                        'pre_or_post_filter',
-                        'graph_level_conn_p_values',
-                        'combined_run_time'])
+KNNResultV0 = namedtuple('KNNResult',
+                         ['lucene_git_rev',
+                          'luceneutil_git_rev',
+                          'index_vectors_file',
+                          'search_vectors_file',
+                          'vector_dims',
+                          'do_force_merge',
+                          'recall',
+                          'cpu_time_ms',
+                          'num_docs',
+                          'top_k',
+                          'fanout',
+                          'max_conn',
+                          'beam_width',
+                          'quantize_desc',
+                          'total_visited',
+                          'index_time_sec',
+                          'index_docs_per_sec',
+                          'force_merge_time_sec',
+                          'index_num_segments',
+                          'index_size_on_disk_mb',
+                          'selectivity',
+                          'pre_post_filter',
+                          'vec_disk_mb',
+                          'vec_ram_mb',
+                          'graph_level_conn_p_values',
+                          'combined_run_time'])
 
 def get_git_revision(git_clone_path):
   # git is so weird, like this is intuitive?
@@ -107,6 +108,17 @@ def main():
     pass
 
 def run():
+  try:
+    _run()
+  finally:
+    # these get quite large (~78 GB for three indices):
+    indicesDir = f'{constants.BENCH_BASE_DIR}/knnIndices'
+    if os.path.exists(indicesDir):
+      print(f'removing KNN indices dir {indicesDir}')
+      shutil.rmtree(indicesDir)
+    
+def _run():
+  start_time_epoch_secs = time.time()
   lucene_git_rev = get_git_revision(LUCENE_CHECKOUT)
   lucene_clone_is_dirty = is_git_clone_dirty(LUCENE_CHECKOUT)
   print(f'Lucene HEAD git revision at {LUCENE_CHECKOUT}: {lucene_git_rev} dirty?={lucene_clone_is_dirty}')
@@ -152,13 +164,12 @@ def run():
        '-docs', INDEX_VECTORS_FILE,
        '-ndoc', str(INDEX_NUM_VECTORS),
        '-topK', str(HNSW_TOP_K),
-       '-reindex',
        '-numIndexThreads', str(INDEX_THREAD_COUNT),
        '-beamWidthIndex', str(HNSW_INDEX_BEAM_WIDTH),
        '-search-and-stats', SEARCH_VECTORS_FILE,
        '-metric', 'mip',
-       '-numMergeThread', '8',
-       '-numMergeWorker', '12',
+       '-numMergeThread', '16',
+       '-numMergeWorker', '48',
        #'-forceMerge'
        ]
 
@@ -167,113 +178,156 @@ def run():
   
   for quantize_bits in (4, 7, 32):
 
-    this_cmd = cmd[:]
+    for do_force_merge in (False, True):
 
-    if quantize_bits != 32:
-      this_cmd += ['-quantize', '-quantizeBits', str(quantize_bits)]
-      if quantize_bits <= 4:
-        this_cmd += ['-quantizeCompress']
+      this_cmd = cmd[:]
 
-    print(f'  cmd: {this_cmd}')
+      if not do_force_merge:
+        this_cmd.append('-reindex')
+      else:
+        # reuse previous index, but force merge it first
+        this_cmd.append('-forceMerge')
 
-    t0 = datetime.datetime.now()
+      if quantize_bits != 32:
+        this_cmd += ['-quantize', '-quantizeBits', str(quantize_bits)]
+        if quantize_bits <= 4:
+          this_cmd += ['-quantizeCompress']
 
-    job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
-    summary = None
-    all_graph_level_conn_p_values = []
-    while True:
-      line = job.stdout.readline()
-      if line == '':
-        break
-      sys.stdout.write(line)
-      m = re_summary.match(line)
-      if m is not None:
-        summary = m.group(1)
-      m = re_leaf_docs.match(line)
-      if m is not None:
+      print(f'  cmd: {this_cmd}')
 
-        if len(all_graph_level_conn_p_values) > 0:
-          assert graph_level_conn_p_values == all_graph_level_conn_p_values[-1][2]
-          if len(graph_level_conn_p_values) < 4:
-            raise RuntimeError(f'failed to parse graph level connection stats for leaf {all_graph_level_conn_p_values[-1][0]}?  {graph_level_conn_p_values}')
-        
-        graph_level_conn_p_values = {}
-        # leaf-number, doc-count, dict mapping layer to node connectedness p values
-        all_graph_level_conn_p_values.append((int(m.group(1)), int(m.group(2)), graph_level_conn_p_values))
-        
-      m = re_graph_level.match(line)
-      if m is not None:
-        graph_level = int(m.group(1))
-        graph_level_size = int(m.group(2))
+      t0 = datetime.datetime.now()
 
-        line = job.stdout.readline().strip()
-        sys.stdout.write(line)
-        
-        if line != '%   0  10  20  30  40  50  60  70  80  90 100':
-          raise RuntimeError(f'unexpected line after graph level output: {line}')
+      job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
+      summary = None
+      all_graph_level_conn_p_values = []
+      layer_count = None
+      index_path = None
+
+      while True:
         line = job.stdout.readline()
+        if line == '':
+          break
         sys.stdout.write(line)
+        m = re_index_path.match(line)
+        if m is not None:
+          index_path = m.group(1)
 
-        if graph_level_size == 0:
-          # no p-values
-          d = {}
-        else:
-          p_values = [int(x) for x in line.split()]
-          if len(p_values) != 11:
-            raise RuntimeError(f'expected 11 p-values for graph level but got {len(p_values)}: {p_values}')
-          d = {}
-          p = 0
-          for v in p_values:
-            d[p] = v
-            p += 10
+        m = re_summary.match(line)
+        if m is not None:
+          summary = m.group(1)
 
-        graph_level_conn_p_values[graph_level] = (graph_level_size, d)
+        m = re_leaf_layers.match(line)
+        if m is not None:
+          leaf_count = int(m.group(1))
+          next_layer_count = int(m.group(2))
 
-    if len(graph_level_conn_p_values) < 4:
-      raise RuntimeError(f'failed to parse graph level connection stats?  {graph_level_conn_p_values}')
+        m = re_leaf_docs.match(line)
+        if m is not None:
 
-    t1 = datetime.datetime.now()
-    combined_run_time = t1 - t0
-    print(f'  took {combined_run_time} to run KnnGraphTester')
+          if next_layer_count is None:
+            raise RuntimeError('missed layer count?')
 
-    if summary is None:
-      raise RuntimeError('could not find summary line in output!')
-    job.wait()
-    if job.returncode != 0:
-      raise RuntimeError(f'command failed with exit {job.returncode}')
+          if len(all_graph_level_conn_p_values) > 0:
+            assert graph_level_conn_p_values == all_graph_level_conn_p_values[-1][2]
+            if len(graph_level_conn_p_values) < layer_count:
+              raise RuntimeError(f'failed to parse graph level connection stats for leaf {all_graph_level_conn_p_values[-1][0]}?  {graph_level_conn_p_values} vs {layer_count=}')
 
-    all_summaries.append(summary)
-    
-    cols = summary.split('\t')
+          graph_level_conn_p_values = {}
+          # leaf-number, doc-count, dict mapping layer to node connectedness p values
+          if leaf_count != int(m.group(1)):
+            raise RuntimeError('leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}')
+          all_graph_level_conn_p_values.append((leaf_count, int(m.group(2)), graph_level_conn_p_values))
+          layer_count = next_layer_count
 
-    result = KNNResult(lucene_git_rev,
-                       luceneutil_git_rev,
-                       INDEX_VECTORS_FILE,
-                       SEARCH_VECTORS_FILE,
-                       VECTORS_DIM,
-                       float(cols[0]),  # recall
-                       float(cols[1]),  # cpu_time_ms
-                       int(cols[2]),    # num_docs
-                       int(cols[3]),    # top_k
-                       int(cols[4]),    # fanout
-                       int(cols[5]),    # max_conn
-                       int(cols[6]),    # beam_width
-                       cols[7],         # quantize_desc
-                       int(cols[8]),    # total_visited
-                       float(cols[9]),  # index_time_sec
-                       float(cols[10]), # index_docs_per_sec
-                       float(cols[11]), # force_merge_time_sec
-                       int(cols[12]),   # index_num_segments
-                       float(cols[13]), # index_size_on_disk_mb
-                       float(cols[14]), # selectivity
-                       cols[15],        # pre_or_post_filter
-                       graph_level_conn_p_values,  # graph_level_conn_p_values
-                       combined_run_time,  # time to run KnnGraphTester (indexing + force-merging + searching)
-                       )
-    all_results.append(result)
+        m = re_graph_level.match(line)
+        if m is not None:
+          graph_level = int(m.group(1))
+          graph_level_size = int(m.group(2))
+
+          line = job.stdout.readline().strip()
+          sys.stdout.write(line)
+          sys.stdout.write('\n')
+
+          if line != '%   0  10  20  30  40  50  60  70  80  90 100':
+            raise RuntimeError(f'unexpected line after graph level output: {line}')
+          line = job.stdout.readline()
+          sys.stdout.write(line)
+          sys.stdout.write('\n')
+
+          if graph_level_size == 0:
+            # no p-values
+            d = {}
+          else:
+            p_values = [int(x) for x in line.split()]
+            if len(p_values) != 11:
+              raise RuntimeError(f'expected 11 p-values for graph level but got {len(p_values)}: {p_values}')
+            d = {}
+            p = 0
+            for v in p_values:
+              d[p] = v
+              p += 10
+
+          graph_level_conn_p_values[graph_level] = (graph_level_size, d)
+
+      t1 = datetime.datetime.now()
+      combined_run_time = t1 - t0
+      print(f'  took {combined_run_time} to run KnnGraphTester')
+
+      if summary is None:
+        raise RuntimeError('could not find summary line in output!')
+
+      if index_path is None:
+        raise RuntimeError('could not find Index Path line in output!')
+
+      job.wait()
+
+      if job.returncode != 0:
+        raise RuntimeError(f'command failed with exit {job.returncode}')
+
+      all_summaries.append(summary)
+
+      cols = summary.split('\t')
+
+      result = KNNResultV0(lucene_git_rev,
+                           luceneutil_git_rev,
+                           INDEX_VECTORS_FILE,
+                           SEARCH_VECTORS_FILE,
+                           VECTORS_DIM,
+                           do_force_merge,
+                           float(cols[0]),  # recall
+                           float(cols[1]),  # cpu_time_ms
+                           int(cols[2]),    # num_docs
+                           int(cols[3]),    # top_k
+                           int(cols[4]),    # fanout
+                           int(cols[5]),    # max_conn
+                           int(cols[6]),    # beam_width
+                           cols[7],         # quantize_desc
+                           int(cols[8]),    # total_visited
+                           float(cols[9]),  # index_time_sec
+                           float(cols[10]), # index_docs_per_sec
+                           float(cols[11]), # force_merge_time_sec
+                           int(cols[12]),   # index_num_segments
+                           float(cols[13]), # index_size_on_disk_mb
+                           float(cols[14]), # selectivity
+                           cols[15],        # pre_post_filter
+                           float(cols[16]), # vec_disk_mb
+                           float(cols[17]), # vec_ram_mb
+                           graph_level_conn_p_values,  # graph_level_conn_p_values
+                           combined_run_time,  # time to run KnnGraphTester (indexing + force-merging + searching)
+                           )
+      print(f'result: {result}')
+      all_results.append(result)
+
+      if do_force_merge:
+        # clean as we go -- these indices are biggish (~25-30 GB):
+        print(f'now remove KNN index {index_path}')
+        shutil.rmtree(index_path)
 
   skip_headers = {'selectivity', 'filterType', 'visited'}
   knnPerfTest.print_fixed_width(all_summaries, skip_headers)
+
+  end_time_epoch_secs = time.time()
+  print(f'done!  took {(end_time_epoch_secs - start_time_epoch_secs):.1f} seconds total')
 
   return all_results
 

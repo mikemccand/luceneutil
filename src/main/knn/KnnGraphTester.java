@@ -62,6 +62,8 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.SegmentCommitInfo;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.StandardDirectoryReader;
 import org.apache.lucene.index.StoredFields;
@@ -439,9 +441,16 @@ public class KnnGraphTester {
       indexNumSegments = reader.leaves().size();
       System.out.println("index has " + indexNumSegments + " segments: " + ((StandardDirectoryReader) reader).getSegmentInfos());
       long indexSizeOnDiskBytes = 0;
-      for(String fileName : ((StandardDirectoryReader) reader).getSegmentInfos().files(true)) {
-        indexSizeOnDiskBytes += dir.fileLength(fileName);
+      SegmentInfos infos = ((StandardDirectoryReader) reader).getSegmentInfos();
+      for (SegmentCommitInfo info : infos) {
+        long segSizeOnDiskBytes = 0;
+        for (String fileName : info.files()) {
+          segSizeOnDiskBytes += dir.fileLength(fileName);
+        }
+        indexSizeOnDiskBytes += segSizeOnDiskBytes;
+        System.out.println(String.format(Locale.ROOT, "  %s: %.1f MB", info.info.name, segSizeOnDiskBytes / 1024. / 1024.));
       }
+      indexSizeOnDiskBytes += dir.fileLength(infos.getSegmentsFileName());
 
       // long because maybe we at some point we support multi-valued vector fields:
       long totalVectorCount = 0;
@@ -600,10 +609,6 @@ public class KnnGraphTester {
   private double forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress));
-    if (quiet == false) {
-      // not a quiet place!
-      iwc.setInfoStream(new PrintStreamInfoStream(System.out));
-    }
     System.out.println("Force merge index in " + indexPath);
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
@@ -693,7 +698,7 @@ public class KnnGraphTester {
     int total = 0, ibucket = 1;
     for (int i = 1; i <= max && ibucket <= nbuckets; i++) {
       total += hist[i];
-      while (total >= count * ibucket / nbuckets) {
+      while (total >= count * ibucket / nbuckets  && ibucket <= nbuckets) {
         System.out.printf("%4d", i);
         ++ibucket;
       }

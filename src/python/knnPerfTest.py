@@ -36,7 +36,6 @@ from common import getLuceneDirFromGradleProperties
 # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
 LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
-# nocommit re-enable by default
 DO_PROFILING = True
 
 # e.g. to compile KnnIndexer:
@@ -44,9 +43,12 @@ DO_PROFILING = True
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
+# TODO
+#  - can we expose greediness (global vs local queue exploration in KNN search) here?
+
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-    'ndoc': (200_000,),
+    'ndoc': (2_000_000,),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),
@@ -70,12 +72,13 @@ PARAMS = {
     # 'metric': ('angular',),  # default is angular (dot_product)
     'metric': ('mip',),
     #'quantize': (True,),
-    'quantizeBits': (4, 7, 32),
+    'quantizeBits': (32,),
     #'fanout': (0,),
     'topK': (100,),
     #'quantizeCompress': (True, False),
     'quantizeCompress': (True,),
-    'queryStartIndex': (0,)
+    'queryStartIndex': (0,),   # seek to this start vector before searching, to sample different vectors
+    'forceMerge': (True, False)
     #'niter': (10,),
 }
 
@@ -181,7 +184,7 @@ def run_knn_benchmark(checkout, values):
             #'-metric', 'mip',
             # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
-            '-forceMerge',
+            #'-forceMerge',
             #'-stats',
             #'-quiet'
         ]

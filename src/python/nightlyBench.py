@@ -621,10 +621,23 @@ def run():
     comp.tasksFile = f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks'
     comp.printHeap = True
     if REAL:
-        resultsNow = []
-        for iter in range(JVM_COUNT):
-            seed = rand.randint(-10000000, 1000000)
-            resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
+
+      vmstatLogFile = f'{runLogDir}/search-tasks.vmstat.log'
+
+      vmstatCmd = f'{benchUtil.VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>/dev/null &'
+      print(f'run vmstat: {vmstatCmd}')
+      vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
+
+      resultsNow = []
+      for iter in range(JVM_COUNT):
+        seed = rand.randint(-10000000, 1000000)
+        resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
+
+      print(f'now kill vmstat: pid={vmstatProcess.pid}')
+      subprocess.check_call(['pkill', 'vmstat'])
+      if vmstatProcess.poll() is None:
+        raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
+        
     else:
         resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for
                       iter in range(20)]
@@ -639,8 +652,8 @@ def run():
             resultsPrev.append(prevFName)
 
     if len(resultsPrev) == 0 and DEBUG:
-        # sidestep exception when we can't find any previous results because DEBUG
-        resultsPrev = resultsNow
+      # sidestep exception when we can't find any previous results because DEBUG
+      resultsPrev = resultsNow
 
     output = []
     results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev,

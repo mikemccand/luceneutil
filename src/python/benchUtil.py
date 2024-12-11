@@ -853,11 +853,9 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
     out = subprocess.STDOUT
 
   if vmstatLogFile is not None:
-    vmstatCmd = f'vmstat --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>/dev/null &'
+    vmstatCmd = f'{VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>/dev/null &'
     print(f'run vmstat: {vmstatCmd}')
     vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
-    # pgid = os.getpgid(vmstatProcess.pid)
-    # print(f'pgid is {pgid}')
     
   p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
@@ -865,9 +863,7 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
       print(open(logFile).read())
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
   if vmstatLogFile is not None:
-    # kill whole process group: shell and subprocess
     print(f'now kill vmstat: pid={vmstatProcess.pid}')
-    # os.killpg(pgid, signal.SIGTERM) -- does not work!  leaves zombies!  so we just kill all vmstat:
     subprocess.check_call(['pkill', 'vmstat'])
     if vmstatProcess.poll() is None:
       raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
@@ -1777,7 +1773,11 @@ def tasksToMap(taskIters, verifyScores, verifyCounts):
           raise RuntimeError('tasks differ from one iteration to the next: task=%s' % str(task))
         else:
           # Make sure same task returned same results w/in this run:
-          task.verifySame(d[task], verifyScores, verifyCounts)
+          try:
+            task.verifySame(d[task], verifyScores, verifyCounts)
+          except RuntimeError as re:
+            raise RuntimeError('ERROR: hits within a single run are not self-consistent; something is acting non-deterministically?') from re
+            
   return d
 
 def compareHits(r1, r2, verifyScores, verifyCounts):

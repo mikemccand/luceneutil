@@ -58,7 +58,7 @@ public class KnnIndexerMain {
         '}';
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     KnnIndexerMain inputs = new KnnIndexerMain();
 
     try {
@@ -102,6 +102,7 @@ public class KnnIndexerMain {
 
     new KnnIndexer(inputs.docVectorsPath, inputs.indexPath,
                    KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
+                   numMergeThread,
                    inputs.vectorEncoding,
                    inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet,
                    inputs.parentJoin, inputs.parentJoinMetaFile).createIndex();

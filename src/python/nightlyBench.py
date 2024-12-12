@@ -315,8 +315,19 @@ def run():
     message('log dir %s' % runLogDir)
 
     os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
-    javaVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
+    javaFullVersion = os.popen('%s -fullversion 2>&1' % constants.JAVA_COMMAND).read().strip()
+    print('%s' % javaFullVersion)
+    javaVersion = os.popen('%s -version 2>&1' % constants.JAVA_COMMAND).read().strip()
     print('%s' % javaVersion)
+
+    p = subprocess.run(f'{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version',
+                       shell=True,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.STDOUT,
+                       text=True,
+                       check=True)
+    open(f'{runLogDir}/java-final-flags.txt', 'w').write(p.stdout)
+
     print('uname -a: %s' % os.popen('uname -a 2>&1').read().strip())
     print('lsb_release -a:\n%s' % os.popen('lsb_release -a 2>&1').read().strip())
 
@@ -703,6 +714,7 @@ def run():
             else:
                 w(f'\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>')
         w('%s<br>' % javaVersion)
+        w('%s<br>' % javaFullVersion)
         w('Java command-line: %s<br>' % htmlEscape(constants.JAVA_COMMAND))
         w('Index: %s<br>' % fixedIndexAtClose)
         w(f'See the <a href="{timeStamp}/index.html">perty vmstat charts</a>\n')

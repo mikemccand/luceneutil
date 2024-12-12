@@ -1764,21 +1764,49 @@ def fixupFuzzy(query):
 def tasksToMap(taskIters, verifyScores, verifyCounts):
   d = {}
   if len(taskIters) > 0:
-    for task in taskIters[0]:
-      d[task] = task
-    for tasks in taskIters[1:]:
+    # Make sure same task returned same results w/in this one JVM iter (self-consistent), since
+    # each task runs N times for each of M threads:
+    for run_iter, tasks in enumerate(taskIters):
+
+      # Gather all task runs for this one JVM iter:
+      run_d = {}
       for task in tasks:
-        if task not in d:
-          # BUG
-          raise RuntimeError('tasks differ from one iteration to the next: task=%s' % str(task))
+        if task not in run_d:
+          run_d[task] = [task, 0]
         else:
-          # Make sure same task returned same results w/in this run:
+          run_d[task][1] += 1
           try:
-            task.verifySame(d[task], verifyScores, verifyCounts)
+            task.verifySame(run_d[task][0], verifyScores, verifyCounts)
           except RuntimeError as re:
-            raise RuntimeError('ERROR: hits within a single run are not self-consistent; something is acting non-deterministically?') from re
-            
-  return d
+            # BUG
+            raise RuntimeError(f'ERROR: hits within a single JVM iter are not self-consistent; something is acting non-deterministically within one JVM?  task instance 0 and instance {run_d[task][1]} in JVM {run_iter} differ') from re
+
+      # now make sure this JVM iter's results match prior JVMs:
+      if len(d) == 0:
+        d = run_d
+      else:
+        for task in run_d.keys():
+          if task not in d:
+            # BUG
+            raise RuntimeError(f'ERROR: tasks differ from one iteration to the next: task={task} in JVM {run_iter} is missing from JVM 0')
+          else:
+            # Make sure same task returned same results across JVMs:
+            try:
+              task.verifySame(d[task][0], verifyScores, verifyCounts)
+            except RuntimeError as re:
+              # BUG
+              raise RuntimeError(f'ERROR: hits across JVMs differ; something is acting non-deterministically across JVMs?  run 0 vs run {run_iter}') from re
+        for task in d.keys():
+          if task not in run_d:
+            # BUG
+            raise RuntimeError(f'ERROR: JVM {run_iter} has task {task} not seen in JVM 0?')
+
+  # strip off the task iteration:
+  d2 = {}
+  for key, val in d.items():
+    d2[key] = val[0]
+    
+  return d2
 
 def compareHits(r1, r2, verifyScores, verifyCounts):
 

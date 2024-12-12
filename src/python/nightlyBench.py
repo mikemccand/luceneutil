@@ -271,8 +271,10 @@ def run():
     BIG_INDEX_NUM_DOCS = constants.NIGHTLY_BIG_INDEX_NUM_DOCS
 
     if DEBUG:
-        # Must re-direct all logs so we don't overwrite the "production" run's logs:
+        # Must re-direct all logs/results/reports so we don't overwrite the "production" run's logs:
         constants.LOGS_DIR = '/l/trunk/lucene/benchmark'
+        constants.NIGHTLY_LOG_DIR = f'{constants.BASE_DIR}/logs.debug'
+        constants.NIGHTLY_REPORTS_DIR = f'{constants.BASE_DIR}/reports.debug'
         MEDIUM_INDEX_NUM_DOCS //= 100
         BIG_INDEX_NUM_DOCS //= 100
 

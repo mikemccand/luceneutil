@@ -22,7 +22,7 @@ def extract_one_file(tar_file_name):
                 tot_mb += mb
             lock.acquire()
             try:
-              print(f'\n{tar_file_name}: {tot_mb:.2f} MB')
+              print(f'\n{tar_file_name}: fixed index size {tot_mb:.2f} MB')
             finally:
               lock.release()
             with open(indexSizeFile, 'wb') as out:

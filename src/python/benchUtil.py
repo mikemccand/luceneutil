@@ -21,6 +21,7 @@ import re
 import time
 import traceback
 import os
+import pwd
 import shutil
 import sys
 try:
@@ -52,6 +53,7 @@ else:
 PYTHON_MAJOR_VER = sys.version_info.major
 
 VMSTAT_PATH = shutil.which('vmstat')
+TOP_PATH = shutil.which('top')
 
 if PYTHON_MAJOR_VER < 3:
   raise RuntimeError('Please run with Python 3.x!  Got: %s' % str(sys.version))
@@ -147,6 +149,10 @@ def getArg(argName, default, hasArg=True):
       v = True
       del sys.argv[idx]
   return v
+
+def get_username():
+  uid = os.getuid()
+  return pwd.getpwuid(uid).pw_name
 
 def checkoutToName(checkout):
   return checkout.split('/')[-1]
@@ -845,7 +851,7 @@ def stats(l):
     mu = statistics.mean(l)
     return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
-def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
+def run(cmd, logFile=None, indent='    ', vmstatLogFile=None, topLogFile=None):
   #print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))
   if logFile is not None:
     out = open(logFile, 'wb')
@@ -853,9 +859,14 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
     out = subprocess.STDOUT
 
   if vmstatLogFile is not None:
-    vmstatCmd = f'{VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>/dev/null &'
+    vmstatCmd = f'{VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>&1 &'
     print(f'run vmstat: {vmstatCmd}')
     vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
+
+  if topLogFile is not None:
+    topCmd = f'{TOP_PATH} -b -d 5 > {topLogFile} 2>&1 &'
+    print(f'run top: {topCmd}')
+    topProcess = subprocess.Popen(topCmd, shell=True, preexec_fn=os.setsid)
     
   p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
@@ -864,9 +875,18 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None):
     raise RuntimeError('failed: %s [wd %s]; see logFile %s' % (cmd, os.getcwd(), logFile))
   if vmstatLogFile is not None:
     print(f'now kill vmstat: pid={vmstatProcess.pid}')
-    subprocess.check_call(['pkill', 'vmstat'])
+    # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
+    subprocess.check_call(['pkill', '-u', get_username(), 'vmstat'])
+    # os.kill(vmstatProcess.pid, signal.SIGKILL)
     if vmstatProcess.poll() is None:
       raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
+  if topLogFile is not None:
+    print(f'now kill top: pid={topProcess.pid}')
+    # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
+    subprocess.check_call(['pkill', '-u', get_username(), 'top'])
+    # os.kill(topProcess.pid, signal.SIGKILL)
+    if topProcess.poll() is None:
+      raise RuntimeError('failed to kill top child process?  pid={topProcess.pid}')
     
 
 reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar')
@@ -1037,7 +1057,11 @@ class RunAlgs:
         vmstatLogFile = f'{constants.LOGS_DIR}/{id}.vmstat.log'
       else:
         vmstatLogFile = None
-      run(cmd, fullLogFile, vmstatLogFile=vmstatLogFile)
+      if TOP_PATH is not None:
+        topLogFile = f'{constants.LOGS_DIR}/{id}.top.log'
+      else:
+        topLogFile = None
+      run(cmd, fullLogFile, vmstatLogFile=vmstatLogFile, topLogFile=topLogFile)
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:
         chart = IndexChart.IndexChart(fullLogFile, index.getName())

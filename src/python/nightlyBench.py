@@ -76,7 +76,9 @@ else:
 DIR_IMPL = 'MMapDirectory'
 
 # Make sure we exercise Lucene's intra-query concurrency code paths:
-SEARCH_CONCURRENCY = 8
+# nocommit
+# SEARCH_CONCURRENCY = 8
+SEARCH_CONCURRENCY = 1
 
 INDEXING_RAM_BUFFER_MB = 2048
 
@@ -158,6 +160,11 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     if REAL:
         print('move vmstat log to %s' % newVmstatLogFileName)
         shutil.move(f'{constants.LOGS_DIR}/nightly.vmstat.log', newVmstatLogFileName)
+
+    newTopLogFileName = f'{runLogDir}/{logFile.replace(".log", ".top.log")}'
+    if REAL:
+        print('move top log to %s' % newTopLogFileName)
+        shutil.move(f'{constants.LOGS_DIR}/nightly.top.log', newTopLogFileName)
 
     s = open(newLogFileName).read()
     bytesIndexed = int(reBytesIndexed.search(s).group(1))
@@ -636,10 +643,15 @@ def run():
     if REAL:
 
       vmstatLogFile = f'{runLogDir}/search-tasks.vmstat.log'
+      topLogFile = f'{runLogDir}/search-tasks.top.log'
 
       vmstatCmd = f'{benchUtil.VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstatLogFile} 2>/dev/null &'
       print(f'run vmstat: {vmstatCmd}')
       vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
+
+      topCmd = f'{benchUtil.TOP_PATH} -b -d 5 > {topLogFile} 2>&1 &'
+      print(f'run top: {topCmd}')
+      topProcess = subprocess.Popen(topCmd, shell=True, preexec_fn=os.setsid)
 
       resultsNow = []
       for iter in range(JVM_COUNT):
@@ -647,9 +659,15 @@ def run():
         resultsNow.append(r.runSimpleSearchBench(iter, id, comp, coldRun, seed, staticSeed, filter=None))
 
       print(f'now kill vmstat: pid={vmstatProcess.pid}')
-      subprocess.check_call(['pkill', 'vmstat'])
+      # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
+      subprocess.check_call(['pkill', '-u', benchUtil.get_username(), 'vmstat'])
       if vmstatProcess.poll() is None:
         raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
+      print(f'now kill top: pid={topProcess.pid}')
+      # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
+      subprocess.check_call(['pkill', '-u', benchUtil.get_username(), 'top'])
+      if topProcess.poll() is None:
+        raise RuntimeError('failed to kill top child process?  pid={topProcess.pid}')
         
     else:
         resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for
@@ -961,12 +979,14 @@ def getIndexGCTimes(subDir):
             cmd = 'tar xjf %s/logs.tar.bz2 fastIndexMediumDocs.log' % subDir
             if os.system(cmd):
                 raise RuntimeError('%s failed (cwd %s)' % (cmd, os.getcwd()))
-
-            with open('fastIndexMediumDocs.log', 'r', encoding='utf-8') as f:
-                for line in f.readlines():
-                    m = reTimeIn.search(line)
-                    if m is not None:
-                        times[m.group(1)] = float(m.group(2)) / 1000.
+            try:
+              with open('fastIndexMediumDocs.log', 'r', encoding='utf-8') as f:
+                  for line in f.readlines():
+                      m = reTimeIn.search(line)
+                      if m is not None:
+                          times[m.group(1)] = float(m.group(2)) / 1000.
+            finally:
+              os.remove('fastIndexMediumDocs.log')
 
             open('%s/gcTimes.pk' % subDir, 'wb').write(pickle.dumps(times))
         return times

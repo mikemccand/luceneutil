@@ -76,9 +76,7 @@ else:
 DIR_IMPL = 'MMapDirectory'
 
 # Make sure we exercise Lucene's intra-query concurrency code paths:
-# nocommit
-# SEARCH_CONCURRENCY = 8
-SEARCH_CONCURRENCY = 1
+SEARCH_CONCURRENCY = 8
 
 INDEXING_RAM_BUFFER_MB = 2048
 

@@ -37,6 +37,7 @@ import runFacetsBenchmark
 import benchUtil
 import constants
 import competition
+import ps_head
 import stats
 import blunders
 from notation import KNOWN_CHANGES
@@ -76,7 +77,9 @@ else:
 DIR_IMPL = 'MMapDirectory'
 
 # Make sure we exercise Lucene's intra-query concurrency code paths:
-SEARCH_CONCURRENCY = 8
+# nocommit
+# SEARCH_CONCURRENCY = 8
+SEARCH_CONCURRENCY = 1
 
 INDEXING_RAM_BUFFER_MB = 2048
 
@@ -647,9 +650,8 @@ def run():
       print(f'run vmstat: {vmstatCmd}')
       vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
 
-      topCmd = f'{benchUtil.TOP_PATH} -b -d 5 > {topLogFile} 2>&1 &'
-      print(f'run top: {topCmd}')
-      topProcess = subprocess.Popen(topCmd, shell=True, preexec_fn=os.setsid)
+      topProcess = ps_head.PSTopN(10, topLogFile)
+      print(f'run {topProcess.cmd} to {topLogFile}')
 
       resultsNow = []
       for iter in range(JVM_COUNT):
@@ -661,11 +663,7 @@ def run():
       subprocess.check_call(['pkill', '-u', benchUtil.get_username(), 'vmstat'])
       if vmstatProcess.poll() is None:
         raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
-      print(f'now kill top: pid={topProcess.pid}')
-      # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
-      subprocess.check_call(['pkill', '-u', benchUtil.get_username(), 'top'])
-      if topProcess.poll() is None:
-        raise RuntimeError('failed to kill top child process?  pid={topProcess.pid}')
+      topProcess.stop()
         
     else:
         resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for

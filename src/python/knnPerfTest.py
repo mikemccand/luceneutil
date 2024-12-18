@@ -36,7 +36,8 @@ from common import getLuceneDirFromGradleProperties
 # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
 LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
 
-DO_PROFILING = True
+# nocommit
+DO_PROFILING = False
 
 # e.g. to compile KnnIndexer:
 #
@@ -48,7 +49,7 @@ DO_PROFILING = True
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-    'ndoc': (2_000_000,),
+    'ndoc': (10_000_000,),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),

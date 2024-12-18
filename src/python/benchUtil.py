@@ -38,6 +38,7 @@ import IndexChart
 import subprocess
 import shlex
 import statistics
+import ps_head
 
 try:
   import distutils
@@ -53,7 +54,6 @@ else:
 PYTHON_MAJOR_VER = sys.version_info.major
 
 VMSTAT_PATH = shutil.which('vmstat')
-TOP_PATH = shutil.which('top')
 
 if PYTHON_MAJOR_VER < 3:
   raise RuntimeError('Please run with Python 3.x!  Got: %s' % str(sys.version))
@@ -852,7 +852,7 @@ def stats(l):
     return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
 def run(cmd, logFile=None, indent='    ', vmstatLogFile=None, topLogFile=None):
-  #print('%s[RUN: %s, cwd=%s]' % (indent, cmd, os.getcwd()))
+  print('%srun: %s, cwd=%s' % (indent, cmd, os.getcwd()))
   if logFile is not None:
     out = open(logFile, 'wb')
   else:
@@ -864,9 +864,8 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None, topLogFile=None):
     vmstatProcess = subprocess.Popen(vmstatCmd, shell=True, preexec_fn=os.setsid)
 
   if topLogFile is not None:
-    topCmd = f'{TOP_PATH} -b -d 5 > {topLogFile} 2>&1 &'
-    print(f'run top: {topCmd}')
-    topProcess = subprocess.Popen(topCmd, shell=True, preexec_fn=os.setsid)
+    topProcess = ps_head.PSTopN(10, topLogFile)
+    print(f'run {topProcess.cmd} to {topLogFile}')
     
   p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
@@ -881,13 +880,7 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None, topLogFile=None):
     if vmstatProcess.poll() is None:
       raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
   if topLogFile is not None:
-    print(f'now kill top: pid={topProcess.pid}')
-    # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
-    subprocess.check_call(['pkill', '-u', get_username(), 'top'])
-    # os.kill(topProcess.pid, signal.SIGKILL)
-    if topProcess.poll() is None:
-      raise RuntimeError('failed to kill top child process?  pid={topProcess.pid}')
-    
+    topProcess.stop()
 
 reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar')
 
@@ -1057,10 +1050,7 @@ class RunAlgs:
         vmstatLogFile = f'{constants.LOGS_DIR}/{id}.vmstat.log'
       else:
         vmstatLogFile = None
-      if TOP_PATH is not None:
-        topLogFile = f'{constants.LOGS_DIR}/{id}.top.log'
-      else:
-        topLogFile = None
+      topLogFile = f'{constants.LOGS_DIR}/{id}.top.log'
       run(cmd, fullLogFile, vmstatLogFile=vmstatLogFile, topLogFile=topLogFile)
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:

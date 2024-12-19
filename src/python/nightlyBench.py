@@ -1498,6 +1498,7 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'CountFilteredOrHighHigh', 'Count(Filtered(high-freq high-freq))')
     writeOneLine(w, done, 'CountFilteredOrHighMed', 'Count(Filtered(high-freq med-freq))')
     writeOneLine(w, done, 'CountFilteredOrMany', 'Count(Filtered(&lt;many terms&gt;))')
+    writeOneLine(w, done, 'CountFilteredIntNRQ', 'Count(Filtered numeric range query)')
 
     w('<br><br><b>Vector Search:</b>')
     writeOneLine(w, done, 'VectorSearch', 'VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)')

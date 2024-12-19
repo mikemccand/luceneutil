@@ -344,6 +344,12 @@ CountFilteredPhrase: count("the average" +filter=5%)
 CountFilteredPhrase: count("the us" +filter=5%)
 CountFilteredPhrase: count("when a" +filter=5%)
 
+CountFilteredIntNRQ: count(nrq//timesecnum 10044 66714 +filter=5%)
+CountFilteredIntNRQ: count(nrq//timesecnum 1069 86092 +filter=5%)
+CountFilteredIntNRQ: count(nrq//timesecnum 150 34646 +filter=5%)
+CountFilteredIntNRQ: count(nrq//timesecnum 3110 51452 +filter=5%)
+CountFilteredIntNRQ: count(nrq//timesecnum 3773 78558 +filter=5%)
+
 # Disjunction of 2 terms and 2 stop words
 Or2Terms2StopWords: lord of the rings
 Or2Terms2StopWords: the book of life

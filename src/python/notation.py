@@ -934,4 +934,8 @@ KNOWN_CHANGES = [
   ('2024-12-17',
    'Speed up advancing on the disjunction iterator https://github.com/apache/lucene/pull/14052',
    'Speed up advancing on the disjunction iterator https://github.com/apache/lucene/pull/14052'),
+
+  ('2024-12-18',
+   'Let DocIdSetIterator optimize loading into a FixedBitSet https://github.com/apache/lucene/pull/14069',
+   'Let DocIdSetIterator optimize loading into a FixedBitSet https://github.com/apache/lucene/pull/14069'),
 ]

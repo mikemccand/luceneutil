@@ -938,4 +938,8 @@ KNOWN_CHANGES = [
   ('2024-12-18',
    'Let DocIdSetIterator optimize loading into a FixedBitSet https://github.com/apache/lucene/pull/14069',
    'Let DocIdSetIterator optimize loading into a FixedBitSet https://github.com/apache/lucene/pull/14069'),
+
+  ('2024-12-19',
+   'Use the new loadIntoBitSet API to speed up dense conjunctions https://github.com/apache/lucene/pull/14080',
+   'Use the new loadIntoBitSet API to speed up dense conjunctions https://github.com/apache/lucene/pull/14080'),
 ]

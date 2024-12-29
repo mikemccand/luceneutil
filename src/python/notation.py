@@ -942,4 +942,8 @@ KNOWN_CHANGES = [
   ('2024-12-19',
    'Use the new loadIntoBitSet API to speed up dense conjunctions https://github.com/apache/lucene/pull/14080',
    'Use the new loadIntoBitSet API to speed up dense conjunctions https://github.com/apache/lucene/pull/14080'),
+
+  ('2024-12-26',
+   'Optimize BitSetIterator#intoBitSet https://github.com/apache/lucene/pull/14083',
+   'Optimize BitSetIterator#intoBitSet https://github.com/apache/lucene/pull/14083'),
 ]

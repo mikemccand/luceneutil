@@ -34,7 +34,7 @@ INDEX_VECTORS_FILE = '/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec'
 SEARCH_VECTORS_FILE = '/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec'
 VECTORS_DIM = 768
 VECTORS_ENCODING = 'float32'
-LUCENE_CHECKOUT = '/l/trunk'
+LUCENE_CHECKOUT = '/l/trunk.nightly'
 INDEX_THREAD_COUNT = 8
 
 INDEX_NUM_VECTORS = 8_000_000

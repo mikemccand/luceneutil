@@ -32,6 +32,7 @@ import urllib.request
 import subprocess
 import runStoredFieldsBenchmark
 import runFacetsBenchmark
+import runNightlyKnn
 
 # local imports:
 import benchUtil

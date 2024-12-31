@@ -537,6 +537,7 @@ def run():
     if REAL:
         r.compile(c)
 
+    # stored fields benchy
     if not DEBUG and not DO_RESET:
       os.chdir(constants.BENCH_BASE_DIR)
       try:
@@ -554,6 +555,7 @@ def run():
       finally:
           os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
+      # high cardinality facets
       os.chdir(constants.BENCH_BASE_DIR)
       try:
           message('now run NAD facets benchmark')
@@ -572,6 +574,14 @@ def run():
       finally:
           os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
 
+      # KNN
+      os.chdir(constants.BENCH_BASE_DIR)
+      try:
+          message('now run KNN benchmark')
+          runNightlyKnn.run(runLogDir)
+      finally:
+          os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
+        
     # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
     medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r,
                                                                                                               runLogDir,

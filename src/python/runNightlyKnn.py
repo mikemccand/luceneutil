@@ -103,13 +103,13 @@ def is_git_clone_dirty(git_clone_path):
   return bool(p.returncode)
 
 def main():
-  all_results = run()
+  all_results = run('.')
   if len(sys.argv) == 1:
     pass
 
-def run():
+def run(results_dir):
   try:
-    _run()
+    return _run(results_dir)
   finally:
     # these get quite large (~78 GB for three indices):
     indicesDir = f'{constants.BENCH_BASE_DIR}/knnIndices'
@@ -117,7 +117,7 @@ def run():
       print(f'removing KNN indices dir {indicesDir}')
       shutil.rmtree(indicesDir)
     
-def _run():
+def _run(results_dir):
   start_time_epoch_secs = time.time()
   lucene_git_rev = get_git_revision(LUCENE_CHECKOUT)
   lucene_clone_is_dirty = is_git_clone_dirty(LUCENE_CHECKOUT)
@@ -127,8 +127,7 @@ def _run():
   luceneutil_clone_is_dirty = is_git_clone_dirty(constants.BENCH_BASE_DIR)
   print(f'luceneutil HEAD git revision at {constants.BENCH_BASE_DIR}: {luceneutil_git_rev} dirty?={luceneutil_clone_is_dirty}')
 
-  # nocommit turn on!
-  if False and REAL:
+  if REAL:
     if lucene_clone_is_dirty:
       raise RuntimeError(f'lucene clone {LUCENE_CHECKOUT} is git-dirty')
     if luceneutil_clone_is_dirty:
@@ -325,6 +324,10 @@ def _run():
 
   skip_headers = {'selectivity', 'filterType', 'visited'}
   knnPerfTest.print_fixed_width(all_summaries, skip_headers)
+
+  results_file = f'{results_dir}/knn_results.pk'
+  print(f'saving all results to {results_file}')
+  open(results_file, 'wb').write(pickle.dumps(all_results))
 
   end_time_epoch_secs = time.time()
   print(f'done!  took {(end_time_epoch_secs - start_time_epoch_secs):.1f} seconds total')

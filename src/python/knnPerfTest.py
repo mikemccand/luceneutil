@@ -33,9 +33,6 @@ from common import getLuceneDirFromGradleProperties
 # you may want to modify the following settings:
 
 
-# Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
-LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-
 # nocommit
 DO_PROFILING = False
 
@@ -251,4 +248,6 @@ def print_fixed_width(all_results, columns_to_skip):
 
 
 if __name__ == '__main__':
-    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+  # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
+  LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
+  run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

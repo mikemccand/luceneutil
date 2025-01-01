@@ -55,7 +55,7 @@ re_leaf_docs = re.compile(r'^Leaf (\d+) has (\d+) documents')
 re_leaf_layers = re.compile(r'^Leaf (\d+) has (\d+) layers')
 re_index_path = re.compile(r'^Index Path = (.*)$')
 
-KNNResultV0 = namedtuple('KNNResult',
+KNNResultV0 = namedtuple('KNNResultV0',
                          ['lucene_git_rev',
                           'luceneutil_git_rev',
                           'index_vectors_file',

@@ -882,7 +882,7 @@ def run(cmd, logFile=None, indent='    ', vmstatLogFile=None, topLogFile=None):
   if topLogFile is not None:
     topProcess.stop()
 
-reCoreJar = re.compile('lucene-core-[0-9]+\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar')
+reCoreJar = re.compile('lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar')
 
 class RunAlgs:
 

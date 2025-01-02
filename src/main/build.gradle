@@ -3,7 +3,10 @@ plugins {
 }
 
 sourceSets {
-  main.java.srcDirs = ['knn', 'perf']
+  main.java {
+    srcDir '.'
+    include 'perf', 'knn'
+  }
 }
 
 def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'

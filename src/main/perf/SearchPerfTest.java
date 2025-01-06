@@ -758,8 +758,8 @@ public class SearchPerfTest {
       final Runtime runtime = Runtime.getRuntime();
       long usedMem1 = PerfUtils.usedMemory(runtime);
       long usedMem2 = Long.MAX_VALUE;
-      for(int iter=0;iter<10;iter++) {
-        runtime.runFinalization();
+      for(int iter = 0; iter < 10; iter++) {
+        // runtime.runFinalization();
         runtime.gc();
         Thread.yield();
         Thread.sleep(100);

@@ -77,6 +77,8 @@ import org.apache.lucene.util.UnicodeUtil;
 
 public class LineFileDocs implements Closeable {
 
+  public final static String VECTOR_FIELD_NAME = "vector";
+
   // sentinel:
   private final static LineFileDoc END = new LineFileDoc.TextBased("END", null, -1);
 
@@ -451,11 +453,11 @@ public class LineFileDocs implements Closeable {
 
       if (vectorDimension > 0) {
         if (vectorEncoding == VectorEncoding.FLOAT32) {
-          floatVectorField = new KnnFloatVectorField("vector", new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
+          floatVectorField = new KnnFloatVectorField(VECTOR_FIELD_NAME, new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
           doc.add(floatVectorField);
           byteVectorField = null;
         } else {
-          byteVectorField = new KnnByteVectorField("vector", new byte[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
+          byteVectorField = new KnnByteVectorField(VECTOR_FIELD_NAME, new byte[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
           doc.add(byteVectorField);
           floatVectorField = null;
         }

@@ -44,6 +44,8 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.misc.index.BPReorderingMergePolicy;
+import org.apache.lucene.misc.index.BpVectorReorderer;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
@@ -67,11 +69,12 @@ public class KnnIndexer {
   private final boolean quiet;
   private final boolean parentJoin;
   private final Path parentJoinMetaPath;
+  private final boolean useBp;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
-                    boolean parentJoin, Path parentJoinMetaPath) {
+                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
     this.codec = codec;
@@ -84,6 +87,7 @@ public class KnnIndexer {
     this.quiet = quiet;
     this.parentJoin = parentJoin;
     this.parentJoinMetaPath = parentJoinMetaPath;
+    this.useBp = useBp;
   }
 
   public int createIndex() throws IOException, InterruptedException {
@@ -101,6 +105,9 @@ public class KnnIndexer {
     TieredMergePolicy tmp = (TieredMergePolicy) iwc.getMergePolicy();
     tmp.setFloorSegmentMB(256);
     // tmp.setSegmentsPerTier(5);
+    if (useBp) {
+      iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));
+    }
 
     ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
     // cms.setMaxMergesAndThreads(24, 12);

@@ -155,6 +155,8 @@ public class KnnGraphTester {
   private int numIndexThreads;
   // which query vector to seek to at the start
   private int queryStartIndex;
+  // whether to reorder the index using binary partitioning
+  private boolean useBp;
 
   private KnnGraphTester() {
     // set defaults
@@ -394,6 +396,9 @@ public class KnnGraphTester {
           }
           numIndexThreads = Integer.parseInt(args[++iarg]);
           break;
+        case "-bp":
+          useBp = Boolean.parseBoolean(args[++iarg]);
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -430,7 +435,8 @@ public class KnnGraphTester {
         0,
         quiet,
         parentJoin,
-        parentJoinMetaFile
+        parentJoinMetaFile,
+        useBp
       ).createIndex();
       System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec)));
     }
@@ -571,6 +577,9 @@ public class KnnGraphTester {
     List<String> suffix = new ArrayList<>();
     suffix.add(Integer.toString(maxConn));
     suffix.add(Integer.toString(beamWidth));
+    if (useBp) {
+      suffix.add("bp");
+    }
     if (quantize) {
       suffix.add(Integer.toString(quantizeBits));
       if (quantizeCompress == true) {

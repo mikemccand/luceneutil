@@ -68,11 +68,12 @@ PARAMS = {
     #'numMergeThread': (1,),
     'encoding': ('float32',),
     # 'metric': ('angular',),  # default is angular (dot_product)
-    'metric': ('mip',),
+    # 'metric': ('mip',),
     #'quantize': (True,),
     'quantizeBits': (32,),
     #'fanout': (0,),
     'topK': (100,),
+    'bp': ('false', 'true'),
     #'quantizeCompress': (True, False),
     'quantizeCompress': (True,),
     'queryStartIndex': (0,),   # seek to this start vector before searching, to sample different vectors
@@ -108,6 +109,7 @@ def run_knn_benchmark(checkout, values):
     #dim = 300
     #doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
     #query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
+
     #dim = 256
     #doc_vectors = '/d/electronics_asin_emb.bin'
     #query_vectors = '/d/electronics_query_vectors.bin'
@@ -182,7 +184,7 @@ def run_knn_benchmark(checkout, values):
             #'-metric', 'mip',
             # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
-            #'-forceMerge',
+            '-forceMerge',
             #'-stats',
             #'-quiet'
         ]

@@ -70,6 +70,8 @@ import org.apache.lucene.index.SerialMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
+import org.apache.lucene.misc.index.BpVectorReorderer;
+import org.apache.lucene.misc.index.BPReorderingMergePolicy;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.Directory;
@@ -122,7 +124,7 @@ public final class Indexer {
     }
   }
 
-  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS) {
+  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS, boolean useBP) {
 
     MergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
@@ -141,7 +143,10 @@ public final class Indexer {
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
     }
-
+    if (useBP) {
+      BpVectorReorderer reorderer = new BpVectorReorderer(LineFileDocs.VECTOR_FIELD_NAME);
+      mp = new BPReorderingMergePolicy(mp, reorderer);
+    }
     return mp;
   }
 
@@ -324,6 +329,7 @@ public final class Indexer {
     final String idFieldPostingsFormat = args.getString("-idFieldPostingsFormat");
     final boolean addGroupingFields = args.getFlag("-grouping");
     final boolean useCFS = args.getFlag("-cfs");
+    final boolean useBP = args.getFlag("-bp");
     final boolean storeBody = args.getFlag("-store");
     final boolean tvsBody = args.getFlag("-tvs");
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
@@ -433,6 +439,7 @@ public final class Indexer {
       System.out.println("ID field postings format: " + idFieldPostingsFormat);
       System.out.println("Add grouping fields: " + (addGroupingFields ? "yes" : "no"));
       System.out.println("Compound file format: " + (useCFS ? "yes" : "no"));
+      System.out.println("Binary Partitioning: " + (useBP ? "yes" : "no"));
       System.out.println("Store body field: " + (storeBody ? "yes" : "no"));
       System.out.println("Term vectors for body field: " + (tvsBody ? "yes" : "no"));
       System.out.println("Facet DV Format: " + facetDVFormatName);
@@ -521,7 +528,7 @@ public final class Indexer {
         iwc.setUseCompoundFile(useCFS);
 
         iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, ioThrottle));
-        iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS));
+        iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS, useBP));
 
         // Keep all commit points:
         if (doDeletions || doForceMerge) {

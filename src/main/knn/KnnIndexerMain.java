@@ -41,6 +41,7 @@ public class KnnIndexerMain {
   boolean quiet = false;
   boolean parentJoin = false;
   Path parentJoinMetaFile = null;
+  boolean useBp = false;
 
   @Override
   public String toString() {
@@ -58,7 +59,7 @@ public class KnnIndexerMain {
         '}';
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     KnnIndexerMain inputs = new KnnIndexerMain();
 
     try {
@@ -73,6 +74,7 @@ public class KnnIndexerMain {
           case "-similarityfunction" ->
               inputs.similarityFunction = VectorSimilarityFunction.valueOf(args[++i].toUpperCase());
           case "-numdocs" -> inputs.numDocs = Integer.parseInt(args[++i]);
+          case "-bp" -> inputs.useBp = true;
           case "-docstartindex" -> inputs.docStartIndex = Integer.parseInt(args[++i]);
           case "-dimension" -> inputs.dimension = Integer.parseInt(args[++i]);
           case "-quiet" -> inputs.quiet = true;
@@ -102,9 +104,9 @@ public class KnnIndexerMain {
 
     new KnnIndexer(inputs.docVectorsPath, inputs.indexPath,
                    KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
-                   inputs.vectorEncoding,
+                   numMergeThread, inputs.vectorEncoding,
                    inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet,
-                   inputs.parentJoin, inputs.parentJoinMetaFile).createIndex();
+                   inputs.parentJoin, inputs.parentJoinMetaFile, inputs.useBp).createIndex();
 
     if (!inputs.quiet) {
       System.out.println("Successfully created index.");
@@ -123,6 +125,7 @@ public class KnnIndexerMain {
         "\t -numDocs : number of document vectors to be used from the file\n" +
         "\t -docStartIndex : Start index of first document vector. This can be helpful when we want to run different with set of documents from within the same file.\n" +
         "\t -quiet : don't print anything on console if mentioned.\n" +
-        "\t -parentJoin : create parentJoin index. Requires '*-metadata.csv'\n";
+        "\t -parentJoin : create parentJoin index. Requires '*-metadata.csv'\n" +
+        "\t -bp : use binary partitioning merged policy to reorder index\n";
   }
 }

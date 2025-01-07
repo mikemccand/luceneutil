@@ -22,8 +22,8 @@ def highDimDataSets = [
 ]
 
 
-// def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
-def luceneDir = "/l/trunk/lucene"
+def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
+// def luceneDir = "/l/trunk/lucene"
 // def luceneVersion = (String) findProperty("lucene.version")
 def luceneVersion = "11.0.0"
 def luceneFT = fileTree(dir: luceneDir, include: "**/*$luceneVersion-SNAPSHOT.jar")

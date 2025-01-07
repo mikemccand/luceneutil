@@ -25,10 +25,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,6 +72,7 @@ class TaskParser implements Closeable {
   private final Random random;
   private final boolean doStoredLoads;
   private final IndexState state;
+  final TestContext testContext;
 
   // non-null if we have vectors to use for KNN search:
   private final String vectorField;
@@ -97,7 +95,7 @@ class TaskParser implements Closeable {
                     VectorDictionary vectorDictionary,
                     Path vectorFilePath,
                     int vectorDimension,
-                    boolean doStoredLoads) throws IOException {
+                    boolean doStoredLoads, TestContext testContext) throws IOException {
     this.queryParser = queryParser;
     this.fieldName = fieldName;
     this.topN = topN;
@@ -105,6 +103,7 @@ class TaskParser implements Closeable {
     this.doStoredLoads = doStoredLoads;
     this.state = state;
     this.vectorDictionary = vectorDictionary;
+    this.testContext = testContext;
     if (vectorDictionary != null) {
       vectorField = "vector";
       vectorChannel = null;
@@ -183,7 +182,7 @@ class TaskParser implements Closeable {
    * May not be called from the same parser that did the first pass
    */
   public Task secondPassParse(UnparsedTask unparsedSearchTask) throws ParseException, IOException {
-    return new TaskBuilder(unparsedSearchTask).build();
+    return new TaskBuilder(unparsedSearchTask, this.testContext).build();
   }
 
   /**
@@ -209,8 +208,9 @@ class TaskParser implements Closeable {
   class TaskBuilder {
     final String category;
     final String origText;
+    final TestContext testContext;
 
-    List<String> facets;
+    List<FacetTask> facets;
     List<FieldAndWeight> combinedFields;
     List<String> dismaxFields;
     String text;
@@ -221,16 +221,18 @@ class TaskParser implements Closeable {
     // this is only set when pulling pre-computed embeddings from file:
     private float[] vector;
 
-    TaskBuilder(String line) {
+    TaskBuilder(String line, TestContext testContext) {
       String[] categoryAndText = parseCategory(line);
       category = categoryAndText[0];
       origText = categoryAndText[1];
+      this.testContext = testContext;
     }
 
-    TaskBuilder(UnparsedTask unparsedSearchTask) {
+    TaskBuilder(UnparsedTask unparsedSearchTask, TestContext testContext) {
       category = unparsedSearchTask.getCategory();
       origText = unparsedSearchTask.getOrigText();
       vector = unparsedSearchTask.vector;
+      this.testContext = testContext;
     }
 
     Task build() throws ParseException, IOException {
@@ -400,30 +402,76 @@ class TaskParser implements Closeable {
       return null;
     }
 
-    List<String> parseFacets() {
-      List<String> facets = new ArrayList<>();
+    List<FacetTask> parseFacets() {
+      List<FacetTask> facets = new ArrayList<>();
+      Map<String, TestContext.FacetMode> prefixTypes = Map.of(" +facets:", TestContext.FacetMode.UNDEFINED,
+              " +сlassic_facets:", TestContext.FacetMode.CLASSIC,
+              " +sandbox_facets:", TestContext.FacetMode.SANDBOX
+      );
       while (true) {
-        int i = text.indexOf(" +facets:");
-        if (i == -1) {
+        boolean found = false;
+        for (Map.Entry<String, TestContext.FacetMode> ent : prefixTypes.entrySet()) {
+          String prefix = ent.getKey();
+          TestContext.FacetMode facetMode = ent.getValue();
+          int prefixLength = prefix.length();
+          int i = text.indexOf(prefix);
+          if (i == -1) {
+            continue;
+          }
+          found = true;
+          if (testContext.facetMode != TestContext.FacetMode.UNDEFINED) {
+                  if (facetMode != TestContext.FacetMode.UNDEFINED &&
+                  facetMode != testContext.facetMode) {
+                    throw new IllegalArgumentException("Task and test context define different facet modes. Task: "
+                            + facetMode + ", test context: " + testContext.facetMode);
+                  }
+                  facetMode = testContext.facetMode;
+          }
+          int j = text.indexOf(" ", i + 1);
+          if (j == -1) {
+            j = text.length();
+          }
+          String facetDim = text.substring(i + prefixLength, j);
+          int k = facetDim.indexOf(".");
+          if (k == -1) {
+            throw new IllegalArgumentException("+facet:x should have format Dim.(taxonomy|sortedset); got: " + facetDim);
+          }
+          String s = facetDim.substring(0, k);
+          if (state.facetFields.containsKey(s) == false) {
+            throw new IllegalArgumentException("facetDim " + s + " was not indexed");
+          }
+          facets.add(new FacetTask(facetDim, facetMode));
+          text = text.substring(0, i) + text.substring(j);
+        }
+        if (!found) {
           break;
         }
-        int j = text.indexOf(" ", i+1);
-        if (j == -1) {
-          j = text.length();
-        }
-        String facetDim = text.substring(i+9, j);
-        int k = facetDim.indexOf(".");
-        if (k == -1) {
-          throw new IllegalArgumentException("+facet:x should have format Dim.(taxonomy|sortedset); got: " + facetDim);
-        }
-        String s = facetDim.substring(0, k);
-        if (state.facetFields.containsKey(s) == false) {
-          throw new IllegalArgumentException("facetDim " + s + " was not indexed");
-        }
-        facets.add(facetDim);
-        text = text.substring(0, i) + text.substring(j);
       }
       return facets;
+    }
+
+    record FacetTask(String dimension, TestContext.FacetMode facetMode){
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FacetTask facetTask)) return false;
+        return Objects.equals(facetMode, facetTask.facetMode) && Objects.equals(dimension, facetTask.dimension);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(dimension, facetMode);
+      }
+
+      @Override
+      public String toString() {
+        // facetMode is ignored so that when results are parsed to python's
+        // SearchTask facets_request param was the same for all modes
+        // and results for different modes were compared in benchUtil.compareHits
+        return "FacetTask{" +
+                "dimension='" + dimension + '\'' +
+                '}';
+      }
     }
 
     List<String> parseDrillDowns() {

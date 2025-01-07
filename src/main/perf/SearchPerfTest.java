@@ -236,6 +236,7 @@ public class SearchPerfTest {
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
     final boolean exitable = args.getFlag("-exitable");
+    final TestContext testContext = TestContext.parse(args.getString("-context", ""));
 
     if (searchConcurrency == -1) {
       searchConcurrency = Runtime.getRuntime().availableProcessors();
@@ -603,7 +604,7 @@ public class SearchPerfTest {
       vectorDictionary = null;
     }
     TaskParserFactory taskParserFactory =
-      new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads);
+      new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads, testContext);
 
     final TaskSource tasks;
 

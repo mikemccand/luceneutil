@@ -188,6 +188,7 @@ class SearchTask:
   isCountOnly = False
   
   def verifySame(self, other, verifyScores, verifyCounts):
+    traceback.print_stack()
     if re.match('.*Knn(Float|Byte)VectorQuery:', self.query) is not None:
       # While KNN search is statically randomized (seed 42?), the concurrent HNSW merge alters the order of results
       return
@@ -269,7 +270,6 @@ class SearchTask:
               self.fail('hit %s has wrong field/score value %s vs %s' % (docIDX, groups1[docIDX][1], groups2[docIDX][1]))
             if groups1[docIDX][0] != groups2[docIDX][0] and docIDX < len(groups1)-1:
               self.fail('hit %s has wrong id/s %s vs %s' % (docIDX, groups1[docIDX][0], groups2[docIDX][0]))
-
     if self.facets != other.facets:
       if False:
         print()
@@ -282,6 +282,9 @@ class SearchTask:
     s = 'query=%s filter=%s sort=%s groupField=%s hitCount=%s' % (self.query, self.filter, self.sort, self.groupField, self.hitCount)
     raise RuntimeError('%s: %s' % (s, message))
 
+  def __repr__(self):
+    return self.__str__()
+
   def __str__(self):
     s = self.query
     if self.isCountOnly:
@@ -291,8 +294,8 @@ class SearchTask:
         s += ' [sort=%s]' % self.sort
       if self.groupField is not None:
         s += ' [groupField=%s]' % self.groupField
-      if self.facets is not None:
-        s += ' [facets=%s]' % self.facets
+      if self.facet_request is not None:
+        s += ' [facet_request=%s]' % self.facet_request
     return s
 
   def __eq__(self, other):
@@ -303,11 +306,11 @@ class SearchTask:
         self.sort == other.sort and \
         self.groupField == other.groupField and \
         self.filter == other.filter and \
-        self.facets == other.facets and \
+        self.facet_request == other.facet_request and \
         self.isCountOnly == other.isCountOnly
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facets)) + hash(self.isCountOnly)
+    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facet_request)) + hash(self.isCountOnly)
 
 
 class RespellTask:
@@ -478,7 +481,7 @@ def parseResults(resultsFiles):
         else:
           m = reSearchTaskOld.match(decode(line[6:]))
           if m is not None:
-            cat, task.query, sort, hitCount, facets = m.groups()
+            cat, task.query, sort, hitCount, task.facet_request = m.groups()
             filter = None
           else:
             m = reCountOnlyTask.search(decode(line))
@@ -569,7 +572,7 @@ def parseResults(resultsFiles):
           else:
             m = reSearchGroupTaskOld.match(decode(line[6:]))
             if m is not None:
-              cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount, facets = m.groups()
+              cat, task.query, sort, task.groupField, groupCount, hitCount, groupedHitCount, totGroupCount, task.facet_request = m.groups()
               filter = None
 
           if cat is not None:
@@ -1193,7 +1196,9 @@ class RunAlgs:
     command += [f'-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc' +
                 f',filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr',
                 '-XX:+UnlockDiagnosticVMOptions',
-                '-XX:+DebugNonSafepoints']
+                '-XX:+DebugNonSafepoints',
+                # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
+                ]
 
     w = lambda *xs : [command.append(str(x)) for x in xs]
     w('-classpath', cp)
@@ -1220,6 +1225,7 @@ class RunAlgs:
     w('-hiliteImpl', c.hiliteImpl)
     w('-log', logFile)
     w('-topN', c.topN)
+    w('-context', c.testContext)
     if filter is not None:
       w('-filter', '%.2f' % filter)
     if c.printHeap:
@@ -1819,7 +1825,7 @@ def tasksToMap(taskIters, verifyScores, verifyCounts):
   d2 = {}
   for key, val in d.items():
     d2[key] = val[0]
-    
+
   return d2
 
 def compareHits(r1, r2, verifyScores, verifyCounts):

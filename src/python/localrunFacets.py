@@ -19,8 +19,7 @@ import argparse
 import competition
 import os
 
-# simple example that runs benchmark with WIKI_MEDIUM source and taks files 
-# Baseline here is ../lucene_baseline versus ../lucene_candidate
+# Script to compare performance of sandbox and main facets modules
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(prog='Local Benchmark Run',
                                    description='Run a local benchmark on provided source dataset.')

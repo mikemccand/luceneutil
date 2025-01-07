@@ -59,6 +59,7 @@ VECTORS_DIMENSIONS = 768
 
 #WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.nostopwords.tasks' % BENCH_BASE_DIR
+WIKI_MEDIUM_FACETS_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.facets.tasks' % BENCH_BASE_DIR
 #WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_1MDOCS_FILE = '%s/tasks/wikimedium.1M.nostopwords.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_500DOCS_FILE = '%s/tasks/wikimedium500.tasks' % BENCH_BASE_DIR

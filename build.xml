@@ -16,6 +16,12 @@
       <fileset dir="${lucene.checkout}/lucene/join/build/libs/">
         <include name="*.jar"/>
       </fileset>
+      <fileset dir="${lucene.checkout}/lucene/misc/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
+      <fileset dir="${lucene.checkout}/lucene/codecs/build/libs/">
+        <include name="*.jar"/>
+      </fileset>
     </path>
 
     <javac srcdir="src/main"

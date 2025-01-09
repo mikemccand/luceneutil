@@ -37,12 +37,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BinaryOperator;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -79,21 +81,30 @@ import org.apache.lucene.queries.function.valuesource.FloatKnnVectorFieldSource;
 import org.apache.lucene.queries.function.valuesource.FloatVectorSimilarityFunction;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.ConstantScoreScorer;
+import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryVisitor;
+import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
+import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.BitSetIterator;
+import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
-import perf.RandomQuery;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 //TODO Lucene may make these unavailable, we should pull in this from hppc directly
@@ -119,6 +130,8 @@ public class KnnGraphTester {
   public static final String WIKI_ID_FIELD = "wikiID";
   public static final String WIKI_PARA_ID_FIELD = "wikiParaID";
 
+  private Long randomSeed;
+  private Random random;
   private int numDocs;
   private int dim;
   private int topK;
@@ -398,6 +411,9 @@ public class KnnGraphTester {
         case "-bp":
           useBp = Boolean.parseBoolean(args[++iarg]);
           break;
+        case "-seed":
+          randomSeed = Long.parseLong(args[++iarg]);
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -417,6 +433,11 @@ public class KnnGraphTester {
       throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
           "document relationships. Rerun with -reindex or without -parentJoin argument");
     }
+    if (randomSeed == null) {
+      randomSeed = System.nanoTime();
+    }
+    log("Seed = %d", randomSeed);
+    random = new Random(randomSeed);
 
     if (reindex) {
       if (docVectorsPath == null) {
@@ -552,7 +573,7 @@ public class KnnGraphTester {
           if (docVectorsPath == null) {
             throw new IllegalArgumentException("missing -docs arg");
           }
-          filterQuery = selectivity == 1f ? new MatchAllDocsQuery() : new RandomQuery(selectivity * 100);
+          filterQuery = selectivity == 1f ? new MatchAllDocsQuery() : generateRandomQuery(random, indexPath, numDocs, selectivity);
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
           } else {
@@ -567,6 +588,34 @@ public class KnnGraphTester {
           printFanoutHist(indexPath);
           break;
       }
+    }
+  }
+
+  private static Query generateRandomQuery(Random random, Path indexPath, int size, float selectivity) throws IOException {
+    FixedBitSet bitSet = new FixedBitSet(size);
+    for (int i = 0; i < size; i++) {
+      if (random.nextFloat() < selectivity) {
+        bitSet.set(i);
+      } else {
+        bitSet.clear(i);
+      }
+    }
+
+    try (Directory dir = FSDirectory.open(indexPath);
+         DirectoryReader reader = DirectoryReader.open(dir)) {
+      BitSet[] segmentDocs = new BitSet[reader.leaves().size()];
+      for (var leafContext : reader.leaves()) {
+        var storedFields = leafContext.reader().storedFields();
+        FixedBitSet segmentBitSet = new FixedBitSet(reader.maxDoc());
+        for (int d = 0; d < leafContext.reader().maxDoc(); d++) {
+          int docID = Integer.parseInt(storedFields.document(d, Set.of(KnnGraphTester.ID_FIELD)).get(KnnGraphTester.ID_FIELD));
+          if (bitSet.get(docID)) {
+            segmentBitSet.set(d);
+          }
+        }
+        segmentDocs[leafContext.ord] = segmentBitSet;
+      }
+      return new BitSetQuery(segmentDocs);
     }
   }
 
@@ -1222,5 +1271,59 @@ public class KnnGraphTester {
       return totalVectorCount;
     }
 
+  }
+
+  private static class BitSetQuery extends Query {
+    private final BitSet[] segmentDocs;
+
+    BitSetQuery(BitSet[] segmentDocs) {
+      this.segmentDocs = segmentDocs;
+    }
+
+    @Override
+    public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+      return new ConstantScoreWeight(this, boost) {
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+          var bitSet = segmentDocs[context.ord];
+          var cardinality = bitSet.cardinality();
+          var scorer = new ConstantScoreScorer(score(), scoreMode, new BitSetIterator(bitSet, cardinality));
+          return new ScorerSupplier() {
+            @Override
+            public Scorer get(long leadCost) throws IOException {
+              return scorer;
+            }
+
+            @Override
+            public long cost() {
+              return cardinality;
+            }
+          };
+        }
+
+        @Override
+        public boolean isCacheable(LeafReaderContext ctx) {
+          return false;
+        }
+      };
+    }
+
+    @Override
+    public void visit(QueryVisitor visitor) {
+    }
+
+    @Override
+    public String toString(String field) {
+      return "BitSetQuery";
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return sameClassAs(other) && Arrays.equals(segmentDocs, ((BitSetQuery) other).segmentDocs);
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * classHash() + Arrays.hashCode(segmentDocs);
+    }
   }
 }

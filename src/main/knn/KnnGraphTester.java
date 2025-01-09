@@ -70,31 +70,30 @@ import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.internal.hppc.IntIntHashMap;
-import org.apache.lucene.search.ConstantScoreScorer;
-import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.queries.function.FunctionQuery;
+import org.apache.lucene.queries.function.valuesource.ByteKnnVectorFieldSource;
+import org.apache.lucene.queries.function.valuesource.ByteVectorSimilarityFunction;
+import org.apache.lucene.queries.function.valuesource.ConstKnnByteVectorValueSource;
+import org.apache.lucene.queries.function.valuesource.ConstKnnFloatValueSource;
+import org.apache.lucene.queries.function.valuesource.FloatKnnVectorFieldSource;
+import org.apache.lucene.queries.function.valuesource.FloatVectorSimilarityFunction;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.QueryVisitor;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
-import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
-import org.apache.lucene.util.BitSetIterator;
-import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NamedThreadFactory;
-import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
-import org.apache.lucene.util.hnsw.NeighborQueue;
+import perf.RandomQuery;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 //TODO Lucene may make these unavailable, we should pull in this from hppc directly
@@ -146,7 +145,7 @@ public class KnnGraphTester {
   private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
-  private FixedBitSet matchDocs;
+  private Query filterQuery;
   private float selectivity;
   private boolean prefilter;
   private boolean randomCommits;
@@ -553,13 +552,11 @@ public class KnnGraphTester {
           if (docVectorsPath == null) {
             throw new IllegalArgumentException("missing -docs arg");
           }
-          if (selectivity < 1) {
-            matchDocs = generateRandomBitSet(numDocs, selectivity);
-          }
+          filterQuery = selectivity == 1f ? new MatchAllDocsQuery() : new RandomQuery(selectivity * 100);
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
           } else {
-            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, queryPath, queryStartIndex));
+            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex));
           }
           if (operation.equals("-search-and-stats")) {
             // also print stats, after searching
@@ -739,23 +736,14 @@ public class KnnGraphTester {
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
           IndexSearcher searcher = new IndexSearcher(reader);
           numDocs = reader.maxDoc();
-          Query bitSetQuery = prefilter ? new BitSetQuery(matchDocs) : null;
           // warm up
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              if (prefilter) {
-                doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
-              } else {
-                doKnnByteVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
-              }
+              doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
             } else {
               float[] target = targetReader.next();
-              if (prefilter) {
-                doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
-              } else {
-                doKnnVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
-              }
+              doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
             }
           }
           targetReader.reset();
@@ -764,26 +752,10 @@ public class KnnGraphTester {
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              if (prefilter) {
-                results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery);
-              } else {
-                results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null);
-              }
+              results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
             } else {
               float[] target = targetReader.next();
-              if (prefilter) {
-                results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, bitSetQuery, parentJoin);
-              } else {
-                results[i] =
-                  doKnnVectorQuery(
-                    searcher, KNN_FIELD, target, (int) (topK / selectivity), fanout, null, parentJoin);
-              }
-              if (prefilter == false && matchDocs != null) {
-                results[i].scoreDocs =
-                  Arrays.stream(results[i].scoreDocs)
-                    .filter(scoreDoc -> matchDocs.get(scoreDoc.doc))
-                    .toArray(ScoreDoc[]::new);
-              }
+              results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
             }
           }
           totalCpuTimeMS =
@@ -867,22 +839,30 @@ public class KnnGraphTester {
   }
 
   private static TopDocs doKnnByteVectorQuery(
-    IndexSearcher searcher, String field, byte[] vector, int k, int fanout, Query filter)
+    IndexSearcher searcher, String field, byte[] vector, int k, int fanout, boolean prefilter, Query filter)
     throws IOException {
-    ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, filter);
-    TopDocs docs = searcher.search(profiledQuery, k);
+    ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, prefilter ? filter : null);
+    Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
+            .add(profiledQuery, BooleanClause.Occur.MUST)
+            .add(filter, BooleanClause.Occur.FILTER)
+            .build();
+    TopDocs docs = searcher.search(query, k);
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
   private static TopDocs doKnnVectorQuery(
-      IndexSearcher searcher, String field, float[] vector, int k, int fanout, Query filter, boolean isParentJoinQuery)
+      IndexSearcher searcher, String field, float[] vector, int k, int fanout, boolean prefilter, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
       ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
       return searcher.search(parentJoinQuery, k);
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
-    TopDocs docs = searcher.search(profiledQuery, k);
+    Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
+            .add(profiledQuery, BooleanClause.Occur.MUST)
+            .add(filter, BooleanClause.Occur.FILTER)
+            .build();
+    TopDocs docs = searcher.search(query, k);
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
@@ -916,7 +896,7 @@ public class KnnGraphTester {
    * The method runs "numQueryVectors" target queries and returns "topK" nearest neighbors
    * for each of them. Nearest Neighbors are computed using exact match.
    */
-  private int[][] getExactNN(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
+  private int[][] getExactNN(Path docPath, Path indexPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
     String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex), 36);
     String nnFileName = "nn-" + hash + ".bin";
@@ -933,7 +913,7 @@ public class KnnGraphTester {
       if (vectorEncoding.equals(VectorEncoding.BYTE)) {
         nn = computeExactNNByte(docPath, queryPath, queryStartIndex);
       } else {
-        nn = computeExactNN(docPath, queryPath, queryStartIndex);
+        nn = computeExactNN(queryPath, queryStartIndex);
       }
       if (selectivity == 1f) {
         writeExactNN(nn, nnPath);
@@ -983,110 +963,17 @@ public class KnnGraphTester {
     }
   }
 
-  @SuppressForbidden(reason = "Uses random()")
-  private static FixedBitSet generateRandomBitSet(int size, float selectivity) {
-    FixedBitSet bitSet = new FixedBitSet(size);
-    for (int i = 0; i < size; i++) {
-      if (Math.random() < selectivity) {
-        bitSet.set(i);
-      } else {
-        bitSet.clear(i);
-      }
-    }
-    return bitSet;
-  }
-
   private int[][] computeExactNNByte(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     int[][] result = new int[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors");
     List<ComputeNNByteTask> tasks = new ArrayList<>();
-    try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
-      VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
-      for (int i = 0; i < numQueryVectors; i++) {
-        byte[] query = queryReader.nextBytes().clone();
-        tasks.add(new ComputeNNByteTask(i, query, docPath, result));
-      }
-    }
-    ForkJoinPool.commonPool().invokeAll(tasks);
-    return result;
-  }
-
-  class ComputeNNByteTask implements Callable<Void> {
-
-    private final int queryOrd;
-    private final byte[] query;
-    private final Path docPath;
-    private final int[][] result;
-
-    ComputeNNByteTask(int queryOrd, byte[] query, Path docPath, int[][] result) {
-      this.queryOrd = queryOrd;
-      this.query = query;
-      this.docPath = docPath;
-      this.result = result;
-    }
-
-    @Override
-    public Void call() {
-        NeighborQueue queue = new NeighborQueue(topK, false);
-        try (FileChannel in = FileChannel.open(docPath)) {
-          // TODO: support docStartIndex here too
-          VectorReaderByte docReader = (VectorReaderByte)VectorReader.create(in, dim, VectorEncoding.BYTE, 0);
-          for (int j = 0; j < numDocs; j++) {
-            byte[] doc = docReader.nextBytes();
-            float d = similarityFunction.compare(query, doc);
-            if (d == 0f) {
-              System.out.println("WARNING: identical doc and query vector (distance=0)");
-            }
-            if (matchDocs == null || matchDocs.get(j)) {
-              queue.insertWithOverflow(j, d);
-            }
-          }
-          docReader.reset();
-          result[queryOrd] = new int[topK];
-          for (int k = topK - 1; k >= 0; k--) {
-            result[queryOrd][k] = queue.topNode();
-            queue.pop();
-          }
-          if (quiet == false && (queryOrd + 1) % 10 == 0) {
-            log(" " + (queryOrd + 1));
-          }
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-        return null;
-    }
-  }
-
-  /** Brute force computation of "true" nearest neighhbors. */
-  private int[][] computeExactNN(Path docPath, Path queryPath, int queryStartIndex)
-      throws IOException, InterruptedException {
-    int[][] result = new int[numQueryVectors][];
-    log("computing true nearest neighbors of " + numQueryVectors + " target vectors");
-    log("parentJoin = %s", parentJoin);
-    if (parentJoin) {
-      try (Directory dir = FSDirectory.open(indexPath);
-           DirectoryReader reader = DirectoryReader.open(dir)) {
-        CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
-        List<ComputeExactSearchNNFloatTask> tasks = new ArrayList<>();
-        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
-          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
-          for (int i = 0; i < numQueryVectors; i++) {
-            float[] query = queryReader.next().clone();
-            tasks.add(new ComputeExactSearchNNFloatTask(i, query, docPath, result, reader));
-          }
-        }
-        ForkJoinPool.commonPool().invokeAll(tasks);
-      }
-    } else {
-      // TODO: Use exactSearch here?
-      // System.out.println("common pool uses " + ForkJoinPool.getCommonPoolParallelism() + " threads");
-      System.out.println("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
-      List<ComputeNNFloatTask> tasks = new ArrayList<>();
+    try (Directory dir = FSDirectory.open(indexPath);
+         DirectoryReader reader = DirectoryReader.open(dir)) {
       try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
-        VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+        VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
         for (int i = 0; i < numQueryVectors; i++) {
-          float[] query = queryReader.next().clone();
-          tasks.add(new ComputeNNFloatTask(i, query, docPath, result));
+          byte[] query = queryReader.nextBytes().clone();
+          tasks.add(new ComputeNNByteTask(i, query, result, reader));
         }
       }
       ForkJoinPool.commonPool().invokeAll(tasks);
@@ -1094,45 +981,32 @@ public class KnnGraphTester {
     return result;
   }
 
-  // TODO: would it be faster to swap the stride?  for each indexed vector, run through all query vectors updating their
-  // separate PQs?  better locality since we load each indexed vector just once and share it?  we would make thread work units
-  // from chunks of indexed vectors?
-  class ComputeNNFloatTask implements Callable<Void> {
+  class ComputeNNByteTask implements Callable<Void> {
 
     private final int queryOrd;
-    private final float[] query;
-    private final Path docPath;
+    private final byte[] query;
     private final int[][] result;
+    private final IndexReader reader;
 
-    ComputeNNFloatTask(int queryOrd, float[] query, Path docPath, int[][] result) {
+    ComputeNNByteTask(int queryOrd, byte[] query, int[][] result, IndexReader reader) {
       this.queryOrd = queryOrd;
       this.query = query;
-      this.docPath = docPath;
       this.result = result;
+      this.reader = reader;
     }
 
     @Override
     public Void call() {
-      NeighborQueue queue = new NeighborQueue(topK, false);
-      // TODO: support docStartIndex here too
-      try (FileChannel in = FileChannel.open(docPath)) {
-        VectorReader docReader = (VectorReader) VectorReader.create(in, dim, VectorEncoding.FLOAT32, 0);
-        for (int j = 0; j < numDocs; j++) {
-          float[] doc = docReader.next();
-          float d = similarityFunction.compare(query, doc);
-          if (matchDocs == null || matchDocs.get(j)) {
-            if (d == 0f) {
-              System.out.println("WARNING: identical doc and query vector (distance=0)");
-            }
-            queue.insertWithOverflow(j, d);
-          }
-        }
-        docReader.reset();
-        result[queryOrd] = new int[topK];
-        for (int k = topK - 1; k >= 0; k--) {
-          result[queryOrd][k] = queue.topNode();
-          queue.pop();
-        }
+      IndexSearcher searcher = new IndexSearcher(reader);
+      try {
+        var queryVector = new ConstKnnByteVectorValueSource(query);
+        var docVectors = new ByteKnnVectorFieldSource(KNN_FIELD);
+        var query = new BooleanQuery.Builder()
+                .add(new FunctionQuery(new ByteVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
+                .add(filterQuery, BooleanClause.Occur.FILTER)
+                .build();
+        var topDocs = searcher.search(query, topK);
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1143,38 +1017,105 @@ public class KnnGraphTester {
     }
   }
 
-  /** Uses ExactSearch from Lucene queries to compute nearest neighbors.
-   */
-  class ComputeExactSearchNNFloatTask implements Callable<Void> {
-
-    private final int queryOrd;
-    private final float[] query;
-    private final Path docPath;
-    private final int[][] result;
-    private final IndexReader reader;
-
-    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, Path docPath, int[][] result, IndexReader reader) {
-      this.queryOrd = queryOrd;
-      this.query = query;
-      this.docPath = docPath;
-      this.result = result;
-      this.reader = reader;
-    }
-
-    @Override
-    public Void call() {
-      // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
-      try {
-        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
-        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
-        StoredFields storedFields = reader.storedFields();
-        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+  /** Brute force computation of "true" nearest neighhbors. */
+  private int[][] computeExactNN(Path queryPath, int queryStartIndex)
+      throws IOException, InterruptedException {
+    int[][] result = new int[numQueryVectors][];
+    log("computing true nearest neighbors of " + numQueryVectors + " target vectors");
+    log("parentJoin = %s", parentJoin);
+    try (Directory dir = FSDirectory.open(indexPath);
+         DirectoryReader reader = DirectoryReader.open(dir)) {
+      System.out.println("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
+      if (parentJoin) {
+        CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
       }
-      return null;
+      List<Callable<Void>> tasks = new ArrayList<>();
+      try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
+        VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+        for (int i = 0; i < numQueryVectors; i++) {
+          float[] query = queryReader.next().clone();
+          if (parentJoin) {
+            tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader));
+          } else {
+            tasks.add(new ComputeNNFloatTask(i, query, result, reader));
+          }
+        }
+        ForkJoinPool.commonPool().invokeAll(tasks);
+      }
+      return result;
     }
   }
+
+    // TODO: would it be faster to swap the stride?  for each indexed vector, run through all query vectors updating their
+    // separate PQs?  better locality since we load each indexed vector just once and share it?  we would make thread work units
+    // from chunks of indexed vectors?
+    class ComputeNNFloatTask implements Callable<Void> {
+
+      private final int queryOrd;
+      private final float[] query;
+      private final int[][] result;
+      private final IndexReader reader;
+
+      ComputeNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+        this.queryOrd = queryOrd;
+        this.query = query;
+        this.result = result;
+        this.reader = reader;
+      }
+
+      @Override
+      public Void call() {
+        // TODO: support docStartIndex here too
+        IndexSearcher searcher = new IndexSearcher(reader);
+        try {
+          var queryVector = new ConstKnnFloatValueSource(query);
+          var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
+          var query = new BooleanQuery.Builder()
+                  .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
+                  .add(filterQuery, BooleanClause.Occur.FILTER)
+                  .build();
+          var topDocs = searcher.search(query, topK);
+          result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+          if ((queryOrd + 1) % 10 == 0) {
+            log(" " + (queryOrd + 1));
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+    }
+
+    /** Uses ExactSearch from Lucene queries to compute nearest neighbors.
+     */
+    class ComputeExactSearchNNFloatTask implements Callable<Void> {
+
+      private final int queryOrd;
+      private final float[] query;
+      private final int[][] result;
+      private final IndexReader reader;
+
+      ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+        this.queryOrd = queryOrd;
+        this.query = query;
+        this.result = result;
+        this.reader = reader;
+      }
+
+      @Override
+      public Void call() {
+        // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
+        try {
+          ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
+          TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+          StoredFields storedFields = reader.storedFields();
+          result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+    }
 
   private void log(String msg, Object... args) {
     if (quiet == false) {
@@ -1281,61 +1222,5 @@ public class KnnGraphTester {
       return totalVectorCount;
     }
 
-  }
-
-  private static class BitSetQuery extends Query {
-    private final FixedBitSet docs;
-    private final int cardinality;
-
-    BitSetQuery(FixedBitSet docs) {
-      this.docs = docs;
-      this.cardinality = docs.cardinality();
-    }
-
-    @Override
-    public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
-        throws IOException {
-      return new ConstantScoreWeight(this, boost) {
-        Scorer scorer = new ConstantScoreScorer(score(), scoreMode, new BitSetIterator(docs, cardinality));
-        @Override
-        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
-          return new ScorerSupplier() {
-            @Override
-            public Scorer get(long leadCost) throws IOException {
-              return scorer;
-            }
-
-            @Override
-            public long cost() {
-              return cardinality;
-            }
-          };
-        }
-
-        @Override
-        public boolean isCacheable(LeafReaderContext ctx) {
-          return false;
-        }
-      };
-    }
-
-    @Override
-    public void visit(QueryVisitor visitor) {
-    }
-
-    @Override
-    public String toString(String field) {
-      return "BitSetQuery";
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return sameClassAs(other) && docs.equals(((BitSetQuery) other).docs);
-    }
-
-    @Override
-    public int hashCode() {
-      return 31 * classHash() + docs.hashCode();
-    }
   }
 }

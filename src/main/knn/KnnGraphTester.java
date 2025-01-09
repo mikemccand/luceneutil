@@ -1046,76 +1046,76 @@ public class KnnGraphTester {
     }
   }
 
-    // TODO: would it be faster to swap the stride?  for each indexed vector, run through all query vectors updating their
-    // separate PQs?  better locality since we load each indexed vector just once and share it?  we would make thread work units
-    // from chunks of indexed vectors?
-    class ComputeNNFloatTask implements Callable<Void> {
+  // TODO: would it be faster to swap the stride?  for each indexed vector, run through all query vectors updating their
+  // separate PQs?  better locality since we load each indexed vector just once and share it?  we would make thread work units
+  // from chunks of indexed vectors?
+  class ComputeNNFloatTask implements Callable<Void> {
 
-      private final int queryOrd;
-      private final float[] query;
-      private final int[][] result;
-      private final IndexReader reader;
+    private final int queryOrd;
+    private final float[] query;
+    private final int[][] result;
+    private final IndexReader reader;
 
-      ComputeNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
-        this.queryOrd = queryOrd;
-        this.query = query;
-        this.result = result;
-        this.reader = reader;
-      }
-
-      @Override
-      public Void call() {
-        // TODO: support docStartIndex here too
-        IndexSearcher searcher = new IndexSearcher(reader);
-        try {
-          var queryVector = new ConstKnnFloatValueSource(query);
-          var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
-          var query = new BooleanQuery.Builder()
-                  .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
-                  .add(filterQuery, BooleanClause.Occur.FILTER)
-                  .build();
-          var topDocs = searcher.search(query, topK);
-          result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
-          if ((queryOrd + 1) % 10 == 0) {
-            log(" " + (queryOrd + 1));
-          }
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-        return null;
-      }
+    ComputeNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.result = result;
+      this.reader = reader;
     }
 
-    /** Uses ExactSearch from Lucene queries to compute nearest neighbors.
-     */
-    class ComputeExactSearchNNFloatTask implements Callable<Void> {
-
-      private final int queryOrd;
-      private final float[] query;
-      private final int[][] result;
-      private final IndexReader reader;
-
-      ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
-        this.queryOrd = queryOrd;
-        this.query = query;
-        this.result = result;
-        this.reader = reader;
-      }
-
-      @Override
-      public Void call() {
-        // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
-        try {
-          ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
-          TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
-          StoredFields storedFields = reader.storedFields();
-          result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+    @Override
+    public Void call() {
+      // TODO: support docStartIndex here too
+      IndexSearcher searcher = new IndexSearcher(reader);
+      try {
+        var queryVector = new ConstKnnFloatValueSource(query);
+        var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
+        var query = new BooleanQuery.Builder()
+                .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
+                .add(filterQuery, BooleanClause.Occur.FILTER)
+                .build();
+        var topDocs = searcher.search(query, topK);
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+        if ((queryOrd + 1) % 10 == 0) {
+          log(" " + (queryOrd + 1));
         }
-        return null;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
+      return null;
     }
+  }
+
+  /** Uses ExactSearch from Lucene queries to compute nearest neighbors.
+   */
+  class ComputeExactSearchNNFloatTask implements Callable<Void> {
+
+    private final int queryOrd;
+    private final float[] query;
+    private final int[][] result;
+    private final IndexReader reader;
+
+    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.result = result;
+      this.reader = reader;
+    }
+
+    @Override
+    public Void call() {
+      // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
+      try {
+        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
+        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+        StoredFields storedFields = reader.storedFields();
+        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+  }
 
   private void log(String msg, Object... args) {
     if (quiet == false) {

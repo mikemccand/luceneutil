@@ -944,15 +944,15 @@ KNOWN_CHANGES = [
    'Use the new loadIntoBitSet API to speed up dense conjunctions https://github.com/apache/lucene/pull/14080'),
 
   ('2024-12-20',
-   'Add JVM command-line options "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer" so Linux perf command can see all C function calls',
-   'Add JVM command-line options "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer" so Linux perf command can see all C function calls'),
+   'Add JVM command-line options -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer so Linux perf command can see all C function calls',
+   'Add JVM command-line options -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer so Linux perf command can see all C function calls'),
 
   ('2024-12-26',
    'Optimize BitSetIterator#intoBitSet https://github.com/apache/lucene/pull/14083',
    'Optimize BitSetIterator#intoBitSet https://github.com/apache/lucene/pull/14083'),
 
   ('2025-01-09',
-   'Remove JVM command-line options "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer"',
-   'Remove JVM command-line options "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer"'),
+   'Remove JVM command-line options -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer',
+   'Remove JVM command-line options -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer'),
 
 ]

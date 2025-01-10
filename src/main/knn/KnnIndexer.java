@@ -143,7 +143,7 @@ public class KnnIndexer {
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs);
+          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs);
           t.setDaemon(true);
           t.start();
           threads.add(t);

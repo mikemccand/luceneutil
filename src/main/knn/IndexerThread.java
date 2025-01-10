@@ -39,14 +39,29 @@ class IndexerThread extends Thread {
   private final int numDocsToIndex;
   private final FieldType fieldType;
   private final VectorEncoding vectorEncoding;
-  
-  public IndexerThread(IndexWriter iw, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType, AtomicInteger numDocsIndexed, int numDocsToIndex) {
+  private final byte[] byteVectorBuffer;
+  private final float[] floatVectorBuffer;
+
+  public IndexerThread(IndexWriter iw, int dims, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType, AtomicInteger numDocsIndexed, int numDocsToIndex) {
     this.iw = iw;
     this.vectorReader = vectorReader;
     this.vectorEncoding = vectorEncoding;
     this.fieldType = fieldType;
     this.numDocsIndexed = numDocsIndexed;
     this.numDocsToIndex = numDocsToIndex;
+    switch (vectorEncoding) {
+      case BYTE -> {
+        byteVectorBuffer = new byte[dims];
+        floatVectorBuffer = null;
+      }
+      case FLOAT32 -> {
+        floatVectorBuffer = new float[dims];
+        byteVectorBuffer = null;
+      }
+      default -> {
+        throw new IllegalArgumentException("unexpected vector encoding: " + vectorEncoding);
+      }
+    }
   }
 
   @Override
@@ -70,8 +85,16 @@ class IndexerThread extends Thread {
       Document doc = new Document();
       synchronized (vectorReader) {
         switch (vectorEncoding) {
-          case BYTE -> doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
-          case FLOAT32 -> doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vectorReader.next(), fieldType));
+          case BYTE -> {
+            byte[] bytes = ((VectorReaderByte) vectorReader).nextBytes();
+            System.arraycopy(bytes, 0, byteVectorBuffer, 0, bytes.length);
+            doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, byteVectorBuffer, fieldType));
+          }
+          case FLOAT32 -> {
+            float[] floats = vectorReader.next();
+            System.arraycopy(floats, 0, floatVectorBuffer, 0, floats.length);
+            doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, floatVectorBuffer, fieldType));
+          }
         }
 
         // paranoia: a bit of a lie (we didn't index OUR doc yet), but do it in sync block to prevent sysouts from stomping

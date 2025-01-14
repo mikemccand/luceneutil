@@ -158,8 +158,10 @@ public class KnnGraphTester {
   private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
-  private Query filterQuery;
+  private Query sharedFilterQuery;
+  private Query[] filterQueries;
   private float selectivity;
+  private int correlation;
   private boolean prefilter;
   private boolean randomCommits;
   private boolean parentJoin;
@@ -182,6 +184,7 @@ public class KnnGraphTester {
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
     selectivity = 1f;
+    correlation = 0;
     prefilter = false;
     quantize = false;
     randomCommits = false;
@@ -377,6 +380,15 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("-filterSelectivity must be between 0 and 1");
           }
           break;
+        case "-filterCorrelation":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-filterCorrelation requires a following int");
+          }
+          correlation = Integer.parseInt(args[++iarg]);
+          if (correlation != -1 && correlation != 0 && correlation != 1) {
+            throw new IllegalArgumentException("-filterCorrelation must be either -1, 0, or 1");
+          }
+          break;
         case "-quiet":
           quiet = true;
           break;
@@ -424,6 +436,9 @@ public class KnnGraphTester {
     }
     if (prefilter && selectivity == 1f) {
       throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
+    }
+    if (correlation != 0 && selectivity == 1f) {
+      throw new IllegalArgumentException("-correlation -1 or 1 requires filterSelectivity between 0 and 1");
     }
     if (indexPath == null) {
       indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
@@ -573,7 +588,11 @@ public class KnnGraphTester {
           if (docVectorsPath == null) {
             throw new IllegalArgumentException("missing -docs arg");
           }
-          filterQuery = selectivity == 1f ? new MatchAllDocsQuery() : generateRandomQuery(random, indexPath, numDocs, selectivity);
+          if (correlation != 0) {
+            filterQueries = generateRandomCorrelatedFilterQueries(random, queryPath, selectivity, correlation);
+          } else {
+            sharedFilterQuery = selectivity == 1f ? new MatchAllDocsQuery() : generateRandomFilterQuery(random, indexPath, numDocs, selectivity);
+          }
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
           } else {
@@ -591,7 +610,45 @@ public class KnnGraphTester {
     }
   }
 
-  private static Query generateRandomQuery(Random random, Path indexPath, int size, float selectivity) throws IOException {
+  private Query[] generateRandomCorrelatedFilterQueries(Random random, Path queryPath, float selectivity, int correlation) throws IOException {
+    Query[] filterQueries = new Query[numQueryVectors];
+    log("computing correlated filters for " + numQueryVectors + " target vectors");
+    long startNS = System.nanoTime();
+    try (Directory dir = FSDirectory.open(indexPath);
+         DirectoryReader docReader = DirectoryReader.open(dir);
+         FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
+      VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+      for (int i = 0; i < numQueryVectors; i++) {
+        if ((i + 1) % 10 == 0) {
+          log(" " + (i + 1));
+        }
+        // Get a score for every doc by doing an exact search for topK = numDocs
+        float[] queryVec = queryReader.next().clone();
+        IndexSearcher searcher = new IndexSearcher(docReader);
+        var queryVector = new ConstKnnFloatValueSource(queryVec);
+        var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
+        var query = new BooleanQuery.Builder()
+                .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
+                .build();
+        var topDocs = searcher.search(query, numDocs);
+
+
+        // Generate filter that matches the (selectivity * size) top (corr == 1) / bottom (corr == -1) scores
+        BitSet[] segmentDocs = new BitSet[docReader.leaves().size()];
+        for (var leafContext : docReader.leaves()) {
+          FixedBitSet segmentBitSet = knn.CorrelatedFilterUtils.getCorrelatedFilter(docReader.maxDoc(), selectivity, correlation, topDocs);
+          segmentDocs[leafContext.ord] = segmentBitSet;
+        }
+        filterQueries[i] = new BitSetQuery(segmentDocs);
+      }
+    }
+    long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
+    System.out.printf("took %.3f sec to compute correlated filters\n", elapsedMS / 1000.);
+
+    return filterQueries;
+  }
+
+  private static Query generateRandomFilterQuery(Random random, Path indexPath, int size, float selectivity) throws IOException {
     FixedBitSet bitSet = new FixedBitSet(size);
     for (int i = 0; i < size; i++) {
       if (random.nextFloat() < selectivity) {
@@ -787,6 +844,7 @@ public class KnnGraphTester {
           numDocs = reader.maxDoc();
           // warm up
           for (int i = 0; i < numQueryVectors; i++) {
+            Query filterQuery = correlation == 0 ? sharedFilterQuery : filterQueries[i];
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
               doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
@@ -799,6 +857,7 @@ public class KnnGraphTester {
           startNS = System.nanoTime();
           cpuTimeStartNs = bean.getCurrentThreadCpuTime();
           for (int i = 0; i < numQueryVectors; i++) {
+            Query filterQuery = correlation == 0 ? sharedFilterQuery : filterQueries[i];
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
               results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
@@ -857,7 +916,7 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%d\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
           numDocs,
@@ -873,6 +932,7 @@ public class KnnGraphTester {
           indexNumSegments,
           indexSizeOnDiskMB,
           selectivity,
+          correlation,
           prefilter ? "pre-filter" : "post-filter",
           vectorDiskSizeBytes / 1024. / 1024.,
           vectorRAMSizeBytes / 1024. / 1024.);
@@ -1050,6 +1110,7 @@ public class KnnGraphTester {
       try {
         var queryVector = new ConstKnnByteVectorValueSource(query);
         var docVectors = new ByteKnnVectorFieldSource(KNN_FIELD);
+        Query filterQuery = correlation == 0 ? sharedFilterQuery : filterQueries[queryOrd];
         var query = new BooleanQuery.Builder()
                 .add(new FunctionQuery(new ByteVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
                 .add(filterQuery, BooleanClause.Occur.FILTER)
@@ -1119,6 +1180,7 @@ public class KnnGraphTester {
       try {
         var queryVector = new ConstKnnFloatValueSource(query);
         var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
+        Query filterQuery = correlation == 0 ? sharedFilterQuery : filterQueries[queryOrd];
         var query = new BooleanQuery.Builder()
                 .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
                 .add(filterQuery, BooleanClause.Occur.FILTER)

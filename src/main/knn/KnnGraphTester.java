@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BinaryOperator;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -161,7 +160,7 @@ public class KnnGraphTester {
   private Query sharedFilterQuery;
   private Query[] filterQueries;
   private float selectivity;
-  private int correlation;
+  private float correlation;
   private boolean prefilter;
   private boolean randomCommits;
   private boolean parentJoin;
@@ -184,7 +183,7 @@ public class KnnGraphTester {
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
     selectivity = 1f;
-    correlation = 0;
+    correlation = 0f;
     prefilter = false;
     quantize = false;
     randomCommits = false;
@@ -382,11 +381,11 @@ public class KnnGraphTester {
           break;
         case "-filterCorrelation":
           if (iarg == args.length - 1) {
-            throw new IllegalArgumentException("-filterCorrelation requires a following int");
+            throw new IllegalArgumentException("-filterCorrelation requires a following float");
           }
-          correlation = Integer.parseInt(args[++iarg]);
-          if (correlation != -1 && correlation != 0 && correlation != 1) {
-            throw new IllegalArgumentException("-filterCorrelation must be either -1, 0, or 1");
+          correlation = Float.parseFloat(args[++iarg]);
+          if (correlation < -1 || correlation > 1) {
+            throw new IllegalArgumentException("-filterCorrelation must be in the range [-1, 1]");
           }
           break;
         case "-quiet":
@@ -438,7 +437,7 @@ public class KnnGraphTester {
       throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
     }
     if (correlation != 0 && selectivity == 1f) {
-      throw new IllegalArgumentException("-correlation -1 or 1 requires filterSelectivity between 0 and 1");
+      throw new IllegalArgumentException("a nonzero -filterCorrelation requires filterSelectivity between 0 and 1");
     }
     if (indexPath == null) {
       indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
@@ -610,7 +609,7 @@ public class KnnGraphTester {
     }
   }
 
-  private Query[] generateRandomCorrelatedFilterQueries(Random random, Path queryPath, float selectivity, int correlation) throws IOException {
+  private Query[] generateRandomCorrelatedFilterQueries(Random random, Path queryPath, float selectivity, float correlation) throws IOException {
     Query[] filterQueries = new Query[numQueryVectors];
     log("computing correlated filters for " + numQueryVectors + " target vectors");
     long startNS = System.nanoTime();
@@ -618,6 +617,7 @@ public class KnnGraphTester {
          DirectoryReader docReader = DirectoryReader.open(dir);
          FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
       VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+      knn.CorrelatedFilterBuilder correlatedFilterBuilder = new knn.CorrelatedFilterBuilder(selectivity, correlation, random);
       for (int i = 0; i < numQueryVectors; i++) {
         if ((i + 1) % 10 == 0) {
           log(" " + (i + 1));
@@ -632,11 +632,10 @@ public class KnnGraphTester {
                 .build();
         var topDocs = searcher.search(query, numDocs);
 
-
         // Generate filter that matches the (selectivity * size) top (corr == 1) / bottom (corr == -1) scores
         BitSet[] segmentDocs = new BitSet[docReader.leaves().size()];
         for (var leafContext : docReader.leaves()) {
-          FixedBitSet segmentBitSet = knn.CorrelatedFilterUtils.getCorrelatedFilter(docReader.maxDoc(), selectivity, correlation, topDocs);
+          FixedBitSet segmentBitSet = correlatedFilterBuilder.getCorrelatedFilter(topDocs);
           segmentDocs[leafContext.ord] = segmentBitSet;
         }
         filterQueries[i] = new BitSetQuery(segmentDocs);

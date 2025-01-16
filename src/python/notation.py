@@ -955,4 +955,7 @@ KNOWN_CHANGES = [
    'Remove JVM command-line options -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer',
    'Remove JVM command-line options -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer'),
 
+  ('2025-01-14',
+   'Encode dense blocks of postings as bit sets. https://github.com/apache/lucene/pull/14133',
+   'Encode dense blocks of postings as bit sets. https://github.com/apache/lucene/pull/14133'),
 ]

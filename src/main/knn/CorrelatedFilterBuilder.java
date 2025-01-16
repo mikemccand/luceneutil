@@ -23,6 +23,16 @@ import org.apache.lucene.util.FixedBitSet;
 
 import java.util.Random;
 
+/**
+ * Builds a FixedBitSet filter over the input docs to achieve:
+ *  1. A filter cardinality = (selectivity)%
+ *  2. A normalized correlation ≈ targetCorrelation
+ * We calculate correlation using the "point biserial" formula over the scores & filter.
+ * "Normalized" means the target correlation (in the range [-1 ,1]) will be adjusted
+ * proportionally to the range of possible correlations.
+ * e.g. If the filter is set for all the highest scores and point biserial correlation = 0.5,
+ * then a target correlation of 0.8 will be interpreted as a point biserial correlation of 0.4.
+ */
 public class CorrelatedFilterBuilder {
 
     final private float selectivity;
@@ -43,25 +53,26 @@ public class CorrelatedFilterBuilder {
     }
 
     /**
-     * Creates a FixedBitSet filter over the input docs to achieve:
-     *  1. A filter cardinality = selectivity %
-     *  2. A normalized correlation ≈ targetCorrelation
-     * We calculate correlation using the "point biserial" formula over the scores & filter.
-     * "Normalized" means the target correlation (in the range [-1 ,1]) will be adjusted
-     * proportionally to the range of possible correlations.
-     * e.g. If the filter is set for all the highest scores, and point biserial correlation = 0.5,
-     * then a target correlation of 0.8 will be interpreted as a point biserial correlation of 0.4.
+     * The procedure:
+     *  - If targetCorrelation < 0, start by setting the lowest (selectivity)% scores
+     *  - If targetCorrelation > 0, start by setting the highest (selectivity)% scores
+     *  Then compute the correlation and begin 'shifting' the filter closer to the
+     *  targetCorrelation. We do this by flipping bits from the worst/best scores, always
+     *  preserving filter cardinality. Stop when the correlation comes close to the target
+     *  (within CORRELATION_TOLERANCE) or we max out on iterations.
      */
     public FixedBitSet getCorrelatedFilter(TopDocs docs) {
-        // TODO: experiment deriving these based on inputs
-        final float CORRELATION_TOLERANCE = 0.01f;
-        final int MAX_ITER = 1000;
-        final int FLIP_BATCH_SIZE = 10;
-
-        if (docs.scoreDocs.length <= 1) {
-            throw new IllegalArgumentException("topDocs must contain > 1 scoreDocs");
+        // Note: assumes docs.scoreDocs are in order highest -> lowest
+        // and each ScoreDoc.doc (ID) is in the range [0, docs.scoreDocs.length - 1]
+        if (docs.scoreDocs.length <= 10) {
+            throw new IllegalArgumentException("topDocs must contain > 10 scoreDocs");
         }
         int n = docs.scoreDocs.length;
+
+        final float CORRELATION_TOLERANCE = 0.01f;
+        final int FLIP_BATCH_SIZE = n > 20_000 ? n / 10_000 : 1;
+        final int MAX_ITER = (n / 2) / FLIP_BATCH_SIZE;
+
         FixedBitSet filter = new FixedBitSet(n);
         // Compute stdDev once and reuse as it never changes
         double stdDev = scoresStdDev(docs);
@@ -155,7 +166,7 @@ public class CorrelatedFilterBuilder {
         return filter;
     }
 
-    private double pointBiserialCorrelation(TopDocs docs, FixedBitSet filter, double stdDev) {
+    double pointBiserialCorrelation(TopDocs docs, FixedBitSet filter, double stdDev) {
         if (stdDev == 0) { // All scores are identical
             return 0.0;
         }
@@ -180,7 +191,7 @@ public class CorrelatedFilterBuilder {
         return ((meanScore1 - meanScore0) / stdDev) * Math.sqrt(selectivity * (1 - selectivity));
     }
 
-    private double scoresStdDev(TopDocs docs) {
+    double scoresStdDev(TopDocs docs) {
         int n = docs.scoreDocs.length;
 
         double sum = 0.0;

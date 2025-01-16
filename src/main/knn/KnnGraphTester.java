@@ -609,6 +609,7 @@ public class KnnGraphTester {
     }
   }
 
+  // For each query vector, generate a filter query with the given selectivity and correlation
   private Query[] generateRandomCorrelatedFilterQueries(Random random, Path queryPath, float selectivity, float correlation) throws IOException {
     Query[] filterQueries = new Query[numQueryVectors];
     log("computing correlated filters for " + numQueryVectors + " target vectors");
@@ -618,10 +619,12 @@ public class KnnGraphTester {
          FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
       VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
       knn.CorrelatedFilterBuilder correlatedFilterBuilder = new knn.CorrelatedFilterBuilder(selectivity, correlation, random);
+
       for (int i = 0; i < numQueryVectors; i++) {
         if ((i + 1) % 10 == 0) {
           log(" " + (i + 1));
         }
+
         // Get a score for every doc by doing an exact search for topK = numDocs
         float[] queryVec = queryReader.next().clone();
         IndexSearcher searcher = new IndexSearcher(docReader);
@@ -632,15 +635,16 @@ public class KnnGraphTester {
                 .build();
         var topDocs = searcher.search(query, numDocs);
 
-        // Generate filter that matches the (selectivity * size) top (corr == 1) / bottom (corr == -1) scores
         BitSet[] segmentDocs = new BitSet[docReader.leaves().size()];
         for (var leafContext : docReader.leaves()) {
+          // Generate a filter for this query vector's scores
           FixedBitSet segmentBitSet = correlatedFilterBuilder.getCorrelatedFilter(topDocs);
           segmentDocs[leafContext.ord] = segmentBitSet;
         }
         filterQueries[i] = new BitSetQuery(segmentDocs);
       }
     }
+
     long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
     System.out.printf("took %.3f sec to compute correlated filters\n", elapsedMS / 1000.);
 

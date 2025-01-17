@@ -379,7 +379,7 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("-filterSelectivity must be between 0 and 1");
           }
           break;
-        case "-filterCorrelation":
+        case "-filterCorrelation": // Setting this != 0 will make tests slow as correlated filters are built
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-filterCorrelation requires a following float");
           }
@@ -641,6 +641,7 @@ public class KnnGraphTester {
           FixedBitSet segmentBitSet = correlatedFilterBuilder.getCorrelatedFilter(topDocs);
           segmentDocs[leafContext.ord] = segmentBitSet;
         }
+        // TODO: cache filters for subsequent runs (similar to readExactNN)
         filterQueries[i] = new BitSetQuery(segmentDocs);
       }
     }

@@ -29,14 +29,18 @@ PYTHON_MAJOR_VER = sys.version_info.major
 
 BASE_URL = 'https://home.apache.org/~mikemccand'
 BASE_URL2 = 'https://home.apache.org/~sokolov'
-BASE_URL3 = 'https://githubsearch.mikemccandless.com'
+
 DATA_FILES = [
-  ('enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma', BASE_URL3),
-  ('enwiki-20120502-lines-1k-100d.vec', BASE_URL2),
-  #('enwiki-20120502-lines-1k-100d-8bit.vec', BASE_URL2),
-  ('wikimedium500.tasks', BASE_URL3),
-  ('glove.6B.zip', 'https://downloads.cs.stanford.edu/nlp/data/')
+  # remote url, local name
+  ('https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma', 'enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma'),
+
+  ('https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-docs-768d.vec', 'cohere-wikipedia-docs-768d.vec'),
+
+  ('https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-queries-768d.vec', 'cohere-wikipedia-queries-768d.vec'),
+  
+  ('https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip', 'glove.6B.zip'),
 ]
+
 USAGE= """
 Usage: python setup.py [-download]
 
@@ -86,18 +90,20 @@ def runSetup(download):
     print('localrun.py already exists - skipping')
     
   if download:
-    for filename, base_url in DATA_FILES:
-      url = base_url + '/' + filename
-      target_file = os.path.join(data_dir, filename)
+    for url_source, local_filename in DATA_FILES:
+      target_file = os.path.join(data_dir, local_filename)
       if os.path.exists(target_file):
-        print('file %s already exists - skipping' % (target_file))
+        print('file %s already exists - skipping' % target_file)
       else:
-        print('download ', url, ' - might take a long time!')
-        Downloader(url, target_file).download()
+        print('download %s to %s - might take a long time!' % (url_source, target_file))
+        Downloader(url_source, target_file).download()
         print('')
-        print('downloading %s to  %s done ' % (url, target_file))
-      if target_file.endswith('.bz2') or target_file.endswith('.lzma') or target_file.endswith('.zip'):
-        print('NOTE: make sure you decompress %s' % (target_file))
+        print('downloading %s to %s done ' % (url_source, target_file))
+
+      for suffix in ('.bz2', '.lzma', '.zip', '.xz'):
+        if target_file.endswith(suffix):
+          print('NOTE: make sure you decompress %s' % target_file)
+          break
 
   print('setup successful')
     

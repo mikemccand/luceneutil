@@ -21,8 +21,6 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.util.FixedBitSet;
 
-import java.util.Random;
-
 /**
  * Builds a FixedBitSet filter over the input docs to achieve:
  *  1. A filter cardinality = (selectivity)%
@@ -37,9 +35,8 @@ public class CorrelatedFilterBuilder {
 
     final private float selectivity;
     final private float targetCorrelation;
-    final private Random random;
 
-    public CorrelatedFilterBuilder(float selectivity, float targetCorrelation, Random random) {
+    public CorrelatedFilterBuilder(float selectivity, float targetCorrelation) {
         if (selectivity <= 0 || selectivity >= 1) {
             throw new IllegalArgumentException("selectivity must be between 0 and 1");
         }
@@ -49,7 +46,6 @@ public class CorrelatedFilterBuilder {
 
         this.selectivity = selectivity;
         this.targetCorrelation = targetCorrelation;
-        this.random = random;
     }
 
     /**
@@ -78,16 +74,22 @@ public class CorrelatedFilterBuilder {
         double stdDev = scoresStdDev(docs);
         final int filterCardinality = (int) (selectivity * n);
 
+        int worst1Ptr;
+        int best1Ptr;
         // Start with largest/smallest possible correlation by
         // setting the highest (for corr > 0) / lowest (for corr < 0) scored vectors
         if (targetCorrelation > 0) {
             for (int i = 0; i < filterCardinality; i++) {
                 filter.set(docs.scoreDocs[i].doc);
             }
+            worst1Ptr = filterCardinality - 1;
+            best1Ptr = 0;
         } else {
             for (int i = n - 1; i > n - 1 - filterCardinality; i--) {
                 filter.set(docs.scoreDocs[i].doc);
             }
+            worst1Ptr = n - 1;
+            best1Ptr = n - filterCardinality;
         }
 
         double currCorr = pointBiserialCorrelation(docs, filter, stdDev); // This will be the min/max correlation possible
@@ -102,51 +104,19 @@ public class CorrelatedFilterBuilder {
         // Attempt up to MAX_ITER flipping rounds
         for (int i = 0; i < MAX_ITER; i++) {
             FixedBitSet newFilter = filter.clone();
-            for (int j = 0; j < FLIP_BATCH_SIZE; j++) {
-                if (currCorr < weightedTargetCorr) {
-                    // Flip a random 1 from the 10 worst scores
-                    int onesToSkip = random.nextInt(10);
-                    int skippedOnes = 0;
-                    int k = n - 1;
-                    while (k > 0 && skippedOnes <= onesToSkip) {
-                        if (newFilter.get(docs.scoreDocs[k--].doc)) {
-                            skippedOnes++;
-                        }
-                    }
-                    newFilter.clear(docs.scoreDocs[k + 1].doc);
 
-                    // Flip a random 0 from the 10 best scores
-                    int zerosToSkip = random.nextInt(10);
-                    int skippedZeros = 0;
-                    k = 0;
-                    while (k < n - 1 && skippedZeros <= zerosToSkip) {
-                        if (!newFilter.get(docs.scoreDocs[k++].doc)) {
-                            skippedZeros++;
-                        }
-                    }
-                    newFilter.set(docs.scoreDocs[k - 1].doc);
-                } else {
-                    // Flip a random 1 from the 10 best scores
-                    int onesToSkip = random.nextInt(10);
-                    int skippedOnes = 0;
-                    int k = 0;
-                    while (k < n - 1 && skippedOnes <= onesToSkip) {
-                        if (newFilter.get(docs.scoreDocs[k++].doc)) {
-                            skippedOnes++;
-                        }
-                    }
-                    newFilter.clear(docs.scoreDocs[k - 1].doc);
-
-                    // Flip a random 0 from the 10 worst scores
-                    int zerosToSkip = random.nextInt(10);
-                    int skippedZeros = 0;
-                    k = n - 1;
-                    while (k > 0 && skippedZeros <= zerosToSkip) {
-                        if (!newFilter.get(docs.scoreDocs[k--].doc)) {
-                            skippedZeros++;
-                        }
-                    }
-                    newFilter.set(docs.scoreDocs[k + 1].doc);
+            int j = 0;
+            if (currCorr < weightedTargetCorr) {
+                // Shift the correlation up by flipping a batch of the worst 1s and worst 0s
+                while (j++ < FLIP_BATCH_SIZE) {
+                    newFilter.clear(docs.scoreDocs[worst1Ptr--].doc);
+                    newFilter.set(docs.scoreDocs[--best1Ptr].doc);
+                }
+            } else {
+                // Shift the correlation down by flipping a batch of the best 1s and best 0s
+                while (j++ < FLIP_BATCH_SIZE) {
+                    newFilter.clear(docs.scoreDocs[best1Ptr++].doc);
+                    newFilter.set(docs.scoreDocs[++worst1Ptr].doc);
                 }
             }
 

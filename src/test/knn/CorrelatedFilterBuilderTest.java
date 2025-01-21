@@ -60,7 +60,7 @@ public class CorrelatedFilterBuilderTest {
         Random random = new Random(42);
 
         CorrelatedFilterBuilder correlatedFilterBuilder = new CorrelatedFilterBuilder((float) targetSelectivity,
-                (float) targetCorr, random);
+                (float) targetCorr);
         TopDocs docs = generateTopDocs(numDocs, random);
         FixedBitSet filter = correlatedFilterBuilder.getCorrelatedFilter(docs);
         double stdDev = correlatedFilterBuilder.scoresStdDev(docs);

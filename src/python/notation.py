@@ -958,4 +958,8 @@ KNOWN_CHANGES = [
   ('2025-01-14',
    'Encode dense blocks of postings as bit sets. https://github.com/apache/lucene/pull/14133',
    'Encode dense blocks of postings as bit sets. https://github.com/apache/lucene/pull/14133'),
+
+  ('2025-01-23',
+   'Add a bias towards bit set encoding. https://github.com/apache/lucene/pull/14155',
+   'Add a bias towards bit set encoding. https://github.com/apache/lucene/pull/14155'),
 ]

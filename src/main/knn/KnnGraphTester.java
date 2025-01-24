@@ -588,7 +588,7 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("missing -docs arg");
           }
           if (correlation != 0) {
-            filterQueries = generateCorrelatedFilterQueries(queryPath, selectivity, correlation);
+            filterQueries = generateRandomCorrelatedFilterQueries(random, queryPath, selectivity, correlation);
           } else {
             sharedFilterQuery = selectivity == 1f ? new MatchAllDocsQuery() : generateRandomFilterQuery(random, indexPath, numDocs, selectivity);
           }
@@ -610,7 +610,7 @@ public class KnnGraphTester {
   }
 
   // For each query vector, generate a filter query with the given selectivity and correlation
-  private Query[] generateCorrelatedFilterQueries(Path queryPath, float selectivity, float correlation) throws IOException {
+  private Query[] generateRandomCorrelatedFilterQueries(Random random, Path queryPath, float selectivity, float correlation) throws IOException {
     Query[] filterQueries = new Query[numQueryVectors];
     log("computing correlated filters for " + numQueryVectors + " target vectors");
     long startNS = System.nanoTime();
@@ -618,7 +618,7 @@ public class KnnGraphTester {
          DirectoryReader docReader = DirectoryReader.open(dir);
          FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
       VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
-      knn.CorrelatedFilterBuilder correlatedFilterBuilder = new knn.CorrelatedFilterBuilder(selectivity, correlation);
+      knn.CorrelatedFilterBuilder correlatedFilterBuilder = new knn.CorrelatedFilterBuilder(docReader.numDocs(), selectivity, correlation);
 
       for (int i = 0; i < numQueryVectors; i++) {
         if ((i + 1) % 10 == 0) {
@@ -638,7 +638,7 @@ public class KnnGraphTester {
         BitSet[] segmentDocs = new BitSet[docReader.leaves().size()];
         for (var leafContext : docReader.leaves()) {
           // Generate a filter for this query vector's scores
-          FixedBitSet segmentBitSet = correlatedFilterBuilder.getCorrelatedFilter(topDocs);
+          FixedBitSet segmentBitSet = correlatedFilterBuilder.getCorrelatedFilter(topDocs, random);
           segmentDocs[leafContext.ord] = segmentBitSet;
         }
         // TODO: cache filters for subsequent runs (similar to readExactNN)

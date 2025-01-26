@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-//package knn;
+package knn;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
@@ -36,7 +36,7 @@ import org.apache.lucene.search.join.QueryBitSetProducer;
 import java.io.IOException;
 import java.util.List;
 
-import static KnnGraphTester.*;
+import static knn.KnnGraphTester.*;
 
 /** Exposes functions to directly invoke {@link DiversifyingChildrenFloatKnnVectorQuery#exactSearch}
  */

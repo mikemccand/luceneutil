@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-//package knn;
+package knn;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

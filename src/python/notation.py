@@ -962,4 +962,8 @@ KNOWN_CHANGES = [
   ('2025-01-23',
    'Add a bias towards bit set encoding. https://github.com/apache/lucene/pull/14155',
    'Add a bias towards bit set encoding. https://github.com/apache/lucene/pull/14155'),
+
+  ('2025-01-26',
+   'Not maintain docBufferUpTo when only docs needed. https://github.com/apache/lucene/pull/14164',
+   'Not maintain docBufferUpTo when only docs needed. https://github.com/apache/lucene/pull/14164'),
 ]

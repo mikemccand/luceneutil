@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-//package knn;
+package knn;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -88,6 +88,7 @@ import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
+import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;

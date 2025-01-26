@@ -46,8 +46,9 @@ DO_PROFILING = False
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-    'ndoc': (10_000_000,),
-    #'ndoc': (10000, 100000, 200000, 500000),
+#     'ndoc': (10_000_000,),
+#     'ndoc': (100_000,),
+    'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),
     #'ndoc': (1_000_000,),
@@ -70,14 +71,16 @@ PARAMS = {
     # 'metric': ('angular',),  # default is angular (dot_product)
     # 'metric': ('mip',),
     #'quantize': (True,),
-    'quantizeBits': (32,),
+#     'quantizeBits': (32,),
     #'fanout': (0,),
     'topK': (100,),
-    'bp': ('false', 'true'),
+#     'bp': ('false', 'true'),
+#     'bp': ('false'),
     #'quantizeCompress': (True, False),
-    'quantizeCompress': (True,),
+#     'quantizeCompress': (True,),
     'queryStartIndex': (0,),   # seek to this start vector before searching, to sample different vectors
-    'forceMerge': (True, False)
+#     'forceMerge': (True, False)
+#     'forceMerge': (False,)
     #'niter': (10,),
 }
 
@@ -85,7 +88,7 @@ def advance(ix, values):
     for i in reversed(range(len(ix))):
         # scary to rely on dict key enumeration order?  but i guess if dict never changes while we do this, it's stable?
         param = list(values.keys())[i]
-        #print("advance " + param)
+#         print("advance " + param)
         if type(values[param]) in (list, tuple) and ix[i] == len(values[param]) - 1:
             ix[i] = 0
         else:
@@ -116,14 +119,16 @@ def run_knn_benchmark(checkout, values):
 
     # Cohere dataset
     dim = 768
-    doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-    query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-    #parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+    doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
+    query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
+    parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
     jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
 
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f'{constants.BENCH_BASE_DIR}/build',))
     cmd = constants.JAVA_EXE.split(' ') + [
+#         '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005',
+#         '-ea',
         '-cp', cp,
         '--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
         '--enable-native-access=ALL-UNNAMED',
@@ -182,9 +187,9 @@ def run_knn_benchmark(checkout, values):
             '-search-and-stats', query_vectors,
             '-numIndexThreads', '8',
             #'-metric', 'mip',
-            # '-parentJoin', parentJoin_meta_file,
+            '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
-            '-forceMerge',
+#             '-forceMerge',
             #'-stats',
             #'-quiet'
         ]

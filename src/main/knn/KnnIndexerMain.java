@@ -17,7 +17,6 @@
 
 //package knn;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
@@ -39,8 +38,8 @@ public class KnnIndexerMain {
 
   public int docStartIndex = 0;
   boolean quiet = false;
-  boolean parentJoin = false;
-  Path parentJoinMetaFile = null;
+  KnnBenchmarkType benchmarkType = KnnBenchmarkType.DEFAULT;
+  Path metaDataFile = null;
   boolean useBp = false;
 
   @Override
@@ -79,8 +78,8 @@ public class KnnIndexerMain {
           case "-dimension" -> inputs.dimension = Integer.parseInt(args[++i]);
           case "-quiet" -> inputs.quiet = true;
           case "-parentjoin" -> {
-            inputs.parentJoin = true;
-            inputs.parentJoinMetaFile = Paths.get(args[++i]);
+            inputs.benchmarkType = KnnBenchmarkType.PARENT_JOIN;
+            inputs.metaDataFile = Paths.get(args[++i]);
           }
           default -> throw new IllegalArgumentException("Cannot recognize the option " + args[i]);
         }
@@ -106,7 +105,7 @@ public class KnnIndexerMain {
                    KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
                    numMergeThread, inputs.vectorEncoding,
                    inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet,
-                   inputs.parentJoin, inputs.parentJoinMetaFile, inputs.useBp).createIndex();
+                   inputs.benchmarkType, inputs.metaDataFile, inputs.useBp).createIndex();
 
     if (!inputs.quiet) {
       System.out.println("Successfully created index.");

@@ -404,6 +404,13 @@ public class KnnGraphTester {
           metaDataFilePath = Paths.get(args[++iarg]);
           benchmarkType = KnnBenchmarkType.PARENT_JOIN;
           break;
+        case "-multiVector":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-multiVector benchmark requires a following Path for metaDataFile");
+          }
+          metaDataFilePath = Paths.get(args[++iarg]);
+          benchmarkType = KnnBenchmarkType.MULTI_VECTOR;
+          break;
         case "-numIndexThreads":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-numIndexThreads requires a following int");
@@ -431,10 +438,10 @@ public class KnnGraphTester {
       indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
       log("Index Path = %s", indexPath);
     }
-    if (benchmarkType == KnnBenchmarkType.PARENT_JOIN
-        && reindex == false && isParentJoinIndex(indexPath) == false) {
-      throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
-          "document relationships. Rerun with -reindex or without -parentJoin argument");
+    if (benchmarkType != KnnBenchmarkType.DEFAULT
+        && reindex == false && checkIndexTag(indexPath, benchmarkType) == false) {
+      throw new IllegalArgumentException("Provided index: [" + indexPath + "] is not valid for " +
+          "benchmark: [" + benchmarkType + "]. Rerun with -reindex or a different benchmark option.");
     }
     if (randomSeed == null) {
       randomSeed = System.nanoTime();
@@ -639,8 +646,8 @@ public class KnnGraphTester {
     return INDEX_DIR + "/" + docsPath.getFileName() + "-" + String.join("-", suffix) + ".index";
   }
 
-  private boolean isParentJoinIndex(Path indexPath) {
-    return indexPath.toString().contains(KnnBenchmarkType.PARENT_JOIN.indexTag);
+  private boolean checkIndexTag(Path indexPath, KnnBenchmarkType benchmarkType) {
+    return indexPath.toString().contains(benchmarkType.indexTag);
   }
 
   @SuppressForbidden(reason = "Prints stuff")

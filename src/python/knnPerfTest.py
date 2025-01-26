@@ -47,8 +47,8 @@ DO_PROFILING = False
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
 #     'ndoc': (10_000_000,),
-#     'ndoc': (100_000,),
-    'ndoc': (10000, 100000, 200000, 500000),
+    'ndoc': (10_000,),
+#     'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),
     #'ndoc': (1_000_000,),

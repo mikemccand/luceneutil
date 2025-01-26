@@ -255,15 +255,16 @@ public class KnnIndexer {
         String[] line = metaReader.readLine().trim().split(",");
         currWikiId = line[0];
         String currParaId = line[1];
-        if (currWikiId.equals(prevWikiId) == false) {
+        if (!currWikiId.equals(prevWikiId)) {
           // add current document and create a new one
-          if (doc.getFields().isEmpty() == false) {
+          if (!"null".equals(prevWikiId)) {
             iw.addDocument(doc);
           }
           doc = new Document();
           doc.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
           doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
           vectorsInDoc = 0;
+          prevWikiId = currWikiId;
         }
         // add field to document
         switch (vectorEncoding) {

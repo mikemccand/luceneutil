@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package knn;
+//package knn;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -49,8 +49,8 @@ import org.apache.lucene.misc.index.BpVectorReorderer;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
-import static knn.KnnGraphTester.DOCTYPE_CHILD;
-import static knn.KnnGraphTester.DOCTYPE_PARENT;
+import static KnnGraphTester.DOCTYPE_CHILD;
+import static KnnGraphTester.DOCTYPE_PARENT;
 
 public class KnnIndexer {
   // use smaller ram buffer so we get to merging sooner, making better use of

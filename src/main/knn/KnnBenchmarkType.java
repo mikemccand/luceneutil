@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package knn;
+//package knn;
 
 public enum KnnBenchmarkType {
 

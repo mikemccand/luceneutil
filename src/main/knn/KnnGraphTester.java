@@ -932,7 +932,8 @@ public class KnnGraphTester {
         yield searcher.search(parentJoinQuery, k);
       }
       case MULTI_VECTOR -> {
-        yield new TopDocs(new TotalHits(0, TotalHits.Relation.EQUAL_TO), new ScoreDoc[0]);
+        MultiVectorBenchmarkKnnFloatQuery query = new MultiVectorBenchmarkKnnFloatQuery(field, vector, k);
+        yield searcher.search(query, k);
       }
     };
   }
@@ -1106,7 +1107,7 @@ public class KnnGraphTester {
         for (int i = 0; i < numQueryVectors; i++) {
           float[] query = queryReader.next().clone();
           if (benchmarkType != KnnBenchmarkType.DEFAULT) {
-            tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader));
+            tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader, benchmarkType));
           } else {
             tasks.add(new ComputeNNFloatTask(i, query, result, reader));
           }
@@ -1165,20 +1166,34 @@ public class KnnGraphTester {
     private final float[] query;
     private final int[][] result;
     private final IndexReader reader;
+    private final KnnBenchmarkType benchmarkType;
 
-    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader, KnnBenchmarkType benchmarkType) {
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
       this.reader = reader;
+      if (benchmarkType == KnnBenchmarkType.DEFAULT) {
+        throw new IllegalArgumentException("Allowed benchmarks are PARENT_JOIN and MULTI_VECTOR. benchmarkType passed: " + benchmarkType);
+      }
+      this.benchmarkType = benchmarkType;
     }
 
     @Override
     public Void call() {
       // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
       try {
-        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
-        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+        TopDocs topHits = switch (benchmarkType) {
+          case PARENT_JOIN -> {
+            ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
+            yield ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+          }
+          case MULTI_VECTOR -> {
+            MultiVectorBenchmarkKnnFloatQuery mvQuery = new MultiVectorBenchmarkKnnFloatQuery(KNN_FIELD, query, topK);
+            yield MultiVectorBenchmarkKnnFloatQuery.runExactSearch(reader, mvQuery);
+          }
+          case DEFAULT -> throw new IllegalStateException("DEFAULT benchmark not supported in this call path");
+        };
         StoredFields storedFields = reader.storedFields();
         result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
       } catch (IOException e) {

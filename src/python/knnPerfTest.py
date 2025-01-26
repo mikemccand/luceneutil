@@ -121,7 +121,7 @@ def run_knn_benchmark(checkout, values):
     dim = 768
     doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
     query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
-    parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+    meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
     jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
 
@@ -187,7 +187,8 @@ def run_knn_benchmark(checkout, values):
             '-search-and-stats', query_vectors,
             '-numIndexThreads', '8',
             #'-metric', 'mip',
-            '-parentJoin', parentJoin_meta_file,
+#             '-parentJoin', meta_file,
+            '-multiVector', meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
 #             '-forceMerge',
             #'-stats',

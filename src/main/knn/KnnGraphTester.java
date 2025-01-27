@@ -618,6 +618,10 @@ public class KnnGraphTester {
          DirectoryReader docReader = DirectoryReader.open(dir);
          FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
       VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+      int indexNumDocs = docReader.numDocs();
+      if (numDocs > indexNumDocs) {
+        throw new IllegalArgumentException("-ndocs must be <= the number of docs in the index");
+      }
       knn.CorrelatedFilterBuilder correlatedFilterBuilder = new knn.CorrelatedFilterBuilder(docReader.numDocs(), selectivity, correlation);
 
       for (int i = 0; i < numQueryVectors; i++) {

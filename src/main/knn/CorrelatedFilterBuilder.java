@@ -37,8 +37,8 @@ public class CorrelatedFilterBuilder {
         if (selectivity <= 0 || selectivity >= 1) {
             throw new IllegalArgumentException("selectivity must be in the range (0, 1)");
         }
-        if (correlation < -1 || correlation == 0 || correlation > 1) {
-            throw new IllegalArgumentException("correlation must be in the range: [-1, 0) V (0, 1]");
+        if (correlation < -1 || correlation > 1) {
+            throw new IllegalArgumentException("correlation must be in the range: [-1, 1]");
         }
         this.selectivity = selectivity;
         this.correlation = correlation;

@@ -41,6 +41,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
@@ -67,14 +68,14 @@ public class KnnIndexer {
   private final int docsStartIndex;
   private final int numIndexThreads;
   private final boolean quiet;
-  private final boolean parentJoin;
-  private final Path parentJoinMetaPath;
+  private final KnnBenchmarkType benchmarkType;
+  private final Path metaDataFilePath;
   private final boolean useBp;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
-                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp) {
+                    KnnBenchmarkType benchmarkType, Path metaDataFilePath, boolean useBp) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
     this.codec = codec;
@@ -85,8 +86,8 @@ public class KnnIndexer {
     this.numDocs = numDocs;
     this.docsStartIndex = docsStartIndex;
     this.quiet = quiet;
-    this.parentJoin = parentJoin;
-    this.parentJoinMetaPath = parentJoinMetaPath;
+    this.benchmarkType = benchmarkType;
+    this.metaDataFilePath = metaDataFilePath;
     this.useBp = useBp;
   }
 
@@ -107,6 +108,10 @@ public class KnnIndexer {
     // tmp.setSegmentsPerTier(5);
     if (useBp) {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));
+    }
+    if (benchmarkType != knn.KnnBenchmarkType.DEFAULT) {
+      log("disabling merges for multiVector and parentJoin benchmarks");
+      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     }
 
     ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
@@ -137,85 +142,24 @@ public class KnnIndexer {
       System.out.println((int) (docsPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " doc vectors in docsPath \"" + docsPath + "\"");
         
       VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, docsStartIndex);
-      log("parentJoin=%s", parentJoin);
-      if (parentJoin == false) {
-        ExecutorService exec = Executors.newFixedThreadPool(numIndexThreads);
-        AtomicInteger numDocsIndexed = new AtomicInteger();
-        List<Thread> threads = new ArrayList<>();
-        for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs);
-          t.setDaemon(true);
-          t.start();
-          threads.add(t);
-        }
-        for (Thread t : threads) {
-          t.join();
-        }
-      } else {
-        // TODO: multi-threaded!
-        // create parent-block join documents
-        try (BufferedReader br = Files.newBufferedReader(parentJoinMetaPath)) {
-          String[] headers = br.readLine().trim().split(",");
-          if (headers.length != 2) {
-            throw new IllegalStateException("Expected two columns in parentJoinMetadata csv. Found: " + headers.length);
+      log("benchmarkType = %s", benchmarkType);
+      switch (benchmarkType) {
+        case DEFAULT -> {
+          ExecutorService exec = Executors.newFixedThreadPool(numIndexThreads);
+          AtomicInteger numDocsIndexed = new AtomicInteger();
+          List<Thread> threads = new ArrayList<>();
+          for (int i=0;i<numIndexThreads;i++) {
+            Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs);
+            t.setDaemon(true);
+            t.start();
+            threads.add(t);
           }
-          log("Parent join metaFile columns: %s | %s", headers[0], headers[1]);
-          int childDocs = 0;
-          int parentDocs = 0;
-          int docIds = 0;
-          String prevWikiId = "null";
-          String currWikiId;
-          List<Document> block = new ArrayList<>();
-          do {
-            String[] line = br.readLine().trim().split(",");
-            currWikiId = line[0];
-            String currParaId = line[1];
-            Document doc = new Document();
-            switch (vectorEncoding) {
-            case BYTE -> doc.add(
-                                 new KnnByteVectorField(
-                                                        KnnGraphTester.KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
-            case FLOAT32 -> doc.add(
-                                    new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vectorReader.next(), fieldType));
-            }
-            doc.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
-            doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
-            doc.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, currParaId, Field.Store.YES));
-            doc.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_CHILD, Field.Store.NO));
-            childDocs++;
-
-            // Close block and create a new one when wiki article changes.
-            if (!currWikiId.equals(prevWikiId) && !"null".equals(prevWikiId)) {
-              Document parent = new Document();
-              parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
-              parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
-              parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
-              parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
-              block.add(parent);
-              iw.addDocuments(block);
-              parentDocs++;
-              // create new block for the next article
-              block = new ArrayList<>();
-              block.add(doc);
-            } else {
-              block.add(doc);
-            }
-            prevWikiId = currWikiId;
-            if (childDocs % 25000 == 0) {
-              log("indexed %d child documents, with %d parents", childDocs, parentDocs);
-            }
-          } while (childDocs < numDocs);
-          if (!block.isEmpty()) {
-            Document parent = new Document();
-            parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
-            parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
-            parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
-            parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
-            block.add(parent);
-            iw.addDocuments(block);
+          for (Thread t : threads) {
+            t.join();
           }
-          log("Indexed %d documents with %d parent docs. now flush", childDocs, parentDocs);
         }
+        case PARENT_JOIN -> indexParentChildDocs(iw, vectorReader, fieldType);
+        case MULTI_VECTOR -> indexMultiVectors(iw, vectorReader, fieldType);
       }
 
       // give merges a chance to kick off and finish:
@@ -229,6 +173,126 @@ public class KnnIndexer {
     long elapsed = System.nanoTime() - start;
     log("Indexed %d docs in %d seconds", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsed));
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
+  }
+
+  private void indexParentChildDocs(IndexWriter iw, VectorReader vectorReader, FieldType fieldType) throws IOException {
+    // TODO: make multi-threaded?
+    try (BufferedReader metaReader = Files.newBufferedReader(metaDataFilePath)) {
+      String[] headers = metaReader.readLine().trim().split(",");
+      if (headers.length != 2) {
+        throw new IllegalStateException("Expected two columns in Metadata csv. Found: " + headers.length);
+      }
+      log("Parent join metaFile columns: %s | %s", headers[0], headers[1]);
+      int childDocs = 0;
+      int parentDocs = 0;
+      int docIds = 0;
+      String prevWikiId = "null";
+      String currWikiId;
+      List<Document> block = new ArrayList<>();
+      do {
+        String[] line = metaReader.readLine().trim().split(",");
+        currWikiId = line[0];
+        String currParaId = line[1];
+        Document doc = new Document();
+        switch (vectorEncoding) {
+          case BYTE -> doc.add(
+              new KnnByteVectorField(
+                  KnnGraphTester.KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
+          case FLOAT32 -> doc.add(
+              new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vectorReader.next(), fieldType));
+        }
+        doc.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+        doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
+        doc.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, currParaId, Field.Store.YES));
+        doc.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_CHILD, Field.Store.NO));
+        childDocs++;
+
+        // Close block and create a new one when wiki article changes.
+        if (!currWikiId.equals(prevWikiId) && !"null".equals(prevWikiId)) {
+          Document parent = new Document();
+          parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+          parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
+          parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
+          parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
+          block.add(parent);
+          iw.addDocuments(block);
+          parentDocs++;
+          // create new block for the next article
+          block = new ArrayList<>();
+          block.add(doc);
+        } else {
+          block.add(doc);
+        }
+        prevWikiId = currWikiId;
+        if (childDocs % 25000 == 0) {
+          log("indexed %d child documents, with %d parents", childDocs, parentDocs);
+        }
+      } while (childDocs < numDocs);
+      if (!block.isEmpty()) {
+        Document parent = new Document();
+        parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+        parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
+        parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
+        parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
+        block.add(parent);
+        iw.addDocuments(block);
+      }
+      log("Indexed %d documents with %d parent docs. now flush", childDocs, parentDocs);
+    }
+  }
+
+  private void indexMultiVectors(IndexWriter iw, VectorReader vectorReader, FieldType fieldType) throws IOException {
+    // TODO: make multi-threaded?
+    try (BufferedReader metaReader = Files.newBufferedReader(metaDataFilePath)) {
+      String[] headers = metaReader.readLine().trim().split(",");
+      if (headers.length != 2) {
+        throw new IllegalStateException("Expected two columns in metadata csv. Found: " + headers.length);
+      }
+      log("metaFile columns: %s | %s", headers[0], headers[1]);
+      int docId = 0;
+      int minVectorsPerDoc = Integer.MAX_VALUE;
+      int maxVectorsPerDoc = Integer.MIN_VALUE;
+      int vectorsInDoc = 0;
+      String prevWikiId = "null";
+      String currWikiId;
+      Document doc = new Document();
+      for (int i = 0; i < numDocs; i++) {
+        String[] line = metaReader.readLine().trim().split(",");
+        currWikiId = line[0];
+        String currParaId = line[1];
+        if (!currWikiId.equals(prevWikiId)) {
+          // add current document and create a new one
+          if (!"null".equals(prevWikiId)) {
+            iw.addDocument(doc);
+          }
+          doc = new Document();
+          doc.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
+          doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
+          vectorsInDoc = 0;
+          prevWikiId = currWikiId;
+        }
+        // add field to document
+        switch (vectorEncoding) {
+          case BYTE -> doc.add(
+              new KnnByteVectorField(
+                  KnnGraphTester.KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
+          case FLOAT32 -> doc.add(
+              new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vectorReader.next(), fieldType));
+        }
+        vectorsInDoc++;
+        minVectorsPerDoc = Math.min(minVectorsPerDoc, vectorsInDoc);
+        maxVectorsPerDoc = Math.max(maxVectorsPerDoc, vectorsInDoc);
+        if (i % 25000 == 0) {
+          log("indexed %d vectors in %d docs. maxVectorsPerDoc = %d, minVectorsPerDoc = %d",
+              i, docId, maxVectorsPerDoc, minVectorsPerDoc);
+        }
+      }
+      // index the last doc
+      iw.addDocument(doc);
+      log("done indexing multivectors...");
+      log("\tindexed %d vectors in %d docs. maxVectorsPerDoc = %d, minVectorsPerDoc = %d",
+          numDocs, docId, maxVectorsPerDoc, minVectorsPerDoc);
+    }
   }
 
   private void log(String msg, Object... args) {

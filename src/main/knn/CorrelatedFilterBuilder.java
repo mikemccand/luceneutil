@@ -80,8 +80,7 @@ public class CorrelatedFilterBuilder {
             } else {
                 i = random.nextInt(n - filterCardinality, n);
             }
-            if (filter.get(docs.scoreDocs[i].doc)) {
-                filter.clear(docs.scoreDocs[i].doc);
+            if (filter.getAndClear(docs.scoreDocs[i].doc)) {
                 setRandomClearBit(filter, random);
                 flipped++;
             }

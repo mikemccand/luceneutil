@@ -47,8 +47,8 @@ DO_PROFILING = False
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
 #     'ndoc': (10_000_000,),
-    'ndoc': (10_000,),
-#     'ndoc': (10000, 100000, 200000, 500000),
+#     'ndoc': (10_000,),
+    'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),
     #'ndoc': (1_000_000,),
@@ -227,7 +227,7 @@ def run_knn_benchmark(checkout, values):
     print_fixed_width(all_results, skip_headers)
 
 def print_fixed_width(all_results, columns_to_skip):
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
+    header = 'recall\tlatency (ms)\tnVectors\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')

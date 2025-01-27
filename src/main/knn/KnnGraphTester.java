@@ -772,6 +772,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
       throws IOException {
+    int numVectors = numDocs;
     TopDocs[] results = new TopDocs[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
@@ -867,9 +868,10 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
+          numVectors,
           numDocs,
           topK,
           fanout,

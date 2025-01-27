@@ -41,6 +41,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
@@ -107,6 +108,10 @@ public class KnnIndexer {
     // tmp.setSegmentsPerTier(5);
     if (useBp) {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));
+    }
+    if (benchmarkType != knn.KnnBenchmarkType.DEFAULT) {
+      log("disabling merges for multiVector and parentJoin benchmarks");
+      iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     }
 
     ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();

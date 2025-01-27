@@ -47,9 +47,7 @@ DO_PROFILING = False
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
 #     'ndoc': (10_000_000,),
-#     'ndoc': (10_000,),
     'ndoc': (10000, 100000, 200000, 500000),
-    #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),
     #'ndoc': (1_000_000,),
     #'ndoc': (50_000,),
@@ -80,7 +78,6 @@ PARAMS = {
 #     'quantizeCompress': (True,),
     'queryStartIndex': (0,),   # seek to this start vector before searching, to sample different vectors
 #     'forceMerge': (True, False)
-#     'forceMerge': (False,)
     #'niter': (10,),
 }
 
@@ -127,8 +124,8 @@ def run_knn_benchmark(checkout, values):
 
     cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f'{constants.BENCH_BASE_DIR}/build',))
     cmd = constants.JAVA_EXE.split(' ') + [
-#         '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005',
-#         '-ea',
+#         '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005',  # attach debugger
+#         '-ea',  # enable asserts
         '-cp', cp,
         '--add-modules', 'jdk.incubator.vector',  # no need to add these flags -- they are on by default now?
         '--enable-native-access=ALL-UNNAMED',

@@ -19,10 +19,13 @@ package knn;
 
 public enum KnnBenchmarkType {
 
+  /** Default single valued knn vector search benchmark */
   DEFAULT(""),
 
+  /** MultiVector Benchmark: Uses parent-child block join index and query for multivalued vectors */
   PARENT_JOIN("parentJoin"),
 
+  /** MultiVector Benchmark: Uses multiVector query for multivalued vectors */
   MULTI_VECTOR("multiVector");
 
   public final String indexTag;

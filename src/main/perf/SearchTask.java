@@ -19,30 +19,40 @@ package perf;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.facet.FacetResult;
-import org.apache.lucene.facet.Facets;
-import org.apache.lucene.facet.FacetsCollector;
-import org.apache.lucene.facet.FacetsCollectorManager;
+import org.apache.lucene.facet.*;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
+import org.apache.lucene.facet.taxonomy.FacetLabel;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.FloatVectorValues;
+import org.apache.lucene.sandbox.facet.ComparableUtils;
+import org.apache.lucene.sandbox.facet.FacetFieldCollectorManager;
+import org.apache.lucene.sandbox.facet.cutters.TaxonomyFacetsCutter;
+import org.apache.lucene.sandbox.facet.iterators.ComparableSupplier;
+import org.apache.lucene.sandbox.facet.iterators.OrdinalIterator;
+import org.apache.lucene.sandbox.facet.iterators.TaxonomyChildrenOrdinalIterator;
+import org.apache.lucene.sandbox.facet.iterators.TopnOrdinalIterator;
+import org.apache.lucene.sandbox.facet.labels.TaxonomyOrdLabelBiMap;
+import org.apache.lucene.sandbox.facet.recorders.CountFacetRecorder;
 import org.apache.lucene.search.Collector;
+import org.apache.lucene.search.CollectorManager;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.MultiCollectorManager;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
+import org.apache.lucene.search.TopScoreDocCollectorManager;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.grouping.AllGroupsCollector;
 import org.apache.lucene.search.grouping.BlockGroupingCollector;
@@ -63,10 +73,7 @@ import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 final class SearchTask extends Task {
   private final String category;
@@ -90,11 +97,11 @@ final class SearchTask extends Task {
   private List<FacetResult> facetResults;
   private double hiliteMsec;
   private double getFacetResultsMsec;
-  private List<String> facetRequests;
+  private List<TaskParser.TaskBuilder.FacetTask> facetRequests;
   private String vectorField;
 
   public SearchTask(String category, boolean isCountOnly, Query q, Sort s, String group, int topN,
-                    boolean doHilite, boolean doStoredLoads, List<String> facetRequests,
+                    boolean doHilite, boolean doStoredLoads, List<TaskParser.TaskBuilder.FacetTask> facetRequests,
                     String vectorField, boolean doDrillSideways) {
     this.category = category;
     this.isCountOnly = isCountOnly;
@@ -152,7 +159,7 @@ final class SearchTask extends Task {
   @Override
   public void go(IndexState state, TaskParser taskParser) throws IOException {
     //System.out.println("go group=" + this.group + " single=" + singlePassGroup + " xxx=" + xxx + " this=" + this);
-    final IndexSearcher searcher = state.mgr.acquire();
+      final IndexSearcher searcher = state.mgr.acquire();
 
     //System.out.println("GO query=" + q);
 
@@ -213,75 +220,190 @@ final class SearchTask extends Task {
         if (state.facetsConfig == null) {
           throw new IllegalStateException("Missing facet config, cannot run facet requests");
         }
-        // TODO: support sort, filter too!!
-        // TODO: support other facet methods
         if (doDrillSideways) {
           // nocommit todo
           hits = null;
           facetResults = null;
-        } else if (q instanceof MatchAllDocsQuery) {
-          facetResults = new ArrayList<FacetResult>();
-          long t0 = System.nanoTime();
-          for(String request : facetRequests) {
-            if (request.startsWith("range:")) {
-              throw new AssertionError("fix me!");
-            } else if (request.endsWith(".taxonomy")) {
-              // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
-              Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request).indexFieldName, searcher.getIndexReader(), state.taxoReader, state.facetsConfig);
-              facetResults.add(facets.getTopChildren(10, request));
-            } else if (request.endsWith(".sortedset")) {
-              // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
-              SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request).indexFieldName);
-              SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState);
-              facetResults.add(facets.getTopChildren(10, request));
-            } else {
-              // should have been prevented higher up:
-              throw new AssertionError("unknown facet method \"" + state.facetFields.get(request) + "\"");
-            }
-          }
-          getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
         } else {
           facetResults = new ArrayList<FacetResult>();
-          FacetsCollectorManager.FacetsResult fr = FacetsCollectorManager.search(searcher, q, 10, new FacetsCollectorManager());
-          hits = fr.topDocs();
-          FacetsCollector fc = fr.facetsCollector();
-          long t0 = System.nanoTime();
-          for(String request : facetRequests) {
-            if (request.startsWith("range:")) {
-              int i = request.indexOf(':', 6);
-              if (i == -1) {
-                throw new IllegalArgumentException("range facets request \"" + request + "\" is missing field; should be range:field:0-10,10-20");
-              }
-              String field = request.substring(6, i);
-              String[] rangeStrings = request.substring(i+1, request.length()).split(",");
-              LongRange[] ranges = new LongRange[rangeStrings.length];
-              for(int rangeIDX=0;rangeIDX<ranges.length;rangeIDX++) {
-                String rangeString = rangeStrings[rangeIDX];
-                int j = rangeString.indexOf('-');
-                if (j == -1) {
-                  throw new IllegalArgumentException("range facets request should be X-Y; got: " + rangeString);
-                }
-                long start = Long.parseLong(rangeString.substring(0, j));
-                long end = Long.parseLong(rangeString.substring(j+1));
-                ranges[rangeIDX] = new LongRange(rangeString, start, true, end, true);
-              }
-              LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
-              facetResults.add(facets.getTopChildren(ranges.length, field));
-            } else if (request.endsWith(".taxonomy")) {
-              // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
-              Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request).indexFieldName, state.taxoReader, state.facetsConfig, fc);
-              facetResults.add(facets.getTopChildren(10, request));
-            } else if (request.endsWith(".sortedset")) {
-              // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
-              SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request).indexFieldName);
-              SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState, fc);
-              facetResults.add(facets.getTopChildren(10, request));
-            } else {
-              // should have been prevented higher up:
-              throw new AssertionError("unknown facet method \"" + state.facetFields.get(request) + "\"");
+          // TODO: support sort, filter too!!
+          // TODO: support other facet methods
+          List<TaskParser.TaskBuilder.FacetTask> classicFacetRequests = new ArrayList<>();
+          List<TaskParser.TaskBuilder.FacetTask> sandboxFacetRequests = new ArrayList<>();
+          for (TaskParser.TaskBuilder.FacetTask request : facetRequests) {
+            switch (request.facetMode()) {
+              case UNDEFINED:
+              case CLASSIC:
+                classicFacetRequests.add(request);
+                break;
+              case SANDBOX:
+                sandboxFacetRequests.add(request);
             }
           }
-          getFacetResultsMsec = (System.nanoTime() - t0)/1000000.0;
+          long t0 = System.nanoTime();
+          if (sandboxFacetRequests.isEmpty() == false) {
+            // TODO: once we have helper methods for easy sandbox facet use cases
+            //       lets use them to make this code shorter and less prone to errors
+            // TODO: sandbox facet module doesn't currently have methods to aggregate for all docs in the index.
+            //       if we see regression because of that, there might be something we can optimize in searcher/scorer
+            //       for MatchAllDocsQuery to make collection for all docs in the index faster?
+            Map<String, CountFacetRecorder> indexFieldToRecorder = new HashMap<>();
+            List<CollectorManager<? extends Collector, ?>> collectorManagers = new ArrayList<>();
+            // First collector manager in the list is to collect hits, but not for if MatchAllDocsQuery
+            if (q instanceof MatchAllDocsQuery == false) {
+              collectorManagers.add(new TopScoreDocCollectorManager(10, null, Integer.MAX_VALUE));
+            }
+            for (TaskParser.TaskBuilder.FacetTask request : sandboxFacetRequests) {
+              String indexFieldName;
+              // TODO: handle other types, not just taxonomy
+              if (request.dimension().endsWith(".taxonomy")) {
+                indexFieldName = state.facetsConfig.getDimConfig(request.dimension()).indexFieldName;
+                if (indexFieldToRecorder.containsKey(indexFieldName) == false) {
+                  TaxonomyFacetsCutter cutter = new TaxonomyFacetsCutter(indexFieldName, state.facetsConfig, state.taxoReader);
+                  CountFacetRecorder recorder = new CountFacetRecorder();
+                  collectorManagers.add(new FacetFieldCollectorManager<>(cutter, recorder));
+                  indexFieldToRecorder.put(indexFieldName, recorder);
+                }
+              } else {
+                // should have been prevented higher up:
+                throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
+              }
+            }
+            // TODO: optimize for when there is only one collector manager? Although there is some optimization in
+            // MultiCollector itself
+            MultiCollectorManager mainManager = new MultiCollectorManager(collectorManagers.toArray(new CollectorManager[0]));
+            Object[] results = searcher.search(q, mainManager);
+            if (q instanceof MatchAllDocsQuery == false) {
+              hits = (TopDocs) results[0];
+            }
+            for (TaskParser.TaskBuilder.FacetTask request : sandboxFacetRequests) {
+              FacetsConfig.DimConfig dimConfig = state.facetsConfig.getDimConfig(request.dimension());
+              String indexFieldName = dimConfig.indexFieldName;
+              CountFacetRecorder recorder = indexFieldToRecorder.get(indexFieldName);
+              ComparableSupplier<ComparableUtils.ByCountComparable> countComparable = ComparableUtils.byCount(recorder);
+              TaxonomyOrdLabelBiMap ordLabels = new TaxonomyOrdLabelBiMap(state.taxoReader);
+              OrdinalIterator ordinalIterator;
+              int[] ordinalsArray;
+              int dimensionValue = -1; // default can't compute
+              int childCount;
+              FacetLabel path;
+              if (request.dimension().endsWith(".taxonomy")) {
+                path = new FacetLabel(FacetsConfig.stringToPath(request.dimension()));
+                int dimOrdinal = ordLabels.getOrd(path);
+                ordinalIterator =
+                        new TaxonomyChildrenOrdinalIterator(
+                                recorder.recordedOrds(),
+                                state.taxoReader.getParallelTaxonomyArrays().parents(),
+                                dimOrdinal);
+                ordinalsArray = ordinalIterator.toArray();
+                // We need to convert intermediate ordinalIterator to array to get
+                // total child count.
+                childCount = ordinalsArray.length;
+                // Also need to get total value
+                // TODO: this logic should go to some helper method in the sandbox module...
+                if (dimConfig.multiValued) {
+                  if (dimConfig.requireDimCount) {
+                    dimensionValue = recorder.getCount(dimOrdinal);
+                  }
+                } else {
+                  if (dimConfig.hierarchical) {
+                    // already rolled up
+                    dimensionValue = recorder.getCount(dimOrdinal);
+                  } else {
+                    // rollup
+                    dimensionValue = 0;
+                    for (int ord : ordinalsArray) {
+                      dimensionValue += recorder.getCount(ord);
+                    }
+                  }
+                }
+                ordinalIterator = OrdinalIterator.fromArray(ordinalsArray);
+              } else {
+                // should have been prevented higher up:
+                throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
+              }
+              ordinalIterator =
+                      new TopnOrdinalIterator<>(ordinalIterator, countComparable, 10);
+              ordinalsArray = ordinalIterator.toArray();
+              FacetLabel[] labels = ordLabels.getLabels(ordinalsArray);
+              LabelAndValue[] labelsAndValues = new LabelAndValue[labels.length];
+              for (int i = 0; i < ordinalsArray.length; i++) {
+                labelsAndValues[i] = new LabelAndValue(labels[i].lastComponent(), recorder.getCount(ordinalsArray[i]));
+              }
+              facetResults.add(
+                      new FacetResult(
+                              path.components[0],
+                              Arrays.copyOfRange(path.components, 1, path.components.length),
+                              dimensionValue,
+                              labelsAndValues,
+                              childCount));
+            }
+          }
+          if (classicFacetRequests.isEmpty() == false) {
+            if (q instanceof MatchAllDocsQuery) {
+              for (TaskParser.TaskBuilder.FacetTask request : classicFacetRequests) {
+                if (request.dimension().startsWith("range:")) {
+                  throw new AssertionError("fix me!");
+                } else if (request.dimension().endsWith(".taxonomy")) {
+                  //if (true) throw new RuntimeException("fix me! " + request.dimension() + "; " + state.facetsConfig.getDimConfig(request.dimension()).indexFieldName);
+                  // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
+                  Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request.dimension()).indexFieldName, searcher.getIndexReader(), state.taxoReader, state.facetsConfig);
+                  FacetResult res = facets.getTopChildren(10, request.dimension());
+                  facetResults.add(res);
+                } else if (request.dimension().endsWith(".sortedset")) {
+                  // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
+                  SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request.dimension()).indexFieldName);
+                  SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState);
+                  facetResults.add(facets.getTopChildren(10, request.dimension()));
+                } else {
+                  // should have been prevented higher up:
+                  throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
+                }
+              }
+              getFacetResultsMsec = (System.nanoTime() - t0) / 1000000.0;
+            } else {
+              FacetsCollectorManager.FacetsResult fr = FacetsCollectorManager.search(searcher, q, 10, new FacetsCollectorManager());
+              hits = fr.topDocs();
+              FacetsCollector fc = fr.facetsCollector();
+              for (TaskParser.TaskBuilder.FacetTask facetRequest : classicFacetRequests) {
+                String request = facetRequest.dimension();
+                if (request.startsWith("range:")) {
+                  int i = request.indexOf(':', 6);
+                  if (i == -1) {
+                    throw new IllegalArgumentException("range facets request \"" + request + "\" is missing field; should be range:field:0-10,10-20");
+                  }
+                  String field = request.substring(6, i);
+                  String[] rangeStrings = request.substring(i + 1, request.length()).split(",");
+                  LongRange[] ranges = new LongRange[rangeStrings.length];
+                  for (int rangeIDX = 0; rangeIDX < ranges.length; rangeIDX++) {
+                    String rangeString = rangeStrings[rangeIDX];
+                    int j = rangeString.indexOf('-');
+                    if (j == -1) {
+                      throw new IllegalArgumentException("range facets request should be X-Y; got: " + rangeString);
+                    }
+                    long start = Long.parseLong(rangeString.substring(0, j));
+                    long end = Long.parseLong(rangeString.substring(j + 1));
+                    ranges[rangeIDX] = new LongRange(rangeString, start, true, end, true);
+                  }
+                  LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
+                  facetResults.add(facets.getTopChildren(ranges.length, field));
+                } else if (request.endsWith(".taxonomy")) {
+                  // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
+                  Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request).indexFieldName, state.taxoReader, state.facetsConfig, fc);
+                  facetResults.add(facets.getTopChildren(10, request));
+                } else if (request.endsWith(".sortedset")) {
+                  // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
+                  SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request).indexFieldName);
+                  SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState, fc);
+                  facetResults.add(facets.getTopChildren(10, request));
+                } else {
+                  // should have been prevented higher up:
+                  throw new AssertionError("unknown facet method \"" + state.facetFields.get(request) + "\"");
+                }
+              }
+            }
+          }
+          getFacetResultsMsec = (System.nanoTime() - t0) / 1000000.0;
         }
       } else if (s == null) {
         // no sort

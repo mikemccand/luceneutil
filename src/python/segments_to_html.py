@@ -5,6 +5,8 @@ import os
 import infostream_to_segments
 
 # TODO
+#   - try to work on mobile?
+#   - derive y_pix_per_level from whole_height and max(level)
 #   - maybe use svg not canvas?  d3js visualisation?
 #   - zoom in/out, x and y separately
 #   - sliding cursor showing segment count, which are alive, how many deletes, etc.
@@ -23,6 +25,7 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 '''
 
 USE_FABRIC = False
+USE_SVG = True
 
 def main():
 
@@ -40,74 +43,79 @@ def main():
   _l = []
   w = _l.append
 
-  canvas_width = 10 * 1024
-  canvas_height = 2048
+  whole_width = 10 * 1024
+  whole_height = 1024
 
-  w('<html>')
+  view_width = 2048
+  view_height = 1024
+
+  w('<html style="height:100%">')
   w('<head>')
-  w('<script src="https://cdn.jsdelivr.net/npm/fabric@latest/dist/index.min.js"></script>')
+  # w('<script src="https://cdn.jsdelivr.net/npm/fabric@latest/dist/index.min.js"></script>')
   w('</head>')
-  w('<body>')
-  w(f'<canvas id="it" style="border:1px solid #000000;" width={canvas_width} height={canvas_height}>')
-  w('</canvas>')
-  w('<script>')
-  w('// import { StaticCanvas, FabricText } from "fabric"')
-  w('import { Box, PlanarSet } from "@flatten-js/core";')
-  w('function mouse_over(e) {')
-  w('  alert("over: " + e.target);')
-  w('}')
-  w('function mouse_out(e) {')
-  w('  alert("out: " + e);')
-  w('}')
-  w('')
-  w('''
-function on_mouse_move(e) {
-  console.log("mouse move " + e.x + " " + e.y);
-  var rect = canvas.getBoundingClientRect();
-  var hits = ps.hit(Point(e.x + rect.left, e.y + rect.top));
-  console.log("  hits: " + hits);
-}
-  
-function show_segment_details(e) {
-  if (e != null && e.target != null) {
-    pointer = canvas.getPointer(e.e);
-    if (textbox != null) {
-      textbox.set({text: e.target.details,
-                   top: pointer.y,
-                   left: pointer.x});
-      canvas.renderAll();
-    } else {
-      textbox = new fabric.Textbox(e.target.details,
-                                   {left: pointer.x,
-                                    top: pointer.y,
-                                    fontSize: 24,
-                                    fontFamily: "Verdana"});
-      textbox.selectable = false;
-      textbox.editable = false;
-      canvas.add(textbox);
+  w('<body style="height:100%">')
+  if not USE_SVG:
+    w(f'<canvas id="it" style="border:1px solid #000000;" width={whole_width} height={whole_height}>')
+    w('</canvas>')
+    w('<script>')
+    # w('// import { StaticCanvas, FabricText } from "fabric"')
+    # w('import { Box, PlanarSet } from "@flatten-js/core";')
+    w('function mouse_over(e) {')
+    w('  alert("over: " + e.target);')
+    w('}')
+    w('function mouse_out(e) {')
+    w('  alert("out: " + e);')
+    w('}')
+    w('')
+    w('''
+  function on_mouse_move(e) {
+    console.log("mouse move " + e.x + " " + e.y);
+    var rect = canvas.getBoundingClientRect();
+    var hits = ps.hit(Point(e.x + rect.left, e.y + rect.top));
+    console.log("  hits: " + hits);
+  }
+
+  function show_segment_details(e) {
+    if (e != null && e.target != null) {
+      pointer = canvas.getPointer(e.e);
+      if (textbox != null) {
+        textbox.set({text: e.target.details,
+                     top: pointer.y,
+                     left: pointer.x});
+        canvas.renderAll();
+      } else {
+        textbox = new fabric.Textbox(e.target.details,
+                                     {left: pointer.x,
+                                      top: pointer.y,
+                                      fontSize: 24,
+                                      fontFamily: "Verdana"});
+        textbox.selectable = false;
+        textbox.editable = false;
+        canvas.add(textbox);
+      }
     }
   }
-}
-  ''')
+    ''')
   w('')
-  if USE_FABRIC:
+  if USE_SVG:
+    w(f'<div width=100% style="overflow:scroll;height:100%">')
+    w(f'<svg id="it" viewBox="0 0 {view_width} {view_height}" width={2*whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+  elif USE_FABRIC:
     w('var canvas = new fabric.Canvas(document.getElementById("it"));')
   else:
     w('var canvas = document.getElementById("it");')
     w('var ctx = canvas.getContext("2d");')
     w('canvas.addEventListener("mousemove", on_mouse_move, true);')
 
-  w('var textbox = null;')
-  w('// so we can intersect mouse point with boxes:')
-  w(f'var ps = new PlanarSet();')
+  #w('var textbox = null;')
+  #w('// so we can intersect mouse point with boxes:')
+  #w(f'var ps = new PlanarSet();')
 
   padding_x = 5
   padding_y = 2
 
-  x_pixels_per_sec = (canvas_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
+  x_pixels_per_sec = (whole_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
   y_pixels_per_log_mb = 1.3
-
-  y_pixels_per_level = 20
 
   # assign each new segment to a free level -- this is not how IndexWriter does it, but
   # it doesn't much matter what the order is.  e.g. TMP disregards segment order (treats
@@ -118,7 +126,10 @@ function show_segment_details(e) {
 
   segment_name_to_segment = {}
 
-  # segments come in order of their birth:
+  max_level = 0
+
+  # first pass to assign free level to each segment.  segments come in
+  # order of their birth:
   for segment in segments:
 
     assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
@@ -143,31 +154,62 @@ function show_segment_details(e) {
 
     segment_name_to_level[segment.name] = level
 
+    max_level = max(level, max_level)
+
+  y_pixels_per_level = whole_height / (1+max_level)
+
+  for segment in segments:
+    level = segment_name_to_level[segment.name]
     print(f'{(segment.start_time - start_abs_time).total_seconds()}')
 
     light_timestamp = None
     
-    for timestamp, event in segment.events:
+    for timestamp, event, line_number in segment.events:
       if event == 'light':
         light_timestamp = timestamp
 
-    x0 = padding_x + int(x_pixels_per_sec * (segment.start_time - start_abs_time).total_seconds())
+    x0 = padding_x + x_pixels_per_sec * (segment.start_time - start_abs_time).total_seconds()
     if segment.end_time is None:
       t1 = end_abs_time
     else:
       t1 = segment.end_time
-    x1 = int(x_pixels_per_sec * (t1 - start_abs_time).total_seconds())
+    x1 = x_pixels_per_sec * (t1 - start_abs_time).total_seconds()
 
-    height = min(y_pixels_per_level - padding_y, int(y_pixels_per_log_mb * math.log(segment.size_mb)))
+    height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.size_mb))
     height = max(2, height)
 
-    y1 = canvas_height - int(y_pixels_per_level * level)
+    y1 = whole_height - int(y_pixels_per_level * level)
     y0 = y1 - height
     if segment.source == 'flush':
       color = '#ff0000'
     else:
       color = '#0000ff'
-    if USE_FABRIC:
+    if USE_SVG:
+      w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0+1:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
+
+      # shade the time segment is being written, before it's lit:
+      if light_timestamp is not None:
+        x_light = x_pixels_per_sec * (light_timestamp - start_abs_time).total_seconds()
+
+        if color == '#ff0000':
+          new_color = '#ff8888'
+        else:
+          new_color = '#8888ff'
+        w(f'  <!--dawn:-->')
+        w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light-x0+1:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+
+      if segment.merged_into is not None:
+        # this segment was merged away eventually
+        if color == '#ff0000':
+          new_color = '#880000'
+        else:
+          new_color = '#000088'
+        next_merge_timestamp = segment.merged_into.start_time
+        x_next_merge = x_pixels_per_sec * (next_merge_timestamp - start_abs_time).total_seconds()
+        w(f'  <!--dusk:-->')
+        w(f'  <rect x={x_next_merge:.2f} y={y0:.2f} width={x1-x_next_merge+1:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+      
+    elif USE_FABRIC:
       w(f'var rect = new fabric.Rect({{left: {x0}, top: {y0}, width: {x1-x0+1}, height: {height}, fill: "{color}"}});')
       w('rect.selectable = false;')
       w(f'rect.details = "{segment.name}: {segment.size_mb:.2f} MB";')
@@ -209,7 +251,83 @@ function show_segment_details(e) {
         
   #w('canvas.on("mouse:over", show_segment_details);')
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')
-  w('</script>')  
+  if USE_SVG:
+    w('</svg>')
+    w('</div>')
+    w('''
+<script>
+    var highlighting = new Map();
+    function highlight(seg_name) {
+      if (!highlighting.has(seg_name)) {
+
+        // get the full segment (not dawn/dusk):
+        var rect2 = document.getElementById(seg_name);
+
+        var svgns = "http://www.w3.org/2000/svg";
+        var rect3 = document.createElementNS(svgns, "rect");
+        highlighting.set(seg_name, rect3);
+
+        rect3.setAttribute("id", seg_name + ":h");
+        rect3.setAttribute("x", rect2.x.baseVal.value);
+        rect3.setAttribute("y", rect2.y.baseVal.value);
+        rect3.setAttribute("width", rect2.width.baseVal.value);
+        rect3.setAttribute("height", rect2.height.baseVal.value);
+        rect3.setAttribute("fill", "cyan");
+        console.log("now append " + rect3);
+        mysvg.appendChild(rect3);
+      }
+    }
+
+    mysvg = document.getElementById("it");
+    mysvg.onmousemove = function(evt) {
+      // console.log("clientX=" + evt.clientX + " clientY=" + evt.clientY);
+      r = mysvg.getBoundingClientRect();
+      point = mysvg.createSVGPoint(); // Create an SVG point
+      // screen point within mysvg:
+      // console.log("sub " + r.left + " " + r.top);
+      point.x = evt.clientX - r.left;
+      point.y = evt.clientY - r.top;
+      transformedPoint = point.matrixTransform(mysvg.getScreenCTM());
+      // console.log("  SVG X:", transformedPoint.x, "SVG Y:", transformedPoint.y);
+      var now_highlight = new Set();
+      document.elementsFromPoint(evt.clientX, evt.clientY).forEach(function(element, index, array) {
+        if (element instanceof SVGRectElement) {
+          var seg_name = element.getAttribute("seg_name");
+          // must null-check because we will also select our newly added highlight rects!  weird recursion...
+          if (seg_name != null) {
+            now_highlight.add(seg_name);
+            if (seg_merge_map.has(seg_name)) {
+              // the hilited segment is a merge segment
+              console.log("  --> " + seg_merge_map.get(seg_name));
+            }
+          }
+        }
+      });
+
+      // it is safe to delete from map as long as I use this "let .. of" loop!?
+      for (let [seg_name, rect] of highlighting) {
+        if (!now_highlight.has(seg_name)) {
+          console.log("unhighlight " + seg_name);
+          mysvg.removeChild(rect);
+          highlighting.delete(seg_name);
+        }
+      }
+      for (let seg_name of now_highlight) {
+        console.log("highlight " + seg_name);
+        highlight(seg_name);
+      }
+    };
+</script>
+''')
+  else:
+    w('</script>')
+
+  w('<script>')
+  w('const seg_merge_map = new Map();')
+  for segment in segments:
+    if type(segment.source) is tuple and segment.source[0] == 'merge':
+      w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
+  w('</script>')
   w('</body>')
   w('</html>')
 

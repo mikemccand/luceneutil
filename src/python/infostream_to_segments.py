@@ -48,7 +48,7 @@ class Segment:
   # which segment this segment was merged into:
   merged_into = None
   
-  def __init__(self, name, source, max_doc, size_mb, start_time, end_time):
+  def __init__(self, name, source, max_doc, size_mb, start_time, end_time, start_infostream_line_number):
     # 'flush' or 'merge'
     Segment.all_segments.append(self)
     self.source = source
@@ -57,14 +57,15 @@ class Segment:
     self.max_doc = max_doc
     self.size_mb = size_mb
     self.start_time = start_time
+    self.start_infostream_line_number = start_infostream_line_number
     self.end_time = end_time
     # e.g. 'write_doc_values', 'write_knn', 'merging_started', 'add_deletes'...
     self.events = []
 
-  def add_event(self, timestamp, event):
+  def add_event(self, timestamp, event, infostream_line_number):
     if len(self.events) > 0 and timestamp < self.events[-1][0]:
       raise RuntimeError(f'events must append forwards in time: segment {self.name} has {self.events=} but new {event=} moves backwards?')
-    self.events.append((timestamp, event))
+    self.events.append((timestamp, event, infostream_line_number))
 
   def to_verbose_string(self, global_start_time):
     l = []
@@ -75,7 +76,7 @@ class Segment:
     if self.end_time is not None:
       l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime (merged into {self.merged_into.name})')
     l.append(f'  events:')
-    for ts, event in self.events:
+    for ts, event, line_number in self.events:
       l.append(f'    {(ts - self.start_time).total_seconds():.3f} sec: {event}')
     return '\n'.join(l)
 
@@ -169,7 +170,7 @@ def main():
           segment_name = '_' + m.group(3)
           max_doc = int(m.group(4))
 
-          segment = Segment(segment_name, 'flush', max_doc, None, timestamp, None)
+          segment = Segment(segment_name, 'flush', max_doc, None, timestamp, None, line_number)
           by_segment_name[segment_name] = segment
           assert thread_name not in by_thread_name, f'thread {thread_name} was already/still in by_thread_name?'
 
@@ -188,7 +189,7 @@ def main():
           segment = by_thread_name[thread_name]
 
           # TODO: hmm this is "off by one"?  it's when we finished writing XYZ?  i could subtract the msec from the timestamp maybe?
-          segment.add_event(timestamp, f'done write {index_part}')
+          segment.add_event(timestamp, f'done write {index_part}', line_number)
           continue
 
         m = re_new_segment_deleted_docs.match(line)
@@ -231,7 +232,7 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           segment_name = '_' + m.group(3)
-          by_segment_name[segment_name].add_event(timestamp, 'light')
+          by_segment_name[segment_name].add_event(timestamp, 'light', line_number)
           continue
         
         m = re_merge_start.match(line)
@@ -245,7 +246,7 @@ def main():
           
           print(f'{len(merging_segments)} merging segments in {m.group(4)}: {merging_segments}')
 
-          segment = Segment(segment_name, ('merge', merging_segment_names), None, None, timestamp, None)
+          segment = Segment(segment_name, ('merge', merging_segment_names), None, None, timestamp, None, line_number)
           by_segment_name[segment_name] = segment
           by_thread_name[thread_name] = segment
           continue
@@ -258,7 +259,7 @@ def main():
           part = m.group(4)
           max_doc = int(m.group(5))
           segment = by_thread_name[thread_name]
-          segment.add_event(timestamp, f'done merge {part}')
+          segment.add_event(timestamp, f'done merge {part}', line_number)
           if segment.max_doc is None:
             segment.max_doc = max_doc
           elif max_doc != segment.max_doc:
@@ -278,7 +279,7 @@ def main():
           elif max_doc != segment.max_doc:
             raise RuntimeError(f'merging segment {segment.name} sees different max_doc={segment.max_doc} vs {max_doc}')
           segment.size_mb = size_mb
-          segment.add_event(timestamp, f'done merge')
+          segment.add_event(timestamp, f'done merge', line_number)
           
         m = re_merge_commit.search(line)
         if m is not None:
@@ -286,7 +287,7 @@ def main():
           thread_name = m.group(2)
           segment = by_thread_name[thread_name]
           # TODO: also parse/verify the "index=" part of this line?  that we know all the segments in the index now?
-          segment.add_event(timestamp, 'light')
+          segment.add_event(timestamp, 'light', line_number)
 
           for segment_name in segment.source[1]:
             old_segment = by_segment_name[segment_name]

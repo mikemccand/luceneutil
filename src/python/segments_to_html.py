@@ -5,9 +5,17 @@ import os
 import infostream_to_segments
 
 # TODO
+#   - include "reason" in segs -- forceMerge, nrtReopen, commit/flush
+#   - maybe use D3?
+#   - get more interesting trace -- nrt?  deletions!
+#   - make sure we can handle infoStream on an already built index, i.e. pre-existing segments
+#     from before infoStream was turned on
+#   - hmm can I be more cautious in assigning segments to levels?  like leave lowest levels
+#     "intentionally" open for the big merged segments?
+#     - or ... try to put segments close in level if they were created close in time?
+#     - sort of a bin packing problem...
 #   - try to work on mobile?
 #   - derive y_pix_per_level from whole_height and max(level)
-#   - maybe use svg not canvas?  d3js visualisation?
 #   - zoom in/out, x and y separately
 #   - sliding cursor showing segment count, which are alive, how many deletes, etc.
 #   - mouse over merge segment should highlight segments it's merging
@@ -69,10 +77,10 @@ def main():
     w('')
     w('''
   function on_mouse_move(e) {
-    console.log("mouse move " + e.x + " " + e.y);
+    //console.log("mouse move " + e.x + " " + e.y);
     var rect = canvas.getBoundingClientRect();
     var hits = ps.hit(Point(e.x + rect.left, e.y + rect.top));
-    console.log("  hits: " + hits);
+    //console.log("  hits: " + hits);
   }
 
   function show_segment_details(e) {
@@ -87,7 +95,7 @@ def main():
         textbox = new fabric.Textbox(e.target.details,
                                      {left: pointer.x,
                                       top: pointer.y,
-                                      fontSize: 24,
+                                      fontSize: 12,
                                       fontFamily: "Verdana"});
         textbox.selectable = false;
         textbox.editable = false;
@@ -128,6 +136,8 @@ def main():
 
   max_level = 0
 
+  min_start_abs_time = None
+
   # first pass to assign free level to each segment.  segments come in
   # order of their birth:
   for segment in segments:
@@ -156,11 +166,14 @@ def main():
 
     max_level = max(level, max_level)
 
+    if min_start_abs_time is None or segment.start_time < min_start_abs_time:
+      min_start_abs_time = segment.start_time
+
   y_pixels_per_level = whole_height / (1+max_level)
 
   for segment in segments:
     level = segment_name_to_level[segment.name]
-    print(f'{(segment.start_time - start_abs_time).total_seconds()}')
+    print(f'{(segment.start_time - min_start_abs_time).total_seconds()}')
 
     light_timestamp = None
     
@@ -168,13 +181,16 @@ def main():
       if event == 'light':
         light_timestamp = timestamp
 
-    x0 = padding_x + x_pixels_per_sec * (segment.start_time - start_abs_time).total_seconds()
+    x0 = padding_x + x_pixels_per_sec * (segment.start_time - min_start_abs_time).total_seconds()
     if segment.end_time is None:
       t1 = end_abs_time
     else:
       t1 = segment.end_time
-    x1 = x_pixels_per_sec * (t1 - start_abs_time).total_seconds()
+    x1 = padding_x + x_pixels_per_sec * (t1 - min_start_abs_time).total_seconds()
 
+    if segment.size_mb is None:
+      raise RuntimeError(f'segment {segment.name} has size_mb=None')
+    
     height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.size_mb))
     height = max(2, height)
 
@@ -185,18 +201,18 @@ def main():
     else:
       color = '#0000ff'
     if USE_SVG:
-      w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0+1:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
+      w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
 
       # shade the time segment is being written, before it's lit:
       if light_timestamp is not None:
-        x_light = x_pixels_per_sec * (light_timestamp - start_abs_time).total_seconds()
+        x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
 
         if color == '#ff0000':
           new_color = '#ff8888'
         else:
           new_color = '#8888ff'
         w(f'  <!--dawn:-->')
-        w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light-x0+1:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+        w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light-x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
       if segment.merged_into is not None:
         # this segment was merged away eventually
@@ -205,9 +221,10 @@ def main():
         else:
           new_color = '#000088'
         next_merge_timestamp = segment.merged_into.start_time
-        x_next_merge = x_pixels_per_sec * (next_merge_timestamp - start_abs_time).total_seconds()
+        assert next_merge_timestamp < t1
+        x_next_merge = padding_x + x_pixels_per_sec * (next_merge_timestamp - min_start_abs_time).total_seconds()
         w(f'  <!--dusk:-->')
-        w(f'  <rect x={x_next_merge:.2f} y={y0:.2f} width={x1-x_next_merge+1:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+        w(f'  <rect x={x_next_merge:.2f} y={y0:.2f} width={x1-x_next_merge:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
       
     elif USE_FABRIC:
       w(f'var rect = new fabric.Rect({{left: {x0}, top: {y0}, width: {x1-x0+1}, height: {height}, fill: "{color}"}});')
@@ -229,7 +246,7 @@ def main():
 
       # shade the time segment is being written, before it's lit:
       if light_timestamp is not None:
-        x_light = int(x_pixels_per_sec * (light_timestamp - start_abs_time).total_seconds())
+        x_light = int(x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds())
 
         if color == '#ff0000':
           new_color = '#ff8888'
@@ -245,7 +262,8 @@ def main():
         else:
           new_color = '#000088'
         next_merge_timestamp = segment.merged_into.start_time
-        x_next_merge = int(x_pixels_per_sec * (next_merge_timestamp - start_abs_time).total_seconds())
+        assert next_merge_timestamp < t1
+        x_next_merge = int(x_pixels_per_sec * (next_merge_timestamp - min_start_abs_time).total_seconds())
         w(f'ctx.fillStyle = "{new_color}";')
         w(f'ctx.fillRect({x_next_merge}, {y0}, {x1-x_next_merge+1}, {height});')
         
@@ -257,7 +275,7 @@ def main():
     w('''
 <script>
     var highlighting = new Map();
-    function highlight(seg_name) {
+    function highlight(seg_name, color, do_seg_details, transformed_point) {
       if (!highlighting.has(seg_name)) {
 
         // get the full segment (not dawn/dusk):
@@ -265,31 +283,54 @@ def main():
 
         var svgns = "http://www.w3.org/2000/svg";
         var rect3 = document.createElementNS(svgns, "rect");
-        highlighting.set(seg_name, rect3);
 
-        rect3.setAttribute("id", seg_name + ":h");
+        // draw a new rect to "highlight"
+        highlighting.set(seg_name, rect3);
+        rect3.selectable = false;
+    
         rect3.setAttribute("x", rect2.x.baseVal.value);
         rect3.setAttribute("y", rect2.y.baseVal.value);
         rect3.setAttribute("width", rect2.width.baseVal.value);
         rect3.setAttribute("height", rect2.height.baseVal.value);
-        rect3.setAttribute("fill", "cyan");
-        console.log("now append " + rect3);
+        rect3.setAttribute("fill", color);
         mysvg.appendChild(rect3);
+
+        if (do_seg_details) {
+          var text = document.createElementNS(svgns, "text");
+
+          text.setAttribute("font-family", "Verdana");
+          text.setAttribute("font-size", "24");
+
+          highlighting.set(seg_name + ":t", text);
+          text.selectable = false;
+          text.textContent = seg_details_map.get(seg_name);
+          text.setAttribute("x", transformed_point.x);
+          text.setAttribute("y", transformed_point.y);
+          text.setAttribute("width", "200");
+          text.setAttribute("height", "200");
+          mysvg.appendChild(text);
+        }
       }
     }
 
     mysvg = document.getElementById("it");
     mysvg.onmousemove = function(evt) {
       // console.log("clientX=" + evt.clientX + " clientY=" + evt.clientY);
-      r = mysvg.getBoundingClientRect();
-      point = mysvg.createSVGPoint(); // Create an SVG point
+      // r = mysvg.getBoundingClientRect();
+      r = mysvg.getBBox();
+      //console.log("bbox is " + r);
+      point = mysvg.createSVGPoint();
       // screen point within mysvg:
       // console.log("sub " + r.left + " " + r.top);
-      point.x = evt.clientX - r.left;
-      point.y = evt.clientY - r.top;
-      transformedPoint = point.matrixTransform(mysvg.getScreenCTM());
-      // console.log("  SVG X:", transformedPoint.x, "SVG Y:", transformedPoint.y);
+      //point.x = evt.clientX - r.left;
+      //point.y = evt.clientY - r.top;
+      point.x = Math.max(20, evt.clientX + 20);
+      point.y = Math.max(20, evt.clientY - 20);
+      transformed_point = point.matrixTransform(mysvg.getScreenCTM().inverse());
+      // console.log("  SVG X:", transformed_point.x, "SVG Y:", transformed_point.y);
       var now_highlight = new Set();
+      var now_sub_highlight = new Set();
+      var merge_seg_name = null;
       document.elementsFromPoint(evt.clientX, evt.clientY).forEach(function(element, index, array) {
         if (element instanceof SVGRectElement) {
           var seg_name = element.getAttribute("seg_name");
@@ -298,23 +339,47 @@ def main():
             now_highlight.add(seg_name);
             if (seg_merge_map.has(seg_name)) {
               // the hilited segment is a merge segment
-              console.log("  --> " + seg_merge_map.get(seg_name));
+              merge_seg_name = seg_name;
+              //console.log("  --> " + seg_merge_map.get(seg_name));
+              // hrmph no .addAll for Set?
+              // now_sub_highlight.add(...seg_merge_map.get(seg_name));
+              for (let sub_seg_name of seg_merge_map.get(seg_name)) {
+                now_sub_highlight.add(sub_seg_name);
+              }
+              // console.log("  sub: " + JSON.stringify(now_sub_highlight, null, 2));
             }
           }
         }
       });
 
       // it is safe to delete from map as long as I use this "let .. of" loop!?
-      for (let [seg_name, rect] of highlighting) {
-        if (!now_highlight.has(seg_name)) {
-          console.log("unhighlight " + seg_name);
+      for (let [name, rect] of highlighting) {
+        var seg_name;
+        if (name.endsWith(":t")) {
+          seg_name = name.substring(0, name.length - 2);
+        } else {
+          seg_name = name;
+        }
+        if (!now_highlight.has(seg_name) && !now_sub_highlight.has(seg_name)) {
+          //console.log("unhighlight " + name);
           mysvg.removeChild(rect);
-          highlighting.delete(seg_name);
+          highlighting.delete(name);
         }
       }
       for (let seg_name of now_highlight) {
-        console.log("highlight " + seg_name);
-        highlight(seg_name);
+        //console.log("highlight " + seg_name);
+        var do_seg_details;
+        if (merge_seg_name != null) {
+          do_seg_details = seg_name == merge_seg_name;
+        } else {
+          do_seg_details = true;
+        }
+        highlight(seg_name, "cyan", do_seg_details, transformed_point);
+      }
+      // TODO: just use map w/ colors?
+      for (let seg_name of now_sub_highlight) {
+        // console.log("sub highlight " + seg_name);
+        highlight(seg_name, "orange", false, transformed_point);
       }
     };
 </script>
@@ -324,9 +389,18 @@ def main():
 
   w('<script>')
   w('const seg_merge_map = new Map();')
+  w('const seg_details_map = new Map();')
   for segment in segments:
     if type(segment.source) is tuple and segment.source[0] == 'merge':
       w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
+    details = f'{segment.name}:\n  {segment.size_mb:.1f} MB\n  {segment.max_doc} max_doc'
+    if segment.end_time is not None:
+      end_time = segment.end_time
+    else:
+      end_time = end_abs_time
+    details += f'\n  {(end_time - segment.start_time).total_seconds():.1f} sec'
+    w(f'seg_details_map.set("{segment.name}", {repr(details)});')
+    
   w('</script>')
   w('</body>')
   w('</html>')

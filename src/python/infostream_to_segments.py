@@ -42,6 +42,9 @@ class Segment:
   # finished/committed/was lit:
   born_del_count = None
 
+  # current deleted doc count
+  del_count = None
+
   # when this segment was lit (enrolled into in-memory segment infos)
   publish_timestamp = None
 
@@ -71,13 +74,17 @@ class Segment:
     l = []
     l.append(f'segment {self.name} ({self.source})')
     l.append(f'  max_doc={self.max_doc}')
+    if self.born_del_count is not None:
+      l.append(f'  born_del_count={self.born_del_count}')
+    if self.del_count is not None:
+      l.append(f'  del_count={self.del_count}')
     l.append(f'  {self.size_mb} MB')
     l.append(f'  created at {(self.start_time - global_start_time).total_seconds():.1f} sec')
     if self.end_time is not None and self.merged_into is not None:
       l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime (merged into {self.merged_into.name})')
     l.append(f'  events:')
     for ts, event, line_number in self.events:
-      l.append(f'    {(ts - self.start_time).total_seconds():.3f} sec: {event}')
+      l.append(f'    {(ts - self.start_time).total_seconds():.3f} sec: {event} [infostream line {line_number}]')
     return '\n'.join(l)
 
 def to_float(s):
@@ -129,7 +136,7 @@ def main():
   re_merge_start = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merge seg=_(.*?) (.*?)$')
 
   # e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
-  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(diagnostics=\{.*?\})\]:\[attributes=\{.*?\}\] :id=[0-9a-z]+?')
+  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(diagnostics=\{.*?\})\]:\[attributes=\{.*?\}\](:delGen=\d+)? :id=[0-9a-z]+?')
 
   # e.g.: SM 0 [2025-01-31T12:35:51.981685491Z; Lucene Merge Thread #2]: 13 ms to merge stored fields [497911 docs]
   re_msec_to_merge = re.compile(r'^SM \d+ \[([^;]+); (.*?)\]: (\d+) ms to merge (.*?) \[(\d+) docs\]$')
@@ -144,6 +151,8 @@ def main():
   re_now_checkpoint = re.compile(r'^IFD \d+ \[([^;]+); (.*?)\]: now checkpoint (.*?) \[(\d+) segments ; isCommit = false\]$')
 
   re_seg_size = re.compile(r'^MP \d+ \[([^;]+); (.*?)\]:\s+seg=_(.*?)\(.*? size=([0-9.]+) MB( \[floored])?$')
+
+  re_new_merge_deletes = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: (\d+) new deletes since merge started')
   
   line_number = 0
 
@@ -167,41 +176,54 @@ def main():
 
         m = re_now_checkpoint.match(line)
         if m is not None:
-          if first_checkpoint:
-            print(f'now parse first checkpoint')
-            # parse initial index segments (build on prior IW
-            # sessions) -- we don't know lifetime of these segments,
-            # so we just stack initially w/ canned lifetimes:
-            s = m.group(3)
-            timestamp = parse_timestamp(m.group(1))
-            num_segments_expected = int(m.group(4))
-            seg_count = 0
-            for tup in re_segment_desc.findall(m.group(3)):
-              # TODO: we could parse timestamp from diagnostics...
-              segment_name = '_' + tup[0]
-              max_doc = int(tup[2])
-              if tup[3] != '':
-                del_count = int(tup[3])
-              else:
-                del_count = 0
+          # print(f'parse checkpoint')
+          # parse initial index segments (build on prior IW
+          # sessions) -- we don't know lifetime of these segments,
+          # so we just stack initially w/ canned lifetimes:
+          s = m.group(3)
+          timestamp = parse_timestamp(m.group(1))
+          num_segments_expected = int(m.group(4))
+          seg_count = 0
+          seg_names = []
+          for tup in re_segment_desc.findall(m.group(3)):
+            # TODO: we could parse timestamp from diagnostics...
+            segment_name = '_' + tup[0]
+            max_doc = int(tup[2])
+            if tup[3] != '':
+              del_count = int(tup[3][1:])
+            else:
+              del_count = 0
 
-              diagnostics = tup[4]
-              if 'source=merge' in diagnostics:
-                source = ('merge', [])
-              elif 'source=flush' in diagnostics:
-                source = 'flush'
-              else:
-                raise RuntimeError(f'seg {seg_name}: a new source in {diagnostics}?')
+            diagnostics = tup[4]
+            if 'source=merge' in diagnostics:
+              source = ('merge', [])
+            elif 'source=flush' in diagnostics:
+              source = 'flush'
+            else:
+              raise RuntimeError(f'seg {seg_name}: a new source in {diagnostics}?')
 
-              segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), timestamp, line_number)
+            if first_checkpoint:
+              # seed the initial segments in the index
+              segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
+              global_start_time = segment.start_time
               # print(f'add initial segment {segment_name} {max_doc=} {del_count=}')
               by_segment_name[segment_name] = segment
-              seg_count += 1
+            else:
+              segment = by_segment_name[segment_name]
+              if del_count != segment.del_count:
+                assert segment.del_count is None or del_count > segment.del_count
+                # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
+                segment.add_event(timestamp, f'del_count {del_count}', line_number)
+                segment.del_count = del_count
+              
+            seg_count += 1
+            seg_names.append(segment_name)
 
-            if seg_count != num_segments_expected:
-              raise RuntimeError(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count}')
-            
-            first_checkpoint = False
+          if seg_count != num_segments_expected:
+            print(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count}: {seg_names}\n{line}')
+            raise RuntimeError(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count} {seg_names}')
+
+          first_checkpoint = False
           continue
 
         m = re_seg_size.match(line)
@@ -212,6 +234,8 @@ def main():
           if segment.size_mb is None:
             print(f'now set initial segment size for {segment_name} to {size_mb:.3f}')
             segment.size_mb = size_mb
+          if global_start_time is None:
+            global_start_time = timestamp
           continue
 
         m = re_timestamp_thread.search(line)
@@ -258,6 +282,7 @@ def main():
           del_count = int(m.group(3))
           segment = by_thread_name[thread_name]
           segment.born_del_count = del_count
+          segment.del_count = del_count
           continue
 
         m = re_new_flushed_size.match(line)
@@ -293,6 +318,13 @@ def main():
           segment_name = '_' + m.group(3)
           by_segment_name[segment_name].add_event(timestamp, 'light', line_number)
           continue
+
+        m = re_new_merge_deletes.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          by_thread_name[thread_name].born_del_count = int(m.group(3))
+          print(f'merged born del count {by_thread_name[thread_name].name} --> {by_thread_name[thread_name].born_del_count}')
         
         m = re_merge_start.match(line)
         if m is not None:
@@ -354,6 +386,7 @@ def main():
             if old_segment is not None:
               old_segment.end_time = timestamp
               old_segment.merged_into = segment
+              old_segment.add_event(timestamp, f'merged into {segment.name}', line_number)
           
       except KeyboardInterrupt:
         raise

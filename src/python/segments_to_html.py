@@ -51,17 +51,14 @@ def main():
   _l = []
   w = _l.append
 
-  whole_width = 10 * 1024
-  whole_height = 1024
-
-  view_width = 2048
-  view_height = 1024
+  whole_width = 25 * 1024
+  whole_height = 1800
 
   w('<html style="height:100%">')
   w('<head>')
   # w('<script src="https://cdn.jsdelivr.net/npm/fabric@latest/dist/index.min.js"></script>')
   w('</head>')
-  w('<body style="height:100%">')
+  w('<body style="height:100%; padding:0; margin:0">')
   if not USE_SVG:
     w(f'<canvas id="it" style="border:1px solid #000000;" width={whole_width} height={whole_height}>')
     w('</canvas>')
@@ -95,7 +92,7 @@ def main():
         textbox = new fabric.Textbox(e.target.details,
                                      {left: pointer.x,
                                       top: pointer.y,
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontFamily: "Verdana"});
         textbox.selectable = false;
         textbox.editable = false;
@@ -106,8 +103,9 @@ def main():
     ''')
   w('')
   if USE_SVG:
-    w(f'<div width=100% style="overflow:scroll;height:100%">')
-    w(f'<svg id="it" viewBox="0 0 {view_width} {view_height}" width={2*whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+    w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')
+    w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+    # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   elif USE_FABRIC:
     w('var canvas = new fabric.Canvas(document.getElementById("it"));')
   else:
@@ -122,8 +120,9 @@ def main():
   padding_x = 5
   padding_y = 2
 
+  print(f'{(end_abs_time - start_abs_time).total_seconds()} total seconds')
   x_pixels_per_sec = (whole_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
-  y_pixels_per_log_mb = 1.3
+  y_pixels_per_log_mb = 2
 
   # assign each new segment to a free level -- this is not how IndexWriter does it, but
   # it doesn't much matter what the order is.  e.g. TMP disregards segment order (treats
@@ -163,12 +162,14 @@ def main():
     level_to_live_segment[level] = segment
 
     segment_name_to_level[segment.name] = level
+    print(f'{segment.name} -> level {level}')
 
     max_level = max(level, max_level)
 
     if min_start_abs_time is None or segment.start_time < min_start_abs_time:
       min_start_abs_time = segment.start_time
 
+  print(f'{max_level=}')
   y_pixels_per_level = whole_height / (1+max_level)
 
   for segment in segments:
@@ -192,7 +193,7 @@ def main():
       raise RuntimeError(f'segment {segment.name} has size_mb=None')
     
     height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.size_mb))
-    height = max(2, height)
+    height = max(5, height)
 
     y1 = whole_height - int(y_pixels_per_level * level)
     y0 = y1 - height

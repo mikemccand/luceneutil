@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BinaryOperator;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -162,8 +161,8 @@ public class KnnGraphTester {
   private float selectivity;
   private boolean prefilter;
   private boolean randomCommits;
-  private boolean parentJoin;
-  private Path parentJoinMetaFile;
+  private KnnBenchmarkType benchmarkType;
+  private Path metaDataFilePath;
   private int numIndexThreads;
   // which query vector to seek to at the start
   private int queryStartIndex;
@@ -189,6 +188,7 @@ public class KnnGraphTester {
     quantizeCompress = false;
     numIndexThreads = 8;
     queryStartIndex = 0;
+    benchmarkType = KnnBenchmarkType.DEFAULT;
   }
 
   private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding) throws IOException {
@@ -397,10 +397,17 @@ public class KnnGraphTester {
           break;
         case "-parentJoin":
           if (iarg == args.length - 1) {
-            throw new IllegalArgumentException("-parentJoin requires a following Path for parentJoinMetaFile");
+            throw new IllegalArgumentException("-parentJoin benchmark requires a following Path for metaDataFile");
           }
-          parentJoinMetaFile = Paths.get(args[++iarg]);
-          parentJoin = true;
+          metaDataFilePath = Paths.get(args[++iarg]);
+          benchmarkType = KnnBenchmarkType.PARENT_JOIN;
+          break;
+        case "-multiVector":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-multiVector benchmark requires a following Path for metaDataFile");
+          }
+          metaDataFilePath = Paths.get(args[++iarg]);
+          benchmarkType = KnnBenchmarkType.MULTI_VECTOR;
           break;
         case "-numIndexThreads":
           if (iarg == args.length - 1) {
@@ -429,9 +436,10 @@ public class KnnGraphTester {
       indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
       log("Index Path = %s", indexPath);
     }
-    if (parentJoin && reindex == false && isParentJoinIndex(indexPath) == false) {
-      throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
-          "document relationships. Rerun with -reindex or without -parentJoin argument");
+    if (benchmarkType != KnnBenchmarkType.DEFAULT
+        && reindex == false && checkIndexTag(indexPath, benchmarkType) == false) {
+      throw new IllegalArgumentException("Provided index: [" + indexPath + "] is not valid for " +
+          "benchmark: [" + benchmarkType + "]. Rerun with -reindex or a different benchmark option.");
     }
     if (randomSeed == null) {
       randomSeed = System.nanoTime();
@@ -454,8 +462,8 @@ public class KnnGraphTester {
         numDocs,
         0,
         quiet,
-        parentJoin,
-        parentJoinMetaFile,
+        benchmarkType,
+        metaDataFilePath,
         useBp
       ).createIndex();
       System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec)));
@@ -632,14 +640,12 @@ public class KnnGraphTester {
         suffix.add("-compressed");
       }
     }
-    if (parentJoin) {
-      suffix.add("parentJoin");
-    }
+    suffix.add(benchmarkType.indexTag);
     return INDEX_DIR + "/" + docsPath.getFileName() + "-" + String.join("-", suffix) + ".index";
   }
 
-  private boolean isParentJoinIndex(Path indexPath) {
-    return indexPath.toString().contains("parentJoin");
+  private boolean checkIndexTag(Path indexPath, KnnBenchmarkType benchmarkType) {
+    return indexPath.toString().contains(benchmarkType.indexTag);
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -764,6 +770,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
       throws IOException {
+    int numVectors = numDocs;
     TopDocs[] results = new TopDocs[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
@@ -786,16 +793,18 @@ public class KnnGraphTester {
           IndexSearcher searcher = new IndexSearcher(reader);
           numDocs = reader.maxDoc();
           // warm up
+          log("warming up searchers...");
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
               doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
             } else {
               float[] target = targetReader.next();
-              doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
+              doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, benchmarkType);
             }
           }
           targetReader.reset();
+          log("starting benchmark...");
           startNS = System.nanoTime();
           cpuTimeStartNs = bean.getCurrentThreadCpuTime();
           for (int i = 0; i < numQueryVectors; i++) {
@@ -804,7 +813,7 @@ public class KnnGraphTester {
               results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
             } else {
               float[] target = targetReader.next();
-              results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
+              results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, benchmarkType);
             }
           }
           totalCpuTimeMS =
@@ -857,9 +866,10 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
+          numVectors,
           numDocs,
           topK,
           fanout,
@@ -899,20 +909,33 @@ public class KnnGraphTester {
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
   }
 
-  private static TopDocs doKnnVectorQuery(
-      IndexSearcher searcher, String field, float[] vector, int k, int fanout, boolean prefilter, Query filter, boolean isParentJoinQuery)
-      throws IOException {
-    if (isParentJoinQuery) {
-      ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
-      return searcher.search(parentJoinQuery, k);
-    }
-    ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
-    Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
+  private static TopDocs doKnnVectorQuery(IndexSearcher searcher,
+                                          String field,
+                                          float[] vector,
+                                          int k,
+                                          int fanout,
+                                          boolean prefilter,
+                                          Query filter,
+                                          KnnBenchmarkType benchmarkType) throws IOException {
+    return switch (benchmarkType) {
+      case DEFAULT -> {
+        ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
+        Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
             .add(profiledQuery, BooleanClause.Occur.MUST)
             .add(filter, BooleanClause.Occur.FILTER)
             .build();
-    TopDocs docs = searcher.search(query, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
+        TopDocs docs = searcher.search(query, k);
+        yield new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
+      }
+      case PARENT_JOIN -> {
+        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
+        yield searcher.search(parentJoinQuery, k);
+      }
+      case MULTI_VECTOR -> {
+        MultiVectorBenchmarkKnnFloatQuery query = new MultiVectorBenchmarkKnnFloatQuery(field, vector, k);
+        yield searcher.search(query, k);
+      }
+    };
   }
 
   private float checkResults(int[][] results, int[][] nn) {
@@ -947,7 +970,7 @@ public class KnnGraphTester {
    */
   private int[][] getExactNN(Path docPath, Path indexPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex), 36);
+    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), benchmarkType, queryStartIndex), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {
@@ -1055,7 +1078,7 @@ public class KnnGraphTester {
                 .add(filterQuery, BooleanClause.Occur.FILTER)
                 .build();
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+        result[queryOrd] = KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1071,11 +1094,11 @@ public class KnnGraphTester {
       throws IOException, InterruptedException {
     int[][] result = new int[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors");
-    log("parentJoin = %s", parentJoin);
+    log("benchmarkTupe = %s", benchmarkType);
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
       System.out.println("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
-      if (parentJoin) {
+      if (benchmarkType == KnnBenchmarkType.PARENT_JOIN) {
         CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
       }
       List<Callable<Void>> tasks = new ArrayList<>();
@@ -1083,8 +1106,8 @@ public class KnnGraphTester {
         VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
         for (int i = 0; i < numQueryVectors; i++) {
           float[] query = queryReader.next().clone();
-          if (parentJoin) {
-            tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader));
+          if (benchmarkType != KnnBenchmarkType.DEFAULT) {
+            tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader, benchmarkType));
           } else {
             tasks.add(new ComputeNNFloatTask(i, query, result, reader));
           }
@@ -1124,7 +1147,7 @@ public class KnnGraphTester {
                 .add(filterQuery, BooleanClause.Occur.FILTER)
                 .build();
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+        result[queryOrd] = KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1143,20 +1166,34 @@ public class KnnGraphTester {
     private final float[] query;
     private final int[][] result;
     private final IndexReader reader;
+    private final KnnBenchmarkType benchmarkType;
 
-    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader, KnnBenchmarkType benchmarkType) {
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
       this.reader = reader;
+      if (benchmarkType == KnnBenchmarkType.DEFAULT) {
+        throw new IllegalArgumentException("Allowed benchmarks are PARENT_JOIN and MULTI_VECTOR. benchmarkType passed: " + benchmarkType);
+      }
+      this.benchmarkType = benchmarkType;
     }
 
     @Override
     public Void call() {
       // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
       try {
-        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
-        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+        TopDocs topHits = switch (benchmarkType) {
+          case PARENT_JOIN -> {
+            ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
+            yield ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
+          }
+          case MULTI_VECTOR -> {
+            MultiVectorBenchmarkKnnFloatQuery mvQuery = new MultiVectorBenchmarkKnnFloatQuery(KNN_FIELD, query, topK);
+            yield MultiVectorBenchmarkKnnFloatQuery.runExactSearch(reader, mvQuery);
+          }
+          case DEFAULT -> throw new IllegalStateException("DEFAULT benchmark not supported in this call path");
+        };
         StoredFields storedFields = reader.storedFields();
         result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
       } catch (IOException e) {

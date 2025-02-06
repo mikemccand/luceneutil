@@ -198,6 +198,7 @@ def main():
     for timestamp, event, line_number in segment.events:
       if event == 'light':
         light_timestamp = timestamp
+        break
 
     x0 = padding_x + x_pixels_per_sec * (segment.start_time - min_start_abs_time).total_seconds()
     if segment.end_time is None:
@@ -238,12 +239,41 @@ def main():
           new_color = '#880000'
         else:
           new_color = '#000088'
-        next_merge_timestamp = segment.merged_into.start_time
-        assert next_merge_timestamp < t1
-        x_next_merge = padding_x + x_pixels_per_sec * (next_merge_timestamp - min_start_abs_time).total_seconds()
+        dusk_timestamp = segment.merged_into.start_time
+        assert dusk_timestamp < t1
+        x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
         w(f'  <!--dusk:-->')
-        w(f'  <rect x={x_next_merge:.2f} y={y0:.2f} width={x1-x_next_merge:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
-      
+        w(f'  <rect x={x_dusk:.2f} y={y0:.2f} width={x1-x_dusk:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+
+        light_timestamp2 = None
+        
+        for timestamp2, event2, line_number2 in segment.merged_into.events:
+          if event2 == 'light':
+            light_timestamp2 = timestamp2
+            break
+
+        if light_timestamp2 is not None:
+          merge_level = segment_name_to_level[segment.merged_into.name]
+
+          merge_height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.merged_into.size_mb))
+          merge_height = max(5, merge_height)
+
+          y1a = whole_height - int(y_pixels_per_level * merge_level) - merge_height
+
+          x_light_merge = padding_x + x_pixels_per_sec * (light_timestamp2 - min_start_abs_time).total_seconds()
+
+          # draw line segment linking segment into its merged segment
+          w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="darkgray" stroke-width="2" stroke-dasharray="20,20"/>')
+
+          if False:
+            w('var l = document.createElementNS("http://www.w3.org/2000/svg", "line");')
+            w(f'l.setAttribute("id", ");')
+            w(f'l.setAttribute("x1", {x_dusk});')
+            w(f'l.setAttribute("y1", {y0 + y_pixels_per_level/2});')
+            w(f'l.setAttribute("x2", {x_light_merge});')
+            w(f'l.setAttribute("y2", {y1a-y_pixels_per_level/2});')
+            w(f'mysvg.appendChild(l);')
+
     elif USE_FABRIC:
       w(f'var rect = new fabric.Rect({{left: {x0}, top: {y0}, width: {x1-x0+1}, height: {height}, fill: "{color}"}});')
       w('rect.selectable = false;')

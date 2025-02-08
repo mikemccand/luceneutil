@@ -1523,6 +1523,7 @@ def writeIndexHTML(searchChartData, days):
     writeOneLine(w, done, 'Wildcard', 'WildcardQuery')
     writeOneLine(w, done, 'Prefix3', 'PrefixQuery (3 leading characters)')
     writeOneLine(w, done, 'IntNRQ', 'Numeric range filtering on last-modified-datetime')
+    writeOneLine(w, done, 'IntSet', 'Numeric set filtering on last-modified-datetime')
 
     w('<br><br><b>Filtered queries where the filter matches 5% of the index:</b>')
     writeOneLine(w, done, 'FilteredTerm', 'Filtered term query')

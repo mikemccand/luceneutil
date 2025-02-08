@@ -488,6 +488,8 @@ class TaskParser implements Closeable {
           return parseDisjunctionMax();
         case "nrq":
           return parseNRQ();
+        case "intSet":
+          return parseIntSet();
         case "datetimesort":
           throw new IllegalArgumentException("use lastmodndvsort instead");
         case "titlesort":
@@ -621,6 +623,13 @@ class TaskParser implements Closeable {
       final int start = Integer.parseInt(text.substring(1+spot3, spot4));
       final int end = Integer.parseInt(text.substring(1+spot4));
       return IntPoint.newRangeQuery(nrqFieldName, start, end);
+    }
+
+    Query parseIntSet() {
+      // field num1 num2 num3 ...
+      final String[] splits = text.trim().split("\\s+");
+      return IntPoint.newSetQuery(splits[0],
+          Arrays.stream(splits).skip(1).mapToInt(Integer::parseInt).toArray());
     }
 
     Query parseOrderedQuery() {

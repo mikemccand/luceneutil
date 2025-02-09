@@ -16,6 +16,7 @@
 #
 
 import pickle
+import bisect
 import sys
 import re
 import os
@@ -59,6 +60,10 @@ class Segment:
   # finished/committed/was lit:
   born_del_count = None
 
+  # if this segment was produced by merge, the number of deleted docs that
+  # merge compacted away
+  del_count_reclaimed = None
+
   # current deleted doc count
   del_count = None
 
@@ -67,6 +72,13 @@ class Segment:
 
   # which segment this segment was merged into:
   merged_into = None
+
+  # None if this merge was not a merge-on-commit.  if it is, then this is a tuple ('success' | 'timeout', timedelta-in-seconds)
+  merge_during_commit = None
+
+  # how much RAM this (flushed) segment was using in IW's accounting
+  # when it was flushed (None for merged segments)
+  ram_used_mb = None
   
   def __init__(self, name, source, max_doc, size_mb, start_time, end_time, start_infostream_line_number):
     # 'flush' or 'merge'
@@ -87,21 +99,99 @@ class Segment:
       raise RuntimeError(f'events must append forwards in time: segment {self.name} has {self.events=} but new {event=} moves backwards?')
     self.events.append((timestamp, event, infostream_line_number))
 
+  def merge_event(self, timestamp, event, infostream_line_number):
+    '''
+    Like add_event, except the timestamp might be out of order, so we do insertion sort.
+    '''
+    insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])
+    self.events.insert(insert_at, (timestamp, event, infostream_line_number))
+
   def to_verbose_string(self, global_start_time):
     l = []
-    l.append(f'segment {self.name} ({self.source})')
+    s = f'segment {self.name}'
+    if self.source == 'flush':
+      s += ' (flush)'
+    elif self.merge_during_commit is not None:
+      s += ' (merge-on-commit: ' + ' '.join(self.source[1]) + ')'
+    else:
+      s += ' (merge: ' + ' '.join(self.source[1]) + ')'
+    l.append(s)
+    if self.merge_during_commit is not None:
+      if type(self.merge_during_commit) is tuple:
+        state, seconds = self.merge_during_commit
+        l.append(f'  merge-during-commit: {state} {seconds:.2f} sec')
+      else:
+        # could be a single int, if merge was still running at end of InfoStream
+        pass
+    if self.del_count_reclaimed is not None:
+      l.append(f'  del_count_reclaimed={self.del_count_reclaimed} ({100.*self.del_count_reclaimed/(self.max_doc + self.del_count_reclaimed):.1f}%)')
     l.append(f'  max_doc={self.max_doc}')
     if self.born_del_count is not None:
-      l.append(f'  born_del_count={self.born_del_count}')
+      l.append(f'  born_del_count={self.born_del_count} ({100.*self.born_del_count/self.max_doc:.1f}%)')
     if self.del_count is not None:
-      l.append(f'  del_count={self.del_count}')
-    l.append(f'  {self.size_mb} MB')
+      l.append(f'  final del_count={self.del_count} ({100.*self.del_count/self.max_doc:.1f}%)')
+    if self.source == 'flush':
+      if self.ram_used_mb is None:
+        # this can happen if InfoStream ends as a segment is flushing
+        # raise RuntimeError(f'flushed segment {self.name} is missing ramUsedMB')
+        l.append(f'  {self.size_mb} MB (?? efficiency)')
+      else:
+        l.append(f'  {self.size_mb} MB ({100*self.size_mb/self.ram_used_mb:.1f}% efficiency, ram_used_mb={self.ram_used_mb:.1f} MB)')
+    else:
+      l.append(f'  {self.size_mb} MB')
     l.append(f'  created at {(self.start_time - global_start_time).total_seconds():.1f} sec')
-    if self.end_time is not None and self.merged_into is not None:
-      l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime (merged into {self.merged_into.name})')
+    if self.end_time is not None:
+      if self.merged_into is not None:
+        l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime (merged into {self.merged_into.name})')
+      else:
+        l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime')
     l.append(f'  events:')
-    for ts, event, line_number in self.events:
-      l.append(f'    {(ts - self.start_time).total_seconds():.3f} sec: {event} [infostream line {line_number}]')
+    last_ts = self.start_time
+
+    # we subsample all delete flushes if there are too many...:
+    del_count_count = len([x for x in self.events if x[1].startswith('del_count ')])
+
+    if del_count_count > 0:
+      print_per_del = 9./del_count_count
+    else:
+      print_per_del = None
+
+    last_del_print = -1
+    del_inc = 0
+
+    # if we have too many del_count events, subsample which ones to
+    # print: always print first and last, but subsample in between
+    do_del_print = {}
+    last_del_index = None
+    for i, (ts, event, line_number) in enumerate(self.events):
+      if event.startswith('del_count '):
+        last_del_index = i
+        del_inc += print_per_del
+        if int(del_inc) == last_del_print:
+          # record that we skipped some del prints AFTER the prior one, so we
+          # can add ellipsis below:
+          do_del_print[last_del_print_index] = True
+          continue
+        do_del_print[i] = False
+        last_del_print = int(del_inc)
+        last_del_print_index = i
+
+    do_del_print[last_del_index] = False
+
+    for i, (ts, event, line_number) in enumerate(self.events):
+      is_del = event.startswith('del_count ')
+      if is_del:
+        count = int(event[10:])
+        event += f' ({100.*count/self.max_doc:.1f}%)'
+      s = f'+{(ts - last_ts).total_seconds():.2f}'
+
+      if not is_del or i in do_del_print:
+        s = f'    {s:>7s} s: {event} [line {line_number}]'
+        if is_del and do_del_print.get(i):
+          s += '...'
+        l.append(s)
+      last_ts = ts
+        
     return '\n'.join(l)
 
 def to_float(s):
@@ -153,10 +243,12 @@ def main():
   re_merge_start = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merge seg=_(.*?) (.*?)$')
 
   # e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
-  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(diagnostics=\{.*?\})\]:\[attributes=\{.*?\}\](:delGen=\d+)? :id=[0-9a-z]+?')
+  #   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
+  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=\{.*?\}\](:delGen=\d+)? :id=[0-9a-z]+?')
 
   # e.g.: SM 0 [2025-01-31T12:35:51.981685491Z; Lucene Merge Thread #2]: 13 ms to merge stored fields [497911 docs]
   re_msec_to_merge = re.compile(r'^SM \d+ \[([^;]+); (.*?)\]: (\d+) ms to merge (.*?) \[(\d+) docs\]$')
+  re_msec_to_build_docmaps = re.compile(r'^SM \d+ \[([^;]+); (.*?)\]: ([\d.]+) msec to build merge sorted DocMaps$')
 
   # e.g.: IW 0 [2025-01-31T12:35:58.899009723Z; Lucene Merge Thread #0]: merge codec=Lucene101 maxDoc=497858; merged segment has no vectors; norms; docValues; prox; freqs; points; 7.1 sec to merge segment [303.82 MB, 42.94 MB/sec]
   re_merge_finish = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merge codec=(.*?) maxDoc=(\d+);.*? \[([0-9.]+) MB, ([0-9.]+) MB/sec\]$')
@@ -170,6 +262,21 @@ def main():
   re_seg_size = re.compile(r'^MP \d+ \[([^;]+); (.*?)\]:\s+seg=_(.*?)\(.*? size=([0-9.]+) MB( \[floored])?$')
 
   re_new_merge_deletes = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: (\d+) new deletes since merge started')
+
+  # e.g.: IW 21247 [2025-02-07T18:17:42.621678574Z; GCR-Writer-1-thread-6]: now run merges during commit: MergeSpec:
+  re_merge_during_commit_start = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: now run merges during commit')
+
+  # e.g.: IW 21550 [2025-02-07T18:18:27.651937537Z; GCR-Writer-1-thread-6]: done waiting for merges during commit
+  re_merge_during_commit_end = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: done waiting for merges during commit')
+
+  # e.g.: MS 2366 [2025-02-07T17:47:09.669633693Z; GCR-Writer-1-thread-11]:     launch new thread [Lucene Merge Thread #12]
+  re_launch_new_merge_thread = re.compile(r'^MS \d+ \[([^;]+); (.*?)\]:\s+launch new thread \[(.*?)\]$')
+
+  # e.g.: DW 2593 [2025-02-07T17:48:03.090578058Z; GCR-Writer-1-thread-4]: startFullFlush
+  re_start_full_flush = re.compile(r'^DW \d+ \[([^;]+); (.*?)\]: startFullFlush$')
+
+  # e.g.: DW 2891 [2025-02-07T17:48:10.332403301Z; GCR-Writer-1-thread-4]: GCR-Writer-1-thread-4 finishFullFlush success=true
+  re_end_full_flush = re.compile(r'^DW \d+ \[([^;]+); (.*?)\]: .*?finishFullFlush success=true$')
   
   line_number = 0
 
@@ -179,7 +286,16 @@ def main():
   # the first time we see checkpoint we gather all pre-existing
   # segments and carefully initialize them:
   first_checkpoint = True
-  
+
+  # each entry is [start_time, end_time]
+  merge_during_commit_events = []
+  full_flush_events = []
+
+  # counter (generation) of which merge-during-commit event we are in, or None if
+  # we are not currently commit-merging
+  merge_on_commit_thread_name = None
+  merge_commit_threads = None
+
   with open(infostream_log, 'r') as f:
     while True:
       line = f.readline()
@@ -211,13 +327,13 @@ def main():
             else:
               del_count = 0
 
-            diagnostics = tup[4]
+            diagnostics = tup[5]
             if 'source=merge' in diagnostics:
               source = ('merge', [])
             elif 'source=flush' in diagnostics:
               source = 'flush'
             else:
-              raise RuntimeError(f'seg {seg_name}: a new source in {diagnostics}?')
+              raise RuntimeError(f'seg {segment_name}: a new source in {diagnostics}?')
 
             if first_checkpoint:
               # seed the initial segments in the index
@@ -314,6 +430,7 @@ def main():
           segment = by_segment_name[segment_name]
           assert segment == by_thread_name[thread_name]
           segment.size_mb = new_flushed_size_mb
+          segment.ram_used_mb = ram_used_mb
           continue
 
         m = re_flush_time.search(line)
@@ -342,6 +459,7 @@ def main():
           thread_name = m.group(2)
           by_thread_name[thread_name].born_del_count = int(m.group(3))
           print(f'merged born del count {by_thread_name[thread_name].name} --> {by_thread_name[thread_name].born_del_count}')
+          continue
         
         m = re_merge_start.match(line)
         if m is not None:
@@ -352,10 +470,32 @@ def main():
           # TODO: pull out other stuff, like compound or not, number of deletions, etc.
           merging_segments = re_segment_desc.findall(m.group(4))
           merging_segment_names = [f'_{x[0]}' for x in merging_segments]
+
+          # how many deletes this merge reclaims:
+          del_count_reclaimed = 0
+          sum_max_doc = 0
+          for tup in merging_segments:
+            max_doc = int(tup[2])
+            sum_max_doc += max_doc
+            del_count = tup[3]
+            if len(del_count) > 0:
+              del_count_reclaimed += int(del_count[1:])
           
-          print(f'{len(merging_segments)} merging segments in {m.group(4)}: {merging_segments}')
+          # print(f'{len(merging_segments)} merging segments in {m.group(4)}: {merging_segments}')
 
           segment = Segment(segment_name, ('merge', merging_segment_names), None, None, timestamp, None, line_number)
+          segment.sum_max_doc = sum_max_doc
+          segment.del_count_reclaimed = del_count_reclaimed
+
+          if len(merge_during_commit_events) > 0 and merge_during_commit_events[-1][1] is None:
+            # ensure this merge kickoff was really due to a merge-on-commit merge request:
+            print(f'check {thread_name} vs {merge_commit_threads}')
+            if thread_name in merge_commit_threads:
+              print(f'MOC: YES {line_number}')
+              segment.merge_during_commit = len(merge_during_commit_events)
+            else:
+              print(f'MOC: NO {line_number}')
+              segment.merge_during_commit = None
           by_segment_name[segment_name] = segment
           by_thread_name[thread_name] = segment
           continue
@@ -371,9 +511,21 @@ def main():
           segment.add_event(timestamp, f'done merge {part}', line_number)
           if segment.max_doc is None:
             segment.max_doc = max_doc
+            if max_doc != segment.sum_max_doc - segment.del_count_reclaimed:
+              raise RuntimeError(f'segment {segment.name} has wrong count sums?  {segment.max_doc=} {segment.sum_max_doc=} {segment.del_count_reclaimed=}')
           elif max_doc != segment.max_doc:
             raise RuntimeError(f'merging segment {segment.name} sees different max_doc={segment.max_doc} vs {max_doc}')
+          continue
 
+        m = re_msec_to_build_docmaps.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          msec = float(m.group(3))
+          segment = by_thread_name[thread_name]
+          segment.add_event(timestamp, 'build merge sorted DocMaps', line_number)
+          continue
+        
         m = re_merge_finish.search(line)
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
@@ -389,6 +541,7 @@ def main():
             raise RuntimeError(f'merging segment {segment.name} sees different max_doc={segment.max_doc} vs {max_doc}')
           segment.size_mb = size_mb
           segment.add_event(timestamp, f'done merge', line_number)
+          continue
           
         m = re_merge_commit.search(line)
         if m is not None:
@@ -397,13 +550,72 @@ def main():
           segment = by_thread_name[thread_name]
           # TODO: also parse/verify the "index=" part of this line?  that we know all the segments in the index now?
           segment.add_event(timestamp, 'light', line_number)
+          if segment.merge_during_commit is not None:
+            if segment.merge_during_commit == len(merge_during_commit_events) and merge_during_commit_events[-1][1] is None:
+              # merge commit finished in time!
+              segment.merge_during_commit = ('success', (timestamp - merge_during_commit_events[-1][0]).total_seconds())
+            else:
+              segment.merge_during_commit = ('timeout', (timestamp - merge_during_commit_events[segment.merge_during_commit-1][0]).total_seconds())
 
           for segment_name in segment.source[1]:
             old_segment = by_segment_name.get(segment_name)
             if old_segment is not None:
               old_segment.end_time = timestamp
               old_segment.merged_into = segment
+              old_segment.merge_event(segment.start_time, f'start merge into {segment.name}', line_number)
               old_segment.add_event(timestamp, f'merged into {segment.name}', line_number)
+            else:
+              raise RuntimeError(f'cannot find segment {segment_name} for merge?')
+          continue
+
+        m = re_merge_during_commit_start.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          print(f'MOC: start {thread_name} {line_number}')
+          merge_during_commit_events.append([timestamp, None])
+          merge_on_commit_thread_name = thread_name
+          merge_commit_threads = set()
+          continue
+        
+        m = re_launch_new_merge_thread.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          new_merge_thread_name = m.group(3)
+          print(f'got launch new thread {thread_name} and {new_merge_thread_name}')
+          if thread_name == merge_on_commit_thread_name and (len(merge_during_commit_events) > 0 and merge_during_commit_events[-1][1] is None):
+            # so we know, for certain, that the merged kicked off during a merge-on-commit window
+            # really came from the merge-on-commit thread
+            merge_commit_threads.add(new_merge_thread_name)
+          continue
+
+        m = re_merge_during_commit_end.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          print(f'MOC: end {thread_name} {line_number}')
+
+          merge_on_commit_thread_name = None
+          merge_commit_threads = None
+          
+          merge_during_commit_events[-1][1] = timestamp
+          continue
+
+        m = re_start_full_flush.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          full_flush_events.append([timestamp, None])
+          continue
+
+        m = re_end_full_flush.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          assert full_flush_events[-1][1] is None
+          full_flush_events[-1][1] = timestamp
+          continue
           
       except KeyboardInterrupt:
         raise
@@ -413,8 +625,11 @@ def main():
 
   for segment in Segment.all_segments:
     print(f'\n{segment.name}:\n{segment.to_verbose_string(global_start_time)}')
+    if segment.end_time is None:
+      print(f'set end_time for segment {segment.name} to global end time')
+      segment.end_time = global_end_time
 
-  open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments)))
+  open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events)))
   print(f'wrote {len(Segment.all_segments)} segments to "{segments_out}": {os.path.getsize(segments_out)/1024/1024:.1f} MB')
 
 if __name__ == '__main__':

@@ -21,7 +21,48 @@ import sys
 import os
 import infostream_to_segments
 
+# pip3 install intervaltree
+import intervaltree
+
 # TODO
+#   - count/report CFS stats too
+#   - hmm add click handler to jump back to merge input segments (_1gu -> _20r)
+#   - handle multiple IW sessions
+#   - add colored bands during full flush / merge commit wait / etc.
+#   - add flush reason to segment source
+#   - why IW/SM static counters so high?
+#   - maybe produce an overall summary of indexing "behavior"?
+#     - how many merge-on-commits finished in the window
+#     - how many concurrent flushes/merges w/ time
+#     - the bandwidth number
+#     - deletes rate vs merge rate
+#     - merge lopsidedness, range of number of segments merged, merge selection "efficiency"
+#     - net write amplification
+#     - update vs delete vs append rate
+#   - pop out nice graphs showing stuff over time, linking out to lines in InfoStream
+#     - merge del reclaim efficiency (% deletes reclaimed)
+#     - size of index, % deletes
+#     - full-flush and how long they took / how many segments / bytes
+#     - indexing rate
+#     - io write rate
+#     - write amp;lification
+#     - nujmber of thresds/segments flushing/merging
+#     - ram -> segment size efficiency of flush
+#   - am i pulling born deleted correctly for flushed segments?
+#   - also report on how much HNSW concurrency is in use
+#   - extract commit times too
+#     - and maybe attach flush reassons?  flush-on-ram, on-nrt, commit
+#   - hmm how to view the "full" geneology of one segment -- it is always a "full" tree down to original roots (flushed segments)
+#   - enable simple x zoom
+#   - can we indicate how unbalanced each merge is somehow?
+#   - track "merge efficiency" (how unbalanced)
+#   - add x-cursor showing current time
+#   - can we track the usefulness of merging, how long it's "in service" before being merged away, vs its dawn (how long it took to produce)
+#   - hmm maybe add an overlaid line chart showing badnwdith used from merging/flushingx
+#   - get mouseover working for the gray merge lines too
+#   - have deletes gradually make segment lighter and lighter?
+#   - improved 2D bin packing?
+#   - maybe make merge connection lines thicker the higher the "level" of the merge?
 #   - include "reason" in segs -- forceMerge, nrtReopen, commit/flush
 #   - maybe use D3?
 #   - get more interesting trace -- nrt?  deletions!
@@ -38,8 +79,6 @@ import infostream_to_segments
 #   - mouse over merge segment should highlight segments it's merging
 #   - ooh link to the line number in infoStream.log so we can jump to the right place for debugging
 
-# Flatten.PlanarSet tutorial: https://observablehq.com/@alexbol99/flattenjs-tutorials-planar-set
-
 # so pickle is happy
 Segment = infostream_to_segments.Segment
 
@@ -52,6 +91,32 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 USE_FABRIC = False
 USE_SVG = True
 
+def compute_bandwidth_by_time(segments, start_abs_time, end_abs_time):
+
+  # single list that mixes end and start times
+  all_times = []
+  for segment in segments:
+    if segment.end_time is None or segment.size_mb is None:
+      # InfoStream ends before merge finished
+      continue
+    all_times.append((segment.start_time, segment))
+    all_times.append((segment.end_time, segment))
+
+  all_times.sort(key=lambda x: x[0])
+
+  # TODO: how to plot this?
+  bw = 0
+  for time, segment in all_times:
+    # MB/sec written by this merge
+    mbs_for_merge = segment.size_mb / (segment.end_time - segment.start_time).total_seconds()
+    if time == segment.start_time:
+      bw += mbs_for_merge
+    else:
+      bw -= mbs_for_merge
+    
+    # print(f'{(time - start_abs_time).total_seconds():6.1f} sec: {bw:.1f} MB/sec')
+    print(f'{(time - start_abs_time).total_seconds():6.1f}\t{bw:.1f}')
+
 def main():
 
   if len(sys.argv) != 3:
@@ -62,73 +127,35 @@ def main():
   if os.path.exists(html_file_out):
     raise RuntimeError(f'please remove {html_file_out} first')
 
-  start_abs_time, end_abs_time, segments = pickle.load(open(segments_file_in, 'rb'))
+  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events = pickle.load(open(segments_file_in, 'rb'))
   print(f'{len(segments)} segments spanning {(segments[-1].start_time-segments[0].start_time).total_seconds()} seconds')
-  
+
+  compute_bandwidth_by_time(segments, start_abs_time, end_abs_time)
+    
   _l = []
   w = _l.append
 
-  whole_width = 25 * 1024
+  whole_width = 100 * 1024
   whole_height = 1800
 
   w('<html style="height:100%">')
   w('<head>')
   # w('<script src="https://cdn.jsdelivr.net/npm/fabric@latest/dist/index.min.js"></script>')
   w('</head>')
-  w('<body style="height:100%; padding:0; margin:0">')
-  if not USE_SVG:
-    w(f'<canvas id="it" style="border:1px solid #000000;" width={whole_width} height={whole_height}>')
-    w('</canvas>')
-    w('<script>')
-    # w('// import { StaticCanvas, FabricText } from "fabric"')
-    # w('import { Box, PlanarSet } from "@flatten-js/core";')
-    w('function mouse_over(e) {')
-    w('  alert("over: " + e.target);')
-    w('}')
-    w('function mouse_out(e) {')
-    w('  alert("out: " + e);')
-    w('}')
-    w('')
-    w('''
-  function on_mouse_move(e) {
-    //console.log("mouse move " + e.x + " " + e.y);
-    var rect = canvas.getBoundingClientRect();
-    var hits = ps.hit(Point(e.x + rect.left, e.y + rect.top));
-    //console.log("  hits: " + hits);
-  }
-
-  function show_segment_details(e) {
-    if (e != null && e.target != null) {
-      pointer = canvas.getPointer(e.e);
-      if (textbox != null) {
-        textbox.set({text: e.target.details,
-                     top: pointer.y,
-                     left: pointer.x});
-        canvas.renderAll();
-      } else {
-        textbox = new fabric.Textbox(e.target.details,
-                                     {left: pointer.x,
-                                      top: pointer.y,
-                                      fontSize: 14,
-                                      fontFamily: "Verdana"});
-        textbox.selectable = false;
-        textbox.editable = false;
-        canvas.add(textbox);
-      }
-    }
-  }
-    ''')
+  w('<body style="height:95%; padding:0; margin:5">')
+  w('<form>')
+  w('<div style="display: flex; justify-content: flex-end;">')
+  w('Zoom:&nbsp;<input type="range" id="zoomSlider" min="0.5" max="3" value="1" step=".01" style="width:300px;"/>')
+  w('</div>')
+  w('</form>')
   w('')
-  if USE_SVG:
-    w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')
-    w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
-    # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
-  elif USE_FABRIC:
-    w('var canvas = new fabric.Canvas(document.getElementById("it"));')
-  else:
-    w('var canvas = document.getElementById("it");')
-    w('var ctx = canvas.getContext("2d");')
-    w('canvas.addEventListener("mousemove", on_mouse_move, true);')
+  #w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0;background:rgba(0xff,0xff,0xff,.6)"></div>')
+  w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0"></div>')
+  w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')
+  w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height+100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+  # w(f'<svg id="it" viewBox="0 0 {whole_width+400} {whole_height + 100}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+  # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+  # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
 
   #w('var textbox = null;')
   #w('// so we can intersect mouse point with boxes:')
@@ -139,12 +166,7 @@ def main():
 
   print(f'{(end_abs_time - start_abs_time).total_seconds()} total seconds')
   x_pixels_per_sec = (whole_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
-  y_pixels_per_log_mb = 2
-
-  # assign each new segment to a free level -- this is not how IndexWriter does it, but
-  # it doesn't much matter what the order is.  e.g. TMP disregards segment order (treats
-  # them all as a set of segments)
-  level_to_live_segment = {}
+  y_pixels_per_log_mb = 4
 
   segment_name_to_level = {}
 
@@ -156,35 +178,127 @@ def main():
 
   # first pass to assign free level to each segment.  segments come in
   # order of their birth:
-  for segment in segments:
 
-    assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
-    
-    segment_name_to_segment[segment.name] = segment
+  # this is actually a fun 2D bin-packing problem (assigning segments to levels)! ... I've only tried
+  # these two simple approaches so far:
 
-    # prune expired segments -- must create list(...) so that we don't directly
-    # iterate the items iterator of the dict while deleting from it:
-    for level, segment2 in list(level_to_live_segment.items()):
-      if segment2.end_time is not None and segment2.end_time < segment.start_time:
-        del level_to_live_segment[level]
-        
-    # assign a level
-    level = 0
-    while True:
-      if level in level_to_live_segment:
-        level += 1
+  # TODO: maybe instead sort by how long segment is alive?  should "roughly" correlate to segment size...
+
+  if True:
+    # sort segments by size, descending, and assign to level bottom up, so big segments are always down low
+
+    tree = intervaltree.IntervalTree()
+
+    seg_times = []
+    for segment in segments:
+      if segment.end_time is None:
+        end_time = end_abs_time
       else:
-        break
+        end_time = segment.end_time
+      seg_times.append((end_time - segment.start_time, segment))
+      
+    for ignore, segment in sorted(seg_times, key=lambda x: -x[0]):
 
-    level_to_live_segment[level] = segment
+      assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+      segment_name_to_segment[segment.name] = segment
 
-    segment_name_to_level[segment.name] = level
-    print(f'{segment.name} -> level {level}')
+      if segment.end_time is None:
+        end_time = end_abs_time
+      else:
+        end_time = segment.end_time
 
-    max_level = max(level, max_level)
+      # all levels that are in use overlapping this new segment:
+      used_levels = [segment_name_to_level[interval.data.name] for interval in tree[segment.start_time:end_time]]
 
-    if min_start_abs_time is None or segment.start_time < min_start_abs_time:
-      min_start_abs_time = segment.start_time
+      new_level = 0
+      while True:
+        if new_level not in used_levels:
+          break
+        new_level += 1
+
+      tree[segment.start_time:end_time] = segment
+
+      segment_name_to_level[segment.name] = new_level
+      print(f'{segment.name} -> level {new_level}')
+
+      max_level = max(new_level, max_level)
+
+      if min_start_abs_time is None or segment.start_time < min_start_abs_time:
+        min_start_abs_time = segment.start_time
+
+
+  elif False:
+    # sort segments by size, descending, and assign to level bottom up, so big segments are always down low
+
+    tree = intervaltree.IntervalTree()
+
+    for segment in sorted(segments, key=lambda segment: -segment.size_mb):
+
+      assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+      segment_name_to_segment[segment.name] = segment
+
+      if segment.end_time is None:
+        end_time = end_abs_time
+      else:
+        end_time = segment.end_time
+
+      # all levels that are in use overlapping this new segment:
+      used_levels = [segment_name_to_level[interval.data.name] for interval in tree[segment.start_time:end_time]]
+
+      new_level = 0
+      while True:
+        if new_level not in used_levels:
+          break
+        new_level += 1
+
+      tree[segment.start_time:end_time] = segment
+
+      segment_name_to_level[segment.name] = new_level
+      print(f'{segment.name} -> level {new_level}')
+
+      max_level = max(new_level, max_level)
+
+      if min_start_abs_time is None or segment.start_time < min_start_abs_time:
+        min_start_abs_time = segment.start_time
+
+  else:
+
+    # a simpler first-come first-serve level assignment
+
+    # assign each new segment to a free level -- this is not how IndexWriter does it, but
+    # it doesn't much matter what the order is.  e.g. TMP disregards segment order (treats
+    # them all as a set of segments)
+    level_to_live_segment = {}
+
+    for segment in segments:
+
+      assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+
+      segment_name_to_segment[segment.name] = segment
+
+      # prune expired segments -- must create list(...) so that we don't directly
+      # iterate the items iterator of the dict while deleting from it:
+      for level, segment2 in list(level_to_live_segment.items()):
+        if segment2.end_time is not None and segment2.end_time < segment.start_time:
+          del level_to_live_segment[level]
+
+      # assign a level
+      level = 0
+      while True:
+        if level in level_to_live_segment:
+          level += 1
+        else:
+          break
+
+      level_to_live_segment[level] = segment
+
+      segment_name_to_level[segment.name] = level
+      print(f'{segment.name} -> level {level}')
+
+      max_level = max(level, max_level)
+
+      if min_start_abs_time is None or segment.start_time < min_start_abs_time:
+        min_start_abs_time = segment.start_time
 
   print(f'{max_level=}')
   y_pixels_per_level = whole_height / (1+max_level)
@@ -208,10 +322,14 @@ def main():
     x1 = padding_x + x_pixels_per_sec * (t1 - min_start_abs_time).total_seconds()
 
     if segment.size_mb is None:
-      raise RuntimeError(f'segment {segment.name} has size_mb=None')
+      # this likely means the merge was still in-flight when the InfoStream ended:
+      size_mb = 100.0
+      # raise RuntimeError(f'segment {segment.name} has size_mb=None')
+    else:
+      size_mb = segment.size_mb
     
-    height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.size_mb))
-    height = max(5, height)
+    height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(size_mb/2.))
+    height = max(7, height)
 
     y1 = whole_height - int(y_pixels_per_level * level)
     y0 = y1 - height
@@ -263,7 +381,8 @@ def main():
           x_light_merge = padding_x + x_pixels_per_sec * (light_timestamp2 - min_start_abs_time).total_seconds()
 
           # draw line segment linking segment into its merged segment
-          w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="darkgray" stroke-width="2" stroke-dasharray="20,20"/>')
+          # w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="darkgray" stroke-width="2" stroke-dasharray="20,20"/>')
+          w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="black" stroke-width="1"/>')
 
           if False:
             w('var l = document.createElementNS("http://www.w3.org/2000/svg", "line");')
@@ -347,16 +466,20 @@ def main():
           var text = document.createElementNS(svgns, "text");
 
           text.setAttribute("font-family", "Verdana");
-          text.setAttribute("font-size", "24");
+          text.setAttribute("font-size", "32");
+          text.setAttribute("font-weight", "bold");
+          text.setAttribute("font-color", "lime");
 
           highlighting.set(seg_name + ":t", text);
           text.selectable = false;
+          text.style.fill = "lime";
           text.textContent = seg_details_map.get(seg_name);
           text.setAttribute("x", transformed_point.x);
           text.setAttribute("y", transformed_point.y);
           text.setAttribute("width", "200");
           text.setAttribute("height", "200");
           mysvg.appendChild(text);
+          top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
         }
       }
     }
@@ -438,17 +561,42 @@ def main():
   w('<script>')
   w('const seg_merge_map = new Map();')
   w('const seg_details_map = new Map();')
+  w('const seg_details2_map = new Map();')
   for segment in segments:
     if type(segment.source) is tuple and segment.source[0] == 'merge':
       w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
-    details = f'{segment.name}:\n  {segment.size_mb:.1f} MB\n  {segment.max_doc} max_doc'
+    if segment.size_mb is None:
+      smb = 'n/a'
+    else:
+      smb = f'{segment.size_mb:.1f} MB'
+    details = f'{segment.name}:\n  {smb}\n  {segment.max_doc} max_doc'
     if segment.end_time is not None:
       end_time = segment.end_time
     else:
       end_time = end_abs_time
     details += f'\n  {(end_time - segment.start_time).total_seconds():.1f} sec'
+    if segment.born_del_count is not None and segment.born_del_count > 0:
+      details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
+      
     w(f'seg_details_map.set("{segment.name}", {repr(details)});')
-    
+    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time))});')
+
+  w('''
+  const top_details = document.getElementById('details');
+  slider = document.getElementById('zoomSlider');
+  svg = document.getElementById('it');
+
+  slider.addEventListener('input', function() {
+    zoom = slider.value;
+  ''')
+  w('    console.log("zoom=" + zoom);')
+  #w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
+  w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
+  # svg.style.transform = `scale(${zoom})`;
+  w('    svg.setAttribute("viewBox", new_view_box);')
+  w(f'    svg.setAttribute("width", {whole_width}*zoom);')
+  w(f'    svg.setAttribute("height", {whole_height}*zoom);')
+  w('  });')
   w('</script>')
   w('</body>')
   w('</html>')

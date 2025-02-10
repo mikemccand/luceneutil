@@ -179,3 +179,15 @@ To test vector search with [Cohere/wikipedia-22-12-en-embeddings](https://huggin
 in the format that luceneutil vector search can understand. Instead of `10000000` increase the number of documents to `100000000` if you want to run vector search on 10M documents.
 2. In `src/python/knnPerTest.py` uncomment lines that define doc and query vectors for cohere dataset.
 3. run `src/python/knnPerTest.py` 
+
+# Running the facets benchmark
+
+## Compare facet implementations
+
+There are currently two facets implementations - one that first collects document IDs and then computes facets in a separate phase, and a new implementation that computes facets during collection.
+
+To compare performance for the two implementations run
+
+```
+python src/python/localrunFacets.py -source facetsWikimediumAll
+```

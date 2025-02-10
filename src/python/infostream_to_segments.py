@@ -79,13 +79,15 @@ class Segment:
   # how much RAM this (flushed) segment was using in IW's accounting
   # when it was flushed (None for merged segments)
   ram_used_mb = None
+
+  is_cfs = False
   
   def __init__(self, name, source, max_doc, size_mb, start_time, end_time, start_infostream_line_number):
     # 'flush' or 'merge'
     Segment.all_segments.append(self)
     self.source = source
     self.name = name
-    assert (type(source) is str and source == 'flush') or (type(source) is tuple and source[0] == 'merge' and len(source) > 1)
+    assert (type(source) is str and source in ('flush', 'flush-commit')) or (type(source) is tuple and source[0] == 'merge' and len(source) > 1)
     self.max_doc = max_doc
     self.size_mb = size_mb
     self.start_time = start_time
@@ -106,11 +108,11 @@ class Segment:
     insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])
     self.events.insert(insert_at, (timestamp, event, infostream_line_number))
 
-  def to_verbose_string(self, global_start_time):
+  def to_verbose_string(self, global_start_time, global_end_time):
     l = []
     s = f'segment {self.name}'
-    if self.source == 'flush':
-      s += ' (flush)'
+    if self.source in ('flush', 'flush-commit'):
+      s += f' ({self.source})'
     elif self.merge_during_commit is not None:
       s += ' (merge-on-commit: ' + ' '.join(self.source[1]) + ')'
     else:
@@ -123,28 +125,55 @@ class Segment:
       else:
         # could be a single int, if merge was still running at end of InfoStream
         pass
+    if self.is_cfs:
+      l.append('  cfs')
+    else:
+      l.append('  not cfs')
+      
     if self.del_count_reclaimed is not None:
-      l.append(f'  del_count_reclaimed={self.del_count_reclaimed} ({100.*self.del_count_reclaimed/(self.max_doc + self.del_count_reclaimed):.1f}%)')
-    l.append(f'  max_doc={self.max_doc}')
+      l.append(f'  del_count_reclaimed={self.del_count_reclaimed:,} ({100.*self.del_count_reclaimed/(self.max_doc + self.del_count_reclaimed):.1f}%)')
+    l.append(f'  max_doc={self.max_doc:,}')
     if self.born_del_count is not None:
-      l.append(f'  born_del_count={self.born_del_count} ({100.*self.born_del_count/self.max_doc:.1f}%)')
+      l.append(f'  born_del_count={self.born_del_count:,} ({100.*self.born_del_count/self.max_doc:.1f}%)')
     if self.del_count is not None:
-      l.append(f'  final del_count={self.del_count} ({100.*self.del_count/self.max_doc:.1f}%)')
+      l.append(f'  final del_count={self.del_count:,} ({100.*self.del_count/self.max_doc:.1f}%)')
     if self.source == 'flush':
       if self.ram_used_mb is None:
         # this can happen if InfoStream ends as a segment is flushing
         # raise RuntimeError(f'flushed segment {self.name} is missing ramUsedMB')
-        l.append(f'  {self.size_mb} MB (?? efficiency)')
+        if self.size_mb is None:
+          l.append(f'  ?? MB (?? efficiency)')
+        else:
+          l.append(f'  {self.size_mb:,} MB (?? efficiency)')
       else:
-        l.append(f'  {self.size_mb} MB ({100*self.size_mb/self.ram_used_mb:.1f}% efficiency, ram_used_mb={self.ram_used_mb:.1f} MB)')
+        l.append(f'  {self.size_mb:,} MB ({100*self.size_mb/self.ram_used_mb:.1f}% efficiency, ram_used_mb={self.ram_used_mb:.1f} MB)')
     else:
-      l.append(f'  {self.size_mb} MB')
-    l.append(f'  created at {(self.start_time - global_start_time).total_seconds():.1f} sec')
+      if self.size_mb is None:
+        l.append(f'  ?? MB')
+      else:
+        l.append(f'  {self.size_mb:,} MB')
+    l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
+    if self.publish_timestamp is not None:
+      btt = (self.publish_timestamp - self.start_time).total_seconds()
+      bt = f'{btt:,.1f}'
+    else:
+      btt = 0
+      bt = '??'
     if self.end_time is not None:
       if self.merged_into is not None:
-        l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime (merged into {self.merged_into.name})')
+        dtt = (self.end_time - self.merged_into.start_time).total_seconds()
+        dt = f'{dtt:,.1f}'
       else:
-        l.append(f'  {(self.end_time - self.start_time).total_seconds():.1f} sec lifetime')
+        dt = '??'
+        dtt = 0
+      ltt = (self.end_time - self.start_time).total_seconds()
+    else:
+      dt = '0.0'
+      dtt = 0
+      ltt = (global_end_time - self.start_time).total_seconds()
+    l.append(f'  times: {bt} / {(ltt-btt-dtt):,.1f} / {dt} sec')
+    if self.merged_into is not None:
+      l.append(f'  merged into {self.merged_into.name}')
     l.append(f'  events:')
     last_ts = self.start_time
 
@@ -181,12 +210,12 @@ class Segment:
     for i, (ts, event, line_number) in enumerate(self.events):
       is_del = event.startswith('del_count ')
       if is_del:
-        count = int(event[10:])
+        count = int(event[10:].replace(',', ''))
         event += f' ({100.*count/self.max_doc:.1f}%)'
       s = f'+{(ts - last_ts).total_seconds():.2f}'
 
       if not is_del or i in do_del_print:
-        s = f'    {s:>7s} s: {event} [line {line_number}]'
+        s = f'    {s:>7s} s: {event} [line {line_number:,}]'
         if is_del and do_del_print.get(i):
           s += '...'
         l.append(s)
@@ -237,6 +266,9 @@ def main():
   # e.g.: DWPT 0 [2025-01-31T12:35:51.801527396Z; Index #5]: flush time 3097.274264 ms
   re_flush_time = re.compile(r'^DWPT \d+ \[([^;]+); (.*?)\]: flush time (.*?) ms$')
   
+  # e.g.: IW 0 [2025-02-02T20:48:42.699743134Z; ReopenThread]: create compound file
+  re_create_compound_file = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: create compound file$')
+  
   # maybe?: DWPT 0 [2025-01-31T12:35:51.200730335Z; Index #34]: flush time 2588.276633 ms
 
   # e.g.: IW 0 [2025-01-31T12:35:51.817783927Z; Lucene Merge Thread #0]: merge seg=_1y _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw _l(11.0.0):C49798:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951756, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvy _u(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951689, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppwj _w(11.0.0):C49797:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951801, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvq _a(11.0.0):C49784:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951625, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppw3 _r(11.0.0):C49783:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951688, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvs _e(11.0.0):C49779:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951736, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvr _p(11.0.0):C49784:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951761, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppwa _5(11.0.0):C49778:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951706, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppwq _h(11.0.0):C49793:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951625, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppw7
@@ -277,6 +309,9 @@ def main():
 
   # e.g.: DW 2891 [2025-02-07T17:48:10.332403301Z; GCR-Writer-1-thread-4]: GCR-Writer-1-thread-4 finishFullFlush success=true
   re_end_full_flush = re.compile(r'^DW \d+ \[([^;]+); (.*?)\]: .*?finishFullFlush success=true$')
+
+  # e.g.: IW 153984 [2025-02-07T21:14:02.215553235Z; GCR-Writer-1-thread-8]: commit: start
+  re_start_commit = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: commit: start$')
   
   line_number = 0
 
@@ -295,6 +330,8 @@ def main():
   # we are not currently commit-merging
   merge_on_commit_thread_name = None
   merge_commit_threads = None
+
+  commit_thread_name = None
 
   with open(infostream_log, 'r') as f:
     while True:
@@ -346,7 +383,7 @@ def main():
               if del_count != segment.del_count:
                 assert segment.del_count is None or del_count > segment.del_count
                 # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
-                segment.add_event(timestamp, f'del_count {del_count}', line_number)
+                segment.add_event(timestamp, f'del_count {del_count:,}', line_number)
                 segment.del_count = del_count
               
             seg_count += 1
@@ -386,7 +423,15 @@ def main():
           segment_name = '_' + m.group(3)
           max_doc = int(m.group(4))
 
-          segment = Segment(segment_name, 'flush', max_doc, None, timestamp, None, line_number)
+          # print(f'compare {thread_name=} to {commit_thread_name=}')
+
+          if commit_thread_name is not None:
+            # logic may not be quite correct?  can we flush segment due to RAM usage even while another thread already kicked off commit?  unlikely...
+            source = 'flush-commit'
+          else:
+            source = 'flush'
+            
+          segment = Segment(segment_name, source, max_doc, None, timestamp, None, line_number)
           by_segment_name[segment_name] = segment
           assert thread_name not in by_thread_name, f'thread {thread_name} was already/still in by_thread_name?'
 
@@ -439,10 +484,20 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           segment = by_thread_name[thread_name]
-          segment.publish_timestamp = timestamp
+          # TODO: this regexp is doing nothing?
+          # segment.publish_timestamp = timestamp
           # no?
           # segment.end_time = timestamp
           del by_thread_name[thread_name]
+          continue
+
+        m = re_create_compound_file.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          segment = by_thread_name[thread_name]
+          segment.add_event(timestamp, 'create compound file', line_number)
+          segment.is_cfs = True
           continue
         
         m = re_publish_delgen.search(line)
@@ -450,6 +505,7 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           segment_name = '_' + m.group(3)
+          segment.publish_timestamp = timestamp
           by_segment_name[segment_name].add_event(timestamp, 'light', line_number)
           continue
 
@@ -550,6 +606,7 @@ def main():
           segment = by_thread_name[thread_name]
           # TODO: also parse/verify the "index=" part of this line?  that we know all the segments in the index now?
           segment.add_event(timestamp, 'light', line_number)
+          segment.publish_timestamp = timestamp
           if segment.merge_during_commit is not None:
             if segment.merge_during_commit == len(merge_during_commit_events) and merge_during_commit_events[-1][1] is None:
               # merge commit finished in time!
@@ -613,8 +670,18 @@ def main():
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
+          print(f'clear commit thread')
+          commit_thread_name = None
           assert full_flush_events[-1][1] is None
           full_flush_events[-1][1] = timestamp
+          continue
+          
+        m = re_start_commit.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          commit_thread_name = thread_name
+          print(f'set commit thread {commit_thread_name}')
           continue
           
       except KeyboardInterrupt:
@@ -624,7 +691,7 @@ def main():
         raise
 
   for segment in Segment.all_segments:
-    print(f'\n{segment.name}:\n{segment.to_verbose_string(global_start_time)}')
+    print(f'\n{segment.name}:\n{segment.to_verbose_string(global_start_time, global_end_time)}')
     if segment.end_time is None:
       print(f'set end_time for segment {segment.name} to global end time')
       segment.end_time = global_end_time

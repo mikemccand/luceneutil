@@ -25,12 +25,19 @@ import infostream_to_segments
 import intervaltree
 
 # TODO
+#   - sliding cursor showing segment count, which are alive, how many deletes, etc.
+#   - how to reflect deletes
+#   - get rid of redundant seg_name vs id in the segment rects
+#   - track segment "depth" (how many ancesters)?
+#   - how does CFS print during merge?  extract that too
+#   - get flush source/reason in there -- _244 was bit delayed -- it was not in full flush, so why did it flush
 #   - count/report CFS stats too
+#   - test this on some more interesting infostreams
 #   - hmm add click handler to jump back to merge input segments (_1gu -> _20r)
 #   - handle multiple IW sessions
+#   - capture nrtReader flushes/merges-on-nrt-reader too
 #   - add colored bands during full flush / merge commit wait / etc.
 #   - add flush reason to segment source
-#   - why IW/SM static counters so high?
 #   - maybe produce an overall summary of indexing "behavior"?
 #     - how many merge-on-commits finished in the window
 #     - how many concurrent flushes/merges w/ time
@@ -50,7 +57,7 @@ import intervaltree
 #     - ram -> segment size efficiency of flush
 #   - am i pulling born deleted correctly for flushed segments?
 #   - also report on how much HNSW concurrency is in use
-#   - extract commit times too
+#   - extract commit times too, nrt reader times
 #     - and maybe attach flush reassons?  flush-on-ram, on-nrt, commit
 #   - hmm how to view the "full" geneology of one segment -- it is always a "full" tree down to original roots (flushed segments)
 #   - enable simple x zoom
@@ -64,7 +71,6 @@ import intervaltree
 #   - improved 2D bin packing?
 #   - maybe make merge connection lines thicker the higher the "level" of the merge?
 #   - include "reason" in segs -- forceMerge, nrtReopen, commit/flush
-#   - maybe use D3?
 #   - get more interesting trace -- nrt?  deletions!
 #   - make sure we can handle infoStream on an already built index, i.e. pre-existing segments
 #     from before infoStream was turned on
@@ -75,9 +81,10 @@ import intervaltree
 #   - try to work on mobile?
 #   - derive y_pix_per_level from whole_height and max(level)
 #   - zoom in/out, x and y separately
-#   - sliding cursor showing segment count, which are alive, how many deletes, etc.
 #   - mouse over merge segment should highlight segments it's merging
 #   - ooh link to the line number in infoStream.log so we can jump to the right place for debugging
+#   - NO
+#     - maybe use D3?
 
 # so pickle is happy
 Segment = infostream_to_segments.Segment
@@ -151,7 +158,12 @@ def main():
   w('')
   #w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0;background:rgba(0xff,0xff,0xff,.6)"></div>')
   w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0"></div>')
+  w('<div id="details2" style="display: flex; justify-content: flex-end;">')
+  w('time details')
+  w('</div>')
+  
   w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')
+
   w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height+100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" viewBox="0 0 {whole_width+400} {whole_height + 100}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
@@ -333,107 +345,87 @@ def main():
 
     y1 = whole_height - int(y_pixels_per_level * level)
     y0 = y1 - height
-    if segment.source == 'flush':
+    if type(segment.source) is str and segment.source.startswith('flush'):
       color = '#ff0000'
     else:
       color = '#0000ff'
-    if USE_SVG:
-      w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
 
-      # shade the time segment is being written, before it's lit:
-      if light_timestamp is not None:
-        x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
+    w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
+    # w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}"/>')
 
-        if color == '#ff0000':
-          new_color = '#ff8888'
-        else:
-          new_color = '#8888ff'
-        w(f'  <!--dawn:-->')
-        w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light-x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+    # shade the time segment is being written, before it's lit:
+    if light_timestamp is not None:
+      x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
 
-      if segment.merged_into is not None:
-        # this segment was merged away eventually
-        if color == '#ff0000':
-          new_color = '#880000'
-        else:
-          new_color = '#000088'
-        dusk_timestamp = segment.merged_into.start_time
-        assert dusk_timestamp < t1
-        x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
-        w(f'  <!--dusk:-->')
-        w(f'  <rect x={x_dusk:.2f} y={y0:.2f} width={x1-x_dusk:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+      if color == '#ff0000':
+        new_color = '#ff8888'
+      else:
+        new_color = '#8888ff'
+      w(f'  <!--dawn:-->')
+      w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light-x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
-        light_timestamp2 = None
-        
-        for timestamp2, event2, line_number2 in segment.merged_into.events:
-          if event2 == 'light':
-            light_timestamp2 = timestamp2
-            break
+    if segment.merged_into is not None:
+      # this segment was merged away eventually
+      if color == '#ff0000':
+        new_color = '#880000'
+      else:
+        new_color = '#000088'
+      dusk_timestamp = segment.merged_into.start_time
+      assert dusk_timestamp < t1
+      x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
+      w(f'  <!--dusk:-->')
+      w(f'  <rect x={x_dusk:.2f} y={y0:.2f} width={x1-x_dusk:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
-        if light_timestamp2 is not None:
-          merge_level = segment_name_to_level[segment.merged_into.name]
+      light_timestamp2 = None
 
-          merge_height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.merged_into.size_mb))
-          merge_height = max(5, merge_height)
+      for timestamp2, event2, line_number2 in segment.merged_into.events:
+        if event2 == 'light':
+          light_timestamp2 = timestamp2
+          break
 
-          y1a = whole_height - int(y_pixels_per_level * merge_level) - merge_height
+      if light_timestamp2 is not None:
+        merge_level = segment_name_to_level[segment.merged_into.name]
 
-          x_light_merge = padding_x + x_pixels_per_sec * (light_timestamp2 - min_start_abs_time).total_seconds()
+        merge_height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(segment.merged_into.size_mb))
+        merge_height = max(5, merge_height)
 
-          # draw line segment linking segment into its merged segment
-          # w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="darkgray" stroke-width="2" stroke-dasharray="20,20"/>')
-          w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="black" stroke-width="1"/>')
+        y1a = whole_height - int(y_pixels_per_level * merge_level) - merge_height
 
-          if False:
-            w('var l = document.createElementNS("http://www.w3.org/2000/svg", "line");')
-            w(f'l.setAttribute("id", ");')
-            w(f'l.setAttribute("x1", {x_dusk});')
-            w(f'l.setAttribute("y1", {y0 + y_pixels_per_level/2});')
-            w(f'l.setAttribute("x2", {x_light_merge});')
-            w(f'l.setAttribute("y2", {y1a-y_pixels_per_level/2});')
-            w(f'mysvg.appendChild(l);')
+        x_light_merge = padding_x + x_pixels_per_sec * (light_timestamp2 - min_start_abs_time).total_seconds()
 
-    elif USE_FABRIC:
-      w(f'var rect = new fabric.Rect({{left: {x0}, top: {y0}, width: {x1-x0+1}, height: {height}, fill: "{color}"}});')
-      w('rect.selectable = false;')
-      w(f'rect.details = "{segment.name}: {segment.size_mb:.2f} MB";')
-    #w(f'rect.on("mouse:over", function(e) {{alert(header); header.innerHTML = "{segment.name}";}});')
-    #w('rect.on("mouse:over", function() {console.log("mouse over");});')
-    #w('rect.on("mouse:out", function() {console.log("mouse out");});')
-    #w('rect.on("mouse:out", mouse_out);')
-      w('canvas.add(rect);')
-    else:
-      w(f'ctx.fillStyle = "{color}";')
-      w(f'ctx.fillRect({x0}, {y0}, {x1-x0+1}, {height});')
-      w(f'var b = new Box({x0}, {y0}, {x1}, {y0+height});')
-      w(f'b.segment_name = {segment.name}')
-      w(f'b.details = "{segment.name}: {segment.size_mb:.2f} MB";')
-      w('// so we can intersect mouse point with boxes:')
-      w('ps.add(b);')
+        # draw line segment linking segment into its merged segment
+        # w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="darkgray" stroke-width="2" stroke-dasharray="20,20"/>')
+        w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="black" stroke-width="1"/>')
 
-      # shade the time segment is being written, before it's lit:
-      if light_timestamp is not None:
-        x_light = int(x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds())
+        if False:
+          w('var l = document.createElementNS("http://www.w3.org/2000/svg", "line");')
+          w(f'l.setAttribute("id", ");')
+          w(f'l.setAttribute("x1", {x_dusk});')
+          w(f'l.setAttribute("y1", {y0 + y_pixels_per_level/2});')
+          w(f'l.setAttribute("x2", {x_light_merge});')
+          w(f'l.setAttribute("y2", {y1a-y_pixels_per_level/2});')
+          w(f'mysvg.appendChild(l);')
 
-        if color == '#ff0000':
-          new_color = '#ff8888'
-        else:
-          new_color = '#8888ff'
-        w(f'ctx.fillStyle = "{new_color}";')
-        w(f'ctx.fillRect({x0}, {y0}, {x_light-x0+1}, {height});')
+  w(f'\n\n  <!-- full flush events -->')
+  for start_time, end_time in full_flush_events:
+    if end_time is None:
+      continue
+    x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
+    y0 = 0
+    x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
+    y1 = whole_height
+    w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
 
-      if segment.merged_into is not None:
-        # this segment was merged away eventually
-        if color == '#ff0000':
-          new_color = '#880000'
-        else:
-          new_color = '#000088'
-        next_merge_timestamp = segment.merged_into.start_time
-        assert next_merge_timestamp < t1
-        x_next_merge = int(x_pixels_per_sec * (next_merge_timestamp - min_start_abs_time).total_seconds())
-        w(f'ctx.fillStyle = "{new_color}";')
-        w(f'ctx.fillRect({x_next_merge}, {y0}, {x1-x_next_merge+1}, {height});')
-        
+  w(f'\n\n  <!-- merge-on-commit events -->')
+  for start_time, end_time in merge_during_commit_events:
+    if end_time is None:
+      continue
+    x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
+    y0 = 0
+    x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
+    y1 = whole_height
+    w(f'  <rect fill="orange" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+
   #w('canvas.on("mouse:over", show_segment_details);')
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')
   if USE_SVG:
@@ -442,13 +434,13 @@ def main():
     w('''
 <script>
     var highlighting = new Map();
+    const svgns = "http://www.w3.org/2000/svg";
     function highlight(seg_name, color, do_seg_details, transformed_point) {
       if (!highlighting.has(seg_name)) {
 
         // get the full segment (not dawn/dusk):
         var rect2 = document.getElementById(seg_name);
 
-        var svgns = "http://www.w3.org/2000/svg";
         var rect3 = document.createElementNS(svgns, "rect");
 
         // draw a new rect to "highlight"
@@ -484,6 +476,8 @@ def main():
       }
     }
 
+    var x_cursor = null;
+    
     mysvg = document.getElementById("it");
     mysvg.onmousemove = function(evt) {
       // console.log("clientX=" + evt.clientX + " clientY=" + evt.clientY);
@@ -495,16 +489,37 @@ def main():
       // console.log("sub " + r.left + " " + r.top);
       //point.x = evt.clientX - r.left;
       //point.y = evt.clientY - r.top;
-      point.x = Math.max(20, evt.clientX + 20);
-      point.y = Math.max(20, evt.clientY - 20);
+      point.x = evt.clientX;
+      point.y = evt.clientY;
       transformed_point = point.matrixTransform(mysvg.getScreenCTM().inverse());
+    ''')
+
+    w(f'      var t = transformed_point.x / {x_pixels_per_sec};')
+    w('''
+
+      top_details2.innerHTML = "<pre>t=" + t + " sec";
+    
       // console.log("  SVG X:", transformed_point.x, "SVG Y:", transformed_point.y);
       var now_highlight = new Set();
       var now_sub_highlight = new Set();
       var merge_seg_name = null;
+      if (x_cursor == null) {
+        x_cursor = document.createElementNS(svgns, "line");
+        x_cursor.setAttribute("stroke", "black");
+        x_cursor.setAttribute("stroke-width", "1");
+        mysvg.appendChild(x_cursor);
+      }
+      x_cursor.setAttribute("x1", transformed_point.x);
+      x_cursor.setAttribute("y1", 0);
+      x_cursor.setAttribute("x2", transformed_point.x);
+    ''')
+    w(f'      x_cursor.setAttribute("y2", {whole_height});')
+    w('''
+    
       document.elementsFromPoint(evt.clientX, evt.clientY).forEach(function(element, index, array) {
         if (element instanceof SVGRectElement) {
           var seg_name = element.getAttribute("seg_name");
+          // var seg_name = element.id;
           // must null-check because we will also select our newly added highlight rects!  weird recursion...
           if (seg_name != null) {
             now_highlight.add(seg_name);
@@ -579,10 +594,11 @@ def main():
       details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
       
     w(f'seg_details_map.set("{segment.name}", {repr(details)});')
-    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time))});')
+    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time))});')
 
   w('''
   const top_details = document.getElementById('details');
+  const top_details2 = document.getElementById('details2');
   slider = document.getElementById('zoomSlider');
   svg = document.getElementById('it');
 

@@ -1196,6 +1196,7 @@ class RunAlgs:
                 f',filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr',
                 '-XX:+UnlockDiagnosticVMOptions',
                 '-XX:+DebugNonSafepoints',
+                # uncomment the line below to enable remote debugging
                 # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
                 ]
 

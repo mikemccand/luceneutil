@@ -239,20 +239,20 @@ final class SearchTask extends Task {
           facetResults = new ArrayList<FacetResult>();
           // TODO: support sort, filter too!!
           // TODO: support other facet methods
-          List<TaskParser.TaskBuilder.FacetTask> classicFacetRequests = new ArrayList<>();
-          List<TaskParser.TaskBuilder.FacetTask> sandboxFacetRequests = new ArrayList<>();
+          List<TaskParser.TaskBuilder.FacetTask> postCollectionFacetTasks = new ArrayList<>();
+          List<TaskParser.TaskBuilder.FacetTask> duringCollectionFacetTasks = new ArrayList<>();
           for (TaskParser.TaskBuilder.FacetTask request : facetRequests) {
             switch (request.facetMode()) {
               case UNDEFINED:
-              case CLASSIC:
-                classicFacetRequests.add(request);
+              case POST_COLLECTION:
+                postCollectionFacetTasks.add(request);
                 break;
-              case SANDBOX:
-                sandboxFacetRequests.add(request);
+              case DURING_COLLECTION:
+                duringCollectionFacetTasks.add(request);
             }
           }
           long t0 = System.nanoTime();
-          if (sandboxFacetRequests.isEmpty() == false) {
+          if (duringCollectionFacetTasks.isEmpty() == false) {
             // TODO: once we have helper methods for easy sandbox facet use cases
             //       lets use them to make this code shorter and less prone to errors
             // TODO: sandbox facet module doesn't currently have methods to aggregate for all docs in the index.
@@ -264,7 +264,7 @@ final class SearchTask extends Task {
             if (q instanceof MatchAllDocsQuery == false) {
               collectorManagers.add(new TopScoreDocCollectorManager(10, null, Integer.MAX_VALUE));
             }
-            for (TaskParser.TaskBuilder.FacetTask request : sandboxFacetRequests) {
+            for (TaskParser.TaskBuilder.FacetTask request : duringCollectionFacetTasks) {
               String indexFieldName;
               // TODO: handle other types, not just taxonomy
               if (request.dimension().endsWith(".taxonomy")) {
@@ -287,7 +287,7 @@ final class SearchTask extends Task {
             if (q instanceof MatchAllDocsQuery == false) {
               hits = (TopDocs) results[0];
             }
-            for (TaskParser.TaskBuilder.FacetTask request : sandboxFacetRequests) {
+            for (TaskParser.TaskBuilder.FacetTask request : duringCollectionFacetTasks) {
               FacetsConfig.DimConfig dimConfig = state.facetsConfig.getDimConfig(request.dimension());
               String indexFieldName = dimConfig.indexFieldName;
               CountFacetRecorder recorder = indexFieldToRecorder.get(indexFieldName);
@@ -350,9 +350,9 @@ final class SearchTask extends Task {
                               childCount));
             }
           }
-          if (classicFacetRequests.isEmpty() == false) {
+          if (postCollectionFacetTasks.isEmpty() == false) {
             if (q instanceof MatchAllDocsQuery) {
-              for (TaskParser.TaskBuilder.FacetTask request : classicFacetRequests) {
+              for (TaskParser.TaskBuilder.FacetTask request : postCollectionFacetTasks) {
                 if (request.dimension().startsWith("range:")) {
                   throw new AssertionError("fix me!");
                 } else if (request.dimension().endsWith(".taxonomy")) {
@@ -376,7 +376,7 @@ final class SearchTask extends Task {
               FacetsCollectorManager.FacetsResult fr = FacetsCollectorManager.search(searcher, q, 10, new FacetsCollectorManager());
               hits = fr.topDocs();
               FacetsCollector fc = fr.facetsCollector();
-              for (TaskParser.TaskBuilder.FacetTask facetRequest : classicFacetRequests) {
+              for (TaskParser.TaskBuilder.FacetTask facetRequest : postCollectionFacetTasks) {
                 String request = facetRequest.dimension();
                 if (request.startsWith("range:")) {
                   int i = request.indexOf(':', 6);

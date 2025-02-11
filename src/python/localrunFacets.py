@@ -49,12 +49,12 @@ if __name__ == '__main__':
                                   ('taxonomy:RandomLabel', 'RandomLabel'),
                                   ('sortedset:RandomLabel', 'RandomLabel')))
   # create a competitor named baseline with sources in the ../trunk folder
-  comp.competitor('classic_facets', args.lucene_dir,
+  comp.competitor('post_collection_facets', args.lucene_dir,
                   index = index, searchConcurrency = args.searchConcurrency,
-                  testContext="facetMode:CLASSIC")
-  comp.competitor('sandbox_facets', args.lucene_dir,
+                  testContext="facetMode:POST_COLLECTION", pk = False)
+  comp.competitor('during_collection_facets', args.lucene_dir,
                   index = index, searchConcurrency = args.searchConcurrency,
-                  testContext="facetMode:SANDBOX")
+                  testContext="facetMode:DURING_COLLECTION", pk = False)
 
   # start the benchmark - this can take long depending on your index and machines
-  comp.benchmark("sandbox_facets")
+  comp.benchmark("facet_implementations")

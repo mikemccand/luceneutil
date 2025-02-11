@@ -410,8 +410,8 @@ class TaskParser implements Closeable {
     List<FacetTask> parseFacets() {
       List<FacetTask> facets = new ArrayList<>();
       Map<String, TestContext.FacetMode> prefixTypes = Map.of(" +facets:", TestContext.FacetMode.UNDEFINED,
-              " +сlassic_facets:", TestContext.FacetMode.CLASSIC,
-              " +sandbox_facets:", TestContext.FacetMode.SANDBOX
+              " +post_collection_facets:", TestContext.FacetMode.POST_COLLECTION,
+              " +during_collection_facets:", TestContext.FacetMode.DURING_COLLECTION
       );
       while (true) {
         boolean found = false;

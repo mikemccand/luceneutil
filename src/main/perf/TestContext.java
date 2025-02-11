@@ -50,8 +50,8 @@ public class TestContext {
 
     public enum FacetMode {
         UNDEFINED,
-        CLASSIC,
-        SANDBOX,  // TODO: better names?
+        POST_COLLECTION,
+        DURING_COLLECTION,
     }
 
 }

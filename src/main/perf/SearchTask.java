@@ -260,7 +260,8 @@ final class SearchTask extends Task {
             //       for MatchAllDocsQuery to make collection for all docs in the index faster?
             Map<String, CountFacetRecorder> indexFieldToRecorder = new HashMap<>();
             List<CollectorManager<? extends Collector, ?>> collectorManagers = new ArrayList<>();
-            // First collector manager in the list is to collect hits, but not for if MatchAllDocsQuery
+            // The first collector manager in the list is responsible for collecting hits,
+            // except when handling MatchAllDocsQuery, where hits are not collected due to historical reasons.
             if (q instanceof MatchAllDocsQuery == false) {
               collectorManagers.add(new TopScoreDocCollectorManager(10, null, Integer.MAX_VALUE));
             }
@@ -356,7 +357,6 @@ final class SearchTask extends Task {
                 if (request.dimension().startsWith("range:")) {
                   throw new AssertionError("fix me!");
                 } else if (request.dimension().endsWith(".taxonomy")) {
-                  //if (true) throw new RuntimeException("fix me! " + request.dimension() + "; " + state.facetsConfig.getDimConfig(request.dimension()).indexFieldName);
                   // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
                   Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request.dimension()).indexFieldName, searcher.getIndexReader(), state.taxoReader, state.facetsConfig);
                   FacetResult res = facets.getTopChildren(10, request.dimension());

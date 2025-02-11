@@ -184,10 +184,14 @@ in the format that luceneutil vector search can understand. Instead of `10000000
 
 ## Compare facet implementations
 
-There are currently two facets implementations - one that first collects document IDs and then computes facets in a separate phase, and a new implementation that computes facets during collection.
+There are currently two facets implementations - one that first collects document IDs and then computes facets
+in a separate phase, and a new implementation that computes facets during collection.
 
 To compare performance for the two implementations run
 
 ```
 python src/python/localrunFacets.py -source facetsWikimediumAll
 ```
+
+Note that only comparison of taxonomy based facets is supported at the moment. We need to add SSDV facets support
+to the sandbox facets module, as well as add support for other facet types to this package.

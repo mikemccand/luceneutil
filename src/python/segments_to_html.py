@@ -115,12 +115,18 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
     if segment.end_time is None or segment.size_mb is None:
       # InfoStream ends before merge finished
       continue
-    all_times.append((segment.start_time, segment))
-    all_times.append((segment.end_time, segment))
+    all_times.append((segment.start_time, 'segstart', segment))
+
+    for timestamp, event, line_number in segment.events:
+      if event == 'light':
+        all_times.append((timestamp, 'seglight', segment))
+        break
+      
+    all_times.append((segment.end_time, 'segend', segment))
     name_to_segment[segment.name] = segment
 
   for checkpoint in checkpoints:
-    all_times.append((checkpoint[0], checkpoint))
+    all_times.append((checkpoint[0], 'checkpoint', checkpoint))
 
   all_times.sort(key=lambda x: x[0])
 
@@ -137,9 +143,9 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
   flush_thread_count = 0
   merge_thread_count = 0
   l = []
-  for time, item in all_times:
+  for time, what, item in all_times:
 
-    if type(item) is Segment:
+    if what in ('segstart', 'segend', 'seglight'):
 
       segment = item
 
@@ -157,29 +163,31 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
       dps = segment.max_doc / dur_sec
 
       if type(segment.source) is str and segment.source.startswith('flush'):
-        if time == segment.start_time:
+        if what == 'segstart':
           flush_mbs += mbs
           flush_dps += dps
-          tot_size_mb += segment.size_mb
           flush_thread_count += 1
-        else:
+        elif what == 'segend':
+          tot_size_mb -= segment.size_mb
+        elif what == 'seglight':
+          flush_thread_count -= 1
           flush_mbs -= mbs
           flush_dps -= dps
-          tot_size_mb -= segment.size_mb
-          flush_thread_count -= 1
+          tot_size_mb += segment.size_mb
       else:
-        if time == segment.start_time:
+        if what == 'segstart':
           merge_mbs += mbs
           merge_dps += dps
           del_reclaims_per_sec += segment.del_count_reclaimed / dur_sec
-          tot_size_mb += segment.size_mb
           merge_thread_count += 1
-        else:
+        elif what == 'segend':
+          tot_size_mb -= segment.size_mb
+        elif what == 'seglight':
+          tot_size_mb += segment.size_mb
+          merge_thread_count -= 1
           merge_mbs -= mbs
           merge_dps -= dps
           del_reclaims_per_sec -= segment.del_count_reclaimed / dur_sec
-          tot_size_mb -= segment.size_mb
-          merge_thread_count -= 1
 
       if cur_max_doc == 0:
         # sidestep delete-by-zero ha
@@ -187,8 +195,9 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
       else:
         del_pct = 100.*cur_del_count/cur_max_doc
         
-      l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}],')
     else:
+      assert what == 'checkpoint'
+      
       # a point-in-time checkpoint
       sum_max_doc = 0
       sum_del_count = 0
@@ -208,20 +217,32 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
         del_pct = 0
       else:
         del_pct = 100.*cur_del_count/cur_max_doc
-      
+
     # print(f'{(time - start_abs_time).total_seconds():6.1f} {num_segments=} {max_doc=} {tot_size_mb=:.1f} {flush_mbs=:.1f} {merge_mbs=:.1f} {flush_dps=:.1f} {merge_dps=:.1f} {del_reclaims_per_sec=:.1f}')
-      l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}],')
+    l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}],')
 
   # nocommit
-  with open('/x/tmp/foobar.html', 'w') as f:
+  with open('segmetrics.html', 'w') as f:
     f.write(
     '''
 <html><head>
-<script type="text/javascript" src="dygraph.min.js"></script>
-<link rel="stylesheet" type="text/css" src="dygraph.css" />
-</head><body>
-<br>
-<div id="graphdiv" style="height: 90%; width: 100%"></div>
+<link rel="stylesheet" href="dygraph.css"></link>
+<style>
+#graphdiv .dygraph-legend > span.highlight {
+  border: 2px solid black;
+  font-weight: bold;
+  font-size: 24;
+}
+
+#graphdiv .dygraph-legend > span {
+  font-weight: bold;
+  font-size: 24;
+}
+</style>
+<script type="text/javascript" src="dygraph.js"></script>
+</head>
+</body>
+  <div id="graphdiv" style="height: 100%; width: 100%"></div>
 <script type="text/javascript">
 Dygraph.onDOMready(function onDOMready() {
   g = new Dygraph(
@@ -236,42 +257,19 @@ Dygraph.onDOMready(function onDOMready() {
     f.write('''
       ],
 
-      {labels: ["time", "num_segments", "size_gb", "merge_mbs", "flush_mbs", "max_doc_M", "del_doc_pct", "merge_threads", "flush_threads"],
-       ylabel: 'GB/count',
-       y2label: 'MB/sec',
-       series : {
-              'merge_mbs': {
-                axis: 'y2'
-              },
-              'flush_mbs': {
-                axis: 'y2'
-              }
-            },
-       axes: {
-              y: {
-                // set axis-related properties here
-                drawGrid: false,
-                independentTicks: false
-              },
-              y2: {
-                // set axis-related properties here
-                drawGrid: true,
-                independentTicks: true
-              },
-         },
-         highlightCircleSize: 2,
-         strokeWidth: 1,
-         strokeBorderWidth: 1,
-    
-         highlightSeriesOpts: {
-              strokeWidth: 3,
-              highlightCircleSize: 5,
-              strokeBorderWidth: 1,
-              highlightSeriesBackgroundAlpha: 0.5,
-              hideOnMouseOut: false,
-         }
-      }
-    
+      {labels: ["Time", "Segment Count", "Size GB", "Merge MB/s", "Flush MB/s", "Tot MB/s", "Max Doc M", "Del %", "Merging Threads", "Flushing Threads"],
+       highlightCircleSize: 2,
+       strokeWidth: 1,
+       strokeBorderWidth: 1,
+       showRangeSelector: true,
+       labelsSeparateLines: true,
+       highlightSeriesOpts: {
+            strokeWidth: 3,
+            highlightCircleSize: 5,
+            strokeBorderWidth: 2,
+            highlightSeriesBackgroundAlpha: 0.5,
+       }
+    }
   );
 });
 </script>
@@ -279,6 +277,43 @@ Dygraph.onDOMready(function onDOMready() {
 </html>
 ''')
 
+    '''
+       series : {
+              'Merge MB/s': {
+                axis: 'y2'
+              },
+              'Flush MB/s': {
+                axis: 'y2'
+              },
+              'Tot MB/s': {
+                axis: 'y2'
+              },
+              'Del %': {
+                axis: 'y2'
+              },
+              'Merging Threads': {
+                axis: 'y2'
+              },
+              'Flushing Threads': {
+                axis: 'y2'
+              }
+            },
+
+              y2: {
+                // set axis-related properties here
+                drawGrid: true,
+                independentTicks: true
+              },
+    
+       axes: {
+              y: {
+                // set axis-related properties here
+                drawGrid: false,
+                independentTicks: false
+              },
+         },
+'''
+    
 def main():
 
   if len(sys.argv) != 3:

@@ -25,6 +25,9 @@ import infostream_to_segments
 import intervaltree
 
 # TODO
+#   - why first merge-on-commit so short
+#   - can i get size-of-checkopint into tool
+#   - Plot reducer/wirter too
 #   - how to get merge times broken out by field
 #   - sliding cursor showing segment count, which are alive, how many deletes, etc.
 #   - how to reflect deletes
@@ -48,13 +51,9 @@ import intervaltree
 #     - net write amplification
 #     - update vs delete vs append rate
 #   - pop out nice graphs showing stuff over time, linking out to lines in InfoStream
-#     - merge del reclaim efficiency (% deletes reclaimed)
-#     - size of index, % deletes
 #     - full-flush and how long they took / how many segments / bytes
 #     - indexing rate
-#     - io write rate
-#     - write amp;lification
-#     - nujmber of thresds/segments flushing/merging
+#     - write amplification
 #     - ram -> segment size efficiency of flush
 #   - am i pulling born deleted correctly for flushed segments?
 #   - also report on how much HNSW concurrency is in use
@@ -99,7 +98,7 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 USE_FABRIC = False
 USE_SVG = True
 
-def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
+def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs_time):
   '''
   Computes aggregate metrics by time: MB/sec writing
   (flushing/merging), number of segments, number/%tg deletes, max_doc,
@@ -120,6 +119,8 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
     for timestamp, event, line_number in segment.events:
       if event == 'light':
         all_times.append((timestamp, 'seglight', segment))
+        if segment.del_count_reclaimed is not None:
+          segment.del_reclaims_per_sec = segment.del_count_reclaimed / (timestamp - segment.start_time).total_seconds()
         break
       
     all_times.append((segment.end_time, 'segend', segment))
@@ -127,6 +128,9 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
 
   for checkpoint in checkpoints:
     all_times.append((checkpoint[0], 'checkpoint', checkpoint))
+
+  for commit in commits:
+    all_times.append((commit[0], 'commit', commit))
 
   all_times.sort(key=lambda x: x[0])
 
@@ -139,10 +143,14 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
   flush_dps = 0
   merge_dps = 0
   cur_del_count = 0
+  commit_size_mb = 0
   del_reclaims_per_sec = 0
   flush_thread_count = 0
   merge_thread_count = 0
+  # segment names included in last commit
+  last_commit_seg_names = set()
   l = []
+  seg_name_to_size = {}
   for time, what, item in all_times:
 
     if what in ('segstart', 'segend', 'seglight'):
@@ -167,6 +175,7 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
           flush_mbs += mbs
           flush_dps += dps
           flush_thread_count += 1
+          seg_name_to_size[segment.name] = segment.size_mb
         elif what == 'segend':
           tot_size_mb -= segment.size_mb
         elif what == 'seglight':
@@ -178,8 +187,9 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
         if what == 'segstart':
           merge_mbs += mbs
           merge_dps += dps
-          del_reclaims_per_sec += segment.del_count_reclaimed / dur_sec
+          del_reclaims_per_sec += segment.del_reclaims_per_sec
           merge_thread_count += 1
+          seg_name_to_size[segment.name] = segment.size_mb
         elif what == 'segend':
           tot_size_mb -= segment.size_mb
         elif what == 'seglight':
@@ -187,7 +197,7 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
           merge_thread_count -= 1
           merge_mbs -= mbs
           merge_dps -= dps
-          del_reclaims_per_sec -= segment.del_count_reclaimed / dur_sec
+          del_reclaims_per_sec -= segment.del_reclaims_per_sec
 
       if cur_max_doc == 0:
         # sidestep delete-by-zero ha
@@ -195,8 +205,8 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
       else:
         del_pct = 100.*cur_del_count/cur_max_doc
         
-    else:
-      assert what == 'checkpoint'
+    elif what == 'checkpoint':
+      # this is IW's internal checkpoint, much more frequent than external commit
       
       # a point-in-time checkpoint
       sum_max_doc = 0
@@ -217,9 +227,20 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
         del_pct = 0
       else:
         del_pct = 100.*cur_del_count/cur_max_doc
+    elif what == 'commit':
+      # this is external (user-called) commit
+      commit_seg_names = set()
+      commit_size_mb = 0
+      for seg_details in item[2:]:
+        seg_name = seg_details[0]
+        commit_seg_names.add(seg_name)
+        if seg_name not in last_commit_seg_names:
+          commit_size_mb += seg_name_to_size[seg_name]
+      last_commit_seg_names = commit_seg_names
 
-    # print(f'{(time - start_abs_time).total_seconds():6.1f} {num_segments=} {max_doc=} {tot_size_mb=:.1f} {flush_mbs=:.1f} {merge_mbs=:.1f} {flush_dps=:.1f} {merge_dps=:.1f} {del_reclaims_per_sec=:.1f}')
-    l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}],')
+    l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec/100.:.3f}, {flush_dps/100:.3f}, {commit_size_mb/100.:.3f}],')
+    # so we only output one spiky point when the commit happened
+    commit_size_mb = 0
 
   # nocommit
   with open('segmetrics.html', 'w') as f:
@@ -232,17 +253,19 @@ def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
   border: 2px solid black;
   font-weight: bold;
   font-size: 24;
+  width: 500px;
 }
 
 #graphdiv .dygraph-legend > span {
   font-weight: bold;
   font-size: 24;
+  width: 500px;
 }
 </style>
 <script type="text/javascript" src="dygraph.js"></script>
 </head>
 </body>
-  <div id="graphdiv" style="height: 100%; width: 100%"></div>
+  <div id="graphdiv" style="height: 90%; width: 90%"></div>
 <script type="text/javascript">
 Dygraph.onDOMready(function onDOMready() {
   g = new Dygraph(
@@ -257,7 +280,7 @@ Dygraph.onDOMready(function onDOMready() {
     f.write('''
       ],
 
-      {labels: ["Time", "Segment Count", "Size GB", "Merge MB/s", "Flush MB/s", "Tot MB/s", "Max Doc M", "Del %", "Merging Threads", "Flushing Threads"],
+      {labels: ["Time", "Segment count", "Size (GB)", "Merge (MB/s)", "Flush (MB/s)", "Tot (MB/s)", "Max Doc (M)", "Del %", "Merging Threads", "Flushing Threads", "Del reclaim rate (C/sec)", "Indexing rate (C docs/sec)", "Commit size (CMB)"],
        highlightCircleSize: 2,
        strokeWidth: 1,
        strokeBorderWidth: 1,
@@ -324,10 +347,10 @@ def main():
   if os.path.exists(html_file_out):
     raise RuntimeError(f'please remove {html_file_out} first')
 
-  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events, checkpoints = pickle.load(open(segments_file_in, 'rb'))
+  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events, checkpoints, commits = pickle.load(open(segments_file_in, 'rb'))
   print(f'{len(segments)} segments spanning {(segments[-1].start_time-segments[0].start_time).total_seconds()} seconds')
 
-  compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time)
+  compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs_time)
     
   _l = []
   w = _l.append
@@ -347,8 +370,8 @@ def main():
   w('</form>')
   w('')
   #w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0;background:rgba(0xff,0xff,0xff,.6)"></div>')
-  w(f'<div id="details" style="position:absolute;left: 5;top: 5;z-index:0; background: rgba(255, 255, 255, 0.5)"></div>')
-  w('<div id="details2" style="display: flex; justify-content: flex-end; background: rgba(255, 255, 255, 0.5)">')
+  w(f'<div id="details" style="position:absolute;left: 5;top: 5;z-index:0; background: rgba(255, 255, 255, 0.85)"></div>')
+  w('<div id="details2" style="display: flex; justify-content: flex-end; background: rgba(255, 255, 255, 0.85)">')
   w('</div>')
   
   w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')

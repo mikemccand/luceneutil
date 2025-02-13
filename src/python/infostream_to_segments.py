@@ -48,6 +48,10 @@ IFD 0 [2025-01-31T12:35:58.904657761Z; Lucene Merge Thread #0]: now delete 0 fil
 IFD 0 [2025-01-31T12:35:58.905104934Z; Lucene Merge Thread #0]: now delete 0 files: []
 '''
 
+# e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
+#   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
+re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+?')
+
 class Segment:
 
   all_segments = []
@@ -234,6 +238,43 @@ def to_float(s):
 Parses a full IndexWriter InfoStream to per-segment details for rendering with segments_to_html.py
 '''
 
+def parse_seg_details(s):
+  seg_details = []
+  for tup in re_segment_desc.findall(s):
+    # TODO: we could parse timestamp from diagnostics...
+    segment_name = '_' + tup[0]
+    cfs_letter = tup[1]
+    if cfs_letter == 'C':
+      is_cfs = False
+    elif cfs_letter == 'c':
+      is_cfs = True
+    else:
+      raise RuntimeError(f'expected c or C for CFS boolean but got {cfs_letter}')
+    max_doc = int(tup[2])
+    if tup[3] != '':
+      del_count = int(tup[3][1:])
+    else:
+      del_count = 0
+
+    diagnostics = tup[5]
+    if 'source=merge' in diagnostics:
+      source = ('merge', [])
+    elif 'source=flush' in diagnostics:
+      source = 'flush'
+    else:
+      raise RuntimeError(f'seg {segment_name}: a new source in {diagnostics}?')
+
+    attributes = tup[6]
+    del_gen = tup[7]
+    if del_gen != '':
+      del_gen = int(del_gen[8:])
+    else:
+      del_gen = None
+
+    seg_details.append((segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
+
+  return seg_details
+  
 def main():
   if len(sys.argv) != 3:
     raise RuntimeError('Usage: python3 -u infostream_to_segments.py <path-to-infostream-log> <path-to-segments-file-out>')
@@ -275,10 +316,6 @@ def main():
   # e.g.: IW 0 [2025-01-31T12:35:51.817783927Z; Lucene Merge Thread #0]: merge seg=_1y _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw _l(11.0.0):C49798:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951756, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvy _u(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951689, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppwj _w(11.0.0):C49797:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951801, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvq _a(11.0.0):C49784:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951625, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppw3 _r(11.0.0):C49783:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951688, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvs _e(11.0.0):C49779:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951736, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvr _p(11.0.0):C49784:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951761, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppwa _5(11.0.0):C49778:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951706, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppwq _h(11.0.0):C49793:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951625, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppw7
   re_merge_start = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merge seg=_(.*?) (.*?)$')
 
-  # e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
-  #   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
-  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+?')
-
   # e.g.: SM 0 [2025-01-31T12:35:51.981685491Z; Lucene Merge Thread #2]: 13 ms to merge stored fields [497911 docs]
   re_msec_to_merge = re.compile(r'^SM \d+ \[([^;]+); (.*?)\]: (\d+) ms to merge (.*?) \[(\d+) docs\]$')
   re_msec_to_build_docmaps = re.compile(r'^SM \d+ \[([^;]+); (.*?)\]: ([\d.]+) msec to build merge sorted DocMaps$')
@@ -314,6 +351,9 @@ def main():
   # e.g.: IW 153984 [2025-02-07T21:14:02.215553235Z; GCR-Writer-1-thread-8]: commit: start
   re_start_commit = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: commit: start$')
 
+  # e.g.: IW 2575 [2025-02-07T17:47:54.694279252Z; GCR-Writer-1-thread-11]: startCommit index=_1b(9.11.2):C247182/1309:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950305614}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=589sfyynireleyyu9fa3c21e4 _1n(9.11.2):C124912/477:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950366061}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=589sfyynireleyyu9fa3c21e5 _23(9.11.2):C123523:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950429672}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=589sfyynireleyyu9fa3c21eb _24(9.11.2):C53964:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950429684}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=589sfyynireleyyu9fa3c21ed _25(9.11.2):C13577:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=3, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950429703}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=589sfyynireleyyu9fa3c21ef changeCount=168
+  re_start_commit_index = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: startCommit index=(.*?) changeCount=(\d+)$')
+
   line_number = 0
 
   global_start_time = None
@@ -335,6 +375,7 @@ def main():
   commit_thread_name = None
 
   checkpoints = []
+  commits = []
 
   with open(infostream_log, 'r') as f:
     while True:
@@ -357,63 +398,29 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           num_segments_expected = int(m.group(4))
-          seg_count = 0
-          seg_names = []
-          seg_checkpoint = [timestamp, thread_name]
-          for tup in re_segment_desc.findall(m.group(3)):
-            # TODO: we could parse timestamp from diagnostics...
-            segment_name = '_' + tup[0]
-            cfs_letter = tup[1]
-            if cfs_letter == 'C':
-              is_cfs = False
-            elif cfs_letter == 'c':
-              is_cfs = True
-            else:
-              raise RuntimeError(f'expected c or C for CFS boolean but got {cfs_letter}')
-            max_doc = int(tup[2])
-            if tup[3] != '':
-              del_count = int(tup[3][1:])
-            else:
-              del_count = 0
+          seg_details = parse_seg_details(m.group(3))
 
-            diagnostics = tup[5]
-            if 'source=merge' in diagnostics:
-              source = ('merge', [])
-            elif 'source=flush' in diagnostics:
-              source = 'flush'
-            else:
-              raise RuntimeError(f'seg {segment_name}: a new source in {diagnostics}?')
-
-            attributes = tup[6]
-            del_gen = tup[7]
-            if del_gen != '':
-              del_gen = int(del_gen[8:])
-            else:
-              del_gen = None
-
-            if first_checkpoint:
-              # seed the initial segments in the index
+          if len(seg_details) != num_segments_expected:
+            print(f'failed to parse the expected {num_segments_expected} number of sogments: found {len(seg_details)}: {seg_details}\n{line}')
+            raise RuntimeError(f'failed to parse the expected {num_segments_expected} number of sogments: found {len(seg_details)} {seg_details}')
+          
+          if first_checkpoint:
+            # seed the initial segments in the index
+            for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
-              global_start_time = segment.start_time
-              # print(f'add initial segment {segment_name} {max_doc=} {del_count=}')
               by_segment_name[segment_name] = segment
-            else:
+            global_start_time = timestamp
+            # print(f'add initial segment {segment_name} {max_doc=} {del_count=}')
+          else:
+            for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = by_segment_name[segment_name]
               if del_count != segment.del_count:
                 assert segment.del_count is None or del_count > segment.del_count
                 # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
                 segment.add_event(timestamp, f'del_count {del_count:,} del_gen {del_gen}', line_number)
                 segment.del_count = del_count
-              
-            seg_count += 1
-            seg_names.append(segment_name)
 
-            seg_checkpoint.append((segment_name, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
-
-          if seg_count != num_segments_expected:
-            print(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count}: {seg_names}\n{line}')
-            raise RuntimeError(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count} {seg_names}')
-          checkpoints.append(tuple(seg_checkpoint))
+          checkpoints.append((timestamp, thread_name) + tuple(seg_details))
           # print(f'{seg_checkpoint=}')
 
           first_checkpoint = False
@@ -707,6 +714,15 @@ def main():
           print(f'set commit thread {commit_thread_name}')
           continue
           
+        m = re_start_commit_index.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          seg_details = parse_seg_details(m.group(3))
+          commits.append((timestamp, thread_name) + tuple(seg_details))
+          print(f'startCommit: {seg_details}')
+          continue
+          
       except KeyboardInterrupt:
         raise
       except:
@@ -719,7 +735,7 @@ def main():
       print(f'set end_time for segment {segment.name} to global end time')
       segment.end_time = global_end_time
 
-  open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events, checkpoints)))
+  open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events, checkpoints, commits)))
   print(f'wrote {len(Segment.all_segments)} segments to "{segments_out}": {os.path.getsize(segments_out)/1024/1024:.1f} MB')
 
 if __name__ == '__main__':

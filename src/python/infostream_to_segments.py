@@ -210,7 +210,8 @@ class Segment:
     for i, (ts, event, line_number) in enumerate(self.events):
       is_del = event.startswith('del_count ')
       if is_del:
-        count = int(event[10:].replace(',', ''))
+        # print(f'got {event}')
+        count = int(event[10:event.find(' ', 10)].replace(',', ''))
         event += f' ({100.*count/self.max_doc:.1f}%)'
       s = f'+{(ts - last_ts).total_seconds():.2f}'
 
@@ -276,7 +277,7 @@ def main():
 
   # e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
   #   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
-  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=\{.*?\}\](:delGen=\d+)? :id=[0-9a-z]+?')
+  re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+?')
 
   # e.g.: SM 0 [2025-01-31T12:35:51.981685491Z; Lucene Merge Thread #2]: 13 ms to merge stored fields [497911 docs]
   re_msec_to_merge = re.compile(r'^SM \d+ \[([^;]+); (.*?)\]: (\d+) ms to merge (.*?) \[(\d+) docs\]$')
@@ -289,7 +290,7 @@ def main():
   re_merge_commit = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: commitMerge: ')
 
   # e.g. IFD 0 [2025-02-02T20:48:41.430973144Z; main]: now checkpoint "_89(11.0.0):C10061266:[diagnostics={timestamp=1738471577758, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3ses _1c(11.0.0):C621189:[diagnostics={timestamp=1738471469509, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3run _1o(11.0.0):C858490:[diagnostics={timestamp=1738471473331, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3rw2 _6s(11.0.0):C9775889:[diagnostics={timestamp=1738471534474, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3ser _24(11.0.0):C1173700:[diagnostics={timestamp=1738471479224, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3ryj _3n(11.0.0):C1116447:[diagnostics={timestamp=1738471497653, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3s2x _4i(11.0.0):C1133465:[diagnostics={timestamp=1738471507644, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3s5c _7v(11.0.0):C1164338:[diagnostics={timestamp=1738471546722, os.version=6.12.4-arch1-1, os=Linux, java.vendor=Arch Linux, mergeFactor=10, java.runtime.version=23, os.arch=amd64, source=merge, lucene.version=11.0.0, mergeMaxNumSegments=-1}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sd3 _7d(11.0.0):C108162:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471553445, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sdu _7x(11.0.0):C34764:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471553979, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sdv _7n(11.0.0):C74924:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471555045, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sdw _7h(11.0.0):C80743:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471556260, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sdx _7u(11.0.0):C44341:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471556917, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sdy _7z(11.0.0):C29383:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471557330, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sdz _7l(11.0.0):C77113:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471558412, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se0 _7k(11.0.0):C79984:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471559541, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se1 _7q(11.0.0):C56634:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471560348, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se2 _7e(11.0.0):C100837:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471561742, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se3 _7i(11.0.0):C89761:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471562974, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se4 _81(11.0.0):C19348:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471563252, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se5 _7r(11.0.0):C53974:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471564015, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se6 _83(11.0.0):C13311:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471564202, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se7 _7o(11.0.0):C64703:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471565126, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se8 _7f(11.0.0):C97021:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471566465, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3se9 _7t(11.0.0):C47426:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471567136, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sea _80(11.0.0):C24675:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471567500, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3seb _84(11.0.0):C9909:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471567636, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sec _7w(11.0.0):C40123:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471568203, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sed _82(11.0.0):C18105:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471568453, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3see _87(11.0.0):C2803:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471568504, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sef _7s(11.0.0):C52959:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471569278, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3seg _7b(11.0.0):C109635:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471570785, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3seh _7g(11.0.0):C90152:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471572034, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sei _7j(11.0.0):C80909:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471573145, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sej _7p(11.0.0):C64576:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471574043, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sek _7y(11.0.0):C32492:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471576085, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sem _7a(11.0.0):C114056:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471577618, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3sen _86(11.0.0):C7431:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738471577731, java.runtime.version=23, os=Linux, java.vendor=Arch Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=9xrhn5oqlwx65m3bmjtje3seo" [38 segments ; isCommit = false]
-  re_now_checkpoint = re.compile(r'^IFD \d+ \[([^;]+); (.*?)\]: now checkpoint (.*?) \[(\d+) segments ; isCommit = false\]$')
+  re_now_checkpoint = re.compile(r'^IFD \d+ \[([^;]+); (.*?)\]: now checkpoint (.*?) \[(\d+) segments ; isCommit = (false|true)\]$')
 
   re_seg_size = re.compile(r'^MP \d+ \[([^;]+); (.*?)\]:\s+seg=_(.*?)\(.*? size=([0-9.]+) MB( \[floored])?$')
 
@@ -312,7 +313,7 @@ def main():
 
   # e.g.: IW 153984 [2025-02-07T21:14:02.215553235Z; GCR-Writer-1-thread-8]: commit: start
   re_start_commit = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: commit: start$')
-  
+
   line_number = 0
 
   global_start_time = None
@@ -333,6 +334,8 @@ def main():
 
   commit_thread_name = None
 
+  checkpoints = []
+
   with open(infostream_log, 'r') as f:
     while True:
       line = f.readline()
@@ -352,12 +355,21 @@ def main():
           # so we just stack initially w/ canned lifetimes:
           s = m.group(3)
           timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
           num_segments_expected = int(m.group(4))
           seg_count = 0
           seg_names = []
+          seg_checkpoint = [timestamp, thread_name]
           for tup in re_segment_desc.findall(m.group(3)):
             # TODO: we could parse timestamp from diagnostics...
             segment_name = '_' + tup[0]
+            cfs_letter = tup[1]
+            if cfs_letter == 'C':
+              is_cfs = False
+            elif cfs_letter == 'c':
+              is_cfs = True
+            else:
+              raise RuntimeError(f'expected c or C for CFS boolean but got {cfs_letter}')
             max_doc = int(tup[2])
             if tup[3] != '':
               del_count = int(tup[3][1:])
@@ -372,6 +384,13 @@ def main():
             else:
               raise RuntimeError(f'seg {segment_name}: a new source in {diagnostics}?')
 
+            attributes = tup[6]
+            del_gen = tup[7]
+            if del_gen != '':
+              del_gen = int(del_gen[8:])
+            else:
+              del_gen = None
+
             if first_checkpoint:
               # seed the initial segments in the index
               segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
@@ -383,15 +402,19 @@ def main():
               if del_count != segment.del_count:
                 assert segment.del_count is None or del_count > segment.del_count
                 # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
-                segment.add_event(timestamp, f'del_count {del_count:,}', line_number)
+                segment.add_event(timestamp, f'del_count {del_count:,} del_gen {del_gen}', line_number)
                 segment.del_count = del_count
               
             seg_count += 1
             seg_names.append(segment_name)
 
+            seg_checkpoint.append((segment_name, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
+
           if seg_count != num_segments_expected:
             print(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count}: {seg_names}\n{line}')
             raise RuntimeError(f'failed to parse the expected {num_segments_expected} number of sogments: found {seg_count} {seg_names}')
+          checkpoints.append(tuple(seg_checkpoint))
+          # print(f'{seg_checkpoint=}')
 
           first_checkpoint = False
           continue
@@ -640,7 +663,7 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           new_merge_thread_name = m.group(3)
-          print(f'got launch new thread {thread_name} and {new_merge_thread_name}')
+          # print(f'got launch new thread {thread_name} and {new_merge_thread_name}')
           if thread_name == merge_on_commit_thread_name and (len(merge_during_commit_events) > 0 and merge_during_commit_events[-1][1] is None):
             # so we know, for certain, that the merged kicked off during a merge-on-commit window
             # really came from the merge-on-commit thread
@@ -696,7 +719,7 @@ def main():
       print(f'set end_time for segment {segment.name} to global end time')
       segment.end_time = global_end_time
 
-  open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events)))
+  open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events, checkpoints)))
   print(f'wrote {len(Segment.all_segments)} segments to "{segments_out}": {os.path.getsize(segments_out)/1024/1024:.1f} MB')
 
 if __name__ == '__main__':

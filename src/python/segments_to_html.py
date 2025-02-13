@@ -25,6 +25,7 @@ import infostream_to_segments
 import intervaltree
 
 # TODO
+#   - how to get merge times broken out by field
 #   - sliding cursor showing segment count, which are alive, how many deletes, etc.
 #   - how to reflect deletes
 #   - get rid of redundant seg_name vs id in the segment rects
@@ -98,7 +99,15 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 USE_FABRIC = False
 USE_SVG = True
 
-def compute_bandwidth_by_time(segments, start_abs_time, end_abs_time):
+def compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time):
+  '''
+  Computes aggregate metrics by time: MB/sec writing
+  (flushing/merging), number of segments, number/%tg deletes, max_doc,
+  concurrent flush count, concurrent merge count, total disk usage,
+  indexing rate, write amplification, delete rate, add rate
+  '''
+
+  name_to_segment = {}
 
   # single list that mixes end and start times
   all_times = []
@@ -108,21 +117,167 @@ def compute_bandwidth_by_time(segments, start_abs_time, end_abs_time):
       continue
     all_times.append((segment.start_time, segment))
     all_times.append((segment.end_time, segment))
+    name_to_segment[segment.name] = segment
+
+  for checkpoint in checkpoints:
+    all_times.append((checkpoint[0], checkpoint))
 
   all_times.sort(key=lambda x: x[0])
 
   # TODO: how to plot this?
-  bw = 0
-  for time, segment in all_times:
-    # MB/sec written by this merge
-    mbs_for_merge = segment.size_mb / (segment.end_time - segment.start_time).total_seconds()
-    if time == segment.start_time:
-      bw += mbs_for_merge
+  flush_mbs = 0
+  merge_mbs = 0
+  cur_max_doc = 0
+  num_segments = 0
+  tot_size_mb = 0
+  flush_dps = 0
+  merge_dps = 0
+  cur_del_count = 0
+  del_reclaims_per_sec = 0
+  flush_thread_count = 0
+  merge_thread_count = 0
+  l = []
+  for time, item in all_times:
+
+    if type(item) is Segment:
+
+      segment = item
+
+      if segment.end_time is None:
+        end_time = end_abs_time
+      else:
+        end_time = segment.end_time
+
+      dur_sec = (end_time - segment.start_time).total_seconds()
+
+      # MB/sec written by this segment
+      mbs = segment.size_mb / dur_sec
+
+      # docs/sec
+      dps = segment.max_doc / dur_sec
+
+      if type(segment.source) is str and segment.source.startswith('flush'):
+        if time == segment.start_time:
+          flush_mbs += mbs
+          flush_dps += dps
+          tot_size_mb += segment.size_mb
+          flush_thread_count += 1
+        else:
+          flush_mbs -= mbs
+          flush_dps -= dps
+          tot_size_mb -= segment.size_mb
+          flush_thread_count -= 1
+      else:
+        if time == segment.start_time:
+          merge_mbs += mbs
+          merge_dps += dps
+          del_reclaims_per_sec += segment.del_count_reclaimed / dur_sec
+          tot_size_mb += segment.size_mb
+          merge_thread_count += 1
+        else:
+          merge_mbs -= mbs
+          merge_dps -= dps
+          del_reclaims_per_sec -= segment.del_count_reclaimed / dur_sec
+          tot_size_mb -= segment.size_mb
+          merge_thread_count -= 1
+
+      if cur_max_doc == 0:
+        # sidestep delete-by-zero ha
+        del_pct = 0
+      else:
+        del_pct = 100.*cur_del_count/cur_max_doc
+        
+      l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}],')
     else:
-      bw -= mbs_for_merge
+      # a point-in-time checkpoint
+      sum_max_doc = 0
+      sum_del_count = 0
+      
+      for seg_tuple in item[2:]:
+        # each seg_tuple is (segment_name, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
+        seg_name = seg_tuple[0]
+        sum_max_doc += seg_tuple[2]
+        sum_del_count += seg_tuple[3]
+
+      cur_max_doc = sum_max_doc
+      cur_del_count = sum_del_count
+      num_segments = len(item) - 2
+
+      if cur_max_doc == 0:
+        # sidestep delete-by-zero ha
+        del_pct = 0
+      else:
+        del_pct = 100.*cur_del_count/cur_max_doc
+      
+    # print(f'{(time - start_abs_time).total_seconds():6.1f} {num_segments=} {max_doc=} {tot_size_mb=:.1f} {flush_mbs=:.1f} {merge_mbs=:.1f} {flush_dps=:.1f} {merge_dps=:.1f} {del_reclaims_per_sec=:.1f}')
+      l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}],')
+
+  # nocommit
+  with open('/x/tmp/foobar.html', 'w') as f:
+    f.write(
+    '''
+<html><head>
+<script type="text/javascript" src="dygraph.min.js"></script>
+<link rel="stylesheet" type="text/css" src="dygraph.css" />
+</head><body>
+<br>
+<div id="graphdiv" style="height: 90%; width: 100%"></div>
+<script type="text/javascript">
+Dygraph.onDOMready(function onDOMready() {
+  g = new Dygraph(
+
+    // containing div
+    document.getElementById("graphdiv"),
+    [
+    ''')
+
+    f.write('\n'.join(l))
+
+    f.write('''
+      ],
+
+      {labels: ["time", "num_segments", "size_gb", "merge_mbs", "flush_mbs", "max_doc_M", "del_doc_pct", "merge_threads", "flush_threads"],
+       ylabel: 'GB/count',
+       y2label: 'MB/sec',
+       series : {
+              'merge_mbs': {
+                axis: 'y2'
+              },
+              'flush_mbs': {
+                axis: 'y2'
+              }
+            },
+       axes: {
+              y: {
+                // set axis-related properties here
+                drawGrid: false,
+                independentTicks: false
+              },
+              y2: {
+                // set axis-related properties here
+                drawGrid: true,
+                independentTicks: true
+              },
+         },
+         highlightCircleSize: 2,
+         strokeWidth: 1,
+         strokeBorderWidth: 1,
     
-    # print(f'{(time - start_abs_time).total_seconds():6.1f} sec: {bw:.1f} MB/sec')
-    print(f'{(time - start_abs_time).total_seconds():6.1f}\t{bw:.1f}')
+         highlightSeriesOpts: {
+              strokeWidth: 3,
+              highlightCircleSize: 5,
+              strokeBorderWidth: 1,
+              highlightSeriesBackgroundAlpha: 0.5,
+              hideOnMouseOut: false,
+         }
+      }
+    
+  );
+});
+</script>
+</body>
+</html>
+''')
 
 def main():
 
@@ -134,10 +289,10 @@ def main():
   if os.path.exists(html_file_out):
     raise RuntimeError(f'please remove {html_file_out} first')
 
-  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events = pickle.load(open(segments_file_in, 'rb'))
+  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events, checkpoints = pickle.load(open(segments_file_in, 'rb'))
   print(f'{len(segments)} segments spanning {(segments[-1].start_time-segments[0].start_time).total_seconds()} seconds')
 
-  compute_bandwidth_by_time(segments, start_abs_time, end_abs_time)
+  compute_time_metrics(checkpoints, segments, start_abs_time, end_abs_time)
     
   _l = []
   w = _l.append
@@ -157,9 +312,8 @@ def main():
   w('</form>')
   w('')
   #w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0;background:rgba(0xff,0xff,0xff,.6)"></div>')
-  w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0"></div>')
-  w('<div id="details2" style="display: flex; justify-content: flex-end;">')
-  w('time details')
+  w(f'<div id="details" style="position:absolute;left: 5;top: 5;z-index:0; background: rgba(255, 255, 255, 0.5)"></div>')
+  w('<div id="details2" style="display: flex; justify-content: flex-end; background: rgba(255, 255, 255, 0.5)">')
   w('</div>')
   
   w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')
@@ -194,10 +348,8 @@ def main():
   # this is actually a fun 2D bin-packing problem (assigning segments to levels)! ... I've only tried
   # these two simple approaches so far:
 
-  # TODO: maybe instead sort by how long segment is alive?  should "roughly" correlate to segment size...
-
   if True:
-    # sort segments by size, descending, and assign to level bottom up, so big segments are always down low
+    # sort segments by lifetime, and assign to level bottom up, so long lived segments are always down low
 
     tree = intervaltree.IntervalTree()
 

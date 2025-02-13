@@ -37,6 +37,7 @@ public class TaskParserFactory {
     private final Path vectorFilePath;
     private final int vectorDimension;
     private final boolean doStoredLoads;
+    private final TestContext testContext;
 
     public TaskParserFactory(IndexState state,
                              String field,
@@ -47,7 +48,8 @@ public class TaskParserFactory {
                              VectorDictionary vectorDictionary,
                              Path vectorFilePath,
                              int vectorDimension,
-                             boolean doStoredLoads) {
+                             boolean doStoredLoads,
+                             TestContext testContext) {
         this.indexState = state;
         this.field = field;
         this.fieldForQueryParser = fieldForQueryParser;
@@ -58,10 +60,11 @@ public class TaskParserFactory {
         this.vectorFilePath = vectorFilePath;
         this.vectorDimension = vectorDimension;
         this.doStoredLoads = doStoredLoads;
+        this.testContext = testContext;
     }
 
     public TaskParser getTaskParser() throws IOException {
         QueryParser qp = new QueryParser(fieldForQueryParser, analyzer);
-        return new TaskParser(indexState, qp, field, topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads);
+        return new TaskParser(indexState, qp, field, topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads, testContext);
     }
 }

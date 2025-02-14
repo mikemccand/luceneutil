@@ -32,7 +32,7 @@ def downloadDocumentsSource(dataDir):
   fileName = '20M.subset.nyctaxis.csv.blocks'
   destFileName = '%s/%s' % (dataDir, fileName)
   if not os.path.exists(destFileName):
-    urlSource = 'http://home.apache.org/~mikemccand/%s.bz2' % fileName
+    urlSource = 'https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/%s.bz2' % fileName
     print('  download %s -> %s.bz2...' % (urlSource, destFileName))
     try:
       with open(destFileName + '.bz2', 'wb') as fOut, urllib.request.urlopen(urlSource) as fIn:

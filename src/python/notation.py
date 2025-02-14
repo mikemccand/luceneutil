@@ -970,4 +970,8 @@ KNOWN_CHANGES = [
  ('2025-02-09',
   'Reduce virtual calls when visiting bpv24-encoded doc ids in BKD leaves. https://github.com/apache/lucene/pull/14176',
   'Reduce virtual calls when visiting bpv24-encoded doc ids in BKD leaves. https://github.com/apache/lucene/pull/14176'),
+
+  ('2025-02-13',
+   'Change the filtered HNSW search algorithm to one based on ACORN-1. https://github.com/apache/lucene/pull/14160',
+   'Change the filtered HNSW search algorithm to one based on ACORN-1. https://github.com/apache/lucene/pull/14160'),
 ]

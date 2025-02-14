@@ -929,10 +929,14 @@ public class KnnGraphTester {
   private int compareNN(int[] expected, int[] results) {
     int matched = 0;
     Set<Integer> expectedSet = new HashSet<>();
+    Set<Integer> alreadySeen = new HashSet<>();
     for (int i = 0; i < topK; i++) {
       expectedSet.add(expected[i]);
     }
     for (int docId : results) {
+      if (alreadySeen.add(docId) == false) {
+        throw new IllegalStateException("duplicate docId=" + docId);
+      }
       if (expectedSet.contains(docId)) {
         ++matched;
       }
@@ -947,10 +951,10 @@ public class KnnGraphTester {
    */
   private int[][] getExactNN(Path docPath, Path indexPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex), 36);
+    String hash = Integer.toString(Objects.hash(docPath, indexPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, prefilter ? selectivity : 1f, prefilter ? randomSeed : 0f), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
-    if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {
+    if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath)) {
       System.out.println("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"");
       return readExactNN(nnPath);
     } else {
@@ -964,9 +968,7 @@ public class KnnGraphTester {
       } else {
         nn = computeExactNN(queryPath, queryStartIndex);
       }
-      if (selectivity == 1f) {
-        writeExactNN(nn, nnPath);
-      }
+      writeExactNN(nn, nnPath);
       long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
       System.out.printf("took %.3f sec to compute brute-force exact matches\n", elapsedMS / 1000.);
       return nn;
@@ -1232,9 +1234,16 @@ public class KnnGraphTester {
     }
 
     @Override
+    public Query rewrite(IndexSearcher indexSearcher) throws IOException {
+      totalVectorCount = 0;
+      return super.rewrite(indexSearcher);
+    }
+
+    @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
-      totalVectorCount = td.totalHits.value();
+      // merge leaf can happen any number of times during a rewrite
+      totalVectorCount += td.totalHits.value();
       return td;
     }
 
@@ -1261,9 +1270,16 @@ public class KnnGraphTester {
     }
 
     @Override
+    public Query rewrite(IndexSearcher indexSearcher) throws IOException {
+      totalVectorCount = 0;
+      return super.rewrite(indexSearcher);
+    }
+
+    @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
-      totalVectorCount = td.totalHits.value();
+      // merge leaf can happen any number of times during a rewrite
+      totalVectorCount += td.totalHits.value();
       return td;
     }
 

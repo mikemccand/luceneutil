@@ -41,6 +41,7 @@ CHANGES = [
   ('2022-12-28', 'GITHUB#12037: Optimize flush of SORTED_NUMERIC fields in conjunction with index sorting'),
   ('2023-02-13', 'Cut over keyword fields to KeywordField'),
   ('2023-02-21', 'GITHUB#12139: Skip the TokenStream overhead for simple keywords'),
+  ('2025-02-10', 'GITHUB#14176: Reduce virtual calls when visiting bpv24-encoded doc ids in BKD leaves'),
   ]
 
 reMergeTime = re.compile(r': (\d+) (?:ms|msec) to merge ([a-z ]+) \[(\d+) docs\]')
@@ -48,7 +49,7 @@ reTotMergeTime = re.compile(r': merge time (\d+) ms for (\d+) docs')
 reFlushTime = re.compile(r': flush time ([.0-9]+) ms')
 reFlushPostings = re.compile(r'flush postings as segment .*? numDocs=(\d+)$')
 reDocsPerMB = re.compile('ramUsed=([.,0-9]+) MB newFlushedSize.*? docs/MB=([.,0-9]+)$')
-reIndexingRate = re.compile('([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
+reIndexingRate = re.compile(r'([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec')
 
 def extractIndexStats(indexLog):
   mergeTimesSec = {}
@@ -236,7 +237,8 @@ def toDateTime(parts):
 reDateTime = re.compile(r'(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)')
 
 def toMSEpoch(dt):
-  epoch = datetime.datetime.utcfromtimestamp(0)
+  epoch = datetime.datetime.fromtimestamp(0, datetime.UTC)
+  dt = dt.replace(tzinfo=datetime.UTC)
   return 1000. * (dt - epoch).total_seconds()
 
 def getFastest(searchStats, index):

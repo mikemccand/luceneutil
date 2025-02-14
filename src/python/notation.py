@@ -966,4 +966,8 @@ KNOWN_CHANGES = [
   ('2025-01-26',
    'Not maintain docBufferUpTo when only docs needed. https://github.com/apache/lucene/pull/14164',
    'Not maintain docBufferUpTo when only docs needed. https://github.com/apache/lucene/pull/14164'),
+
+ ('2025-02-09',
+  'Reduce virtual calls when visiting bpv24-encoded doc ids in BKD leaves. https://github.com/apache/lucene/pull/14176',
+  'Reduce virtual calls when visiting bpv24-encoded doc ids in BKD leaves. https://github.com/apache/lucene/pull/14176'),
 ]

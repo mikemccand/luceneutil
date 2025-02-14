@@ -20,14 +20,23 @@ import pickle
 import sys
 import os
 import infostream_to_segments
+import datetime
 
 # pip3 install intervaltree
 import intervaltree
 
 # TODO
-#   - why first merge-on-commit so short
-#   - can i get size-of-checkopint into tool
+#   - hmm this happens once: WARNING: segment _h4 has wrong count sums?  segment.max_doc=1087768 segment.sum_max_doc=1183259 segment.del_count_reclaimed=95341 line_number=31483; fix del_count_reclaimed from 95341 to 95491
+#   - add delete rate too
+#   - add the skew/mis-prediction of expected merge size vs actual
+#   - tie together all segments flushed in a single full flush, e.g. see if app lacks enough flush-currency?
+#   - support/detect flush-by-ram
+#   - count number of files in each segment
+#   - detect indexing thread drift
+#   - more accurately compute index dps, write amplification
+#   - grrr get right div to also be 85% opaque
 #   - Plot reducer/wirter too
+#   - display absolute time in time cursor agg details
 #   - how to get merge times broken out by field
 #   - sliding cursor showing segment count, which are alive, how many deletes, etc.
 #   - how to reflect deletes
@@ -52,7 +61,6 @@ import intervaltree
 #     - update vs delete vs append rate
 #   - pop out nice graphs showing stuff over time, linking out to lines in InfoStream
 #     - full-flush and how long they took / how many segments / bytes
-#     - indexing rate
 #     - write amplification
 #     - ram -> segment size efficiency of flush
 #   - am i pulling born deleted correctly for flushed segments?
@@ -89,6 +97,9 @@ import intervaltree
 # so pickle is happy
 Segment = infostream_to_segments.Segment
 
+def ts_to_js_date(timestamp):
+  return f'new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})'
+
 '''
 Opens a segments.pk previously written by parsing an IndexWriter InfoStream log using
 infostream_to_segments.py, and writes a semi-interactive 2D rendering/timeline of the
@@ -98,7 +109,7 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 USE_FABRIC = False
 USE_SVG = True
 
-def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs_time):
+def compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time):
   '''
   Computes aggregate metrics by time: MB/sec writing
   (flushing/merging), number of segments, number/%tg deletes, max_doc,
@@ -132,9 +143,13 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
   for commit in commits:
     all_times.append((commit[0], 'commit', commit))
 
+  for full_flush in full_flush_events:
+    # can be None if InfoStream ended before last full flush finished:
+    if full_flush[1] is not None:
+      all_times.append((full_flush[1], 'fullflushend', full_flush))
+
   all_times.sort(key=lambda x: x[0])
 
-  # TODO: how to plot this?
   flush_mbs = 0
   merge_mbs = 0
   cur_max_doc = 0
@@ -144,6 +159,7 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
   merge_dps = 0
   cur_del_count = 0
   commit_size_mb = 0
+  last_commit_size_mb = 0
   del_reclaims_per_sec = 0
   flush_thread_count = 0
   merge_thread_count = 0
@@ -151,7 +167,27 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
   last_commit_seg_names = set()
   l = []
   seg_name_to_size = {}
-  for time, what, item in all_times:
+
+  last_full_flush_ord = -1
+
+  cur_full_flush_time = all_times[0][0]
+  cur_full_flush_ord = -1
+  cur_full_flush_doc_count = 0
+
+  time_aggs = []
+
+  upto = 0
+  index_file_count = 0
+  last_full_flush_time = 0
+  last_real_full_flush_time_sec = 0
+
+  while upto < len(all_times):
+  
+    timestamp, what, item = all_times[upto]
+    upto += 1
+
+    if what == 'fullflushend':
+      last_real_full_flush_time_sec = (item[1] - item[0]).total_seconds()
 
     if what in ('segstart', 'segend', 'seglight'):
 
@@ -170,10 +206,28 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
       # docs/sec
       dps = segment.max_doc / dur_sec
 
-      if type(segment.source) is str and segment.source.startswith('flush'):
+      is_flush = type(segment.source) is str and segment.source.startswith('flush')
+
+      if is_flush:
+
+        # aggregate doc count of all flushed segments within this single full flush
+        if what == 'segstart':
+          if segment.full_flush_ord != cur_full_flush_ord:
+            print(f'ord now {segment.full_flush_ord}')
+            if cur_full_flush_ord != -1:
+              flush_dps = cur_full_flush_doc_count / (timestamp - last_full_flush_time).total_seconds()
+              print(f'  dps now {flush_dps} gap={(timestamp - last_full_flush_time).total_seconds()}')
+            last_full_flush_time = cur_full_flush_time
+            cur_full_flush_doc_count = 0
+            cur_full_flush_ord = segment.full_flush_ord
+            cur_full_flush_time = timestamp
+        
+          # print(f'add max_doc={segment.max_doc} line_number={segment.start_infostream_line_number}')
+          cur_full_flush_doc_count += segment.max_doc
+          
+        # newly written segment (from just indexed docs)
         if what == 'segstart':
           flush_mbs += mbs
-          flush_dps += dps
           flush_thread_count += 1
           seg_name_to_size[segment.name] = segment.size_mb
         elif what == 'segend':
@@ -181,7 +235,6 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
         elif what == 'seglight':
           flush_thread_count -= 1
           flush_mbs -= mbs
-          flush_dps -= dps
           tot_size_mb += segment.size_mb
       else:
         if what == 'segstart':
@@ -213,10 +266,10 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
       sum_del_count = 0
       
       for seg_tuple in item[2:]:
-        # each seg_tuple is (segment_name, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
+        # each seg_tuple is (segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
         seg_name = seg_tuple[0]
-        sum_max_doc += seg_tuple[2]
-        sum_del_count += seg_tuple[3]
+        sum_max_doc += seg_tuple[3]
+        sum_del_count += seg_tuple[4]
 
       cur_max_doc = sum_max_doc
       cur_del_count = sum_del_count
@@ -229,20 +282,33 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
         del_pct = 100.*cur_del_count/cur_max_doc
     elif what == 'commit':
       # this is external (user-called) commit
+      index_file_count = item[2]
       commit_seg_names = set()
       commit_size_mb = 0
-      for seg_details in item[2:]:
+      for seg_details in item[3:]:
         seg_name = seg_details[0]
         commit_seg_names.add(seg_name)
         if seg_name not in last_commit_seg_names:
           commit_size_mb += seg_name_to_size[seg_name]
       last_commit_seg_names = commit_seg_names
+      last_commit_size_mb = commit_size_mb
 
-    l.append(f'[new Date({time.year}, {time.month}, {time.day}, {time.hour}, {time.minute}, {time.second + time.microsecond/1000000:.4f}), {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec/100.:.3f}, {flush_dps/100:.3f}, {commit_size_mb/100.:.3f}],')
-    # so we only output one spiky point when the commit happened
-    commit_size_mb = 0
+    # skip/coalesce multiple entries at precisely the same time, so merge commit (which appears as N segend
+    # followed by seglight of the new merged segment at the same timestamp
+    if upto >= len(all_times)-1 or timestamp != all_times[upto][0]:
 
-  # nocommit
+      # print(f'{upto=} {timestamp=} {what=} new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})')
+
+      l.append(f'[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec/100.:.3f}, {flush_dps/100:.3f}, {merge_dps/100:.3f}, {commit_size_mb/100.:.3f}, {index_file_count/100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}')
+
+      time_aggs.append((timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, merge_mbs+flush_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb))
+    
+      # so we only output one spiky point when the commit happened
+      commit_size_mb = 0
+
+  # dygraph
+  #   - https://dygraphs.com/2.2.1/dist/dygraph.min.js
+  #   - https://dygraphs.com/2.2.1/dist/dygraph.css
   with open('segmetrics.html', 'w') as f:
     f.write(
     '''
@@ -262,11 +328,12 @@ def compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs
   width: 500px;
 }
 </style>
-<script type="text/javascript" src="dygraph.js"></script>
+<script type="text/javascript" src="dygraph.min.js"></script>
 </head>
 </body>
   <div id="graphdiv" style="height: 90%; width: 90%"></div>
 <script type="text/javascript">
+    
 Dygraph.onDOMready(function onDOMready() {
   g = new Dygraph(
 
@@ -280,9 +347,16 @@ Dygraph.onDOMready(function onDOMready() {
     f.write('''
       ],
 
-      {labels: ["Time", "Segment count", "Size (GB)", "Merge (MB/s)", "Flush (MB/s)", "Tot (MB/s)", "Max Doc (M)", "Del %", "Merging Threads", "Flushing Threads", "Del reclaim rate (C/sec)", "Indexing rate (C docs/sec)", "Commit size (CMB)"],
+      {labels: ["Time", "Segment count", "Size (GB)", "Merge (MB/s)", "Flush (MB/s)", "Tot (MB/s)", "Max Doc (M)", "Del %", "Merging Threads", "Flushing Threads", "Del reclaim rate (C/sec)", "Indexing rate (C docs/sec)", "Merging rate (C docs/sec)", "Commit delta (CMB)", "File count (C)", "Full flush time (sec)"],
        highlightCircleSize: 2,
        strokeWidth: 1,
+''')
+
+    # zoom to first 10 minute window
+    min_timestamp = all_times[0][0]
+    f.write(f'dateWindow: [{ts_to_js_date(min_timestamp)}, {ts_to_js_date(min_timestamp + datetime.timedelta(seconds=600))}],')
+
+    f.write('''
        strokeBorderWidth: 1,
        showRangeSelector: true,
        labelsSeparateLines: true,
@@ -300,42 +374,7 @@ Dygraph.onDOMready(function onDOMready() {
 </html>
 ''')
 
-    '''
-       series : {
-              'Merge MB/s': {
-                axis: 'y2'
-              },
-              'Flush MB/s': {
-                axis: 'y2'
-              },
-              'Tot MB/s': {
-                axis: 'y2'
-              },
-              'Del %': {
-                axis: 'y2'
-              },
-              'Merging Threads': {
-                axis: 'y2'
-              },
-              'Flushing Threads': {
-                axis: 'y2'
-              }
-            },
-
-              y2: {
-                // set axis-related properties here
-                drawGrid: true,
-                independentTicks: true
-              },
-    
-       axes: {
-              y: {
-                // set axis-related properties here
-                drawGrid: false,
-                independentTicks: false
-              },
-         },
-'''
+  return time_aggs
     
 def main():
 
@@ -350,7 +389,7 @@ def main():
   start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events, checkpoints, commits = pickle.load(open(segments_file_in, 'rb'))
   print(f'{len(segments)} segments spanning {(segments[-1].start_time-segments[0].start_time).total_seconds()} seconds')
 
-  compute_time_metrics(checkpoints, commits, segments, start_abs_time, end_abs_time)
+  time_aggs = compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time)
     
   _l = []
   w = _l.append
@@ -369,12 +408,11 @@ def main():
   w('</div>')
   w('</form>')
   w('')
-  #w(f'<div id="details" style="position:absolute;left=5;top=5;z-index=0;background:rgba(0xff,0xff,0xff,.6)"></div>')
-  w(f'<div id="details" style="position:absolute;left: 5;top: 5;z-index:0; background: rgba(255, 255, 255, 0.85)"></div>')
-  w('<div id="details2" style="display: flex; justify-content: flex-end; background: rgba(255, 255, 255, 0.85)">')
+  w(f'<div id="details" style="position:absolute;left: 5;top: 5; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
+  w('<div id="details2" style="display: flex; justify-content: flex-end; z-index:10, background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;">')
   w('</div>')
   
-  w(f'<div align=left style="overflow:scroll;height:100%;width:100%">')
+  w(f'<div align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
 
   w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height+100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" viewBox="0 0 {whole_width+400} {whole_height + 100}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
@@ -441,7 +479,7 @@ def main():
       tree[segment.start_time:end_time] = segment
 
       segment_name_to_level[segment.name] = new_level
-      print(f'{segment.name} -> level {new_level}')
+      # print(f'{segment.name} -> level {new_level}')
 
       max_level = max(new_level, max_level)
 
@@ -476,7 +514,7 @@ def main():
       tree[segment.start_time:end_time] = segment
 
       segment_name_to_level[segment.name] = new_level
-      print(f'{segment.name} -> level {new_level}')
+      # print(f'{segment.name} -> level {new_level}')
 
       max_level = max(new_level, max_level)
 
@@ -515,19 +553,19 @@ def main():
       level_to_live_segment[level] = segment
 
       segment_name_to_level[segment.name] = level
-      print(f'{segment.name} -> level {level}')
+      # print(f'{segment.name} -> level {level}')
 
       max_level = max(level, max_level)
 
       if min_start_abs_time is None or segment.start_time < min_start_abs_time:
         min_start_abs_time = segment.start_time
 
-  print(f'{max_level=}')
+  # print(f'{max_level=}')
   y_pixels_per_level = whole_height / (1+max_level)
 
   for segment in segments:
     level = segment_name_to_level[segment.name]
-    print(f'{(segment.start_time - min_start_abs_time).total_seconds()}')
+    # print(f'{(segment.start_time - min_start_abs_time).total_seconds()}')
 
     light_timestamp = None
     
@@ -638,154 +676,209 @@ def main():
 
   #w('canvas.on("mouse:over", show_segment_details);')
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')
-  if USE_SVG:
-    w('</svg>')
-    w('</div>')
-    w('''
+  w('</svg>')
+  w('</div>')
+  w('''
 <script>
-    var highlighting = new Map();
-    const svgns = "http://www.w3.org/2000/svg";
-    function highlight(seg_name, color, do_seg_details, transformed_point) {
-      if (!highlighting.has(seg_name)) {
 
-        // get the full segment (not dawn/dusk):
-        var rect2 = document.getElementById(seg_name);
+  function binarySearchWithInsertionPoint(arr, target) {
+    let low = 0;
+    let high = arr.length - 1;
 
-        var rect3 = document.createElementNS(svgns, "rect");
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
 
-        // draw a new rect to "highlight"
-        highlighting.set(seg_name, rect3);
-        rect3.selectable = false;
-    
-        rect3.setAttribute("x", rect2.x.baseVal.value);
-        rect3.setAttribute("y", rect2.y.baseVal.value);
-        rect3.setAttribute("width", rect2.width.baseVal.value);
-        rect3.setAttribute("height", rect2.height.baseVal.value);
-        rect3.setAttribute("fill", color);
-        mysvg.appendChild(rect3);
-
-        if (do_seg_details) {
-          var text = document.createElementNS(svgns, "text");
-
-          text.setAttribute("font-family", "Verdana");
-          text.setAttribute("font-size", "32");
-          text.setAttribute("font-weight", "bold");
-          text.setAttribute("font-color", "lime");
-
-          highlighting.set(seg_name + ":t", text);
-          text.selectable = false;
-          text.style.fill = "lime";
-          text.textContent = seg_details_map.get(seg_name);
-          text.setAttribute("x", transformed_point.x);
-          text.setAttribute("y", transformed_point.y);
-          text.setAttribute("width", "200");
-          text.setAttribute("height", "200");
-          mysvg.appendChild(text);
-          top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
-        }
+      if (arr[mid][0] === target) {
+        return mid;
+      } else if (arr[mid][0] < target) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
       }
     }
+    return low;
+  }
 
-    var x_cursor = null;
-    
-    mysvg = document.getElementById("it");
-    mysvg.onmousemove = function(evt) {
-      // console.log("clientX=" + evt.clientX + " clientY=" + evt.clientY);
-      // r = mysvg.getBoundingClientRect();
-      r = mysvg.getBBox();
-      //console.log("bbox is " + r);
-      point = mysvg.createSVGPoint();
-      // screen point within mysvg:
-      // console.log("sub " + r.left + " " + r.top);
-      //point.x = evt.clientX - r.left;
-      //point.y = evt.clientY - r.top;
-      point.x = evt.clientX;
-      point.y = evt.clientY;
-      transformed_point = point.matrixTransform(mysvg.getScreenCTM().inverse());
-    ''')
+  var highlighting = new Map();
+  const svgns = "http://www.w3.org/2000/svg";
+  function highlight(seg_name, color, do_seg_details, transformed_point) {
+    if (!highlighting.has(seg_name)) {
 
-    w(f'      var t = transformed_point.x / {x_pixels_per_sec};')
-    w('''
+      // get the full segment (not dawn/dusk):
+      var rect2 = document.getElementById(seg_name);
 
-      top_details2.innerHTML = "<pre>t=" + t + " sec";
-    
-      // console.log("  SVG X:", transformed_point.x, "SVG Y:", transformed_point.y);
-      var now_highlight = new Set();
-      var now_sub_highlight = new Set();
-      var merge_seg_name = null;
-      if (x_cursor == null) {
-        x_cursor = document.createElementNS(svgns, "line");
-        x_cursor.setAttribute("stroke", "black");
-        x_cursor.setAttribute("stroke-width", "1");
-        mysvg.appendChild(x_cursor);
+      var rect3 = document.createElementNS(svgns, "rect");
+
+      // draw a new rect to "highlight"
+      highlighting.set(seg_name, rect3);
+      rect3.selectable = false;
+
+      rect3.setAttribute("x", rect2.x.baseVal.value);
+      rect3.setAttribute("y", rect2.y.baseVal.value);
+      rect3.setAttribute("width", rect2.width.baseVal.value);
+      rect3.setAttribute("height", rect2.height.baseVal.value);
+      rect3.setAttribute("fill", color);
+      mysvg.appendChild(rect3);
+
+      if (do_seg_details) {
+        /*
+        var text = document.createElementNS(svgns, "text");
+
+        text.setAttribute("font-family", "Verdana");
+        text.setAttribute("font-size", "32");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("font-color", "lime");
+
+        highlighting.set(seg_name + ":t", text);
+        text.selectable = false;
+        text.style.fill = "lime";
+        text.textContent = seg_details_map.get(seg_name);
+        text.setAttribute("x", transformed_point.x);
+        text.setAttribute("y", transformed_point.y);
+        text.setAttribute("width", "200");
+        text.setAttribute("height", "200");
+        mysvg.appendChild(text);
+        */
+        top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
       }
-      x_cursor.setAttribute("x1", transformed_point.x);
-      x_cursor.setAttribute("y1", 0);
-      x_cursor.setAttribute("x2", transformed_point.x);
-    ''')
-    w(f'      x_cursor.setAttribute("y2", {whole_height});')
-    w('''
-    
-      document.elementsFromPoint(evt.clientX, evt.clientY).forEach(function(element, index, array) {
-        if (element instanceof SVGRectElement) {
-          var seg_name = element.getAttribute("seg_name");
-          // var seg_name = element.id;
-          // must null-check because we will also select our newly added highlight rects!  weird recursion...
-          if (seg_name != null) {
-            now_highlight.add(seg_name);
-            if (seg_merge_map.has(seg_name)) {
-              // the hilited segment is a merge segment
-              merge_seg_name = seg_name;
-              //console.log("  --> " + seg_merge_map.get(seg_name));
-              // hrmph no .addAll for Set?
-              // now_sub_highlight.add(...seg_merge_map.get(seg_name));
-              for (let sub_seg_name of seg_merge_map.get(seg_name)) {
-                now_sub_highlight.add(sub_seg_name);
-              }
-              // console.log("  sub: " + JSON.stringify(now_sub_highlight, null, 2));
+    }
+  }
+
+  var x_cursor = null;
+
+  mysvg = document.getElementById("it");
+  mysvg.onmousemove = function(evt) {
+    // console.log("clientX=" + evt.clientX + " clientY=" + evt.clientY);
+    // r = mysvg.getBoundingClientRect();
+    r = mysvg.getBBox();
+    //console.log("bbox is " + r);
+    point = mysvg.createSVGPoint();
+    // screen point within mysvg:
+    // console.log("sub " + r.left + " " + r.top);
+    //point.x = evt.clientX - r.left;
+    //point.y = evt.clientY - r.top;
+    point.x = evt.clientX;
+    point.y = evt.clientY;
+    transformed_point = point.matrixTransform(mysvg.getScreenCTM().inverse());
+  ''')
+
+  w(f'      var t = transformed_point.x / {x_pixels_per_sec};')
+  w('''
+
+    var spot = binarySearchWithInsertionPoint(agg_metrics, t);
+    console.log(agg_metrics[spot]);
+    let tup = agg_metrics[spot];
+    let timestamp = tup[0];
+    let num_segments = tup[1];
+    let tot_size_mb = tup[2];
+    let merge_mbs = tup[3];
+    let flush_mbs = tup[4];
+    let tot_mbs = tup[5];
+    let max_doc = tup[6];
+    let del_pct = tup[7];
+    let merge_thread_count = tup[8];
+    let flush_thread_count = tup[9];
+    let del_reclaims_per_sec = tup[10];
+    let flush_dps = tup[11];
+    let merge_dps = tup[12];
+    let last_commit_size_mb = tup[13];
+    let abs_timestamp = tup[14];
+    let text = "<pre>" + t.toFixed(1) + " sec<br>" +
+           abs_timestamp + "<br>" +
+           num_segments + " segments<br>" +
+           (tot_size_mb/1024.).toFixed(2) + " GB<br>" +
+           (max_doc/1000000.).toFixed(2) + "M docs (" + del_pct.toFixed(2) + "% deletes)<br>" +
+           "IO tot writes: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
+           "Last commit: " + (last_commit_size_mb / 1024.).toFixed(2) + " GB<br>" +
+           "Flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps + " docs/sec<br>" +
+           "Merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps + " docs/sec<br>       " + del_reclaims_per_sec + " del-reclaim/sec<br>" +
+           "</pre>";
+
+    top_details2.innerHTML = text;
+  
+    // console.log("  SVG X:", transformed_point.x, "SVG Y:", transformed_point.y);
+    var now_highlight = new Set();
+    var now_sub_highlight = new Set();
+    var merge_seg_name = null;
+    if (x_cursor == null) {
+      x_cursor = document.createElementNS(svgns, "line");
+      x_cursor.setAttribute("stroke", "black");
+      x_cursor.setAttribute("stroke-width", "1");
+      mysvg.appendChild(x_cursor);
+    }
+    x_cursor.setAttribute("x1", transformed_point.x);
+    x_cursor.setAttribute("y1", 0);
+    x_cursor.setAttribute("x2", transformed_point.x);
+  ''')
+  w(f'      x_cursor.setAttribute("y2", {whole_height});')
+  w('''
+
+    document.elementsFromPoint(evt.clientX, evt.clientY).forEach(function(element, index, array) {
+      if (element instanceof SVGRectElement) {
+        var seg_name = element.getAttribute("seg_name");
+        // var seg_name = element.id;
+        // must null-check because we will also select our newly added highlight rects!  weird recursion...
+        if (seg_name != null) {
+          now_highlight.add(seg_name);
+          if (seg_merge_map.has(seg_name)) {
+            // the hilited segment is a merge segment
+            merge_seg_name = seg_name;
+            //console.log("  --> " + seg_merge_map.get(seg_name));
+            // hrmph no .addAll for Set?
+            // now_sub_highlight.add(...seg_merge_map.get(seg_name));
+            for (let sub_seg_name of seg_merge_map.get(seg_name)) {
+              now_sub_highlight.add(sub_seg_name);
             }
+            // console.log("  sub: " + JSON.stringify(now_sub_highlight, null, 2));
           }
         }
-      });
+      }
+    });
 
-      // it is safe to delete from map as long as I use this "let .. of" loop!?
-      for (let [name, rect] of highlighting) {
-        var seg_name;
-        if (name.endsWith(":t")) {
-          seg_name = name.substring(0, name.length - 2);
-        } else {
-          seg_name = name;
-        }
-        if (!now_highlight.has(seg_name) && !now_sub_highlight.has(seg_name)) {
-          //console.log("unhighlight " + name);
-          mysvg.removeChild(rect);
-          highlighting.delete(name);
-        }
+    // it is safe to delete from map as long as I use this "let .. of" loop!?
+    for (let [name, rect] of highlighting) {
+      var seg_name;
+      if (name.endsWith(":t")) {
+        seg_name = name.substring(0, name.length - 2);
+      } else {
+        seg_name = name;
       }
-      for (let seg_name of now_highlight) {
-        //console.log("highlight " + seg_name);
-        var do_seg_details;
-        if (merge_seg_name != null) {
-          do_seg_details = seg_name == merge_seg_name;
-        } else {
-          do_seg_details = true;
-        }
-        highlight(seg_name, "cyan", do_seg_details, transformed_point);
+      if (!now_highlight.has(seg_name) && !now_sub_highlight.has(seg_name)) {
+        //console.log("unhighlight " + name);
+        mysvg.removeChild(rect);
+        highlighting.delete(name);
       }
-      // TODO: just use map w/ colors?
-      for (let seg_name of now_sub_highlight) {
-        // console.log("sub highlight " + seg_name);
-        highlight(seg_name, "orange", false, transformed_point);
+    }
+    for (let seg_name of now_highlight) {
+      //console.log("highlight " + seg_name);
+      var do_seg_details;
+      if (merge_seg_name != null) {
+        do_seg_details = seg_name == merge_seg_name;
+      } else {
+        do_seg_details = true;
       }
-    };
+      highlight(seg_name, "cyan", do_seg_details, transformed_point);
+    }
+    // TODO: just use map w/ colors?
+    for (let seg_name of now_sub_highlight) {
+      // console.log("sub highlight " + seg_name);
+      highlight(seg_name, "orange", false, transformed_point);
+    }
+  };
 </script>
 ''')
-  else:
-    w('</script>')
 
   w('<script>')
+  w('var agg_metrics = [')
+  for tup in time_aggs:
+    timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, tot_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb = tup
+
+    sec = (timestamp - min_start_abs_time).total_seconds()
+    ts = timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
+    w(f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],')
+  w('];')
   w('const seg_merge_map = new Map();')
-  w('const seg_details_map = new Map();')
+  # w('const seg_details_map = new Map();')
   w('const seg_details2_map = new Map();')
   for segment in segments:
     if type(segment.source) is tuple and segment.source[0] == 'merge':
@@ -803,7 +896,7 @@ def main():
     if segment.born_del_count is not None and segment.born_del_count > 0:
       details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
       
-    w(f'seg_details_map.set("{segment.name}", {repr(details)});')
+    # w(f'seg_details_map.set("{segment.name}", {repr(details)});')
     w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time))});')
 
   w('''

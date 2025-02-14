@@ -26,7 +26,6 @@ def parse_timestamp(s):
   return datetime.datetime.fromisoformat(s)
 
 # TODO
-#   - cutover to https://github.com/apache/lucene/issues/14182 once it's done
 #   - support addIndexes source too
 #   - what to do with the RAM MB -> flushed size MB ratio?  it'd be nice to measure "ram efficiency" somehow of newly flushed segments..
 #   - get an infostream w/ concurrent deletes ... maybe from the NRT indexing test?
@@ -83,6 +82,15 @@ class Segment:
   # how much RAM this (flushed) segment was using in IW's accounting
   # when it was flushed (None for merged segments)
   ram_used_mb = None
+
+  # int ordinal counting which full flush this segment was part of
+  full_flush_ord = None
+
+  # currently only set for flushed segments. sometimes 34 files!!
+  file_count = None
+
+  # for merged segments, how large IW estimated it would be (based on simple pro-rata discount from %deletes + sum of input segment sizes)
+  estimate_size_mb = None
 
   is_cfs = False
   
@@ -154,8 +162,11 @@ class Segment:
     else:
       if self.size_mb is None:
         l.append(f'  ?? MB')
+      elif self.estimate_size_mb is not None:
+        pct = 100.*self.size_mb / self.estimate_size_mb
+        l.append(f'  {self.size_mb:,.1f} MB vs estimate {self.estimate_size_mb:,.1f} MB {pct:.1f}%')
       else:
-        l.append(f'  {self.size_mb:,} MB')
+        l.append(f'  {self.size_mb:,.1f} MB vs estimate ?? MB')
     l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
     if self.publish_timestamp is not None:
       btt = (self.publish_timestamp - self.start_time).total_seconds()
@@ -287,6 +298,8 @@ def main():
   by_segment_name = {}
   by_thread_name = {}
 
+  full_flush_count = -1
+
   # e.g. MS 0 [2025-01-31T12:35:34.054288816Z; main]: initDynamicDefaults maxThreadCount=16 maxMergeCount=21
   re_timestamp_thread = re.compile(r'^.*? \[([^;]+); (.*?)\]: ')
 
@@ -354,6 +367,15 @@ def main():
   # e.g.: IW 2575 [2025-02-07T17:47:54.694279252Z; GCR-Writer-1-thread-11]: startCommit index=_1b(9.11.2):C247182/1309:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950305614}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=589sfyynireleyyu9fa3c21e4 _1n(9.11.2):C124912/477:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950366061}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=589sfyynireleyyu9fa3c21e5 _23(9.11.2):C123523:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950429672}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=589sfyynireleyyu9fa3c21eb _24(9.11.2):C53964:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=5, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950429684}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=589sfyynireleyyu9fa3c21ed _25(9.11.2):C13577:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os.version=4.14.355-275.582.amzn2.aarch64, java.vendor=Amazon.com Inc., os=Linux, mergeFactor=3, java.runtime.version=23.0.2+7, os.arch=aarch64, source=merge, lucene.version=9.11.2, mergeMaxNumSegments=-1, timestamp=1738950429703}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=589sfyynireleyyu9fa3c21ef changeCount=168
   re_start_commit_index = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: startCommit index=(.*?) changeCount=(\d+)$')
 
+  # e.g.: DWPT 219 [2025-02-07T17:43:00.953692447Z; GCR-Writer-1-thread-8]: flushedFiles=[_7.fdm, _7_BloomFilter_0.pos, _7.kdi, _7_BloomFilter_0.tim, _7_Lucene99HnswVectorsFormat_1.vec, _7.kdm, _7_BloomFilter_0.tmd, _7_Lucene99HnswVectorsFormat_1.vemf, _7_Lucene99_0.pay, _7.kdd, _7_Lucene99HnswVectorsFormat_2.vem, _7_BloomFilter_0.blm, _7_Lucene99HnswVectorsFormat_2.vec, _7_BloomFilter_0.pay, _7.fnm, _7_Lucene99HnswVectorsFormat_0.vemf, _7_Lucene99_0.tip, _7_BloomFilter_0.tip, _7_Lucene99_0.tim, _7.dvm, _7_Lucene99HnswVectorsFormat_0.vex, _7_Lucene99HnswVectorsFormat_1.vem, _7_Lucene99_0.pos, _7_BloomFilter_0.doc, _7.dvd, _7_Lucene99HnswVectorsFormat_0.vem, _7_Lucene99_0.tmd, _7_Lucene99HnswVectorsFormat_1.vex, _7_Lucene99HnswVectorsFormat_0.vec, _7.fdt, _7_Lucene99HnswVectorsFormat_2.vex, _7_Lucene99_0.doc, _7.fdx, _7_Lucene99HnswVectorsFormat_2.vemf]
+  re_flushed_files = re.compile(r'^DWPT \d+ \[([^;]+); (.*?)\]: flushedFiles=\[(.*?)\]$')
+
+  # e.g.: IW 512 [2025-02-07T17:43:24.119106602Z; GCR-Writer-1-thread-8]: done all syncs: [_m_Lucene99HnswVectorsFormat_1.vem, _l.fnm, _m.kdi, _k_Lucene99_0.tmd, _l_BloomFilter_0.pay, _k.dvd, _m.kdm, _m_Lucene99HnswVectorsFormat_1.vec, _k.dvm, _l_BloomFilter_0.tim, _l_BloomFilter_0.tip, _m.kdd, _m_Lucene99HnswVectorsFormat_1.vex, _k_Lucene99HnswVectorsFormat_2.vem, _m.dvd, _l_Lucene99_0.tip, _k_BloomFilter_0.tip, _k_BloomFilter_0.tim, _k.kdm, _m.dvm, _k_Lucene99HnswVectorsFormat_2.vec, _m_Lucene99_0.tim, _m_BloomFilter_0.blm, _l_Lucene99_0.pay, _k_BloomFilter_0.pay, _m_Lucene99_0.tip, _k.kdi, _m_Lucene99_0.pay, _m.si, _k_Lucene99HnswVectorsFormat_2.vex, _m_BloomFilter_0.pos, _l_Lucene99_0.tim, _l_Lucene99HnswVectorsFormat_2.vemf, _k.kdd, _l_Lucene99HnswVectorsFormat_2.vec, _m.fdt, _k_Lucene99HnswVectorsFormat_0.vem, _m.fdx, _l_Lucene99HnswVectorsFormat_2.vem, _l_Lucene99HnswVectorsFormat_1.vemf, _l_Lucene99HnswVectorsFormat_2.vex, _m_Lucene99HnswVectorsFormat_1.vemf, _k_Lucene99HnswVectorsFormat_0.vex, _m.fdm, _k_Lucene99_0.pay, _k.fdt, _l_BloomFilter_0.tmd, _l_Lucene99HnswVectorsFormat_0.vec, _k_BloomFilter_0.blm, _m_BloomFilter_0.pay, _l_Lucene99HnswVectorsFormat_0.vem, _k.fdx, _k_Lucene99HnswVectorsFormat_0.vec, _l_Lucene99HnswVectorsFormat_0.vex, _m_BloomFilter_0.tip, _m_BloomFilter_0.tim, _l_Lucene99_0.pos, _k.fdm, _k_Lucene99HnswVectorsFormat_2.vemf, _m_Lucene99HnswVectorsFormat_2.vex, _k_BloomFilter_0.doc, _m_BloomFilter_0.tmd, _l.kdi, _l.kdd, _k_Lucene99_0.tim, _k_Lucene99_0.tip, _m_Lucene99HnswVectorsFormat_2.vem, _m.fnm, _l.kdm, _k_BloomFilter_0.pos, _m_Lucene99HnswVectorsFormat_2.vec, _l.si, _l_Lucene99_0.doc, _m_Lucene99HnswVectorsFormat_0.vemf, _m_Lucene99_0.tmd, _k_Lucene99HnswVectorsFormat_0.vemf, _m_Lucene99HnswVectorsFormat_0.vex, _l_Lucene99_0.tmd, _k.fnm, _m_Lucene99HnswVectorsFormat_0.vem, _l_BloomFilter_0.doc, _l.dvd, _l.dvm, _m_Lucene99HnswVectorsFormat_0.vec, _k_Lucene99HnswVectorsFormat_1.vex, _m_Lucene99_0.doc, _l.fdm, _k_Lucene99_0.pos, _k_BloomFilter_0.tmd, _l.fdt, _l_BloomFilter_0.pos, _k_Lucene99HnswVectorsFormat_1.vemf, _k_Lucene99HnswVectorsFormat_1.vem, _m_BloomFilter_0.doc, _k_Lucene99HnswVectorsFormat_1.vec, _l.fdx, _l_BloomFilter_0.blm, _l_Lucene99HnswVectorsFormat_1.vex, _l_Lucene99HnswVectorsFormat_0.vemf, _m_Lucene99_0.pos, _k_Lucene99_0.doc, _k.si, _l_Lucene99HnswVectorsFormat_1.vec, _m_Lucene99HnswVectorsFormat_2.vemf, _l_Lucene99HnswVectorsFormat_1.vem]
+  re_done_all_sync = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: done all syncs: \[(.*?)\]')
+
+  # e.g.: IW 152529 [2025-02-07T21:10:59.329824625Z; Lucene Merge Thread #672]: merged segment size=1597.826 MB vs estimate=1684.011 MB
+  re_merge_size_vs_estimate = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merged segment size=([0-9.]+) MB vs estimate=([0-9.]+) MB$')
+
   line_number = 0
 
   global_start_time = None
@@ -365,7 +387,6 @@ def main():
 
   # each entry is [start_time, end_time]
   merge_during_commit_events = []
-  full_flush_events = []
 
   # counter (generation) of which merge-during-commit event we are in, or None if
   # we are not currently commit-merging
@@ -376,6 +397,9 @@ def main():
 
   checkpoints = []
   commits = []
+
+  # slightly different from commit, e.g. nrtReader also does full flush by not fsync
+  full_flush_events = []
 
   with open(infostream_log, 'r') as f:
     while True:
@@ -462,6 +486,12 @@ def main():
             source = 'flush'
             
           segment = Segment(segment_name, source, max_doc, None, timestamp, None, line_number)
+
+          if in_full_flush:
+            segment.full_flush_ord = full_flush_count
+          else:
+            print(f'WARNING: non-full-flush case not handled?  segment={segment_name}')
+            
           by_segment_name[segment_name] = segment
           assert thread_name not in by_thread_name, f'thread {thread_name} was already/still in by_thread_name?'
 
@@ -498,8 +528,8 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           segment_name = '_' + m.group(3)
-          ram_used_mb = float(m.group(4))
-          new_flushed_size_mb = float(m.group(5))
+          ram_used_mb = to_float(m.group(4))
+          new_flushed_size_mb = to_float(m.group(5))
           docs_per_mb = to_float(m.group(6))
 
           segment = by_segment_name[segment_name]
@@ -598,9 +628,13 @@ def main():
           if segment.max_doc is None:
             segment.max_doc = max_doc
             if max_doc != segment.sum_max_doc - segment.del_count_reclaimed:
-              raise RuntimeError(f'segment {segment.name} has wrong count sums?  {segment.max_doc=} {segment.sum_max_doc=} {segment.del_count_reclaimed=}')
+              # likely IW is not logging the actual maxDoc/delCount for segments being merged?
+              new_del_count_reclaimed = segment.sum_max_doc - max_doc
+              print(f'WARNING: segment {segment.name} has wrong count sums?  {segment.max_doc=} {segment.sum_max_doc=} {segment.del_count_reclaimed=} {line_number=}; fix del_count_reclaimed from {segment.del_count_reclaimed} to {new_del_count_reclaimed}')
+              segment.del_count_reclaimed = new_del_count_reclaimed
+              # raise RuntimeError(f'segment {segment.name} has wrong count sums?  {segment.max_doc=} {segment.sum_max_doc=} {segment.del_count_reclaimed=} {line_number=}')
           elif max_doc != segment.max_doc:
-            raise RuntimeError(f'merging segment {segment.name} sees different max_doc={segment.max_doc} vs {max_doc}')
+            raise RuntimeError(f'merging segment {segment.name} sees different max_doc={segment.max_doc} vs {max_doc} {line_number=}')
           continue
 
         m = re_msec_to_build_docmaps.match(line)
@@ -694,6 +728,10 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           full_flush_events.append([timestamp, None])
+          in_full_flush = True
+          full_flush_count += 1
+          full_flush_start_time = timestamp
+          print(f'start full flush {line_number}')
           continue
 
         m = re_end_full_flush.match(line)
@@ -704,6 +742,7 @@ def main():
           commit_thread_name = None
           assert full_flush_events[-1][1] is None
           full_flush_events[-1][1] = timestamp
+          in_full_flush = False
           continue
           
         m = re_start_commit.match(line)
@@ -722,6 +761,34 @@ def main():
           commits.append((timestamp, thread_name) + tuple(seg_details))
           print(f'startCommit: {seg_details}')
           continue
+
+        m = re_flushed_files.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          s = m.group(3).split(', ')
+          by_thread_name[thread_name].file_count = len(s)
+          continue
+          
+        m = re_done_all_sync.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          s = m.group(3).split(', ')
+          # insert number of files in the commit:
+          commits[-1] = commits[-1][:2] + (len(s),) + commits[-1][2:]
+          continue
+
+        m = re_merge_size_vs_estimate.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          actual_mb = float(m.group(3))
+          estimate_mb = float(m.group(4))
+          # print(f'actual mb: {by_thread_name[thread_name].size_mb} vs {actual_mb}')
+          by_thread_name[thread_name].estimate_size_mb = estimate_mb
+          by_thread_name[thread_name].size_mb = actual_mb
+          continue
           
       except KeyboardInterrupt:
         raise
@@ -736,6 +803,7 @@ def main():
       segment.end_time = global_end_time
 
   open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events, checkpoints, commits)))
+  
   print(f'wrote {len(Segment.all_segments)} segments to "{segments_out}": {os.path.getsize(segments_out)/1024/1024:.1f} MB')
 
 if __name__ == '__main__':

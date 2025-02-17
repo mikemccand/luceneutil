@@ -403,14 +403,13 @@ def main():
   w('</head>')
   w('<body style="height:95%; padding:0; margin:5">')
   w('<form>')
-  w('<div style="display: flex; justify-content: flex-end;">')
+  w('<div style="display: flex; justify-content: flex-end; z-index:11">')
   w('Zoom:&nbsp;<input type="range" id="zoomSlider" min="0.5" max="3" value="1" step=".01" style="width:300px;"/>')
   w('</div>')
   w('</form>')
   w('')
   w(f'<div id="details" style="position:absolute;left: 5;top: 5; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
-  w('<div id="details2" style="display: flex; justify-content: flex-end; z-index:10, background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;">')
-  w('</div>')
+  w('<div id="details2" style="display: flex; justify-content: flex-end; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
   
   w(f'<div align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
 
@@ -701,7 +700,7 @@ def main():
 
   var highlighting = new Map();
   const svgns = "http://www.w3.org/2000/svg";
-  function highlight(seg_name, color, do_seg_details, transformed_point) {
+  function highlight(seg_name, color, do_seg_details, do_seg_super_verbose, transformed_point) {
     if (!highlighting.has(seg_name)) {
 
       // get the full segment (not dawn/dusk):
@@ -739,7 +738,11 @@ def main():
         text.setAttribute("height", "200");
         mysvg.appendChild(text);
         */
-        top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
+        if (do_seg_super_verbose) {
+          top_details.innerHTML = "<pre>" + seg_details3_map.get(seg_name) + "</pre>";
+        } else {
+          top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
+        }
       }
     }
   }
@@ -766,7 +769,7 @@ def main():
   w('''
 
     var spot = binarySearchWithInsertionPoint(agg_metrics, t);
-    console.log(agg_metrics[spot]);
+    // console.log(agg_metrics[spot]);
     let tup = agg_metrics[spot];
     let timestamp = tup[0];
     let num_segments = tup[1];
@@ -783,7 +786,16 @@ def main():
     let merge_dps = tup[12];
     let last_commit_size_mb = tup[13];
     let abs_timestamp = tup[14];
-    let text = "<pre>" + t.toFixed(1) + " sec<br>" +
+    let hr = Math.floor(t/3600.)
+    let mn = Math.floor((t - hr*3600)/60.)
+    let sc = t - hr*3600 - mn*60;
+    var scs;
+    if (sc < 10.0) {
+      scs = "0" + sc.toFixed(2);
+    } else {
+      scs = sc.toFixed(2);
+    }
+    let text = "<pre>" + String(hr).padStart(2, '0') + ":" + String(mn).padStart(2, '0') + ":" + scs + "<br>" +
            abs_timestamp + "<br>" +
            num_segments + " segments<br>" +
            (tot_size_mb/1024.).toFixed(2) + " GB<br>" +
@@ -857,12 +869,13 @@ def main():
       } else {
         do_seg_details = true;
       }
-      highlight(seg_name, "cyan", do_seg_details, transformed_point);
+
+      highlight(seg_name, "cyan", do_seg_details, evt.ctrlKey, transformed_point);
     }
     // TODO: just use map w/ colors?
     for (let seg_name of now_sub_highlight) {
       // console.log("sub highlight " + seg_name);
-      highlight(seg_name, "orange", false, transformed_point);
+      highlight(seg_name, "orange", false, false, transformed_point);
     }
   };
 </script>
@@ -880,6 +893,8 @@ def main():
   w('const seg_merge_map = new Map();')
   # w('const seg_details_map = new Map();')
   w('const seg_details2_map = new Map();')
+  w('\n// super verbose (includes InfoStream line numbers):')
+  w('const seg_details3_map = new Map();')
   for segment in segments:
     if type(segment.source) is tuple and segment.source[0] == 'merge':
       w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
@@ -897,7 +912,8 @@ def main():
       details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
       
     # w(f'seg_details_map.set("{segment.name}", {repr(details)});')
-    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time))});')
+    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, False))});')
+    w(f'seg_details3_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, True))});')
 
   w('''
   const top_details = document.getElementById('details');

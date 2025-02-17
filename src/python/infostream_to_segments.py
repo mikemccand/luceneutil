@@ -20,6 +20,7 @@ import bisect
 import sys
 import re
 import os
+import math
 import datetime
 
 def parse_timestamp(s):
@@ -50,6 +51,13 @@ IFD 0 [2025-01-31T12:35:58.905104934Z; Lucene Merge Thread #0]: now delete 0 fil
 # e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
 #   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
 re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+?')
+
+
+def sec_to_time_delta(td_sec):
+  hr = int(td_sec/3600.)
+  mn = int((td_sec - hr*3600)/60.)
+  sc = td_sec - hr*3600 - mn*60
+  return f'{hr:02}:{mn:02}:{sc:04.1f}'
 
 class Segment:
 
@@ -99,7 +107,7 @@ class Segment:
     Segment.all_segments.append(self)
     self.source = source
     self.name = name
-    assert (type(source) is str and source in ('flush', 'flush-commit')) or (type(source) is tuple and source[0] == 'merge' and len(source) > 1)
+    assert (type(source) is str and source in ('flush', 'flush-commit', 'flush-by-RAM')) or (type(source) is tuple and source[0] == 'merge' and len(source) > 1)
     self.max_doc = max_doc
     self.size_mb = size_mb
     self.start_time = start_time
@@ -120,10 +128,10 @@ class Segment:
     insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])
     self.events.insert(insert_at, (timestamp, event, infostream_line_number))
 
-  def to_verbose_string(self, global_start_time, global_end_time):
+  def to_verbose_string(self, global_start_time, global_end_time, with_line_numbers):
     l = []
     s = f'segment {self.name}'
-    if self.source in ('flush', 'flush-commit'):
+    if self.source in ('flush', 'flush-commit', 'flush-by-RAM'):
       s += f' ({self.source})'
     elif self.merge_during_commit is not None:
       s += ' (merge-on-commit: ' + ' '.join(self.source[1]) + ')'
@@ -144,21 +152,29 @@ class Segment:
       
     if self.del_count_reclaimed is not None:
       l.append(f'  del_count_reclaimed={self.del_count_reclaimed:,} ({100.*self.del_count_reclaimed/(self.max_doc + self.del_count_reclaimed):.1f}%)')
-    l.append(f'  max_doc={self.max_doc:,}')
+    md = f'  max_doc={self.max_doc:,}'
+    if self.size_mb is not None:
+      md += f' docs_per_mb={self.max_doc/self.size_mb:,.1f}'
+    l.append(md)
     if self.born_del_count is not None:
       l.append(f'  born_del_count={self.born_del_count:,} ({100.*self.born_del_count/self.max_doc:.1f}%)')
     if self.del_count is not None:
-      l.append(f'  final del_count={self.del_count:,} ({100.*self.del_count/self.max_doc:.1f}%)')
-    if self.source == 'flush':
+      if self.end_time is None:
+        end_time = global_end_time
+      else:
+        end_time = self.end_time
+      dps = self.del_count / (end_time - self.start_time).total_seconds()
+      l.append(f'  final del_count={self.del_count:,} ({100.*self.del_count/self.max_doc:.1f}%, {dps:,.1f} dd/s)')
+    if type(self.source) is str and self.source.startswith('flush'):
       if self.ram_used_mb is None:
         # this can happen if InfoStream ends as a segment is flushing
         # raise RuntimeError(f'flushed segment {self.name} is missing ramUsedMB')
         if self.size_mb is None:
           l.append(f'  ?? MB (?? efficiency)')
         else:
-          l.append(f'  {self.size_mb:,} MB (?? efficiency)')
+          l.append(f'  {self.size_mb:,.1f} MB (?? efficiency)')
       else:
-        l.append(f'  {self.size_mb:,} MB ({100*self.size_mb/self.ram_used_mb:.1f}% efficiency, ram_used_mb={self.ram_used_mb:.1f} MB)')
+        l.append(f'  {self.size_mb:,.1f} MB ({100*self.size_mb/self.ram_used_mb:.1f}% efficiency, ram_used_mb={self.ram_used_mb:,.1f} MB)')
     else:
       if self.size_mb is None:
         l.append(f'  ?? MB')
@@ -170,14 +186,14 @@ class Segment:
     l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
     if self.publish_timestamp is not None:
       btt = (self.publish_timestamp - self.start_time).total_seconds()
-      bt = f'{btt:,.1f}'
+      bt = sec_to_time_delta(btt)
     else:
       btt = 0
       bt = '??'
     if self.end_time is not None:
       if self.merged_into is not None:
         dtt = (self.end_time - self.merged_into.start_time).total_seconds()
-        dt = f'{dtt:,.1f}'
+        dt = sec_to_time_delta(dtt)
       else:
         dt = '??'
         dtt = 0
@@ -186,14 +202,15 @@ class Segment:
       dt = '0.0'
       dtt = 0
       ltt = (global_end_time - self.start_time).total_seconds()
-    l.append(f'  times: {bt} / {(ltt-btt-dtt):,.1f} / {dt} sec')
+
+    l.append(f'  times: {bt} / {sec_to_time_delta(ltt-btt-dtt)} / {dt}')
     if self.merged_into is not None:
       l.append(f'  merged into {self.merged_into.name}')
     l.append(f'  events:')
     last_ts = self.start_time
 
     # we subsample all delete flushes if there are too many...:
-    del_count_count = len([x for x in self.events if x[1].startswith('del_count ')])
+    del_count_count = len([x for x in self.events if x[1].startswith('del ')])
 
     if del_count_count > 0:
       print_per_del = 9./del_count_count
@@ -204,11 +221,12 @@ class Segment:
     del_inc = 0
 
     # if we have too many del_count events, subsample which ones to
-    # print: always print first and last, but subsample in between
+    # print: always print first and last, but subsample in between to
+    # get to ~9 ish
     do_del_print = {}
     last_del_index = None
     for i, (ts, event, line_number) in enumerate(self.events):
-      if event.startswith('del_count '):
+      if event.startswith('del '):
         last_del_index = i
         del_inc += print_per_del
         if int(del_inc) == last_del_print:
@@ -222,16 +240,21 @@ class Segment:
 
     do_del_print[last_del_index] = False
 
+    sum_del_count = 0
     for i, (ts, event, line_number) in enumerate(self.events):
-      is_del = event.startswith('del_count ')
+      is_del = event.startswith('del ')
       if is_del:
         # print(f'got {event}')
-        count = int(event[10:event.find(' ', 10)].replace(',', ''))
-        event += f' ({100.*count/self.max_doc:.1f}%)'
+        del_inc = int(event[4:event.find(' ', 4)].replace(',', ''))
+        sum_del_count += del_inc
+        event += f' ({100.*sum_del_count/self.max_doc:.1f}%)'
       s = f'+{(ts - last_ts).total_seconds():.2f}'
 
       if not is_del or i in do_del_print:
-        s = f'    {s:>7s} s: {event} [line {line_number:,}]'
+        if with_line_numbers:
+          s = f'    {s:>7s} s: {event} [line {line_number:,}]'
+        else:
+          s = f'    {s:>7s} s: {event}'
         if is_del and do_del_print.get(i):
           s += '...'
         l.append(s)
@@ -376,6 +399,9 @@ def main():
   # e.g.: IW 152529 [2025-02-07T21:10:59.329824625Z; Lucene Merge Thread #672]: merged segment size=1597.826 MB vs estimate=1684.011 MB
   re_merge_size_vs_estimate = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merged segment size=([0-9.]+) MB vs estimate=([0-9.]+) MB$')
 
+  # FP 1 [2025-02-12T03:12:32.803827868Z; GCR-Writer-1-thread-9]: trigger flush: activeBytes=4295836570 deleteBytes=56720 vs ramBufferMB=4096.0
+  re_trigger_flush = re.compile(r'^FP \d+ \[([^;]+); (.*?)\]: trigger flush: activeBytes=(\d+) deleteBytes=(\d+) vs ramBufferMB=([0-9.]+)$')
+
   line_number = 0
 
   global_start_time = None
@@ -397,7 +423,8 @@ def main():
 
   checkpoints = []
   commits = []
-
+  trigger_flush_thread_name = None
+  
   # slightly different from commit, e.g. nrtReader also does full flush by not fsync
   full_flush_events = []
 
@@ -441,7 +468,11 @@ def main():
               if del_count != segment.del_count:
                 assert segment.del_count is None or del_count > segment.del_count
                 # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
-                segment.add_event(timestamp, f'del_count {del_count:,} del_gen {del_gen}', line_number)
+                if segment.del_count is None:
+                  del_inc = del_count
+                else:
+                  del_inc = del_count - segment.del_count
+                segment.add_event(timestamp, f'del +{del_inc:,} gen {del_gen}', line_number)
                 segment.del_count = del_count
 
           checkpoints.append((timestamp, thread_name) + tuple(seg_details))
@@ -477,20 +508,24 @@ def main():
           segment_name = '_' + m.group(3)
           max_doc = int(m.group(4))
 
-          # print(f'compare {thread_name=} to {commit_thread_name=}')
+          print(f'compare {thread_name=} to {commit_thread_name=} {segment_name=}')
 
           if commit_thread_name is not None:
             # logic may not be quite correct?  can we flush segment due to RAM usage even while another thread already kicked off commit?  unlikely...
             source = 'flush-commit'
+          elif trigger_flush_thread_name == thread_name:
+            source = 'flush-by-RAM'
           else:
             source = 'flush'
+          print(f'  {source=}')
             
           segment = Segment(segment_name, source, max_doc, None, timestamp, None, line_number)
 
           if in_full_flush:
             segment.full_flush_ord = full_flush_count
           else:
-            print(f'WARNING: non-full-flush case not handled?  segment={segment_name}')
+            # print(f'WARNING: non-full-flush case not handled?  segment={segment_name}')
+            pass
             
           by_segment_name[segment_name] = segment
           assert thread_name not in by_thread_name, f'thread {thread_name} was already/still in by_thread_name?'
@@ -567,14 +602,20 @@ def main():
           segment_name = '_' + m.group(3)
           segment.publish_timestamp = timestamp
           by_segment_name[segment_name].add_event(timestamp, 'light', line_number)
+          if thread_name == trigger_flush_thread_name:
+            trigger_flush_thread_name = None
           continue
 
         m = re_new_merge_deletes.match(line)
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
-          by_thread_name[thread_name].born_del_count = int(m.group(3))
-          print(f'merged born del count {by_thread_name[thread_name].name} --> {by_thread_name[thread_name].born_del_count}')
+          del_count = int(m.group(3))
+          if del_count > 0:
+            by_thread_name[thread_name].born_del_count = del_count
+            by_thread_name[thread_name].del_count = del_count
+            by_thread_name[thread_name].add_event(timestamp, f'del {del_count:,} born', line_number)
+            print(f'merged born del count {by_thread_name[thread_name].name} --> {by_thread_name[thread_name].born_del_count}')
           continue
         
         m = re_merge_start.match(line)
@@ -789,6 +830,15 @@ def main():
           by_thread_name[thread_name].estimate_size_mb = estimate_mb
           by_thread_name[thread_name].size_mb = actual_mb
           continue
+
+        m = re_trigger_flush.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          activeBytes = int(m.group(3))
+          deleteBytes = int(m.group(3))
+          ramBufferMB = float(m.group(3))
+          trigger_flush_thread_name = thread_name
           
       except KeyboardInterrupt:
         raise
@@ -797,7 +847,7 @@ def main():
         raise
 
   for segment in Segment.all_segments:
-    print(f'\n{segment.name}:\n{segment.to_verbose_string(global_start_time, global_end_time)}')
+    print(f'\n{segment.name}:\n{segment.to_verbose_string(global_start_time, global_end_time, True)}')
     if segment.end_time is None:
       print(f'set end_time for segment {segment.name} to global end time')
       segment.end_time = global_end_time

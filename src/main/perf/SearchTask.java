@@ -23,34 +23,23 @@ import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
 import org.apache.lucene.facet.FacetsCollectorManager;
-import org.apache.lucene.facet.FacetsConfig;
-import org.apache.lucene.facet.LabelAndValue;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
-import org.apache.lucene.facet.taxonomy.FacetLabel;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.FloatVectorValues;
-import org.apache.lucene.sandbox.facet.ComparableUtils;
-import org.apache.lucene.sandbox.facet.FacetFieldCollectorManager;
-import org.apache.lucene.sandbox.facet.cutters.TaxonomyFacetsCutter;
-import org.apache.lucene.sandbox.facet.iterators.ComparableSupplier;
-import org.apache.lucene.sandbox.facet.iterators.OrdinalIterator;
-import org.apache.lucene.sandbox.facet.iterators.TaxonomyChildrenOrdinalIterator;
-import org.apache.lucene.sandbox.facet.iterators.TopnOrdinalIterator;
-import org.apache.lucene.sandbox.facet.labels.TaxonomyOrdLabelBiMap;
-import org.apache.lucene.sandbox.facet.recorders.CountFacetRecorder;
+import org.apache.lucene.sandbox.facet.utils.FacetBuilder;
+import org.apache.lucene.sandbox.facet.utils.FacetOrchestrator;
+import org.apache.lucene.sandbox.facet.utils.TaxonomyFacetBuilder;
 import org.apache.lucene.search.Collector;
-import org.apache.lucene.search.CollectorManager;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
-import org.apache.lucene.search.MultiCollectorManager;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
@@ -79,12 +68,9 @@ import org.apache.lucene.util.BytesRef;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 final class SearchTask extends Task {
   private final String category;
@@ -253,102 +239,32 @@ final class SearchTask extends Task {
           }
           long t0 = System.nanoTime();
           if (duringCollectionFacetTasks.isEmpty() == false) {
-            // TODO: once we have helper methods for easy sandbox facet use cases
-            //       lets use them to make this code shorter and less prone to errors
             // TODO: sandbox facet module doesn't currently have methods to aggregate for all docs in the index.
             //       if we see regression because of that, there might be something we can optimize in searcher/scorer
             //       for MatchAllDocsQuery to make collection for all docs in the index faster?
-            Map<String, CountFacetRecorder> indexFieldToRecorder = new HashMap<>();
-            List<CollectorManager<? extends Collector, ?>> collectorManagers = new ArrayList<>();
+            FacetOrchestrator facetOrchestrator = new FacetOrchestrator();
+            List<FacetBuilder> facetBuilders = new ArrayList<>();
+            for (TaskParser.TaskBuilder.FacetTask request : duringCollectionFacetTasks) {
+              // TODO: handle other types, not just taxonomy
+              FacetBuilder facetBuilder;
+              if (request.dimension().endsWith(".taxonomy")) {
+                facetBuilder = new TaxonomyFacetBuilder(state.facetsConfig, state.taxoReader, request.dimension()).withSortByCount().withTopN(10);
+              } else {
+                // should have been prevented higher up:
+                throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
+              }
+              facetBuilders.add(facetBuilder);
+              facetOrchestrator.addBuilder(facetBuilder);
+            }
             // The first collector manager in the list is responsible for collecting hits,
             // except when handling MatchAllDocsQuery, where hits are not collected due to historical reasons.
+            TopScoreDocCollectorManager mainCollector = null;
             if (q instanceof MatchAllDocsQuery == false) {
-              collectorManagers.add(new TopScoreDocCollectorManager(10, null, Integer.MAX_VALUE));
+              mainCollector = new TopScoreDocCollectorManager(10, null, Integer.MAX_VALUE);
             }
-            for (TaskParser.TaskBuilder.FacetTask request : duringCollectionFacetTasks) {
-              String indexFieldName;
-              // TODO: handle other types, not just taxonomy
-              if (request.dimension().endsWith(".taxonomy")) {
-                indexFieldName = state.facetsConfig.getDimConfig(request.dimension()).indexFieldName;
-                if (indexFieldToRecorder.containsKey(indexFieldName) == false) {
-                  TaxonomyFacetsCutter cutter = new TaxonomyFacetsCutter(indexFieldName, state.facetsConfig, state.taxoReader);
-                  CountFacetRecorder recorder = new CountFacetRecorder();
-                  collectorManagers.add(new FacetFieldCollectorManager<>(cutter, recorder));
-                  indexFieldToRecorder.put(indexFieldName, recorder);
-                }
-              } else {
-                // should have been prevented higher up:
-                throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
-              }
-            }
-            // TODO: optimize for when there is only one collector manager? Although there is some optimization in
-            // MultiCollector itself
-            MultiCollectorManager mainManager = new MultiCollectorManager(collectorManagers.toArray(new CollectorManager[0]));
-            Object[] results = searcher.search(q, mainManager);
-            if (q instanceof MatchAllDocsQuery == false) {
-              hits = (TopDocs) results[0];
-            }
-            for (TaskParser.TaskBuilder.FacetTask request : duringCollectionFacetTasks) {
-              FacetsConfig.DimConfig dimConfig = state.facetsConfig.getDimConfig(request.dimension());
-              String indexFieldName = dimConfig.indexFieldName;
-              CountFacetRecorder recorder = indexFieldToRecorder.get(indexFieldName);
-              ComparableSupplier<ComparableUtils.ByCountComparable> countComparable = ComparableUtils.byCount(recorder);
-              TaxonomyOrdLabelBiMap ordLabels = new TaxonomyOrdLabelBiMap(state.taxoReader);
-              OrdinalIterator ordinalIterator;
-              int[] ordinalsArray;
-              int dimensionValue = -1; // default can't compute
-              int childCount;
-              FacetLabel path;
-              if (request.dimension().endsWith(".taxonomy")) {
-                path = new FacetLabel(FacetsConfig.stringToPath(request.dimension()));
-                int dimOrdinal = ordLabels.getOrd(path);
-                ordinalIterator =
-                        new TaxonomyChildrenOrdinalIterator(
-                                recorder.recordedOrds(),
-                                state.taxoReader.getParallelTaxonomyArrays().parents(),
-                                dimOrdinal);
-                ordinalsArray = ordinalIterator.toArray();
-                // We need to convert intermediate ordinalIterator to array to get
-                // total child count.
-                childCount = ordinalsArray.length;
-                // Also need to get total value
-                // TODO: this logic should go to some helper method in the sandbox module...
-                if (dimConfig.multiValued) {
-                  if (dimConfig.requireDimCount) {
-                    dimensionValue = recorder.getCount(dimOrdinal);
-                  }
-                } else {
-                  if (dimConfig.hierarchical) {
-                    // already rolled up
-                    dimensionValue = recorder.getCount(dimOrdinal);
-                  } else {
-                    // rollup
-                    dimensionValue = 0;
-                    for (int ord : ordinalsArray) {
-                      dimensionValue += recorder.getCount(ord);
-                    }
-                  }
-                }
-                ordinalIterator = OrdinalIterator.fromArray(ordinalsArray);
-              } else {
-                // should have been prevented higher up:
-                throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
-              }
-              ordinalIterator =
-                      new TopnOrdinalIterator<>(ordinalIterator, countComparable, 10);
-              ordinalsArray = ordinalIterator.toArray();
-              FacetLabel[] labels = ordLabels.getLabels(ordinalsArray);
-              LabelAndValue[] labelsAndValues = new LabelAndValue[labels.length];
-              for (int i = 0; i < ordinalsArray.length; i++) {
-                labelsAndValues[i] = new LabelAndValue(labels[i].lastComponent(), recorder.getCount(ordinalsArray[i]));
-              }
-              facetResults.add(
-                      new FacetResult(
-                              path.components[0],
-                              Arrays.copyOfRange(path.components, 1, path.components.length),
-                              dimensionValue,
-                              labelsAndValues,
-                              childCount));
+            hits = facetOrchestrator.collect(q, searcher, mainCollector);
+            for (FacetBuilder facetBuilder : facetBuilders) {
+              facetResults.add(facetBuilder.getResult());
             }
           }
           if (postCollectionFacetTasks.isEmpty() == false) {

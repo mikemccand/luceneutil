@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
   sourceData = competition.sourceData(args.source)
   countsAreCorrect = args.searchConcurrency != 0
-  comp =  competition.Competition(verifyCounts = not countsAreCorrect)
+  comp =  competition.Competition(verifyCounts = not countsAreCorrect, taskCountPerCat = 100000)
 
   index = comp.newIndex(args.lucene_dir, sourceData,
                         addDVFields = True,

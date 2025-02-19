@@ -264,7 +264,12 @@ final class SearchTask extends Task {
             }
             hits = facetOrchestrator.collect(q, searcher, mainCollector);
             for (FacetBuilder facetBuilder : facetBuilders) {
-              facetResults.add(facetBuilder.getResult());
+              FacetResult result = facetBuilder.getResult();
+              //  To replicate current TaxonomyFacets behaviour
+              if (result.childCount == 0) {
+                result = null;
+              }
+              facetResults.add(result);
             }
           }
           if (postCollectionFacetTasks.isEmpty() == false) {

@@ -25,16 +25,24 @@ import datetime
 # pip3 install intervaltree
 import intervaltree
 
+# pip3 install graphviz
+import graphviz
+
 # TODO
+#   - get #t=... anchor link working!
+#   - plot mb * sec?
+#   - plot scatterplot
+#   - plot some histograms ... %deletes reclaimed on merge, seg size mb, seg age sec
+#   - record forceMergeDeletes triggers too
+#   - can we record cpu ticks somehow into infostream...
+#   - get this to somehow download/install dygraph-min.js, dygraph.css, etc.?
 #   - hmm this happens once: WARNING: segment _h4 has wrong count sums?  segment.max_doc=1087768 segment.sum_max_doc=1183259 segment.del_count_reclaimed=95341 line_number=31483; fix del_count_reclaimed from 95341 to 95491
 #   - add delete rate too
 #   - add the skew/mis-prediction of expected merge size vs actual
 #   - tie together all segments flushed in a single full flush, e.g. see if app lacks enough flush-currency?
-#   - support/detect flush-by-ram
 #   - count number of files in each segment
 #   - detect indexing thread drift
 #   - more accurately compute index dps, write amplification
-#   - grrr get right div to also be 85% opaque
 #   - Plot reducer/wirter too
 #   - display absolute time in time cursor agg details
 #   - how to get merge times broken out by field
@@ -49,8 +57,6 @@ import intervaltree
 #   - hmm add click handler to jump back to merge input segments (_1gu -> _20r)
 #   - handle multiple IW sessions
 #   - capture nrtReader flushes/merges-on-nrt-reader too
-#   - add colored bands during full flush / merge commit wait / etc.
-#   - add flush reason to segment source
 #   - maybe produce an overall summary of indexing "behavior"?
 #     - how many merge-on-commits finished in the window
 #     - how many concurrent flushes/merges w/ time
@@ -68,10 +74,10 @@ import intervaltree
 #   - extract commit times too, nrt reader times
 #     - and maybe attach flush reassons?  flush-on-ram, on-nrt, commit
 #   - hmm how to view the "full" geneology of one segment -- it is always a "full" tree down to original roots (flushed segments)
+#     - dot graph?
 #   - enable simple x zoom
 #   - can we indicate how unbalanced each merge is somehow?
 #   - track "merge efficiency" (how unbalanced)
-#   - add x-cursor showing current time
 #   - can we track the usefulness of merging, how long it's "in service" before being merged away, vs its dawn (how long it took to produce)
 #   - hmm maybe add an overlaid line chart showing badnwdith used from merging/flushingx
 #   - get mouseover working for the gray merge lines too
@@ -86,11 +92,8 @@ import intervaltree
 #     "intentionally" open for the big merged segments?
 #     - or ... try to put segments close in level if they were created close in time?
 #     - sort of a bin packing problem...
-#   - try to work on mobile?
 #   - derive y_pix_per_level from whole_height and max(level)
 #   - zoom in/out, x and y separately
-#   - mouse over merge segment should highlight segments it's merging
-#   - ooh link to the line number in infoStream.log so we can jump to the right place for debugging
 #   - NO
 #     - maybe use D3?
 
@@ -397,21 +400,24 @@ def main():
   whole_width = 100 * 1024
   whole_height = 1800
 
+  gv = graphviz.Digraph(comment=f'Segments from {segments_file_in}', graph_attr={'rankdir': 'LR'})
+
   w('<html style="height:100%">')
   w('<head>')
   # w('<script src="https://cdn.jsdelivr.net/npm/fabric@latest/dist/index.min.js"></script>')
   w('</head>')
   w('<body style="height:95%; padding:0; margin:5">')
+  w('<div sytle="position: relative;">')
   w('<form>')
-  w('<div style="display: flex; justify-content: flex-end; z-index:11">')
+  w('<div style="position: absolute; y: 0; display: flex; justify-content: flex-end; z-index:11">')
   w('Zoom:&nbsp;<input type="range" id="zoomSlider" min="0.5" max="3" value="1" step=".01" style="width:300px;"/>')
   w('</div>')
   w('</form>')
   w('')
   w(f'<div id="details" style="position:absolute;left: 5;top: 5; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
-  w('<div id="details2" style="display: flex; justify-content: flex-end; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
+  w('<div id="details2" style="position:absolute; right:0; display: flex; justify-content: flex-end; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
   
-  w(f'<div align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
+  w(f'<div id="divit" align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
 
   w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height+100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" viewBox="0 0 {whole_width+400} {whole_height + 100}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
@@ -433,9 +439,51 @@ def main():
 
   segment_name_to_segment = {}
 
+  segment_name_to_gv_node = {}
+
   max_level = 0
 
   min_start_abs_time = None
+
+  # for making histograms/scatter plots
+  ages_sizes = []
+
+  for segment in segments:
+
+    if segment.end_time is None:
+      end_time = end_abs_time
+    else:
+      end_time = segment.end_time
+    ages_sizes.append(((end_time - segment.start_time).total_seconds(), segment.size_mb))
+    
+    assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+    segment_name_to_segment[segment.name] = segment
+    label = f'{segment.name}: docs={segment.max_doc:,}'
+    if segment.size_mb is not None:
+      label += f' mb={segment.size_mb:,.1f}'
+    segment_name_to_gv_node[segment.name] = gv.node(segment.name, label=label)
+
+    if type(segment.source) is str and segment.source.startswith('flush'):
+      pass
+    else:
+      for merged_seg_name in segment.source[1]:
+        merged_seg = segment_name_to_segment[merged_seg_name]
+        if merged_seg.del_count_merged_away is not None:
+          label = f'{merged_seg.del_count_merged_away:,} dels'
+          weight = merged_seg.del_count_merged_away
+        else:
+          label = ''
+          weight = 0
+        gv.edge(merged_seg_name, segment.name, label=label, weight=str(weight))
+  with open('ages_sizes.txt', 'w') as f:
+    for age_sec, size_mb in ages_sizes:
+      if size_mb is not None:
+        f.write(f'{age_sec:.1f},{size_mb:.1f}\n')
+
+  print(f'gv:\n{gv.source}')
+  gv_file_name_out = gv.render('segments', format='svg')
+  print(f"now render gv: {gv_file_name_out}")
+  print(f'size={os.path.getsize("segments.svg")}')
 
   # first pass to assign free level to each segment.  segments come in
   # order of their birth:
@@ -457,9 +505,6 @@ def main():
       seg_times.append((end_time - segment.start_time, segment))
       
     for ignore, segment in sorted(seg_times, key=lambda x: -x[0]):
-
-      assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
-      segment_name_to_segment[segment.name] = segment
 
       if segment.end_time is None:
         end_time = end_abs_time
@@ -750,8 +795,19 @@ def main():
   var x_cursor = null;
 
   mysvg = document.getElementById("it");
+  mydiv = document.getElementById("divit");
+
+  mysvg.onmousedown = function(evt) {
+    var text = document.location.href.split('#')[0] + "#pos=" + (mydiv.scrollLeft + evt.clientX) + "," + evt.clientY;
+    navigator.clipboard.writeText(text).then(function() {
+      alert('Link copied! ' + text)
+    }, function(err) {
+      alert('Link copied failed :(')
+    });
+  }
+  
   mysvg.onmousemove = function(evt) {
-    // console.log("clientX=" + evt.clientX + " clientY=" + evt.clientY);
+    // console.log("clientX+scrollLeft=" + (evt.clientX + mydiv.scrollLeft) + " clientY=" + evt.clientY);
     // r = mysvg.getBoundingClientRect();
     r = mysvg.getBBox();
     //console.log("bbox is " + r);
@@ -878,8 +934,7 @@ def main():
       highlight(seg_name, "orange", false, false, transformed_point);
     }
   };
-</script>
-''')
+</script>''')
 
   w('<script>')
   w('var agg_metrics = [')
@@ -932,7 +987,29 @@ def main():
   w(f'    svg.setAttribute("width", {whole_width}*zoom);')
   w(f'    svg.setAttribute("height", {whole_height}*zoom);')
   w('  });')
+  w('''
+  // parse possible scroll x/y point (bookmarked exact location)
+  var hash = window.location.hash;
+
+  if (hash != null && hash.startsWith("#pos=")) {
+    var arr = hash.substring(5).split(',');
+    var xpos = parseInt(arr[0]);
+    var ypos = parseInt(arr[1]);
+  
+    // first, scroll so the requested pixel is center of window:
+    mydiv.scrollLeft = Math.floor(xpos - mydiv.offsetWidth/2);
+
+    // second, simulate mouse move over that position:
+    var evt = {};
+    evt.clientX = xpos - mydiv.scrollLeft;
+    evt.clientY = ypos;
+    evt.ctrlKey = false;
+    mysvg.onmousemove(evt);
+   }
+''')
+  
   w('</script>')
+  w('</div>')
   w('</body>')
   w('</html>')
 

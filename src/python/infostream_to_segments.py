@@ -72,8 +72,11 @@ class Segment:
   born_del_count = None
 
   # if this segment was produced by merge, the number of deleted docs that
-  # merge compacted away
+  # merge compacted away in total from the merging segments
   del_count_reclaimed = None
+
+  # how many of my own deletes were collapsed when I got merged
+  del_count_merged_away = None
 
   # current deleted doc count
   del_count = None
@@ -632,11 +635,17 @@ def main():
           del_count_reclaimed = 0
           sum_max_doc = 0
           for tup in merging_segments:
+            merging_seg_name = '_'+tup[0]
             max_doc = int(tup[2])
             sum_max_doc += max_doc
             del_count = tup[3]
             if len(del_count) > 0:
-              del_count_reclaimed += int(del_count[1:])
+              del_count_inc = int(del_count[1:])
+            else:
+              del_count_inc = 0
+            del_count_reclaimed += del_count_inc
+            seg = by_segment_name[merging_seg_name]
+            seg.del_count_merged_away = del_count_inc
           
           # print(f'{len(merging_segments)} merging segments in {m.group(4)}: {merging_segments}')
 

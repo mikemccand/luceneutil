@@ -52,7 +52,6 @@ IFD 0 [2025-01-31T12:35:58.905104934Z; Lucene Merge Thread #0]: now delete 0 fil
 #   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
 re_segment_desc = re.compile(r'_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+?')
 
-
 def sec_to_time_delta(td_sec):
   hr = int(td_sec/3600.)
   mn = int((td_sec - hr*3600)/60.)
@@ -134,8 +133,10 @@ class Segment:
   def to_verbose_string(self, global_start_time, global_end_time, with_line_numbers):
     l = []
     s = f'segment {self.name}'
-    if self.source in ('flush', 'flush-commit', 'flush-by-RAM'):
+    if self.source in ('flush', 'flush-commit'):
       s += f' ({self.source})'
+    elif self.source == 'flush-by-RAM':
+      s += f' ({self.source} @ {self.ram_buffer_mb:.1f} MB buffer)'
     elif self.merge_during_commit is not None:
       s += ' (merge-on-commit: ' + ' '.join(self.source[1]) + ')'
     else:
@@ -187,6 +188,8 @@ class Segment:
       else:
         l.append(f'  {self.size_mb:,.1f} MB vs estimate ?? MB')
     l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
+    if self.end_time is not None:
+      l.append(f'  end_time: {self.end_time}')
     if self.publish_timestamp is not None:
       btt = (self.publish_timestamp - self.start_time).total_seconds()
       bt = sec_to_time_delta(btt)
@@ -402,9 +405,15 @@ def main():
   # e.g.: IW 152529 [2025-02-07T21:10:59.329824625Z; Lucene Merge Thread #672]: merged segment size=1597.826 MB vs estimate=1684.011 MB
   re_merge_size_vs_estimate = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: merged segment size=([0-9.]+) MB vs estimate=([0-9.]+) MB$')
 
-  # FP 1 [2025-02-12T03:12:32.803827868Z; GCR-Writer-1-thread-9]: trigger flush: activeBytes=4295836570 deleteBytes=56720 vs ramBufferMB=4096.0
+  # e.g.: FP 1 [2025-02-12T03:12:32.803827868Z; GCR-Writer-1-thread-9]: trigger flush: activeBytes=4295836570 deleteBytes=56720 vs ramBufferMB=4096.0
   re_trigger_flush = re.compile(r'^FP \d+ \[([^;]+); (.*?)\]: trigger flush: activeBytes=(\d+) deleteBytes=(\d+) vs ramBufferMB=([0-9.]+)$')
 
+  # e.g. FP 1 [2025-02-20T06:32:01.061172105Z; GCR-Writer-1-thread-2]: 10 in-use non-flushing threads states
+  re_in_use_non_flushing = re.compile(r'^FP \d+ \[([^;]+); (.*?)\]: (\d+) in-use non-flushing threads states$')
+
+  # BD 1 [2025-02-20T06:32:01.561945031Z; GCR-Writer-1-thread-8]: compressed 34384 to 1040 bytes (3.02%) for deletes/updates; private segment null
+  re_bd_compressed = re.compile(r'^BD \d+ \[([^;]+); (.*?)\]: compressed .*?; private segment null$')
+  
   line_number = 0
 
   global_start_time = None
@@ -431,6 +440,9 @@ def main():
   # slightly different from commit, e.g. nrtReader also does full flush by not fsync
   full_flush_events = []
 
+  next_line_is_flush_by_ram = False
+  ram_buffer_mb = None
+  
   with open(infostream_log, 'r') as f:
     while True:
       line = f.readline()
@@ -441,6 +453,20 @@ def main():
       line_number += 1
 
       try:
+
+        if next_line_is_flush_by_ram:
+          # curiously, thread 1 can trigger flush-by-ram, but thread 2 can sometimes be the one that swoops
+          # in and picks the biggest segment and flushes it (by RAM trigger).  we try to detect such a swoop
+          # here:
+          m = re_bd_compressed.match(line)
+          if m is not None:
+            timestamp = parse_timestamp(m.group(1))
+            thread_name = m.group(2)
+            next_line_is_flush_by_ram = False
+            assert trigger_flush_thread_name is not None
+            print(f'now set trigger_flush_thread_name from {trigger_flush_thread_name} to {thread_name} line {line_number}')
+            trigger_flush_thread_name = thread_name
+            continue
 
         m = re_now_checkpoint.match(line)
         if m is not None:
@@ -511,18 +537,23 @@ def main():
           segment_name = '_' + m.group(3)
           max_doc = int(m.group(4))
 
-          print(f'compare {thread_name=} to {commit_thread_name=} {segment_name=}')
+          print(f'compare {thread_name=} to {commit_thread_name=} and {trigger_flush_thread_name=} {segment_name=}')
 
-          if commit_thread_name is not None:
+          if trigger_flush_thread_name == thread_name:
+            source = 'flush-by-RAM'
+            trigger_flush_thread_name = None
+          elif commit_thread_name is not None:
             # logic may not be quite correct?  can we flush segment due to RAM usage even while another thread already kicked off commit?  unlikely...
             source = 'flush-commit'
-          elif trigger_flush_thread_name == thread_name:
-            source = 'flush-by-RAM'
           else:
             source = 'flush'
           print(f'  {source=}')
             
           segment = Segment(segment_name, source, max_doc, None, timestamp, None, line_number)
+          if source == 'flush-by-RAM':
+            assert ram_buffer_mb is not None
+            segment.ram_buffer_mb = ram_buffer_mb
+            ram_buffer_mb = None
 
           if in_full_flush:
             segment.full_flush_ord = full_flush_count
@@ -605,8 +636,6 @@ def main():
           segment_name = '_' + m.group(3)
           segment.publish_timestamp = timestamp
           by_segment_name[segment_name].add_event(timestamp, 'light', line_number)
-          if thread_name == trigger_flush_thread_name:
-            trigger_flush_thread_name = None
           continue
 
         m = re_new_merge_deletes.match(line)
@@ -775,6 +804,9 @@ def main():
 
         m = re_start_full_flush.match(line)
         if m is not None:
+          # we should NOT be in the middle of a flush-by-RAM?  hmm but what if commit
+          # is called when we are ...?
+          assert trigger_flush_thread_name is None, f'{trigger_flush_thread_name} on line {line_number}'
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           full_flush_events.append([timestamp, None])
@@ -845,9 +877,21 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           activeBytes = int(m.group(3))
-          deleteBytes = int(m.group(3))
-          ramBufferMB = float(m.group(3))
+          deleteBytes = int(m.group(4))
+          ram_buffer_mb = float(m.group(5))
           trigger_flush_thread_name = thread_name
+
+        m = re_in_use_non_flushing.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          next_line_is_flush_by_ram = True
+          print(f'now set next_line_flush_by_ram thread={thread_name}')
+          # e.g.:
+          # FP 1 [2025-02-20T06:32:01.061172105Z; GCR-Writer-1-thread-2]: 10 in-use non-flushing threads states
+          # BD 1 [2025-02-20T06:32:01.561945031Z; GCR-Writer-1-thread-8]: compressed 34384 to 1040 bytes (3.02%) for deletes/updates; private segment null
+          # DWPT 1 [2025-02-20T06:32:01.562510185Z; GCR-Writer-1-thread-8]: flush postings as segment _1h numDocs=17052
+          
           
       except KeyboardInterrupt:
         raise
@@ -861,6 +905,9 @@ def main():
       print(f'set end_time for segment {segment.name} to global end time')
       segment.end_time = global_end_time
 
+  if len(Segment.all_segments) == 0:
+    raise RuntimeError(f'found no segments in {infostream_log}')
+    
   open(segments_out, 'wb').write(pickle.dumps((global_start_time, global_end_time, Segment.all_segments, full_flush_events, merge_during_commit_events, checkpoints, commits)))
   
   print(f'wrote {len(Segment.all_segments)} segments to "{segments_out}": {os.path.getsize(segments_out)/1024/1024:.1f} MB')

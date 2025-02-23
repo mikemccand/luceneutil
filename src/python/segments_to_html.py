@@ -22,6 +22,8 @@ import os
 import infostream_to_segments
 import datetime
 
+infostream_to_segments.sec_to_time_delta
+
 # pip3 install intervaltree
 import intervaltree
 
@@ -29,6 +31,14 @@ import intervaltree
 import graphviz
 
 # TODO
+#   - IW should differentiate "done waithing for merge during commit" timeout vs all requested merges finished
+#   - fix TMP to log deletes target and changes to the target
+#   - fix time-cursor text to say "in full flush", "in merge on commit", etc.
+#   - fix zoom slider to only zoom in x
+#   - why does delete pct suddenly drop too much (screen shot 1)
+#   - flush-by-ram detection is buggy
+#   - make flush-by-ram a different color
+#   - make scatterplot of merged segment size vs merge time
 #   - get #t=... anchor link working!
 #   - plot mb * sec?
 #   - plot scatterplot
@@ -136,8 +146,15 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         if segment.del_count_reclaimed is not None:
           segment.del_reclaims_per_sec = segment.del_count_reclaimed / (timestamp - segment.start_time).total_seconds()
         break
-      
-    all_times.append((segment.end_time, 'segend', segment))
+    else:
+      # 9:59:44
+      print(f'WARNING: no seglight event for {segment.name}')
+
+    if segment.end_time is None:
+      end_time = end_abs_time
+    else:
+      end_time = segment.end_time
+    all_times.append((end_time, 'segend', segment))
     name_to_segment[segment.name] = segment
 
   for checkpoint in checkpoints:
@@ -210,6 +227,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
       dps = segment.max_doc / dur_sec
 
       is_flush = type(segment.source) is str and segment.source.startswith('flush')
+
+      print(f'seg {segment.name} source={segment.source} {is_flush=}')
 
       if is_flush:
 
@@ -300,6 +319,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
     # followed by seglight of the new merged segment at the same timestamp
     if upto >= len(all_times)-1 or timestamp != all_times[upto][0]:
 
+      print(f'now do keep {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
+
       # print(f'{upto=} {timestamp=} {what=} new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})')
 
       l.append(f'[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec/100.:.3f}, {flush_dps/100:.3f}, {merge_dps/100:.3f}, {commit_size_mb/100.:.3f}, {index_file_count/100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}')
@@ -308,6 +329,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
     
       # so we only output one spiky point when the commit happened
       commit_size_mb = 0
+    else:
+      print(f'now do skip {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
 
   # dygraph
   #   - https://dygraphs.com/2.2.1/dist/dygraph.min.js
@@ -397,7 +420,15 @@ def main():
   _l = []
   w = _l.append
 
-  whole_width = 100 * 1024
+  padding_x = 5
+  padding_y = 2
+
+  # x_pixels_per_sec = (whole_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
+  x_pixels_per_sec = 3.0
+  print(f'{x_pixels_per_sec=}')
+
+  # whole_width = 100 * 1024
+  whole_width = int(x_pixels_per_sec * (end_abs_time - start_abs_time).total_seconds() + 2*padding_x)
   whole_height = 1800
 
   gv = graphviz.Digraph(comment=f'Segments from {segments_file_in}', graph_attr={'rankdir': 'LR'})
@@ -428,11 +459,7 @@ def main():
   #w('// so we can intersect mouse point with boxes:')
   #w(f'var ps = new PlanarSet();')
 
-  padding_x = 5
-  padding_y = 2
-
   print(f'{(end_abs_time - start_abs_time).total_seconds()} total seconds')
-  x_pixels_per_sec = (whole_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
   y_pixels_per_log_mb = 4
 
   segment_name_to_level = {}
@@ -454,7 +481,15 @@ def main():
       end_time = end_abs_time
     else:
       end_time = segment.end_time
-    ages_sizes.append(((end_time - segment.start_time).total_seconds(), segment.size_mb))
+
+    light_timestamp = None
+    
+    for timestamp, event, line_number in segment.events:
+      if event == 'light':
+        light_timestamp = timestamp
+        break
+    if segment.size_mb is not None and light_timestamp is not None:  
+      ages_sizes.append((segment.source, (end_time - segment.start_time).total_seconds(), segment.size_mb, (light_timestamp - segment.start_time).total_seconds(), segment.max_doc))
     
     assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
     segment_name_to_segment[segment.name] = segment
@@ -476,14 +511,15 @@ def main():
           weight = 0
         gv.edge(merged_seg_name, segment.name, label=label, weight=str(weight))
   with open('ages_sizes.txt', 'w') as f:
-    for age_sec, size_mb in ages_sizes:
+    for source, age_sec, size_mb, write_time, max_doc in ages_sizes:
       if size_mb is not None:
-        f.write(f'{age_sec:.1f},{size_mb:.1f}\n')
+        f.write(f'{size_mb:.1f}\t{max_doc}\n')
 
-  print(f'gv:\n{gv.source}')
-  gv_file_name_out = gv.render('segments', format='svg')
-  print(f"now render gv: {gv_file_name_out}")
-  print(f'size={os.path.getsize("segments.svg")}')
+  if False:
+    print(f'gv:\n{gv.source}')
+    gv_file_name_out = gv.render('segments', format='svg')
+    print(f"now render gv: {gv_file_name_out}")
+    print(f'size={os.path.getsize("segments.svg")}')
 
   # first pass to assign free level to each segment.  segments come in
   # order of their birth:
@@ -493,6 +529,11 @@ def main():
 
   if True:
     # sort segments by lifetime, and assign to level bottom up, so long lived segments are always down low
+
+    # so we have a bit of horizontal space b/w segments:
+    pad_time_sec = 1.0
+
+    half_pad_time = datetime.timedelta(seconds=pad_time_sec/2)
 
     tree = intervaltree.IntervalTree()
 
@@ -520,7 +561,7 @@ def main():
           break
         new_level += 1
 
-      tree[segment.start_time:end_time] = segment
+      tree[segment.start_time-half_pad_time:end_time+half_pad_time] = segment
 
       segment_name_to_level[segment.name] = new_level
       # print(f'{segment.name} -> level {new_level}')
@@ -722,6 +763,80 @@ def main():
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')
   w('</svg>')
   w('</div>')
+  w('<script>')
+  w('var agg_metrics = [')
+  for tup in time_aggs:
+    timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, tot_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb = tup
+
+    sec = (timestamp - min_start_abs_time).total_seconds()
+    ts = timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
+    w(f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],')
+  w('];')
+  w('const seg_merge_map = new Map();')
+  # w('const seg_details_map = new Map();')
+  w('const seg_details2_map = new Map();')
+  w('\n// super verbose (includes InfoStream line numbers):')
+  w('const seg_details3_map = new Map();')
+  for segment in segments:
+    if type(segment.source) is tuple and segment.source[0] == 'merge':
+      w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
+    if segment.size_mb is None:
+      smb = 'n/a'
+    else:
+      smb = f'{segment.size_mb:.1f} MB'
+    details = f'{segment.name}:\n  {smb}\n  {segment.max_doc} max_doc'
+    if segment.end_time is not None:
+      end_time = segment.end_time
+    else:
+      end_time = end_abs_time
+    details += f'\n  {(end_time - segment.start_time).total_seconds():.1f} sec'
+    if segment.born_del_count is not None and segment.born_del_count > 0:
+      details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
+      
+    # w(f'seg_details_map.set("{segment.name}", {repr(details)});')
+    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, False))});')
+    w(f'seg_details3_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, True))});')
+
+  w('''
+  const top_details = document.getElementById('details');
+  const top_details2 = document.getElementById('details2');
+  slider = document.getElementById('zoomSlider');
+  svg = document.getElementById('it');
+
+  slider.addEventListener('input', function() {
+    zoom = slider.value;
+  ''')
+  w('    console.log("zoom=" + zoom);')
+  #w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
+  w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
+  # svg.style.transform = `scale(${zoom})`;
+  w('    svg.setAttribute("viewBox", new_view_box);')
+  w(f'    svg.setAttribute("width", {whole_width}*zoom);')
+  w(f'    svg.setAttribute("height", {whole_height}*zoom);')
+  w('  });')
+  w('''
+  // parse possible scroll x/y point (bookmarked exact location)
+  var hash = window.location.hash;
+
+  if (hash != null && hash.startsWith("#pos=")) {
+    var arr = hash.substring(5).split(',');
+    var xpos = parseInt(arr[0]);
+    var ypos = parseInt(arr[1]);
+  
+    // first, scroll so the requested pixel is center of window:
+    mydiv.scrollLeft = Math.floor(xpos - mydiv.offsetWidth/2);
+
+    // second, simulate mouse move over that position:
+    var evt = {};
+    evt.is_from_url_anchor = true;
+    evt.clientX = xpos - mydiv.scrollLeft;
+    evt.clientY = ypos;
+    evt.ctrlKey = false;
+    mysvg.onmousemove(evt);
+   }
+''')
+  
+  w('</script>')
   w('''
 <script>
 
@@ -805,8 +920,14 @@ def main():
       alert('Link copied failed :(')
     });
   }
+
+  var first_mouse_move = true;
   
   mysvg.onmousemove = function(evt) {
+    if (first_mouse_move && evt.is_from_url_anchor == null) {
+      first_mouse_move = false;
+      return;
+    }
     // console.log("clientX+scrollLeft=" + (evt.clientX + mydiv.scrollLeft) + " clientY=" + evt.clientY);
     // r = mysvg.getBoundingClientRect();
     r = mysvg.getBBox();
@@ -821,7 +942,7 @@ def main():
     transformed_point = point.matrixTransform(mysvg.getScreenCTM().inverse());
   ''')
 
-  w(f'      var t = transformed_point.x / {x_pixels_per_sec};')
+  w(f'      var t = (transformed_point.x - {padding_x}) / {x_pixels_per_sec};')
   w('''
 
     var spot = binarySearchWithInsertionPoint(agg_metrics, t);
@@ -858,8 +979,8 @@ def main():
            (max_doc/1000000.).toFixed(2) + "M docs (" + del_pct.toFixed(2) + "% deletes)<br>" +
            "IO tot writes: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
            "Last commit: " + (last_commit_size_mb / 1024.).toFixed(2) + " GB<br>" +
-           "Flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps + " docs/sec<br>" +
-           "Merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps + " docs/sec<br>       " + del_reclaims_per_sec + " del-reclaim/sec<br>" +
+           "flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps.toFixed(1) + " docs/sec<br>" +
+           "merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps.toFixed(1) + " docs/sec<br>       " + del_reclaims_per_sec.toFixed(1) + " del-reclaim/sec<br>" +
            "</pre>";
 
     top_details2.innerHTML = text;
@@ -936,79 +1057,6 @@ def main():
   };
 </script>''')
 
-  w('<script>')
-  w('var agg_metrics = [')
-  for tup in time_aggs:
-    timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, tot_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb = tup
-
-    sec = (timestamp - min_start_abs_time).total_seconds()
-    ts = timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
-    w(f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],')
-  w('];')
-  w('const seg_merge_map = new Map();')
-  # w('const seg_details_map = new Map();')
-  w('const seg_details2_map = new Map();')
-  w('\n// super verbose (includes InfoStream line numbers):')
-  w('const seg_details3_map = new Map();')
-  for segment in segments:
-    if type(segment.source) is tuple and segment.source[0] == 'merge':
-      w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
-    if segment.size_mb is None:
-      smb = 'n/a'
-    else:
-      smb = f'{segment.size_mb:.1f} MB'
-    details = f'{segment.name}:\n  {smb}\n  {segment.max_doc} max_doc'
-    if segment.end_time is not None:
-      end_time = segment.end_time
-    else:
-      end_time = end_abs_time
-    details += f'\n  {(end_time - segment.start_time).total_seconds():.1f} sec'
-    if segment.born_del_count is not None and segment.born_del_count > 0:
-      details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
-      
-    # w(f'seg_details_map.set("{segment.name}", {repr(details)});')
-    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, False))});')
-    w(f'seg_details3_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, True))});')
-
-  w('''
-  const top_details = document.getElementById('details');
-  const top_details2 = document.getElementById('details2');
-  slider = document.getElementById('zoomSlider');
-  svg = document.getElementById('it');
-
-  slider.addEventListener('input', function() {
-    zoom = slider.value;
-  ''')
-  w('    console.log("zoom=" + zoom);')
-  #w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
-  w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
-  # svg.style.transform = `scale(${zoom})`;
-  w('    svg.setAttribute("viewBox", new_view_box);')
-  w(f'    svg.setAttribute("width", {whole_width}*zoom);')
-  w(f'    svg.setAttribute("height", {whole_height}*zoom);')
-  w('  });')
-  w('''
-  // parse possible scroll x/y point (bookmarked exact location)
-  var hash = window.location.hash;
-
-  if (hash != null && hash.startsWith("#pos=")) {
-    var arr = hash.substring(5).split(',');
-    var xpos = parseInt(arr[0]);
-    var ypos = parseInt(arr[1]);
-  
-    // first, scroll so the requested pixel is center of window:
-    mydiv.scrollLeft = Math.floor(xpos - mydiv.offsetWidth/2);
-
-    // second, simulate mouse move over that position:
-    var evt = {};
-    evt.clientX = xpos - mydiv.scrollLeft;
-    evt.clientY = ypos;
-    evt.ctrlKey = false;
-    mysvg.onmousemove(evt);
-   }
-''')
-  
-  w('</script>')
   w('</div>')
   w('</body>')
   w('</html>')

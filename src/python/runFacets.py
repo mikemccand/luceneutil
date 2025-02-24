@@ -35,7 +35,7 @@ if __name__ == '__main__':
   sourceData = competition.sourceData(args.source)
   countsAreCorrect = args.searchConcurrency != 0
   # taskCountPerCat is high to run all tasks in the file
-  comp =  competition.Competition(verifyCounts = not countsAreCorrect, taskCountPerCat = 100000)
+  comp =  competition.Competition(verifyCounts = not countsAreCorrect, taskCountPerCat = 100000, groupByCat = True)
 
   index = comp.newIndex(args.lucene_dir, sourceData,
                         addDVFields = True,
@@ -52,10 +52,10 @@ if __name__ == '__main__':
   # create a competitor named baseline with sources in the ../trunk folder
   comp.competitor('post_collection_facets', args.lucene_dir,
                   index = index, searchConcurrency = args.searchConcurrency,
-                  testContext="facetMode:POST_COLLECTION", pk = False, groupByCat = True)
+                  testContext="facetMode:POST_COLLECTION", pk = False)
   comp.competitor('during_collection_facets', args.lucene_dir,
                   index = index, searchConcurrency = args.searchConcurrency,
-                  testContext="facetMode:DURING_COLLECTION", pk = False, groupByCat = True)
+                  testContext="facetMode:DURING_COLLECTION", pk = False)
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("facet_implementations")

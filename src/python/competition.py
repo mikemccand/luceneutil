@@ -467,10 +467,10 @@ class Competition(object):
 
     # If True, group tasks per category, otherwise tasks are
     # randomly shuffled across categories, see LocalTaskSource.java.
-    # Setting to True can be useful when workload in competitions is
-    # distributed differently between threads. E.g. moving some work
+    # Setting to True can be useful when workload competitors
+    # distribute work between threads differently. E.g. moving some work
     # from main thread to searcher thread pool in candidate makes
-    # per category QPS numbers incomparable as pattern of cross-task
+    # per category QPS numbers incomparable as a pattern of cross-task
     # competition for threads changes.
     self.groupByCat = groupByCat
 

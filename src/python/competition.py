@@ -439,7 +439,8 @@ class Competition(object):
                benchSearch=True,
                taskCountPerCat = 1,
                taskRepeatCount = 20,
-               jvmCount = 20):
+               jvmCount = 20,
+               groupByCat = False):
     self.cold = cold
     self.competitors = []
     self.indices = []
@@ -463,6 +464,15 @@ class Competition(object):
     # within a category behave the same.  Note that even with 1,
     # you'll get a random choice each time you run the competition:
     self.taskCountPerCat = taskCountPerCat
+
+    # If True, group tasks per category, otherwise tasks are
+    # randomly shuffled across categories, see LocalTaskSource.java.
+    # Setting to True can be useful when workload in competitions is
+    # distributed differently between threads. E.g. moving some work
+    # from main thread to searcher thread pool in candidate makes
+    # per category QPS numbers incomparable as pattern of cross-task
+    # competition for threads changes.
+    self.groupByCat = groupByCat
 
     # How many times to run each query.  Curiously anything higher than
     # ~15 (I've tested up to 1000) doesn't alter results, ie once

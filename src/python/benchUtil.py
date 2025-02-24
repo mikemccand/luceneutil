@@ -1215,6 +1215,8 @@ class RunAlgs:
     w('-taskRepeatCount', c.competition.taskRepeatCount)
     w('-field', 'body')
     w('-tasksPerCat', c.competition.taskCountPerCat)
+    if c.competition.groupByCat:
+      w('-groupByCat')
     if c.doSort:
       w('-sort')
     w('-searchConcurrency', c.searchConcurrency)

@@ -34,8 +34,9 @@ if __name__ == '__main__':
 
   sourceData = competition.sourceData(args.source)
   countsAreCorrect = args.searchConcurrency != 0
-  # taskCountPerCat is high to run all tasks in the file
-  comp =  competition.Competition(verifyCounts = not countsAreCorrect, taskCountPerCat = 100000, groupByCat = True)
+  # enable groupByCat and increase taskRepeatCount to limit time when tasks from different categories
+  # are running at the same time and compete for searcher thread pool
+  comp =  competition.Competition(verifyCounts = not countsAreCorrect, groupByCat = True, taskRepeatCount = 200)
 
   index = comp.newIndex(args.lucene_dir, sourceData,
                         addDVFields = True,

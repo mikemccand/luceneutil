@@ -27,6 +27,7 @@ def parse_timestamp(s):
   return datetime.datetime.fromisoformat(s)
 
 # TODO
+#   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?
 #   - support addIndexes source too
 #   - what to do with the RAM MB -> flushed size MB ratio?  it'd be nice to measure "ram efficiency" somehow of newly flushed segments..
 #   - get an infostream w/ concurrent deletes ... maybe from the NRT indexing test?
@@ -142,33 +143,10 @@ class Segment:
     else:
       s += ' (merge: ' + ' '.join(self.source[1]) + ')'
     l.append(s)
-    if self.merge_during_commit is not None:
-      if type(self.merge_during_commit) is tuple:
-        state, seconds = self.merge_during_commit
-        l.append(f'  merge-during-commit: {state} {seconds:.2f} sec')
-      else:
-        # could be a single int, if merge was still running at end of InfoStream
-        pass
-    if self.is_cfs:
-      l.append('  cfs')
-    else:
-      l.append('  not cfs')
-      
-    if self.del_count_reclaimed is not None:
-      l.append(f'  del_count_reclaimed={self.del_count_reclaimed:,} ({100.*self.del_count_reclaimed/(self.max_doc + self.del_count_reclaimed):.1f}%)')
-    md = f'  max_doc={self.max_doc:,}'
+    md = f'  {self.max_doc:,} max_doc'
     if self.size_mb is not None:
-      md += f' docs_per_mb={self.max_doc/self.size_mb:,.1f}'
+      md += f' ({self.max_doc/self.size_mb:,.1f} docs/MB)'
     l.append(md)
-    if self.born_del_count is not None:
-      l.append(f'  born_del_count={self.born_del_count:,} ({100.*self.born_del_count/self.max_doc:.1f}%)')
-    if self.del_count is not None:
-      if self.end_time is None:
-        end_time = global_end_time
-      else:
-        end_time = self.end_time
-      dps = self.del_count / (end_time - self.start_time).total_seconds()
-      l.append(f'  final del_count={self.del_count:,} ({100.*self.del_count/self.max_doc:.1f}%, {dps:,.1f} dd/s)')
     if type(self.source) is str and self.source.startswith('flush'):
       if self.ram_used_mb is None:
         # this can happen if InfoStream ends as a segment is flushing
@@ -187,9 +165,31 @@ class Segment:
         l.append(f'  {self.size_mb:,.1f} MB vs estimate {self.estimate_size_mb:,.1f} MB {pct:.1f}%')
       else:
         l.append(f'  {self.size_mb:,.1f} MB vs estimate ?? MB')
-    l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
-    if self.end_time is not None:
-      l.append(f'  end_time: {self.end_time}')
+    
+    if self.merge_during_commit is not None:
+      if type(self.merge_during_commit) is tuple:
+        state, seconds = self.merge_during_commit
+        l.append(f'  merge-during-commit: {state} {seconds:.2f} sec')
+      else:
+        # could be a single int, if merge was still running at end of InfoStream
+        pass
+    if self.is_cfs:
+      l.append('  cfs')
+      
+    if self.del_count_reclaimed is not None:
+      l.append(f'  del_count_reclaimed={self.del_count_reclaimed:,} ({100.*self.del_count_reclaimed/(self.max_doc + self.del_count_reclaimed):.1f}%)')
+    if self.born_del_count is not None:
+      l.append(f'  born_del_count={self.born_del_count:,} ({100.*self.born_del_count/self.max_doc:.1f}%)')
+    if self.del_count is not None:
+      if self.end_time is None:
+        end_time = global_end_time
+      else:
+        end_time = self.end_time
+      dps = self.del_count / (end_time - self.start_time).total_seconds()
+      l.append(f'  final del_count={self.del_count:,} ({100.*self.del_count/self.max_doc:.1f}%, {dps:,.1f} dd/s)')
+    #l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
+    #if self.end_time is not None:
+    #  l.append(f'  end_time: {self.end_time}')
     if self.publish_timestamp is not None:
       btt = (self.publish_timestamp - self.start_time).total_seconds()
       bt = sec_to_time_delta(btt)
@@ -376,7 +376,8 @@ def main():
   re_new_merge_deletes = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: (\d+) new deletes since merge started')
 
   # e.g.: IW 21247 [2025-02-07T18:17:42.621678574Z; GCR-Writer-1-thread-6]: now run merges during commit: MergeSpec:
-  re_merge_during_commit_start = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: now run merges during commit')
+  #  followed by successive lines "1: ...", "2: ...", etc.
+  re_merge_during_commit_start = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: now run merges during commit: MergeSpec:$')
 
   # e.g.: IW 21550 [2025-02-07T18:18:27.651937537Z; GCR-Writer-1-thread-6]: done waiting for merges during commit
   re_merge_during_commit_end = re.compile(r'^IW \d+ \[([^;]+); (.*?)\]: done waiting for merges during commit')
@@ -442,10 +443,15 @@ def main():
 
   next_line_is_flush_by_ram = False
   ram_buffer_mb = None
+  push_back_line = None
   
   with open(infostream_log, 'r') as f:
     while True:
-      line = f.readline()
+      if push_back_line is not None:
+        line = push_back_line
+        push_back_line = None
+      else:
+        line = f.readline()
       if line == '':
         break
       line = line.strip()
@@ -684,12 +690,15 @@ def main():
 
           if len(merge_during_commit_events) > 0 and merge_during_commit_events[-1][1] is None:
             # ensure this merge kickoff was really due to a merge-on-commit merge request:
-            print(f'check {thread_name} vs {merge_commit_threads}')
+            #print(f'MOC check {thread_name} vs {merge_commit_threads} and {merging_segment_names} vs {merge_commit_merges}')
             if thread_name in merge_commit_threads:
-              print(f'MOC: YES {line_number}')
+              #print(f'MOC: YES {line_number}')
+              segment.merge_during_commit = len(merge_during_commit_events)
+            elif tuple(merging_segment_names) in merge_commit_merges:
+              #print(f'MOC: YES2 {line_number}')
               segment.merge_during_commit = len(merge_during_commit_events)
             else:
-              print(f'MOC: NO {line_number}')
+              #print(f'MOC: NO {line_number}')
               segment.merge_during_commit = None
           by_segment_name[segment_name] = segment
           by_thread_name[thread_name] = segment
@@ -776,6 +785,28 @@ def main():
           merge_during_commit_events.append([timestamp, None])
           merge_on_commit_thread_name = thread_name
           merge_commit_threads = set()
+
+          merge_commit_merges = set()
+
+          # moc thread sneakinss -- one thread might register some merges, while another pulls them and launches CMS threads
+          # peek ahead to read all the merges that will be merge-on-commit
+          counter = 1
+          while True:
+            line = f.readline()
+            if line == '':
+              push_back_line = line
+              break
+            line = line.strip()
+            if line.startswith(f'{counter}: '):
+              seg_details = parse_seg_details(line[line.find(':')+1:].strip())
+              tup = tuple(x[0] for x in seg_details)
+              # print(f'now add moc tup: {tup}')
+              merge_commit_merges.add(tup)
+              counter += 1
+            else:
+              push_back_line = line
+              break
+            
           continue
         
         m = re_launch_new_merge_thread.match(line)
@@ -798,6 +829,7 @@ def main():
 
           merge_on_commit_thread_name = None
           merge_commit_threads = None
+          merge_commit_merges = None
           
           merge_during_commit_events[-1][1] = timestamp
           continue

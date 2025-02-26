@@ -31,6 +31,8 @@ import intervaltree
 import graphviz
 
 # TODO
+#   - from "last commit size" also break out how much was flushed vs merged segments
+#   - get highlight working for the flush/moc bands, and move them under all other segments (no alpha)
 #   - IW should differentiate "done waithing for merge during commit" timeout vs all requested merges finished
 #   - fix TMP to log deletes target and changes to the target
 #   - fix time-cursor text to say "in full flush", "in merge on commit", etc.
@@ -455,6 +457,34 @@ def main():
   # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
 
+  min_start_abs_time = None
+
+  for segment in segments:
+    if min_start_abs_time is None or segment.start_time < min_start_abs_time:
+      min_start_abs_time = segment.start_time
+
+  w(f'\n\n  <!-- full flush events -->')
+  for start_time, end_time in full_flush_events:
+    if end_time is None:
+      continue
+    x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
+    y0 = 0
+    x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
+    y1 = whole_height
+    # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+    w(f'  <rect fill="rgb(214,234,248)"" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+
+  w(f'\n\n  <!-- merge-on-commit events -->')
+  for start_time, end_time in merge_during_commit_events:
+    if end_time is None:
+      continue
+    x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
+    y0 = 0
+    x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
+    y1 = whole_height
+    #w(f'  <rect fill="orange" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+    w(f'  <rect fill="rgb(253,235,208)" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+
   #w('var textbox = null;')
   #w('// so we can intersect mouse point with boxes:')
   #w(f'var ps = new PlanarSet();')
@@ -469,8 +499,6 @@ def main():
   segment_name_to_gv_node = {}
 
   max_level = 0
-
-  min_start_abs_time = None
 
   # for making histograms/scatter plots
   ages_sizes = []
@@ -568,8 +596,6 @@ def main():
 
       max_level = max(new_level, max_level)
 
-      if min_start_abs_time is None or segment.start_time < min_start_abs_time:
-        min_start_abs_time = segment.start_time
 
 
   elif False:
@@ -602,9 +628,6 @@ def main():
       # print(f'{segment.name} -> level {new_level}')
 
       max_level = max(new_level, max_level)
-
-      if min_start_abs_time is None or segment.start_time < min_start_abs_time:
-        min_start_abs_time = segment.start_time
 
   else:
 
@@ -642,9 +665,6 @@ def main():
 
       max_level = max(level, max_level)
 
-      if min_start_abs_time is None or segment.start_time < min_start_abs_time:
-        min_start_abs_time = segment.start_time
-
   # print(f'{max_level=}')
   y_pixels_per_level = whole_height / (1+max_level)
 
@@ -679,7 +699,10 @@ def main():
     y1 = whole_height - int(y_pixels_per_level * level)
     y0 = y1 - height
     if type(segment.source) is str and segment.source.startswith('flush'):
-      color = '#ff0000'
+      if segment.source == 'flush-by-RAM':
+        color = '#ff00ff'
+      else:
+        color = '#ff0000'
     else:
       color = '#0000ff'
 
@@ -690,7 +713,9 @@ def main():
     if light_timestamp is not None:
       x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
 
-      if color == '#ff0000':
+      if color == '#ff00ff':
+        new_color = '#ff88ff'
+      elif color == '#ff0000':
         new_color = '#ff8888'
       else:
         new_color = '#8888ff'
@@ -699,7 +724,9 @@ def main():
 
     if segment.merged_into is not None:
       # this segment was merged away eventually
-      if color == '#ff0000':
+      if color == '#ff00ff':
+        new_color = '#880088'
+      elif color == '#ff0000':
         new_color = '#880000'
       else:
         new_color = '#000088'
@@ -738,26 +765,6 @@ def main():
           w(f'l.setAttribute("x2", {x_light_merge});')
           w(f'l.setAttribute("y2", {y1a-y_pixels_per_level/2});')
           w(f'mysvg.appendChild(l);')
-
-  w(f'\n\n  <!-- full flush events -->')
-  for start_time, end_time in full_flush_events:
-    if end_time is None:
-      continue
-    x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
-    y0 = 0
-    x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
-    y1 = whole_height
-    w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-
-  w(f'\n\n  <!-- merge-on-commit events -->')
-  for start_time, end_time in merge_during_commit_events:
-    if end_time is None:
-      continue
-    x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
-    y0 = 0
-    x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
-    y1 = whole_height
-    w(f'  <rect fill="orange" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
 
   #w('canvas.on("mouse:over", show_segment_details);')
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')

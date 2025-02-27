@@ -974,4 +974,8 @@ KNOWN_CHANGES = [
   ('2025-02-13',
    'Change the filtered HNSW search algorithm to one based on ACORN-1. https://github.com/apache/lucene/pull/14160',
    'Change the filtered HNSW search algorithm to one based on ACORN-1. https://github.com/apache/lucene/pull/14160'),
+
+  ('2025-02-27',
+   'Use DenseConjunctionBulkScorer for single queries sometimes. https://github.com/apache/lucene/pull/14293',
+   'Use DenseConjunctionBulkScorer for single queries sometimes. https://github.com/apache/lucene/pull/14293'),
 ]

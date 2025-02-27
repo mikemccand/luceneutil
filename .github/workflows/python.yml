@@ -1,0 +1,28 @@
+name: Python checks
+
+on:
+  # explicitly requested via UI
+  workflow_dispatch:
+  # pull requests
+  pull_request:
+    branches:
+      - '*'
+  # pushes to main
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.6'
+
+      - name: Lint python
+        run: make lint

@@ -1,0 +1,8 @@
+# used by segments-to-html
+graphviz
+intervaltree
+
+# linter and formatter
+ruff
+# type checker
+basedpyright

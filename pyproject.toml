@@ -1,0 +1,89 @@
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = [ "src/python" ]
+# TODO: improve!
+# typeCheckingMode = "strict"
+typeCheckingMode = "off"
+
+# disabling for entire files: these are broken at a syntax level
+exclude = [
+  # files appear to be using python2 syntax
+  "src/python/ToHGRM.py",
+  "src/python/createMinShouldMatchTasks.py",
+  "src/python/latencyOverTimeGraph.py",
+  "src/python/loadGraph.py",
+  "src/python/loadGraphActualQPS.py",
+  "src/python/makeGraphs.py",
+  "src/python/makeHGPatch.py",
+  "src/python/makeNRTGraph.py",
+  "src/python/mergeFacets.py",
+  "src/python/mergeViz.py",
+  "src/python/nightlyCompile.py",
+  "src/python/nrtPerf.py",
+  "src/python/remoteTestServer.py",
+  "src/python/responseTimeGraph.py",
+  "src/python/responseTimeTests.py",
+  "src/python/runAllTests.py",
+  "src/python/runRemoteTests.py",
+  "src/python/sendTasks.py",
+  "src/python/skipper.py",
+]
+
+[tool.ruff]
+line-length = 200
+indent-width = 2
+
+[tool.ruff.lint]
+# TODO: improve!
+# select = ["ALL"]
+
+# disabling/enabling of rules
+ignore = [
+  # These rules are disabled because they have violations, we should fix those!
+  "E402",    # Module level import not at top of file
+  "E703",    # Unnecessary semicolon
+  "E701",    # Multiple statements on one line (colon)
+  "E711",    # Comparison to None should be "is None"
+  "E722",    # Bare except
+  "E731",    # Do not assign a "lambda" use a "def"
+  "E741",    # Ambiguous variable name
+  "F401",    # Imported but unused
+  "F403",    # star imports prevent detection of undefined names
+  "F405",    # Possibly undefined, or defined from star imports
+  "F507",    # Wrong number of arguments to format string
+  "F541",    # F-string without placeholders
+  "F633",    # Use of '>>' is invalid with print function
+  "F811",    # Redefinition of unused
+  "F821",    # Undefined name
+  "F841",    # Local variable assigned but never used
+
+  # These rules are always disabled: conflict with the formatter
+  # don't enable! https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+  "W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001",
+  "Q002", "Q003", "COM812", "COM819", "ISC001", "ISC002", "E501",
+]
+
+# disabling for entire files: these are broken at a syntax level
+exclude = [
+  # files appear to be using python2 syntax
+  "src/python/ToHGRM.py",
+  "src/python/createMinShouldMatchTasks.py",
+  "src/python/latencyOverTimeGraph.py",
+  "src/python/loadGraph.py",
+  "src/python/loadGraphActualQPS.py",
+  "src/python/makeGraphs.py",
+  "src/python/makeHGPatch.py",
+  "src/python/makeNRTGraph.py",
+  "src/python/mergeFacets.py",
+  "src/python/mergeViz.py",
+  "src/python/nightlyCompile.py",
+  "src/python/nrtPerf.py",
+  "src/python/remoteTestServer.py",
+  "src/python/responseTimeGraph.py",
+  "src/python/responseTimeTests.py",
+  "src/python/runAllTests.py",
+  "src/python/runRemoteTests.py",
+  "src/python/sendTasks.py",
+  "src/python/skipper.py",
+]

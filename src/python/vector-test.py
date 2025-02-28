@@ -18,7 +18,6 @@ import os
 
 import argparse
 import competition
-import sys
 import constants
 
 GLOVE_WORD_VECTORS_FILE = '%s/data/glove.6B.300d.txt' % constants.BASE_DIR

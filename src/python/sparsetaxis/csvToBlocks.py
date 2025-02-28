@@ -1,6 +1,5 @@
 import struct
 import sys
-import datetime
 import io
 
 with open(sys.argv[1], 'r', encoding='utf-8') as f, open(sys.argv[2], 'wb') as fOut:

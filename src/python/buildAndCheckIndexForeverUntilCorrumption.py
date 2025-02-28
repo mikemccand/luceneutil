@@ -1,7 +1,6 @@
 import shutil
 import datetime
 import os
-import sys
 
 import constants
 import competition

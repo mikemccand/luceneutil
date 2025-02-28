@@ -17,7 +17,6 @@
 
 import struct
 import sys
-import datetime
 import io
 
 def read_exact_byte_count(file_name, f, byte_count):

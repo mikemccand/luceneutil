@@ -20,7 +20,6 @@ import bisect
 import sys
 import re
 import os
-import math
 import datetime
 
 def parse_timestamp(s):

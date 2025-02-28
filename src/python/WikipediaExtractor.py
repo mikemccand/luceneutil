@@ -58,9 +58,7 @@ Options:
 
 import sys
 
-import gc
 import getopt
-import urllib
 import re
 import bz2
 import os.path

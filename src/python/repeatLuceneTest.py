@@ -21,7 +21,6 @@ import time
 import datetime
 import os
 import sys
-import random
 import common
 import constants
 import re

@@ -1,7 +1,6 @@
 from PIL import Image, ImageDraw
 import sys
 import os
-import shutil
 
 # rm -rf /x/tmp/frames; python3 -u /l/util/src/python/geoShapeVideo.py /x/tmp/londonBG2.png /x/tmp/london.poly /x/tmp/frames /x/tmp/bkd.shapes.txt /x/tmp/out.avi
 

@@ -1,6 +1,9 @@
 # used by segments-to-html
 graphviz
 intervaltree
+# used by infer-token-vectors
+# FIXME: HMM this is an 800MB download?
+# sentence-transformers
 
 # linter and formatter
 ruff

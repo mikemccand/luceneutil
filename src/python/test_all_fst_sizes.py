@@ -1,6 +1,5 @@
 # nocommit -- temporary tool
 
-import time
 import subprocess
 import re
 import pickle

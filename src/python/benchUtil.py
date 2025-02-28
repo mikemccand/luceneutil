@@ -24,19 +24,12 @@ import os
 import pwd
 import shutil
 import sys
-try:
-  import cPickle as pickle  # python2
-except ImportError:
-  import pickle
-import datetime
+import pickle
 import constants
 import common
-import random
-import signal
 import QPSChart
 import IndexChart
 import subprocess
-import shlex
 import statistics
 import ps_head
 

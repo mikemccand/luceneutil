@@ -1,5 +1,4 @@
 import sys
-import writeGraph
 import re
 
 reHits = re.compile('T(.) (.*?) sort=(.*?): ([0-9]+) hits in ([.0-9]+) msec')

@@ -1,7 +1,5 @@
 import sys
-import numpy as np
 import re
-import torch
 # from https://www.sbert.net/
 # to install: pip install -U sentence-transformers
 from sentence_transformers import SentenceTransformer

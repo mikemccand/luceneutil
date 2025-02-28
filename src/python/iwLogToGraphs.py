@@ -2,7 +2,6 @@ import time
 import sys
 import re
 import datetime
-import math
 
 # see http://home.apache.org/~mikemccand/lucenebench/iw.html as an example
 

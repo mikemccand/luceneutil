@@ -18,7 +18,6 @@
 import sys
 import os
 import re
-import cPickle
 import responseTimeGraph
 
 logPoints = ((50, 2),
@@ -52,7 +51,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
       if m is not None and os.path.exists(resultsFile):
         qps = int(m.group(1))
         if maxQPS is not None and qps > maxQPS:
-          print 'SKIPPING %s qps' % qps
+          print('SKIPPING %s qps' % qps)
           continue
 
         allQPS.add(qps)
@@ -92,7 +91,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
                'OracleCMSMMap': 'CMS + MMap',
                'OracleCMSMMapDir': 'CMS + MMap'}
 
-  print 'names: %s; cleaned %s' % (names, (', '.join("'%s'" % cleanName.get(x, x) for x in names)))
+  print('names: %s; cleaned %s' % (names, (', '.join("'%s'" % cleanName.get(x, x) for x in names))))
   
   l = []
   w = l.append
@@ -116,7 +115,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
     
   html = graphHeader + ''.join(l) + graphFooter % p
   open(fileName, 'wb').write(html)
-  print '  saved %s' % fileName
+  print('  saved %s' % fileName)
 
 graphHeader = '''<html>
   <head>

@@ -14,10 +14,10 @@ def main(maxQPS = None):
 
   if maxQPS is None:
     if os.path.exists(reportsDir):
-      print 'ERROR: please move existing reportsDir (%s) out of the way' % reportsDir
+      print('ERROR: please move existing reportsDir (%s) out of the way' % reportsDir)
       sys.exit(1)
 
-      print 'getInterpValue: list=%s interpDate=%s' % (valueList, interpDate)
+      print('getInterpValue: list=%s interpDate=%s' % (valueList, interpDate))
 
     os.makedirs(reportsDir)
 
@@ -45,7 +45,7 @@ def main(maxQPS = None):
       
       if name.lower().find('warmup') == -1:
         names.add(name)
-        if not name in byName:
+        if name not in byName:
           byName[name] = []
         byName[name].append((qpsValue, qpsString, f))
 
@@ -66,7 +66,7 @@ def main(maxQPS = None):
         if dirName.find('.pct') == -1:
           os.rename('%s/%s' % (logsDir, dirName),
                     '%s/%s.pct%s' % (logsDir, dirName, pcts[idx]))
-      print '%s -> %s' % (name, l)
+      print('%s -> %s' % (name, l))
 
   if maxQPS is None:
     indexOut = open('%s/index.html' % reportsDir, 'wb')
@@ -102,8 +102,8 @@ def main(maxQPS = None):
           if len(d) == 0:
             raise RuntimeError('nothing matches pct=%d' % pct)
 
-          print
-          print 'Create response-time graph @ pct=%d: d=%s' % (pct, d)
+          print()
+          print('Create response-time graph @ pct=%d: d=%s' % (pct, d))
 
           if len(d) != 0:
             try:
@@ -134,8 +134,8 @@ def main(maxQPS = None):
             #raise RuntimeError('nothing matches qps=%s' % qpsString)
             continue
 
-          print
-          print 'Create response-time graph @ qps=%s: d=%s' % (qps, d)
+          print()
+          print('Create response-time graph @ qps=%s: d=%s' % (qps, d))
 
           if len(d) != 0:
             try:
@@ -155,8 +155,8 @@ def main(maxQPS = None):
 
     for idx in xrange(len(loadGraphActualQPS.logPoints)):
 
-      print
-      print 'Create pct graph @ %s%%' % loadGraphActualQPS.logPoints[idx][0]
+      print()
+      print('Create pct graph @ %s%%' % loadGraphActualQPS.logPoints[idx][0])
 
       if maxQPS is not None:
         fileName = 'load%spct_max%s.html' % (loadGraphActualQPS.logPoints[idx][0], maxQPS)
@@ -198,15 +198,15 @@ def main(maxQPS = None):
     l = [(y, x) for x, y in highest.items()]
     l.sort()
 
-    print
-    print 'Max actual QPS:'
+    print()
+    print('Max actual QPS:')
     for name, qps in maxActualQPS.items():
-      print '  %s: %.1f QPS' % (name, qps)
+      print('  %s: %.1f QPS' % (name, qps))
 
-    print
-    print 'Highest QPS w/ SLA met:'
+    print()
+    print('Highest QPS w/ SLA met:')
     for qps, name in l:
-      print '  %s: %s QPS' % (responseTimeGraph.cleanName(name), qps)
+      print('  %s: %s QPS' % (responseTimeGraph.cleanName(name), qps))
 
     w('<a href="loadmax.html">100%%</a>')
     w('<br>')

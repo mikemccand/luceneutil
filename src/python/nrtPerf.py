@@ -45,7 +45,7 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
            statsEverySec=1,
            commit="no"):
   logFileName = '%s/%s_dps%s_reopen%s.txt' % (constants.LOGS_DIR, mode, docsPerSec, reopensPerSec)
-  print 'log: %s' % logFileName
+  print('log: %s' % logFileName)
   
   command = constants.JAVA_COMMAND
   command += ' -cp "%s"' % classpath
@@ -68,13 +68,13 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
   command += ' > %s 2>&1' % logFileName
 
   if VERBOSE:
-    print
-    print 'run: %s' % command
+    print()
+    print('run: %s' % command)
   
   os.system(command)
   result = open(logFileName, 'rb').read()
   if VERBOSE:
-    print result
+    print(result)
 
   try:
     reopenStats = ReopenStats()
@@ -104,23 +104,23 @@ def runOne(classpath, data, docsPerSec, reopensPerSec, fullIndexPath,
     times.sort()
     numDrop = len(times)/50
     if numDrop > 0:
-      print 'drop: %s' % ' '.join(['%.1f' % x for x in times[-numDrop:]])
+      print('drop: %s' % ' '.join(['%.1f' % x for x in times[-numDrop:]]))
       times = times[:-numDrop]
     if VERBOSE:
-      print 'times: %s' % ' '.join(['%.1f' % x for x in times])
+      print('times: %s' % ' '.join(['%.1f' % x for x in times]))
   
     minVal, maxVal, mean, stdDev = stats.getStats(times)
     reopenStats.meanReopenTime = mean
     reopenStats.stddevReopenTime = stdDev
 
     if VERBOSE:
-      print 'reopen stats:'
+      print('reopen stats:')
       reopenStats.toString()
       print
     
     return reopenStats
   except:
-    print 'FAILED -- output:\n%s' % result
+    print('FAILED -- output:\n%s' % result)
     raise
 
 class ReopenStats:
@@ -135,14 +135,14 @@ class ReopenStats:
     self.qtCount = 0
 
   def toString(self):
-    print 'meanReopenTime=%s stdReopenTime=%s qtCount=%s totalDocs=%s totalReopen=%s totalSearches=%s totalUpdateTime=%s' % \
+    print('meanReopenTime=%s stdReopenTime=%s qtCount=%s totalDocs=%s totalReopen=%s totalSearches=%s totalUpdateTime=%s' % \
             (self.meanReopenTime,
              self.stddevReopenTime,
              self.qtCount,
              self.totalDocs,
              self.totalReopens,
              self.totalSearches,
-             self.totalUpdateTime)
+             self.totalUpdateTime))
     
 if __name__ == '__main__':
     
@@ -180,9 +180,9 @@ if __name__ == '__main__':
     allStats = []
     for dps in docsPerSec.split(','):
       for rps in reopenPerSec.split(','):
-        print
-        print 'params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' \
-                % (mode, dps, rps, runTimeSec, numSearchThreads, numIndexThreads)
+        print()
+        print('params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s' \
+                % (mode, dps, rps, runTimeSec, numSearchThreads, numIndexThreads))
         reopenStats = runOne(classpath=cp,
                              mode=mode,
                              data=sourceData,
@@ -197,8 +197,8 @@ if __name__ == '__main__':
 
     print
     header = 'docs/s reopen/s reopen(ms) update(ms)  total(ms) perdoc(ms) query/s run(sec)'
-    print '%s' % mode.center(len(header))
-    print header
+    print('%s' % mode.center(len(header)))
+    print(header)
     for s in allStats:
       reopenStats = s[3]
       meanReopenMS = reopenStats.meanReopenTime
@@ -206,7 +206,7 @@ if __name__ == '__main__':
       totalPerReopen = meanReopenMS + meanUpdateMS
       avgPerDoc = 0 if reopenStats.totalReopens == 0 else totalPerReopen / (float(reopenStats.totalDocs) / reopenStats.totalReopens)
       qps = 0 if int(numSearchThreads) == 0 else (float(reopenStats.totalSearches) / reopenStats.qtCount) / int(numSearchThreads)
-      print '%6s %8s %10s %10s %10s %10s %7s %8s' % \
+      print('%6s %8s %10s %10s %10s %10s %7s %8s' % \
             (s[0],
              s[1],
              "{:,.2f}".format(meanReopenMS),
@@ -214,4 +214,4 @@ if __name__ == '__main__':
              "{:,.2f}".format(totalPerReopen),
              "{:,.2f}".format(avgPerDoc),
              "{:,.2f}".format(qps),
-             s[2])
+             s[2]))

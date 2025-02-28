@@ -48,4 +48,4 @@ if '-check' in sys.argv:
 
 patchOut = '/x/tmp/patch/LUCENE-%s.patch' % issueNumber
 shutil.copy2('diffs.x', patchOut)
-print 'Saved patch to %s' % patchOut
+print('Saved patch to %s' % patchOut)

@@ -236,6 +236,7 @@ public class SearchPerfTest {
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
     final boolean exitable = args.getFlag("-exitable");
+    final TestContext testContext = TestContext.parse(args.getString("-context", ""));
 
     if (searchConcurrency == -1) {
       searchConcurrency = Runtime.getRuntime().availableProcessors();
@@ -603,7 +604,7 @@ public class SearchPerfTest {
       vectorDictionary = null;
     }
     TaskParserFactory taskParserFactory =
-      new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads);
+      new TaskParserFactory(indexState, fieldName, a, "body", topN, random, vectorDictionary, vectorFilePath, vectorDimension, doStoredLoads, testContext);
 
     final TaskSource tasks;
 
@@ -624,8 +625,9 @@ public class SearchPerfTest {
         // Load the tasks from a file:
         final int taskRepeatCount = args.getInt("-taskRepeatCount");
         final int numTaskPerCat = args.getInt("-tasksPerCat");
+        final boolean groupByCat = args.getFlag("-groupByCat");
         tasks = new LocalTaskSource(indexState, tasksFile, taskParser, staticRandom, random,
-                                    numTaskPerCat, taskRepeatCount, doPKLookup, false);
+                                    numTaskPerCat, taskRepeatCount, doPKLookup, groupByCat);
         System.out.println("Task repeat count " + taskRepeatCount);
         System.out.println("Tasks file " + tasksFile);
         System.out.println("Num task per cat " + numTaskPerCat);

@@ -37,6 +37,7 @@ class Data(object):
     self.tasksFile = tasksFile
 
 WIKI_MEDIUM_ALL = Data('wikimediumall', constants.WIKI_MEDIUM_DOCS_LINE_FILE, constants.WIKI_MEDIUM_DOCS_COUNT, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
+WIKI_MEDIUM_FACETS_ALL = Data('wikimediumall', constants.WIKI_MEDIUM_DOCS_LINE_FILE, constants.WIKI_MEDIUM_DOCS_COUNT, constants.WIKI_MEDIUM_FACETS_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_10M = Data('wikimedium10m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 10000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_5M = Data('wikimedium5m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 5000000, constants.WIKI_MEDIUM_TASKS_10MDOCS_FILE)
 WIKI_MEDIUM_1M = Data('wikimedium1m', constants.WIKI_MEDIUM_DOCS_LINE_FILE, 1000000, constants.WIKI_MEDIUM_TASKS_1MDOCS_FILE)
@@ -111,7 +112,8 @@ DATA = {'wikimediumall': WIKI_MEDIUM_ALL,
         'combinedFieldsBig' : COMBINED_FIELDS_BIG,
         'combinedFieldsUnevenlyWeightedBig' : COMBINED_FIELDS_UNEVENLY_WEIGHTED_BIG,
         'combinedFieldsMedium10M' : COMBINED_FIELDS_MEDIUM_10M,
-        'combinedFieldsUnevenlyWeightedMedium10M' : COMBINED_FIELDS_UNEVENLY_WEIGHTED_MEDIUM_10M
+        'combinedFieldsUnevenlyWeightedMedium10M' : COMBINED_FIELDS_UNEVENLY_WEIGHTED_MEDIUM_10M,
+        'facetsWikimediumAll': WIKI_MEDIUM_FACETS_ALL
         }
 
 # for multi-segment index:
@@ -301,7 +303,8 @@ class Competitor(object):
                exitable = False,
                searchConcurrency = 0,
                javacCommand = constants.JAVAC_EXE,
-               topN = 100):
+               topN = 100,
+               testContext = ""):
     self.name = name
     self.checkout = checkout
     self.index = index
@@ -344,6 +347,11 @@ class Competitor(object):
 
     # TopN: how many hits are retrieved
     self.topN = topN
+
+    # Test context allows customizing tasks per competitor, e.g. to compare
+    # different implementations of the same functionality.
+    # See also TestContext#parse
+    self.testContext = testContext
 
   def getAggregateProfilerResult(self, id, mode, count=30, stackSize=1):
 
@@ -431,7 +439,8 @@ class Competition(object):
                benchSearch=True,
                taskCountPerCat = 1,
                taskRepeatCount = 20,
-               jvmCount = 20):
+               jvmCount = 20,
+               groupByCat = False):
     self.cold = cold
     self.competitors = []
     self.indices = []
@@ -455,6 +464,15 @@ class Competition(object):
     # within a category behave the same.  Note that even with 1,
     # you'll get a random choice each time you run the competition:
     self.taskCountPerCat = taskCountPerCat
+
+    # If True, group tasks per category, otherwise tasks are
+    # randomly shuffled across categories, see LocalTaskSource.java.
+    # Setting to True can be useful when workload competitors
+    # distribute work between threads differently. E.g. moving some work
+    # from main thread to searcher thread pool in candidate makes
+    # per category QPS numbers incomparable as a pattern of cross-task
+    # competition for threads changes.
+    self.groupByCat = groupByCat
 
     # How many times to run each query.  Curiously anything higher than
     # ~15 (I've tested up to 1000) doesn't alter results, ie once

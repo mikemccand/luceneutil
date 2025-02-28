@@ -42,7 +42,7 @@ DATA_FILES = [
 ]
 
 USAGE= """
-Usage: python setup.py [-download]
+Usage: python initial_setup.py [-download]
 
 Options:
   -download downloads a 5GB linedoc file 

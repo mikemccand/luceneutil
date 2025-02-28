@@ -14,12 +14,12 @@ etc.. We'll refer to this directory as `$LUCENE_BENCH_HOME` here.
 mkdir $LUCENE_BENCH_HOME && cd $LUCENE_BENCH_HOME
 git clone https://github.com/mikemccand/luceneutil.git util
 
-# 2. Run the setup script
+# 2. Run the initial setup script
 cd util
-python src/python/setup.py -download
+python src/python/initial_setup.py -download
 
 # you can run with -h option for help
-python src/python/setup.py -h
+python src/python/initial_setup.py -h
 ```
   
 In the second step, the setup procedure creates all necessary directories in the clones parent directory and downloads
@@ -64,7 +64,7 @@ Adjust the command accordingly for `lucene_candidate`.
 
 ### Running a first benchmark
 
-`setup.py` has created two files: `localconstants.py`, and `localrun.py` in `$LUCENE_BENCH_HOME/util/src/python/`. 
+`initial_setup.py` has created two files: `localconstants.py`, and `localrun.py` in `$LUCENE_BENCH_HOME/util/src/python/`. 
 
 The file `localconstants.py` should be used to override any existing constants in `constants.py`, for example if you want to change the Java commandline used to run benchmarks. To run an initial benchmark you don't need to modify this file.
 

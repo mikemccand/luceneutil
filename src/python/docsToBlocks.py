@@ -1,5 +1,4 @@
 import sys
-import os
 
 pending = []
 pendingDocCount = 0

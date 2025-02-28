@@ -3,8 +3,6 @@ import shutil
 import os
 import constants
 import nightlyBench
-import glob
-import re
 import sys
 
 # Simple tool that attempts to regold the last (partially failed) nightly benchy run.  It can

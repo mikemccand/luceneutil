@@ -28,7 +28,7 @@ while True:
     break
   startIndex += 1
 
-print 'startIndex %s' % startIndex
+print('startIndex %s' % startIndex)
 
 topFreq = terms[startIndex][1]
 byCat = {}
@@ -41,7 +41,7 @@ for term, freq in terms[startIndex:]:
 keys = byCat.keys()
 keys.sort()
 for key in keys:
-  print '%s: %d terms' % (key, len(byCat[key]))
+  print('%s: %d terms' % (key, len(byCat[key])))
 
 if True:
   for i in xrange(10000):
@@ -61,4 +61,4 @@ if True:
     random.shuffle(terms)
 
     label = '%dTerms%dHigh%dMSM' % (numTerms, numHighFreqTerms, minShouldMatch)
-    print '%s: %s +minShouldMatch=%d' % (label, ' '.join([x[0] for x in terms]), minShouldMatch)
+    print('%s: %s +minShouldMatch=%d' % (label, ' '.join([x[0] for x in terms]), minShouldMatch))

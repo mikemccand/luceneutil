@@ -52,7 +52,7 @@ def randomString(r):
     
 def merge(shards, topN):
   if VERBOSE:
-    print '  merge topN=%s' % topN
+    print('  merge topN=%s' % topN)
 
   mult = 3
   values = None
@@ -65,7 +65,7 @@ def merge(shards, topN):
 
   while True:
     if VERBOSE:
-      print '    cycle mult=%s' % mult
+      print('    cycle mult=%s' % mult)
 
     iterCount += 1
 
@@ -75,7 +75,7 @@ def merge(shards, topN):
       specificValues = None
 
     if VERBOSE:
-      print '    query shards'
+      print('    query shards')
     for i in xrange(len(shards)):
       exhausted, shardValues, lowestCount = shardHits[i]
       if specificValues is not None:
@@ -110,18 +110,18 @@ def merge(shards, topN):
             shardValues[value] = count
 
         if VERBOSE:
-          print '      shard %d: totalHits=%s len(hits)=%s exhausted=%s lowestCount=%d values=%s' % \
-                (i, totalHitCount, len(hits), exhausted, lowestCount, shardMissingValues)
+          print('      shard %d: totalHits=%s len(hits)=%s exhausted=%s lowestCount=%d values=%s' % \
+                (i, totalHitCount, len(hits), exhausted, lowestCount, shardMissingValues))
           for value, count in hits:
-            print '        %s: count=%s' % (value, count)
+            print('        %s: count=%s' % (value, count))
           if newValues is not None:
             for value, count in newValues:
-              print '       *%s: count=%d' % (value, count)
+              print('       *%s: count=%d' % (value, count))
         shardHits[i] = (exhausted, shardValues, lowestCount)
       else:
         if VERBOSE:
-          print '      shard %d: skip exhausted=%s len(shardMissingValues)=%s' % \
-                (i, exhausted, len(shardMissingValues))
+          print('      shard %d: skip exhausted=%s len(shardMissingValues)=%s' % \
+                (i, exhausted, len(shardMissingValues)))
 
     # nocommit must handle the "all shards have 0 facets" case ... we
     # will exc below
@@ -170,21 +170,21 @@ def merge(shards, topN):
       break
     
     if VERBOSE:
-      print '    merged:'
+      print('    merged:')
     sawNone = False
     for value, (count, someMissing) in lTopN:
       if value is None:
         sawNone = True
       if VERBOSE:
-        print '      %s: count=%d, someMissing=%s' % (value, count, someMissing)
+        print('      %s: count=%d, someMissing=%s' % (value, count, someMissing))
       if someMissing:
         if VERBOSE:
-          print '        retry'
+          print('        retry')
         retry = True
     if VERBOSE:
       for value, (count, someMissing) in l[topN:]:
         if VERBOSE:
-          print '    **%s: count=%d, someMissing=%s' % (value, count, someMissing)
+          print('    **%s: count=%d, someMissing=%s' % (value, count, someMissing))
 
     if retry:
       # nocommit sometimes ... we don't need to increase mult, ie, we
@@ -193,7 +193,7 @@ def merge(shards, topN):
       if sawNone:
         mult *= 2
       if VERBOSE:
-        print '  run again with mult=%s' % mult
+        print('  run again with mult=%s' % mult)
       continue
     else:
       break
@@ -220,8 +220,8 @@ def test(staticSeedIn, seedIn):
   cycles = 0
   while True:
     if VERBOSE:
-      print
-      print 'Test: cycle'
+      print()
+      print('Test: cycle')
 
     if seedIn is None:
       seed = random.randint(-sys.maxint-1, sys.maxint)
@@ -241,7 +241,7 @@ def test(staticSeedIn, seedIn):
       numShards = r.randint(1, 100)
       
     if True or VERBOSE:
-      print '  seed %s:%s, %d shards, %d values' % (staticSeed, seed, numShards, numFacetValues)
+      print('  seed %s:%s, %d shards, %d values' % (staticSeed, seed, numShards, numFacetValues))
       
     shards = []
 
@@ -252,10 +252,10 @@ def test(staticSeedIn, seedIn):
       shard = FacetShard(model.getShardValues(i))
 
       if VERBOSE:
-        print '  shard %d: %d values' % (i, len(shard.results))
+        print('  shard %d: %d values' % (i, len(shard.results)))
         for value, count in shard.results:
 
-          print '    %s: count=%d' % (value, count)
+          print('    %s: count=%d' % (value, count))
       shards.append(shard)
 
     # Get correct fully merged result:
@@ -276,19 +276,19 @@ def test(staticSeedIn, seedIn):
       #topN = r.randint(1, 1000)
       #topN = 2
       if VERBOSE:
-        print '  iter: topN=%d' % topN
+        print('  iter: topN=%d' % topN)
 
       expected = allResults[:topN]
       actual, iterCount = merge(shards, topN)
       assert iterCount > 0
       
       if VERBOSE:
-        print '    expected'
+        print('    expected')
         for value, count in expected:
-          print '      %s: count=%d' % (value, count)
-        print '    actual [%d iters]' % iterCount
+          print('      %s: count=%d' % (value, count))
+        print('    actual [%d iters]' % iterCount)
         for value, count in actual:
-          print '      %s: count=%d' % (value, count)
+          print('      %s: count=%d' % (value, count))
 
       iterCounts[topN] = iterCounts.get(topN, 0) + iterCount
 
@@ -299,9 +299,9 @@ def test(staticSeedIn, seedIn):
       break
 
     if cycles > 0 and cycles % 10 == 0:
-      print '  iterCounts:'
+      print('  iterCounts:')
       for topN in xrange(1, numFacetValues+3):
-        print '    %d: %.1f' % (topN, float(iterCounts[topN])/cycles)
+        print('    %d: %.1f' % (topN, float(iterCounts[topN])/cycles))
 
     cycles += 1
 
@@ -371,7 +371,7 @@ if __name__ == '__main__':
     raise RuntimeError('please run python without -O')
   VERBOSE = '-verbose' in sys.argv
   staticSeed = seed = None
-  print 'argv %s' % sys.argv
+  print('argv %s' % sys.argv)
   for i in xrange(len(sys.argv)):
     if sys.argv[i] == '-seed':
       staticSeed, seed = sys.argv[1+1].split(':')

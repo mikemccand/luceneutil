@@ -72,7 +72,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
           continue
         
         if maxQPS is not None and qps > maxQPS:
-          print 'SKIPPING %s qps' % qps
+          print('SKIPPING %s qps' % qps)
           continue
 
         # qps is the "target", ie the rate at which we sent the
@@ -80,7 +80,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         # achieved overall:
         pctPoints, actualQPS, endTimeSec = responseTimeGraph.getPctPoints(resultsFile, name, warmupSec)
 
-        print '%s: qps %s, actualQPS %s' % (name, qps, actualQPS)
+        print('%s: qps %s, actualQPS %s' % (name, qps, actualQPS))
 
         if rowPoint == 'min':
           t = pctPoints[0]
@@ -93,12 +93,12 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
 
         if sla is not None and t <= sla:
           passesSLA.add((qps, name))
-          print '  PASS'
+          print('  PASS')
 
         if True or t < 30000:
           graphData.append((qps, actualQPS, name, t))
         else:
-          print '%s: drop data point qps=%s t=%s: t is >= 30000' % (name, qps, t)
+          print('%s: drop data point qps=%s t=%s: t is >= 30000' % (name, qps, t))
 
         if name not in maxActualQPS:
           maxActualQPS[name] = actualQPS
@@ -129,7 +129,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
     
   html = graphHeader + ''.join(l) + graphFooter % p
   open(fileName, 'wb').write(html)
-  print '  saved %s' % fileName
+  print('  saved %s' % fileName)
   if sla is None:
     return None, maxActualQPS
   else:

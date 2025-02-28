@@ -31,7 +31,7 @@ import smtplib
 
 def usage():
   print
-  print 'Usage: python -u %s -config <config>.py [-smoke]' % sys.argv[0]
+  print('Usage: python -u %s -config <config>.py [-smoke]' % sys.argv[0])
   print
   sys.exit(1)
 
@@ -73,60 +73,60 @@ class Tee(object):
     self.orig.write(data)
 
 def captureEnv(logsDir):
-  print
-  print 'Started: %s' % datetime.datetime.now()
-  print 'Python version: %s' % sys.version
+  print()
+  print('Started: %s' % datetime.datetime.now())
+  print('Python version: %s' % sys.version)
   svnRev = os.popen('svnversion %s' % LUCENE_HOME).read().strip()
-  print 'Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME)
+  print('Lucene svn rev is %s (%s)' % (svnRev, LUCENE_HOME))
   if svnRev.endswith('M'):
     if system('svn diff %s > %s/lucene.diffs 2>&1' % (LUCENE_HOME, logsDir)):
       raise RuntimeError('svn diff failed')
-    os.chmod('%s/lucene.diffs' % logsDir, 0444)
+    os.chmod('%s/lucene.diffs' % logsDir, o0444)
 
   luceneUtilDir = os.path.abspath(os.path.split(sys.argv[0])[0])
 
   luceneUtilRev = os.popen('hg id %s' % luceneUtilDir).read().strip()  
-  print 'Luceneutil hg rev is %s (%s)' % (luceneUtilRev, luceneUtilDir)
+  print('Luceneutil hg rev is %s (%s)' % (luceneUtilRev, luceneUtilDir))
   if luceneUtilRev.find('+') != -1:
     if system('hg diff %s > %s/luceneutil.diffs 2>&1' % (luceneUtilDir, logsDir)):
       raise RuntimeError('hg diff failed')
-    os.chmod('%s/luceneutil.diffs' % logsDir, 0444)
+    os.chmod('%s/luceneutil.diffs' % logsDir, o0444)
 
   for fileName in ('responseTimeTests.py', TASKS_FILE, configFile):
     shutil.copy('%s/%s' % (luceneUtilDir, fileName),
                 '%s/%s' % (logsDir, fileName))
-    os.chmod('%s/%s' % (logsDir, fileName), 0444)
+    os.chmod('%s/%s' % (logsDir, fileName), o0444)
 
   for fileName in ('/sys/kernel/mm/transparent_hugepage/enabled',
                    '/sys/kernel/mm/redhat_transparent_hugepage/enabled'):
     if os.path.exists(fileName):
       s = open(fileName, 'rb').read().strip()
-      print 'Transparent huge pages @ %s: currently %s' % (fileName, s)
+      print('Transparent huge pages @ %s: currently %s' % (fileName, s))
       if not ENABLE_THP:
         if s.find('[never]') == -1:
           open(fileName, 'wb').write('never')
-          print '  now setting to [never]...'
+          print('  now setting to [never]...')
         else:
-          print '  already disabled'
+          print('  already disabled')
       else:
         if s.find('[always]') == -1:
           open(fileName, 'wb').write('always')
-          print '  now setting to [always]...'
+          print('  now setting to [always]...')
         else:
-          print '  already enabled'
+          print('  already enabled')
         
 def kill(name, p):
   while True:
     for l in os.popen('ps ww | grep %s | grep -v grep | grep -v /bin/sh' % name).readlines():
       l2 = l.strip().split()
       pid = int(l2[0])
-      print '  stop %s process %s: %s' % (name, pid, l.strip())
+      print('  stop %s process %s: %s' % (name, pid, l.strip()))
       try:
         os.kill(pid, signal.SIGKILL)
-      except OSError, e:
-        print '    OSError: %s' % str(e)
+      except OSError as e:
+        print('    OSError: %s' % str(e))
     if p.poll() is not None:
-      print '  done killing "%s"' % name
+      print('  done killing "%s"' % name)
       return
     time.sleep(2.0)
     
@@ -146,7 +146,7 @@ class TopThread(threading.Thread):
         # ps axuw | sed "1 d" | sort -n -r -k3 | head
 
         # Run top every 3 sec:
-        for i in xrange(6):
+        for _ in xrange(6):
           if self.stop:
             break
           time.sleep(0.5)
@@ -187,7 +187,7 @@ def system(command):
   p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
   output = p.communicate()[0].strip()
   if len(output) > 0:
-    print '  %s' % output.replace('\n', '\n  ')
+    print('  %s' % output.replace('\n', '\n  '))
   return p.returncode
 
 def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
@@ -197,9 +197,9 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
   else:
     details = ''
 
-  print
-  print '%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s %s' % \
-        (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS, details)
+  print()
+  print('%s: config=%s, dir=%s, postingsFormat=%s, QPS=%s %s' % \
+        (datetime.datetime.now(), desc, dirImpl, postingsFormat, targetQPS, details))
 
   logsDir = '%s/%s.%s.%s.qps%s' % (LOGS_DIR, desc, dirImpl, postingsFormat, targetQPS)
   if pct is not None:
@@ -218,7 +218,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
     if DO_STOP_START_ZST:
       while True:
         if system('sudo service zing-memory start 2>&1'):
-          print 'Failed to start zing-memory... retry; java processes:'
+          print('Failed to start zing-memory... retry; java processes:')
           system('ps axuw | grep java')
           time.sleep(2.0)
         else:
@@ -228,7 +228,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
     if DO_STOP_START_ZST:
       while True:
         if system('sudo service zing-memory stop 2>&1'):
-          print 'Failed to stop zing-memory... retry; java processes:'
+          print('Failed to stop zing-memory... retry; java processes:')
           system('ps axuw | grep java')
           time.sleep(2.0)
         else:
@@ -336,28 +336,28 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
     touchCmd = '%s -Xmx1g -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.OpenCloseIndexWriter %s 2>&1'.replace('$LUCENE_HOME', LUCENE_HOME) % (javaCommand, indexPath)
     #print '  run %s' % touchCmd
     while True:
-      print '  clean index'
+      print('  clean index')
       if system(touchCmd):
-        print '   failed .. retry'
+        print('   failed .. retry')
         time.sleep(2.0)
       else:
         break
 
     t0 = time.time()
     vmstatProcess = subprocess.Popen('vmstat 1 > %s/vmstat.log 2>&1' % logsDir, shell=True)
-    print '  server command: %s' % command
+    print('  server command: %s' % command)
     p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
     if DO_ZV_ROBOT and desc.startswith('Zing'):
       cmd = '%s -Xmx1g -jar %s %s/ZVRobot %s/ZVRobot.prop > %s/ZVRobot.log 2>&1' % \
             (ORACLE_JVM, ZV_ROBOT_JAR, logsDir, os.path.split(ZV_ROBOT_JAR)[0], logsDir)
-      print '  ZVRobot command: %s' % cmd
+      print('  ZVRobot command: %s' % cmd)
       zvRobotProcess = subprocess.Popen(cmd, shell=True)
       del cmd
     else:
       zvRobotProcess = None
 
-    print '  wait for server startup...'
+    print('  wait for server startup...')
 
     time.sleep(2.0)
 
@@ -372,7 +372,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
         pass
       time.sleep(1.0)
 
-    print '  %.1f sec to start; start test now' % (time.time()-t0)
+    print('  %.1f sec to start; start test now' % (time.time()-t0))
 
     time.sleep(2.0)
 
@@ -387,15 +387,15 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
                 (REMOTE_CLIENT, TASKS_FILE, SERVER_HOST, SERVER_PORT, targetQPS, TASKS_PER_CAT, RUN_TIME_SEC)
       command = 'ssh %s@%s %s > %s/client.log 2>&1' % (CLIENT_USER, CLIENT_HOST, command, logsDir)
 
-      print '  client command: %s' % command
+      print('  client command: %s' % command)
       clientProcess = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
       output = clientProcess.communicate()[0].strip()
       if len(output) > 0:
-        print '  %s' % output.replace('\n', '\n  ')
+        print('  %s' % output.replace('\n', '\n  '))
       if clientProcess.returncode:
         raise RuntimeError('client failed; see %s/client.log' % logsDir)
 
-      print '  copy results.bin back...'
+      print('  copy results.bin back...')
       if system('scp %s@%s:results.bin %s > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST, logsDir)):
         raise RuntimeError('scp results.bin failed')
 
@@ -409,10 +409,10 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
       f.close()
 
     t1 = time.time()
-    print '  test done (%.1f total sec)' % (t1-t0)
+    print('  test done (%.1f total sec)' % (t1-t0))
 
     if not SMOKE_TEST and (t1 - t0) > RUN_TIME_SEC * 1.30:
-      print '  marking this job finished'
+      print('  marking this job finished')
       finished = True
 
   finally:
@@ -422,7 +422,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
     if clientProcess is not None:
       kill('sendTasks.py', clientProcess)
       if not os.path.exists('%s/results.bin' % logsDir):
-        print '  copy results.bin back...'
+        print('  copy results.bin back...')
         system('scp %s@%s:results.bin %s > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST, logsDir))
       
     if DO_ZV_ROBOT and zvRobotProcess is not None:
@@ -430,21 +430,21 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
     if topThread is not None:
       topThread.stop = True
       topThread.join()
-      print '  done stopping top'
+      print('  done stopping top')
 
   try:
     printAvgCPU('%s/top.log' % logsDir)
   except:
-    print 'WARNING: failed to compute avg CPU usage:'
+    print('WARNING: failed to compute avg CPU usage:')
     traceback.print_exc()
 
-  print '  done'
+  print('  done')
   open('%s/done' % logsDir, 'wb').close()
   if DO_EMAIL and os.path.getsize('%s/log.txt' % LOGS_DIR) < 5*1024*1024:
     try:
       emailResult(open('%s/log.txt' % LOGS_DIR).read(), 'Test RUNNING [%s]' % (datetime.datetime.now() - startTime))
     except:
-      print '  send email failed'
+      print('  send email failed')
       traceback.print_exc()
 
   return logsDir, finished
@@ -453,13 +453,13 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
 def run():
 
   if SMOKE_TEST:
-    print
-    print '***SMOKE_TEST***'
-    print
+    print()
+    print('***SMOKE_TEST***')
+    print()
 
   captureEnv(LOGS_DIR)
 
-  print 'Compile java sources...'
+  print('Compile java sources...')
   cmd = '%sc -Xlint -Xlint:deprecation -cp $LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/codecs/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf/Args.java perf/IndexThreads.java perf/OpenCloseIndexWriter.java perf/Task.java perf/CreateQueries.java perf/LineFileDocs.java perf/PKLookupPerfTest.java perf/RandomQuery.java perf/SearchPerfTest.java perf/TaskParser.java perf/Indexer.java perf/LocalTaskSource.java perf/PKLookupTask.java perf/RemoteTaskSource.java perf/SearchTask.java perf/TaskSource.java perf/IndexState.java perf/NRTPerfTest.java perf/RespellTask.java perf/ShowFields.java perf/TaskThreads.java perf/KeepNoCommitsDeletionPolicy.java' % ORACLE_JVM
   cmd = cmd.replace('$LUCENE_HOME', LUCENE_HOME)
 
@@ -467,10 +467,10 @@ def run():
     raise RuntimeError('compile failed')
 
   if CLIENT_HOST is not None:
-    print 'Copy sendTasks.py to client host %s' % CLIENT_HOST
+    print('Copy sendTasks.py to client host %s' % CLIENT_HOST)
     if system('scp sendTasks.py %s@%s: > /dev/null 2>&1' % (CLIENT_USER, CLIENT_HOST)):
       raise RuntimeError('copy sendTasks.py failed')
-    print 'Copy tasks file "%s" to client host %s' % (TASKS_FILE, CLIENT_HOST)
+    print('Copy tasks file "%s" to client host %s' % (TASKS_FILE, CLIENT_HOST))
     if system('scp %s %s@%s: > /dev/null 2>&1' % (TASKS_FILE, CLIENT_USER, CLIENT_HOST)):
       raise RuntimeError('copy sendTasks.py failed')
 
@@ -482,8 +482,8 @@ def run():
     maxQPS = {}
     reQPSOut = re.compile(r'; +([0-9\.]+) qps out')
     reQueueSize = re.compile(r'\[(\d+), (\d+)\]$')
-    print
-    print 'Find max QPS per job:'
+    print()
+    print('Find max QPS per job:')
     for job in JOBS:
       desc, dirImpl, postingsFormat = job
       logsDir = runOne(startTime, desc, dirImpl, postingsFormat, 'sweep')[0]
@@ -499,7 +499,7 @@ def run():
       # QPS out is avg of last 5 seconds ... make sure we only measure actual saturation
       qpsOut = qpsOut[5:]
       maxQPS[job] = sum(qpsOut)/len(qpsOut)
-      print '  QPS throughput=%.1f' % maxQPS[job]
+      print('  QPS throughput=%.1f' % maxQPS[job])
       if maxQPS[job] < 2*AUTO_QPS_START:
         raise RuntimeError('max QPS for job %s (= %s) is < 2*AUTO_QPS_START (= %s)' % \
                            (desc, maxQPS[job], AUTO_QPS_START))
@@ -554,9 +554,9 @@ def run():
 
   now = datetime.datetime.now()
 
-  print
-  print '%s: ALL DONE (elapsed time %s)' % (now, now - startTime)
-  print
+  print()
+  print('%s: ALL DONE (elapsed time %s)' % (now, now - startTime))
+  print()
 
 def printAvgCPU(topLog):
 
@@ -604,10 +604,10 @@ def printAvgCPU(topLog):
     pids.append((sum/count, minCPU, maxCPU, pid))
 
   pids.sort(reverse=True)
-  print '  CPU usage [%d CPU cores]' % cpuCoreCount
+  print('  CPU usage [%d CPU cores]' % cpuCoreCount)
   for avgCPU, minCPU, maxCPU, pid in pids:
     if maxCPU > 20:
-      print '    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid)
+      print('    avg %7.2f%% CPU, min %7.2f%%, max %7.2f%% pid %s' % (avgCPU, minCPU, maxCPU, pid))
 
 def emailResult(body, subject):
   fromAddress = toAddress = 'mail@mikemccandless.com'
@@ -629,9 +629,9 @@ def emailResult(body, subject):
       s.starttls()
       s.ehlo(fromAddress)
       localpass.smtplogin(s)
-    print 'sending mail...'
+    print('sending mail...')
     s.sendmail(fromAddress, (toAddress,), message)
-    print 'quitting smtp...'
+    print('quitting smtp...')
     s.quit()
   else:
     p = subprocess.Popen(["/usr/sbin/sendmail", "-t"], stdin=subprocess.PIPE)
@@ -665,7 +665,7 @@ def main():
         subject = 'Test SUCCESS'
       emailResult(open('%s/log.txt' % LOGS_DIR).read(), subject)
     logOut.close()
-    os.chmod('%s/log.txt' % LOGS_DIR, 0444)
+    os.chmod('%s/log.txt' % LOGS_DIR, o0444)
     del teeStdout
     del teeStderr
     

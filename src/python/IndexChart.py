@@ -13,11 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-  from pygnuplot import gnuplot as Gnuplot
-except ImportError:
-  print('WARNING: Gnuplot module not present; will not make charts')
-  Gnuplot = None
+from pygnuplot import gnuplot as Gnuplot
 
 class IndexChart(object):
   
@@ -67,7 +63,7 @@ class IndexChart(object):
 
   def buildStats(self, meta=None):
     raw_data, raw_flush = self.buildRaw(meta)
-    start = 0;
+    start = 0
     last_window_start = 0
     docs_per_second = []
     flush_stats = []
@@ -134,7 +130,7 @@ class IndexChart(object):
         #gp('set style fill pattern 2')
         gp('set xrange [%d : %d]' % (self.start_sec, self.end_sec))
         gp('set yrange [0 : 50]')
-        gp.replot(data);
+        gp.replot(data)
        
 
       gp.hardcopy(filename="%s/%s_flush.png" % (self.out_base, self.competitor), terminal=self.terminal)  

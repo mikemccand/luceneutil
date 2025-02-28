@@ -17,7 +17,6 @@ import base64
 import json
 import os
 import time
-import sys
 import urllib.request
 import constants
 

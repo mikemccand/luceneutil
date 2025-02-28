@@ -1,7 +1,6 @@
 import os
 import datetime
 import re
-import pickle
 
 reDateTime = re.compile('^(\d\d\d\d).(\d\d).(\d\d).(\d\d).(\d\d).(\d\d)$')
 

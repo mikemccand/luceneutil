@@ -2,7 +2,6 @@ import os
 import sys
 import setup
 import time
-import tempfile
 import urllib.parse
 import subprocess
 import wikiXMLToText

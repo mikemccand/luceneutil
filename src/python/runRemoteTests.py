@@ -1,4 +1,3 @@
-import random
 import sys
 import threading
 import time
@@ -7,7 +6,7 @@ import socket
 import constants
 import codecs
 import common
-import cPickle
+import pickle
 import os
 
 # TODO
@@ -41,18 +40,18 @@ def msg(message):
   with printLock:
     lastPrint = time.time()
     if VERBOSE:
-      print '%.3fs: %s' % (time.time()-tStart, message)
+      print('%.3fs: %s' % (time.time()-tStart, message))
     else:
-      print message
+      print(message)
 
 def run(comment, cmd, logFile, printTime=False):
   t0 = time.time()
-  print comment
+  print(comment)
   if os.system('%s > %s 2>&1' % (cmd, logFile)):
-    print open(logFile).read()
+    print(open(logFile).read())
     raise RuntimeError('FAILED: %s' % cmd)
   if printTime:
-    print '  %.1f sec' % (time.time()-t0)
+    print('  %.1f sec' % (time.time()-t0))
 
 class Remote(threading.Thread):
 
@@ -136,7 +135,7 @@ class Remote(threading.Thread):
         msg('%s: %s' % (self.hostName, codecs.getdecoder('UTF8')(p.stdout.read(numBytes))[0]))
       elif command == 'READY':
         job = self.jobs.nextJob()
-        bytes = cPickle.dumps(job)
+        bytes = pickle.dumps(job)
         if job is not None:
           self.runningJobs[job] = time.time()
         else:
@@ -145,7 +144,7 @@ class Remote(threading.Thread):
         p.stdin.write(bytes)
       elif command == 'RESUL':
         numBytes = int(p.stdout.read(8))
-        job, msec, errors = cPickle.loads(p.stdout.read(numBytes))
+        job, msec, errors = pickle.loads(p.stdout.read(numBytes))
         del self.runningJobs[job]
         self.finishedJobs.add(job)
 
@@ -180,9 +179,9 @@ class Stats:
 
   def __init__(self):
     try:
-      self.testTimes = cPickle.loads(open(TEST_TIMES_FILE, 'rb').read())
+      self.testTimes = pickle.loads(open(TEST_TIMES_FILE, 'rb').read())
     except:
-      print 'WARNING: no test times:'
+      print('WARNING: no test times:')
       self.testTimes = {}
 
   def update(self, className, msec):
@@ -192,15 +191,15 @@ class Stats:
     l[0] += msec
     l[1] += msec*msec
     if msec - l[2] > 2.0:
-      print
-      print '%.2fs -> %.2fs: %s' % (l[2], msec, className)
-      print
+      print()
+      print('%.2fs -> %.2fs: %s' % (l[2], msec, className))
+      print()
     l[2] = max(l[2], msec)
     l[3] += 1
 
   def save(self):
-    print 'Saved stats...'
-    open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(self.testTimes))
+    print('Saved stats...')
+    open(TEST_TIMES_FILE, 'wb').write(pickle.dumps(self.testTimes))
 
   def estimateCost(self, className):
     if className == 'org.apache.lucene.util.packed.TestPackedInts':
@@ -292,7 +291,7 @@ def gatherTests(stats, rootDir):
 
   os.chdir(rootDir)
   
-  print 'ROOT %s' % rootDir
+  print('ROOT %s' % rootDir)
 
   if '-noc' not in sys.argv:
     os.chdir('%s/lucene' % rootDir)
@@ -357,13 +356,13 @@ def gatherTests(stats, rootDir):
           addCP('lucene/%s/%s' % (libDir, f))
 
     strip = len(rootDir) + len('/lucene/%s/src/test/' % module)
-    for dir, subDirs, files in os.walk('%s/src/test' % path):
+    for dir, _, files in os.walk('%s/src/test' % path):
       for file in files:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
           if testClass in FLAKY_TESTS:
-            print 'WARNING: skipping test %s' % testClass
+            print('WARNING: skipping test %s' % testClass)
             continue
 
           tests.append((stats.estimateCost(testClass), testClass))
@@ -383,27 +382,27 @@ def gatherTests(stats, rootDir):
     addCP('solr/core/src/test-files')
 
     strip = len(rootDir) + len('/solr/core/src/test/')
-    for dir, subDirs, files in os.walk('%s/solr/core/src/test' % rootDir):
+    for dir, _, files in os.walk('%s/solr/core/src/test' % rootDir):
       for file in files:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
 
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
           if testClass in FLAKY_TESTS:
-            print 'WARNING: skipping test %s' % testClass
+            print('WARNING: skipping test %s' % testClass)
             continue
           tests.append((stats.estimateCost(testClass), testClass))
 
     # solrj
     strip = len(rootDir) + len('/solr/solrj/src/test/')
-    for dir, subDirs, files in os.walk('%s/solr/solrj/src/test' % rootDir):
+    for dir, _, files in os.walk('%s/solr/solrj/src/test' % rootDir):
       for file in files:
         if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
 
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
           if testClass in FLAKY_TESTS:
-            print 'WARNING: skipping test %s' % testClass
+            print('WARNING: skipping test %s' % testClass)
             continue
           # print '  %s' % testClass
           tests.append((stats.estimateCost(testClass), testClass))
@@ -424,16 +423,15 @@ def gatherTests(stats, rootDir):
       addCP('solr/build/contrib/solr-%s/test-files' % contrib2)
       addCP('solr/contrib/%s/src/resources' % contrib)
 
-      s = contrib
       libDir = 'solr/contrib/%s/lib' % contrib
       addJARs(cp, libDir)
-      for dir, subDirs, files in os.walk('%s/solr/contrib/%s/src/test' % (rootDir, contrib)):
+      for dir, _, files in os.walk('%s/solr/contrib/%s/src/test' % (rootDir, contrib)):
         for file in files:
           if file.endswith('.java') and (file.startswith('Test') or file.endswith('Test.java')):
             fullFile = '%s/%s' % (dir, file)
             testClass = fullFile[strip:-5].replace('/', '.')
             if testClass in FLAKY_TESTS:
-              print 'WARNING: skipping test %s' % testClass
+              print('WARNING: skipping test %s' % testClass)
               continue
             # print '  %s' % testClass
             #wd = '%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib)
@@ -441,9 +439,9 @@ def gatherTests(stats, rootDir):
 
   tests.sort(reverse=True)
   if False:
-    print 'Top slowest tests:'
+    print('Top slowest tests:')
     for idx in xrange(20):
-      print '  %5.1f sec: %s' % tests[idx]
+      print('  %5.1f sec: %s' % tests[idx])
   return cp, tests
 
 def main():
@@ -455,12 +453,12 @@ def main():
   stats = Stats()
   
   classpath, tests = gatherTests(stats, rootDir)
-  print '%d test suites' % len(tests)
+  print('%d test suites' % len(tests))
 
   if False:
-    print 'CP:'
+    print('CP:')
     for x in classpath:
-      print '  %s' % x
+      print('  %s' % x)
 
   try:
     SEED = sys.argv[1+sys.argv.index('-seed')]
@@ -536,7 +534,7 @@ def main():
       x = '../../%s' % x
     classpath2.append(x)
   classpath = ':'.join(classpath2)
-  print 'CP: %s' % classpath
+  print('CP: %s' % classpath)
   jobs = Jobs(tests)
 
   tTestsStart = time.time()
@@ -608,11 +606,11 @@ def main():
   stats.save()
   print
   if anyFails:
-    print 'FAILED'
+    print('FAILED')
   else:
-    print 'SUCCESS'
-  print
-  print '%.1f sec' % (time.time()-tTestsStart)
+    print('SUCCESS')
+  print()
+  print('%.1f sec' % (time.time()-tTestsStart))
 
   for worker in workersOrig:
     print('  %s ran %d tests' % (worker.hostName, len(worker.finishedJobs)))

@@ -2,7 +2,6 @@ import time
 import sys
 import re
 import datetime
-import math
 
 # see http://home.apache.org/~mikemccand/lucenebench/iw.html as an example
 
@@ -57,7 +56,7 @@ class RollingTimeWindow:
   def __init__(self, windowTime):
     self.window = []
     self.windowTime = windowTime
-    self.pruned = False;
+    self.pruned = False
     
   def add(self, t, value):
     self.window.append((t, value))

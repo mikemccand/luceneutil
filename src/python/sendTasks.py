@@ -15,15 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cStringIO
+import io
 import random
-import codecs
 import socket
 import Queue
 import sys
 import time
 import threading
-import cPickle
 import gc
 import struct
 
@@ -79,7 +77,7 @@ class Results:
 
   def __init__(self, savFile):
     self.buffers = []
-    self.current = cStringIO.StringIO()
+    self.current = io.StringIO()
     self.fOut = open(savFile, 'wb')
 
   def add(self, taskString, totalHitCount, timestamp, latencyMS, queueTimeMS):
@@ -162,7 +160,7 @@ class SendTasks:
       try:
         taskStartTime, taskString = self.sent[taskID]
       except KeyError:
-        print 'WARNING: ignore bad return taskID=%s' % taskID
+        print('WARNING: ignore bad return taskID=%s' % taskID)
         continue
       del self.sent[taskID]
       latencyMS = (endTime-taskStartTime)*1000
@@ -210,7 +208,6 @@ class SendTasks:
 
     while True:
       task = self.queue.get()
-      startTime = time.time()
       while len(task) > 0:
         sent = self.sock.send(task)
         if sent <= 0:
@@ -235,9 +232,6 @@ def pruneTasks(taskStrings, numTasksPerCat):
   
 def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, savFile, out, handleCtrlC):
 
-  recentLatencyMS = 0
-  recentQueueTimeMS = 0
-  
   out.write('Mean QPS %s\n' % meanQPS)
 
   f = open(tasksFile, 'rb')
@@ -246,7 +240,6 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
     l = f.readline()
     if l == '':
       break
-    orig = l
     idx = l.find('#')
     if idx != -1:
       l = l[:idx]
@@ -275,7 +268,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
 
   if meanQPS == 'sweep':
     doSweep = True
-    print 'Sweep: start at %s QPS' % SWEEP_START_QPS
+    print('Sweep: start at %s QPS' % SWEEP_START_QPS)
     meanQPS = SWEEP_START_QPS
     lastSweepCheck = time.time()
   else:
@@ -317,26 +310,26 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
       if doSweep:
         if t - lastSweepCheck > SWEEP_CHECK_EVERY_SEC:
           if meanQPS == SWEEP_START_QPS and len(tasks.sent) > 4:
-            print 'Sweep: stay @ %s QPS for warmup...' % SWEEP_START_QPS
+            print('Sweep: stay @ %s QPS for warmup...' % SWEEP_START_QPS)
           elif len(tasks.sent) < 10000:
             # Still not saturated
             meanQPS *= 2
-            print 'Sweep: set target to %.1f QPS' % meanQPS
+            print('Sweep: set target to %.1f QPS' % meanQPS)
           else:
             break
           lastSweepCheck = t
       elif t - tasks.startTime > runTimeSec:
         break
 
-    print 'Sent all tasks %d times.' % iters
+    print('Sent all tasks %d times.' % iters)
 
   except KeyboardInterrupt:
     if not handleCtrlC:
       raise
     # Ctrl-c to stop the test
-    print
-    print 'Ctrl+C: stopping now...'
-    print
+    print()
+    print('Ctrl+C: stopping now...')
+    print()
   
   out.write('%8.1f sec: Done sending tasks...\n' % (time.time()-tasks.startTime))
   out.flush()
@@ -357,7 +350,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
 
 def printResults(results):
   for startTime, taskString, latencyMS, queueTimeMS in results:
-    print '%8.3f sec: latency %8.1f msec; queue msec %.1f; task %s' % (startTime, latencyMS, queueTimeMS, taskString)
+    print('%8.3f sec: latency %8.1f msec; queue msec %.1f; task %s' % (startTime, latencyMS, queueTimeMS, taskString))
 
 if __name__ == '__main__':
   tasksFile = sys.argv[1]

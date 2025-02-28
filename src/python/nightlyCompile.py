@@ -54,7 +54,7 @@ def toSeconds(td):
   return td.days * 86400 + td.seconds + td.microseconds/1000000.
 
 def message(s):
- print '[%s] %s' % (now(), s)
+ print('[%s] %s' % (now(), s))
 
 def runCommand(command):
   if REAL:
@@ -71,9 +71,9 @@ def main():
   
   if True:
     os.chdir(constants.BENCH_BASE_DIR)
-    for i in range(30):
+    for _ in range(30):
       try:
-        runCommand('hg pull -u > hgupdate.log');
+        runCommand('hg pull -u > hgupdate.log')
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)
@@ -90,7 +90,7 @@ def main():
 
     runCommand('svn cleanup')
     open('update.log', 'ab').write('\n\n[%s]: update' % datetime.datetime.now())
-    for i in range(30):
+    for _ in range(30):
       try:
         runCommand('svn update > update.log 2>&1')
       except RuntimeError:
@@ -98,7 +98,7 @@ def main():
         time.sleep(60.0)
       else:
         svnRev = int(reSVNRev.search(open('update.log', 'rb').read()).group(1))
-        print 'SVN rev is %s' % svnRev
+        print('SVN rev is %s' % svnRev)
         break
     else:
       raise RuntimeError('svn update failed')
@@ -122,7 +122,7 @@ def main():
 
 def sendEmail(emailAddress, message):
   if localpass is None:
-    print 'WARNING: no smtp password; skipping email'
+    print('WARNING: no smtp password; skipping email')
     return
   SMTP_SERVER = localpass.SMTP_SERVER
   SMTP_PORT = localpass.SMTP_PORT

@@ -1,6 +1,5 @@
 import os
 import shutil
-import time
 import re
 
 # run from lucene subdir in trunk checkout

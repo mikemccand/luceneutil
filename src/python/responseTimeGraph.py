@@ -76,7 +76,7 @@ def loadResults(file, sort=True):
 
   actualQPS = len(results) / endTime
 
-  print '%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%s' % (file, actualQPS, endTime, len(results), netHitCount)
+  print('%s: actualQPS=%s endTime=%s len(results)=%d netHitCount=%s' % (file, actualQPS, endTime, len(results), netHitCount))
   return results, actualQPS
 
 pctPointsCache = {}
@@ -93,8 +93,8 @@ def getPctPoints(fileName, name, warmupSec):
       upto += 1
 
     # TODO: use HdrHisto to get all pct points?
-    print '%s: %d results (less %d = first %.1f seconds warmup); %.1f sec' % \
-          (name, len(results), upto, warmupSec, results[-1][0]-warmupSec)
+    print('%s: %d results (less %d = first %.1f seconds warmup); %.1f sec' % \
+          (name, len(results), upto, warmupSec, results[-1][0]-warmupSec))
     results = results[upto:]
 
     # Find time when test finally finished:
@@ -106,7 +106,7 @@ def getPctPoints(fileName, name, warmupSec):
     col = []
     col.append(responseTimes[0])
     didMax = False
-    for row, (pct, minCount) in enumerate(logPoints):
+    for _, (pct, minCount) in enumerate(logPoints):
       if len(responseTimes) < minCount:
         break
       idx = int(((100.0-pct)/100.0)*len(responseTimes))
@@ -120,8 +120,8 @@ def getPctPoints(fileName, name, warmupSec):
     if not didMax:
       #print 'max %s vs %s' % (responseTimes[-1], col[-1])
       col.append(responseTimes[-1])
-    print '  %d pct points' % len(col)
-    print '  %s' % col
+    print('  %d pct points' % len(col))
+    print('  %s' % col)
     pctPointsCache[fileName] = col, actualQPS, endTimeSec
     
   return pctPointsCache[fileName]
@@ -141,7 +141,7 @@ def createGraph(fileNames, warmupSec, title=None):
     col = getPctPoints(file, name, warmupSec)[0]
 
     if False and col[-1] > 100000 and len(fileNames) > 1:
-      print '  skip: max responseTime=%s' % col[-1]
+      print('  skip: max responseTime=%s' % col[-1])
       continue
 
     cols.append(col)
@@ -228,11 +228,11 @@ if __name__ == '__main__':
     upto = 0
     while results[upto][0] < 300.0:
       upto += 1
-    print 'upto %s' % upto
+    print('upto %s' % upto)
     for tup in results[upto:]:
-      print tup
+      print(tup)
       if tup[2] > 50000:
-        print '  ***'
+        print('  ***')
     sys.exit(0)
 
   logsDir = sys.argv[1]
@@ -248,5 +248,5 @@ if __name__ == '__main__':
 
   html = createGraph(d, warmupSec)
   open(fileNameOut, 'wb').write(html)
-  print 'Saved to %s' % fileNameOut
+  print('Saved to %s' % fileNameOut)
     

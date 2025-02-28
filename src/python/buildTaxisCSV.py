@@ -3,7 +3,6 @@ import sys
 import datetime
 import os
 import csv
-import json
 
 # Directory where the original .csv files were downloaded to, using downloadTaxisCSVs.py:
 CSV_DIR = '/lucenedata/nyc-taxi-data'

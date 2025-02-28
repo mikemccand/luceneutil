@@ -1,10 +1,8 @@
 import datetime
-import codecs
 import sys
 import time
 import xml.etree.ElementTree as ET
 import re
-import random
 
 # TODO
 #  - put header on

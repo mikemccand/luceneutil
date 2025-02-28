@@ -2,7 +2,7 @@ import shutil
 import re
 import subprocess
 import traceback
-import cPickle
+import pickle
 import threading
 import os
 import heapq
@@ -86,9 +86,9 @@ TEST_ARGS = ' -Dtests.nightly=false -Dtests.iters=1 -Dtests.locale=random -Dtest
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
 try:
-  testTimes = cPickle.loads(open(TEST_TIMES_FILE, 'rb').read())
+  testTimes = pickle.loads(open(TEST_TIMES_FILE, 'rb').read())
 except:
-  print 'WARNING: no test times:'
+  print('WARNING: no test times:')
   traceback.print_exc()
   testTimes = {}
 
@@ -128,12 +128,12 @@ def addJARs(path):
   
 def run(comment, cmd, logFile, printTime=False):
   t0 = time.time()
-  print comment
+  print(comment)
   if os.system('%s > %s 2>&1' % (cmd, logFile)):
-    print open(logFile).read()
+    print(open(logFile).read())
     raise RuntimeError('FAILED: %s' % cmd)
   if printTime:
-    print '  %.1f sec' % (time.time()-t0)
+    print('  %.1f sec' % (time.time()-t0))
 
 def estimateCost(testClass):
   try:
@@ -143,7 +143,7 @@ def estimateCost(testClass):
       t = 0.05
     return t
   except KeyError:
-    print 'NO COST: %s' % testClass
+    print('NO COST: %s' % testClass)
     return 1.0
 
 prLock = threading.Lock()
@@ -157,7 +157,7 @@ def aggTests(workQ, tests):
 
   pendingCost = 0
   lastWD = None
-  for cost, wd, test, classpath in tests:
+  for cost, wd, test, _ in tests:
 
     if len(tests0) > 0 and (lastWD != wd or DO_GATHER_TIMES or cost + pendingCost > COST_PER_JOB):
       #print 'JOB: %s, %s' % (pendingCost, ' '.join(tests0))
@@ -258,10 +258,10 @@ class RunThread:
               (self.tempDir, ROOT, ' '.join(job.tests))
 
         if 0:
-          print
-          print 'wd %s' % job.wd
-          print 'cp %s' % ':'.join(job.classpath)
-          print 'cmd %s' % cmd
+          print()
+          print('wd %s' % job.wd)
+          print('cp %s' % ':'.join(job.classpath))
+          print('cmd %s' % cmd)
 
         #open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n  RUN: %s\n' % (job.cost, ' '.join(job.tests), job.wd, cmd))
         s = '\nTESTS: cost=%.3f %s\n  CWD: %s\n' % (job.cost, ' '.join(job.tests), job.wd)
@@ -302,7 +302,7 @@ class RunThread:
         if DO_GATHER_TIMES:
           m = reTime.search(output)
           if m is None:
-            print 'FAILED to parse time %s' % output
+            print('FAILED to parse time %s' % output)
             testTime = 1.0
           else:
             testTime = float(m.group(1))
@@ -380,7 +380,7 @@ for module in modules:
                          'org.apache.lucene.analysis.core.TestRandomChains',
                          'org.apache.lucene.analysis.core.TestAllAnalyzersHaveFactories',
                          'org.apache.lucene.analysis.core.TestFactories'):
-          print 'WARNING: skipping test %s' % testClass
+          print('WARNING: skipping test %s' % testClass)
           continue
 
         if doLucene:
@@ -413,7 +413,7 @@ if doSolr:
         fullFile = '%s/%s' % (dir, file)
         testClass = fullFile[strip:-5].replace('/', '.')
         if testClass in ('org.apache.solr.cloud.CloudStateUpdateTest', 'org.apache.solr.search.TestRealTimeGet', 'org.apache.solr.servlet.CacheHeaderTest', 'org.apache.solr.request.TestRemoteStreaming', 'org.apache.solr.handler.dataimport.TestSqlEntityProcessorDelta2'):
-          print 'WARNING: skipping test %s' % testClass
+          print('WARNING: skipping test %s' % testClass)
           continue
         # print '  %s' % testClass
         wd = '%s/solr/core/src/test/test-files' % ROOT
@@ -435,7 +435,7 @@ if doSolr:
                          'org.apache.solr.client.solrj.SolrExampleBinaryTest',
                          'org.apache.solr.client.solrj.embedded.SolrExampleStreamingBinaryTest',
                          'org.apache.solr.client.solrj.embedded.TestSolrProperties'):
-          print 'WARNING: skipping test %s' % testClass
+          print('WARNING: skipping test %s' % testClass)
           continue
         # print '  %s' % testClass
         wd = '%s/solr/solrj/src/test-files' % ROOT
@@ -482,7 +482,7 @@ if doSolr:
           fullFile = '%s/%s' % (dir, file)
           testClass = fullFile[strip:-5].replace('/', '.')
           if testClass in ('org.apache.solr.handler.clustering.DistributedClusteringComponentTest',):
-            print 'WARNING: skipping test %s' % testClass
+            print('WARNING: skipping test %s' % testClass)
             continue
           # print '  %s' % testClass
           #wd = '%s/solr/contrib/%s/src/test/resources' % (ROOT, contrib)
@@ -512,8 +512,8 @@ repeat = '-repeat' in sys.argv
 
 if 0:
   for cost, path, test, cp in tests:
-    print 'TEST: %s' % test
-  print 'Total %d tests' % len(tests)
+    print('TEST: %s' % test)
+  print('Total %d tests' % len(tests))
 
 pendingCost = 0
 workQ = WorkQueue()
@@ -523,11 +523,11 @@ aggTests(workQ, tests)
 for resource, threadCount in NUM_THREAD:
   if resource != 'local':
     cmd = '/usr/bin/rsync --delete -rtS %s -e "ssh -x -c arcfour -o Compression=no" --exclude=.svn/ --exclude="*.log" mike@%s:%s' % (ROOT, resource, constants.BASE_DIR)
-    print 'Copy to %s: %s' % (resource, cmd)
+    print('Copy to %s: %s' % (resource, cmd))
     t = time.time()
     if os.system(cmd):
       raise RuntimeError('rsync failed')
-    print '  %.1f sec' % (time.time()-t)
+    print('  %.1f sec' % (time.time()-t))
     os.system('ssh %s "rm -f %s/*.log"' % (resource, ROOT))
     os.system('ssh %s "killall java >& /dev/null"' % resource)
   else:
@@ -548,6 +548,6 @@ for thread in threads:
   totSuites += thread.suiteCount
 
 if DO_GATHER_TIMES:
-  open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(testTimes))
+  open(TEST_TIMES_FILE, 'wb').write(pickle.dumps(testTimes))
 
-print '\n%.1f sec [%d test suites]' % (time.time()-t0, totSuites)
+print('\n%.1f sec [%d test suites]' % (time.time()-t0, totSuites))

@@ -1,9 +1,7 @@
 import copy
 import os
 import codecs
-import random
 import time
-import socket
 import threading
 import subprocess
 import cPickle
@@ -163,7 +161,7 @@ class Parent:
     self.children = []
     self.jobLock = threading.Lock()
 
-    print 'REMOTE SERVER STARTED'
+    print('REMOTE SERVER STARTED')
     #self.remotePrint('python version is %s' % sys.version)
 
     for childID in xrange(processCount):

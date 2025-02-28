@@ -15,11 +15,9 @@
 
 import os
 import math
-import ImageDraw
-import Image
+from PIL import ImageDraw, Image, ImageFont
 import sys
 import re
-import ImageFont
 
 #install using pip: sudo pip install iso8601
 import iso8601
@@ -82,8 +80,8 @@ def main():
   MAX_SEG_COUNT += 2
   MAX_SEG_SIZE_MB = 100*math.ceil((MAX_SEG_SIZE_MB*1.1)/100.0) + 50.0
 
-  print 'MAX seg MB %s' % MAX_SEG_SIZE_MB
-  print '%d events' % len(merges)
+  print('MAX seg MB %s' % MAX_SEG_SIZE_MB)
+  print('%d events' % len(merges))
     
   mergeToColor = {}
   segToMBAndDel = {}
@@ -102,22 +100,22 @@ def main():
     if lastT is not None:
       gap = t - lastT
       if gap > 2 and len(merges)-i < 6:
-        print 'FILL gap=%s' % gap
+        print('FILL gap=%s' % gap)
         delta = (t-lastT)/(gap*5.0)
         t0 = lastT
-        for x in xrange(gap*5):
+        for _ in xrange(gap*5):
           t0 += delta
-          print ' fake t %s' % (t0-minT)
+          print(' fake t %s' % (t0-minT))
           img, mergeToColor = draw(t0, segs, mergeToColor, newestSeg, totMergeMB)
           img.save('%s/%08d.png' % (TMP_DIR, upto))
           upto += 1
     lastT = t
     
-    print '%s: %s/%s' % (t-minT, i, len(merges))
+    print('%s: %s/%s' % (t-minT, i, len(merges)))
     #print ev
     if ev[0] == 'index':
       segs = ev[2]
-      for seg, fullMB, delPCT in segs:
+      for seg, fullMB, _ in segs:
         if seg not in segToMBAndDel:
           newestSeg = seg
         segToMBAndDel[seg] = (fullMB, delPct)
@@ -164,7 +162,7 @@ def main():
          '-o',
          '%s' % outputFile]
   os.spawnvp(os.P_WAIT, 'mencoder', cmd)
-  print 'DONE'
+  print('DONE')
 
 tMin = None
 def draw(t, segs, mergeToColor, rightSegment, totMergeMB):
@@ -284,7 +282,7 @@ def parse(fileName):
                 fullSize = undelSize / (1.0 - delRatio)
               else:
                 # total guess!
-                print 'WARNING: total guess!'
+                print('WARNING: total guess!')
                 fullSize = 0.1
             else:
               fullSize = undelSize

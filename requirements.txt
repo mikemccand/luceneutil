@@ -2,6 +2,22 @@
 graphviz
 intervaltree
 
+# used by infer-token-vectors
+# FIXME: HMM this is an 800MB download?
+# sentence-transformers
+
+# used by index-chart
+py-gnuplot
+
+# used by qps-chart
+pillow
+
+# used by mergeviz
+iso8601
+
+# used by indexosm
+rtree
+
 # linter and formatter
 ruff
 # type checker

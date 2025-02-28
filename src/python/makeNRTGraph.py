@@ -35,8 +35,8 @@ for line in open(sys.argv[1], 'rb').readlines():
       sumSQ += reopen*reopen
       count += 1
 
-print 'reopen: mean %.2f stddev %.2f' % \
-      (sum/count, math.sqrt(count*sumSQ - sum*sum)/count)
+print('reopen: mean %.2f stddev %.2f' % \
+      (sum/count, math.sqrt(count*sumSQ - sum*sum)/count))
 
 # discard warmup
 results = results[10:]

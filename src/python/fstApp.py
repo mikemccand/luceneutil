@@ -2,7 +2,6 @@ import base64
 import cgi
 import subprocess
 import wsgiref.simple_server
-import socket
 
 import sys
 sys.path.insert(0, '/home/changingbits/webapps/examples/htdocs')

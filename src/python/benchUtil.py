@@ -24,27 +24,17 @@ import os
 import pwd
 import shutil
 import sys
-try:
-  import cPickle as pickle  # python2
-except ImportError:
-  import pickle
-import datetime
+import pickle
 import constants
 import common
-import random
-import signal
 import QPSChart
 import IndexChart
 import subprocess
-import shlex
 import statistics
 import ps_head
+from shutil import which
 
-try:
-  import distutils
-  PERF_EXE = distutils.spawn.find_executable('perf')
-except:
-  PERF_EXE = None
+PERF_EXE = which('perf')
 
 if PERF_EXE is None:
   print(f'no perf executable; will not collect aggregate CPU profiling data')
@@ -1093,7 +1083,7 @@ class RunAlgs:
       return self.antCompile(competitor)
     try:
       if competitor.checkout not in self.compiledCheckouts:
-        self.compiledCheckouts.add(competitor.checkout);
+        self.compiledCheckouts.add(competitor.checkout)
         # for core we build a JAR in order to benefit from the MR JAR stuff
         os.chdir(checkoutPath)
         for module in ['core']:
@@ -1127,7 +1117,7 @@ class RunAlgs:
     checkoutPath = checkoutToPath(competitor.checkout)
     try:
       if competitor.checkout not in self.compiledCheckouts:
-        self.compiledCheckouts.add(competitor.checkout);
+        self.compiledCheckouts.add(competitor.checkout)
         # for core we build a JAR in order to benefit from the MR JAR stuff
         for module in ['core']:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)

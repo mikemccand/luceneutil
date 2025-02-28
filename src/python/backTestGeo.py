@@ -1,4 +1,3 @@
-import sys
 import shutil
 import datetime
 import os

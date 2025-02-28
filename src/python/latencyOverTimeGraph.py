@@ -100,7 +100,7 @@ for t, msec in graphData:
 w(chartFooter)
 
 open(htmlOut, 'wb').write(''.join(chart))
-print 'Saved to %s' % htmlOut
+print('Saved to %s' % htmlOut)
     
 
 

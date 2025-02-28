@@ -17,6 +17,8 @@ build/
 .classpath
 .settings
 .pydevproject
+.venv
+.ruff_cache
 *.sublime_session
 
 ## generated files

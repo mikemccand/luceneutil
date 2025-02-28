@@ -32,12 +32,9 @@ import IndexChart
 import subprocess
 import statistics
 import ps_head
+from shutil import which
 
-try:
-  import distutils
-  PERF_EXE = distutils.spawn.find_executable('perf')
-except:
-  PERF_EXE = None
+PERF_EXE = which('perf')
 
 if PERF_EXE is None:
   print(f'no perf executable; will not collect aggregate CPU profiling data')

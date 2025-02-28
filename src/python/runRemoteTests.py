@@ -6,7 +6,7 @@ import socket
 import constants
 import codecs
 import common
-import cPickle
+import pickle
 import os
 
 # TODO
@@ -135,7 +135,7 @@ class Remote(threading.Thread):
         msg('%s: %s' % (self.hostName, codecs.getdecoder('UTF8')(p.stdout.read(numBytes))[0]))
       elif command == 'READY':
         job = self.jobs.nextJob()
-        bytes = cPickle.dumps(job)
+        bytes = pickle.dumps(job)
         if job is not None:
           self.runningJobs[job] = time.time()
         else:
@@ -144,7 +144,7 @@ class Remote(threading.Thread):
         p.stdin.write(bytes)
       elif command == 'RESUL':
         numBytes = int(p.stdout.read(8))
-        job, msec, errors = cPickle.loads(p.stdout.read(numBytes))
+        job, msec, errors = pickle.loads(p.stdout.read(numBytes))
         del self.runningJobs[job]
         self.finishedJobs.add(job)
 
@@ -179,7 +179,7 @@ class Stats:
 
   def __init__(self):
     try:
-      self.testTimes = cPickle.loads(open(TEST_TIMES_FILE, 'rb').read())
+      self.testTimes = pickle.loads(open(TEST_TIMES_FILE, 'rb').read())
     except:
       print('WARNING: no test times:')
       self.testTimes = {}
@@ -199,7 +199,7 @@ class Stats:
 
   def save(self):
     print('Saved stats...')
-    open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(self.testTimes))
+    open(TEST_TIMES_FILE, 'wb').write(pickle.dumps(self.testTimes))
 
   def estimateCost(self, className):
     if className == 'org.apache.lucene.util.packed.TestPackedInts':

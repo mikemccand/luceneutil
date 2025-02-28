@@ -2,7 +2,7 @@ import shutil
 import re
 import subprocess
 import traceback
-import cPickle
+import pickle
 import threading
 import os
 import heapq
@@ -86,7 +86,7 @@ TEST_ARGS = ' -Dtests.nightly=false -Dtests.iters=1 -Dtests.locale=random -Dtest
 reTime = re.compile(r'^Time: ([0-9\.]+)$', re.M)
 
 try:
-  testTimes = cPickle.loads(open(TEST_TIMES_FILE, 'rb').read())
+  testTimes = pickle.loads(open(TEST_TIMES_FILE, 'rb').read())
 except:
   print('WARNING: no test times:')
   traceback.print_exc()
@@ -548,6 +548,6 @@ for thread in threads:
   totSuites += thread.suiteCount
 
 if DO_GATHER_TIMES:
-  open(TEST_TIMES_FILE, 'wb').write(cPickle.dumps(testTimes))
+  open(TEST_TIMES_FILE, 'wb').write(pickle.dumps(testTimes))
 
 print('\n%.1f sec [%d test suites]' % (time.time()-t0, totSuites))

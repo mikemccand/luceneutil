@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cStringIO
+import io
 import random
 import socket
 import Queue
@@ -77,7 +77,7 @@ class Results:
 
   def __init__(self, savFile):
     self.buffers = []
-    self.current = cStringIO.StringIO()
+    self.current = io.StringIO()
     self.fOut = open(savFile, 'wb')
 
   def add(self, taskString, totalHitCount, timestamp, latencyMS, queueTimeMS):

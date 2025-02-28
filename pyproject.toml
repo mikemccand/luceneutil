@@ -4,7 +4,25 @@ venv = ".venv"
 include = [ "src/python" ]
 # TODO: improve!
 # typeCheckingMode = "strict"
-typeCheckingMode = "off"
+typeCheckingMode = "basic"
+reportArgumentType = "none"
+reportAssignmentType = "none"
+reportAttributeAccessIssue = "none"
+reportCallIssue = "none"
+reportGeneralTypeIssues = "none"
+reportIndexIssue = "none"
+reportInvalidStringEscapeSequence = "none"
+# this is really important to fix
+reportMissingImports = "none"
+reportUnusedExpression = "none"
+reportOptionalMemberAccess = "none"
+reportOptionalContextManager = "none"
+reportOptionalIterable = "none"
+reportOperatorIssue = "none"
+reportOptionalOperand = "none"
+reportOptionalSubscript = "none"
+reportRedeclaration = "none"
+reportUndefinedVariable = "none"
 
 [tool.ruff]
 line-length = 200

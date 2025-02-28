@@ -15,11 +15,9 @@
 
 import os
 import math
-import ImageDraw
-import Image
+from PIL import ImageDraw, Image, ImageFont
 import sys
 import re
-import ImageFont
 
 #install using pip: sudo pip install iso8601
 import iso8601

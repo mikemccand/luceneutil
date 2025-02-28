@@ -7,7 +7,16 @@ intervaltree
 # sentence-transformers
 
 # used by index-chart
-PyGnuplot
+py-gnuplot
+
+# used by qps-chart
+pillow
+
+# used by mergeviz
+iso8601
+
+# used by indexosm
+rtree
 
 # linter and formatter
 ruff

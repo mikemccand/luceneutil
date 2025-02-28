@@ -191,9 +191,11 @@ public class KnnGraphTester {
     queryStartIndex = 0;
   }
 
-  private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding) throws IOException {
+  private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding, boolean noisy) throws IOException {
     FileChannel in = FileChannel.open(path);
-    System.out.println("path=" + path + " dim=" + dim + " vectorEncoding.byteSize=" + vectorEncoding.byteSize);
+    if (noisy) {
+      System.out.println("path=" + path + " dim=" + dim + " vectorEncoding.byteSize=" + vectorEncoding.byteSize);
+    }
     if (in.size() % (dim * vectorEncoding.byteSize) != 0) {
       throw new IllegalArgumentException("vectors file \"" + path + "\" does not contain a whole number of vectors?  size=" + in.size());
     }
@@ -221,6 +223,7 @@ public class KnnGraphTester {
   private void run(String... args) throws Exception {
     String operation = null;
     Path docVectorsPath = null, queryPath = null, outputPath = null;
+    quiet = Arrays.asList(args).contains("-quiet");
     for (int iarg = 0; iarg < args.length; iarg++) {
       String arg = args[iarg];
       switch (arg) {
@@ -458,114 +461,14 @@ public class KnnGraphTester {
         parentJoinMetaFile,
         useBp
       ).createIndex();
-      System.out.println(String.format("reindex takes %.2f sec", msToSec(reindexTimeMsec)));
+      log("reindex takes %.2f sec", msToSec(reindexTimeMsec));
     }
     if (forceMerge) {
       forceMergeTimeSec = forceMerge();
     }
-    try (Directory dir = FSDirectory.open(indexPath); IndexReader reader = DirectoryReader.open(dir)) {
-      indexNumSegments = reader.leaves().size();
-      System.out.println("index has " + indexNumSegments + " segments: " + ((StandardDirectoryReader) reader).getSegmentInfos());
-      long indexSizeOnDiskBytes = 0;
-      SegmentInfos infos = ((StandardDirectoryReader) reader).getSegmentInfos();
-      for (SegmentCommitInfo info : infos) {
-        long segSizeOnDiskBytes = 0;
-        for (String fileName : info.files()) {
-          segSizeOnDiskBytes += dir.fileLength(fileName);
-        }
-        indexSizeOnDiskBytes += segSizeOnDiskBytes;
-        System.out.println(String.format(Locale.ROOT, "  %s: %.1f MB", info.info.name, segSizeOnDiskBytes / 1024. / 1024.));
-      }
-      indexSizeOnDiskBytes += dir.fileLength(infos.getSegmentsFileName());
-
-      // long because maybe we at some point we support multi-valued vector fields:
-      long totalVectorCount = 0;
-
-      int encodingByteSize = -1;
-      for (LeafReaderContext ctx : reader.leaves()) {
-        KnnVectorsReader knnReader = ((SegmentReader) ctx.reader()).getVectorReader();
-
-        int segEncodingByteSize;
-        switch (vectorEncoding) {
-        case BYTE:
-          // TODO: does Lucene prevent int4/int7 quantization when input is byte per dimension?
-          {
-            ByteVectorValues vectors = knnReader.getByteVectorValues(KNN_FIELD);
-            segEncodingByteSize = vectors.getEncoding().byteSize;
-            totalVectorCount += vectors.size();
-            break;
-          }
-        case FLOAT32:
-          {
-            FloatVectorValues vectors = knnReader.getFloatVectorValues(KNN_FIELD);
-            segEncodingByteSize = vectors.getEncoding().byteSize;
-            totalVectorCount += vectors.size();
-            break;
-          }
-        default:
-          throw new IllegalStateException("only FLOAT32 and BYTE input vectors are supported; got: " + vectorEncoding);
-        }
-
-        // TODO: why is encodingByteSize 4 for int4/int7 cases?
-        if (encodingByteSize == -1) {
-          encodingByteSize = segEncodingByteSize;
-        } else if (encodingByteSize != segEncodingByteSize) {
-          throw new IllegalStateException("encodingByteSize should not have changed across segments; got " +
-                                          encodingByteSize + " and " + segEncodingByteSize);
-        }
-      }
-
-      int origByteSize;
-      switch (vectorEncoding) {
-      case BYTE:
-        // TODO: does Lucene prevent int4/int7 quantization when input is byte per dimension?
-        origByteSize = Byte.BYTES;
-        break;
-      case FLOAT32:
-        origByteSize = Float.BYTES;
-        break;
-      default:
-        throw new IllegalStateException("only FLOAT32 and BYTE input vectors are supported; got: " + vectorEncoding);
-      }
-      System.out.println("encodingByteSize=" + encodingByteSize + " origByteSize=" + origByteSize);
-
-      // TODO: why is encodingByteSize 4 even for int4/int7 cases?
-      double realEncodingByteSize;
-      if (quantize) {
-        if (quantizeBits == 4) {
-          if (quantizeCompress) {
-            realEncodingByteSize = 0.5;
-          } else {
-            realEncodingByteSize = 1;
-          }
-        } else if (quantizeBits == 7) {
-          realEncodingByteSize = 1;
-        } else {
-          throw new IllegalStateException("can only handle int4 and int7 quantized");
-        }
-      } else {
-        realEncodingByteSize = Float.BYTES;
-      }
-      System.out.println("realEncodingByteSize=" + realEncodingByteSize);
-
-      double diskBytesPerDim;
-      if (origByteSize != (int) realEncodingByteSize) {
-        // int4, int7 add one byte per dimension over the original
-        diskBytesPerDim = origByteSize + realEncodingByteSize;
-      } else {
-        // unquantized
-        diskBytesPerDim = origByteSize;
-      }
-
-      vectorDiskSizeBytes = (long) ((double) totalVectorCount * diskBytesPerDim * dim);
-      vectorRAMSizeBytes = (long) ((double) totalVectorCount * realEncodingByteSize * dim);
-      
-      indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
-      System.out.println(String.format(Locale.ROOT, "index disk usage is %.2f MB", indexSizeOnDiskMB));
-      System.out.println(String.format(Locale.ROOT, "vector disk usage is %.2f MB", vectorDiskSizeBytes/1024./1024.));
-      System.out.println(String.format(Locale.ROOT, "vector RAM usage is %.2f MB", vectorRAMSizeBytes/1024./1024.));
+    if (!quiet) {
+      printIndexStatistics(indexPath);
     }
-    
     if (operation != null) {
       switch (operation) {
         case "-search":
@@ -588,6 +491,111 @@ public class KnnGraphTester {
           printFanoutHist(indexPath);
           break;
       }
+    }
+  }
+
+  private void printIndexStatistics(Path indexPath) throws IOException {
+    try (Directory dir = FSDirectory.open(indexPath);
+         IndexReader reader = DirectoryReader.open(dir)) {
+      indexNumSegments = reader.leaves().size();
+      long indexSizeOnDiskBytes = 0;
+      SegmentInfos infos = ((StandardDirectoryReader) reader).getSegmentInfos();
+      for (SegmentCommitInfo info : infos) {
+        long segSizeOnDiskBytes = 0;
+        for (String fileName : info.files()) {
+          segSizeOnDiskBytes += dir.fileLength(fileName);
+        }
+        indexSizeOnDiskBytes += segSizeOnDiskBytes;
+        log("  %s: %.1f MB", info.info.name, segSizeOnDiskBytes / 1024. / 1024.);
+      }
+      indexSizeOnDiskBytes += dir.fileLength(infos.getSegmentsFileName());
+
+      // long because maybe we at some point we support multi-valued vector fields:
+      long totalVectorCount = 0;
+
+      int encodingByteSize = -1;
+      for (LeafReaderContext ctx : reader.leaves()) {
+        KnnVectorsReader knnReader = ((SegmentReader) ctx.reader()).getVectorReader();
+
+        int segEncodingByteSize;
+        switch (vectorEncoding) {
+          case BYTE:
+            // TODO: does Lucene prevent int4/int7 quantization when input is byte per dimension?
+            {
+              ByteVectorValues vectors = knnReader.getByteVectorValues(KNN_FIELD);
+              segEncodingByteSize = vectors.getEncoding().byteSize;
+              totalVectorCount += vectors.size();
+              break;
+            }
+          case FLOAT32:
+            {
+              FloatVectorValues vectors = knnReader.getFloatVectorValues(KNN_FIELD);
+              segEncodingByteSize = vectors.getEncoding().byteSize;
+              totalVectorCount += vectors.size();
+              break;
+            }
+          default:
+            throw new IllegalStateException("only FLOAT32 and BYTE input vectors are supported; got: " + vectorEncoding);
+        }
+
+        // TODO: why is encodingByteSize 4 for int4/int7 cases?
+        if (encodingByteSize == -1) {
+          encodingByteSize = segEncodingByteSize;
+        } else if (encodingByteSize != segEncodingByteSize) {
+          throw new IllegalStateException("encodingByteSize should not have changed across segments; got " +
+                                          encodingByteSize + " and " + segEncodingByteSize);
+        }
+      }
+
+      int origByteSize;
+      switch (vectorEncoding) {
+        case BYTE:
+          // TODO: does Lucene prevent int4/int7 quantization when input is byte per dimension?
+          origByteSize = Byte.BYTES;
+          break;
+        case FLOAT32:
+          origByteSize = Float.BYTES;
+          break;
+        default:
+          throw new IllegalStateException("only FLOAT32 and BYTE input vectors are supported; got: " + vectorEncoding);
+      }
+      log("encodingByteSize=" + encodingByteSize + " origByteSize=" + origByteSize);
+
+      // TODO: why is encodingByteSize 4 even for int4/int7 cases?
+      double realEncodingByteSize;
+      if (quantize) {
+        if (quantizeBits == 4) {
+          if (quantizeCompress) {
+            realEncodingByteSize = 0.5;
+          } else {
+            realEncodingByteSize = 1;
+          }
+        } else if (quantizeBits == 7) {
+          realEncodingByteSize = 1;
+        } else {
+          throw new IllegalStateException("can only handle int4 and int7 quantized");
+        }
+      } else {
+        realEncodingByteSize = Float.BYTES;
+      }
+      log("realEncodingByteSize=" + realEncodingByteSize);
+
+      double diskBytesPerDim;
+      if (origByteSize != (int) realEncodingByteSize) {
+        // int4, int7 add one byte per dimension over the original
+        diskBytesPerDim = origByteSize + realEncodingByteSize;
+      } else {
+        // unquantized
+        diskBytesPerDim = origByteSize;
+      }
+
+      vectorDiskSizeBytes = (long) ((double) totalVectorCount * diskBytesPerDim * dim);
+      vectorRAMSizeBytes = (long) ((double) totalVectorCount * realEncodingByteSize * dim);
+      
+      indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
+      log(String.format(Locale.ROOT, "index disk usage is %.2f MB", indexSizeOnDiskMB));
+      log(String.format(Locale.ROOT, "vector disk usage is %.2f MB", vectorDiskSizeBytes/1024./1024.));
+      log(String.format(Locale.ROOT, "vector RAM usage is %.2f MB", vectorRAMSizeBytes/1024./1024.));
     }
   }
 
@@ -652,8 +660,8 @@ public class KnnGraphTester {
             ((PerFieldKnnVectorsFormat.FieldsReader) ((CodecReader) leafReader).getVectorReader())
                 .getFieldReader(KNN_FIELD);
         HnswGraph knnValues = ((Lucene99HnswVectorsReader) vectorsReader).getGraph(KNN_FIELD);
-        System.out.printf("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
-        System.out.printf("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
+        log("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
+        log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
         printGraphConnectedNess(knnValues);
       }
@@ -664,14 +672,14 @@ public class KnnGraphTester {
   private double forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress));
-    System.out.println("Force merge index in " + indexPath);
+    log("Force merge index in " + indexPath);
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1);
     }
     long endNS = System.nanoTime();
     double elapsedSec = nsToSec(endNS - startNS);
-    System.out.println(String.format(Locale.ROOT, "Force merge done in %.2f sec", elapsedSec));
+    log(String.format(Locale.ROOT, "Force merge done in %.2f sec", elapsedSec));
     return elapsedSec;
   }
 
@@ -698,7 +706,7 @@ public class KnnGraphTester {
           stack.push(friendOrd);
         }
       }
-      System.out.printf(
+      log(
         "Graph level=%d size=%d, connectedness=%.2f\n",
         level, numNodesOnLayer, connectedNodes.size() / (float) numNodesOnLayer);
     }
@@ -736,10 +744,12 @@ public class KnnGraphTester {
           sumDelta += lastNeighbor - firstNeighbor;
         }
       }
-      System.out.printf(
+      log(
         "Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d, meandelta=%.2f\n",
         level, count, min, total / (float) count, max, sumDelta / (float) total);
-      printHist(leafHist, max, count, 10);
+      if (!quiet) {
+        printHist(leafHist, max, count, 10);
+      }
     }
   }
 
@@ -747,18 +757,18 @@ public class KnnGraphTester {
   private void printHist(int[] hist, int max, int count, int nbuckets) {
     System.out.print("%");
     for (int i = 0; i <= nbuckets; i++) {
-      System.out.printf("%4d", i * 100 / nbuckets);
+      log("%4d", i * 100 / nbuckets);
     }
-    System.out.printf("\n %4d", hist[0]);
+    log("\n %4d", hist[0]);
     int total = 0, ibucket = 1;
     for (int i = 1; i <= max && ibucket <= nbuckets; i++) {
       total += hist[i];
       while (total >= count * ibucket / nbuckets  && ibucket <= nbuckets) {
-        System.out.printf("%4d", i);
+        log("%4d", i);
         ++ibucket;
       }
     }
-    System.out.println();
+    log("");
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -768,9 +778,9 @@ public class KnnGraphTester {
     int[][] resultIds = new int[numQueryVectors][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
-    try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
+    try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
       long queryPathSizeInBytes = input.size();
-      System.out.println((int) (queryPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " query vectors in queryPath \"" + queryPath + "\"");
+      log((int) (queryPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " query vectors in queryPath \"" + queryPath + "\"");
       VectorReader targetReader = VectorReader.create(input, dim, vectorEncoding, queryStartIndex);
       VectorReaderByte targetReaderByte = null;
       if (targetReader instanceof VectorReaderByte b) {
@@ -817,19 +827,17 @@ public class KnnGraphTester {
             totalVisited += results[i].totalHits.value();
             resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
           }
-          if (quiet == false) {
-            System.out.println(
+          log(
               "completed "
-                + numQueryVectors
-                + " searches in "
-                + elapsed
-                + " ms: "
-                + ((1000 * numQueryVectors) / elapsed)
-                + " QPS "
-                + "CPU time="
-                + totalCpuTimeMS
-                + "ms");
-          }
+              + numQueryVectors
+              + " searches in "
+              + elapsed
+              + " ms: "
+              + ((1000 * numQueryVectors) / elapsed)
+              + " QPS "
+              + "CPU time="
+              + totalCpuTimeMS
+              + "ms");
         }
       }
     } finally {
@@ -855,8 +863,7 @@ public class KnnGraphTester {
         quantizeDesc = "no";
       }
       double reindexSec = reindexTimeMsec / 1000.0;
-      System.out.printf(
-          Locale.ROOT,
+      System.out.printf(Locale.ROOT,
           "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -951,10 +958,10 @@ public class KnnGraphTester {
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath) && selectivity == 1f) {
-      System.out.println("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"");
+      log("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"");
       return readExactNN(nnPath);
     } else {
-      System.out.println("  now compute brute-force exact KNN matches");
+      log("  now compute brute-force exact KNN matches");
       long startNS = System.nanoTime();
       // TODO: enable computing NN from high precision vectors when
       // checking low-precision recall
@@ -968,7 +975,7 @@ public class KnnGraphTester {
         writeExactNN(nn, nnPath);
       }
       long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
-      System.out.printf("took %.3f sec to compute brute-force exact matches\n", elapsedMS / 1000.);
+      log("took %.3f sec to compute brute-force exact matches\n", elapsedMS / 1000.);
       return nn;
     }
   }
@@ -999,9 +1006,7 @@ public class KnnGraphTester {
   }
 
   private void writeExactNN(int[][] nn, Path nnPath) throws IOException {
-    if (quiet == false) {
-      System.out.println("writing true nearest neighbors to cache file \"" + nnPath + "\"");
-    }
+    log("writing true nearest neighbors to cache file \"" + nnPath + "\"");
     ByteBuffer tmp =
         ByteBuffer.allocate(nn[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
     try (OutputStream out = Files.newOutputStream(nnPath)) {
@@ -1018,7 +1023,7 @@ public class KnnGraphTester {
     List<ComputeNNByteTask> tasks = new ArrayList<>();
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
-      try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
+      try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
         VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
         for (int i = 0; i < numQueryVectors; i++) {
           byte[] query = queryReader.nextBytes().clone();
@@ -1074,12 +1079,12 @@ public class KnnGraphTester {
     log("parentJoin = %s", parentJoin);
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
-      System.out.println("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
+      log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex);
       if (parentJoin) {
         CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
       }
       List<Callable<Void>> tasks = new ArrayList<>();
-      try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
+      try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
         VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
         for (int i = 0; i < numQueryVectors; i++) {
           float[] query = queryReader.next().clone();

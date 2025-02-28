@@ -16,7 +16,7 @@
 try:
   from pygnuplot import gnuplot as Gnuplot
 except ImportError:
-  print('WARNING: Gnuplot module not present; will not make charts')
+  #print('WARNING: Gnuplot module not present; will not make charts')
   Gnuplot = None
 
 class IndexChart(object):

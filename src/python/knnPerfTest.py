@@ -33,6 +33,12 @@ from common import getLuceneDirFromGradleProperties
 # you may want to modify the following settings:
 
 
+# Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
+#LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
+#LUCENE_CHECKOUT='../../lucene'
+#LUCENE_CHECKOUT='../lucene_baseline'
+LUCENE_CHECKOUT='../lucene_candidate'
+
 # nocommit
 DO_PROFILING = False
 
@@ -41,27 +47,30 @@ DO_PROFILING = False
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
+NOISY = False
+
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-    'ndoc': (10_000_000,),
-    #'ndoc': (10000, 100000, 200000, 500000),
-    #'ndoc': (10000, 100000, 200000, 500000),
     #'ndoc': (2_000_000,),
+    #'ndoc': (10000, 100000, 200000, 500000),
+    #'ndoc': (10000, 100000, 200000, 500000),
+    #'ndoc': (1_500_000,),
     #'ndoc': (1_000_000,),
-    #'ndoc': (50_000,),
+    'ndoc': (500_000,),
     #'maxConn': (32, 64, 96),
-    'maxConn': (32, ),
+    'maxConn': (64, ),
     #'maxConn': (32,),
     #'beamWidthIndex': (250, 500),
-    'beamWidthIndex': (100, ),
+    'beamWidthIndex': (250, ),
     #'beamWidthIndex': (50,),
     #'fanout': (20, 100, 250)
-    'fanout': (50,),
+    'fanout': (0,50,100,),
     #'quantize': None,
     #'quantizeBits': (32, 7, 4),
+    #'quantizeBits': (7,),
     'numMergeWorker': (12,),
     'numMergeThread': (4,),
     #'numMergeWorker': (1,),
@@ -70,14 +79,11 @@ PARAMS = {
     # 'metric': ('angular',),  # default is angular (dot_product)
     # 'metric': ('mip',),
     #'quantize': (True,),
-    'quantizeBits': (32,),
+    #'quantizeBits': (4,),
     #'fanout': (0,),
-    'topK': (100,),
-    'bp': ('false', 'true'),
+    #'bp': ('false', 'true'),
+    'topK': (50,100,),
     #'quantizeCompress': (True, False),
-    'quantizeCompress': (True,),
-    'queryStartIndex': (0,),   # seek to this start vector before searching, to sample different vectors
-    'forceMerge': (True, False)
     #'niter': (10,),
 }
 
@@ -116,8 +122,8 @@ def run_knn_benchmark(checkout, values):
 
     # Cohere dataset
     dim = 768
-    doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-    query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
+    doc_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-docs-{dim}d.vec"
+    query_vectors = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-queries-{dim}d.vec"
     #parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
     jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
@@ -140,7 +146,8 @@ def run_knn_benchmark(checkout, values):
       
     all_results = []
     while advance(indexes, values):
-        print('\nNEXT:')
+        if NOISY:
+            print('\nNEXT:')
         pv = {}
         args = []
         quantize_bits = None
@@ -151,8 +158,9 @@ def run_knn_benchmark(checkout, values):
                 if p == 'quantizeBits':
                     if value != 32:
                         pv[p] = value
-                        print(f'  -{p}={value}')
-                        print(f'  -quantize')
+                        if NOISY:
+                            print(f'  -{p}={value}')
+                            print(f'  -quantize')
                         args += ['-quantize']
                         quantize_bits = value
                 elif type(value) is bool:
@@ -161,9 +169,11 @@ def run_knn_benchmark(checkout, values):
                         do_quantize_compress = True
                     elif value:
                         args += ['-' + p]
-                        print(f'  -{p}')
+                        if NOISY:
+                            print(f'  -{p}')
                 else:
-                    print(f'  -{p}={value}')
+                    if NOISY:
+                        print(f'  -{p}={value}')
                     pv[p] = value
             else:
                 args += ['-' + p]
@@ -171,24 +181,26 @@ def run_knn_benchmark(checkout, values):
 
         if quantize_bits == 4 and do_quantize_compress:
           args += ['-quantizeCompress']
-          print('  -quantizeCompress')
+          if NOISY:
+              print('  -quantizeCompress')
           
         args += [a for (k, v) in pv.items() for a in ('-' + k, str(v)) if a]
 
         this_cmd = cmd + args + [
             '-dim', str(dim),
             '-docs', doc_vectors,
-            '-reindex',
+            #'-reindex',
             '-search-and-stats', query_vectors,
             '-numIndexThreads', '8',
             #'-metric', 'mip',
             # '-parentJoin', parentJoin_meta_file,
             # '-numMergeThread', '8', '-numMergeWorker', '8',
-            '-forceMerge',
+            #'-forceMerge',
             #'-stats',
-            #'-quiet'
+            '-quiet'
         ]
-        print(f'  cmd: {this_cmd}')
+        if NOISY:
+            print(f'  cmd: {this_cmd}')
         job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
         re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)
         summary = None
@@ -196,7 +208,8 @@ def run_knn_benchmark(checkout, values):
             line = job.stdout.readline()
             if line == '':
                 break
-            sys.stdout.write(line)
+            if NOISY:
+                sys.stdout.write(line)
             m = re_summary.match(line)
             if m is not None:
                 summary = m.group(1)
@@ -209,11 +222,13 @@ def run_knn_benchmark(checkout, values):
         if DO_PROFILING:
           benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
 
-    print('\nResults:')
+    if NOISY:
+        print('\nResults:')
 
     # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
     # turn filterType/selectivity back on for all runs
-    skip_headers = {'selectivity', 'filterType', 'visited'}
+    #skip_headers = {'selectivity', 'filterType', 'visited'}
+    skip_headers = {'selectivity', 'filterType'}
 
     if '-forceMerge' not in this_cmd:
         skip_headers.add('force merge s')
@@ -221,6 +236,7 @@ def run_knn_benchmark(checkout, values):
     print_fixed_width(all_results, skip_headers)
 
 def print_fixed_width(all_results, columns_to_skip):
+    #header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\treentries\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
     header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":

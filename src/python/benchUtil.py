@@ -46,10 +46,10 @@ try:
 except:
   PERF_EXE = None
 
-if PERF_EXE is None:
-  print(f'no perf executable; will not collect aggregate CPU profiling data')
-else:
-  print(f'perf executable is {PERF_EXE}; will collect aggregate CPU profiling data')
+# if PERF_EXE is None:
+#   print(f'no perf executable; will not collect aggregate CPU profiling data')
+# else:
+#   print(f'perf executable is {PERF_EXE}; will collect aggregate CPU profiling data')
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
@@ -1752,7 +1752,6 @@ def getClassPath(checkout):
   for f in os.listdir(lib):
     if f.endswith('.jar'):
       cp.append(os.path.join(lib, f))
-
   # TODO: reconcile this!  one or the other?
   cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))
   cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))

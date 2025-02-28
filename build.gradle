@@ -16,9 +16,9 @@ configure(rootProject) {
 external.lucene.repo=$parentDir
 lucene.version=11.0.0
 """, "UTF-8")
-                logger.log(LogLevel.WARN, "\nIMPORTANT. This is the first time you ran the build. " +
-                        "I wrote some sane defaults (for this machine) to 'gradle.properties', " +
-                        "they will be picked up on consecutive gradle invocations (not this one).\n\n")
+                throw new GradleException("IMPORTANT. This is the first time you ran the build. " +
+                        "I wrote some sane defaults (for this machine) to 'gradle.properties'. " +
+                        "Rerun the command to apply the properties.")
             }
         }
     }

@@ -56,7 +56,7 @@ class RollingTimeWindow:
   def __init__(self, windowTime):
     self.window = []
     self.windowTime = windowTime
-    self.pruned = False;
+    self.pruned = False
     
   def add(self, t, value):
     self.window.append((t, value))

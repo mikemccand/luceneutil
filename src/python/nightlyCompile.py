@@ -73,7 +73,7 @@ def main():
     os.chdir(constants.BENCH_BASE_DIR)
     for _ in range(30):
       try:
-        runCommand('hg pull -u > hgupdate.log');
+        runCommand('hg pull -u > hgupdate.log')
       except RuntimeError:
         message('  retry...')
         time.sleep(60.0)

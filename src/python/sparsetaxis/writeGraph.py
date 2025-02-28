@@ -386,7 +386,7 @@ def main():
                             msecToQPS(getFastest(sparseSortedSearchStats, 2)),
                             msecToQPS(getFastest(nonSparseSearchStats, 4)),
                             msecToQPS(getFastest(sparseSearchStats, 4)),
-                            msecToQPS(getFastest(sparseSortedSearchStats, 4))));
+                            msecToQPS(getFastest(sparseSortedSearchStats, 4))))
       searchBQQPSData.append((m.groups(),
                               msecToQPS(getFastest(nonSparseSearchStats, 6)),
                               msecToQPS(getFastest(sparseSearchStats, 6)),

@@ -18,7 +18,6 @@ indent-width = 2
 ignore = [
   # These rules are disabled because they have violations, we should fix those!
   "E402",    # Module level import not at top of file
-  "E703",    # Unnecessary semicolon
   "E701",    # Multiple statements on one line (colon)
   "E711",    # Comparison to None should be "is None"
   "E722",    # Bare except

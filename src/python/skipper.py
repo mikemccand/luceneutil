@@ -60,7 +60,7 @@ class SkipTower:
       if VERBOSE:
         print('  nextTower skipPos=%s nextLastDocID=%d' % (nextTower.writePointer, nextTower.lastDocID))
       delta = nextTower.writePointer - self.writePointer
-      assert delta > 0;
+      assert delta > 0
       b.writeVLong(delta)
       delta = nextTower.lastDocID - self.lastDocID
       assert delta > 0

@@ -1086,7 +1086,7 @@ class RunAlgs:
       return self.antCompile(competitor)
     try:
       if competitor.checkout not in self.compiledCheckouts:
-        self.compiledCheckouts.add(competitor.checkout);
+        self.compiledCheckouts.add(competitor.checkout)
         # for core we build a JAR in order to benefit from the MR JAR stuff
         os.chdir(checkoutPath)
         for module in ['core']:
@@ -1120,7 +1120,7 @@ class RunAlgs:
     checkoutPath = checkoutToPath(competitor.checkout)
     try:
       if competitor.checkout not in self.compiledCheckouts:
-        self.compiledCheckouts.add(competitor.checkout);
+        self.compiledCheckouts.add(competitor.checkout)
         # for core we build a JAR in order to benefit from the MR JAR stuff
         for module in ['core']:
           modulePath = '%s/lucene/%s' % (checkoutPath, module)

@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pygnuplot import gnuplot as Gnuplot
+try:
+  from pygnuplot import gnuplot as Gnuplot
+except ImportError:
+  Gnuplot = None
 
 
 class IndexChart(object):

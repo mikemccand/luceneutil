@@ -174,6 +174,7 @@ def _run(results_dir):
 
   all_results = []
   all_summaries = []
+  graph_level_conn_p_values = []
   
   for quantize_bits in (4, 7, 32):
 

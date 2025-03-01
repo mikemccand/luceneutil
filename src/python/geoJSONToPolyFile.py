@@ -46,7 +46,7 @@ if False:
             for lon, lat in subPoly:
               l2.append((lat, lon))
       else:
-        assert false, 'got type %s' % shape['type']
+        assert False, 'got type %s' % shape['type']
 
   # Give names to the geo ids:
   with open('/lucenedata/geonames/allCountries.txt') as f:
@@ -109,7 +109,7 @@ elif False:
           for lon, lat in subPoly:
             l2.append((lat, lon))
     else:
-      assert false, 'got type %s' % shape['type']
+      assert False, 'got type %s' % shape['type']
 
   f = open('/x/tmp/countries.geojson.out.txt', 'w')
   for geoID, (name, polys) in geoIDs.items():

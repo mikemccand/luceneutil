@@ -81,8 +81,9 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
           t = responseTimes[-idx-1]
 
         points[(name, qps)] = t
-        if sla is not None and t <= sla:
-          passesSLA.add(name)
+        # TODO: this SLA code is not to be found
+        # if sla is not None and t <= sla:
+        #   passesSLA.add(name)
 
   qpsList = list(allQPS)
   qpsList.sort()
@@ -151,7 +152,7 @@ if __name__ == '__main__':
   logsDir = sys.argv[1]
   warmupSec = float(sys.argv[2])
   reportDir = sys.argv[3]
-  for idx in xrange(len(logPoints)):
+  for idx in range(len(logPoints)):
     graph(idx, logsDir, warmupSec, sys.argv[4:], '%s/load%spct.html' % (reportDir, logPoints[idx][0]))
   graph('max', logsDir, warmupSec, sys.argv[4:], '%s/loadmax.html' % reportDir)
   

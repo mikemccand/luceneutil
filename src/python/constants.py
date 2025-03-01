@@ -18,7 +18,7 @@
 import multiprocessing
 import os
 
-from localconstants import *
+from localconstants import BASE_DIR
 
 
 # NOTE: you must have a localconstants.py that, minimally, defines
@@ -114,7 +114,7 @@ if 'JAVAC_EXE' not in globals():
 if 'JAVA_COMMAND' not in globals():
   JAVA_COMMAND = '%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC' % JAVA_EXE
 else:
-  print('use java command %s' % JAVA_COMMAND)
+  print('use java command %s' % JAVA_COMMAND) # pyright: ignore[reportUndefinedVariable] # TODO: fix how variables are managed here
 
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1
@@ -132,7 +132,7 @@ SORT_REPORT_BY = 'pctchange'
 #SORT_REPORT_BY = 'query'
 
 if 'ANALYZER' in locals():
-  raise RuntimeException('ANALYZER should now be specified per-index and per-competitor')
+  raise RuntimeError('ANALYZER should now be specified per-index and per-competitor')
 #DEFAULTS
 
 POSTINGS_FORMAT_DEFAULT='Lucene101'
@@ -184,4 +184,4 @@ PROCESSOR_COUNT = 12
 BLUNDERS_AUTH_UPLOAD_PASSWORD = None
 
 # import again in case you want to override any of the vars set above
-from localconstants import *
+from localconstants import *  # noqa: F403 TODO: rethink how we do this to be more type-safe

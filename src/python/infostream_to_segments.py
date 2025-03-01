@@ -230,6 +230,8 @@ class Segment:
     # get to ~9 ish
     do_del_print = {}
     last_del_index = None
+    last_del_print = None
+    last_del_print_index = None
     for i, (ts, event, line_number) in enumerate(self.events):
       if event.startswith('del '):
         last_del_index = i
@@ -443,6 +445,9 @@ def main():
   next_line_is_flush_by_ram = False
   ram_buffer_mb = None
   push_back_line = None
+
+  in_full_flush = False
+  merge_commit_merges = None
   
   with open(infostream_log, 'r') as f:
     while True:

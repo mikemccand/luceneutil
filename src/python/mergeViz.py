@@ -103,7 +103,7 @@ def main():
         print('FILL gap=%s' % gap)
         delta = (t-lastT)/(gap*5.0)
         t0 = lastT
-        for _ in xrange(gap*5):
+        for _ in range(gap*5):
           t0 += delta
           print(' fake t %s' % (t0-minT))
           img, mergeToColor = draw(t0, segs, mergeToColor, newestSeg, totMergeMB)
@@ -142,7 +142,7 @@ def main():
     if LIMIT is not None and upto >= LIMIT:
       break
 
-  for x in xrange(FPS*5):
+  for x in range(FPS*5):
     t += 0.2
     img, mergeToColor = draw(t, segs, mergeToColor, newestSeg, totMergeMB)
     img.save('%s/%08d.png' % (TMP_DIR, upto))
@@ -253,6 +253,7 @@ def parse(fileName):
   f = open(fileName, 'rb')
   segs = None
   segsToFullMB = {}
+  t = None
   
   for l in f.readlines():
     if l == '':

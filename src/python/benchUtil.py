@@ -117,7 +117,7 @@ def colorFormat(value, form, color):
   elif form == 'jira':
     return '{{color:{}}}{}{{color}}'.format(color, value)
   else:
-    raise RuntimeException("unknown format {}".format(form))
+    raise RuntimeError("unknown format {}".format(form))
 
 def getArg(argName, default, hasArg=True):
   try:
@@ -820,13 +820,12 @@ def agg(iters, cat, name, verifyCounts):
 
 def sum_hit_count(hc1, hc2):
   lower_bound = False
-  _type = basestring if PYTHON_MAJOR_VER < 3 else str
-  if isinstance(hc1, _type) and hc1.endswith('+'):
+  if isinstance(hc1, str) and hc1.endswith('+'):
     lower_bound = True
     hc1 = int(hc1[:-1])
   else:
     hc1 = int(hc1)
-  if isinstance(hc2, _type) and hc2.endswith('+'):
+  if isinstance(hc2, str) and hc2.endswith('+'):
     lower_bound = True
     hc2 = int(hc2[:-1])
   else:
@@ -1678,22 +1677,14 @@ def getAntClassPath(checkout):
   cp.append('%s/lucene/build/misc/classes/java' % path)
   cp.append('%s/lucene/build/facet/classes/java' % path)
   cp.append('/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar')
-  if True or version == '4.0':
-    cp.append('%s/lucene/build/analysis/common/classes/java' % path)
-    cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
-    cp.append('%s/lucene/build/queryparser/classes/java' % path)
-    cp.append('%s/lucene/build/grouping/classes/java' % path)
-    cp.append('%s/lucene/build/suggest/classes/java' % path)
-    cp.append('%s/lucene/build/highlighter/classes/java' % path)
-    cp.append('%s/lucene/build/codecs/classes/java' % path)
-    cp.append('%s/lucene/build/queries/classes/java' % path)
-    self.addJars(cp, '%s/lucene/facet/lib' % path)
-  elif version == '3.x':
-    cp.append('%s/lucene/build/contrib/analyzers/common/classes/java' % path)
-    cp.append('%s/lucene/build/contrib/spellchecker/classes/java' % path)
-  else:
-    cp.append('%s/build/contrib/analyzers/common/classes/java' % path)
-    cp.append('%s/build/contrib/spellchecker/classes/java' % path)
+  cp.append('%s/lucene/build/analysis/common/classes/java' % path)
+  cp.append('%s/lucene/build/analysis/icu/classes/java' % path)
+  cp.append('%s/lucene/build/queryparser/classes/java' % path)
+  cp.append('%s/lucene/build/grouping/classes/java' % path)
+  cp.append('%s/lucene/build/suggest/classes/java' % path)
+  cp.append('%s/lucene/build/highlighter/classes/java' % path)
+  cp.append('%s/lucene/build/codecs/classes/java' % path)
+  cp.append('%s/lucene/build/queries/classes/java' % path)
 
   # so perf.* is found:
   lib = os.path.join(checkoutToUtilPath(checkout), "lib")

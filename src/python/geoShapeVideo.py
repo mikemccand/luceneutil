@@ -100,6 +100,7 @@ print('w=%d, h=%d, img=%s' % (w, h, justMap))
 draw = ImageDraw.Draw(justMap)
 
 lastLon = None
+lastLat = None
 
 lons = []
 lats = []

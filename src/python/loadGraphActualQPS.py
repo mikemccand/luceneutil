@@ -172,7 +172,7 @@ if __name__ == '__main__':
   logsDir = sys.argv[1]
   warmupSec = float(sys.argv[2])
   reportDir = sys.argv[3]
-  for idx in xrange(len(logPoints)):
+  for idx in range(len(logPoints)):
     graph(idx, logsDir, warmupSec, sys.argv[4:], '%s/load%spct.html' % (reportDir, logPoints[idx][0]))
   graph('max', logsDir, warmupSec, sys.argv[4:], '%s/loadmax.html' % reportDir)
   

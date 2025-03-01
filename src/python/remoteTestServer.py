@@ -164,7 +164,7 @@ class Parent:
     print('REMOTE SERVER STARTED')
     #self.remotePrint('python version is %s' % sys.version)
 
-    for childID in xrange(processCount):
+    for childID in range(processCount):
       #self.remotePrint('start child %d' % childID)
       startedEvent = threading.Event()
       child = Child(childID, self, startedEvent)

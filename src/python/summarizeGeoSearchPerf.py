@@ -18,7 +18,8 @@ for precStep in 4, 8, 16:
     mb = float(os.popen('du -s /l/scratch/indices/geonames%s' % precStep).readline().split()[0])/1024.
     print('   %5s   %6.1f MB   %10.1f sec' % (precStep, mb, lastSec))
 
-  print
+  print()
+  totTerms = 0
   with open('search.geo.%dprecstep.txt' % precStep) as f:
     field = None
     for line in f.readlines():

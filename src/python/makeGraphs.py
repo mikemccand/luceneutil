@@ -17,7 +17,7 @@ def main(maxQPS = None):
       print('ERROR: please move existing reportsDir (%s) out of the way' % reportsDir)
       sys.exit(1)
 
-      print('getInterpValue: list=%s interpDate=%s' % (valueList, interpDate))
+      # print('getInterpValue: list=%s interpDate=%s' % (valueList, interpDate))
 
     os.makedirs(reportsDir)
 
@@ -59,14 +59,14 @@ def main(maxQPS = None):
   if len(names) == 0:
     raise RuntimeError('no logs found @ %s' % logsDir)
 
-  if False:
-    for name, l in byName.items():
-      l.sort()
-      for idx, (qpsS, qps, dirName) in enumerate(l):
-        if dirName.find('.pct') == -1:
-          os.rename('%s/%s' % (logsDir, dirName),
-                    '%s/%s.pct%s' % (logsDir, dirName, pcts[idx]))
-      print('%s -> %s' % (name, l))
+  # if False:
+  #   for name, l in byName.items():
+  #     l.sort()
+  #     for idx, (qpsS, qps, dirName) in enumerate(l):
+  #       if dirName.find('.pct') == -1:
+  #         os.rename('%s/%s' % (logsDir, dirName),
+  #                   '%s/%s.pct%s' % (logsDir, dirName, pcts[idx]))
+  #     print('%s -> %s' % (name, l))
 
   if maxQPS is None:
     indexOut = open('%s/index.html' % reportsDir, 'wb')
@@ -153,7 +153,7 @@ def main(maxQPS = None):
 
     allPassesSLA = None
 
-    for idx in xrange(len(loadGraphActualQPS.logPoints)):
+    for idx in range(len(loadGraphActualQPS.logPoints)):
 
       print()
       print('Create pct graph @ %s%%' % loadGraphActualQPS.logPoints[idx][0])

@@ -440,7 +440,7 @@ def gatherTests(stats, rootDir):
   tests.sort(reverse=True)
   if False:
     print('Top slowest tests:')
-    for idx in xrange(20):
+    for idx in range(20):
       print('  %5.1f sec: %s' % tests[idx])
   return cp, tests
 

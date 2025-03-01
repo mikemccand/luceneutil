@@ -43,7 +43,7 @@ def read_docs(file_name, with_random_label):
                     # EOF -- ok
                     break
                 elif len(b) != size:
-                    raise RuntimeErrro(f'premature eof in {file_name}')
+                    raise RuntimeError(f'premature eof in {file_name}')
                 else:
                     # super duper
                     docs_left, chunk_size = struct.unpack(fmt, b)

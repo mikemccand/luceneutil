@@ -26,6 +26,7 @@ def parse_timestamp(s):
   return datetime.datetime.fromisoformat(s)
 
 # TODO
+#   - why do del counts sometimes go backwards?  "now checkpoint" is not guaranteed to be monotonic?
 #   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?
 #   - support addIndexes source too
 #   - what to do with the RAM MB -> flushed size MB ratio?  it'd be nice to measure "ram efficiency" somehow of newly flushed segments..
@@ -443,6 +444,8 @@ def main():
   next_line_is_flush_by_ram = False
   ram_buffer_mb = None
   push_back_line = None
+
+  do_strip_log_prefix = None
   
   with open(infostream_log, 'r') as f:
     while True:
@@ -451,12 +454,22 @@ def main():
         push_back_line = None
       else:
         line = f.readline()
+        line_number += 1
       if line == '':
         break
       line = line.strip()
       # print(f'{line}')
-      line_number += 1
 
+      if do_strip_log_prefix is None:
+        do_strip_log_prefix = line.find('LoggingInfoStream:') != -1
+
+      orig_line = line
+      
+      if do_strip_log_prefix:
+        spot = line.find('LoggingInfoStream:')
+        line = line[spot+19:]
+        print(f'now: {line}')
+        
       try:
 
         if next_line_is_flush_by_ram:
@@ -491,23 +504,30 @@ def main():
           
           if first_checkpoint:
             # seed the initial segments in the index
+            print('do first')
             for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
+              print(f'do first {segment_name}')
               by_segment_name[segment_name] = segment
+              segment.add_event(timestamp, 'light', line_number)
+              segment.del_count_reclaimed = 0
             global_start_time = timestamp
             # print(f'add initial segment {segment_name} {max_doc=} {del_count=}')
           else:
             for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = by_segment_name[segment_name]
               if del_count != segment.del_count:
-                assert segment.del_count is None or del_count > segment.del_count
-                # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
-                if segment.del_count is None:
-                  del_inc = del_count
+                # assert segment.del_count is None or del_count > segment.del_count, f'{segment_name=} {segment.del_count=} {del_count=} {line_number=}\n{line=}'
+                if segment.del_count is not None and segment.del_count > del_count:
+                  print(f'WARNING: del_count went backwards? {segment_name=} {segment.del_count=} {del_count=} {line_number=}\n{line=}')
                 else:
-                  del_inc = del_count - segment.del_count
-                segment.add_event(timestamp, f'del +{del_inc:,} gen {del_gen}', line_number)
-                segment.del_count = del_count
+                  # print(f'update {segment_name} del_count from {segment.del_count} to {del_count}')
+                  if segment.del_count is None:
+                    del_inc = del_count
+                  else:
+                    del_inc = del_count - segment.del_count
+                  segment.add_event(timestamp, f'del +{del_inc:,} gen {del_gen}', line_number)
+                  segment.del_count = del_count
 
           checkpoints.append((timestamp, thread_name) + tuple(seg_details))
           # print(f'{seg_checkpoint=}')
@@ -792,6 +812,7 @@ def main():
           counter = 1
           while True:
             line = f.readline()
+            line_number += 1
             if line == '':
               push_back_line = line
               break
@@ -927,7 +948,7 @@ def main():
       except KeyboardInterrupt:
         raise
       except:
-        print(f'unhandled exception on line {line_number} of {infostream_log}: {line}')
+        print(f'unhandled exception on line {line_number} of {infostream_log}: {orig_line}')
         raise
 
   for segment in Segment.all_segments:

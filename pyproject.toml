@@ -52,9 +52,3 @@ ignore = [
   "W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001",
   "Q002", "Q003", "COM812", "COM819", "ISC001", "ISC002", "E501",
 ]
-
-[tool.ruff.lint.per-file-ignores]
-# Constants are handled in a type-unsafe wacky way... maybe use env vars?
-"src/python/constants.py" = [
-#  "F405"
-]

@@ -31,6 +31,7 @@ import intervaltree
 import graphviz
 
 # TODO
+#   - tune to more harmonius color scheme
 #   - from "last commit size" also break out how much was flushed vs merged segments
 #   - get highlight working for the flush/moc bands, and move them under all other segments (no alpha)
 #   - IW should differentiate "done waithing for merge during commit" timeout vs all requested merges finished
@@ -142,15 +143,18 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
       continue
     all_times.append((segment.start_time, 'segstart', segment))
 
+    segment.del_reclaims_per_sec = None
+
     for timestamp, event, line_number in segment.events:
       if event == 'light':
         all_times.append((timestamp, 'seglight', segment))
         if segment.del_count_reclaimed is not None:
           segment.del_reclaims_per_sec = segment.del_count_reclaimed / (timestamp - segment.start_time).total_seconds()
+        elif type(segment.source) is tuple:
+          print(f'WARNING: merged segment {segment.name} has no del_count_reclaimed')
         break
     else:
-      # 9:59:44
-      print(f'WARNING: no seglight event for {segment.name}')
+      print(f'WARNING: no light event for {segment.source} segment {segment.name}; likely because they were still flushing when InfoStream ends: time from end is {(end_abs_time-segment.start_time).total_seconds():.1f} s')
 
     if segment.end_time is None:
       end_time = end_abs_time
@@ -264,7 +268,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         if what == 'segstart':
           merge_mbs += mbs
           merge_dps += dps
-          del_reclaims_per_sec += segment.del_reclaims_per_sec
+          if segment.del_reclaims_per_sec is not None:
+            del_reclaims_per_sec += segment.del_reclaims_per_sec
           merge_thread_count += 1
           seg_name_to_size[segment.name] = segment.size_mb
         elif what == 'segend':
@@ -274,7 +279,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           merge_thread_count -= 1
           merge_mbs -= mbs
           merge_dps -= dps
-          del_reclaims_per_sec -= segment.del_reclaims_per_sec
+          if segment.del_reclaims_per_sec is not None:
+            del_reclaims_per_sec -= segment.del_reclaims_per_sec
 
       if cur_max_doc == 0:
         # sidestep delete-by-zero ha
@@ -821,28 +827,6 @@ def main():
   w(f'    svg.setAttribute("width", {whole_width}*zoom);')
   w(f'    svg.setAttribute("height", {whole_height}*zoom);')
   w('  });')
-  w('''
-  // parse possible scroll x/y point (bookmarked exact location)
-  var hash = window.location.hash;
-
-  if (hash != null && hash.startsWith("#pos=")) {
-    var arr = hash.substring(5).split(',');
-    var xpos = parseInt(arr[0]);
-    var ypos = parseInt(arr[1]);
-  
-    // first, scroll so the requested pixel is center of window:
-    mydiv.scrollLeft = Math.floor(xpos - mydiv.offsetWidth/2);
-
-    // second, simulate mouse move over that position:
-    var evt = {};
-    evt.is_from_url_anchor = true;
-    evt.clientX = xpos - mydiv.scrollLeft;
-    evt.clientY = ypos;
-    evt.ctrlKey = false;
-    mysvg.onmousemove(evt);
-   }
-''')
-  
   w('</script>')
   w('''
 <script>
@@ -887,24 +871,6 @@ def main():
       mysvg.appendChild(rect3);
 
       if (do_seg_details) {
-        /*
-        var text = document.createElementNS(svgns, "text");
-
-        text.setAttribute("font-family", "Verdana");
-        text.setAttribute("font-size", "32");
-        text.setAttribute("font-weight", "bold");
-        text.setAttribute("font-color", "lime");
-
-        highlighting.set(seg_name + ":t", text);
-        text.selectable = false;
-        text.style.fill = "lime";
-        text.textContent = seg_details_map.get(seg_name);
-        text.setAttribute("x", transformed_point.x);
-        text.setAttribute("y", transformed_point.y);
-        text.setAttribute("width", "200");
-        text.setAttribute("height", "200");
-        mysvg.appendChild(text);
-        */
         if (do_seg_super_verbose) {
           top_details.innerHTML = "<pre>" + seg_details3_map.get(seg_name) + "</pre>";
         } else {
@@ -1062,6 +1028,27 @@ def main():
       highlight(seg_name, "orange", false, false, transformed_point);
     }
   };
+
+  // parse possible scroll x/y point (bookmarked exact location)
+  var hash = window.location.hash;
+
+  if (hash != null && hash.startsWith("#pos=")) {
+    var arr = hash.substring(5).split(',');
+    var xpos = parseInt(arr[0]);
+    var ypos = parseInt(arr[1]);
+  
+    // first, scroll so the requested pixel is center of window:
+    mydiv.scrollLeft = Math.floor(xpos - mydiv.offsetWidth/2);
+
+    // second, simulate mouse move over that position:
+    var evt = {};
+    evt.is_from_url_anchor = true;
+    evt.clientX = xpos - mydiv.scrollLeft;
+    evt.clientY = ypos;
+    evt.ctrlKey = false;
+    mysvg.onmousemove(evt);
+   }
+  
 </script>''')
 
   w('</div>')

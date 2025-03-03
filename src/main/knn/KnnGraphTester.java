@@ -966,7 +966,7 @@ public class KnnGraphTester {
     return null;
   }
 
-  record Result(TopDocs topDocs, int visitedCount, int reentryCount) {
+  record Result(TopDocs topDocs, long visitedCount, int reentryCount) {
   }
 
   private float checkResults(int[][] results, int[][] nn) {

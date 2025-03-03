@@ -84,7 +84,7 @@ PARAMS = {
     #'bp': ('false', 'true'),
     'topK': (50,100,),
     #'quantizeCompress': (True, False),
-    #'niter': (10,),
+    #'niter': (1,),
 }
 
 def advance(ix, values):
@@ -197,24 +197,28 @@ def run_knn_benchmark(checkout, values):
             # '-numMergeThread', '8', '-numMergeWorker', '8',
             #'-forceMerge',
             #'-stats',
-            '-quiet'
+            #'-quiet'
         ]
         if NOISY:
             print(f'  cmd: {this_cmd}')
+        else:
+            cmd += ['-quiet']
         job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
         re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)
         summary = None
+        lines = ''
         while True:
             line = job.stdout.readline()
             if line == '':
                 break
+            lines += line
             if NOISY:
                 sys.stdout.write(line)
             m = re_summary.match(line)
             if m is not None:
                 summary = m.group(1)
         if summary is None:
-            raise RuntimeError('could not find summary line in output!')
+            raise RuntimeError('could not find summary line in output! ' + lines)
         job.wait()
         if job.returncode != 0:
             raise RuntimeError(f'command failed with exit {job.returncode}')
@@ -236,8 +240,8 @@ def run_knn_benchmark(checkout, values):
     print_fixed_width(all_results, skip_headers)
 
 def print_fixed_width(all_results, columns_to_skip):
-    #header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\treentries\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
+    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\treentries\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
+    #header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')

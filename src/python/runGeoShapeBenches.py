@@ -140,6 +140,7 @@ def execute(results, tup, didReindexParam, indexKey, log, basedir, dev):
   maxDoc = None
   indexTimeSec = 0.0
   forceMergeTimeSec = 0.0
+  bestMHPS = 0.0
   while True:
     line = p.stdout.readline().decode('utf-8')
     if len(line) == 0:

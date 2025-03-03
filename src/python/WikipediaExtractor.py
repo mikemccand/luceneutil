@@ -491,7 +491,7 @@ def compact(text):
 def handle_unicode(entity):
     numeric_code = int(entity[2:-1])
     if numeric_code >= 0x10000: return ''
-    return unichr(numeric_code)
+    return chr(numeric_code)
 
 #------------------------------------------------------------------------------
 

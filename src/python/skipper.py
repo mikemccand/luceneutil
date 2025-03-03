@@ -93,7 +93,7 @@ class SkipWriter:
     endTower = SkipTower(numDocs, NO_MORE_DOCS, numPostingsBytes,
                          self.levelLastTowers[0])
 
-    for level in xrange(len(self.levelSkipCounts)):
+    for level in range(len(self.levelSkipCounts)):
       self.levelLastTowers[level].nextTowers.append(endTower)
       self.levelLastTowers[level] = endTower
 
@@ -248,7 +248,7 @@ class SkipReader:
     self.nextTowerDocCounts = []
     self.fixedDocGaps = []
     docGap = self.fixedDocGap
-    for i in xrange(self.maxNumLevels):
+    for i in range(self.maxNumLevels):
       self.nextTowerLastDocIDs.append(0)
       self.nextTowerPositions.append(0)
       self.fixedDocGaps.append(docGap)
@@ -541,7 +541,7 @@ class FixedBlockVIntDeltaCodec:
       print('    numBytes=%d' % numBytes)
     self.pending = []
     posStart = b.pos
-    for _ in xrange(self.blockSize):
+    for _ in range(self.blockSize):
       delta = b.readVInt()
       assert delta > 0
       self.pending.append(delta)
@@ -561,7 +561,7 @@ class FixedBlockVIntDeltaCodec:
       if VERBOSE:
         print('    delta=%d' % i)
       self.buffer.writeVInt(i)
-    for i in xrange(len(self.pending), self.blockSize):
+    for i in range(len(self.pending), self.blockSize):
       # not used:
       self.buffer.writeVInt(1)
     self.pending = []
@@ -727,7 +727,7 @@ def main():
     reader = ByteBufferReader(postingsBytes)
     skipBytesReader = ByteBufferReader(skipBytes)
   
-  for iter in xrange(100):
+  for iter in range(100):
     if VERBOSE:
       print
       print('ITER %s' % iter)

@@ -18,10 +18,7 @@
 import argparse
 import os
 import sys
-try:
-  from urllib import urlretrieve  # python2
-except ImportError:
-  from urllib.request import urlretrieve
+from urllib.request import urlretrieve
 import shutil
 import time
 
@@ -123,7 +120,7 @@ class Downloader:
   @staticmethod
   def reporthook(count, block_size, total_size):
     current_time = time.time()
-    current_size = long(count * block_size) if PYTHON_MAJOR_VER < 3 else int(count * block_size)
+    current_size = int(count * block_size)
     last_time = Downloader.times[Downloader.index]
     last_size = Downloader.sizes[Downloader.index]
     delta_size = current_size - last_size

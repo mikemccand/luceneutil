@@ -89,6 +89,7 @@ def main():
   minTime = None
   maxTime = None
   startFlushCount = None
+  startFlushTime = None
   getReaderTimes = []
   commitTimes = []
   runningCommits = {}

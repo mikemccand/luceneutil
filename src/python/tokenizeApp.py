@@ -44,8 +44,8 @@ def application(environ, startResponse):
 
   if text is not None:
 
-    l = terms.split()
-      
+    l = terms.split()  # noqa: F821 # pyright: ignore[reportUndefinedVariable] # TODO: where is terms??? does this file work?
+
     p = subprocess.Popen(['java', '-cp', '%s:%s' % (localconstants.STAGE_TOKENIZER_PATH, localconstants.LUCENE_JAR), 'StageTokenizer'] + l, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result, err = p.communicate()
     if p.returncode != 0:
@@ -83,6 +83,6 @@ def main():
 
 if __name__ == '__main__':
   main()
-  
-  
-  
+
+
+

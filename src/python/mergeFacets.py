@@ -42,7 +42,7 @@ class FacetShard:
 def randomString(r):
   len = r.randint(1, 10)
   l = []
-  for i in xrange(len):
+  for i in range(len):
     l.append(chr(97 + r.randint(0, 25)))
   return ''.join(l)
 
@@ -76,7 +76,7 @@ def merge(shards, topN):
 
     if VERBOSE:
       print('    query shards')
-    for i in xrange(len(shards)):
+    for i in range(len(shards)):
       exhausted, shardValues, lowestCount = shardHits[i]
       if specificValues is not None:
         shardMissingValues = []
@@ -271,7 +271,7 @@ def test(staticSeedIn, seedIn):
     allResults.sort(cmpByCountThenLabel)
 
     #for topN in xrange(1, numFacetValues+3):
-    for topN in xrange(1, 20):
+    for topN in range(1, 20):
       # nocommit
       #topN = r.randint(1, 1000)
       #topN = 2
@@ -300,10 +300,13 @@ def test(staticSeedIn, seedIn):
 
     if cycles > 0 and cycles % 10 == 0:
       print('  iterCounts:')
-      for topN in xrange(1, numFacetValues+3):
+      for topN in range(1, numFacetValues+3):
         print('    %d: %.1f' % (topN, float(iterCounts[topN])/cycles))
 
     cycles += 1
+
+def cmp(a, b):
+    return (a > b) - (a < b)
 
 def cmpByCountThenLabel(a, b):
   c = cmp(b[1], a[1])
@@ -372,7 +375,7 @@ if __name__ == '__main__':
   VERBOSE = '-verbose' in sys.argv
   staticSeed = seed = None
   print('argv %s' % sys.argv)
-  for i in xrange(len(sys.argv)):
+  for i in range(len(sys.argv)):
     if sys.argv[i] == '-seed':
       staticSeed, seed = sys.argv[1+1].split(':')
       seed = int(seed)

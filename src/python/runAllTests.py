@@ -173,6 +173,10 @@ def aggTests(workQ, tests):
   if len(tests0) > 0:
     workQ.add(Job(lastWD, tests0, pendingCost, CLASSPATH))
 
+
+def cmp(a, b):
+    return (a > b) - (a < b)
+
 class Job:
   def __init__(self, wd, tests, cost, classpath):
     self.wd = wd
@@ -536,7 +540,7 @@ for resource, threadCount in NUM_THREAD:
 threads = []
 t0 = time.time()
 for resourceID, (resource, threadCount) in enumerate(NUM_THREAD):
-  for threadID in xrange(threadCount):
+  for threadID in range(threadCount):
     threads.append(RunThread(resource, resourceID, threadID, workQ))
   # Let beast kick off jobs/threads first
   time.sleep(0.2)

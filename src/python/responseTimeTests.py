@@ -55,6 +55,47 @@ REMOTE_CLIENT = 'sendTasks.py'
 
 SERVER_PORT = 7777
 
+LUCENE_HOME = '/please/configure/this'
+TASKS_FILE = '/please/configure/this'
+LINE_DOCS_FILE = '/please/configure/this'
+DIRECT_INDEX_PATH = '/please/configure/this'
+LUCENE41_INDEX_PATH = '/please/configure/this'
+ZING_JVM = '/please/configure/this'
+ORACLE_JVM = '/please/configure/this'
+ZV_ROBOT_JAR = '/please/configure/this'
+JHICCUP_PATH = '/please/configure/this'
+ANALYZER = 'please.configure.This'
+HIGHLIGHT_IMPL = 'please.configure.This'
+COMMIT_POINT = 'please.configure.this'
+SERVER_HOST = 'please.configure.this'
+DO_EMAIL = False
+DO_STOP_START_ZST = False
+DO_NRT = False
+DO_ZV_ROBOT = False
+DO_AUTO_QPS = False
+USE_SMTP = False
+VERBOSE_INDEXING = False
+REOPEN_EVERY_SEC = False
+SEARCH_THREAD_COUNT = 10
+DOCS_PER_SEC_PER_THREAD = 10
+WARMUP_SEC = 10
+TOP_N = 10
+RUN_TIME_SEC = 60
+FRAGGER_ALLOC_MB_PER_SEC = 10
+AUTO_QPS_START = 10
+AUTO_QPS_PERCENT_POINTS = 5
+QPS_START = 10
+QPS_END = 20
+QPS_INC = 1
+TASKS_PER_CAT = 10
+ENABLE_THP = False
+MAX_HEAP_GB = None
+FRAGGER_JAR = None
+CMS_NEW_GEN_SIZE = None
+CLIENT_HOST = None
+CLIENT_USER = 'somebody'
+JOBS = []
+
 reSVNRev = re.compile(r'revision (.*?)\.')
 
 class Tee(object):
@@ -81,7 +122,7 @@ def captureEnv(logsDir):
   if svnRev.endswith('M'):
     if system('svn diff %s > %s/lucene.diffs 2>&1' % (LUCENE_HOME, logsDir)):
       raise RuntimeError('svn diff failed')
-    os.chmod('%s/lucene.diffs' % logsDir, o0444)
+    os.chmod('%s/lucene.diffs' % logsDir, 0o444)
 
   luceneUtilDir = os.path.abspath(os.path.split(sys.argv[0])[0])
 
@@ -90,12 +131,12 @@ def captureEnv(logsDir):
   if luceneUtilRev.find('+') != -1:
     if system('hg diff %s > %s/luceneutil.diffs 2>&1' % (luceneUtilDir, logsDir)):
       raise RuntimeError('hg diff failed')
-    os.chmod('%s/luceneutil.diffs' % logsDir, o0444)
+    os.chmod('%s/luceneutil.diffs' % logsDir, 0o444)
 
   for fileName in ('responseTimeTests.py', TASKS_FILE, configFile):
     shutil.copy('%s/%s' % (luceneUtilDir, fileName),
                 '%s/%s' % (logsDir, fileName))
-    os.chmod('%s/%s' % (logsDir, fileName), o0444)
+    os.chmod('%s/%s' % (logsDir, fileName), 0o444)
 
   for fileName in ('/sys/kernel/mm/transparent_hugepage/enabled',
                    '/sys/kernel/mm/redhat_transparent_hugepage/enabled'):
@@ -146,7 +187,7 @@ class TopThread(threading.Thread):
         # ps axuw | sed "1 d" | sort -n -r -k3 | head
 
         # Run top every 3 sec:
-        for _ in xrange(6):
+        for _ in range(6):
           if self.stop:
             break
           time.sleep(0.5)
@@ -665,7 +706,7 @@ def main():
         subject = 'Test SUCCESS'
       emailResult(open('%s/log.txt' % LOGS_DIR).read(), subject)
     logOut.close()
-    os.chmod('%s/log.txt' % LOGS_DIR, o0444)
+    os.chmod('%s/log.txt' % LOGS_DIR, 0o444)
     del teeStdout
     del teeStderr
     

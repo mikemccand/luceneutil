@@ -220,7 +220,7 @@ class Index(object):
     self.vectorEncoding = vectorEncoding
     self.mergeFactor = 10
     if SEGS_PER_LEVEL >= self.mergeFactor:
-      raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, mergeFactor))
+      raise RuntimeError('SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)' % (SEGS_PER_LEVEL, self.mergeFactor))
     self.useCMS = useCMS
     self.rearrange = rearrange
     self.hnswThreadsPerMerge = hnswThreadsPerMerge

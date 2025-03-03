@@ -20,7 +20,7 @@ import os
 import re
 import random
 
-from competition import *
+from competition import JAVA_COMMAND
 import benchUtil
 import common
 import constants
@@ -63,7 +63,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       if tasksFile is None:
         tasksFile = c.tasksFile
       elif tasksFile != c.tasksFile:
-        raise RuntimeError('inconsistent taskFile %s vs %s' % (taskFile, c.taskFile))
+        raise RuntimeError('inconsistent taskFile %s vs %s' % (tasksFile, c.tasksFile))
       if c.index not in seen:
         if not p:
           print()

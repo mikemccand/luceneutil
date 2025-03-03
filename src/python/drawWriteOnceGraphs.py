@@ -24,13 +24,13 @@ def main():
     shutil.rmtree(OUT_DIR)
   os.makedirs(OUT_DIR)
 
-  for i in xrange(1, len(arcs)+1):
+  for i in range(1, len(arcs)+1):
     _l = []
     w = _l.append
     w('digraph x {')
     w('  rankdir = LR;')
     seen = set()
-    for j in xrange(len(arcs)):
+    for j in range(len(arcs)):
       if j == i-1:
         color = 'red'
       elif j < i:

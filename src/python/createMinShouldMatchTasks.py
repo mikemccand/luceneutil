@@ -44,7 +44,7 @@ for key in keys:
   print('%s: %d terms' % (key, len(byCat[key])))
 
 if True:
-  for i in xrange(10000):
+  for i in range(10000):
     numTerms = random.choice((5, 10, 15, 20, 25))
     minShouldMatch = random.randint(2, numTerms)
     numHighFreqTerms = int(random.random()*numTerms)

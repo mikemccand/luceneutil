@@ -4,6 +4,7 @@ venv = ".venv"
 include = [ "src/python" ]
 # TODO: improve!
 # typeCheckingMode = "strict"
+reportUnnecessaryTypeIgnoreComment = "error"
 typeCheckingMode = "basic"
 reportArgumentType = "none"
 reportAssignmentType = "none"
@@ -22,7 +23,6 @@ reportOperatorIssue = "none"
 reportOptionalOperand = "none"
 reportOptionalSubscript = "none"
 reportRedeclaration = "none"
-reportUndefinedVariable = "none"
 
 [tool.ruff]
 line-length = 200
@@ -41,13 +41,10 @@ ignore = [
   "E722",    # Bare except
   "E731",    # Do not assign a "lambda" use a "def"
   "E741",    # Ambiguous variable name
-  "F403",    # star imports prevent detection of undefined names
-  "F405",    # Possibly undefined, or defined from star imports
   "F507",    # Wrong number of arguments to format string
   "F541",    # F-string without placeholders
   "F633",    # Use of '>>' is invalid with print function
   "F811",    # Redefinition of unused
-  "F821",    # Undefined name
   "F841",    # Local variable assigned but never used
 
   # These rules are always disabled: conflict with the formatter

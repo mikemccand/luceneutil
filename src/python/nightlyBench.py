@@ -50,7 +50,7 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
   * Index all of wikipedia ~ 1 KB docs w/ 512 MB ram buffer
 
   * Run NRT perf test on this index for 30 minutes (we only plot mean/stddev reopen time)
-  
+
   * Index all of wikipedia actual (~4 KB) docs w/ 512 MB ram buffer
 
   * Index all of wikipedia ~ 1 KB docs, flushing by specific doc count to get 5 segs per level
@@ -148,7 +148,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
     indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex('nightly', index, profilerCount=50,
                                                                    profilerStackSize=JFR_STACK_SIZES)
-                                                                   
+
     # indexTime = (now()-t0)
 
     newLogFileName = '%s/%s' % (runLogDir, logFile)
@@ -253,7 +253,7 @@ def validate_nightly_task_count(tasks_file, max_count):
     '''
 
     re_cat_and_task = re.compile('^([^:]+): (.*?)(?:#.*)?$')
-    
+
     by_cat = {}
     with open(tasks_file, 'r', encoding='utf-8') as f:
         for line in f.readlines():
@@ -295,7 +295,7 @@ def run():
         DO_RESET = True
         os.remove(regold_marker_file)
         print(f'saw regold marker file {regold_marker_file}; will regold results files')
-        
+
     validate_nightly_task_count(f'{constants.BENCH_BASE_DIR}/tasks/wikinightly.tasks', COUNTS_PER_CAT)
 
     if not DEBUG:
@@ -346,7 +346,7 @@ def run():
         print('luceneutil rev is %s' % luceneUtilRev)
 
         luceneRev = os.popen('git rev-parse HEAD').read().strip()
-        
+
     else:
         # nightly_strict.cmd has already git pull'd luceneutil & lucene
         os.chdir(constants.BENCH_BASE_DIR)
@@ -396,7 +396,7 @@ def run():
     # When intra-query concurrency is used we will not consistently return the same
     # estimated hit counts (I think?)
     verifyCounts = SEARCH_CONCURRENCY == 1
-    
+
     r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
 
     comp = competition.Competition(taskRepeatCount=TASK_REPEAT_COUNT,
@@ -439,7 +439,7 @@ def run():
                                            vectorFile=constants.VECTORS_DOCS_FILE,
                                            vectorDimension=constants.VECTORS_DIMENSIONS,
                                            vectorEncoding=constants.VECTORS_TYPE)
-                                           
+
     fastIndexMediumVectorsQuantized = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                                     analyzer='StandardAnalyzerNoStopWords',
                                                     postingsFormat='Lucene101',
@@ -457,7 +457,7 @@ def run():
                                                     vectorDimension=constants.VECTORS_DIMENSIONS,
                                                     vectorEncoding=constants.VECTORS_TYPE,
                                                     quantizeKNNGraph=True)
-                                           
+
     nrtIndexMedium = comp.newIndex(NIGHTLY_DIR, mediumSource,
                                    analyzer='StandardAnalyzerNoStopWords',
                                    postingsFormat='Lucene101',
@@ -582,7 +582,7 @@ def run():
           runNightlyKnn.run(runLogDir)
       finally:
           os.chdir('%s/%s' % (constants.BASE_DIR, NIGHTLY_DIR))
-        
+
     # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
     medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r,
                                                                                                               runLogDir,
@@ -604,7 +604,7 @@ def run():
         r, runLogDir, 'medium quantized vectors index (fast)', fastIndexMediumVectorsQuantized, 'fastIndexMediumDocsWithVectorsQuantized.log')
     message('medIndexVectorsAtClose %s' % atClose)
     shutil.rmtree(medQuantizedVectorsIndexPath)
-    
+
     # 3: build index for NRT test
     nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir,
                                                                                                         'nrt medium index',
@@ -673,7 +673,7 @@ def run():
       if vmstatProcess.poll() is None:
         raise RuntimeError('failed to kill vmstat child process?  pid={vmstatProcess.pid}')
       topProcess.stop()
-        
+
     else:
         resultsNow = ['%s/%s/modules/benchmark/%s.%s.x.%d' % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for
                       iter in range(20)]
@@ -1094,7 +1094,7 @@ def makeGraphs():
                 medQuantizedVectorsIndexTimeSec, medQuantizedVectorsBytesIndexed = tup[16:18]
             else:
                 medQuantizedVectorsIndexTimeSec, medQuantizedVectorsBytesIndexed = None, None
-               
+
             if len(tup) > 12:
                 medVectorsIndexTimeSec, medVectorsBytesIndexed = tup[12:14]
             else:
@@ -1206,7 +1206,7 @@ def makeGraphs():
                         # prior to this date these tasks were matching 0 docs, causing an fake 1000X slowdown!
                         # see https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8
                         continue
-                    
+
                     searchChartData[cat].append(
                         '%s,%.3f,%.3f' % (timeStampString, avgQPS * qpsMult, stdDevQPS * qpsMult))
 
@@ -1215,7 +1215,7 @@ def makeGraphs():
                   with open(fixed_index_size_file_name, 'rb') as f:
                       size_in_mb = pickle.load(f)
                   fixedIndexSizeChartData.append(f'{timeStampString},{size_in_mb/1024}')
-            
+
 
             label = 0
             for date, desc, fullDesc in KNOWN_CHANGES:
@@ -1908,12 +1908,12 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
                 if is_float[i] or is_int[i]:
                     row[i] = None
                 continue
-            
+
             if is_int[i]:
                 row[i] = int(row[i])
             elif is_float[i]:
                 row[i] = float(row[i])
-                
+
     # TODO: also include all known annotations!
     # TODO: when errorBars is true, the variance(s) is/are extra columns in the data, so the headers
     #       look incorrect now
@@ -1988,12 +1988,12 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
 
     w('    {%s}' % ', '.join(options))
 
-    if 0:
-        if errorBars:
-            w('    {errorBars: true, valueRange:[0,%.3f], sigma:1, title:"%s", ylabel:"%s", xlabel:"Date"}' % (
-            maxY * 1.25, title, yLabel))
-        else:
-            w('    {valueRange:[0,%.3f], title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY * 1.25, title, yLabel))
+    # if 0:
+    #     if errorBars:
+    #         w('    {errorBars: true, valueRange:[0,%.3f], sigma:1, title:"%s", ylabel:"%s", xlabel:"Date"}' % (
+    #         maxY * 1.25, title, yLabel))
+    #     else:
+    #         w('    {valueRange:[0,%.3f], title:"%s", ylabel:"%s", xlabel:"Date"}' % (maxY * 1.25, title, yLabel))
     w('  );')
     w('  g_%s.setAnnotations([' % id)
     descDedup = set()

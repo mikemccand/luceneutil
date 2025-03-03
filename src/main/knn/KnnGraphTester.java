@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -87,6 +88,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.OptimisticKnnVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
@@ -764,9 +766,9 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
       throws IOException {
-    TopDocs[] results = new TopDocs[numQueryVectors];
+    Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
-    long elapsed, totalCpuTimeMS, totalVisited = 0;
+    long elapsed, totalCpuTimeMS, totalVisited = 0, totalReentries = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding)) {
       long queryPathSizeInBytes = input.size();
@@ -814,8 +816,9 @@ public class KnnGraphTester {
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
-            totalVisited += results[i].totalHits.value();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
+            totalVisited += results[i].visitedCount();
+            totalReentries += results[i].reentryCount();
+            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
           }
           if (quiet == false) {
             System.out.println(
@@ -855,9 +858,8 @@ public class KnnGraphTester {
         quantizeDesc = "no";
       }
       double reindexSec = reindexTimeMsec / 1000.0;
-      System.out.printf(
-          Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
+      System.out.printf(Locale.ROOT,
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
           numDocs,
@@ -867,6 +869,7 @@ public class KnnGraphTester {
           beamWidth,
           quantizeDesc,
           totalVisited,
+          totalReentries,
           reindexSec,
           numDocs / reindexSec,
           forceMergeTimeSec,
@@ -887,7 +890,7 @@ public class KnnGraphTester {
     return ms / (double) 1_000;
   }
 
-  private static TopDocs doKnnByteVectorQuery(
+  private static Result doKnnByteVectorQuery(
     IndexSearcher searcher, String field, byte[] vector, int k, int fanout, boolean prefilter, Query filter)
     throws IOException {
     ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, prefilter ? filter : null);
@@ -895,24 +898,75 @@ public class KnnGraphTester {
             .add(profiledQuery, BooleanClause.Occur.MUST)
             .add(filter, BooleanClause.Occur.FILTER)
             .build();
-    TopDocs docs = searcher.search(query, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
+    Result result = executeQuery(searcher, query, k);
+    if (profiledQuery.totalVectorCount() != result.visitedCount()) {
+      throw new AssertionError(result.visitedCount() + "!=" + profiledQuery.totalVectorCount());
+    }
+    return result;
   }
 
-  private static TopDocs doKnnVectorQuery(
+  private static Result doKnnVectorQuery(
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, boolean prefilter, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
       ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
-      return searcher.search(parentJoinQuery, k);
+      TopDocs topDocs = searcher.search(parentJoinQuery, k);
+      return new Result(topDocs, (int) topDocs.totalHits.value(), 0);
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, filter);
     Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
             .add(profiledQuery, BooleanClause.Occur.MUST)
             .add(filter, BooleanClause.Occur.FILTER)
             .build();
-    TopDocs docs = searcher.search(query, k);
-    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), docs.totalHits.relation()), docs.scoreDocs);
+    Result result = executeQuery(searcher, query, k);
+    if (profiledQuery.totalVectorCount() != result.visitedCount()) {
+      throw new AssertionError(result.visitedCount() + "!=" + profiledQuery.totalVectorCount());
+    }
+    return result;
+  }
+
+  private static Result executeQuery(IndexSearcher searcher, Query query, int k) throws IOException {
+    Query rewritten = searcher.rewrite(query);
+    int totalVectorCount, reentryCount;
+    try {
+      Field visited = getField(rewritten.getClass(), "visited");
+      if (visited != null) {
+        totalVectorCount = (int) visited.getLong(rewritten);
+      } else {
+        visited = getField(query.getClass(), "totalVectorCount");
+        if (visited == null) {
+          throw new RuntimeException("no totalVectorCount in " + query);
+        }
+        totalVectorCount = (int) visited.getLong(query);
+      }
+      Field reentryCountField = getField(rewritten.getClass(), "reentryCount");
+      if (reentryCountField != null) {
+        reentryCount = reentryCountField.getInt(rewritten);
+      } else {
+        reentryCount = 0;
+      }
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException("failed getting field value from instance of " + rewritten.getClass(), e);
+    }
+    TopDocs docs = searcher.search(rewritten, k);
+    return new Result(docs, totalVectorCount, reentryCount);
+  }
+
+  static Field getField(final Class<?> clsIn, String name) {
+    Class<?> cls = clsIn;
+    while (cls != Object.class) {
+      try {
+        Field field = cls.getDeclaredField(name);
+        field.setAccessible(true);
+        return field;
+      } catch (NoSuchFieldException e) {
+      }
+      cls = cls.getSuperclass();
+    }
+    return null;
+  }
+
+  record Result(TopDocs topDocs, int visitedCount, int reentryCount) {
   }
 
   private float checkResults(int[][] results, int[][] nn) {
@@ -1243,7 +1297,8 @@ public class KnnGraphTester {
     }
   }
 
-  private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
+  private static class ProfiledKnnFloatVectorQuery extends OptimisticKnnVectorQuery {
+    // private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
     private final Query filter;
     private final int k;
     private final int fanout;

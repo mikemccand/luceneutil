@@ -47,7 +47,7 @@ DO_PROFILING = False
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
-NOISY = False
+NOISY = True
 
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?

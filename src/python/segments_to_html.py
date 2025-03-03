@@ -31,6 +31,8 @@ import intervaltree
 import graphviz
 
 # TODO
+#   - also coalesce mocs into their "ords", like full flushes
+#   - only highlight moc/ff if we are not also over a segment?  occlusion
 #   - tune to more harmonius color scheme
 #   - from "last commit size" also break out how much was flushed vs merged segments
 #   - get highlight working for the flush/moc bands, and move them under all other segments (no alpha)
@@ -109,6 +111,11 @@ import graphviz
 #   - zoom in/out, x and y separately
 #   - NO
 #     - maybe use D3?
+
+merge_on_commit_color = 'rgb(253,235,208)'
+merge_on_commit_highlight_color = 'rgb(202,188,166)'
+full_flush_color = 'rgb(214,234,248)'
+full_flush_highlight_color = 'rgb(171,187,198)'
 
 # so pickle is happy
 Segment = infostream_to_segments.Segment
@@ -465,23 +472,38 @@ def main():
 
   min_start_abs_time = None
 
+  by_flush_ord = {}
+
   for segment in segments:
     if min_start_abs_time is None or segment.start_time < min_start_abs_time:
       min_start_abs_time = segment.start_time
 
+    flush_ord = segment.full_flush_ord
+    if flush_ord is not None:
+      print(f'{flush_ord=}')
+      if flush_ord not in by_flush_ord:
+        by_flush_ord[flush_ord] = [0, 0]
+
+      l = by_flush_ord[flush_ord]
+      if segment.size_mb is not None:
+        l[0] += 1
+        l[1] += segment.size_mb
+
   w(f'\n\n  <!-- full flush events -->')
-  for start_time, end_time in full_flush_events:
+  for flush_ord, (start_time, end_time) in enumerate(full_flush_events):
     if end_time is None:
       continue
+
     x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
     y0 = 0
     x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
     y1 = whole_height
     # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    w(f'  <rect fill="rgb(214,234,248)"" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+    flush_id = f'ff_{flush_ord}'
+    w(f'  <rect fill="{full_flush_color}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={y1-y0:.2f} seg_name="{flush_id}" id="{flush_id}"/>')
 
   w(f'\n\n  <!-- merge-on-commit events -->')
-  for start_time, end_time in merge_during_commit_events:
+  for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
       continue
     x0 = padding_x + x_pixels_per_sec * (start_time - min_start_abs_time).total_seconds()
@@ -489,7 +511,8 @@ def main():
     x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
     y1 = whole_height
     #w(f'  <rect fill="orange" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    w(f'  <rect fill="rgb(253,235,208)" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+    moc_id = f'moc_{moc_ord}'
+    w(f'  <rect fill="{merge_on_commit_color}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={y1-y0:.2f} seg_name="{moc_id}" id="{moc_id}"/>')
 
   #w('var textbox = null;')
   #w('// so we can intersect mouse point with boxes:')
@@ -777,6 +800,26 @@ def main():
   w('</svg>')
   w('</div>')
   w('<script>')
+  w('const time_window_details_map = new Map();')
+
+  for flush_ord, (start_time, end_time) in enumerate(full_flush_events):
+    if end_time is None:
+      continue
+    # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+    flush_id = f'ff_{flush_ord}'
+    l = by_flush_ord.get(flush_ord, [0, 0])
+    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} sec, {l[0]} segments, {l[1]:.1f} MB");')
+
+  for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
+    if end_time is None:
+      continue
+    moc_id = f'moc_{moc_ord}'
+    w(f'time_window_details_map.set("{moc_id}", "Merge on commit {(end_time - start_time).total_seconds():.1f} sec");')
+  
+  w(f'merge_on_commit_color = "{merge_on_commit_color}";')
+  w(f'merge_on_commit_highlight_color = "{merge_on_commit_highlight_color}";')
+  w(f'full_flush_color = "{full_flush_color}";')
+  w(f'full_flush_highlight_color = "{full_flush_highlight_color}";')
   w('var agg_metrics = [')
   for tup in time_aggs:
     timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, tot_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb = tup
@@ -849,32 +892,52 @@ def main():
     return low;
   }
 
+  var time_window_details;
+  
   var highlighting = new Map();
   const svgns = "http://www.w3.org/2000/svg";
   function highlight(seg_name, color, do_seg_details, do_seg_super_verbose, transformed_point) {
     if (!highlighting.has(seg_name)) {
 
-      // get the full segment (not dawn/dusk):
-      var rect2 = document.getElementById(seg_name);
+      if (seg_name.startsWith("ff_")) {
+        // full flush
+        var el = document.getElementById(seg_name);
+        //console.log("highlight ff " + seg_name);
+        el.setAttribute("fill", full_flush_highlight_color);
+        highlighting.set(seg_name, el);
+        time_window_details = time_window_details_map.get(seg_name);
+      } else if (seg_name.startsWith("moc_")) {
+        // merge-on-commit
+        var el = document.getElementById(seg_name);
+        //console.log("highlight moc " + seg_name);
+        el.setAttribute("fill", merge_on_commit_highlight_color);
+        highlighting.set(seg_name, el);
+        time_window_details = time_window_details_map.get(seg_name);
+      } else {
+        // normal segment
 
-      var rect3 = document.createElementNS(svgns, "rect");
+        // get the full segment (not dawn/dusk):
+        var rect2 = document.getElementById(seg_name);
 
-      // draw a new rect to "highlight"
-      highlighting.set(seg_name, rect3);
-      rect3.selectable = false;
+        var rect3 = document.createElementNS(svgns, "rect");
 
-      rect3.setAttribute("x", rect2.x.baseVal.value);
-      rect3.setAttribute("y", rect2.y.baseVal.value);
-      rect3.setAttribute("width", rect2.width.baseVal.value);
-      rect3.setAttribute("height", rect2.height.baseVal.value);
-      rect3.setAttribute("fill", color);
-      mysvg.appendChild(rect3);
+        // draw a new rect to "highlight"
+        highlighting.set(seg_name, rect3);
+        rect3.selectable = false;
 
-      if (do_seg_details) {
-        if (do_seg_super_verbose) {
-          top_details.innerHTML = "<pre>" + seg_details3_map.get(seg_name) + "</pre>";
-        } else {
-          top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
+        rect3.setAttribute("x", rect2.x.baseVal.value);
+        rect3.setAttribute("y", rect2.y.baseVal.value);
+        rect3.setAttribute("width", rect2.width.baseVal.value);
+        rect3.setAttribute("height", rect2.height.baseVal.value);
+        rect3.setAttribute("fill", color);
+        mysvg.appendChild(rect3);
+
+        if (do_seg_details) {
+          if (do_seg_super_verbose) {
+            top_details.innerHTML = "<pre>" + seg_details3_map.get(seg_name) + "</pre>";
+          } else {
+            top_details.innerHTML = "<pre>" + seg_details2_map.get(seg_name) + "</pre>";
+          }
         }
       }
     }
@@ -945,7 +1008,13 @@ def main():
     } else {
       scs = sc.toFixed(2);
     }
-    let text = "<pre>" + String(hr).padStart(2, '0') + ":" + String(mn).padStart(2, '0') + ":" + scs + "<br>" +
+    let text = "<div>";
+
+    if (time_window_details != null) {
+      text += "<font color=red>" + time_window_details + "</font><br>";
+    }
+    
+    text = text + "<pre>" +  String(hr).padStart(2, '0') + ":" + String(mn).padStart(2, '0') + ":" + scs + "<br>" +
            abs_timestamp + "<br>" +
            num_segments + " segments<br>" +
            (tot_size_mb/1024.).toFixed(2) + " GB<br>" +
@@ -955,6 +1024,8 @@ def main():
            "flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps.toFixed(1) + " docs/sec<br>" +
            "merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps.toFixed(1) + " docs/sec<br>       " + del_reclaims_per_sec.toFixed(1) + " del-reclaim/sec<br>" +
            "</pre>";
+
+    text += "</div>";
 
     top_details2.innerHTML = text;
   
@@ -981,17 +1052,23 @@ def main():
         // var seg_name = element.id;
         // must null-check because we will also select our newly added highlight rects!  weird recursion...
         if (seg_name != null) {
-          now_highlight.add(seg_name);
-          if (seg_merge_map.has(seg_name)) {
-            // the hilited segment is a merge segment
-            merge_seg_name = seg_name;
-            //console.log("  --> " + seg_merge_map.get(seg_name));
-            // hrmph no .addAll for Set?
-            // now_sub_highlight.add(...seg_merge_map.get(seg_name));
-            for (let sub_seg_name of seg_merge_map.get(seg_name)) {
-              now_sub_highlight.add(sub_seg_name);
+          if (seg_name.startsWith("moc_")) {
+            now_highlight.add(seg_name);
+          } else if (seg_name.startsWith("ff_")) {
+            now_highlight.add(seg_name);
+          } else {
+            now_highlight.add(seg_name);
+            if (seg_merge_map.has(seg_name)) {
+              // the hilited segment is a merge segment
+              merge_seg_name = seg_name;
+              //console.log("  --> " + seg_merge_map.get(seg_name));
+              // hrmph no .addAll for Set?
+              // now_sub_highlight.add(...seg_merge_map.get(seg_name));
+              for (let sub_seg_name of seg_merge_map.get(seg_name)) {
+                now_sub_highlight.add(sub_seg_name);
+              }
+              // console.log("  sub: " + JSON.stringify(now_sub_highlight, null, 2));
             }
-            // console.log("  sub: " + JSON.stringify(now_sub_highlight, null, 2));
           }
         }
       }
@@ -1007,7 +1084,19 @@ def main():
       }
       if (!now_highlight.has(seg_name) && !now_sub_highlight.has(seg_name)) {
         //console.log("unhighlight " + name);
-        mysvg.removeChild(rect);
+        if (seg_name.startsWith("ff_")) {
+          console.log("now unhighlight " + seg_name);
+          var el = document.getElementById(seg_name);
+          el.setAttribute("fill", full_flush_color);
+          time_window_details = null;
+        } else if (seg_name.startsWith("moc_")) {
+          console.log("now unhighlight " + seg_name);
+          var el = document.getElementById(seg_name);
+          el.setAttribute("fill", merge_on_commit_color);
+          time_window_details = null;
+        } else {
+          mysvg.removeChild(rect);
+        }
         highlighting.delete(name);
       }
     }

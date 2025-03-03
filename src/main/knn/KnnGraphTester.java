@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
-import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -87,7 +86,6 @@ import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
-import org.apache.lucene.search.OptimisticKnnVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
@@ -904,7 +902,7 @@ public class KnnGraphTester {
             .add(filter, BooleanClause.Occur.FILTER)
             .build();
     TopDocs docs = searcher.search(query, k);
-    return executeQuery(searcher, query, k);
+    return new Result(docs, profiledQuery.totalVectorCount(), 0);
   }
 
   private static Result doKnnVectorQuery(
@@ -920,49 +918,11 @@ public class KnnGraphTester {
             .add(profiledQuery, BooleanClause.Occur.MUST)
             .add(filter, BooleanClause.Occur.FILTER)
             .build();
-    Result result = executeQuery(searcher, query, k);
-    if (profiledQuery.totalVectorCount() != result.visitedCount()) {
-      throw new AssertionError(result.visitedCount() + "!=" + profiledQuery.totalVectorCount());
-    }
-    return result;
+    TopDocs docs = searcher.search(query, k);
+    return new Result(docs, profiledQuery.totalVectorCount(), 0);
   }
 
-  private static Result executeQuery(IndexSearcher searcher, Query query, int k) throws IOException {
-    Query rewritten = searcher.rewrite(query);
-    int totalVectorCount;
-    try {
-      Field visited = getField(rewritten.getClass(), "visited");
-      if (visited != null) {
-        totalVectorCount = (int) visited.getLong(rewritten);
-      } else {
-        visited = getField(query.getClass(), "totalVectorCount");
-        if (visited == null) {
-          throw new RuntimeException("no totalVectorCount in " + query);
-        }
-        totalVectorCount = (int) visited.getLong(query);
-      }
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException("failed getting field value from instance of " + rewritten.getClass(), e);
-    }
-    TopDocs docs = searcher.search(rewritten, k);
-    return new Result(docs, totalVectorCount, 0);
-  }
-
-  static Field getField(final Class<?> clsIn, String name) {
-    Class<?> cls = clsIn;
-    while (cls != Object.class) {
-      try {
-        Field field = cls.getDeclaredField(name);
-        field.setAccessible(true);
-        return field;
-      } catch (NoSuchFieldException e) {
-      }
-      cls = cls.getSuperclass();
-    }
-    return null;
-  }
-
-  record Result(TopDocs topDocs, int visitedCount, int reentryCount) {
+  record Result(TopDocs topDocs, long visitedCount, int reentryCount) {
   }
 
   private float checkResults(int[][] results, int[][] nn) {

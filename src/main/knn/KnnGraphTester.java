@@ -500,6 +500,7 @@ public class KnnGraphTester {
     try (Directory dir = FSDirectory.open(indexPath);
          IndexReader reader = DirectoryReader.open(dir)) {
       indexNumSegments = reader.leaves().size();
+      log("index has %d segments: %s\n", indexNumSegments, ((StandardDirectoryReader) reader).getSegmentInfos());
       long indexSizeOnDiskBytes = 0;
       SegmentInfos infos = ((StandardDirectoryReader) reader).getSegmentInfos();
       for (SegmentCommitInfo info : infos) {
@@ -1215,7 +1216,7 @@ public class KnnGraphTester {
 
   private void log(String msg, Object... args) {
     if (quiet == false) {
-      System.out.printf(msg, args);
+      System.out.printf(Locale.ROOT, msg, args);
       System.out.flush();
     }
   }

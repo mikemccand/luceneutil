@@ -776,7 +776,7 @@ public class KnnGraphTester {
       throws IOException {
     Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
-    long elapsed, totalCpuTimeMS, totalVisited = 0, totalReentries = 0;
+    long elapsed, totalCpuTimeMS, totalVisited = 0;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
       long queryPathSizeInBytes = input.size();
@@ -825,7 +825,6 @@ public class KnnGraphTester {
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
             totalVisited += results[i].visitedCount();
-            totalReentries += results[i].reentryCount();
             resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
           }
           log(
@@ -865,7 +864,7 @@ public class KnnGraphTester {
       }
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
           numDocs,
@@ -875,7 +874,6 @@ public class KnnGraphTester {
           beamWidth,
           quantizeDesc,
           totalVisited,
-          totalReentries,
           reindexSec,
           numDocs / reindexSec,
           forceMergeTimeSec,
@@ -930,7 +928,7 @@ public class KnnGraphTester {
 
   private static Result executeQuery(IndexSearcher searcher, Query query, int k) throws IOException {
     Query rewritten = searcher.rewrite(query);
-    int totalVectorCount, reentryCount;
+    int totalVectorCount;
     try {
       Field visited = getField(rewritten.getClass(), "visited");
       if (visited != null) {
@@ -942,17 +940,11 @@ public class KnnGraphTester {
         }
         totalVectorCount = (int) visited.getLong(query);
       }
-      Field reentryCountField = getField(rewritten.getClass(), "reentryCount");
-      if (reentryCountField != null) {
-        reentryCount = reentryCountField.getInt(rewritten);
-      } else {
-        reentryCount = 0;
-      }
     } catch (IllegalAccessException e) {
       throw new RuntimeException("failed getting field value from instance of " + rewritten.getClass(), e);
     }
     TopDocs docs = searcher.search(rewritten, k);
-    return new Result(docs, totalVectorCount, reentryCount);
+    return new Result(docs, totalVectorCount, 0);
   }
 
   static Field getField(final Class<?> clsIn, String name) {
@@ -1298,8 +1290,7 @@ public class KnnGraphTester {
     }
   }
 
-  private static class ProfiledKnnFloatVectorQuery extends OptimisticKnnVectorQuery {
-    // private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
+  private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
     private final Query filter;
     private final int k;
     private final int fanout;

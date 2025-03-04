@@ -6,9 +6,9 @@
 # The ASF licenses this file to You under the Apache License, Version 2.0
 # (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,15 +20,11 @@ import os
 import re
 import random
 
-from competition import JAVA_COMMAND
 import benchUtil
 import common
 import constants
 
 PYTHON_MAJOR_VER = sys.version_info.major
-
-if '-ea' in sys.argv:
-  JAVA_COMMAND += ' -ea:org.apache.lucene...'
 
 osName = common.osName
 
@@ -77,7 +73,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           indexCommit = c.commitPoint
         elif indexCommit == c.commitPoint and indexSegCount != segCount:
           raise RuntimeError('segment counts differ across indices: %s vs %s' % (indexSegCount, segCount))
-          
+
   logUpto = 0
 
   if search:
@@ -136,7 +132,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
 
       for c in competitors:
         c.tasksFile = newTasksFile
-        
+
     else:
       print('    tasks file: %s' % c.tasksFile)
       newTasksFile = None
@@ -178,7 +174,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           print('    %s:' % c.name)
           logFile = r.runSimpleSearchBench(iter, id, c,
                                            coldRun, seed, staticSeed,
-                                           filter=None, taskPatterns=taskPatterns) 
+                                           filter=None, taskPatterns=taskPatterns)
           results.setdefault(c, []).append(logFile)
 
         print()
@@ -195,7 +191,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
             raise RuntimeError('errors occurred: %s' % str(cmpDiffs))
           if cmpDiffs[2] < requireOverlap:
             raise RuntimeError('results differ: %s' % str(cmpDiffs))
-        
+
     finally:
       if newTasksFile is not None and os.path.exists(newTasksFile):
         os.remove(newTasksFile)
@@ -205,7 +201,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       for c in competitors:
         print(f'\n{mode.upper()} merged search profile for {c.name}:')
         print(c.getAggregateProfilerResult(id, mode)[0][1])
-                           
+
   else:
     results = {}
     for c in competitors:

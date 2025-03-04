@@ -5,6 +5,7 @@ include = [ "src/python" ]
 # TODO: improve!
 # typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = "error"
+reportImportCycles = "error"
 typeCheckingMode = "basic"
 reportArgumentType = "none"
 reportAssignmentType = "none"

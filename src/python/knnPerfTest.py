@@ -116,8 +116,8 @@ def run_knn_benchmark(checkout, values):
 
     # Cohere dataset
     dim = 768
-    doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-    query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
+    doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
+    query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
     #parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
     jfr_output = f'{constants.LOGS_DIR}/knn-perf-test.jfr'
@@ -137,7 +137,7 @@ def run_knn_benchmark(checkout, values):
               f',filename={jfr_output}']
 
     cmd += ['knn.KnnGraphTester']
-      
+
     all_results = []
     while advance(indexes, values):
         print('\nNEXT:')
@@ -217,11 +217,16 @@ def run_knn_benchmark(checkout, values):
 
     if '-forceMerge' not in this_cmd:
         skip_headers.add('force merge s')
+    if '-overSample' not in this_cmd:
+        skip_headers.add('overSample')
+    if '-indexType' in this_cmd and 'flat' in this_cmd:
+        skip_headers.add('maxConn')
+        skip_headers.add('beamWidth')
 
     print_fixed_width(all_results, skip_headers)
 
 def print_fixed_width(all_results, columns_to_skip):
-    header = 'recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)'
+    header = 'recall\tlatency(ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType'
 
     # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
     headers = header.split('\t')

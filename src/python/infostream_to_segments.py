@@ -89,6 +89,7 @@ class Segment:
 
   # None if this merge was not a merge-on-commit.  if it is, then this is a tuple ('success' | 'timeout', timedelta-in-seconds)
   merge_during_commit = None
+  merge_during_commit_ord = None
 
   # how much RAM this (flushed) segment was using in IW's accounting
   # when it was flushed (None for merged segments)
@@ -783,6 +784,7 @@ def main():
           segment.add_event(timestamp, 'light', line_number)
           segment.publish_timestamp = timestamp
           if segment.merge_during_commit is not None:
+            segment.merge_during_commit_ord = segment.merge_during_commit - 1
             if segment.merge_during_commit == len(merge_during_commit_events) and merge_during_commit_events[-1][1] is None:
               # merge commit finished in time!
               segment.merge_during_commit = ('success', (timestamp - merge_during_commit_events[-1][0]).total_seconds())
@@ -849,7 +851,7 @@ def main():
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
-          print(f'MOC: end {thread_name} {line_number}')
+          # print(f'MOC: end {thread_name} {line_number}')
 
           merge_on_commit_thread_name = None
           merge_commit_threads = None

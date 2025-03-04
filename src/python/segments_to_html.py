@@ -31,6 +31,7 @@ import intervaltree
 import graphviz
 
 # TODO
+#   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
 #   - also coalesce mocs into their "ords", like full flushes
 #   - only highlight moc/ff if we are not also over a segment?  occlusion
 #   - tune to more harmonius color scheme
@@ -241,7 +242,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
 
       is_flush = type(segment.source) is str and segment.source.startswith('flush')
 
-      print(f'seg {segment.name} source={segment.source} {is_flush=}')
+      # print(f'seg {segment.name} source={segment.source} {is_flush=}')
 
       if is_flush:
 
@@ -334,7 +335,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
     # followed by seglight of the new merged segment at the same timestamp
     if upto >= len(all_times)-1 or timestamp != all_times[upto][0]:
 
-      print(f'now do keep {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
+      # print(f'now do keep {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
 
       # print(f'{upto=} {timestamp=} {what=} new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})')
 
@@ -345,7 +346,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
       # so we only output one spiky point when the commit happened
       commit_size_mb = 0
     else:
-      print(f'now do skip {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
+      # print(f'now do skip {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
+      pass
 
   # dygraph
   #   - https://dygraphs.com/2.2.1/dist/dygraph.min.js
@@ -440,7 +442,7 @@ def main():
 
   # x_pixels_per_sec = (whole_width - 2*padding_x) / (end_abs_time - start_abs_time).total_seconds()
   x_pixels_per_sec = 3.0
-  print(f'{x_pixels_per_sec=}')
+  # print(f'{x_pixels_per_sec=}')
 
   # whole_width = 100 * 1024
   whole_width = int(x_pixels_per_sec * (end_abs_time - start_abs_time).total_seconds() + 2*padding_x)
@@ -473,14 +475,15 @@ def main():
   min_start_abs_time = None
 
   by_flush_ord = {}
+  by_moc_ord = {}
 
+  # coalesce by flush/moc ord so we can present some details about each moc/ff
   for segment in segments:
     if min_start_abs_time is None or segment.start_time < min_start_abs_time:
       min_start_abs_time = segment.start_time
 
     flush_ord = segment.full_flush_ord
     if flush_ord is not None:
-      print(f'{flush_ord=}')
       if flush_ord not in by_flush_ord:
         by_flush_ord[flush_ord] = [0, 0]
 
@@ -488,6 +491,17 @@ def main():
       if segment.size_mb is not None:
         l[0] += 1
         l[1] += segment.size_mb
+    moc_ord = segment.merge_during_commit_ord
+    if moc_ord is not None:
+      # print(f'{moc_ord=}')
+      if moc_ord not in by_moc_ord:
+        by_moc_ord[moc_ord] = [0, 0]
+
+      l = by_moc_ord[moc_ord]
+      if segment.size_mb is not None:
+        l[0] += 1
+        l[1] += segment.size_mb
+      
 
   w(f'\n\n  <!-- full flush events -->')
   for flush_ord, (start_time, end_time) in enumerate(full_flush_events):
@@ -814,7 +828,8 @@ def main():
     if end_time is None:
       continue
     moc_id = f'moc_{moc_ord}'
-    w(f'time_window_details_map.set("{moc_id}", "Merge on commit {(end_time - start_time).total_seconds():.1f} sec");')
+    l = by_moc_ord.get(moc_ord, [0, 0])
+    w(f'time_window_details_map.set("{moc_id}", "Merge on commit {(end_time - start_time).total_seconds():.1f} sec, {l[0]} merges, {l[1]:.1f} MB");')
   
   w(f'merge_on_commit_color = "{merge_on_commit_color}";')
   w(f'merge_on_commit_highlight_color = "{merge_on_commit_highlight_color}";')

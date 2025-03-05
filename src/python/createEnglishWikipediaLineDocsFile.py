@@ -89,7 +89,7 @@ def main():
     # run wikiXMLToText first, creating first enwiki-lines.txt:
     line_file_name = os.path.join(tmp_dir_name, "enwiki-lines.txt")
     if not os.path.exists(line_file_name):
-      print(f"now bunzip & convert XML to text")
+      print("now bunzip & convert XML to text")
       t0 = time.time()
       with bz2.open(local_file_name, "rt", encoding="utf-8") as f_in, open(line_file_name, "w", encoding="utf-8") as f_out:
         wikiXMLToText.convert(f_in, f_out)

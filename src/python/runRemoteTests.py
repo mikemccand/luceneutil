@@ -58,9 +58,7 @@ def run(comment, cmd, logFile, printTime=False):
 
 
 class Remote(threading.Thread):
-  """
-  Handles interactions with one remote machine.
-  """
+  """Handles interactions with one remote machine."""
 
   def __init__(self, id, stats, jobs, command, classpath, rootDir, hostName, processCount):
     threading.Thread.__init__(self)
@@ -131,7 +129,7 @@ class Remote(threading.Thread):
       msg("%s: startup read %s" % (self.hostName, s.rstrip()))
       if s == "":
         raise RuntimeError('failed to start remoteTestServer.py on host "%s"' % self.hostName)
-      elif s.strip() == "REMOTE SERVER STARTED":
+      if s.strip() == "REMOTE SERVER STARTED":
         break
 
     msg("local: %s: started" % self.hostName)

@@ -16,7 +16,7 @@
 from pygnuplot import gnuplot as Gnuplot
 
 
-class IndexChart(object):
+class IndexChart:
   def __init__(self, log_file, competitor, out_base=".", start_sec=50, end_sec=200):
     self.log_file = log_file
     self.start_ms = start_sec * 1000
@@ -30,7 +30,7 @@ class IndexChart(object):
   def buildRaw(self, meta=None):
     if not meta:
       meta = {}
-    lines = open(self.log_file, "r").readlines()
+    lines = open(self.log_file).readlines()
     raw_data = []
     raw_flush = []
     for line in lines:
@@ -139,7 +139,7 @@ class IndexChart(object):
 
 
 # if you want to get flushing rate for RT apply this patch
-"""
+r"""
 
 Index: lucene/src/java/org/apache/lucene/index/DocumentsWriterFlushControl.java
 ===================================================================

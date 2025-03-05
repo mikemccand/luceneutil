@@ -13,8 +13,8 @@ import time
 #   - flush sizes/frequency
 #   - commit frequency
 
-reDateTime = re.compile("(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(,\d\d\d)?")
-reFindMerges = re.compile("findMerges: (\d+) segments")
+reDateTime = re.compile(r"(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(,\d\d\d)?")
+reFindMerges = re.compile(r"findMerges: (\d+) segments")
 reMergeSize = re.compile(r"[cC](\d+) size=(.*?) MB")
 reMergeSizeWithDel = re.compile(r"[cC](\d+)/(\d+):delGen=(\d+) size=(.*?) MB")
 reMergeStart = re.compile(r"merge seg=(.*?) ")
@@ -391,7 +391,7 @@ def main():
         elif event == "end":
           mergeCount -= 1
         else:
-          raise RuntimeError()
+          raise RuntimeError
 
         w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), mergeCount))
 

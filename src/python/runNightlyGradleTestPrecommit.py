@@ -92,7 +92,7 @@ def runPrecommit(logFile):
       os.rename(logFile + ".tmp", logFile)
       print("  took: %.1f min" % ((t1 - t0) / 60.0))
       break
-    elif i < 4:
+    if i < 4:
       print(f"FAILED; see {logFile}.tmp; will try again ({5 - i - 1} attempts remain)")
     else:
       print("FAILED; see %s.tmp" % logFile)
@@ -102,8 +102,7 @@ def getTestCount(line, regexp):
   m = regexp.search(line)
   if m is not None:
     return int(m.group(1))
-  else:
-    return -1
+  return -1
 
 
 def pick_seconds(tup):
@@ -111,8 +110,7 @@ def pick_seconds(tup):
   # on Nov 30 2021 we switched to summing aggregate_tasks_seconds so the many-cored beast3 doesn't hide progress:
   if aggregate_task_seconds is not None:
     return aggregate_task_seconds
-  else:
-    return elapsed_seconds
+  return elapsed_seconds
 
 
 def writeGraph():
@@ -185,7 +183,7 @@ Aggregate task times (possibly running in parallel!):
           in_aggregate_task_times = True
           aggregate_time_sec = 0
           continue
-        elif in_aggregate_task_times:
+        if in_aggregate_task_times:
           if len(line.strip()) == 0:
             # ends with empty line
             in_aggregate_task_times = False

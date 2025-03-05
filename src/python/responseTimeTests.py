@@ -102,7 +102,7 @@ JOBS = []
 reSVNRev = re.compile(r"revision (.*?)\.")
 
 
-class Tee(object):
+class Tee:
   def __init__(self, file, att):
     self.file = file
     self.att = att
@@ -152,12 +152,11 @@ def captureEnv(logsDir):
           print("  now setting to [never]...")
         else:
           print("  already disabled")
+      elif s.find("[always]") == -1:
+        open(fileName, "wb").write("always")
+        print("  now setting to [always]...")
       else:
-        if s.find("[always]") == -1:
-          open(fileName, "wb").write("always")
-          print("  now setting to [always]...")
-        else:
-          print("  already enabled")
+        print("  already enabled")
 
 
 def kill(name, p):
@@ -416,7 +415,7 @@ def runOne(startTime, desc, dirImpl, postingsFormat, targetQPS, pct=None):
         v = p.poll()
         if p.poll() is not None:
           raise RuntimeError("  failed to start:\n\n%s" % open(stdLog).read())
-      except IOError:
+      except OSError:
         pass
       time.sleep(1.0)
 

@@ -62,7 +62,7 @@ def loadDocs():
     if fileName.endswith(".csv") and fileName != "alltaxis.csv":
       print("file %s" % fileName, file=sys.stderr)
       cabColor = fileName.split("_")[0]
-      with open("%s/%s" % (CSV_DIR, fileName), "r") as f:
+      with open("%s/%s" % (CSV_DIR, fileName)) as f:
         reader = csv.reader(f)
         headers = list(reader.__next__())
         # print('headers in: %s' % headers);

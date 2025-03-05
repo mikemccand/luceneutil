@@ -47,12 +47,12 @@ NOISY = True
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-  #"ndoc": (10_000_000,),
+  # "ndoc": (10_000_000,),
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  'ndoc': (500_000,),
+  "ndoc": (500_000,),
   #'ndoc': (50_000,),
   #'maxConn': (32, 64, 96),
   "maxConn": (64,),
@@ -75,11 +75,11 @@ PARAMS = {
   "quantizeBits": (32,),
   #'fanout': (0,),
   "topK": (100,),
-  #"bp": ("false", "true"),
+  # "bp": ("false", "true"),
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
-  #"forceMerge": (True, False),
+  # "forceMerge": (True, False),
   #'niter': (10,),
 }
 
@@ -122,8 +122,8 @@ def run_knn_benchmark(checkout, values):
   dim = 768
   doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
   query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
-  #doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-  #query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
+  # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
+  # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
   # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
@@ -183,30 +183,38 @@ def run_knn_benchmark(checkout, values):
 
     args += [a for (k, v) in pv.items() for a in ("-" + k, str(v)) if a]
 
-    this_cmd = cmd + args + [
-      '-dim', str(dim),
-      '-docs', doc_vectors,
-      '-reindex',
-      '-search-and-stats', query_vectors,
-      '-numIndexThreads', '8',
-      #'-metric', 'mip',
-      # '-parentJoin', parentJoin_meta_file,
-      # '-numMergeThread', '8', '-numMergeWorker', '8',
-      #'-forceMerge',
-      #'-stats',
-      #'-quiet'
-    ]
+    this_cmd = (
+      cmd
+      + args
+      + [
+        "-dim",
+        str(dim),
+        "-docs",
+        doc_vectors,
+        "-reindex",
+        "-search-and-stats",
+        query_vectors,
+        "-numIndexThreads",
+        "8",
+        #'-metric', 'mip',
+        # '-parentJoin', parentJoin_meta_file,
+        # '-numMergeThread', '8', '-numMergeWorker', '8',
+        #'-forceMerge',
+        #'-stats',
+        #'-quiet'
+      ]
+    )
     if NOISY:
-      print(f'  cmd: {this_cmd}')
+      print(f"  cmd: {this_cmd}")
     else:
-      cmd += ['-quiet']
-    job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
-    re_summary = re.compile(r'^SUMMARY: (.*?)$', re.MULTILINE)
+      cmd += ["-quiet"]
+    job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
+    re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
     summary = None
-    lines = ''
+    lines = ""
     while True:
       line = job.stdout.readline()
-      if line == '':
+      if line == "":
         break
       lines += line
       if NOISY:
@@ -215,24 +223,24 @@ def run_knn_benchmark(checkout, values):
       if m is not None:
         summary = m.group(1)
     if summary is None:
-        raise RuntimeError('could not find summary line in output! ' + lines)
+      raise RuntimeError("could not find summary line in output! " + lines)
     job.wait()
     if job.returncode != 0:
-        raise RuntimeError(f'command failed with exit {job.returncode}')
+      raise RuntimeError(f"command failed with exit {job.returncode}")
     all_results.append(summary)
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
 
   if NOISY:
-    print('\nResults:')
+    print("\nResults:")
 
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
   # turn filterType/selectivity back on for all runs
-  #skip_headers = {'selectivity', 'filterType', 'visited'}
-  skip_headers = {'selectivity', 'filterType'}
+  # skip_headers = {'selectivity', 'filterType', 'visited'}
+  skip_headers = {"selectivity", "filterType"}
 
-  if '-forceMerge' not in this_cmd:
-    skip_headers.add('force merge s')
+  if "-forceMerge" not in this_cmd:
+    skip_headers.add("force merge s")
 
   print_fixed_width(all_results, skip_headers)
 

@@ -16,32 +16,30 @@
 # limitations under the License.
 
 import datetime
-import subprocess
 import re
+import subprocess
 
 r = re.compile('id="(.*?)" lat="(.*?)" lon="(.*?)"')
 
-with subprocess.Popen('cat planet-latest.osm.20160307.bz2 | bunzip2 -c', stdout=subprocess.PIPE, shell=True) as p, \
-     open('latlon.txt', 'wb') as fOut:
-#with open('planet-latest.osm', 'rb') as f,
-#     open('latlon.txt', 'wb') as fOut:
-    f = p.stdout
-    lineCount = 0
-    nodeCount = 0
-    while True:
-        l = f.readline().decode('utf-8')
-        if len(l) == 0:
-            break
-        l = l.strip()
-        lineCount += 1
-        if lineCount % 100000 == 0:
-            print('%s: %d, %d nodes...' % (datetime.datetime.now(), lineCount, nodeCount))
-        #print(l.rstrip().encode('ascii', errors='replace'))
-        if l.startswith('<node'):
-            m = r.search(l)
-            if m is not None:
-                fOut.write(('%s,%s,%s\n' % m.groups()).encode('ascii'))
-                nodeCount += 1
-            else:
-                print('match failed: %s' % l)
-
+with subprocess.Popen("cat planet-latest.osm.20160307.bz2 | bunzip2 -c", stdout=subprocess.PIPE, shell=True) as p, open("latlon.txt", "wb") as fOut:
+  # with open('planet-latest.osm', 'rb') as f,
+  #     open('latlon.txt', 'wb') as fOut:
+  f = p.stdout
+  lineCount = 0
+  nodeCount = 0
+  while True:
+    l = f.readline().decode("utf-8")
+    if len(l) == 0:
+      break
+    l = l.strip()
+    lineCount += 1
+    if lineCount % 100000 == 0:
+      print("%s: %d, %d nodes..." % (datetime.datetime.now(), lineCount, nodeCount))
+    # print(l.rstrip().encode('ascii', errors='replace'))
+    if l.startswith("<node"):
+      m = r.search(l)
+      if m is not None:
+        fOut.write(("%s,%s,%s\n" % m.groups()).encode("ascii"))
+        nodeCount += 1
+      else:
+        print("match failed: %s" % l)

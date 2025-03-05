@@ -22,15 +22,13 @@ MAX_LAT = 51.6542719
 MIN_LON = -0.3867282
 MAX_LON = 0.8492337
 
-with open('latlon.txt', 'rb') as f, \
-        open('latlon.subsetPlusAllLondon.txt', 'wb') as fOut:
-    while True:
-        line = f.readline()
-        if len(line) == 0:
-            break
-        tup = line.strip().decode('ascii').split(',')
-        lat = float(tup[1])
-        lon = float(tup[2])
-        if random.randint(0, 49) == 17 or \
-                (lat >= MIN_LAT and lat <= MAX_LAT and lon >= MIN_LON and lon <= MAX_LON):
-            fOut.write(line)
+with open("latlon.txt", "rb") as f, open("latlon.subsetPlusAllLondon.txt", "wb") as fOut:
+  while True:
+    line = f.readline()
+    if len(line) == 0:
+      break
+    tup = line.strip().decode("ascii").split(",")
+    lat = float(tup[1])
+    lon = float(tup[2])
+    if random.randint(0, 49) == 17 or (lat >= MIN_LAT and lat <= MAX_LAT and lon >= MIN_LON and lon <= MAX_LON):
+      fOut.write(line)

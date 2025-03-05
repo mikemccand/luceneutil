@@ -15,10 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import os
-import re
 import random
+import re
+import sys
 
 import benchUtil
 import common
@@ -28,28 +28,28 @@ PYTHON_MAJOR_VER = sys.version_info.major
 
 osName = common.osName
 
+
 def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None, requireOverlap=1.0):
   competitors = [challenger, base]
 
   if randomSeed is None:
-    raise RuntimeError('missing randomSeed')
+    raise RuntimeError("missing randomSeed")
 
-  #verifyScores = False
+  # verifyScores = False
   r = benchUtil.RunAlgs(constants.JAVA_COMMAND, verifyScores, verifyCounts)
-  if '-noc' not in sys.argv:
+  if "-noc" not in sys.argv:
     print()
-    print('Compile:')
+    print("Compile:")
     for c in competitors:
       r.compile(c)
   if not search:
-    search = '-search' in sys.argv
+    search = "-search" in sys.argv
 
   if not index:
-    index  = '-index' in sys.argv
-  sum = search or '-sum' in sys.argv
+    index = "-index" in sys.argv
+  sum = search or "-sum" in sys.argv
 
   if index:
-
     seen = set()
     indexSegCount = None
     indexCommit = None
@@ -59,11 +59,11 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
       if tasksFile is None:
         tasksFile = c.tasksFile
       elif tasksFile != c.tasksFile:
-        raise RuntimeError('inconsistent taskFile %s vs %s' % (tasksFile, c.tasksFile))
+        raise RuntimeError("inconsistent taskFile %s vs %s" % (tasksFile, c.tasksFile))
       if c.index not in seen:
         if not p:
           print()
-          print('Create indices:')
+          print("Create indices:")
           p = True
         seen.add(c.index)
         r.makeIndex(id, c.index, doCharts)
@@ -72,24 +72,23 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
           indexSegCount = segCount
           indexCommit = c.commitPoint
         elif indexCommit == c.commitPoint and indexSegCount != segCount:
-          raise RuntimeError('segment counts differ across indices: %s vs %s' % (indexSegCount, segCount))
+          raise RuntimeError("segment counts differ across indices: %s vs %s" % (indexSegCount, segCount))
 
   logUpto = 0
 
   if search:
-
     if taskPatterns != (None, None):
       pos, neg = taskPatterns
       if pos is None:
         if neg is None:
-          print('    tasks file: %s' % tasksFile)
+          print("    tasks file: %s" % tasksFile)
         else:
-          print('    tasks file: NOT %s from %s' % (','.join(neg), tasksFile))
+          print("    tasks file: NOT %s from %s" % (",".join(neg), tasksFile))
       elif neg is None:
-        print('    tasks file: %s from %s' % (','.join(pos), tasksFile))
+        print("    tasks file: %s from %s" % (",".join(pos), tasksFile))
       else:
-        print('    tasks file: %s, NOT %s from %s' % (','.join(pos), ','.join(neg), tasksFile))
-      newTasksFile = '%s/%s.tasks' % (constants.BENCH_BASE_DIR, os.getpid())
+        print("    tasks file: %s, NOT %s from %s" % (",".join(pos), ",".join(neg), tasksFile))
+      newTasksFile = "%s/%s.tasks" % (constants.BENCH_BASE_DIR, os.getpid())
       pos, neg = taskPatterns
       if pos is None:
         posPatterns = None
@@ -101,15 +100,15 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         negPatterns = [re.compile(x) for x in neg]
 
       f = open(c.tasksFile)
-      fOut = open(newTasksFile, 'wb')
+      fOut = open(newTasksFile, "wb")
       for l in f.readlines():
-        i = l.find(':')
+        i = l.find(":")
         if i != -1:
           cat = l[:i]
           if posPatterns is not None:
             for p in posPatterns:
               if p.search(cat) is not None:
-                #print 'KEEP: match on %s' % cat
+                # print 'KEEP: match on %s' % cat
                 break
             else:
               continue
@@ -118,7 +117,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
             for p in negPatterns:
               if p.search(cat) is not None:
                 skip = True
-                #print 'SKIP: match on %s' % cat
+                # print 'SKIP: match on %s' % cat
                 break
             if skip:
               continue
@@ -126,7 +125,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         if PYTHON_MAJOR_VER < 3:
           fOut.write(l)
         else:
-          fOut.write(l.encode('utf-8'))
+          fOut.write(l.encode("utf-8"))
       f.close()
       fOut.close()
 
@@ -134,20 +133,19 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         c.tasksFile = newTasksFile
 
     else:
-      print('    tasks file: %s' % c.tasksFile)
+      print("    tasks file: %s" % c.tasksFile)
       newTasksFile = None
 
     try:
-
       results = {}
 
-      if constants.JAVA_COMMAND.find(' -ea') != -1:
+      if constants.JAVA_COMMAND.find(" -ea") != -1:
         print()
-        print('WARNING: *** assertions are enabled *** JAVA_COMMAND=%s' % constants.JAVA_COMMAND)
+        print("WARNING: *** assertions are enabled *** JAVA_COMMAND=%s" % constants.JAVA_COMMAND)
         print()
 
       print()
-      print('Search:')
+      print("Search:")
 
       taskFiles = {}
 
@@ -161,8 +159,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
             os.remove(fileName)
 
       for iter in range(base.competition.jvmCount):
-
-        print('  iter %d' % iter)
+        print("  iter %d" % iter)
 
         seed = rand.randint(-10000000, 1000000)
 
@@ -171,35 +168,28 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         rotation_index = iter % len(competitors)
         rotated_competitors = competitors[rotation_index:] + competitors[:rotation_index]
         for c in rotated_competitors:
-          print('    %s:' % c.name)
-          logFile = r.runSimpleSearchBench(iter, id, c,
-                                           coldRun, seed, staticSeed,
-                                           filter=None, taskPatterns=taskPatterns)
+          print("    %s:" % c.name)
+          logFile = r.runSimpleSearchBench(iter, id, c, coldRun, seed, staticSeed, filter=None, taskPatterns=taskPatterns)
           results.setdefault(c, []).append(logFile)
 
         print()
-        print('Report after iter %d:' % iter)
-        #print '  results: %s' % results
-        details, cmpDiffs, cmpHeap = r.simpleReport(results[base],
-                                                    results[challenger],
-                                                    '-jira' in sys.argv,
-                                                    '-html' in sys.argv,
-                                                    cmpDesc=challenger.name,
-                                                    baseDesc=base.name)
+        print("Report after iter %d:" % iter)
+        # print '  results: %s' % results
+        details, cmpDiffs, cmpHeap = r.simpleReport(results[base], results[challenger], "-jira" in sys.argv, "-html" in sys.argv, cmpDesc=challenger.name, baseDesc=base.name)
         if cmpDiffs is not None:
           if cmpDiffs[1]:
-            raise RuntimeError('errors occurred: %s' % str(cmpDiffs))
+            raise RuntimeError("errors occurred: %s" % str(cmpDiffs))
           if cmpDiffs[2] < requireOverlap:
-            raise RuntimeError('results differ: %s' % str(cmpDiffs))
+            raise RuntimeError("results differ: %s" % str(cmpDiffs))
 
     finally:
       if newTasksFile is not None and os.path.exists(newTasksFile):
         os.remove(newTasksFile)
 
     # TODO: maybe print this after each iter, not just in the end, for the impatient/progressive?
-    for mode in 'cpu', 'heap':
+    for mode in "cpu", "heap":
       for c in competitors:
-        print(f'\n{mode.upper()} merged search profile for {c.name}:')
+        print(f"\n{mode.upper()} merged search profile for {c.name}:")
         print(c.getAggregateProfilerResult(id, mode)[0][1])
 
   else:
@@ -207,11 +197,6 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c)
 
-    details, cmpDiffs, cmpHeap = r.simpleReport(results[base],
-                                                results[challenger],
-                                                '-jira' in sys.argv,
-                                                '-html' in sys.argv,
-                                                cmpDesc=challenger.name,
-                                                baseDesc=base.name)
+    details, cmpDiffs, cmpHeap = r.simpleReport(results[base], results[challenger], "-jira" in sys.argv, "-html" in sys.argv, cmpDesc=challenger.name, baseDesc=base.name)
     if cmpDiffs is not None:
-      raise RuntimeError('results differ: %s' % str(cmpDiffs))
+      raise RuntimeError("results differ: %s" % str(cmpDiffs))

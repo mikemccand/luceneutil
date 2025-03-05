@@ -1,5 +1,6 @@
-import sys
 import re
+import sys
+
 # from https://www.sbert.net/
 # to install: pip install -U sentence-transformers
 from sentence_transformers import SentenceTransformer
@@ -30,35 +31,35 @@ vector_file = sys.argv[3]
 model_name = sys.argv[4]
 
 dic = dict()
-TOKENIZE_RE = re.compile('[][ \t,\-()!@#$%^&*\'"{}<>/?\\|+=_:;.]+')
-with open(input_file, 'rt') as input:
-    for line in input:
-        if len(dic) > 400000:
-            break
-        tokens = TOKENIZE_RE.split(line[:-1])
-        for t in tokens:
-            tl = t.lower()
-            if tl in dic:
-                dic[tl] += 1
-            else:
-                dic[tl] = 1
+TOKENIZE_RE = re.compile("[][ \t,\-()!@#$%^&*'\"{}<>/?\\|+=_:;.]+")
+with open(input_file, "rt") as input:
+  for line in input:
+    if len(dic) > 400000:
+      break
+    tokens = TOKENIZE_RE.split(line[:-1])
+    for t in tokens:
+      tl = t.lower()
+      if tl in dic:
+        dic[tl] += 1
+      else:
+        dic[tl] = 1
 
 BATCH_SIZE = 256
 model = SentenceTransformer(model_name)
 model.eval()
 
-with open(token_file, 'wt') as tokens_out:
-    with open(vector_file, 'wb') as vectors_out:
+with open(token_file, "wt") as tokens_out:
+  with open(vector_file, "wb") as vectors_out:
+    tokens = []
+    for token, count in dic.items():
+      if count > 1:
+        print(token, file=tokens_out)
+        tokens.append(token)
+      if len(tokens) == BATCH_SIZE:
+        outputs = model.encode(tokens)
+        outputs.tofile(vectors_out)
         tokens = []
-        for token, count in dic.items():
-            if count > 1:
-                print(token, file=tokens_out)
-                tokens.append(token)
-            if len(tokens) == BATCH_SIZE:
-                outputs = model.encode(tokens)
-                outputs.tofile(vectors_out)
-                tokens = []
-        if tokens:
-            outputs = model.encode(tokens)
-            outputs.tofile(vectors_out)
-            tokens = []
+    if tokens:
+      outputs = model.encode(tokens)
+      outputs.tofile(vectors_out)
+      tokens = []

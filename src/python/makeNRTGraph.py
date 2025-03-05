@@ -1,12 +1,12 @@
-import math
 import datetime
+import math
 import re
 import sys
 
 SHOW_DIRTY_BYTES = True
 
-reReopen = re.compile(r'^Reopen:\s+([0-9.]+) msec')
-reQT = re.compile('^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)(?: D=(\d+))?')
+reReopen = re.compile(r"^Reopen:\s+([0-9.]+) msec")
+reQT = re.compile("^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)(?: D=(\d+))?")
 
 qt = 0
 reopen = None
@@ -15,7 +15,7 @@ sum = 0
 sumSQ = 0
 count = 0
 hasDirty = False
-for line in open(sys.argv[1], 'rb').readlines():
+for line in open(sys.argv[1], "rb").readlines():
   m = reReopen.match(line)
   if m is not None:
     reopen = float(m.group(1))
@@ -26,17 +26,16 @@ for line in open(sys.argv[1], 'rb').readlines():
       searches = int(m.group(2))
       dirtyBytes = m.group(5)
       if SHOW_DIRTY_BYTES and dirtyBytes is not None:
-        dirtyMB = float(dirtyBytes)/1024./10.
+        dirtyMB = float(dirtyBytes) / 1024.0 / 10.0
         hasDirty = True
       else:
         dirtyMB = 0.0
       results.append((qt, reopen, searches, dirtyMB))
       sum += reopen
-      sumSQ += reopen*reopen
+      sumSQ += reopen * reopen
       count += 1
 
-print('reopen: mean %.2f stddev %.2f' % \
-      (sum/count, math.sqrt(count*sumSQ - sum*sum)/count))
+print("reopen: mean %.2f stddev %.2f" % (sum / count, math.sqrt(count * sumSQ - sum * sum) / count))
 
 # discard warmup
 results = results[10:]
@@ -45,23 +44,24 @@ js = []
 t = datetime.datetime(year=2011, month=4, day=25)
 for idx, (qt, reopen, searches, dirty) in enumerate(results):
   if hasDirty:
-    extra = ',%.1f' % dirty
+    extra = ",%.1f" % dirty
   else:
-    extra = ''
+    extra = ""
   js.append('"%s,%d,%.2f%s\\n"' % (t + datetime.timedelta(seconds=qt), searches, reopen, extra))
 
 if hasDirty:
-  extra = ',Dirty MB/10'
+  extra = ",Dirty MB/10"
 else:
-  extra = ''
-open('nrt.csv', 'wb').write('Date,Searches/sec,Reopen (msec)%s\n%s' % (extra, '\n'.join(js)))
+  extra = ""
+open("nrt.csv", "wb").write("Date,Searches/sec,Reopen (msec)%s\n%s" % (extra, "\n".join(js)))
 
 if hasDirty:
-  extra = ', Dirty MB/10'
+  extra = ", Dirty MB/10"
 else:
-  extra = ''
-  
-open('nrt.html', 'wb').write('''
+  extra = ""
+
+open("nrt.html", "wb").write(
+  """
 <html>
 <head>
 <script type="text/javascript"
@@ -86,4 +86,6 @@ open('nrt.html', 'wb').write('''
 </script>
 </body>
 </html>
-''' % extra)
+"""
+  % extra
+)

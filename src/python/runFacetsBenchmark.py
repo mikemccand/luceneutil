@@ -73,52 +73,52 @@ def run_benchmark(lucene_dir, index_dir, data_dir, nightly_log_dir, doc_limit, n
     print(f"stderr: {stderr}\n")
     raise RuntimeError(f"failed errorcode={results.returncode}!")
 
-  find_arr = re.findall("Time \(ms\) taken to instanciate FastTaxonomyFacetCounts: (.*\d)", stdout)
+  find_arr = re.findall(r"Time \(ms\) taken to instanciate FastTaxonomyFacetCounts: (.*\d)", stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f"could not find FastTaxonomyFacetCounts instanciation time in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt")
   total_time_create_fast_taxo_counts = float(find_arr[-1])
 
-  find_arr = re.findall("Time \(ms\) taken to instanciate SSDVFacetCounts: (.*\d)", stdout)
+  find_arr = re.findall(r"Time \(ms\) taken to instanciate SSDVFacetCounts: (.*\d)", stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f"could not find SSDVFacetCounts instanciation time in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt")
   total_time_create_ssdv_facet_counts = float(find_arr[-1])
 
-  find_arr = re.findall("Time \(ms\) taken to get all dims for taxonomy: (.*\d)", stdout)
+  find_arr = re.findall(r"Time \(ms\) taken to get all dims for taxonomy: (.*\d)", stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f"could not find time taken to get all dims for taxonomy in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt")
   taxo_get_all_dims_time = float(find_arr[-1])
 
-  find_arr = re.findall("Time \(ms\) taken to get all dims for SSDV: (.*\d)", stdout)
+  find_arr = re.findall(r"Time \(ms\) taken to get all dims for SSDV: (.*\d)", stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f"could not find time taken to get all dims for SSDV in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt")
   ssdv_get_all_dims_time = float(find_arr[-1])
 
-  find_arr = re.findall("Time \(ms\) taken to get top dims for taxonomy: (.*\d)", stdout)
+  find_arr = re.findall(r"Time \(ms\) taken to get top dims for taxonomy: (.*\d)", stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f"could not find time taken to get top dims for taxonomy in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt")
   taxo_get_top_dims_time = float(find_arr[-1])
 
-  find_arr = re.findall("Time \(ms\) taken to get top dims for SSDV: (.*\d)", stdout)
+  find_arr = re.findall(r"Time \(ms\) taken to get top dims for SSDV: (.*\d)", stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f"could not find time taken to get top dims for SSDV in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt")
   ssdv_get_top_dims_time = float(find_arr[-1])
 
-  find_arr = re.findall('Time \(ms\) taken to get top "address\.taxonomy\/TX" children for taxonomy: (.*\d)', stdout)
+  find_arr = re.findall(r'Time \(ms\) taken to get top "address\.taxonomy\/TX" children for taxonomy: (.*\d)', stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f'could not find time taken to top "address.taxonomy/TX" children in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt')
   taxo_get_children_time = float(find_arr[-1])
 
-  find_arr = re.findall('Time \(ms\) taken to get top "address\.sortedset\/TX" children for SSDV: (.*\d)', stdout)
+  find_arr = re.findall(r'Time \(ms\) taken to get top "address\.sortedset\/TX" children for SSDV: (.*\d)', stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f'could not find time taken to top "address.sortedset/TX" children in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt')
   ssdv_get_children_time = float(find_arr[-1])
 
-  find_arr = re.findall('Time \(ms\) taken to get all "address.taxonomy/TX" children for taxonomy: (.*\d)', stdout)
+  find_arr = re.findall(r'Time \(ms\) taken to get all "address.taxonomy/TX" children for taxonomy: (.*\d)', stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f'could not find time taken to top "address.taxonomy/TX" children in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt')
   taxo_get_all_children_time = float(find_arr[-1])
 
-  find_arr = re.findall('Time \(ms\) taken to get all "address.sortedset/TX" children for SSDV: (.*\d)', stdout)
+  find_arr = re.findall(r'Time \(ms\) taken to get all "address.sortedset/TX" children for SSDV: (.*\d)', stdout)
   if len(find_arr) == 0:
     raise RuntimeError(f'could not find time taken to top "address.sortedset/TX" children in output; see {nightly_log_dir}/nad-facet-benchmark.std{{out,err}}.txt')
   ssdv_get_all_children_time = float(find_arr[-1])

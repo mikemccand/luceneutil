@@ -18,8 +18,7 @@ else:
 def pathsep():
   if osName in ("windows", "cygwin"):
     return ";"
-  else:
-    return os.pathsep
+  return os.pathsep
 
 
 allTests = {}
@@ -44,8 +43,7 @@ def locateTest(test):
           # print '%s.%s' % (path, f[:-5])
   if test not in allTests:
     return None
-  else:
-    return allTests[test], method
+  return allTests[test], method
 
 
 def findRootDir(s):
@@ -82,8 +80,7 @@ def getLuceneMatchVersion(ROOT):
       if line.startswith("version.base="):
         return line[13:].strip()
     raise RuntimeError("could not locate lucene version")
-  else:
-    return "4.10.4"
+  return "4.10.4"
 
 
 def getLuceneTestClassPath(ROOT):
@@ -190,9 +187,7 @@ def filterCWD(l):
 
 
 def getLatestModTime(path, extension=None):
-  """
-  Returns latest modified time of all files with the specified extension under the specified path.
-  """
+  """Returns latest modified time of all files with the specified extension under the specified path."""
   modTime = 0
   for root, dirs, files in os.walk(path):
     for file in files:
@@ -205,7 +200,7 @@ def getLatestModTime(path, extension=None):
 
 def getLuceneDirFromGradleProperties():
   try:
-    with open(os.path.join(constants.BENCH_BASE_DIR, "gradle.properties"), "r") as f:
+    with open(os.path.join(constants.BENCH_BASE_DIR, "gradle.properties")) as f:
       for line in f:
         if line.find("=") == -1:
           continue

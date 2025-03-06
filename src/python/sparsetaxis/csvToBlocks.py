@@ -2,7 +2,7 @@ import io
 import struct
 import sys
 
-with open(sys.argv[1], "r", encoding="utf-8") as f, open(sys.argv[2], "wb") as fOut:
+with open(sys.argv[1], encoding="utf-8") as f, open(sys.argv[2], "wb") as fOut:
   # write CSV header outside of blocks:
   header = f.readline()
   fOut.write(header.encode("utf-8"))

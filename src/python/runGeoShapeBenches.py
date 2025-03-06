@@ -8,7 +8,7 @@ import time
 
 # src/python/runGeoShapeBenches.py -compare -reindex -ant
 
-reTotHits = re.compile("totHits=(\d+)$")
+reTotHits = re.compile(r"totHits=(\d+)$")
 
 nightly = "-nightly" in sys.argv
 compareRun = "-compare" in sys.argv

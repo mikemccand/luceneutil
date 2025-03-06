@@ -67,8 +67,8 @@ def fetch_cohere_vectors():
   print(f"embeddings dims: {embedding_dims}")
   assert embedding_dims == DIMENSIONS, f"Dataset embedding dimensions: {embedding_dims} do not match configured dimensions: {DIMENSIONS}"
 
-  with open(meta_file, "at") as meta:
-    meta.write(f"wiki_id,para_id\n")
+  with open(meta_file, "a") as meta:
+    meta.write("wiki_id,para_id\n")
 
   # do this in windows, else the RAM usage is crazy (OOME even with 256
   # GB RAM since I think this step makes 2X copy of the dataset?)
@@ -96,8 +96,8 @@ def fetch_cohere_vectors():
     with open(doc_file, "ab") as out_f:
       embs.tofile(out_f)
 
-    print(f"writing associated metadata")
-    with open(meta_file, "at") as meta:
+    print("writing associated metadata")
+    with open(meta_file, "a") as meta:
       for i in range(batch_size):
         meta.write(f"{ds_wiki_id[i]},{ds_para_id[i]}\n")
 
@@ -121,8 +121,8 @@ def fetch_cohere_vectors():
   print(f"reading queries shape: {embs_queries.shape}")
   print(f"{embs_queries[0]}")
 
-  print(f"reading metadata file")
-  with open(meta_file, "rt") as meta:
+  print("reading metadata file")
+  with open(meta_file) as meta:
     md = meta.readlines()
   print(f"metadata file row_count: {len(md)}, includes 1 header line")
   for line in md[:11]:

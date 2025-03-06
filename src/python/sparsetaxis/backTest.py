@@ -134,11 +134,9 @@ for name in os.listdir(TAXIS_LOGS_DIR):
 
 
 def getTimesToTest():
-  """
-  Carefully enumerates commit timestamps in such a way that we test large gaps first, then smaller
+  """Carefully enumerates commit timestamps in such a way that we test large gaps first, then smaller
   gaps, and eventually all commits in the range.
   """
-
   # First, make sure we test all explicitly annotated commits in the graph:
   for timestampString, desc in writeGraph.CHANGES:
     t = datetime.datetime.strptime(timestampString, "%Y-%m-%d %H:%M:%S")

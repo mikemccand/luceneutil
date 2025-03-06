@@ -36,7 +36,7 @@ def run(command):
 
 
 reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)
-reByTime = re.compile("  (\d+) searches=(\d+) docs=(\d+) reopens=(\d+) totUpdateTime=(\d+)$")
+reByTime = re.compile(r"  (\d+) searches=(\d+) docs=(\d+) reopens=(\d+) totUpdateTime=(\d+)$")
 
 
 def runOne(
@@ -214,7 +214,4 @@ if __name__ == "__main__":
       totalPerReopen = meanReopenMS + meanUpdateMS
       avgPerDoc = 0 if reopenStats.totalReopens == 0 else totalPerReopen / (float(reopenStats.totalDocs) / reopenStats.totalReopens)
       qps = 0 if int(numSearchThreads) == 0 else (float(reopenStats.totalSearches) / reopenStats.qtCount) / int(numSearchThreads)
-      print(
-        "%6s %8s %10s %10s %10s %10s %7s %8s"
-        % (s[0], s[1], "{:,.2f}".format(meanReopenMS), "{:,.2f}".format(meanUpdateMS), "{:,.2f}".format(totalPerReopen), "{:,.2f}".format(avgPerDoc), "{:,.2f}".format(qps), s[2])
-      )
+      print("%6s %8s %10s %10s %10s %10s %7s %8s" % (s[0], s[1], f"{meanReopenMS:,.2f}", f"{meanUpdateMS:,.2f}", f"{totalPerReopen:,.2f}", f"{avgPerDoc:,.2f}", f"{qps:,.2f}", s[2]))

@@ -153,7 +153,7 @@ def main():
         print(f"{5 - i}...")
         time.sleep(1)
     except KeyboardInterrupt:
-      print(f"\nPHEW, DISASTER AVERTED!\n")
+      print("\nPHEW, DISASTER AVERTED!\n")
       raise
     else:
       print("\n**BOOOOOOOM**\n")

@@ -695,7 +695,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void printFanoutHist(Path indexPath) throws IOException {
     if (indexType == IndexType.FLAT) {
-      System.out.println("flat has no graphs");
+      log("flat has no graphs");
       return;
     }
     try (Directory dir = FSDirectory.open(indexPath);

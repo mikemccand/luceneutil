@@ -17,42 +17,36 @@
 
 # source data: https://www.transportation.gov/gis/national-address-database
 
-from zipfile import ZipFile
 import gzip
 import os
+from zipfile import ZipFile
 
 STATE_INDEX = 1
 COUNTY_INDEX = 2
 STREETNAME_INDEX = 15
 ADDNAME_INDEX = 20
 
-with ZipFile('../../../data/NAD_r8_TXT.zip', 'r') as zip:
-    with zip.open('TXT/NAD_r8.txt', 'r') as nad:
-        with gzip.open('../../../data/NAD_taxonomy.txt.gz', 'wb') as out:
-            i = 0
-            skipped_lines = 0
-            for line in nad:
-                if i % 100000 == 0:
-                    print("Processed ", i, " lines")
-                str_line = line.decode('utf-8')
-                line_arr = str_line.split(',')
-                if len(line_arr) < 21:
-                    skipped_lines += 1
-                    continue
-                hierarchy = (
-                    line_arr[STATE_INDEX],
-                    line_arr[COUNTY_INDEX],
-                    line_arr[STREETNAME_INDEX],
-                    line_arr[ADDNAME_INDEX]
-                )
-                if hierarchy[2] == '':
-                    hierarchy = (hierarchy[0], hierarchy[1], 'NONE', hierarchy[3])
-                if hierarchy[3] == '':
-                    hierarchy = (hierarchy[0], hierarchy[1], hierarchy[2], 'NONE')
-                str_hierarchy = hierarchy[0] + "," + hierarchy[1] + "," + hierarchy[2] + "," + hierarchy[3] + '\n'
-                out.write(str_hierarchy.encode('utf8'))
-                i += 1
-            print('Read', i, 'lines')
-            print('Skipped', skipped_lines, 'lines')
-            print('NAD_taxonomy.txt.gz contains', os.stat('../../../data/NAD_taxonomy.txt.gz').st_size,
-                  'bytes of compressed data')
+with ZipFile("../../../data/NAD_r8_TXT.zip", "r") as zip:
+  with zip.open("TXT/NAD_r8.txt", "r") as nad:
+    with gzip.open("../../../data/NAD_taxonomy.txt.gz", "wb") as out:
+      i = 0
+      skipped_lines = 0
+      for line in nad:
+        if i % 100000 == 0:
+          print("Processed ", i, " lines")
+        str_line = line.decode("utf-8")
+        line_arr = str_line.split(",")
+        if len(line_arr) < 21:
+          skipped_lines += 1
+          continue
+        hierarchy = (line_arr[STATE_INDEX], line_arr[COUNTY_INDEX], line_arr[STREETNAME_INDEX], line_arr[ADDNAME_INDEX])
+        if hierarchy[2] == "":
+          hierarchy = (hierarchy[0], hierarchy[1], "NONE", hierarchy[3])
+        if hierarchy[3] == "":
+          hierarchy = (hierarchy[0], hierarchy[1], hierarchy[2], "NONE")
+        str_hierarchy = hierarchy[0] + "," + hierarchy[1] + "," + hierarchy[2] + "," + hierarchy[3] + "\n"
+        out.write(str_hierarchy.encode("utf8"))
+        i += 1
+      print("Read", i, "lines")
+      print("Skipped", skipped_lines, "lines")
+      print("NAD_taxonomy.txt.gz contains", os.stat("../../../data/NAD_taxonomy.txt.gz").st_size, "bytes of compressed data")

@@ -1,7 +1,7 @@
-import time
-import sys
-import re
 import datetime
+import re
+import sys
+import time
 
 # see http://home.apache.org/~mikemccand/lucenebench/iw.html as an example
 
@@ -13,28 +13,29 @@ import datetime
 #   - flush sizes/frequency
 #   - commit frequency
 
-reDateTime = re.compile('(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(,\d\d\d)?')
-reFindMerges = re.compile('findMerges: (\d+) segments')
-reMergeSize = re.compile(r'[cC](\d+) size=(.*?) MB')
-reMergeSizeWithDel = re.compile(r'[cC](\d+)/(\d+):delGen=(\d+) size=(.*?) MB')
-reMergeStart = re.compile(r'merge seg=(.*?) ')
-reMergeEnd = re.compile(r'merged segment size=(.*?) MB')
-reGetReader = re.compile(r'getReader took (\d+) msec')
+reDateTime = re.compile("(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(,\d\d\d)?")
+reFindMerges = re.compile("findMerges: (\d+) segments")
+reMergeSize = re.compile(r"[cC](\d+) size=(.*?) MB")
+reMergeSizeWithDel = re.compile(r"[cC](\d+)/(\d+):delGen=(\d+) size=(.*?) MB")
+reMergeStart = re.compile(r"merge seg=(.*?) ")
+reMergeEnd = re.compile(r"merged segment size=(.*?) MB")
+reGetReader = re.compile(r"getReader took (\d+) msec")
 # Straight lucene log:
-reThreadName = re.compile(r'^IW \d+ \[.*?; (.*?)\]:')
+reThreadName = re.compile(r"^IW \d+ \[.*?; (.*?)\]:")
 
 # Two variations from Elasticsearch:
-reThreadNameES = re.compile(r' elasticsearch\[.*?\](\[.*?\]\[.*?\])')
-reThreadNameES2 = re.compile(r' elasticsearch\[.*?\]\[\[.*?\]\[.*?\]: (.*?)\] ')
+reThreadNameES = re.compile(r" elasticsearch\[.*?\](\[.*?\]\[.*?\])")
+reThreadNameES2 = re.compile(r" elasticsearch\[.*?\]\[\[.*?\]\[.*?\]: (.*?)\] ")
 
-reIndexedDocCount = re.compile(r'^Indexer: (\d+) docs: ([0-9\.]+) sec')
-reShardName = re.compile(r'\[lucene.iw\s*\] \[(.*?)\]\[(.*?)\]\[(\d+)\]')
+reIndexedDocCount = re.compile(r"^Indexer: (\d+) docs: ([0-9\.]+) sec")
+reShardName = re.compile(r"\[lucene.iw\s*\] \[(.*?)\]\[(.*?)\]\[(\d+)\]")
+
 
 def parseDateTime(line):
   m = reDateTime.search(line)
   if m is None:
     return None
-  
+
   # year, month, day, hours, minutes, seconds:
   t = list(m.groups())
   if len(t) == 7:
@@ -43,35 +44,38 @@ def parseDateTime(line):
     else:
       t2 = [int(x) for x in t[:6]]
       # ES logs have msec:
-      t2[-1] += float(t[6][1:])/1000.0
+      t2[-1] += float(t[6][1:]) / 1000.0
       t = t2
   elif len(t) == 6:
     t = [int(x) for x in t[:3]]
 
-  #print('LINE %s ->\n  %s' % (line, t))
+  # print('LINE %s ->\n  %s' % (line, t))
   return t
 
-class RollingTimeWindow:
 
+class RollingTimeWindow:
   def __init__(self, windowTime):
     self.window = []
     self.windowTime = windowTime
     self.pruned = False
-    
+
   def add(self, t, value):
     self.window.append((t, value))
     while len(self.window) > 0 and t - self.window[0][0] > self.windowTime:
       del self.window[0]
       self.pruned = True
 
+
 # WARNING: thread [[entry_20140702][0] missing from mergeThreads
 # WARNING: thread [[entry_20140702][1] missing from mergeThreads
+
 
 def parseThreadName(line):
   for r in reThreadNameES2, reThreadNameES, reThreadName:
     m = r.search(line)
     if m is not None:
       return m.group(1)
+
 
 def main():
   segCounts = []
@@ -100,14 +104,14 @@ def main():
   i = 1
   onlyShard = None
   while i < len(sys.argv):
-    if sys.argv[i] == '-shard':
-      onlyShard = tuple(sys.argv[i+1].split(':'))
-      del sys.argv[i:i+2]
+    if sys.argv[i] == "-shard":
+      onlyShard = tuple(sys.argv[i + 1].split(":"))
+      del sys.argv[i : i + 2]
     else:
       i += 1
 
   if onlyShard is not None:
-    print('only: %s' % ':'.join(onlyShard))
+    print("only: %s" % ":".join(onlyShard))
 
   with open(sys.argv[1]) as f:
     for line in f.readlines():
@@ -123,7 +127,7 @@ def main():
       if m is not None:
         shardTup = m.groups()
       else:
-        print('NO SHARD: %s' % line)
+        print("NO SHARD: %s" % line)
         continue
 
       if onlyShard is not None and shardTup != onlyShard:
@@ -131,26 +135,26 @@ def main():
 
       threadName = parseThreadName(line)
       if threadName is None:
-        print('NO THREAD: %s' % line)
+        print("NO THREAD: %s" % line)
         continue
-        
-      if line.find('startCommit(): start') != -1:
+
+      if line.find("startCommit(): start") != -1:
         commitCount += 1
         runningCommits[threadName] = len(commitTimes)
         commitTimes.append(t)
 
-      if line.find('commit: wrote segments file') != -1:
+      if line.find("commit: wrote segments file") != -1:
         # Might not be present if IW infoStream was enabled "mid flight":
         if threadName in runningCommits:
           commitTimes[runningCommits[threadName]].append(t)
           del runningCommits[threadName]
-        
-      if line.find('flush postings as segment') != -1:
+
+      if line.find("flush postings as segment") != -1:
         flushCount += 1
 
-      if line.find('prepareCommit: flush') != -1 or line.find('flush at getReader') != -1:
+      if line.find("prepareCommit: flush") != -1 or line.find("flush at getReader") != -1:
         if startFlushCount is not None:
-          #print('%s: %d' % (startFlushTime, flushCount - startFlushCount))
+          # print('%s: %d' % (startFlushTime, flushCount - startFlushCount))
           segsPerFullFlush.append(startFlushTime + [flushCount - startFlushCount])
         startFlushCount = flushCount
         startFlushTime = t
@@ -163,13 +167,13 @@ def main():
       m = reGetReader.search(line)
       if m is not None:
         getReaderTimes.append(t + [int(m.group(1))])
-        
+
       m = reMergeStart.search(line)
       if m is not None:
         # A merge kicked off
         key = shardTup + (threadName,)
         mergeThreads[key] = len(merges)
-        merges.append(['start', key] + t)
+        merges.append(["start", key] + t)
         runningMerges += 1
         # print("mergeStart: %s, running=%d" % (threadName, runningMerges))
         maxRunningMerges = max(maxRunningMerges, runningMerges)
@@ -186,14 +190,14 @@ def main():
         if key in mergeThreads:
           merges[mergeThreads[key]].append(mergeSize)
           del mergeThreads[key]
-          merges.append(['end', key] + t + [mergeSize])
+          merges.append(["end", key] + t + [mergeSize])
           runningMerges -= 1
         else:
-          print('WARNING: thread %s missing from mergeThreads' % threadName)
-        
+          print("WARNING: thread %s missing from mergeThreads" % threadName)
+
       m = reFindMerges.search(line)
       key = shardTup + (threadName,)
-      #if m is not None and line.find('[es1][bulk]') != -1:
+      # if m is not None and line.find('[es1][bulk]') != -1:
       if m is not None:
         segCount = int(m.group(1))
         # mergeMB, mergeSegCount, indexSizeMB, indexSizeDocs, delDocCount
@@ -221,65 +225,62 @@ def main():
           l[2] += sizeMB
           l[3] += sizeDocs
           l[4] += delDocs
-          if line.find(' [merging]') != -1:
+          if line.find(" [merging]") != -1:
             l[0] += sizeMB
             l[1] += 1
-        elif line.find('allowedSegmentCount=') != -1:
+        elif line.find("allowedSegmentCount=") != -1:
           idx = pendingSegCounts[key][5]
           segCounts[idx].extend(pendingSegCounts[key][:5])
           allShards[shardTup] = pendingSegCounts[key][2]
-          #print('finish segCount %s' % (segCounts[idx]))
-          #print('  index MB %s' % segCounts[idx][9])
+          # print('finish segCount %s' % (segCounts[idx]))
+          # print('  index MB %s' % segCounts[idx][9])
           del pendingSegCounts[key]
 
       lineCount += 1
       if False and lineCount == 200000:
         break
       if lineCount % 10000 == 0:
-        print('%d lines...' % lineCount)
+        print("%d lines..." % lineCount)
 
   now = datetime.datetime.now()
   globalStartTime = toDateTime(minTime)
   globalEndTime = toDateTime(maxTime)
-  totSec = (globalEndTime-globalStartTime).total_seconds()
-  print('elapsed time %s: %s - %s' % (globalEndTime-globalStartTime, globalStartTime, globalEndTime))
-  print('max concurrent merges %s' % maxRunningMerges)
-  print('commit count %s (avg every %.1f sec)' % \
-        (commitCount, totSec/commitCount))
-  print('flush count %s (avg every %.1f sec)' % \
-        (flushCount, totSec/flushCount))
-  print('total shard count: %s' % len(allShards))
+  totSec = (globalEndTime - globalStartTime).total_seconds()
+  print("elapsed time %s: %s - %s" % (globalEndTime - globalStartTime, globalStartTime, globalEndTime))
+  print("max concurrent merges %s" % maxRunningMerges)
+  print("commit count %s (avg every %.1f sec)" % (commitCount, totSec / commitCount))
+  print("flush count %s (avg every %.1f sec)" % (flushCount, totSec / flushCount))
+  print("total shard count: %s" % len(allShards))
   l = list(allShards.items())
   l.sort(key=lambda x: (-x[1], x[0]))
   for tup, mb in l:
-    print('  %.3f GB: %s' % (mb/1024., ':'.join(tup)))
-  
-  with open('iw.html', 'w') as f:
+    print("  %.3f GB: %s" % (mb / 1024.0, ":".join(tup)))
 
+  with open("iw.html", "w") as f:
     w = f.write
 
-    w('''
+    w("""
     <html>
     <head>
     <script type="text/javascript"
       src="http://dygraphs.com/1.0.1/dygraph-combined.js"></script>
     </head>
     <body>
-    ''')
+    """)
 
-    w('<table>')
+    w("<table>")
 
     if len(indexDocTimes) > 10:
-      startChart(w, 'indexedDocs60Sec', 'Indexed K docs per sec, avg over past 10 seconds')
+      startChart(w, "indexedDocs60Sec", "Indexed K docs per sec, avg over past 10 seconds")
 
       # Index rate past 30 seconds
-      headers = ['Date', 'KDocsPerSec']
-      w('    "%s\\n" + \n"' % ','.join(headers))
+      headers = ["Date", "KDocsPerSec"]
+      w('    "%s\\n" + \n"' % ",".join(headers))
 
       r = RollingTimeWindow(30.0)
 
       for docCount, t in indexDocTimes:
-        #print('%d, %.2f' % (docCount, t))
+        # print('%d, %.2f' % (docCount, t))
         r.add(t, docCount)
         if len(r.window) > 5:
           t0 = globalStartTime + datetime.timedelta(seconds=t)
@@ -288,195 +289,191 @@ def main():
           else:
             windowTime = r.window[-1][0]
           docCount = r.window[-1][1] - r.window[0][1]
-          #print('count %s, win time %s' % (docCount, windowTime))
-          w('%s:%02.3f,%.2f\\n' % (formatTime(t0.year, t0.month, t0.day, t0.hour, t0.minute, t0.second+t0.microsecond/1000000.), docCount/1000./windowTime))
+          # print('count %s, win time %s' % (docCount, windowTime))
+          w("%s:%02.3f,%.2f\\n" % (formatTime(t0.year, t0.month, t0.day, t0.hour, t0.minute, t0.second + t0.microsecond / 1000000.0), docCount / 1000.0 / windowTime))
 
       endChart(w)
 
     # Segment counts
-    startChart(w, 'segCounts', 'Seg counts')
+    startChart(w, "segCounts", "Seg counts")
 
-    headers = ['Date', 'SegCount', 'MergingSegCount']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date", "SegCount", "MergingSegCount"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
-    w('%s,0,0\\n' % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5])))
+    w("%s,0,0\\n" % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5])))
     for tup in segCounts:
       if len(tup) >= 9:
         year, month, day, hr, min, sec, count, mergeMB, mergeSegCount = tup[:9]
-        w('%s,%d,%d\\n' % (formatTime(year, month, day, hr, min, sec), count, mergeSegCount))
+        w("%s,%d,%d\\n" % (formatTime(year, month, day, hr, min, sec), count, mergeSegCount))
 
     endChart(w)
 
-
     # Segs per full flush
-    startChart(w, 'segsFullFlush', 'Segments per full flush (client concurrency)')
+    startChart(w, "segsFullFlush", "Segments per full flush (client concurrency)")
 
-    headers = ['Date', 'SegsFullFlush']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date", "SegsFullFlush"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
-    w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+    w("%s,0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
     for tup in segsPerFullFlush:
       year, month, day, hr, min, sec, count = tup
-      w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), count))
+      w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), count))
 
     endChart(w)
 
     # Merging GB
-    startChart(w, 'mergingGB', 'Total Merging GB')
+    startChart(w, "mergingGB", "Total Merging GB")
 
-    headers = ['Date', 'MergingGB']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date", "MergingGB"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
-    w('%s,%.2f\\n' % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), 0.0))
+    w("%s,%.2f\\n" % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), 0.0))
     for tup in segCounts:
       if len(tup) >= 8:
         year, month, day, hr, min, sec, count, mergeMB = tup[:8]
         # print("mergeMB %s" % mergeMB)
-        w('%s,%.2f\\n' % (formatTime(year, month, day, hr, min, sec), mergeMB/1024.))
+        w("%s,%.2f\\n" % (formatTime(year, month, day, hr, min, sec), mergeMB / 1024.0))
 
     endChart(w)
 
-
     # Running merges
-    startChart(w, 'runningMerges', 'Running Merges (GB)')
+    startChart(w, "runningMerges", "Running Merges (GB)")
 
-    headers = ['Date'] + ['Merge%s' % x for x in range(maxRunningMerges)]
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date"] + ["Merge%s" % x for x in range(maxRunningMerges)]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
     # Thread name -> id, size
     runningMerges = {}
 
-    w('%s,%s\\n' % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), ','.join(['0'] * maxRunningMerges)))
+    w("%s,%s\\n" % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), ",".join(["0"] * maxRunningMerges)))
     ids = set(range(maxRunningMerges))
     for tup in merges:
       if len(tup) == 9:
         event, key, year, month, day, hr, min, sec, mergeMB = tup
-        #if mergeMB > 0:
+        # if mergeMB > 0:
         #  mergeMB = math.log(mergeMB)/math.log(2.0)
 
-        l = ['0'] * maxRunningMerges
+        l = ["0"] * maxRunningMerges
         for ign, (id, size) in runningMerges.items():
-          l[id] = '%.3f' % (size/1024.)
-        w('%s,%s\\n' % (formatTime(year, month, day, hr, min, sec), ','.join(l)))
+          l[id] = "%.3f" % (size / 1024.0)
+        w("%s,%s\\n" % (formatTime(year, month, day, hr, min, sec), ",".join(l)))
 
-        if event == 'end':
+        if event == "end":
           ids.add(runningMerges[key][0])
           del runningMerges[key]
         else:
           id = ids.pop()
           runningMerges[key] = id, mergeMB
 
-        l = ['0'] * maxRunningMerges
+        l = ["0"] * maxRunningMerges
         for ign, (id, size) in runningMerges.items():
-          l[id] = '%.3f' % (size/1024.)
-        w('%s,%s\\n' % (formatTime(year, month, day, hr, min, sec), ','.join(l)))
+          l[id] = "%.3f" % (size / 1024.0)
+        w("%s,%s\\n" % (formatTime(year, month, day, hr, min, sec), ",".join(l)))
 
     endChart(w)
 
     # Running merges
-    startChart(w, 'runningMergeCount', 'Running Merge Count')
+    startChart(w, "runningMergeCount", "Running Merge Count")
 
-    headers = ['Date'] + ['MergeCount']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date"] + ["MergeCount"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
     # Thread name -> id, size
     runningMerges = {}
 
-    w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+    w("%s,0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
     mergeCount = 0
     for tup in merges:
       if len(tup) == 9:
         event, key, year, month, day, hr, min, sec, mergeMB = tup
-        if event == 'start':
+        if event == "start":
           mergeCount += 1
-        elif event == 'end':
+        elif event == "end":
           mergeCount -= 1
         else:
           raise RuntimeError()
 
-        w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), mergeCount))
+        w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), mergeCount))
 
     endChart(w)
 
-
     # Index size GB
-    startChart(w, 'indexSizeGB', 'Index Size GB')
+    startChart(w, "indexSizeGB", "Index Size GB")
 
-    headers = ['Date', 'IndexSizeGB']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date", "IndexSizeGB"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
-    w('%s,%.2f\\n' % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), 0.0))
+    w("%s,%.2f\\n" % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), 0.0))
     for tup in segCounts:
       if len(tup) >= 10:
         year, month, day, hr, min, sec, count, mergeMB, mergingSegCount, indexSizeMB = tup[:10]
-        w('%s,%.2f\\n' % (formatTime(year, month, day, hr, min, sec), indexSizeMB/1024.))
+        w("%s,%.2f\\n" % (formatTime(year, month, day, hr, min, sec), indexSizeMB / 1024.0))
 
     endChart(w)
 
     # Pct deletes
-    startChart(w, 'pctDel', 'Percent deleted docs')
+    startChart(w, "pctDel", "Percent deleted docs")
 
-    headers = ['Date', 'Deletes %']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date", "Deletes %"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
-    w('%s,%.2f\\n' % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), 0.0))
+    w("%s,%.2f\\n" % (formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]), 0.0))
     for tup in segCounts:
       if len(tup) >= 12:
         year, month, day, hr, min, sec, count, mergeMB, mergingSegCount, indexSizeMB, indexDocCount, deleteDocCount = tup[:12]
-        w('%s,%.2f\\n' % (formatTime(year, month, day, hr, min, sec), (100.*deleteDocCount)/indexDocCount))
+        w("%s,%.2f\\n" % (formatTime(year, month, day, hr, min, sec), (100.0 * deleteDocCount) / indexDocCount))
 
     endChart(w)
 
     if False:
       # Running merge count
-      startChart(w, 'runningMergeCount', 'Segments being merged')
+      startChart(w, "runningMergeCount", "Segments being merged")
 
-      headers = ['Date'] + ['MergeCount']
-      w('    "%s\\n" + \n"' % ','.join(headers))
+      headers = ["Date"] + ["MergeCount"]
+      w('    "%s\\n" + \n"' % ",".join(headers))
 
-      w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+      w("%s,0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
       ids = set(range(maxRunningMerges))
       for tup in segCounts:
         if len(tup) >= 9:
           year, month, day, hr, min, sec, count, mergeMB, mergingSegCount = tup[:9]
-          w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), mergingSegCount))
+          w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), mergingSegCount))
 
       endChart(w)
-    
 
     if False:
       # Index size Docs
-      startChart(w, 'indexSizeMDocs', 'Index Size MDocs')
+      startChart(w, "indexSizeMDocs", "Index Size MDocs")
 
-      headers = ['Date', 'IndexSizeMDocs']
-      w('    "%s\\n" + \n"' % ','.join(headers))
+      headers = ["Date", "IndexSizeMDocs"]
+      w('    "%s\\n" + \n"' % ",".join(headers))
 
       for tup in segCounts:
         if len(tup) >= 11:
           year, month, day, hr, min, sec, count, mergeMB, mergingSegCount, indexSizeMB, indexSizeDocs = tup[:11]
-          w('%s,%.2f\\n' % (formatTime(year, month, day, hr, min, sec), indexSizeDocs/1000000.0))
+          w("%s,%.2f\\n" % (formatTime(year, month, day, hr, min, sec), indexSizeDocs / 1000000.0))
       endChart(w)
 
     # Refresh times
-    startChart(w, 'refreshTimes', 'Time (msec) to refresh')
+    startChart(w, "refreshTimes", "Time (msec) to refresh")
 
-    headers = ['Date', 'RefreshMS']
-    w('    "%s\\n" + \n"' % ','.join(headers))
+    headers = ["Date", "RefreshMS"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
 
-    w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+    w("%s,0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
     for tup in getReaderTimes:
       year, month, day, hr, min, sec, ms = tup
-      w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), ms))
+      w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), ms))
 
     endChart(w)
 
     if len(getReaderTimes) != 0:
-      startChart(w, 'refreshRate', 'Refreshes in past 10 sec')
+      startChart(w, "refreshRate", "Refreshes in past 10 sec")
 
-      headers = ['Date', 'RefreshRate']
-      w('    "%s\\n" + \n"' % ','.join(headers))
+      headers = ["Date", "RefreshRate"]
+      w('    "%s\\n" + \n"' % ",".join(headers))
 
-      w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+      w("%s,0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
 
       startIndex = 0
       l = getReaderTimes[0]
@@ -492,16 +489,16 @@ def main():
           l = getReaderTimes[startIndex]
           startTime = toDateTime(l[:-1])
 
-        w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), i-startIndex+1))
+        w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), i - startIndex + 1))
 
       endChart(w)
 
     # Commit times
-    startChart(w, 'commitTime', 'Time (sec) to commit')
+    startChart(w, "commitTime", "Time (sec) to commit")
 
-    headers = ['Date', 'CommitSec']
-    w('    "%s\\n" + \n"' % ','.join(headers))
-    w('%s,0.0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+    headers = ["Date", "CommitSec"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
+    w("%s,0.0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
 
     for i, tup in enumerate(commitTimes):
       if len(tup) == 7:
@@ -509,23 +506,23 @@ def main():
         year, month, day, hr, min, sec, (endYear, endMonth, endDay, endHr, endMin, endSec) = tup
         t0 = toDateTime(tup[:6])
         t1 = toDateTime(tup[-1])
-        commitSec = (t1-t0).total_seconds()
+        commitSec = (t1 - t0).total_seconds()
         # print('commitSec %s; %s %s' % (commitSec, t0, t1))
-        w('%s,%g\\n' % (formatTime(year, month, day, hr, min, sec), commitSec))
+        w("%s,%g\\n" % (formatTime(year, month, day, hr, min, sec), commitSec))
 
     endChart(w)
 
     # Commit rate
-    startChart(w, 'commitRate', 'Commits in past 60 sec')
+    startChart(w, "commitRate", "Commits in past 60 sec")
 
-    headers = ['Date', 'CommitRate']
-    w('    "%s\\n" + \n"' % ','.join(headers))
-    w('%s,0\\n' % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
+    headers = ["Date", "CommitRate"]
+    w('    "%s\\n" + \n"' % ",".join(headers))
+    w("%s,0\\n" % formatTime(minTime[0], minTime[1], minTime[2], minTime[3], minTime[4], minTime[5]))
 
     startIndex = 0
     l = commitTimes[0]
     startTime = toDateTime(l[:-1])
-    
+
     for i, tup in enumerate(commitTimes):
       if len(tup) >= 6:
         year, month, day, hr, min, sec = tup[:6]
@@ -536,28 +533,31 @@ def main():
           l = commitTimes[startIndex]
           startTime = toDateTime(l[:6])
 
-        w('%s,%d\\n' % (formatTime(year, month, day, hr, min, sec), i-startIndex+1))
+        w("%s,%d\\n" % (formatTime(year, month, day, hr, min, sec), i - startIndex + 1))
 
     endChart(w)
 
-    w('</table>')
-    
-    w('''
+    w("</table>")
+
+    w("""
     </body>
     </html>
-    ''')
+    """)
+
 
 globalChartCount = 0
+
 
 def startChart(w, idName, title):
   global globalChartCount
   if globalChartCount % 3 == 0:
     if globalChartCount > 0:
-      w('</tr>')
-    w('<tr>')
+      w("</tr>")
+    w("<tr>")
 
-  w('<td>')
-  w('''
+  w("<td>")
+  w(
+    """
     <br><b>%s</b>
     <div id="%s" style="width:500px; height:300px"></div>
     <script type="text/javascript">
@@ -565,11 +565,14 @@ def startChart(w, idName, title):
 
         // containing div
         document.getElementById("%s"),
-    ''' % (title, idName, idName))
+    """
+    % (title, idName, idName)
+  )
   globalChartCount += 1
 
+
 def endChart(w):
-  w('''"\n,
+  w(""""\n,
   {
     axes: {
       x: {
@@ -585,34 +588,32 @@ def endChart(w):
   );
   </script>
   </td>
-  ''')
-  
+  """)
+
+
 def toDateTime(tup):
   usec = int((tup[5] % 1) * 1000000)
-  return datetime.datetime(year=tup[0], month=tup[1], day=tup[2],
-                           hour=tup[3], minute=tup[4],
-                           second=int(tup[5]),
-                           microsecond=usec)
+  return datetime.datetime(year=tup[0], month=tup[1], day=tup[2], hour=tup[3], minute=tup[4], second=int(tup[5]), microsecond=usec)
+
 
 def utcShift():
   now = time.time()
   offset = datetime.datetime.fromtimestamp(now) - datetime.datetime.utcfromtimestamp(now)
   return offset
 
+
 EPOCH = datetime.datetime(year=1970, month=1, day=1) + utcShift()
+
 
 def formatTime(year, month, day, hr, min, sec):
   # return %04d-%02d-%02d %02d:%02d % (year, month, day, hr, min, int(sec)
   usec = int((sec % 1) * 1000000)
-  t = datetime.datetime(year=year, month=month, day=day,
-                        hour=hr, minute=min,
-                        second=int(sec),
-                        microsecond=usec)
-  return int(1000.0 * (t-EPOCH).total_seconds())
+  t = datetime.datetime(year=year, month=month, day=day, hour=hr, minute=min, second=int(sec), microsecond=usec)
+  return int(1000.0 * (t - EPOCH).total_seconds())
 
-  
+
 TEN_SEC = datetime.timedelta(seconds=10.0)
 SIXTY_SEC = datetime.timedelta(seconds=60.0)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   main()

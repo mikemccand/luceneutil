@@ -24,14 +24,16 @@ def highDimDataSets = [
 
 def luceneDir = (String) findProperty("external.lucene.repo") + '/lucene'
 // def luceneDir = "/l/trunk/lucene"
-// def luceneVersion = (String) findProperty("lucene.version")
-def luceneVersion = "11.0.0"
+def luceneVersion = (String) findProperty("lucene.version")
+// def luceneVersion = "11.0.0"
 def luceneFT = fileTree(dir: luceneDir, include: "**/*$luceneVersion-SNAPSHOT.jar")
 
 task compileKnn (type: JavaCompile) {
-    if (luceneFT.empty) {
-        throw new GradleException('compile classpath is empty. Please check external.lucene.repo:"'
-                + luceneDir + '", and lucene.version:"' + luceneVersion + '"')
+    doFirst {
+        if (luceneFT.empty) {
+            throw new GradleException('compile classpath is empty. Please check external.lucene.repo:"'
+                    + luceneDir + '", and lucene.version:"' + luceneVersion + '"')
+        }
     }
     source = [srcDir]
     include "knn/KnnGraphTester.java", "WikiVectors.java", "perf/VectorDictionary.java"

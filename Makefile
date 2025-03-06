@@ -23,8 +23,7 @@ VENV=${PWD}/.venv
 SOURCES=src/python
 
 # check formatting, linting, and types
-#lint: format ruff pyright
-lint: ruff pyright
+lint: format ruff pyright
 
 # check all formatting
 format: env

@@ -680,7 +680,7 @@ public class KnnGraphTester {
     }
     long endNS = System.nanoTime();
     double elapsedSec = nsToSec(endNS - startNS);
-    log("Force merge done in %.2f sec\n", elapsedSec + "\n");
+    log("Force merge done in %.2f sec\n", elapsedSec);
     return elapsedSec;
   }
 

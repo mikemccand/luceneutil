@@ -66,6 +66,7 @@ PARAMS = {
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
   "numMergeThread": (4,),
+  # "numSearchThread": (8,), # fixed sized threadpool size to pass to the index searcher.
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),

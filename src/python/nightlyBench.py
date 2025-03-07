@@ -1517,7 +1517,12 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, "VectorSearch", "VectorSearch (approximate KNN float 768-dimension vector search from word embeddings)")
   writeOneLine(w, done, "PreFilteredVectorSearch", "Likewise, with a pre-filter")
   writeOneLine(w, done, "PostFilteredVectorSearch", "Same filter, but applied as a post-filter rather than a pre-filter")
-  writeOneLine(w, done, "knnResults", "Nightly charts for <a href='https://github.com/mikemccand/luceneutil/blob/main/src/main/knn/KnnGraphTester.java'><tt>KnnGraphTester</tt></a> on <a href='https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings'>Cohere Wikipedia en corpus</a>")
+  writeOneLine(
+    w,
+    done,
+    "knnResults",
+    "Nightly charts for <a href='https://github.com/mikemccand/luceneutil/blob/main/src/main/knn/KnnGraphTester.java'><tt>KnnGraphTester</tt></a> on <a href='https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings'>Cohere Wikipedia en corpus</a>",
+  )
 
   w("<br><br><b>Other queries:</b>")
   writeOneLine(w, done, "Term", "TermQuery")

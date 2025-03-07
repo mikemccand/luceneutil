@@ -93,44 +93,45 @@ KNNResultV0 = namedtuple(
 
 
 CHANGES = [
-  ('2016-07-04 07:13:41', 'LUCENE-7351: Doc id compression for dimensional points'),
-  ('2016-07-07 08:02:29', 'LUCENE-7369: Similarity.coord and BooleanQuery.disableCoord are removed'),
-  ('2016-07-12 15:57:56', 'LUCENE-7371: Better compression of dimensional points values'),
-  ('2016-07-29 08:23:54', 'LUCENE-7396: speed up flush of points'),
-  ('2016-08-03 12:34:06', 'LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case'),
-  ('2016-08-03 12:35:48', 'LUCENE-7399: Speed up flush of points, v2'),
-  ('2016-08-12 17:54:33', 'LUCENE-7409: improve MMapDirectory\'s IndexInput to detect if a clone is being used after its parent was closed'),
-  ('2016-09-21 13:41:41', 'LUCENE-7407: Switch doc values to iterator API'),
-  ('2016-10-04 17:00:53', 'LUCENE-7474: Doc values writers should use sparse encoding'),
-  ('2016-10-17 07:28:20', 'LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat'),
-  ('2016-10-18 13:05:50', 'LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case'),
-  ('2016-10-18 14:08:29', 'LUCENE-7489: Wrap only once in case GCD compression is used'),
-  ('2016-10-24 08:51:23', 'LUCENE-7462: Give doc values an advanceExact method'),
-  ('2016-10-31 00:04:37', 'LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory'),
-  ('2016-11-02 10:48:29', 'LUCENE-7135: Fixed this issue so we use MMapDirectory again'),
-  ('2016-11-10 13:04:15', 'LUCENE-7545: Dense norms/doc-values should not consume memory for the IW buffer'),
-  ('2016-11-23', 'Take best of 5 JVM runs for each search benchmark to reduce noise'),
-  ('2016-12-04', 'LUCENE-7563: Compress the in-memory BKD points index'),
-  ('2016-12-07', 'LUCENE-7583: buffer small leaf-block writes in BKDWriter'),
-  ('2016-12-11', 'Re-enable JVM\'s background and tiered compilation'),
-  ('2016-12-15', 'LUCENE-7589: Prevent outliers from raising number of doc-values bits for all documents'),
-  ('2016-12-20', 'LUCENE-7579: Sort segments on flush, not merge'),
-  ('2019-04-23', 'Switched to OpenJDK 11'),
-  ('2019-04-30', 'Switched GC back to ParallelGC (away from default G1GC)'),
-  ('2020-11-06', 'Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks'),
-  ('2021-06-18', 'LUCENE-9996: Reduced RAM usage per DWPT'),
-  ('2021-06-24', 'LUCENE-9613: Encode ordinals like numerics'),
-  ('2021-07-29', 'LUCENE-10031: Faster merging with index sorting enabled'),
-  ('2021-08-16', 'LUCENE-10014: Fixed GCD compression'),
-  ('2021-09-28', 'LUCENE-10125: Optimize primitive writes in OutputStreamIndexOutput'),
-  ('2021-10-07', 'LUCENE-10153: Speed up BKDWriter using VarHandles'),
-  ('2021-10-21', 'LUCENE-10165: Implement Lucene90DocValuesProducer#getMergeInstance'),
-  ('2021-11-01', 'LUCENE-10196: Improve IntroSorter with 3-ways partitioning'),
-  ('2022-12-23', 'Cut over numeric fields to LongField / DoubleField'),
-  ('2022-12-28', 'GITHUB#12037: Optimize flush of SORTED_NUMERIC fields in conjunction with index sorting'),
-  ('2023-02-13', 'Cut over keyword fields to KeywordField'),
-  ('2023-02-21', 'GITHUB#12139: Skip the TokenStream overhead for simple keywords'),
-  ]
+  ("2016-07-04 07:13:41", "LUCENE-7351: Doc id compression for dimensional points"),
+  ("2016-07-07 08:02:29", "LUCENE-7369: Similarity.coord and BooleanQuery.disableCoord are removed"),
+  ("2016-07-12 15:57:56", "LUCENE-7371: Better compression of dimensional points values"),
+  ("2016-07-29 08:23:54", "LUCENE-7396: speed up flush of points"),
+  ("2016-08-03 12:34:06", "LUCENE-7403: Use blocks of exactly maxPointsInLeafNode in the 1D points case"),
+  ("2016-08-03 12:35:48", "LUCENE-7399: Speed up flush of points, v2"),
+  ("2016-08-12 17:54:33", "LUCENE-7409: improve MMapDirectory's IndexInput to detect if a clone is being used after its parent was closed"),
+  ("2016-09-21 13:41:41", "LUCENE-7407: Switch doc values to iterator API"),
+  ("2016-10-04 17:00:53", "LUCENE-7474: Doc values writers should use sparse encoding"),
+  ("2016-10-17 07:28:20", "LUCENE-7489: Better sparsity support for Lucene70DocValuesFormat"),
+  ("2016-10-18 13:05:50", "LUCENE-7501: Save one heap byte per index node in the dimensional points index for the 1D case"),
+  ("2016-10-18 14:08:29", "LUCENE-7489: Wrap only once in case GCD compression is used"),
+  ("2016-10-24 08:51:23", "LUCENE-7462: Give doc values an advanceExact method"),
+  ("2016-10-31 00:04:37", "LUCENE-7135: This issue accidentally caused FSDirectory.open to use NIOFSDirectory instead of MMapDirectory"),
+  ("2016-11-02 10:48:29", "LUCENE-7135: Fixed this issue so we use MMapDirectory again"),
+  ("2016-11-10 13:04:15", "LUCENE-7545: Dense norms/doc-values should not consume memory for the IW buffer"),
+  ("2016-11-23", "Take best of 5 JVM runs for each search benchmark to reduce noise"),
+  ("2016-12-04", "LUCENE-7563: Compress the in-memory BKD points index"),
+  ("2016-12-07", "LUCENE-7583: buffer small leaf-block writes in BKDWriter"),
+  ("2016-12-11", "Re-enable JVM's background and tiered compilation"),
+  ("2016-12-15", "LUCENE-7589: Prevent outliers from raising number of doc-values bits for all documents"),
+  ("2016-12-20", "LUCENE-7579: Sort segments on flush, not merge"),
+  ("2019-04-23", "Switched to OpenJDK 11"),
+  ("2019-04-30", "Switched GC back to ParallelGC (away from default G1GC)"),
+  ("2020-11-06", "Move to new beast 3 Ryzen Threadripper 3990X hardware for all nightly benchmarks"),
+  ("2021-06-18", "LUCENE-9996: Reduced RAM usage per DWPT"),
+  ("2021-06-24", "LUCENE-9613: Encode ordinals like numerics"),
+  ("2021-07-29", "LUCENE-10031: Faster merging with index sorting enabled"),
+  ("2021-08-16", "LUCENE-10014: Fixed GCD compression"),
+  ("2021-09-28", "LUCENE-10125: Optimize primitive writes in OutputStreamIndexOutput"),
+  ("2021-10-07", "LUCENE-10153: Speed up BKDWriter using VarHandles"),
+  ("2021-10-21", "LUCENE-10165: Implement Lucene90DocValuesProducer#getMergeInstance"),
+  ("2021-11-01", "LUCENE-10196: Improve IntroSorter with 3-ways partitioning"),
+  ("2022-12-23", "Cut over numeric fields to LongField / DoubleField"),
+  ("2022-12-28", "GITHUB#12037: Optimize flush of SORTED_NUMERIC fields in conjunction with index sorting"),
+  ("2023-02-13", "Cut over keyword fields to KeywordField"),
+  ("2023-02-21", "GITHUB#12139: Skip the TokenStream overhead for simple keywords"),
+]
+
 
 def get_git_revision(git_clone_path):
   # git is so weird, like this is intuitive?
@@ -151,26 +152,30 @@ def is_git_clone_dirty(git_clone_path):
   )
   return bool(p.returncode)
 
-re_date_time = re.compile(r'/(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)/')
+
+re_date_time = re.compile(r"/(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)/")
+
+
 def main():
-  if '-write_graph' in sys.argv:
+  if "-write_graph" in sys.argv:
     write_graph()
   else:
-    all_results = run('.')
+    all_results = run(".")
+
 
 def write_graph():
   series = {}
   timestamps = []
   luceneGitHashes = []
   luceneUtilGitHashes = []
-  for file_name in sorted(glob.glob(f'{constants.LOGS_DIR}/*/knn_results.pk')):
-  # for file_name in sorted(glob.glob(f'/l/logs.nightly/*/knn_results.pk')):
-    print(f'got {file_name}')
+  for file_name in sorted(glob.glob(f"{constants.LOGS_DIR}/*/knn_results.pk")):
+    # for file_name in sorted(glob.glob(f'/l/logs.nightly/*/knn_results.pk')):
+    print(f"got {file_name}")
     m = re_date_time.search(file_name)
     year, month, day, hour, minute, second = [int(x) for x in m.groups()]
     t = datetime.datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
     timestamps.append(t)
-    result = pickle.load(open(file_name, 'rb'))
+    result = pickle.load(open(file_name, "rb"))
     row = []
 
     # quantize_bits=(4, 7, 32) X forceMerge=(False, True)
@@ -182,26 +187,26 @@ def write_graph():
         lucene_git_rev = run.lucene_git_rev
       elif lucene_git_rev != run.lucene_git_rev:
         # should be the same for all runs
-        raise RuntimeError(f'lucene git rev changed?  {lucene_git_rev=} vs {run.lucene_git_rev=}')
+        raise RuntimeError(f"lucene git rev changed?  {lucene_git_rev=} vs {run.lucene_git_rev=}")
       if luceneutil_git_rev is None:
         luceneutil_git_rev = run.luceneutil_git_rev
       elif luceneutil_git_rev != run.luceneutil_git_rev:
         # should be the same for all runs
-        raise RuntimeError(f'luceneutil git rev changed?  {luceneutil_git_rev=} vs {run.luceneutil_git_rev=}')
+        raise RuntimeError(f"luceneutil git rev changed?  {luceneutil_git_rev=} vs {run.luceneutil_git_rev=}")
       desc = run.quantize_desc
       if run.do_force_merge:
-        desc += '.force_merge'
-      print(f'{desc=}')
+        desc += ".force_merge"
+      print(f"{desc=}")
       add(series, desc, run.recall)
-      add(series, f'{desc} cpu_time_ms', run.cpu_time_ms)
-      add(series, f'{desc} RAM', run.vec_ram_mb)
-      add(series, f'{desc} disk', run.vec_disk_mb)
-      add(series, f'{desc} index-time-sec', run.index_time_sec)
-      add(series, f'{desc} force-merge-time-sec', run.force_merge_time_sec)
-      add(series, f'{desc} index K docs/sec', run.index_docs_per_sec/1000.)
-      add(series, f'{desc} vec_ram_gb', run.vec_ram_mb/1024.)
-      add(series, f'{desc} vec_disk_gb', run.vec_disk_mb/1024.)
-      add(series, f'{desc} k_total_visited', run.total_visited/1000.)
+      add(series, f"{desc} cpu_time_ms", run.cpu_time_ms)
+      add(series, f"{desc} RAM", run.vec_ram_mb)
+      add(series, f"{desc} disk", run.vec_disk_mb)
+      add(series, f"{desc} index-time-sec", run.index_time_sec)
+      add(series, f"{desc} force-merge-time-sec", run.force_merge_time_sec)
+      add(series, f"{desc} index K docs/sec", run.index_docs_per_sec / 1000.0)
+      add(series, f"{desc} vec_ram_gb", run.vec_ram_mb / 1024.0)
+      add(series, f"{desc} vec_disk_gb", run.vec_disk_mb / 1024.0)
+      add(series, f"{desc} k_total_visited", run.total_visited / 1000.0)
 
     luceneGitHashes.append(lucene_git_rev)
     luceneUtilGitHashes.append(luceneutil_git_rev)
@@ -209,27 +214,27 @@ def write_graph():
   if False:
     # too verbose!
     for i, githash in enumerate(luceneGitHashes):
-      print(f'{timestamps[i]=} {githash=}')
+      print(f"{timestamps[i]=} {githash=}")
 
-    print('\n\nluceneutil:')
+    print("\n\nluceneutil:")
     for i, githash in enumerate(luceneUtilGitHashes):
-      print(f'{timestamps[i]=} {githash=}')
+      print(f"{timestamps[i]=} {githash=}")
 
     for label, points in series.items():
-      print(f'{label} -> {points}')
-  
-  with open('/l/lucenenightly/docs/knnResults.html', 'w') as f:
-    f.write('''
+      print(f"{label} -> {points}")
+
+  with open("/l/lucenenightly/docs/knnResults.html", "w") as f:
+    f.write("""
 <html>
 <head>
 <link rel="stylesheet" href="dygraph.css"></link>
 <title>Lucene Nightly KNN benchmarks</title>
 <script type="text/javascript" src="dygraph.min.js"></script>
 <script type="text/javascript">
-''')
-    f.write('luceneGitHashes = %s;\n' % repr(luceneGitHashes))
-    f.write('luceneUtilGitHashes = %s;\n' % repr(luceneUtilGitHashes))    
-    f.write('''
+""")
+    f.write("luceneGitHashes = %s;\n" % repr(luceneGitHashes))
+    f.write("luceneUtilGitHashes = %s;\n" % repr(luceneUtilGitHashes))
+    f.write("""
 function onPointClick(e, p) {
   // TODO: make this controllable via end-user GUI
   var which = "luceneutil";
@@ -277,9 +282,9 @@ html * {
 
 </head>
 <body>
-''')
+""")
 
-    f.write('''
+    f.write("""
 <style type="text/css">
 #summary {
   left: 10px;
@@ -289,91 +294,127 @@ html * {
 <div id="summary" style="height:17%%; width:95%%">
 This benchmark indexes and searches Cohere 768 dimensin vectors from https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings.
 </div>
-''')
+""")
 
-    write_one_graph(f, timestamps, (series['no'], series['no.force_merge'],
-                                    series['7 bits'], series['7 bits.force_merge'],
-                                    series['4 bits'], series['4 bits.force_merge']),
-                    'knn_recall', 'Recall',
-                    headers = ('Date',
-                               'float32', 'float32 1seg',
-                               '7 bits', '7 bits 1seg',
-                               '4 bits', '4 bits 1seg'),
-                    ylabel = 'Recall')
+    write_one_graph(
+      f,
+      timestamps,
+      (series["no"], series["no.force_merge"], series["7 bits"], series["7 bits.force_merge"], series["4 bits"], series["4 bits.force_merge"]),
+      "knn_recall",
+      "Recall",
+      headers=("Date", "float32", "float32 1seg", "7 bits", "7 bits 1seg", "4 bits", "4 bits 1seg"),
+      ylabel="Recall",
+    )
 
-    write_one_graph(f, timestamps, (series['no cpu_time_ms'], series['no.force_merge cpu_time_ms'],
-                                    series['7 bits cpu_time_ms'], series['7 bits.force_merge cpu_time_ms'],
-                                    series['4 bits cpu_time_ms'], series['4 bits.force_merge cpu_time_ms']),
-                    'knn_cpu_time_ms', 'CPU Time (msec)',
-                    headers = ('Date',
-                               'float32', 'float32 1seg',
-                               '7 bits', '7 bits 1seg',
-                               '4 bits', '4 bits 1seg'),
-                    ylabel = 'CPU Time (msec)')
+    write_one_graph(
+      f,
+      timestamps,
+      (
+        series["no cpu_time_ms"],
+        series["no.force_merge cpu_time_ms"],
+        series["7 bits cpu_time_ms"],
+        series["7 bits.force_merge cpu_time_ms"],
+        series["4 bits cpu_time_ms"],
+        series["4 bits.force_merge cpu_time_ms"],
+      ),
+      "knn_cpu_time_ms",
+      "CPU Time (msec)",
+      headers=("Date", "float32", "float32 1seg", "7 bits", "7 bits 1seg", "4 bits", "4 bits 1seg"),
+      ylabel="CPU Time (msec)",
+    )
 
-    write_one_graph(f, timestamps, (series['no index K docs/sec'],
-                                    series['7 bits index K docs/sec'],
-                                    series['4 bits index K docs/sec']),
-                    'knn_indexing_docs_per_sec', 'Indexing K docs/sec',
-                    headers = ('Date',
-                               'float32',
-                               '7 bits',
-                               '4 bits'),
-                    ylabel = 'Indexing K doc/sec')
+    write_one_graph(
+      f,
+      timestamps,
+      (series["no index K docs/sec"], series["7 bits index K docs/sec"], series["4 bits index K docs/sec"]),
+      "knn_indexing_docs_per_sec",
+      "Indexing K docs/sec",
+      headers=("Date", "float32", "7 bits", "4 bits"),
+      ylabel="Indexing K doc/sec",
+    )
 
-    write_one_graph(f, timestamps, (series['no.force_merge force-merge-time-sec'],
-                                    series['7 bits.force_merge force-merge-time-sec'],
-                                    series['4 bits.force_merge force-merge-time-sec']),
-                    'force_merge_time_sec', 'Force Merge time (sec)',
-                    headers = ('Date',
-                               'float32',
-                               '7 bits',
-                               '4 bits'),
-                    ylabel = 'sec')
+    write_one_graph(
+      f,
+      timestamps,
+      (series["no.force_merge force-merge-time-sec"], series["7 bits.force_merge force-merge-time-sec"], series["4 bits.force_merge force-merge-time-sec"]),
+      "force_merge_time_sec",
+      "Force Merge time (sec)",
+      headers=("Date", "float32", "7 bits", "4 bits"),
+      ylabel="sec",
+    )
 
-    write_one_graph(f, timestamps, (series['no vec_ram_gb'], series['no.force_merge vec_ram_gb'],
-                                    series['7 bits vec_ram_gb'], series['7 bits.force_merge vec_ram_gb'],
-                                    series['4 bits vec_ram_gb'], series['4 bits.force_merge vec_ram_gb'],
-                                    series['no vec_disk_gb'], series['no.force_merge vec_disk_gb'],
-                                    series['7 bits vec_disk_gb'], series['7 bits.force_merge vec_disk_gb'],
-                                    series['4 bits vec_disk_gb'], series['4 bits.force_merge vec_disk_gb']                                    
-                                    ),
-                    'knn_ram_disk_gb', 'GB RAM and disk',
-                    headers = ('Date',
-                               'RAM float32', 'RAM float32 1seg',
-                               'RAM 7 bits', 'RAM 7 bits 1seg',
-                               'RAM 4 bits', 'RAM 4 bits 1seg',
-                               'Disk float32', 'Disk float32 1seg',
-                               'Disk 7 bits', 'Disk 7 bits 1seg',
-                               'Disk 4 bits', 'Disk 4 bits 1seg',
-                               ),
-                    ylabel = 'GB')
-    
-    write_one_graph(f, timestamps, (series['no k_total_visited'], series['no.force_merge k_total_visited'],
-                                    series['7 bits k_total_visited'], series['7 bits.force_merge k_total_visited'],
-                                    series['4 bits k_total_visited'], series['4 bits.force_merge k_total_visited']),
-                    'k_total_visited', 'Visited Node Count (K)',
-                    headers = ('Date',
-                               'float32', 'float32 1seg',
-                               '7 bits', '7 bits 1seg',
-                               '4 bits', '4 bits 1seg'),
-                    ylabel = 'K Nodes Visited')
-                    
-    f.write('</body>\n</html>')
+    write_one_graph(
+      f,
+      timestamps,
+      (
+        series["no vec_ram_gb"],
+        series["no.force_merge vec_ram_gb"],
+        series["7 bits vec_ram_gb"],
+        series["7 bits.force_merge vec_ram_gb"],
+        series["4 bits vec_ram_gb"],
+        series["4 bits.force_merge vec_ram_gb"],
+        series["no vec_disk_gb"],
+        series["no.force_merge vec_disk_gb"],
+        series["7 bits vec_disk_gb"],
+        series["7 bits.force_merge vec_disk_gb"],
+        series["4 bits vec_disk_gb"],
+        series["4 bits.force_merge vec_disk_gb"],
+      ),
+      "knn_ram_disk_gb",
+      "GB RAM and disk",
+      headers=(
+        "Date",
+        "RAM float32",
+        "RAM float32 1seg",
+        "RAM 7 bits",
+        "RAM 7 bits 1seg",
+        "RAM 4 bits",
+        "RAM 4 bits 1seg",
+        "Disk float32",
+        "Disk float32 1seg",
+        "Disk 7 bits",
+        "Disk 7 bits 1seg",
+        "Disk 4 bits",
+        "Disk 4 bits 1seg",
+      ),
+      ylabel="GB",
+    )
+
+    write_one_graph(
+      f,
+      timestamps,
+      (
+        series["no k_total_visited"],
+        series["no.force_merge k_total_visited"],
+        series["7 bits k_total_visited"],
+        series["7 bits.force_merge k_total_visited"],
+        series["4 bits k_total_visited"],
+        series["4 bits.force_merge k_total_visited"],
+      ),
+      "k_total_visited",
+      "Visited Node Count (K)",
+      headers=("Date", "float32", "float32 1seg", "7 bits", "7 bits 1seg", "4 bits", "4 bits 1seg"),
+      ylabel="K Nodes Visited",
+    )
+
+    f.write("</body>\n</html>")
+
 
 topPct = 0
+
 
 def write_one_graph(f, timestamps, series, id, title, headers=None, ylabel=None):
   global topPct
 
   assert len(timestamps) == len(series[0])
-  
+
   topPct += 55
 
   if headers is None:
-    headers = ('Date', 'Dense', 'Sparse', 'Sparse (sorted)')
+    headers = ("Date", "Dense", "Sparse", "Sparse (sorted)")
 
-  f.write('''
+  f.write(
+    """
 <div id="%s" style="height:50%%; width:95%%"></div>
 <script type="text/javascript">
   g = new Dygraph(
@@ -381,13 +422,15 @@ def write_one_graph(f, timestamps, series, id, title, headers=None, ylabel=None)
   // containing div
   document.getElementById("%s"),
   "%s\\n"
-''' % (id, id, ','.join(headers)))
+"""
+    % (id, id, ",".join(headers))
+  )
 
   for i in range(len(timestamps)):
     timestamp = timestamps[i]
     values = [series[x][i] for x in range(len(series))]
     f.write('  + "%s-%s-%s %s:%s:%s' % (timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second))
-    f.write(',%s\\n"\n' % ','.join([str(x) for x in values]))
+    f.write(',%s\\n"\n' % ",".join([str(x) for x in values]))
 
   f.write(f'''
   , {{ "title": "<center><a href=\'#{id}\'><font size=+2>{title}</font></a></center>",
@@ -417,21 +460,22 @@ def write_one_graph(f, timestamps, series, id, title, headers=None, ylabel=None)
   }});
   ''')
 
-  f.write('g.ready(function() {g.setAnnotations([')
+  f.write("g.ready(function() {g.setAnnotations([")
   for i in range(len(CHANGES)):
     change = CHANGES[i]
     if len(change) == 3:
       timeStamp = change[2]
-      f.write('{series: "%s", x: "%s", shortText: "%s", text: "%s"},\n' % \
-              (headers[2], timeStamp, getLabel(i), change[1].replace('"', '\\"')))
-  f.write(']);});\n')
+      f.write('{series: "%s", x: "%s", shortText: "%s", text: "%s"},\n' % (headers[2], timeStamp, getLabel(i), change[1].replace('"', '\\"')))
+  f.write("]);});\n")
 
-  f.write('</script>\n')
+  f.write("</script>\n")
+
 
 def add(series, desc, value):
   if desc not in series:
     series[desc] = []
   series[desc].append(value)
+
 
 def run(results_dir):
   try:

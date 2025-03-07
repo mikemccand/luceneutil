@@ -5,9 +5,9 @@
 # The ASF licenses this file to You under the Apache License, Version 2.0
 # (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,20 +15,20 @@
 # limitations under the License.
 #
 
+import datetime
 import math
+import os
 import pickle
 import sys
-import os
+
 import infostream_to_segments
-import datetime
 
 infostream_to_segments.sec_to_time_delta
 
 # pip3 install intervaltree
-import intervaltree
-
 # pip3 install graphviz
 import graphviz
+import intervaltree
 
 # TODO
 #   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
@@ -113,33 +113,36 @@ import graphviz
 #   - NO
 #     - maybe use D3?
 
-merge_on_commit_color = 'rgb(253,235,208)'
-merge_on_commit_highlight_color = 'rgb(202,188,166)'
-full_flush_color = 'rgb(214,234,248)'
-full_flush_highlight_color = 'rgb(171,187,198)'
+merge_on_commit_color = "rgb(253,235,208)"
+merge_on_commit_highlight_color = "rgb(202,188,166)"
+full_flush_color = "rgb(214,234,248)"
+full_flush_highlight_color = "rgb(171,187,198)"
 
 # so pickle is happy
 Segment = infostream_to_segments.Segment
 
-def ts_to_js_date(timestamp):
-  return f'new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})'
 
-'''
+def ts_to_js_date(timestamp):
+  return f"new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond / 1000000:.4f})"
+
+
+"""
 Opens a segments.pk previously written by parsing an IndexWriter InfoStream log using
 infostream_to_segments.py, and writes a semi-interactive 2D rendering/timeline of the
 segment flushing/merging/deletes using fabric.js / HTML5 canvas.
-'''
+"""
 
 USE_FABRIC = False
 USE_SVG = True
 
+
 def compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time):
-  '''
+  """
   Computes aggregate metrics by time: MB/sec writing
   (flushing/merging), number of segments, number/%tg deletes, max_doc,
   concurrent flush count, concurrent merge count, total disk usage,
   indexing rate, write amplification, delete rate, add rate
-  '''
+  """
 
   name_to_segment = {}
 
@@ -149,38 +152,40 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
     if segment.end_time is None or segment.size_mb is None:
       # InfoStream ends before merge finished
       continue
-    all_times.append((segment.start_time, 'segstart', segment))
+    all_times.append((segment.start_time, "segstart", segment))
 
     segment.del_reclaims_per_sec = None
 
     for timestamp, event, line_number in segment.events:
-      if event == 'light':
-        all_times.append((timestamp, 'seglight', segment))
+      if event == "light":
+        all_times.append((timestamp, "seglight", segment))
         if segment.del_count_reclaimed is not None:
           segment.del_reclaims_per_sec = segment.del_count_reclaimed / (timestamp - segment.start_time).total_seconds()
         elif type(segment.source) is tuple:
-          print(f'WARNING: merged segment {segment.name} has no del_count_reclaimed')
+          print(f"WARNING: merged segment {segment.name} has no del_count_reclaimed")
         break
     else:
-      print(f'WARNING: no light event for {segment.source} segment {segment.name}; likely because they were still flushing when InfoStream ends: time from end is {(end_abs_time-segment.start_time).total_seconds():.1f} s')
+      print(
+        f"WARNING: no light event for {segment.source} segment {segment.name}; likely because they were still flushing when InfoStream ends: time from end is {(end_abs_time - segment.start_time).total_seconds():.1f} s"
+      )
 
     if segment.end_time is None:
       end_time = end_abs_time
     else:
       end_time = segment.end_time
-    all_times.append((end_time, 'segend', segment))
+    all_times.append((end_time, "segend", segment))
     name_to_segment[segment.name] = segment
 
   for checkpoint in checkpoints:
-    all_times.append((checkpoint[0], 'checkpoint', checkpoint))
+    all_times.append((checkpoint[0], "checkpoint", checkpoint))
 
   for commit in commits:
-    all_times.append((commit[0], 'commit', commit))
+    all_times.append((commit[0], "commit", commit))
 
   for full_flush in full_flush_events:
     # can be None if InfoStream ended before last full flush finished:
     if full_flush[1] is not None:
-      all_times.append((full_flush[1], 'fullflushend', full_flush))
+      all_times.append((full_flush[1], "fullflushend", full_flush))
 
   all_times.sort(key=lambda x: x[0])
 
@@ -216,15 +221,13 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   last_real_full_flush_time_sec = 0
 
   while upto < len(all_times):
-  
     timestamp, what, item = all_times[upto]
     upto += 1
 
-    if what == 'fullflushend':
+    if what == "fullflushend":
       last_real_full_flush_time_sec = (item[1] - item[0]).total_seconds()
 
-    if what in ('segstart', 'segend', 'seglight'):
-
+    if what in ("segstart", "segend", "seglight"):
       segment = item
 
       if segment.end_time is None:
@@ -240,49 +243,48 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
       # docs/sec
       dps = segment.max_doc / dur_sec
 
-      is_flush = type(segment.source) is str and segment.source.startswith('flush')
+      is_flush = type(segment.source) is str and segment.source.startswith("flush")
 
       # print(f'seg {segment.name} source={segment.source} {is_flush=}')
 
       if is_flush:
-
         # aggregate doc count of all flushed segments within this single full flush
-        if what == 'segstart':
+        if what == "segstart":
           if segment.full_flush_ord != cur_full_flush_ord:
-            print(f'ord now {segment.full_flush_ord}')
+            print(f"ord now {segment.full_flush_ord}")
             if cur_full_flush_ord != -1:
               flush_dps = cur_full_flush_doc_count / (timestamp - last_full_flush_time).total_seconds()
-              print(f'  dps now {flush_dps} gap={(timestamp - last_full_flush_time).total_seconds()}')
+              print(f"  dps now {flush_dps} gap={(timestamp - last_full_flush_time).total_seconds()}")
             last_full_flush_time = cur_full_flush_time
             cur_full_flush_doc_count = 0
             cur_full_flush_ord = segment.full_flush_ord
             cur_full_flush_time = timestamp
-        
+
           # print(f'add max_doc={segment.max_doc} line_number={segment.start_infostream_line_number}')
           cur_full_flush_doc_count += segment.max_doc
-          
+
         # newly written segment (from just indexed docs)
-        if what == 'segstart':
+        if what == "segstart":
           flush_mbs += mbs
           flush_thread_count += 1
           seg_name_to_size[segment.name] = segment.size_mb
-        elif what == 'segend':
+        elif what == "segend":
           tot_size_mb -= segment.size_mb
-        elif what == 'seglight':
+        elif what == "seglight":
           flush_thread_count -= 1
           flush_mbs -= mbs
           tot_size_mb += segment.size_mb
       else:
-        if what == 'segstart':
+        if what == "segstart":
           merge_mbs += mbs
           merge_dps += dps
           if segment.del_reclaims_per_sec is not None:
             del_reclaims_per_sec += segment.del_reclaims_per_sec
           merge_thread_count += 1
           seg_name_to_size[segment.name] = segment.size_mb
-        elif what == 'segend':
+        elif what == "segend":
           tot_size_mb -= segment.size_mb
-        elif what == 'seglight':
+        elif what == "seglight":
           tot_size_mb += segment.size_mb
           merge_thread_count -= 1
           merge_mbs -= mbs
@@ -294,15 +296,15 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         # sidestep delete-by-zero ha
         del_pct = 0
       else:
-        del_pct = 100.*cur_del_count/cur_max_doc
-        
-    elif what == 'checkpoint':
+        del_pct = 100.0 * cur_del_count / cur_max_doc
+
+    elif what == "checkpoint":
       # this is IW's internal checkpoint, much more frequent than external commit
-      
+
       # a point-in-time checkpoint
       sum_max_doc = 0
       sum_del_count = 0
-      
+
       for seg_tuple in item[2:]:
         # each seg_tuple is (segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes))
         seg_name = seg_tuple[0]
@@ -317,8 +319,8 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         # sidestep delete-by-zero ha
         del_pct = 0
       else:
-        del_pct = 100.*cur_del_count/cur_max_doc
-    elif what == 'commit':
+        del_pct = 100.0 * cur_del_count / cur_max_doc
+    elif what == "commit":
       # this is external (user-called) commit
       index_file_count = item[2]
       commit_seg_names = set()
@@ -333,16 +335,34 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
 
     # skip/coalesce multiple entries at precisely the same time, so merge commit (which appears as N segend
     # followed by seglight of the new merged segment at the same timestamp
-    if upto >= len(all_times)-1 or timestamp != all_times[upto][0]:
-
+    if upto >= len(all_times) - 1 or timestamp != all_times[upto][0]:
       # print(f'now do keep {infostream_to_segments.sec_to_time_delta((timestamp-start_abs_time).total_seconds())}: {flush_thread_count=} {segment.name=} {what}')
 
       # print(f'{upto=} {timestamp=} {what=} new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})')
 
-      l.append(f'[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb/1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs+flush_mbs:.3f}, {cur_max_doc/1000000.}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec/100.:.3f}, {flush_dps/100:.3f}, {merge_dps/100:.3f}, {commit_size_mb/100.:.3f}, {index_file_count/100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}')
+      l.append(
+        f"[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb / 1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs + flush_mbs:.3f}, {cur_max_doc / 1000000.0}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec / 100.0:.3f}, {flush_dps / 100:.3f}, {merge_dps / 100:.3f}, {commit_size_mb / 100.0:.3f}, {index_file_count / 100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}"
+      )
 
-      time_aggs.append((timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, merge_mbs+flush_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb))
-    
+      time_aggs.append(
+        (
+          timestamp,
+          num_segments,
+          tot_size_mb,
+          merge_mbs,
+          flush_mbs,
+          merge_mbs + flush_mbs,
+          cur_max_doc,
+          del_pct,
+          merge_thread_count,
+          flush_thread_count,
+          del_reclaims_per_sec,
+          flush_dps,
+          merge_dps,
+          last_commit_size_mb,
+        )
+      )
+
       # so we only output one spiky point when the commit happened
       commit_size_mb = 0
     else:
@@ -352,9 +372,9 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   # dygraph
   #   - https://dygraphs.com/2.2.1/dist/dygraph.min.js
   #   - https://dygraphs.com/2.2.1/dist/dygraph.css
-  with open('segmetrics.html', 'w') as f:
+  with open("segmetrics.html", "w") as f:
     f.write(
-    '''
+      """
 <html><head>
 <link rel="stylesheet" href="dygraph.css"></link>
 <style>
@@ -383,23 +403,24 @@ Dygraph.onDOMready(function onDOMready() {
     // containing div
     document.getElementById("graphdiv"),
     [
-    ''')
+    """
+    )
 
-    f.write('\n'.join(l))
+    f.write("\n".join(l))
 
-    f.write('''
+    f.write("""
       ],
 
       {labels: ["Time", "Segment count", "Size (GB)", "Merge (MB/s)", "Flush (MB/s)", "Tot (MB/s)", "Max Doc (M)", "Del %", "Merging Threads", "Flushing Threads", "Del reclaim rate (C/sec)", "Indexing rate (C docs/sec)", "Merging rate (C docs/sec)", "Commit delta (CMB)", "File count (C)", "Full flush time (sec)"],
        highlightCircleSize: 2,
        strokeWidth: 1,
-''')
+""")
 
     # zoom to first 10 minute window
     min_timestamp = all_times[0][0]
-    f.write(f'dateWindow: [{ts_to_js_date(min_timestamp)}, {ts_to_js_date(min_timestamp + datetime.timedelta(seconds=600))}],')
+    f.write(f"dateWindow: [{ts_to_js_date(min_timestamp)}, {ts_to_js_date(min_timestamp + datetime.timedelta(seconds=600))}],")
 
-    f.write('''
+    f.write("""
        strokeBorderWidth: 1,
        showRangeSelector: true,
        labelsSeparateLines: true,
@@ -415,25 +436,25 @@ Dygraph.onDOMready(function onDOMready() {
 </script>
 </body>
 </html>
-''')
+""")
 
   return time_aggs
-    
-def main():
 
+
+def main():
   if len(sys.argv) != 3:
-    raise RuntimeError(f'usage: {sys.executable} -u segments_to_html.py segments.pk out.html')
+    raise RuntimeError(f"usage: {sys.executable} -u segments_to_html.py segments.pk out.html")
 
   segments_file_in = sys.argv[1]
   html_file_out = sys.argv[2]
   if os.path.exists(html_file_out):
-    raise RuntimeError(f'please remove {html_file_out} first')
+    raise RuntimeError(f"please remove {html_file_out} first")
 
-  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events, checkpoints, commits = pickle.load(open(segments_file_in, 'rb'))
-  print(f'{len(segments)} segments spanning {(segments[-1].start_time-segments[0].start_time).total_seconds()} seconds')
+  start_abs_time, end_abs_time, segments, full_flush_events, merge_during_commit_events, checkpoints, commits = pickle.load(open(segments_file_in, "rb"))
+  print(f"{len(segments)} segments spanning {(segments[-1].start_time - segments[0].start_time).total_seconds()} seconds")
 
   time_aggs = compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time)
-    
+
   _l = []
   w = _l.append
 
@@ -445,29 +466,31 @@ def main():
   # print(f'{x_pixels_per_sec=}')
 
   # whole_width = 100 * 1024
-  whole_width = int(x_pixels_per_sec * (end_abs_time - start_abs_time).total_seconds() + 2*padding_x)
+  whole_width = int(x_pixels_per_sec * (end_abs_time - start_abs_time).total_seconds() + 2 * padding_x)
   whole_height = 1800
 
-  gv = graphviz.Digraph(comment=f'Segments from {segments_file_in}', graph_attr={'rankdir': 'LR'})
+  gv = graphviz.Digraph(comment=f"Segments from {segments_file_in}", graph_attr={"rankdir": "LR"})
 
   w('<html style="height:100%">')
-  w('<head>')
+  w("<head>")
   # w('<script src="https://cdn.jsdelivr.net/npm/fabric@latest/dist/index.min.js"></script>')
-  w('</head>')
+  w("</head>")
   w('<body style="height:95%; padding:0; margin:5">')
   w('<div sytle="position: relative;">')
-  w('<form>')
+  w("<form>")
   w('<div style="position: absolute; y: 0; display: flex; justify-content: flex-end; z-index:11">')
   w('Zoom:&nbsp;<input type="range" id="zoomSlider" min="0.5" max="3" value="1" step=".01" style="width:300px;"/>')
-  w('</div>')
-  w('</form>')
-  w('')
+  w("</div>")
+  w("</form>")
+  w("")
   w(f'<div id="details" style="position:absolute;left: 5;top: 5; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
   w('<div id="details2" style="position:absolute; right:0; display: flex; justify-content: flex-end; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
-  
+
   w(f'<div id="divit" align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
 
-  w(f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width+400} {whole_height+100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">')
+  w(
+    f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width + 400} {whole_height + 100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">'
+  )
   # w(f'<svg id="it" viewBox="0 0 {whole_width+400} {whole_height + 100}" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
   # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
@@ -501,9 +524,8 @@ def main():
       if segment.size_mb is not None:
         l[0] += 1
         l[1] += segment.size_mb
-      
 
-  w(f'\n\n  <!-- full flush events -->')
+  w(f"\n\n  <!-- full flush events -->")
   for flush_ord, (start_time, end_time) in enumerate(full_flush_events):
     if end_time is None:
       continue
@@ -513,10 +535,10 @@ def main():
     x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
     y1 = whole_height
     # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    flush_id = f'ff_{flush_ord}'
-    w(f'  <rect fill="{full_flush_color}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={y1-y0:.2f} seg_name="{flush_id}" id="{flush_id}"/>')
+    flush_id = f"ff_{flush_ord}"
+    w(f'  <rect fill="{full_flush_color}" x={x0:.2f} y={y0:.2f} width={x1 - x0:.2f} height={y1 - y0:.2f} seg_name="{flush_id}" id="{flush_id}"/>')
 
-  w(f'\n\n  <!-- merge-on-commit events -->')
+  w(f"\n\n  <!-- merge-on-commit events -->")
   for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
       continue
@@ -524,15 +546,15 @@ def main():
     y0 = 0
     x1 = padding_x + x_pixels_per_sec * (end_time - min_start_abs_time).total_seconds()
     y1 = whole_height
-    #w(f'  <rect fill="orange" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    moc_id = f'moc_{moc_ord}'
-    w(f'  <rect fill="{merge_on_commit_color}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={y1-y0:.2f} seg_name="{moc_id}" id="{moc_id}"/>')
+    # w(f'  <rect fill="orange" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
+    moc_id = f"moc_{moc_ord}"
+    w(f'  <rect fill="{merge_on_commit_color}" x={x0:.2f} y={y0:.2f} width={x1 - x0:.2f} height={y1 - y0:.2f} seg_name="{moc_id}" id="{moc_id}"/>')
 
-  #w('var textbox = null;')
-  #w('// so we can intersect mouse point with boxes:')
-  #w(f'var ps = new PlanarSet();')
+  # w('var textbox = null;')
+  # w('// so we can intersect mouse point with boxes:')
+  # w(f'var ps = new PlanarSet();')
 
-  print(f'{(end_abs_time - start_abs_time).total_seconds()} total seconds')
+  print(f"{(end_abs_time - start_abs_time).total_seconds()} total seconds")
   y_pixels_per_log_mb = 4
 
   segment_name_to_level = {}
@@ -547,50 +569,49 @@ def main():
   ages_sizes = []
 
   for segment in segments:
-
     if segment.end_time is None:
       end_time = end_abs_time
     else:
       end_time = segment.end_time
 
     light_timestamp = None
-    
+
     for timestamp, event, line_number in segment.events:
-      if event == 'light':
+      if event == "light":
         light_timestamp = timestamp
         break
-    if segment.size_mb is not None and light_timestamp is not None:  
+    if segment.size_mb is not None and light_timestamp is not None:
       ages_sizes.append((segment.source, (end_time - segment.start_time).total_seconds(), segment.size_mb, (light_timestamp - segment.start_time).total_seconds(), segment.max_doc))
-    
-    assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+
+    assert segment.name not in segment_name_to_segment, f"segment name {segment.name} appears twice?"
     segment_name_to_segment[segment.name] = segment
-    label = f'{segment.name}: docs={segment.max_doc:,}'
+    label = f"{segment.name}: docs={segment.max_doc:,}"
     if segment.size_mb is not None:
-      label += f' mb={segment.size_mb:,.1f}'
+      label += f" mb={segment.size_mb:,.1f}"
     segment_name_to_gv_node[segment.name] = gv.node(segment.name, label=label)
 
-    if type(segment.source) is str and segment.source.startswith('flush'):
+    if type(segment.source) is str and segment.source.startswith("flush"):
       pass
     else:
       for merged_seg_name in segment.source[1]:
         merged_seg = segment_name_to_segment[merged_seg_name]
         if merged_seg.del_count_merged_away is not None:
-          label = f'{merged_seg.del_count_merged_away:,} dels'
+          label = f"{merged_seg.del_count_merged_away:,} dels"
           weight = merged_seg.del_count_merged_away
         else:
-          label = ''
+          label = ""
           weight = 0
         gv.edge(merged_seg_name, segment.name, label=label, weight=str(weight))
-  with open('ages_sizes.txt', 'w') as f:
+  with open("ages_sizes.txt", "w") as f:
     for source, age_sec, size_mb, write_time, max_doc in ages_sizes:
       if size_mb is not None:
-        f.write(f'{size_mb:.1f}\t{max_doc}\n')
+        f.write(f"{size_mb:.1f}\t{max_doc}\n")
 
   if False:
-    print(f'gv:\n{gv.source}')
-    gv_file_name_out = gv.render('segments', format='svg')
+    print(f"gv:\n{gv.source}")
+    gv_file_name_out = gv.render("segments", format="svg")
     print(f"now render gv: {gv_file_name_out}")
-    print(f'size={os.path.getsize("segments.svg")}')
+    print(f"size={os.path.getsize('segments.svg')}")
 
   # first pass to assign free level to each segment.  segments come in
   # order of their birth:
@@ -604,7 +625,7 @@ def main():
     # so we have a bit of horizontal space b/w segments:
     pad_time_sec = 1.0
 
-    half_pad_time = datetime.timedelta(seconds=pad_time_sec/2)
+    half_pad_time = datetime.timedelta(seconds=pad_time_sec / 2)
 
     tree = intervaltree.IntervalTree()
 
@@ -615,16 +636,15 @@ def main():
       else:
         end_time = segment.end_time
       seg_times.append((end_time - segment.start_time, segment))
-      
-    for ignore, segment in sorted(seg_times, key=lambda x: -x[0]):
 
+    for ignore, segment in sorted(seg_times, key=lambda x: -x[0]):
       if segment.end_time is None:
         end_time = end_abs_time
       else:
         end_time = segment.end_time
 
       # all levels that are in use overlapping this new segment:
-      used_levels = [segment_name_to_level[interval.data.name] for interval in tree[segment.start_time:end_time]]
+      used_levels = [segment_name_to_level[interval.data.name] for interval in tree[segment.start_time : end_time]]
 
       new_level = 0
       while True:
@@ -632,14 +652,12 @@ def main():
           break
         new_level += 1
 
-      tree[segment.start_time-half_pad_time:end_time+half_pad_time] = segment
+      tree[segment.start_time - half_pad_time : end_time + half_pad_time] = segment
 
       segment_name_to_level[segment.name] = new_level
       # print(f'{segment.name} -> level {new_level}')
 
       max_level = max(new_level, max_level)
-
-
 
   elif False:
     # sort segments by size, descending, and assign to level bottom up, so big segments are always down low
@@ -647,8 +665,7 @@ def main():
     tree = intervaltree.IntervalTree()
 
     for segment in sorted(segments, key=lambda segment: -segment.size_mb):
-
-      assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+      assert segment.name not in segment_name_to_segment, f"segment name {segment.name} appears twice?"
       segment_name_to_segment[segment.name] = segment
 
       if segment.end_time is None:
@@ -657,7 +674,7 @@ def main():
         end_time = segment.end_time
 
       # all levels that are in use overlapping this new segment:
-      used_levels = [segment_name_to_level[interval.data.name] for interval in tree[segment.start_time:end_time]]
+      used_levels = [segment_name_to_level[interval.data.name] for interval in tree[segment.start_time : end_time]]
 
       new_level = 0
       while True:
@@ -665,7 +682,7 @@ def main():
           break
         new_level += 1
 
-      tree[segment.start_time:end_time] = segment
+      tree[segment.start_time : end_time] = segment
 
       segment_name_to_level[segment.name] = new_level
       # print(f'{segment.name} -> level {new_level}')
@@ -673,7 +690,6 @@ def main():
       max_level = max(new_level, max_level)
 
   else:
-
     # a simpler first-come first-serve level assignment
 
     # assign each new segment to a free level -- this is not how IndexWriter does it, but
@@ -682,8 +698,7 @@ def main():
     level_to_live_segment = {}
 
     for segment in segments:
-
-      assert segment.name not in segment_name_to_segment, f'segment name {segment.name} appears twice?'
+      assert segment.name not in segment_name_to_segment, f"segment name {segment.name} appears twice?"
 
       segment_name_to_segment[segment.name] = segment
 
@@ -709,16 +724,16 @@ def main():
       max_level = max(level, max_level)
 
   # print(f'{max_level=}')
-  y_pixels_per_level = whole_height / (1+max_level)
+  y_pixels_per_level = whole_height / (1 + max_level)
 
   for segment in segments:
     level = segment_name_to_level[segment.name]
     # print(f'{(segment.start_time - min_start_abs_time).total_seconds()}')
 
     light_timestamp = None
-    
+
     for timestamp, event, line_number in segment.events:
-      if event == 'light':
+      if event == "light":
         light_timestamp = timestamp
         break
 
@@ -735,54 +750,54 @@ def main():
       # raise RuntimeError(f'segment {segment.name} has size_mb=None')
     else:
       size_mb = segment.size_mb
-    
-    height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(size_mb/2.))
+
+    height = min(y_pixels_per_level - padding_y, y_pixels_per_log_mb * math.log(size_mb / 2.0))
     height = max(7, height)
 
     y1 = whole_height - int(y_pixels_per_level * level)
     y0 = y1 - height
-    if type(segment.source) is str and segment.source.startswith('flush'):
-      if segment.source == 'flush-by-RAM':
-        color = '#ff00ff'
+    if type(segment.source) is str and segment.source.startswith("flush"):
+      if segment.source == "flush-by-RAM":
+        color = "#ff00ff"
       else:
-        color = '#ff0000'
+        color = "#ff0000"
     else:
-      color = '#0000ff'
+      color = "#0000ff"
 
-    w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
+    w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1 - x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
     # w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}"/>')
 
     # shade the time segment is being written, before it's lit:
     if light_timestamp is not None:
       x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
 
-      if color == '#ff00ff':
-        new_color = '#ff88ff'
-      elif color == '#ff0000':
-        new_color = '#ff8888'
+      if color == "#ff00ff":
+        new_color = "#ff88ff"
+      elif color == "#ff0000":
+        new_color = "#ff8888"
       else:
-        new_color = '#8888ff'
-      w(f'  <!--dawn:-->')
-      w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light-x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+        new_color = "#8888ff"
+      w(f"  <!--dawn:-->")
+      w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light - x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
     if segment.merged_into is not None:
       # this segment was merged away eventually
-      if color == '#ff00ff':
-        new_color = '#880088'
-      elif color == '#ff0000':
-        new_color = '#880000'
+      if color == "#ff00ff":
+        new_color = "#880088"
+      elif color == "#ff0000":
+        new_color = "#880000"
       else:
-        new_color = '#000088'
+        new_color = "#000088"
       dusk_timestamp = segment.merged_into.start_time
       assert dusk_timestamp < t1
       x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
-      w(f'  <!--dusk:-->')
-      w(f'  <rect x={x_dusk:.2f} y={y0:.2f} width={x1-x_dusk:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
+      w(f"  <!--dusk:-->")
+      w(f'  <rect x={x_dusk:.2f} y={y0:.2f} width={x1 - x_dusk:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
       light_timestamp2 = None
 
       for timestamp2, event2, line_number2 in segment.merged_into.events:
-        if event2 == 'light':
+        if event2 == "light":
           light_timestamp2 = timestamp2
           break
 
@@ -798,77 +813,94 @@ def main():
 
         # draw line segment linking segment into its merged segment
         # w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="darkgray" stroke-width="2" stroke-dasharray="20,20"/>')
-        w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height/2}" x2="{x_light_merge}" y2="{y1a+merge_height/2}" stroke="black" stroke-width="1"/>')
+        w(f'  <line id="line{segment.name}{segment.merged_into.name}" x1="{x_dusk}" y1="{y0 + height / 2}" x2="{x_light_merge}" y2="{y1a + merge_height / 2}" stroke="black" stroke-width="1"/>')
 
         if False:
           w('var l = document.createElementNS("http://www.w3.org/2000/svg", "line");')
           w(f'l.setAttribute("id", ");')
           w(f'l.setAttribute("x1", {x_dusk});')
-          w(f'l.setAttribute("y1", {y0 + y_pixels_per_level/2});')
+          w(f'l.setAttribute("y1", {y0 + y_pixels_per_level / 2});')
           w(f'l.setAttribute("x2", {x_light_merge});')
-          w(f'l.setAttribute("y2", {y1a-y_pixels_per_level/2});')
-          w(f'mysvg.appendChild(l);')
+          w(f'l.setAttribute("y2", {y1a - y_pixels_per_level / 2});')
+          w(f"mysvg.appendChild(l);")
 
-  #w('canvas.on("mouse:over", show_segment_details);')
+  # w('canvas.on("mouse:over", show_segment_details);')
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')
-  w('</svg>')
-  w('</div>')
-  w('<script>')
-  w('const time_window_details_map = new Map();')
+  w("</svg>")
+  w("</div>")
+  w("<script>")
+  w("const time_window_details_map = new Map();")
 
   for flush_ord, (start_time, end_time) in enumerate(full_flush_events):
     if end_time is None:
       continue
     # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    flush_id = f'ff_{flush_ord}'
+    flush_id = f"ff_{flush_ord}"
     l = by_flush_ord.get(flush_ord, [0, 0])
     w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} sec, {l[0]} segments, {l[1]:.1f} MB");')
 
   for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
       continue
-    moc_id = f'moc_{moc_ord}'
+    moc_id = f"moc_{moc_ord}"
     l = by_moc_ord.get(moc_ord, [0, 0])
     w(f'time_window_details_map.set("{moc_id}", "Merge on commit {(end_time - start_time).total_seconds():.1f} sec, {l[0]} merges, {l[1]:.1f} MB");')
-  
+
   w(f'merge_on_commit_color = "{merge_on_commit_color}";')
   w(f'merge_on_commit_highlight_color = "{merge_on_commit_highlight_color}";')
   w(f'full_flush_color = "{full_flush_color}";')
   w(f'full_flush_highlight_color = "{full_flush_highlight_color}";')
-  w('var agg_metrics = [')
+  w("var agg_metrics = [")
   for tup in time_aggs:
-    timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, tot_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb = tup
+    (
+      timestamp,
+      num_segments,
+      tot_size_mb,
+      merge_mbs,
+      flush_mbs,
+      tot_mbs,
+      cur_max_doc,
+      del_pct,
+      merge_thread_count,
+      flush_thread_count,
+      del_reclaims_per_sec,
+      flush_dps,
+      merge_dps,
+      last_commit_size_mb,
+    ) = tup
 
     sec = (timestamp - min_start_abs_time).total_seconds()
-    ts = timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
-    w(f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],')
-  w('];')
-  w('const seg_merge_map = new Map();')
+    ts = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
+    w(
+      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],'
+    )
+  w("];")
+  w("const seg_merge_map = new Map();")
   # w('const seg_details_map = new Map();')
-  w('const seg_details2_map = new Map();')
-  w('\n// super verbose (includes InfoStream line numbers):')
-  w('const seg_details3_map = new Map();')
+  w("const seg_details2_map = new Map();")
+  w("\n// super verbose (includes InfoStream line numbers):")
+  w("const seg_details3_map = new Map();")
   for segment in segments:
-    if type(segment.source) is tuple and segment.source[0] == 'merge':
+    if type(segment.source) is tuple and segment.source[0] == "merge":
       w(f'seg_merge_map.set("{segment.name}", {segment.source[1]});')
     if segment.size_mb is None:
-      smb = 'n/a'
+      smb = "n/a"
     else:
-      smb = f'{segment.size_mb:.1f} MB'
-    details = f'{segment.name}:\n  {smb}\n  {segment.max_doc} max_doc'
+      smb = f"{segment.size_mb:.1f} MB"
+    details = f"{segment.name}:\n  {smb}\n  {segment.max_doc} max_doc"
     if segment.end_time is not None:
       end_time = segment.end_time
     else:
       end_time = end_abs_time
-    details += f'\n  {(end_time - segment.start_time).total_seconds():.1f} sec'
+    details += f"\n  {(end_time - segment.start_time).total_seconds():.1f} sec"
     if segment.born_del_count is not None and segment.born_del_count > 0:
-      details += f'\n  {100.*segment.born_del_count/segment.max_doc:.1f}% stillborn'
-      
+      details += f"\n  {100.0 * segment.born_del_count / segment.max_doc:.1f}% stillborn"
+
     # w(f'seg_details_map.set("{segment.name}", {repr(details)});')
     w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, False))});')
     w(f'seg_details3_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, True))});')
 
-  w('''
+  w("""
   const top_details = document.getElementById('details');
   const top_details2 = document.getElementById('details2');
   slider = document.getElementById('zoomSlider');
@@ -876,17 +908,17 @@ def main():
 
   slider.addEventListener('input', function() {
     zoom = slider.value;
-  ''')
+  """)
   w('    console.log("zoom=" + zoom);')
-  #w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
-  w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
+  # w(f'    var new_view_box = "0 0 " + ({whole_width+400}/zoom) + " " + ({whole_height+100}/zoom);')
+  w(f'    var new_view_box = "0 0 " + ({whole_width + 400}/zoom) + " " + ({whole_height + 100}/zoom);')
   # svg.style.transform = `scale(${zoom})`;
   w('    svg.setAttribute("viewBox", new_view_box);')
   w(f'    svg.setAttribute("width", {whole_width}*zoom);')
   w(f'    svg.setAttribute("height", {whole_height}*zoom);')
-  w('  });')
-  w('</script>')
-  w('''
+  w("  });")
+  w("</script>")
+  w("""
 <script>
 
   function binarySearchWithInsertionPoint(arr, target) {
@@ -991,10 +1023,10 @@ def main():
     point.x = evt.clientX;
     point.y = evt.clientY;
     transformed_point = point.matrixTransform(mysvg.getScreenCTM().inverse());
-  ''')
+  """)
 
-  w(f'      var t = (transformed_point.x - {padding_x}) / {x_pixels_per_sec};')
-  w('''
+  w(f"      var t = (transformed_point.x - {padding_x}) / {x_pixels_per_sec};")
+  w("""
 
     var spot = binarySearchWithInsertionPoint(agg_metrics, t);
     // console.log(agg_metrics[spot]);
@@ -1057,9 +1089,9 @@ def main():
     x_cursor.setAttribute("x1", transformed_point.x);
     x_cursor.setAttribute("y1", 0);
     x_cursor.setAttribute("x2", transformed_point.x);
-  ''')
+  """)
   w(f'      x_cursor.setAttribute("y2", {whole_height});')
-  w('''
+  w("""
 
     document.elementsFromPoint(evt.clientX, evt.clientY).forEach(function(element, index, array) {
       if (element instanceof SVGRectElement) {
@@ -1153,14 +1185,15 @@ def main():
     mysvg.onmousemove(evt);
    }
   
-</script>''')
+</script>""")
 
-  w('</div>')
-  w('</body>')
-  w('</html>')
+  w("</div>")
+  w("</body>")
+  w("</html>")
 
-  with open(html_file_out, 'w') as f:
-    f.write('\n'.join(_l))
+  with open(html_file_out, "w") as f:
+    f.write("\n".join(_l))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
   main()

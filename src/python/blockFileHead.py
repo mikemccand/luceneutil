@@ -2,7 +2,7 @@ import sys
 
 limit = int(sys.argv[2])
 
-with open(sys.argv[1], "r") as f:
+with open(sys.argv[1]) as f:
   header = f.readline()
   print(header.rstrip())
   docCount = 0

@@ -6,7 +6,7 @@ import sys
 SHOW_DIRTY_BYTES = True
 
 reReopen = re.compile(r"^Reopen:\s+([0-9.]+) msec")
-reQT = re.compile("^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)(?: D=(\d+))?")
+reQT = re.compile(r"^QT (\d+) searches=(\d+) docs=(\d+) reopens=(\d+)(?: D=(\d+))?")
 
 qt = 0
 reopen = None

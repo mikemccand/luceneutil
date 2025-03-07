@@ -82,7 +82,7 @@ def getArg(argName, default, hasArg=True):
 
 def error(message):
   beep()
-  print(("ERROR: %s" % message))
+  print("ERROR: %s" % message)
   print()
   sys.exit(1)
 
@@ -96,7 +96,7 @@ reDefines = re.compile("-D(.*?)=(.*?)(?: |$)")
 
 
 def printReproLines(logFileName, iters):
-  with open(logFileName, "r") as f:
+  with open(logFileName) as f:
     print()
     while True:
       line = f.readline()
@@ -116,9 +116,7 @@ def parseReproLine(line, iters):
     k, v = x
     if k == "testcase":
       testCase = v
-    elif k == "testmethod":
-      testCase += ".%s" % v
-    elif k == "tests.method":
+    elif k == "testmethod" or k == "tests.method":
       testCase += ".%s" % v
     elif k == "tests.seed":
       seed = v
@@ -143,7 +141,7 @@ def parseReproLine(line, iters):
   if iters != 1:
     s = s.strip() + " -iters %s" % iters
 
-  print(("\n%s\n" % s))
+  print("\n%s\n" % s)
 
 
 tup = os.path.split(os.getcwd())
@@ -225,7 +223,7 @@ if doCompile:
     else:
       res = os.system("%s compile-test > %s/compile.log 2>&1" % (constants.ANT_EXE, logDirName))
     if res:
-      print(open("%s/compile.log" % logDirName, "r").read())
+      print(open("%s/compile.log" % logDirName).read())
       sys.exit(1)
   finally:
     os.remove("%s/compile.log" % logDirName)
@@ -243,7 +241,7 @@ def nextIter(threadID, logFileName, secLastIter):
   global iter
 
   with iterLock:
-    print("")
+    print()
     if logFileName is None:
       print("%s [%d, jvm %d, %5.1fs]:" % (datetime.datetime.now(), iter, threadID, secLastIter))
     else:
@@ -253,12 +251,9 @@ def nextIter(threadID, logFileName, secLastIter):
 
 
 def eventToLog(eventsFileIn, fileOut):
-  """
-  Appends all stdout/stderr from the events file, to human readable form.
-  """
-
+  """Appends all stdout/stderr from the events file, to human readable form."""
   r = re.compile('^    "chunk": "(.*?)"$')
-  with open(eventsFileIn, "r") as f:
+  with open(eventsFileIn) as f:
     with open(fileOut, "wb") as fOut:
       while True:
         line = f.readline()
@@ -446,9 +441,9 @@ def _run(threadID):
             ignored = True
           elif obj[0] == "TEST_IGNORED_ASSUMPTION":
             if not onlyOnce:
-              print(("\n  TEST SKIPPED: %s" % obj[1]["failure"]["message"]))
+              print("\n  TEST SKIPPED: %s" % obj[1]["failure"]["message"])
             else:
-              print(("\n  TEST SKIPPED: %s" % obj[1]["failure"]["trace"]))
+              print("\n  TEST SKIPPED: %s" % obj[1]["failure"]["trace"])
             ignored = True
           elif obj[0] == "TEST_FINISHED":
             testName = None
@@ -492,18 +487,17 @@ def _run(threadID):
         failed = True
         beep()
         break
-      elif noTestsRun:
+      if noTestsRun:
         if onlyOnce:
           failed = True
           error("no test actually ran, due to an Assume or @Ignore/@Nightly/@Slow/etc.")
+        elif USE_JUNIT:
+          print("  WARNING: no test actually ran, due to typo or an Assume or @Ignore/@Nightly/@Slow/etc.")
         else:
-          if USE_JUNIT:
-            print("  WARNING: no test actually ran, due to typo or an Assume or @Ignore/@Nightly/@Slow/etc.")
-          else:
-            print("  WARNING: no test actually ran, due to an Assume or @Ignore/@Nightly/@Slow/etc.")
+          print("  WARNING: no test actually ran, due to an Assume or @Ignore/@Nightly/@Slow/etc.")
       else:
         if onlyOnce and not USE_JUNIT and not failed:
-          print(("  OK [%d tests]\n" % testCount))
+          print("  OK [%d tests]\n" % testCount)
         if doLog and USE_JUNIT:
           if not keepLogs:
             pass

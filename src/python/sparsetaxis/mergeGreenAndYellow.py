@@ -53,18 +53,16 @@ def compareByTime(color1, ride1, color2, ride2):
   pickup2 = pickupTime(color2, ride2)
   if pickup1 < pickup2:
     return -1
-  elif pickup1 > pickup2:
+  if pickup1 > pickup2:
     return 1
-  else:
-    # tie break by dropoff time
-    dropoff1 = dropoffTime(color1, ride1)
-    dropoff2 = dropoffTime(color2, ride2)
-    if dropoff1 < dropoff2:
-      return -1
-    elif dropoff1 > dropoff2:
-      return 1
-    else:
-      return 0
+  # tie break by dropoff time
+  dropoff1 = dropoffTime(color1, ride1)
+  dropoff2 = dropoffTime(color2, ride2)
+  if dropoff1 < dropoff2:
+    return -1
+  if dropoff1 > dropoff2:
+    return 1
+  return 0
 
 
 class TaxiReader:
@@ -86,7 +84,7 @@ class TaxiReader:
       self.year += 1
       self.month = 1
 
-    self.f = open(fileName, "r", encoding="utf-8")
+    self.f = open(fileName, encoding="utf-8")
     self.reader = csv.reader(self.f)
     headers = next(self.reader)
     self.headersToIndex = []

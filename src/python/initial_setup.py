@@ -92,7 +92,7 @@ def runSetup(download):
       else:
         print("download %s to %s - might take a long time!" % (url_source, target_file))
         Downloader(url_source, target_file).download()
-        print("")
+        print()
         print("downloading %s to %s done " % (url_source, target_file))
 
       for suffix in (".bz2", ".lzma", ".zip", ".xz"):

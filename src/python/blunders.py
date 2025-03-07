@@ -78,6 +78,6 @@ def init_upload(label, name, description):
 
 
 def blunders_auth_header():
-  base64string = base64.b64encode(f"lucene-nightly-bench:{constants.BLUNDER_ACCESS_KEY}".encode("utf-8")).decode("utf-8")
+  base64string = base64.b64encode(f"lucene-nightly-bench:{constants.BLUNDER_ACCESS_KEY}".encode()).decode("utf-8")
   authorization = "Basic %s" % base64string
   return authorization

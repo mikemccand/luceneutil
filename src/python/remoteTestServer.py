@@ -20,9 +20,7 @@ them, back to the main server.
 
 
 class Child(threading.Thread):
-  """
-  Interacts with one child test runner.
-  """
+  """Interacts with one child test runner."""
 
   def __init__(self, id, parent, startedEvent):
     threading.Thread.__init__(self)
@@ -121,7 +119,7 @@ class ReadEvents:
     while True:
       try:
         self.f = open(self.fileName, "rb")
-      except IOError:
+      except OSError:
         time.sleep(0.01)
       else:
         break
@@ -147,8 +145,7 @@ class ReadEvents:
       l = self.readline()
       if l.find('"IDLE",') != -1:
         return lines
-      else:
-        lines.append(l)
+      lines.append(l)
 
 
 class Parent:
@@ -197,8 +194,7 @@ class Parent:
       len = int(sys.stdin.read(8))
       if len == -1:
         return None
-      else:
-        return cPickle.loads(sys.stdin.read(len))
+      return cPickle.loads(sys.stdin.read(len))
 
 
 def main():

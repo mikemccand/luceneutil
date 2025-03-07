@@ -235,14 +235,13 @@ def unescape(text):
       if text[1] == "#":  # character reference
         if text[2] == "x":
           return chr(int(code[1:], 16))
-        else:
-          return chr(int(code))
-      else:  # named entity
-        return entitydefs[code]
+        return chr(int(code))
+      # named entity
+      return entitydefs[code]
     except:
       return text  # leave as is
 
-  return re.sub("&#?(\w+);", fixup, text)
+  return re.sub(r"&#?(\w+);", fixup, text)
 
 
 # Match HTML comments
@@ -389,8 +388,7 @@ def make_anchor_tag(match):
   anchor += trail
   if keepLinks:
     return '<a href="%s">%s</a>' % (link, anchor)
-  else:
-    return anchor
+  return anchor
 
 
 def clean(text):
@@ -474,8 +472,8 @@ def clean(text):
   text = text.replace("\t", " ")
   text = spaces.sub(" ", text)
   text = dots.sub("...", text)
-  text = re.sub(" (,:\.\)\]Â»)", r"\1", text)
-  text = re.sub("(\[\(Â«) ", r"\1", text)
+  text = re.sub(r" (,:\.\)\]Â»)", r"\1", text)
+  text = re.sub(r"(\[\(Â«) ", r"\1", text)
   text = re.sub(r"\n\W+?\n", "\n", text)  # lines with only punctuations
   text = text.replace(",,", ",").replace(",.", ".")
 
@@ -528,10 +526,7 @@ def compact(text):
       else:
         continue
     # Drop residuals of lists
-    elif line[0] in "{|" or line[-1] in "}":
-      continue
-    # Drop irrelevant lines
-    elif (line[0] == "(" and line[-1] == ")") or line.strip(".-") == "":
+    elif line[0] in "{|" or line[-1] in "}" or (line[0] == "(" and line[-1] == ")") or line.strip(".-") == "":
       continue
     elif len(headers):
       items = list(headers.items())
@@ -591,8 +586,7 @@ class OutputSplitter:
     file_name = os.path.join(dir_name, self.file_name())
     if self.compress:
       return bz2.BZ2File(file_name + ".bz2", "wb")
-    else:
-      return open(file_name, "wb")
+    return open(file_name, "wb")
 
   def dir_name(self):
     char1 = self.dir_index % 26
@@ -707,7 +701,7 @@ def main():
         else:
           file_size = int(arg)
         if file_size < minFileSize:
-          raise ValueError()
+          raise ValueError
       except ValueError:
         print >> sys.stderr, "%s: %s: Insufficient or invalid size" % (script_name, arg)
         sys.exit(2)

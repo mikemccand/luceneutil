@@ -89,7 +89,7 @@ TEST_ARGS = (
 # print
 # TEST_ARGS += ' -Dtests.seed=0'
 
-reTime = re.compile(r"^Time: ([0-9\.]+)$", re.M)
+reTime = re.compile(r"^Time: ([0-9\.]+)$", re.MULTILINE)
 
 try:
   testTimes = pickle.loads(open(TEST_TIMES_FILE, "rb").read())
@@ -261,74 +261,73 @@ class RunThread:
         # pr('%s: DONE' % self.id)
         pr("d%d:%d " % (self.resourceID, self.id))
         break
+      # pr('%s: RUN' % self.id)
+      pr("%d:%d " % (self.resourceID, self.id))
+      logFile = "%s/%s.log" % (ROOT, self.id)
+      cmd = "java -Xmx%s -Xms%s %s -Dlucene.version=%s" % (HEAP, HEAP, TEST_ARGS, LUCENE_VERSION)
+      if constants.TESTS_LINE_FILE is not None:
+        cmd += " -Dtests.linedocsfile=%s" % constants.TESTS_LINE_FILE
+
+      if self.resource == "local":
+        self.myEnv["CLASSPATH"] = ":".join(job.classpath)
       else:
-        # pr('%s: RUN' % self.id)
-        pr("%d:%d " % (self.resourceID, self.id))
-        logFile = "%s/%s.log" % (ROOT, self.id)
-        cmd = "java -Xmx%s -Xms%s %s -Dlucene.version=%s" % (HEAP, HEAP, TEST_ARGS, LUCENE_VERSION)
-        if constants.TESTS_LINE_FILE is not None:
-          cmd += " -Dtests.linedocsfile=%s" % constants.TESTS_LINE_FILE
+        cmd += " -classpath %s" % ":".join(job.classpath)
 
-        if self.resource == "local":
-          self.myEnv["CLASSPATH"] = ":".join(job.classpath)
+      cmd += " -DtempDir=%s -Djava.util.logging.config.file=%s/solr/testlogging.properties org.junit.runner.JUnitCore %s" % (self.tempDir, ROOT, " ".join(job.tests))
+
+      if 0:
+        print()
+        print("wd %s" % job.wd)
+        print("cp %s" % ":".join(job.classpath))
+        print("cmd %s" % cmd)
+
+      # open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n  RUN: %s\n' % (job.cost, ' '.join(job.tests), job.wd, cmd))
+      s = "\nTESTS: cost=%.3f %s\n  CWD: %s\n" % (job.cost, " ".join(job.tests), job.wd)
+      if self.resource == "local":
+        open(logFile, "ab").write(s)
+      else:
+        p = subprocess.Popen('ssh %s "cat >> %s"' % (self.resource, logFile), bufsize=-1, shell=True, stdin=subprocess.PIPE)
+        p.stdin.write(s)
+        p.stdin.flush()
+
+      if 0:
+        if job.tests[0].find(".solr.") != -1:
+          wd = "%s/solr/src/test/test-files" % ROOT
         else:
-          cmd += " -classpath %s" % ":".join(job.classpath)
+          wd = "%s/lucene" % ROOT
 
-        cmd += " -DtempDir=%s -Djava.util.logging.config.file=%s/solr/testlogging.properties org.junit.runner.JUnitCore %s" % (self.tempDir, ROOT, " ".join(job.tests))
+      cmd = "cd %s; %s" % (job.wd, cmd)
+      self.suiteCount += len(job.tests)
 
-        if 0:
-          print()
-          print("wd %s" % job.wd)
-          print("cp %s" % ":".join(job.classpath))
-          print("cmd %s" % cmd)
+      if not DO_GATHER_TIMES:
+        cmd += " >> %s 2>&1" % logFile
+      # print 'CP=%s' % (':'.join(job.classpath))
+      # print 'CMD %s' % cmd
+      if self.resource == "local":
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
+      else:
+        # nocommit should i just have stdout come back over ssh...?
+        cmd = 'ssh -Tx %s "%s"' % (self.resource, cmd)
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
 
-        # open(logFile, 'ab').write('\nTESTS: cost=%.3f %s\n  CWD: %s\n  RUN: %s\n' % (job.cost, ' '.join(job.tests), job.wd, cmd))
-        s = "\nTESTS: cost=%.3f %s\n  CWD: %s\n" % (job.cost, " ".join(job.tests), job.wd)
-        if self.resource == "local":
-          open(logFile, "ab").write(s)
+      output = p.communicate()[0]
+      if DO_GATHER_TIMES:
+        open(logFile, "ab").write(output + "\n")
+      if p.returncode != 0:
+        pr("\n%s: FAILED %s [see %s:%s]\n" % (self.id, job.tests[0], self.resource, logFile))
+        self.failed = True
+
+      if DO_GATHER_TIMES:
+        m = reTime.search(output)
+        if m is None:
+          print("FAILED to parse time %s" % output)
+          testTime = 1.0
         else:
-          p = subprocess.Popen('ssh %s "cat >> %s"' % (self.resource, logFile), bufsize=-1, shell=True, stdin=subprocess.PIPE)
-          p.stdin.write(s)
-          p.stdin.flush()
+          testTime = float(m.group(1))
 
-        if 0:
-          if job.tests[0].find(".solr.") != -1:
-            wd = "%s/solr/src/test/test-files" % ROOT
-          else:
-            wd = "%s/lucene" % ROOT
-
-        cmd = "cd %s; %s" % (job.wd, cmd)
-        self.suiteCount += len(job.tests)
-
-        if not DO_GATHER_TIMES:
-          cmd += " >> %s 2>&1" % logFile
-        # print 'CP=%s' % (':'.join(job.classpath))
-        # print 'CMD %s' % cmd
-        if self.resource == "local":
-          p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
-        else:
-          # nocommit should i just have stdout come back over ssh...?
-          cmd = 'ssh -Tx %s "%s"' % (self.resource, cmd)
-          p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.myEnv)
-
-        output = p.communicate()[0]
-        if DO_GATHER_TIMES:
-          open(logFile, "ab").write(output + "\n")
-        if p.returncode != 0:
-          pr("\n%s: FAILED %s [see %s:%s]\n" % (self.id, job.tests[0], self.resource, logFile))
-          self.failed = True
-
-        if DO_GATHER_TIMES:
-          m = reTime.search(output)
-          if m is None:
-            print("FAILED to parse time %s" % output)
-            testTime = 1.0
-          else:
-            testTime = float(m.group(1))
-
-          # take max
-          if job.tests[0] not in testTimes or testTimes[job.tests[0]] < testTime:
-            testTimes[job.tests[0]] = testTime
+        # take max
+        if job.tests[0] not in testTimes or testTimes[job.tests[0]] < testTime:
+          testTimes[job.tests[0]] = testTime
 
   def join(self):
     self.t.join()
@@ -518,8 +517,7 @@ def cmpTests(test1, test2):
   if test1[1] != test2[1]:
     # different wd
     return cmp(test1[1], test2[1])
-  else:
-    return -cmp(test1[0], test2[0])
+  return -cmp(test1[0], test2[0])
 
 
 tests.sort(cmpTests)

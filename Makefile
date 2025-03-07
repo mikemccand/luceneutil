@@ -17,7 +17,7 @@ PIP_INSTALL_ARGS=--disable-pip-version-check --no-input --upgrade
 VENV=${PWD}/.venv
 
 # don't behave strangely if these files exist
-.PHONY: lint format reformat ruff pyright env clean
+.PHONY: lint format reformat autofix ruff ruff-fix pyright env clean
 
 # list of directories we check
 SOURCES=src/python
@@ -39,10 +39,18 @@ reformat: env
 	# reformat sources
 	$(VENV)/bin/ruff format $(SOURCES)
 
+# applies all safe fixes, including reformatting/imports
+autofix: ruff-fix reformat
+
 # lints sources
 ruff: env
 	# validate sources with ruff linter
 	$(VENV)/bin/ruff check $(SOURCES)
+
+# applies safe autofixes
+ruff-fix: env
+	# fix sources with ruff
+	$(VENV)/bin/ruff check --fix $(SOURCES)
 
 # checks types
 pyright: env

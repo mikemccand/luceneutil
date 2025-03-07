@@ -160,7 +160,7 @@ def run_knn_benchmark(checkout, values):
           if value != 32:
             pv[p] = value
             print(f"  -{p}={value}")
-            print(f"  -quantize")
+            print("  -quantize")
             args += ["-quantize"]
             quantize_bits = value
         elif type(value) is bool:

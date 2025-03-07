@@ -106,7 +106,7 @@ if DEBUG:
 reBytesIndexed = re.compile("^Indexer: net bytes indexed (.*)$", re.MULTILINE)
 reIndexingTime = re.compile(r"^Indexer: finished \((.*) msec\)", re.MULTILINE)
 reSVNRev = re.compile(r"revision (.*?)\.")
-reIndexAtClose = re.compile("Indexer: at close: (.*?)$", re.M)
+reIndexAtClose = re.compile("Indexer: at close: (.*?)$", re.MULTILINE)
 reGitHubPROpen = re.compile(r"\s([0-9,]+) Open")
 reGitHubPRClosed = re.compile(r"\s([0-9,]+) Closed")
 
@@ -198,7 +198,7 @@ def checkIndex(r, indexPath, checkLogFileName):
     checkLogFileName,
   )
   runCommand(cmd)
-  if open(checkLogFileName, "r", encoding="utf-8").read().find("No problems were detected with this index") == -1:
+  if open(checkLogFileName, encoding="utf-8").read().find("No problems were detected with this index") == -1:
     raise RuntimeError("CheckIndex failed")
 
 
@@ -226,7 +226,7 @@ def runNRTTest(r, indexPath, runLogDir):
   runCommand(cmd)
 
   times = []
-  for s in reNRTReopenTime.findall(open(logFile, "r", encoding="utf-8").read()):
+  for s in reNRTReopenTime.findall(open(logFile, encoding="utf-8").read()):
     times.append(float(s))
 
   # Discard first 10 (JVM warmup)
@@ -249,16 +249,14 @@ def runNRTTest(r, indexPath, runLogDir):
 
 
 def validate_nightly_task_count(tasks_file, max_count):
-  """
-  we don't want tasks to randomly shift in the nightly benchy when we add a new category
+  """We don't want tasks to randomly shift in the nightly benchy when we add a new category
   of tasks, as we did/saw for count(*) tasks. so we enforce here that there are NO MORE
   than N tasks in each category in the nightly tasks file.
   """
-
   re_cat_and_task = re.compile("^([^:]+): (.*?)(?:#.*)?$")
 
   by_cat = {}
-  with open(tasks_file, "r", encoding="utf-8") as f:
+  with open(tasks_file, encoding="utf-8") as f:
     for line in f.readlines():
       line = line.strip()
       if len(line) > 0 and line[0] != "#":
@@ -370,7 +368,7 @@ def run():
         print(f'Saw commit with "{regold_string}" comment from {" ".join(command)}; will regold results files')
         DO_RESET = True
       else:
-        print(f"No commit message asking for regold of results files")
+        print("No commit message asking for regold of results files")
 
     os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
     runCommand("%s clean -xfd" % constants.GIT_EXE)
@@ -384,7 +382,7 @@ def run():
   except:
     print("Unable to read /sys/kernel/mm/transparent_hugepage/enabled")
   else:
-    print(("transparent_hugepages: %s" % s))
+    print("transparent_hugepages: %s" % s)
 
   runCommand("%s clean > %s/clean-lucene.log 2>&1" % (constants.GRADLE_EXE, runLogDir))
   runCommand("%s jar > %s/jar-lucene.log 2>&1" % (constants.GRADLE_EXE, runLogDir))
@@ -805,7 +803,7 @@ def run():
         w(f"\n<pre>{output}</pre>\n")
 
     w("<br><br><h2>Profiler results (searching)</h2>\n")
-    w(f'<a id="profiler_searching_cpu"></a>')
+    w('<a id="profiler_searching_cpu"></a>')
     w("<b>CPU:</b><br>")
     w("<pre>\n")
     for stackSize, result in comp.getAggregateProfilerResult(id, "cpu", stackSize=JFR_STACK_SIZES, count=50):
@@ -814,7 +812,7 @@ def run():
 
     w("<br><br>")
     w("<b>HEAP:</b><br>")
-    w(f'<a id="profiler_searching_heap"></a>')
+    w('<a id="profiler_searching_heap"></a>')
     w("<pre>\n")
     for stackSize, result in comp.getAggregateProfilerResult(id, "heap", stackSize=JFR_STACK_SIZES, count=50):
       w(f'\n<a id="profiler_searching_{stackSize}_heap"></a>')
@@ -975,7 +973,7 @@ def findLastSuccessfulGitHashes():
       luceneGitHash = None
       luceneUtilGitHash = None
 
-      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile), "r") as f:
+      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile)) as f:
         html = f.read()
 
         m = re.search("Lucene/Solr trunk rev ([a-z0-9]+)[< ]", html)
@@ -1004,7 +1002,7 @@ def getIndexGCTimes(subDir):
       if os.system(cmd):
         raise RuntimeError("%s failed (cwd %s)" % (cmd, os.getcwd()))
       try:
-        with open("fastIndexMediumDocs.log", "r", encoding="utf-8") as f:
+        with open("fastIndexMediumDocs.log", encoding="utf-8") as f:
           for line in f.readlines():
             m = reTimeIn.search(line)
             if m is not None:
@@ -1014,8 +1012,7 @@ def getIndexGCTimes(subDir):
 
       open("%s/gcTimes.pk" % subDir, "wb").write(pickle.dumps(times))
     return times
-  else:
-    return pickle.loads(open("%s/gcTimes.pk" % subDir, "rb").read())
+  return pickle.loads(open("%s/gcTimes.pk" % subDir, "rb").read())
 
 
 reSearchStdoutLog = re.compile(r"nightly\.nightly\.\d+\.stdout")
@@ -1303,7 +1300,7 @@ def makeGraphs():
     if len(v) > 1:
       writeOneGraphHTML("Lucene %s queries/sec" % taskRename.get(k, k), "%s/%s.html" % (constants.NIGHTLY_REPORTS_DIR, k), getOneGraphHTML(k, v, "Queries/sec", taskRename.get(k, k), errorBars=True))
     else:
-      print(("skip %s: %s" % (k, len(v))))
+      print("skip %s: %s" % (k, len(v)))
       del searchChartData[k]
 
   writeIndexHTML(searchChartData, days)
@@ -1354,7 +1351,7 @@ def writeCheckIndexTimeHTML():
 
     if os.path.exists(checkIndexTimeFile):
       # Already previously computed & cached:
-      seconds = int(open(checkIndexTimeFile, "r").read())
+      seconds = int(open(checkIndexTimeFile).read())
     else:
       # Look at timestamps of each file in the tar file:
       logsFile = "%s/%s/logs.tar.bz2" % (constants.NIGHTLY_LOG_DIR, subDir)
@@ -1652,9 +1649,7 @@ def htmlEscape(s):
 
 
 def sort(l):
-  """
-  Leave header (l[0]) in-place but sort the rest of the list, naturally.
-  """
+  """Leave header (l[0]) in-place but sort the rest of the list, naturally."""
   x = l[0]
   del l[0]
   l.sort()
@@ -1897,7 +1892,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   is_int = [True] * len(values[0])
   is_float = [True] * len(values[0])
   for row in values[1:]:
-    for i in range(0, len(row)):
+    for i in range(len(row)):
       if row[i] == "":
         # allow missing values
         continue
@@ -1911,7 +1906,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
         is_float[i] = False
 
   for row in values[1:]:
-    for i in range(0, len(row)):
+    for i in range(len(row)):
       if row[i] == "":
         # allow missing values, but swap in None/null
         if is_float[i] or is_int[i]:

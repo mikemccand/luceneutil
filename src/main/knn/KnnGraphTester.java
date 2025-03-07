@@ -631,7 +631,6 @@ public class KnnGraphTester {
         vectorDiskSizeBytes = (long) ((double) totalVectorCount * (realEncodingByteSize * dim));
       }
       indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
-      indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
       log("index disk usage is %.2f MB\n", indexSizeOnDiskMB);
       log("vector disk usage is %.2f MB\n", vectorDiskSizeBytes/1024./1024.);
       log("vector RAM usage is %.2f MB\n", vectorRAMSizeBytes/1024./1024.);
@@ -696,7 +695,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private void printFanoutHist(Path indexPath) throws IOException {
     if (indexType == IndexType.FLAT) {
-      System.out.println("flat has no graphs");
+      log("flat has no graphs");
       return;
     }
     try (Directory dir = FSDirectory.open(indexPath);
@@ -725,7 +724,7 @@ public class KnnGraphTester {
   private double forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
     iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, quantizeCompress));
-    log("Force merge index in " + indexPath);
+    log("Force merge index in " + indexPath + "\n");
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1);

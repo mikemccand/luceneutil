@@ -192,6 +192,7 @@ class SearchTask:
 
   countOnlyCount = None
   isCountOnly = False
+  facet_request = None
 
   def verifySame(self, other, verifyScores, verifyCounts):
     if re.match(".*Knn(Float|Byte)VectorQuery:", self.query) is not None:

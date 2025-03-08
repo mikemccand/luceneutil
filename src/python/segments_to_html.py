@@ -31,6 +31,9 @@ import graphviz
 import intervaltree
 
 # TODO
+#   - add "flush to merge depth" to each segment: count of longest ancester chain
+#   - get write amplification on rhs
+#     - hmm but make it weighted avg of current live segments
 #   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
 #   - also coalesce mocs into their "ords", like full flushes
 #   - only highlight moc/ff if we are not also over a segment?  occlusion
@@ -202,6 +205,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   del_reclaims_per_sec = 0
   flush_thread_count = 0
   merge_thread_count = 0
+  
   # segment names included in last commit
   last_commit_seg_names = set()
   l = []
@@ -219,6 +223,13 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   index_file_count = 0
   last_full_flush_time = 0
   last_real_full_flush_time_sec = 0
+
+  # incremented at end of writing of each segment
+  tot_flush_write_mb = 0
+  tot_merge_write_mb = 0
+
+  # weighted (by size_mb) sum of each segment's write amplification
+  tot_weighted_write_ampl = 0
 
   while upto < len(all_times):
     timestamp, what, item = all_times[upto]
@@ -270,10 +281,13 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           seg_name_to_size[segment.name] = segment.size_mb
         elif what == "segend":
           tot_size_mb -= segment.size_mb
-        elif what == "seglight":
+          tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
+        elif what == 'seglight':
           flush_thread_count -= 1
           flush_mbs -= mbs
           tot_size_mb += segment.size_mb
+          tot_flush_write_mb += segment.size_mb
+          tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
       else:
         if what == "segstart":
           merge_mbs += mbs
@@ -284,13 +298,16 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           seg_name_to_size[segment.name] = segment.size_mb
         elif what == "segend":
           tot_size_mb -= segment.size_mb
-        elif what == "seglight":
+          tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
+        elif what == 'seglight':
           tot_size_mb += segment.size_mb
+          tot_merge_write_mb += segment.size_mb
           merge_thread_count -= 1
           merge_mbs -= mbs
           merge_dps -= dps
           if segment.del_reclaims_per_sec is not None:
             del_reclaims_per_sec -= segment.del_reclaims_per_sec
+          tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
 
       if cur_max_doc == 0:
         # sidestep delete-by-zero ha
@@ -344,25 +361,13 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         f"[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb / 1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs + flush_mbs:.3f}, {cur_max_doc / 1000000.0}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec / 100.0:.3f}, {flush_dps / 100:.3f}, {merge_dps / 100:.3f}, {commit_size_mb / 100.0:.3f}, {index_file_count / 100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}"
       )
 
-      time_aggs.append(
-        (
-          timestamp,
-          num_segments,
-          tot_size_mb,
-          merge_mbs,
-          flush_mbs,
-          merge_mbs + flush_mbs,
-          cur_max_doc,
-          del_pct,
-          merge_thread_count,
-          flush_thread_count,
-          del_reclaims_per_sec,
-          flush_dps,
-          merge_dps,
-          last_commit_size_mb,
-        )
-      )
-
+      if tot_size_mb == 0:
+        write_ampl = 0
+      else:
+        write_ampl = tot_weighted_write_ampl / tot_size_mb
+        
+      time_aggs.append((timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, merge_mbs+flush_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb, tot_merge_write_mb, tot_flush_write_mb, write_ampl))
+    
       # so we only output one spiky point when the commit happened
       commit_size_mb = 0
     else:
@@ -508,12 +513,13 @@ def main():
     flush_ord = segment.full_flush_ord
     if flush_ord is not None:
       if flush_ord not in by_flush_ord:
-        by_flush_ord[flush_ord] = [0, 0]
+        by_flush_ord[flush_ord] = [0, 0, 0]
 
       l = by_flush_ord[flush_ord]
       if segment.size_mb is not None:
         l[0] += 1
         l[1] += segment.size_mb
+        l[2] += segment.max_doc
     moc_ord = segment.merge_during_commit_ord
     if moc_ord is not None:
       # print(f'{moc_ord=}')
@@ -835,9 +841,9 @@ def main():
     if end_time is None:
       continue
     # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    flush_id = f"ff_{flush_ord}"
-    l = by_flush_ord.get(flush_ord, [0, 0])
-    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} sec, {l[0]} segments, {l[1]:.1f} MB");')
+    flush_id = f'ff_{flush_ord}'
+    l = by_flush_ord.get(flush_ord, [0, 0, 0])
+    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} s, {l[0]} segs, {l[1]:.1f} MB, {l[2]/1000:.1f} K docs");')
 
   for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
@@ -867,13 +873,15 @@ def main():
       flush_dps,
       merge_dps,
       last_commit_size_mb,
+      tot_merge_write_mb,
+      tot_flush_write_mb,
+      write_ampl
     ) = tup
 
     sec = (timestamp - min_start_abs_time).total_seconds()
     ts = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
-    w(
-      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],'
-    )
+    w(f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}", {tot_merge_write_mb:.3f}, {tot_flush_write_mb:.3f}, {write_ampl:.3f}],')
+
   w("];")
   w("const seg_merge_map = new Map();")
   # w('const seg_details_map = new Map();')
@@ -1046,6 +1054,9 @@ def main():
     let merge_dps = tup[12];
     let last_commit_size_mb = tup[13];
     let abs_timestamp = tup[14];
+    let tot_merge_write_mb = tup[15];
+    let tot_flush_write_mb = tup[16];
+    let write_ampl = tup[17];
     let hr = Math.floor(t/3600.)
     let mn = Math.floor((t - hr*3600)/60.)
     let sc = t - hr*3600 - mn*60;
@@ -1060,13 +1071,21 @@ def main():
     if (time_window_details != null) {
       text += "<font color=red>" + time_window_details + "</font><br>";
     }
+
+    var write_ampl_all_time;
+    if (tot_flush_write_mb == 0) {
+      write_ampl_all_time = 0;
+    } else {
+      write_ampl_all_time = (tot_flush_write_mb + tot_merge_write_mb) / tot_flush_write_mb;
+    }
     
     text = text + "<pre>" +  String(hr).padStart(2, '0') + ":" + String(mn).padStart(2, '0') + ":" + scs + "<br>" +
            abs_timestamp + "<br>" +
            num_segments + " segments<br>" +
            (tot_size_mb/1024.).toFixed(2) + " GB<br>" +
            (max_doc/1000000.).toFixed(2) + "M docs (" + del_pct.toFixed(2) + "% deletes)<br>" +
-           "IO tot writes: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
+           "IO now: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
+           "Tot writes GB:<br>  " + (tot_merge_write_mb/1024.).toFixed(1) + " merge<br>  " + (tot_flush_write_mb/1024.).toFixed(1) + " flush<br>  " + write_ampl_all_time.toFixed(1) + "/" + write_ampl.toFixed(1) + " write-ampl<br>" +
            "Last commit: " + (last_commit_size_mb / 1024.).toFixed(2) + " GB<br>" +
            "flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps.toFixed(1) + " docs/sec<br>" +
            "merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps.toFixed(1) + " docs/sec<br>       " + del_reclaims_per_sec.toFixed(1) + " del-reclaim/sec<br>" +

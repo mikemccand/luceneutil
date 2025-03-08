@@ -205,7 +205,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   del_reclaims_per_sec = 0
   flush_thread_count = 0
   merge_thread_count = 0
-  
+
   # segment names included in last commit
   last_commit_seg_names = set()
   l = []
@@ -282,7 +282,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         elif what == "segend":
           tot_size_mb -= segment.size_mb
           tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
-        elif what == 'seglight':
+        elif what == "seglight":
           flush_thread_count -= 1
           flush_mbs -= mbs
           tot_size_mb += segment.size_mb
@@ -299,7 +299,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         elif what == "segend":
           tot_size_mb -= segment.size_mb
           tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
-        elif what == 'seglight':
+        elif what == "seglight":
           tot_size_mb += segment.size_mb
           tot_merge_write_mb += segment.size_mb
           merge_thread_count -= 1
@@ -365,9 +365,29 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         write_ampl = 0
       else:
         write_ampl = tot_weighted_write_ampl / tot_size_mb
-        
-      time_aggs.append((timestamp, num_segments, tot_size_mb, merge_mbs, flush_mbs, merge_mbs+flush_mbs, cur_max_doc, del_pct, merge_thread_count, flush_thread_count, del_reclaims_per_sec, flush_dps, merge_dps, last_commit_size_mb, tot_merge_write_mb, tot_flush_write_mb, write_ampl))
-    
+
+      time_aggs.append(
+        (
+          timestamp,
+          num_segments,
+          tot_size_mb,
+          merge_mbs,
+          flush_mbs,
+          merge_mbs + flush_mbs,
+          cur_max_doc,
+          del_pct,
+          merge_thread_count,
+          flush_thread_count,
+          del_reclaims_per_sec,
+          flush_dps,
+          merge_dps,
+          last_commit_size_mb,
+          tot_merge_write_mb,
+          tot_flush_write_mb,
+          write_ampl,
+        )
+      )
+
       # so we only output one spiky point when the commit happened
       commit_size_mb = 0
     else:
@@ -841,9 +861,9 @@ def main():
     if end_time is None:
       continue
     # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
-    flush_id = f'ff_{flush_ord}'
+    flush_id = f"ff_{flush_ord}"
     l = by_flush_ord.get(flush_ord, [0, 0, 0])
-    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} s, {l[0]} segs, {l[1]:.1f} MB, {l[2]/1000:.1f} K docs");')
+    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} s, {l[0]} segs, {l[1]:.1f} MB, {l[2] / 1000:.1f} K docs");')
 
   for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
@@ -875,12 +895,14 @@ def main():
       last_commit_size_mb,
       tot_merge_write_mb,
       tot_flush_write_mb,
-      write_ampl
+      write_ampl,
     ) = tup
 
     sec = (timestamp - min_start_abs_time).total_seconds()
     ts = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
-    w(f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}", {tot_merge_write_mb:.3f}, {tot_flush_write_mb:.3f}, {write_ampl:.3f}],')
+    w(
+      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}", {tot_merge_write_mb:.3f}, {tot_flush_write_mb:.3f}, {write_ampl:.3f}],'
+    )
 
   w("];")
   w("const seg_merge_map = new Map();")

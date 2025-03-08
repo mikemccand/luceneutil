@@ -64,7 +64,6 @@ def sec_to_time_delta(td_sec):
 
 
 class Segment:
-
   # net average write amplification from entire geneology of this
   # segment.  flushed segments start at 1 since that is a 1X write
   # amplification.  merged segments take a weighted average of their
@@ -160,8 +159,8 @@ class Segment:
     if self.size_mb is not None:
       md += f" ({self.max_doc / self.size_mb:,.1f} docs/MB)"
     l.append(md)
-    l.append(f'  write-ampl: {self.net_write_amplification:.1f} X (ancestors: {self.max_ancestor_depth})')
-    if type(self.source) is str and self.source.startswith('flush'):
+    l.append(f"  write-ampl: {self.net_write_amplification:.1f} X (ancestors: {self.max_ancestor_depth})")
+    if type(self.source) is str and self.source.startswith("flush"):
       if self.ram_used_mb is None:
         # this can happen if InfoStream ends as a segment is flushing
         # raise RuntimeError(f'flushed segment {self.name} is missing ramUsedMB')
@@ -534,12 +533,12 @@ def main():
               segment.net_write_amplification = 1
 
               # also most likely wrong:
-              if type(source) is str and source.startswith('flush'):
+              if type(source) is str and source.startswith("flush"):
                 segment.max_ancestor_depth = 0
               else:
                 segment.max_ancestor_depth = 1
-              
-              print(f'do first {segment_name}')
+
+              print(f"do first {segment_name}")
               by_segment_name[segment_name] = segment
               segment.add_event(timestamp, "light", line_number)
               segment.del_count_reclaimed = 0
@@ -610,8 +609,8 @@ def main():
           segment.net_write_amplification = 1
           # flushed segments are brand new, no ancestors:
           segment.max_ancestor_depth = 0
-          
-          if source == 'flush-by-RAM':
+
+          if source == "flush-by-RAM":
             assert ram_buffer_mb is not None
             segment.ram_buffer_mb = ram_buffer_mb
             ram_buffer_mb = None
@@ -728,7 +727,7 @@ def main():
           sum_live_size_mb = 0
           sum_net_write_amplification = 0
           max_ancestor_depth = 0
-          
+
           for tup in merging_segments:
             merging_seg_name = "_" + tup[0]
             max_doc = int(tup[2])
@@ -749,7 +748,7 @@ def main():
 
             # 1+ to account for the merge, which copies in the bytes already written and writes
             # the live portion of the bytes again:
-            sum_net_write_amplification += (1+seg.net_write_amplification) * live_size_mb
+            sum_net_write_amplification += (1 + seg.net_write_amplification) * live_size_mb
 
             max_ancestor_depth = max(max_ancestor_depth, seg.max_ancestor_depth)
 

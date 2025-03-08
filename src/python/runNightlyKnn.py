@@ -402,6 +402,12 @@ This benchmark indexes and searches Cohere 768 dimensin vectors from https://hug
 
 topPct = 0
 
+def getLabel(label):
+  if label < 26:
+    s = chr(65 + label)
+  else:
+    s = "%s%s" % (chr(65 + (label // 26 - 1)), chr(65 + (label % 26)))
+  return s
 
 def write_one_graph(f, timestamps, series, id, title, headers=None, ylabel=None):
   global topPct

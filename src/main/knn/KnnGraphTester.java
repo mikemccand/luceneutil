@@ -169,6 +169,8 @@ public class KnnGraphTester {
   private int queryStartIndex;
   // whether to reorder the index using binary partitioning
   private boolean useBp;
+  // the number of search threads, if > 1, a statically sized threadpool is passed to the index searcher
+  private int numSearchThread;
 
   private KnnGraphTester() {
     // set defaults
@@ -189,6 +191,7 @@ public class KnnGraphTester {
     quantizeCompress = false;
     numIndexThreads = 8;
     queryStartIndex = 0;
+    numSearchThread = 1;
   }
 
   private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding, boolean noisy) throws IOException {
@@ -382,6 +385,12 @@ public class KnnGraphTester {
           break;
         case "-quiet":
           quiet = true;
+          break;
+        case "-numSearchThread":
+          numSearchThread = Integer.parseInt(args[++iarg]);
+          if (numSearchThread <= 0) {
+            throw new IllegalArgumentException("-numSearchThread should be >= 1");
+          }
           break;
         case "-numMergeWorker":
           numMergeWorker = Integer.parseInt(args[++iarg]);
@@ -776,7 +785,7 @@ public class KnnGraphTester {
     Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
-    ExecutorService executorService = Executors.newFixedThreadPool(8);
+    ExecutorService executorService = numSearchThread > 1 ? Executors.newFixedThreadPool(numSearchThread) : null;
     try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
       long queryPathSizeInBytes = input.size();
       log((int) (queryPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " query vectors in queryPath \"" + queryPath + "\"\n");
@@ -792,7 +801,7 @@ public class KnnGraphTester {
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
-          IndexSearcher searcher = new IndexSearcher(reader);
+          IndexSearcher searcher = new IndexSearcher(reader, executorService);
           numDocs = reader.maxDoc();
           // warm up
           for (int i = 0; i < numQueryVectors; i++) {

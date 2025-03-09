@@ -49,11 +49,12 @@ import java.util.function.BinaryOperator;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
-import org.apache.lucene.codecs.bitvectors.HnswBitVectorsFormat;
 import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
+import org.apache.lucene.codecs.lucene102.Lucene102BinaryQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsFormat;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.CodecReader;
@@ -121,6 +122,11 @@ import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
  */
 public class KnnGraphTester {
 
+  enum IndexType {
+    HNSW,
+    FLAT
+  }
+
   public static final String KNN_FIELD = "knn";
   public static final String ID_FIELD = "id";
   private static final String INDEX_DIR = "knnIndices";
@@ -169,6 +175,10 @@ public class KnnGraphTester {
   private int queryStartIndex;
   // whether to reorder the index using binary partitioning
   private boolean useBp;
+  // index type, e.g. flat, hnsw
+  private IndexType indexType;
+  // oversampling, e.g. the multiple * k to gather before checking recall
+  private float overSample;
 
   private KnnGraphTester() {
     // set defaults
@@ -189,6 +199,8 @@ public class KnnGraphTester {
     quantizeCompress = false;
     numIndexThreads = 8;
     queryStartIndex = 0;
+    indexType = IndexType.HNSW;
+    overSample = 1f;
   }
 
   private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding, boolean noisy) throws IOException {
@@ -243,6 +255,31 @@ public class KnnGraphTester {
                   "Operation " + arg + " requires a following pathname");
             }
             queryPath = Paths.get(args[++iarg]);
+          }
+          break;
+        case "-indexType":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-indexType requires a following pathname");
+          }
+          String indexKind = args[++iarg].toLowerCase().trim();
+          switch (indexKind) {
+            case "hnsw":
+              indexType = IndexType.HNSW;
+              break;
+            case "flat":
+              indexType = IndexType.FLAT;
+              break;
+            default:
+              throw new IllegalArgumentException("-indexType can be 'hnsw' or 'flat' only");
+          }
+          break;
+        case "-overSample":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-overSample requires a following float");
+          }
+          overSample = Float.parseFloat(args[++iarg]);
+          if (overSample < 1) {
+            throw new IllegalArgumentException("-overSample must be >= 1");
           }
           break;
         case "-fanout":
@@ -449,7 +486,7 @@ public class KnnGraphTester {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
+        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, quantizeCompress),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -564,14 +601,20 @@ public class KnnGraphTester {
 
       // TODO: why is encodingByteSize 4 even for int4/int7 cases?
       double realEncodingByteSize;
+      double overHead = 0;
       if (quantize) {
-        if (quantizeBits == 4) {
+        if (quantizeBits == 1) {
+          realEncodingByteSize = 1.0/32.0;
+          overHead = Float.BYTES * 3 + Short.BYTES; // 3 floats & 1 short
+        } else if (quantizeBits == 4) {
+          overHead = 4; // 1 float
           if (quantizeCompress) {
             realEncodingByteSize = 0.5;
           } else {
             realEncodingByteSize = 1;
           }
         } else if (quantizeBits == 7) {
+          overHead = Float.BYTES; // 1 float
           realEncodingByteSize = 1;
         } else {
           throw new IllegalStateException("can only handle int4 and int7 quantized");
@@ -581,18 +624,12 @@ public class KnnGraphTester {
       }
       log("realEncodingByteSize=" + realEncodingByteSize + "\n");
 
-      double diskBytesPerDim;
-      if (origByteSize != (int) realEncodingByteSize) {
-        // int4, int7 add one byte per dimension over the original
-        diskBytesPerDim = origByteSize + realEncodingByteSize;
+      vectorRAMSizeBytes = (long) ((double) totalVectorCount * (realEncodingByteSize * dim + overHead));
+      if (quantize) {
+        vectorDiskSizeBytes = (long) ((double) totalVectorCount * ((long)origByteSize * dim)) + vectorRAMSizeBytes;
       } else {
-        // unquantized
-        diskBytesPerDim = origByteSize;
+        vectorDiskSizeBytes = (long) ((double) totalVectorCount * (realEncodingByteSize * dim));
       }
-
-      vectorDiskSizeBytes = (long) ((double) totalVectorCount * diskBytesPerDim * dim);
-      vectorRAMSizeBytes = (long) ((double) totalVectorCount * realEncodingByteSize * dim);
-      
       indexSizeOnDiskMB = indexSizeOnDiskBytes / 1024. / 1024.;
       log("index disk usage is %.2f MB\n", indexSizeOnDiskMB);
       log("vector disk usage is %.2f MB\n", vectorDiskSizeBytes/1024./1024.);
@@ -630,10 +667,14 @@ public class KnnGraphTester {
 
   private String formatIndexPath(Path docsPath) {
     List<String> suffix = new ArrayList<>();
-    suffix.add(Integer.toString(maxConn));
-    suffix.add(Integer.toString(beamWidth));
-    if (useBp) {
-      suffix.add("bp");
+    if (indexType == IndexType.FLAT) {
+      suffix.add("flat");
+    } else {
+      suffix.add(Integer.toString(maxConn));
+      suffix.add(Integer.toString(beamWidth));
+      if (useBp) {
+        suffix.add("bp");
+      }
     }
     if (quantize) {
       suffix.add(Integer.toString(quantizeBits));
@@ -653,6 +694,10 @@ public class KnnGraphTester {
 
   @SuppressForbidden(reason = "Prints stuff")
   private void printFanoutHist(Path indexPath) throws IOException {
+    if (indexType == IndexType.FLAT) {
+      log("flat has no graphs");
+      return;
+    }
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
       for (LeafReaderContext context : reader.leaves()) {
@@ -660,7 +705,13 @@ public class KnnGraphTester {
         KnnVectorsReader vectorsReader =
             ((PerFieldKnnVectorsFormat.FieldsReader) ((CodecReader) leafReader).getVectorReader())
                 .getFieldReader(KNN_FIELD);
-        HnswGraph knnValues = ((Lucene99HnswVectorsReader) vectorsReader).getGraph(KNN_FIELD);
+        HnswGraph knnValues;
+        if (vectorsReader instanceof Lucene99HnswVectorsReader hnswVectorsReader) {
+          knnValues = hnswVectorsReader.getGraph(KNN_FIELD);
+        } else {
+          throw new IllegalStateException("unsupported vectors reader: " + vectorsReader);
+        }
+
         log("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
         log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
@@ -672,7 +723,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private double forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, quantizeCompress));
     log("Force merge index in " + indexPath + "\n");
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
@@ -776,6 +827,8 @@ public class KnnGraphTester {
     Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsed, totalCpuTimeMS, totalVisited = 0;
+    int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
+    int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
       long queryPathSizeInBytes = input.size();
@@ -862,13 +915,14 @@ public class KnnGraphTester {
         quantizeDesc = "no";
       }
       double reindexSec = reindexTimeMsec / 1000.0;
-      System.out.printf(Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\n",
+      System.out.printf(
+          Locale.ROOT,
+          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
           recall,
           totalCpuTimeMS / (float) numQueryVectors,
           numDocs,
-          topK,
-          fanout,
+          this.topK,
+          this.fanout,
           maxConn,
           beamWidth,
           quantizeDesc,
@@ -880,8 +934,11 @@ public class KnnGraphTester {
           indexSizeOnDiskMB,
           selectivity,
           prefilter ? "pre-filter" : "post-filter",
+          overSample,
           vectorDiskSizeBytes / 1024. / 1024.,
-          vectorRAMSizeBytes / 1024. / 1024.);
+          vectorRAMSizeBytes / 1024. / 1024.,
+          indexType.toString()
+        );
     }
   }
 
@@ -1183,14 +1240,20 @@ public class KnnGraphTester {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, boolean quantizeCompress) {
+  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType, boolean quantizeCompress) {
+    if (quantize && quantizeBits != 1 && indexType == IndexType.FLAT) {
+      throw new IllegalArgumentException("only single bit quantization supports FLAT indices");
+    }
     if (exec == null) {
       return new Lucene101Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           if (quantize) {
             if (quantizeBits == 1) {
-              return new HnswBitVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+              return switch (indexType) {
+                case FLAT -> new Lucene102BinaryQuantizedVectorsFormat();
+                case HNSW -> new Lucene102HnswBinaryQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+              };
             } else {
               return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, null);
             }
@@ -1205,7 +1268,10 @@ public class KnnGraphTester {
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           if (quantize) {
             if (quantizeBits == 1) {
-              return new HnswBitVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+              return switch (indexType) {
+                case FLAT -> new Lucene102BinaryQuantizedVectorsFormat();
+                case HNSW -> new Lucene102HnswBinaryQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+              };
             } else {
               return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, exec);
             }

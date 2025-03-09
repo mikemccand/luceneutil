@@ -31,22 +31,15 @@ import graphviz
 import intervaltree
 
 # TODO
-#   - add "flush to merge depth" to each segment: count of longest ancester chain
-#   - get write amplification on rhs
-#     - hmm but make it weighted avg of current live segments
+#   - draw merge lines in 2nd pass -- now some are occluded by some segments and some are not
 #   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
+#   - MOC: should be able to tell if it timed out on any merge vs all finished in time
 #   - also coalesce mocs into their "ords", like full flushes
-#   - only highlight moc/ff if we are not also over a segment?  occlusion
 #   - tune to more harmonius color scheme
 #   - from "last commit size" also break out how much was flushed vs merged segments
-#   - get highlight working for the flush/moc bands, and move them under all other segments (no alpha)
 #   - IW should differentiate "done waithing for merge during commit" timeout vs all requested merges finished
-#   - fix TMP to log deletes target and changes to the target
-#   - fix time-cursor text to say "in full flush", "in merge on commit", etc.
 #   - fix zoom slider to only zoom in x
-#   - why does delete pct suddenly drop too much (screen shot 1)
 #   - flush-by-ram detection is buggy
-#   - make flush-by-ram a different color
 #   - make scatterplot of merged segment size vs merge time
 #   - get #t=... anchor link working!
 #   - plot mb * sec?
@@ -120,6 +113,21 @@ merge_on_commit_color = "rgb(253,235,208)"
 merge_on_commit_highlight_color = "rgb(202,188,166)"
 full_flush_color = "rgb(214,234,248)"
 full_flush_highlight_color = "rgb(171,187,198)"
+
+flush_by_ram_color = "#ff00ff"
+flush_color = "#ff0000"
+merge_color = "#0000ff"
+
+flush_by_ram_dawn_color = "#ff88ff"
+flush_dawn_color = "#ff8888"
+merge_dawn_color = "#8888ff"
+
+flush_by_ram_dusk_color = "#880088"
+flush_dusk_color = "#880000"
+merge_dusk_color = "#000088"
+
+merging_segment_highlight_color = "orange"
+segment_highlight_color = "cyan"
 
 # so pickle is happy
 Segment = infostream_to_segments.Segment
@@ -784,36 +792,37 @@ def main():
     y0 = y1 - height
     if type(segment.source) is str and segment.source.startswith("flush"):
       if segment.source == "flush-by-RAM":
-        color = "#ff00ff"
+        color = flush_by_ram_color
       else:
-        color = "#ff0000"
+        color = flush_color
     else:
-      color = "#0000ff"
+      color = merge_color
 
     w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1 - x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
     # w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}"/>')
 
-    # shade the time segment is being written, before it's lit:
+    # dawn: shade the time segment is being written, before it's lit:
     if light_timestamp is not None:
       x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
 
-      if color == "#ff00ff":
-        new_color = "#ff88ff"
-      elif color == "#ff0000":
-        new_color = "#ff8888"
+      if color == flush_by_ram_color:
+        new_color = flush_by_ram_dawn_color
+      elif color == flush_color:
+        new_color = flush_dawn_color
       else:
-        new_color = "#8888ff"
+        new_color = merge_dawn_color
+
       w(f"  <!--dawn:-->")
       w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light - x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
     if segment.merged_into is not None:
-      # this segment was merged away eventually
-      if color == "#ff00ff":
-        new_color = "#880088"
-      elif color == "#ff0000":
-        new_color = "#880000"
+      # dusk: this segment was merged away eventually
+      if color == flush_by_ram_color:
+        new_color = flush_by_ram_dusk_color
+      elif color == flush_color:
+        new_color = flush_dusk_color
       else:
-        new_color = "#000088"
+        new_color = merge_dusk_color
       dusk_timestamp = segment.merged_into.start_time
       assert dusk_timestamp < t1
       x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
@@ -876,6 +885,8 @@ def main():
   w(f'merge_on_commit_highlight_color = "{merge_on_commit_highlight_color}";')
   w(f'full_flush_color = "{full_flush_color}";')
   w(f'full_flush_highlight_color = "{full_flush_highlight_color}";')
+  w(f'merging_segment_highlight_color = "{merging_segment_highlight_color}";')
+  w(f'segment_highlight_color = "{segment_highlight_color}";')
   w("var agg_metrics = [")
   for tup in time_aggs:
     (
@@ -1202,7 +1213,7 @@ def main():
     // TODO: just use map w/ colors?
     for (let seg_name of now_sub_highlight) {
       // console.log("sub highlight " + seg_name);
-      highlight(seg_name, "orange", false, false, transformed_point);
+      highlight(seg_name, merging_segment_highlight_color, false, false, transformed_point);
     }
   };
 

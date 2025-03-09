@@ -31,10 +31,7 @@ def parse_timestamp(s):
 #   - why do del counts sometimes go backwards?  "now checkpoint" is not guaranteed to be monotonic?
 #   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?
 #   - support addIndexes source too
-#   - what to do with the RAM MB -> flushed size MB ratio?  it'd be nice to measure "ram efficiency" somehow of newly flushed segments..
-#   - get an infostream w/ concurrent deletes ... maybe from the NRT indexing test?
-#   - record segment id?
-#   - also part commitMergeDeletes line
+#   - also parse commitMergeDeletes line
 #   - fix IW/infostream/tracing
 #     - note why a flush was triggered -- NRT reader, commit, RAM full, flush-by-doc-count, etc.
 #   - open issue for this WTF:
@@ -190,16 +187,16 @@ class Segment:
       l.append("  cfs")
 
     if self.del_count_reclaimed is not None:
-      l.append(f"  del_count_reclaimed={self.del_count_reclaimed:,} ({100.0 * self.del_count_reclaimed / (self.max_doc + self.del_count_reclaimed):.1f}%)")
+      l.append(f"  dels reclaimed {self.del_count_reclaimed:,} ({100.0 * self.del_count_reclaimed / (self.max_doc + self.del_count_reclaimed):.1f}%)")
     if self.born_del_count is not None:
-      l.append(f"  born_del_count={self.born_del_count:,} ({100.0 * self.born_del_count / self.max_doc:.1f}%)")
+      l.append(f"  born dels {self.born_del_count:,} ({100.0 * self.born_del_count / self.max_doc:.1f}%)")
     if self.del_count is not None:
       if self.end_time is None:
         end_time = global_end_time
       else:
         end_time = self.end_time
       dps = self.del_count / (end_time - self.start_time).total_seconds()
-      l.append(f"  final del_count={self.del_count:,} ({100.0 * self.del_count / self.max_doc:.1f}%, {dps:,.1f} dd/s)")
+      l.append(f"  final dels {self.del_count:,} ({100.0 * self.del_count / self.max_doc:.1f}%, {dps:,.1f} dd/s)")
     # l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
     # if self.end_time is not None:
     #  l.append(f'  end_time: {self.end_time}')
@@ -222,10 +219,10 @@ class Segment:
       dtt = 0
       ltt = (global_end_time - self.start_time).total_seconds()
 
-    l.append(f"  times: {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
+    l.append(f"  times {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
     if self.merged_into is not None:
       l.append(f"  merged into {self.merged_into.name}")
-    l.append(f"  events:")
+    l.append(f"  events")
     last_ts = self.start_time
 
     # we subsample all delete flushes if there are too many...:

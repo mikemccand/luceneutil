@@ -31,10 +31,7 @@ def parse_timestamp(s):
 #   - why do del counts sometimes go backwards?  "now checkpoint" is not guaranteed to be monotonic?
 #   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?
 #   - support addIndexes source too
-#   - what to do with the RAM MB -> flushed size MB ratio?  it'd be nice to measure "ram efficiency" somehow of newly flushed segments..
-#   - get an infostream w/ concurrent deletes ... maybe from the NRT indexing test?
-#   - record segment id?
-#   - also part commitMergeDeletes line
+#   - also parse commitMergeDeletes line
 #   - fix IW/infostream/tracing
 #     - note why a flush was triggered -- NRT reader, commit, RAM full, flush-by-doc-count, etc.
 #   - open issue for this WTF:
@@ -64,6 +61,14 @@ def sec_to_time_delta(td_sec):
 
 
 class Segment:
+  # net average write amplification from entire geneology of this
+  # segment.  flushed segments start at 1 since that is a 1X write
+  # amplification.  merged segments take a weighted average of their
+  # incoming (merged) segments, pro-rated by % deletes of each.
+  net_write_amplification = None
+
+  max_ancestor_depth = None
+
   all_segments = []
 
   # how many docs are deleted when this segment is first lit.  for a
@@ -151,6 +156,7 @@ class Segment:
     if self.size_mb is not None:
       md += f" ({self.max_doc / self.size_mb:,.1f} docs/MB)"
     l.append(md)
+    l.append(f"  write-ampl: {self.net_write_amplification:.1f} X (ancestors: {self.max_ancestor_depth})")
     if type(self.source) is str and self.source.startswith("flush"):
       if self.ram_used_mb is None:
         # this can happen if InfoStream ends as a segment is flushing
@@ -181,16 +187,16 @@ class Segment:
       l.append("  cfs")
 
     if self.del_count_reclaimed is not None:
-      l.append(f"  del_count_reclaimed={self.del_count_reclaimed:,} ({100.0 * self.del_count_reclaimed / (self.max_doc + self.del_count_reclaimed):.1f}%)")
+      l.append(f"  dels reclaimed {self.del_count_reclaimed:,} ({100.0 * self.del_count_reclaimed / (self.max_doc + self.del_count_reclaimed):.1f}%)")
     if self.born_del_count is not None:
-      l.append(f"  born_del_count={self.born_del_count:,} ({100.0 * self.born_del_count / self.max_doc:.1f}%)")
+      l.append(f"  born dels {self.born_del_count:,} ({100.0 * self.born_del_count / self.max_doc:.1f}%)")
     if self.del_count is not None:
       if self.end_time is None:
         end_time = global_end_time
       else:
         end_time = self.end_time
       dps = self.del_count / (end_time - self.start_time).total_seconds()
-      l.append(f"  final del_count={self.del_count:,} ({100.0 * self.del_count / self.max_doc:.1f}%, {dps:,.1f} dd/s)")
+      l.append(f"  final dels {self.del_count:,} ({100.0 * self.del_count / self.max_doc:.1f}%, {dps:,.1f} dd/s)")
     # l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
     # if self.end_time is not None:
     #  l.append(f'  end_time: {self.end_time}')
@@ -213,10 +219,10 @@ class Segment:
       dtt = 0
       ltt = (global_end_time - self.start_time).total_seconds()
 
-    l.append(f"  times: {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
+    l.append(f"  times {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
     if self.merged_into is not None:
       l.append(f"  merged into {self.merged_into.name}")
-    l.append(f"  events:")
+    l.append(f"  events")
     last_ts = self.start_time
 
     # we subsample all delete flushes if there are too many...:
@@ -518,6 +524,17 @@ def main():
             print("do first")
             for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
+              segment.size_mb = 1
+              # this is most likely not correct (underestimate), so if index was pre-existing, all write amplification will
+              # be undercounted:
+              segment.net_write_amplification = 1
+
+              # also most likely wrong:
+              if type(source) is str and source.startswith("flush"):
+                segment.max_ancestor_depth = 0
+              else:
+                segment.max_ancestor_depth = 1
+
               print(f"do first {segment_name}")
               by_segment_name[segment_name] = segment
               segment.add_event(timestamp, "light", line_number)
@@ -586,6 +603,10 @@ def main():
           print(f"  {source=}")
 
           segment = Segment(segment_name, source, max_doc, None, timestamp, None, line_number)
+          segment.net_write_amplification = 1
+          # flushed segments are brand new, no ancestors:
+          segment.max_ancestor_depth = 0
+
           if source == "flush-by-RAM":
             assert ram_buffer_mb is not None
             segment.ram_buffer_mb = ram_buffer_mb
@@ -699,6 +720,11 @@ def main():
           # how many deletes this merge reclaims:
           del_count_reclaimed = 0
           sum_max_doc = 0
+
+          sum_live_size_mb = 0
+          sum_net_write_amplification = 0
+          max_ancestor_depth = 0
+
           for tup in merging_segments:
             merging_seg_name = "_" + tup[0]
             max_doc = int(tup[2])
@@ -712,11 +738,28 @@ def main():
             seg = by_segment_name[merging_seg_name]
             seg.del_count_merged_away = del_count_inc
 
+            live_ratio = 1.0 - (del_count_inc / max_doc)
+            live_size_mb = live_ratio * seg.size_mb
+
+            sum_live_size_mb += live_size_mb
+
+            # 1+ to account for the merge, which copies in the bytes already written and writes
+            # the live portion of the bytes again:
+            sum_net_write_amplification += (1 + seg.net_write_amplification) * live_size_mb
+
+            max_ancestor_depth = max(max_ancestor_depth, seg.max_ancestor_depth)
+
           # print(f'{len(merging_segments)} merging segments in {m.group(4)}: {merging_segments}')
 
           segment = Segment(segment_name, ("merge", merging_segment_names), None, None, timestamp, None, line_number)
           segment.sum_max_doc = sum_max_doc
           segment.del_count_reclaimed = del_count_reclaimed
+          segment.max_ancestor_depth = max_ancestor_depth + 1
+
+          if sum_live_size_mb == 0:
+            segment.net_write_amplification = 0
+          else:
+            segment.net_write_amplification = sum_net_write_amplification / sum_live_size_mb
 
           if len(merge_during_commit_events) > 0 and merge_during_commit_events[-1][1] is None:
             # ensure this merge kickoff was really due to a merge-on-commit merge request:

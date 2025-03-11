@@ -31,19 +31,15 @@ import graphviz
 import intervaltree
 
 # TODO
+#   - draw merge lines in 2nd pass -- now some are occluded by some segments and some are not
 #   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
+#   - MOC: should be able to tell if it timed out on any merge vs all finished in time
 #   - also coalesce mocs into their "ords", like full flushes
-#   - only highlight moc/ff if we are not also over a segment?  occlusion
 #   - tune to more harmonius color scheme
 #   - from "last commit size" also break out how much was flushed vs merged segments
-#   - get highlight working for the flush/moc bands, and move them under all other segments (no alpha)
 #   - IW should differentiate "done waithing for merge during commit" timeout vs all requested merges finished
-#   - fix TMP to log deletes target and changes to the target
-#   - fix time-cursor text to say "in full flush", "in merge on commit", etc.
 #   - fix zoom slider to only zoom in x
-#   - why does delete pct suddenly drop too much (screen shot 1)
 #   - flush-by-ram detection is buggy
-#   - make flush-by-ram a different color
 #   - make scatterplot of merged segment size vs merge time
 #   - get #t=... anchor link working!
 #   - plot mb * sec?
@@ -117,6 +113,21 @@ merge_on_commit_color = "rgb(253,235,208)"
 merge_on_commit_highlight_color = "rgb(202,188,166)"
 full_flush_color = "rgb(214,234,248)"
 full_flush_highlight_color = "rgb(171,187,198)"
+
+flush_by_ram_color = "#ff00ff"
+flush_color = "#ff0000"
+merge_color = "#0000ff"
+
+flush_by_ram_dawn_color = "#ff88ff"
+flush_dawn_color = "#ff8888"
+merge_dawn_color = "#8888ff"
+
+flush_by_ram_dusk_color = "#880088"
+flush_dusk_color = "#880000"
+merge_dusk_color = "#000088"
+
+merging_segment_highlight_color = "orange"
+segment_highlight_color = "cyan"
 
 # so pickle is happy
 Segment = infostream_to_segments.Segment
@@ -202,6 +213,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   del_reclaims_per_sec = 0
   flush_thread_count = 0
   merge_thread_count = 0
+
   # segment names included in last commit
   last_commit_seg_names = set()
   l = []
@@ -219,6 +231,13 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   index_file_count = 0
   last_full_flush_time = 0
   last_real_full_flush_time_sec = 0
+
+  # incremented at end of writing of each segment
+  tot_flush_write_mb = 0
+  tot_merge_write_mb = 0
+
+  # weighted (by size_mb) sum of each segment's write amplification
+  tot_weighted_write_ampl = 0
 
   while upto < len(all_times):
     timestamp, what, item = all_times[upto]
@@ -270,10 +289,13 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           seg_name_to_size[segment.name] = segment.size_mb
         elif what == "segend":
           tot_size_mb -= segment.size_mb
+          tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
         elif what == "seglight":
           flush_thread_count -= 1
           flush_mbs -= mbs
           tot_size_mb += segment.size_mb
+          tot_flush_write_mb += segment.size_mb
+          tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
       else:
         if what == "segstart":
           merge_mbs += mbs
@@ -284,13 +306,16 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           seg_name_to_size[segment.name] = segment.size_mb
         elif what == "segend":
           tot_size_mb -= segment.size_mb
+          tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
         elif what == "seglight":
           tot_size_mb += segment.size_mb
+          tot_merge_write_mb += segment.size_mb
           merge_thread_count -= 1
           merge_mbs -= mbs
           merge_dps -= dps
           if segment.del_reclaims_per_sec is not None:
             del_reclaims_per_sec -= segment.del_reclaims_per_sec
+          tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
 
       if cur_max_doc == 0:
         # sidestep delete-by-zero ha
@@ -344,6 +369,11 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         f"[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb / 1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs + flush_mbs:.3f}, {cur_max_doc / 1000000.0}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec / 100.0:.3f}, {flush_dps / 100:.3f}, {merge_dps / 100:.3f}, {commit_size_mb / 100.0:.3f}, {index_file_count / 100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}"
       )
 
+      if tot_size_mb == 0:
+        write_ampl = 0
+      else:
+        write_ampl = tot_weighted_write_ampl / tot_size_mb
+
       time_aggs.append(
         (
           timestamp,
@@ -360,6 +390,9 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           flush_dps,
           merge_dps,
           last_commit_size_mb,
+          tot_merge_write_mb,
+          tot_flush_write_mb,
+          write_ampl,
         )
       )
 
@@ -508,12 +541,13 @@ def main():
     flush_ord = segment.full_flush_ord
     if flush_ord is not None:
       if flush_ord not in by_flush_ord:
-        by_flush_ord[flush_ord] = [0, 0]
+        by_flush_ord[flush_ord] = [0, 0, 0]
 
       l = by_flush_ord[flush_ord]
       if segment.size_mb is not None:
         l[0] += 1
         l[1] += segment.size_mb
+        l[2] += segment.max_doc
     moc_ord = segment.merge_during_commit_ord
     if moc_ord is not None:
       # print(f'{moc_ord=}')
@@ -758,36 +792,37 @@ def main():
     y0 = y1 - height
     if type(segment.source) is str and segment.source.startswith("flush"):
       if segment.source == "flush-by-RAM":
-        color = "#ff00ff"
+        color = flush_by_ram_color
       else:
-        color = "#ff0000"
+        color = flush_color
     else:
-      color = "#0000ff"
+      color = merge_color
 
     w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1 - x0:.2f} height={height:.2f} rx=4 fill="{color}" seg_name="{segment.name}"/>')
     # w(f'\n  <rect id="{segment.name}" x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height={height:.2f} rx=4 fill="{color}"/>')
 
-    # shade the time segment is being written, before it's lit:
+    # dawn: shade the time segment is being written, before it's lit:
     if light_timestamp is not None:
       x_light = padding_x + x_pixels_per_sec * (light_timestamp - min_start_abs_time).total_seconds()
 
-      if color == "#ff00ff":
-        new_color = "#ff88ff"
-      elif color == "#ff0000":
-        new_color = "#ff8888"
+      if color == flush_by_ram_color:
+        new_color = flush_by_ram_dawn_color
+      elif color == flush_color:
+        new_color = flush_dawn_color
       else:
-        new_color = "#8888ff"
+        new_color = merge_dawn_color
+
       w(f"  <!--dawn:-->")
       w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light - x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
     if segment.merged_into is not None:
-      # this segment was merged away eventually
-      if color == "#ff00ff":
-        new_color = "#880088"
-      elif color == "#ff0000":
-        new_color = "#880000"
+      # dusk: this segment was merged away eventually
+      if color == flush_by_ram_color:
+        new_color = flush_by_ram_dusk_color
+      elif color == flush_color:
+        new_color = flush_dusk_color
       else:
-        new_color = "#000088"
+        new_color = merge_dusk_color
       dusk_timestamp = segment.merged_into.start_time
       assert dusk_timestamp < t1
       x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
@@ -836,8 +871,8 @@ def main():
       continue
     # w(f'  <rect fill="cyan" fill-opacity=0.2 x={x0:.2f} y={y0:.2f} width={x1-x0:.2f} height="{y1-y0:.2f}"/>')
     flush_id = f"ff_{flush_ord}"
-    l = by_flush_ord.get(flush_ord, [0, 0])
-    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} sec, {l[0]} segments, {l[1]:.1f} MB");')
+    l = by_flush_ord.get(flush_ord, [0, 0, 0])
+    w(f'time_window_details_map.set("{flush_id}", "Flush {(end_time - start_time).total_seconds():.1f} s, {l[0]} segs, {l[1]:.1f} MB, {l[2] / 1000:.1f} K docs");')
 
   for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
@@ -850,6 +885,8 @@ def main():
   w(f'merge_on_commit_highlight_color = "{merge_on_commit_highlight_color}";')
   w(f'full_flush_color = "{full_flush_color}";')
   w(f'full_flush_highlight_color = "{full_flush_highlight_color}";')
+  w(f'merging_segment_highlight_color = "{merging_segment_highlight_color}";')
+  w(f'segment_highlight_color = "{segment_highlight_color}";')
   w("var agg_metrics = [")
   for tup in time_aggs:
     (
@@ -867,13 +904,17 @@ def main():
       flush_dps,
       merge_dps,
       last_commit_size_mb,
+      tot_merge_write_mb,
+      tot_flush_write_mb,
+      write_ampl,
     ) = tup
 
     sec = (timestamp - min_start_abs_time).total_seconds()
     ts = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
     w(
-      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}"],'
+      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}", {tot_merge_write_mb:.3f}, {tot_flush_write_mb:.3f}, {write_ampl:.3f}],'
     )
+
   w("];")
   w("const seg_merge_map = new Map();")
   # w('const seg_details_map = new Map();')
@@ -1046,6 +1087,9 @@ def main():
     let merge_dps = tup[12];
     let last_commit_size_mb = tup[13];
     let abs_timestamp = tup[14];
+    let tot_merge_write_mb = tup[15];
+    let tot_flush_write_mb = tup[16];
+    let write_ampl = tup[17];
     let hr = Math.floor(t/3600.)
     let mn = Math.floor((t - hr*3600)/60.)
     let sc = t - hr*3600 - mn*60;
@@ -1060,13 +1104,21 @@ def main():
     if (time_window_details != null) {
       text += "<font color=red>" + time_window_details + "</font><br>";
     }
+
+    var write_ampl_all_time;
+    if (tot_flush_write_mb == 0) {
+      write_ampl_all_time = 0;
+    } else {
+      write_ampl_all_time = (tot_flush_write_mb + tot_merge_write_mb) / tot_flush_write_mb;
+    }
     
     text = text + "<pre>" +  String(hr).padStart(2, '0') + ":" + String(mn).padStart(2, '0') + ":" + scs + "<br>" +
            abs_timestamp + "<br>" +
            num_segments + " segments<br>" +
            (tot_size_mb/1024.).toFixed(2) + " GB<br>" +
            (max_doc/1000000.).toFixed(2) + "M docs (" + del_pct.toFixed(2) + "% deletes)<br>" +
-           "IO tot writes: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
+           "IO now: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
+           "Tot writes GB:<br>  " + (tot_merge_write_mb/1024.).toFixed(1) + " merge<br>  " + (tot_flush_write_mb/1024.).toFixed(1) + " flush<br>  " + write_ampl_all_time.toFixed(1) + "/" + write_ampl.toFixed(1) + " write-ampl<br>" +
            "Last commit: " + (last_commit_size_mb / 1024.).toFixed(2) + " GB<br>" +
            "flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps.toFixed(1) + " docs/sec<br>" +
            "merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps.toFixed(1) + " docs/sec<br>       " + del_reclaims_per_sec.toFixed(1) + " del-reclaim/sec<br>" +
@@ -1161,7 +1213,7 @@ def main():
     // TODO: just use map w/ colors?
     for (let seg_name of now_sub_highlight) {
       // console.log("sub highlight " + seg_name);
-      highlight(seg_name, "orange", false, false, transformed_point);
+      highlight(seg_name, merging_segment_highlight_color, false, false, transformed_point);
     }
   };
 

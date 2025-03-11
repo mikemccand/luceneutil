@@ -17,7 +17,7 @@ PIP_INSTALL_ARGS=--disable-pip-version-check --no-input --upgrade
 VENV=${PWD}/.venv
 
 # don't behave strangely if these files exist
-.PHONY: lint format reformat ruff pyright env clean
+.PHONY: lint format reformat tidy autofix ruff ruff-fix pyright env clean
 
 # list of directories we check
 SOURCES=src/python
@@ -32,12 +32,23 @@ format: env
 	# validate formatting: if this fails, please run "make reformat" and commit changes.
 	$(VENV)/bin/ruff format --diff $(SOURCES)
 
+# alias for lucene gradle users!
+tidy: reformat
+
 # reformat code to conventions
 reformat: env
 	# organize imports
 	$(VENV)/bin/ruff check --select I --fix $(SOURCES)
 	# reformat sources
 	$(VENV)/bin/ruff format $(SOURCES)
+
+# applies all safe fixes, if successful reformats too
+autofix: ruff-fix reformat
+
+# applies safe autofixes
+ruff-fix: env
+	# fix sources with ruff
+	$(VENV)/bin/ruff check --fix $(SOURCES)
 
 # lints sources
 ruff: env

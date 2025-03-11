@@ -30,14 +30,14 @@ def createLineFileDocsWithRandomLabels(original_file, target_file):
 
   print(f"Reading from {original_file} and writing to {target_file}")
 
-  with open(original_file, "r", encoding="utf-8") as f:
+  with open(original_file, encoding="utf-8") as f:
     line = f.readline()
     original_has_header = line.startswith("FIELDS_HEADER_INDICATOR###")
 
   print(f"input has header?={original_has_header}")
 
   # alas, we have UTF-8 bugs in some of our line docs files, so I had to use errors='replace' below:
-  with open(original_file, "r", encoding="utf-8", errors="replace") as original, open(target_file, "w", encoding="utf-8") as out:
+  with open(original_file, encoding="utf-8", errors="replace") as original, open(target_file, "w", encoding="utf-8") as out:
     i = 0
 
     # always write header even if input does not have it:
@@ -84,7 +84,7 @@ def createLineFileDocsWithRandomLabels(original_file, target_file):
 def chooseRandomLabel(body):
   body_arr = list(filter(isNotEmpty, re.split(r"\W", body)))
   if len(body_arr) == 0:
-    print(f"WARNING: empty body: {repr(body)}")
+    print(f"WARNING: empty body: {body!r}")
     return "EMPTY_LABEL"
   label = None
   i = 0
@@ -92,8 +92,7 @@ def chooseRandomLabel(body):
     label = random.choice(body_arr)
   if not isNotEmpty(label):
     return "EMPTY_LABEL"
-  else:
-    return label
+  return label
 
 
 def isNotEmpty(str):
@@ -103,11 +102,10 @@ def isNotEmpty(str):
 if __name__ == "__main__":
   if "-help" in sys.argv or "--help" in sys.argv:
     print("Usage: python createLineFileDocsWithRandomLabel.py file-name-in file-name-out [--help]")
+  elif len(sys.argv) == 3:
+    ORIGINAL_LINEFILE = sys.argv[1]
+    TARGET_LINEFILE = sys.argv[2]
+    createLineFileDocsWithRandomLabels(ORIGINAL_LINEFILE, TARGET_LINEFILE)
   else:
-    if len(sys.argv) == 3:
-      ORIGINAL_LINEFILE = sys.argv[1]
-      TARGET_LINEFILE = sys.argv[2]
-      createLineFileDocsWithRandomLabels(ORIGINAL_LINEFILE, TARGET_LINEFILE)
-    else:
-      print("Invalid arguments")
-      print("Usage: python createLineFileDocsWithRandomLabel.py file-name-in file-name-out [--help]")
+    print("Invalid arguments")
+    print("Usage: python createLineFileDocsWithRandomLabel.py file-name-in file-name-out [--help]")

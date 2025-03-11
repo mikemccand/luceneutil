@@ -27,8 +27,7 @@ PS_EXE_PATH = shutil.which("ps")
 
 
 class PSTopN:
-  """
-  Simple class to launch a background thread that
+  """Simple class to launch a background thread that
   periodically records top N processes (by CPU descending) to
   a destination log file.
   """

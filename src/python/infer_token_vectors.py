@@ -31,8 +31,8 @@ vector_file = sys.argv[3]
 model_name = sys.argv[4]
 
 dic = dict()
-TOKENIZE_RE = re.compile("[][ \t,\-()!@#$%^&*'\"{}<>/?\\|+=_:;.]+")
-with open(input_file, "rt") as input:
+TOKENIZE_RE = re.compile("[][ \t,\\-()!@#$%^&*'\"{}<>/?\\|+=_:;.]+")
+with open(input_file) as input:
   for line in input:
     if len(dic) > 400000:
       break
@@ -48,7 +48,7 @@ BATCH_SIZE = 256
 model = SentenceTransformer(model_name)
 model.eval()
 
-with open(token_file, "wt") as tokens_out:
+with open(token_file, "w") as tokens_out:
   with open(vector_file, "wb") as vectors_out:
     tokens = []
     for token, count in dic.items():

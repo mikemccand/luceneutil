@@ -30,13 +30,13 @@ while True:
   stdout = stdout.decode("utf-8")
   open(f"logs/{ram_mb}.stdout", "w", encoding="utf-8").write(stdout)
 
-  m = re.search('^saved FST to "fst.bin": (\d+) bytes; ([0-9.]+) sec$', stdout, re.MULTILINE)
+  m = re.search(r'^saved FST to "fst.bin": (\d+) bytes; ([0-9.]+) sec$', stdout, re.MULTILINE)
   fst_mb = int(m.group(1)) / 1024 / 1024
   fst_build_sec = float(m.group(2))
 
   actual_ram_mb = 0
 
-  for s in re.findall("RAM (\d+) bytes$", stdout, re.MULTILINE):
+  for s in re.findall(r"RAM (\d+) bytes$", stdout, re.MULTILINE):
     actual_ram_mb = max(actual_ram_mb, int(s) / 1024 / 1024)
 
   if actual_ram_mb > ram_mb:
@@ -50,7 +50,7 @@ while True:
 
   pickle.dump(results, open("results.pk", "wb"))
 
-  print(f"ram_mb,fst_mb,fst_build_sec,actual_ram_mb")
+  print("ram_mb,fst_mb,fst_build_sec,actual_ram_mb")
   for ram_mb0, fst_mb, fst_build_sec, actual_ram_mb in results:
     print(f"{ram_mb0},{fst_mb:.3f},{fst_build_sec:.3f},{actual_ram_mb:.3f}")
 

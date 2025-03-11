@@ -88,9 +88,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         else:
           print("%s: drop data point qps=%s t=%s: t is >= 30000" % (name, qps, t))
 
-        if name not in maxActualQPS:
-          maxActualQPS[name] = actualQPS
-        elif actualQPS > maxActualQPS[name]:
+        if name not in maxActualQPS or actualQPS > maxActualQPS[name]:
           maxActualQPS[name] = actualQPS
 
   graphData.sort()
@@ -122,8 +120,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
   print("  saved %s" % fileName)
   if sla is None:
     return None, maxActualQPS
-  else:
-    return passesSLA, maxActualQPS
+  return passesSLA, maxActualQPS
 
 
 graphHeader = """<html>

@@ -61,7 +61,7 @@ def extractIndexStats(indexLog):
   docsPerMBDisk = 0
   flushCount = 0
   lastDPSMatch = None
-  with open(indexLog, "r", encoding="utf-8") as f:
+  with open(indexLog, encoding="utf-8") as f:
     while True:
       line = f.readline()
       if line == "":
@@ -113,7 +113,7 @@ def extractSearchStats(searchLog):
   heapBytes = None
   heapBytesByPart = {}
   byThread = {}
-  with open(searchLog, "r", encoding="utf-8") as f:
+  with open(searchLog, encoding="utf-8") as f:
     while True:
       line = f.readline()
       if line == "":
@@ -131,8 +131,7 @@ def extractSearchStats(searchLog):
             sortDesc = None
           else:
             sortDesc = "longitude"
-          if hitCount.endswith("+"):
-            hitCount = hitCount[:-1]
+          hitCount = hitCount.removesuffix("+")
           byThread[threadID].append((queryDesc, sortDesc, int(hitCount), float(msec)))
         else:
           m = reHeapUsagePart.match(line)
@@ -188,12 +187,12 @@ def extractSearchStats(searchLog):
 
 
 def extractDiskUsageStats(logFileName):
-  with open(logFileName, "r") as f:
+  with open(logFileName) as f:
     while True:
       line = f.readline()
       if line == "":
         raise RuntimeError('unexpected EOF while parsing "%s"' % logFileName)
-      elif line.startswith("num docs:"):
+      if line.startswith("num docs:"):
         break
 
     mbByPart = {}

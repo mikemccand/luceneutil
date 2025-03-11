@@ -108,13 +108,13 @@ java_bin = JAVA_HOME + "/bin/" if JAVA_HOME else ""
 if java_bin:
   print("Using java from: %s" % java_bin)
 if "JAVA_EXE" not in globals():
-  JAVA_EXE = "{}java".format(java_bin)
+  JAVA_EXE = f"{java_bin}java"
 if "JAVAC_EXE" not in globals():
-  JAVAC_EXE = "{}javac".format(java_bin)
+  JAVAC_EXE = f"{java_bin}javac"
 if "JAVA_COMMAND" not in globals():
   JAVA_COMMAND = "%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" % JAVA_EXE
 else:
-  print("use java command %s" % JAVA_COMMAND)  # pyright: ignore[reportUnboundVariable] # TODO: fix how variables are managed here
+  print("use java command %s" % JAVA_COMMAND)  # pyright: ignore[reportUndefinedVariable] # TODO: fix how variables are managed here
 
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1

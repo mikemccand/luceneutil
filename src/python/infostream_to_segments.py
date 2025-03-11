@@ -134,9 +134,7 @@ class Segment:
     self.events.append((timestamp, event, infostream_line_number))
 
   def merge_event(self, timestamp, event, infostream_line_number):
-    """
-    Like add_event, except the timestamp might be out of order, so we do insertion sort.
-    """
+    """Like add_event, except the timestamp might be out of order, so we do insertion sort."""
     insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])
     self.events.insert(insert_at, (timestamp, event, infostream_line_number))
 
@@ -162,19 +160,18 @@ class Segment:
         # this can happen if InfoStream ends as a segment is flushing
         # raise RuntimeError(f'flushed segment {self.name} is missing ramUsedMB')
         if self.size_mb is None:
-          l.append(f"  ?? MB (?? efficiency)")
+          l.append("  ?? MB (?? efficiency)")
         else:
           l.append(f"  {self.size_mb:,.1f} MB (?? efficiency)")
       else:
         l.append(f"  {self.size_mb:,.1f} MB ({100 * self.size_mb / self.ram_used_mb:.1f}% efficiency, ram_used_mb={self.ram_used_mb:,.1f} MB)")
+    elif self.size_mb is None:
+      l.append("  ?? MB")
+    elif self.estimate_size_mb is not None:
+      pct = 100.0 * self.size_mb / self.estimate_size_mb
+      l.append(f"  {self.size_mb:,.1f} MB vs estimate {self.estimate_size_mb:,.1f} MB {pct:.1f}%")
     else:
-      if self.size_mb is None:
-        l.append(f"  ?? MB")
-      elif self.estimate_size_mb is not None:
-        pct = 100.0 * self.size_mb / self.estimate_size_mb
-        l.append(f"  {self.size_mb:,.1f} MB vs estimate {self.estimate_size_mb:,.1f} MB {pct:.1f}%")
-      else:
-        l.append(f"  {self.size_mb:,.1f} MB vs estimate ?? MB")
+      l.append(f"  {self.size_mb:,.1f} MB vs estimate ?? MB")
 
     if self.merge_during_commit is not None:
       if type(self.merge_during_commit) is tuple:
@@ -222,7 +219,7 @@ class Segment:
     l.append(f"  times {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
     if self.merged_into is not None:
       l.append(f"  merged into {self.merged_into.name}")
-    l.append(f"  events")
+    l.append("  events")
     last_ts = self.start_time
 
     # we subsample all delete flushes if there are too many...:
@@ -282,9 +279,7 @@ class Segment:
 
 
 def to_float(s):
-  """
-  Converts float number strings that might have comma, e.g. '1,464.435', to float.
-  """
+  """Converts float number strings that might have comma, e.g. '1,464.435', to float."""
   return float(s.replace(",", ""))
 
 
@@ -465,7 +460,7 @@ def main():
   merge_commit_merges = None
   do_strip_log_prefix = None
 
-  with open(infostream_log, "r") as f:
+  with open(infostream_log) as f:
     while True:
       if push_back_line is not None:
         line = push_back_line
@@ -823,7 +818,7 @@ def main():
           elif max_doc != segment.max_doc:
             raise RuntimeError(f"merging segment {segment.name} sees different max_doc={segment.max_doc} vs {max_doc}")
           segment.size_mb = size_mb
-          segment.add_event(timestamp, f"done merge", line_number)
+          segment.add_event(timestamp, "done merge", line_number)
           continue
 
         m = re_merge_commit.search(line)
@@ -929,7 +924,7 @@ def main():
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
-          print(f"clear commit thread")
+          print("clear commit thread")
           commit_thread_name = None
           assert full_flush_events[-1][1] is None
           full_flush_events[-1][1] = timestamp

@@ -19,7 +19,7 @@ def loadPoints(fileName):
   size = os.path.getsize(fileName)
   if fileName not in pointsCache or pointsCache[fileName][0] != size:
     points = []
-    with open(fileName, "r") as f:
+    with open(fileName) as f:
       for line in f.readlines():
         # print('line %s' % line)
         m = r.match(line.strip())

@@ -17,7 +17,7 @@ def writePending(fOut):
 
 # python3 -u /l/util/src/python/docsToBlocks.py /lucenedata/geonames/documents.json /l/data/geonames.luceneserver.blocks
 
-with open(sys.argv[1], "r") as f, open(sys.argv[2], "wb") as fOut:
+with open(sys.argv[1]) as f, open(sys.argv[2], "wb") as fOut:
   first = True
   while True:
     l = f.readline()

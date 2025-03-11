@@ -61,7 +61,7 @@ def main():
     print("second file is %s bytes" % os.path.getsize(extract_file_name))
 
     # finally, run combineWikiFiles.py to merge the two into final lines file, and keep only first three columns:
-    subprocess.run([sys.executable, "src/python/combineWikiFiles.py", "-only-three-columns", line_file_name, extract_file_name, final_line_file_name])
+    subprocess.run([sys.executable, "src/python/combineWikiFiles.py", "-only-three-columns", line_file_name, extract_file_name, final_line_file_name], check=False)
 
     # ~12 GB
     print("final file is %s bytes" % os.path.getsize(final_line_file_name))

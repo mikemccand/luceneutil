@@ -27,7 +27,7 @@ def main():
 
   fixed_lucene_index_path = None
 
-  with open(fixed_index_log, "r", encoding="utf-8") as f:
+  with open(fixed_index_log, encoding="utf-8") as f:
     while True:
       line = f.readline()
       if line == "":

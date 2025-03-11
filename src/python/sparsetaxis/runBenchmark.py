@@ -72,7 +72,7 @@ def run(command, logFile=None):
     print("    log: %s" % logFile)
   if os.system(command) != 0:
     if logFile is not None:
-      print(open(logFile, "r", encoding="utf-8").read())
+      print(open(logFile, encoding="utf-8").read())
     raise RuntimeError('command "%s" failed' % command)
 
 
@@ -118,7 +118,7 @@ def runIndexing(args, cpuCount, sparseOrNot, sortOrNot):
           lastPrint = now
     p.wait()
     if p.returncode != 0:
-      print(open(logFile, "r", encoding="utf-8").read())
+      print(open(logFile, encoding="utf-8").read())
       raise RuntimeError("indexing failed: %s" % p.returncode)
   print("  %6.1f sec: %5.1f M docs; %5.1f K docs/sec" % (float(lastMatch.group(1)), int(lastMatch.group(2)) / 1000000.0, float(lastMatch.group(3)) / 1000.0))
 

@@ -77,10 +77,7 @@ for timestamp, taskString, latencyMS, queueTimeMS in results:
           tup = l.strip().split()
           pct = float(tup[1])
           sec = float(tup[0])
-          if best is None:
-            best = pct
-            bestSec = sec
-          elif abs(pct - PCT) < abs(best - PCT):
+          if best is None or abs(pct - PCT) < abs(best - PCT):
             best = pct
             bestSec = sec
 

@@ -22,22 +22,21 @@ class FacetShard:
     if topN is None:
       assert specificValues is None
       return self.results, None, None
+    l = self.results[:topN]
+    if specificValues is not None:
+      l2 = []
+      seen = set()
+      for value, count in self.results:
+        if value in specificValues:
+          seen.add(value)
+          l2.append((value, count))
+      for value in specificValues:
+        if value not in seen:
+          l2.append((value, 0))
     else:
-      l = self.results[:topN]
-      if specificValues is not None:
-        l2 = []
-        seen = set()
-        for value, count in self.results:
-          if value in specificValues:
-            seen.add(value)
-            l2.append((value, count))
-        for value in specificValues:
-          if value not in seen:
-            l2.append((value, 0))
-      else:
-        l2 = None
+      l2 = None
 
-      return l, len(self.results), l2
+    return l, len(self.results), l2
 
 
 def randomString(r):
@@ -120,9 +119,8 @@ def merge(shards, topN):
             for value, count in newValues:
               print("       *%s: count=%d" % (value, count))
         shardHits[i] = (exhausted, shardValues, lowestCount)
-      else:
-        if VERBOSE:
-          print("      shard %d: skip exhausted=%s len(shardMissingValues)=%s" % (i, exhausted, len(shardMissingValues)))
+      elif VERBOSE:
+        print("      shard %d: skip exhausted=%s len(shardMissingValues)=%s" % (i, exhausted, len(shardMissingValues)))
 
     # nocommit must handle the "all shards have 0 facets" case ... we
     # will exc below
@@ -196,8 +194,7 @@ def merge(shards, topN):
       if VERBOSE:
         print("  run again with mult=%s" % mult)
       continue
-    else:
-      break
+    break
 
   # l is list of (value, ([shardSeenCount, totalCount])), sorted by totalCount descending
   return [(x[0], x[1][0]) for x in l[:topN]], iterCount
@@ -326,9 +323,7 @@ def cmpByCountThenLabel2(a, b):
 
 
 class RandomModel:
-  """
-  Each shard gets random count for each facet label.
-  """
+  """Each shard gets random count for each facet label."""
 
   def __init__(self, r, labels):
     self.r = r
@@ -349,9 +344,7 @@ class RandomModel:
 
 
 class SameDistrModel:
-  """
-  Each shard draws according to the same freq/pct for each label.
-  """
+  """Each shard draws according to the same freq/pct for each label."""
 
   def __init__(self, r, labels):
     self.r = r

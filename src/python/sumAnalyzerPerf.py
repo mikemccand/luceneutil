@@ -75,7 +75,7 @@ def readResults(targetdir, lang):
 
         if len(results) == numOfAnalyzers:
           # print("keep %s" % str(results))
-          for key in results.keys():
+          for key in results:
             if key != "rev":
               if lang == "ja":
                 analyzersJa.add(key)

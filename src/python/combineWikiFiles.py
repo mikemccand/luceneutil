@@ -12,11 +12,11 @@ if onlyThreeColumns:
   sys.argv.remove("-only-three-columns")
 
 # Line file docs:
-f1 = open(sys.argv[1], "r")
+f1 = open(sys.argv[1])
 line = f1.readline()
 
 # WikipediaExtractor output:
-f2 = open(sys.argv[2], "r")
+f2 = open(sys.argv[2])
 
 fOut = open(sys.argv[3], "w")
 

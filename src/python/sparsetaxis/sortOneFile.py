@@ -13,7 +13,7 @@ def sortOneFile(fileName):
   if os.path.exists(fileNameOut):
     print("  already done!")
     return
-  reader = csv.reader(open(fileName, "r", encoding="utf-8"))
+  reader = csv.reader(open(fileName, encoding="utf-8"))
   headers = next(reader)
   pickupTimeIndex = None
   dropoffTimeIndex = None

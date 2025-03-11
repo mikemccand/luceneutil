@@ -43,7 +43,7 @@ def run_benchmark(lucene_dir, geonames_csv_in, index_dir, nightly_log_dir, doc_l
 
   cmd = f"{localconstants.JAVA_EXE} -cp {lucene_core_jar}:build perf.OrdinalMapBenchmark {geonames_csv_in} {localconstants.INDEX_DIR_BASE}/geonames-ordinal-map {doc_limit}"
   print(f'cmd ="{cmd}"')
-  results = subprocess.run(cmd, shell=True, capture_output=True)
+  results = subprocess.run(cmd, shell=True, capture_output=True, check=False)
   stdout = results.stdout.decode("utf-8")
   stderr = results.stderr.decode("utf-8")
 

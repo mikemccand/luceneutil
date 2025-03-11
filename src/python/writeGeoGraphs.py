@@ -177,16 +177,15 @@ def writeOneGraph(data, chartID, chartTitle, yLabel, allTimes):
 def prettyName(approach):
   if approach == "points":
     return "LatLonPoint"
-  elif approach == "points-withdvs":
+  if approach == "points-withdvs":
     return "LatLonPoint+DV"
-  elif approach == "geopoint":
+  if approach == "geopoint":
     return "GeoPoint"
-  elif approach == "geo3d":
+  if approach == "geo3d":
     return "Geo3D"
-  elif approach == "shapes":
+  if approach == "shapes":
     return "LatLonShape"
-  else:
-    raise RuntimeError("unhandled approach %s" % approach)
+  raise RuntimeError("unhandled approach %s" % approach)
 
 
 def getLabel(label):

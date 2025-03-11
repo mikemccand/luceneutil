@@ -66,13 +66,12 @@ class RollingStats:
   def get(self):
     if self.upto == 0:
       return -1.0
+    if self.upto < len(self.buffer):
+      v = self.sum / self.upto
     else:
-      if self.upto < len(self.buffer):
-        v = self.sum / self.upto
-      else:
-        v = self.sum / len(self.buffer)
-      # Don't let roundoff error manifest as -0.0:
-      return max(0.0, v)
+      v = self.sum / len(self.buffer)
+    # Don't let roundoff error manifest as -0.0:
+    return max(0.0, v)
 
 
 class Results:
@@ -122,10 +121,7 @@ class SendTasks:
     self.taskID += 1
 
   def gatherResponses(self):
-    """
-    Runs as dedicated thread gathering results coming from the server.
-    """
-
+    """Runs as dedicated thread gathering results coming from the server."""
     startTime = self.startTime
     lastPrint = self.startTime
 
@@ -170,8 +166,7 @@ class SendTasks:
       now = time.time()
       if now - lastPrint > 2.0:
         pctDone = 100.0 * (now - startTime) / self.runTimeSec
-        if pctDone > 100.0:
-          pctDone = 100.0
+        pctDone = min(pctDone, 100.0)
 
         latenciesInMS.sort()
 
@@ -190,11 +185,9 @@ class SendTasks:
         lastPrint = now
 
   def sendRequests(self):
-    """
-    Runs as dedicated thread, sending requests from the queue to the
+    """Runs as dedicated thread, sending requests from the queue to the
     server.
     """
-
     while True:
       task = self.queue.get()
       while len(task) > 0:
@@ -326,7 +319,6 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   except KeyboardInterrupt:
     if not handleCtrlC:
       raise
-    pass
 
   out.write("%8.1f sec: Done...\n" % (time.time() - tasks.startTime))
   out.flush()

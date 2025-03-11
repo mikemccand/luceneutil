@@ -83,11 +83,10 @@ def main():
         message("  retry...")
         time.sleep(60.0)
       else:
-        s = open("hgupdate.log", "r").read()
+        s = open("hgupdate.log").read()
         if s.find("not updating") != -1:
           raise RuntimeError("hg did not update: %s" % s)
-        else:
-          break
+        break
     else:
       raise RuntimeError("failed to run hg pull -u")
 

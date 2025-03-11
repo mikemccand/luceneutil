@@ -165,11 +165,10 @@ def writeTowers(skipWriter, fixedDocGap, postingsBytes):
       actualWritePointer = writePointer - len(tower.bytes)
       if actualWritePointer == tower.writePointer:
         break
-      else:
-        if VERBOSE:
-          print("    tower retry")
-        tower.writePointer = actualWritePointer
-        towerNumBytes[len(tower.nextTowers)] = len(tower.bytes)
+      if VERBOSE:
+        print("    tower retry")
+      tower.writePointer = actualWritePointer
+      towerNumBytes[len(tower.nextTowers)] = len(tower.bytes)
 
     writePointer -= len(tower.bytes)
     if VERBOSE:
@@ -216,9 +215,7 @@ def writeTowers(skipWriter, fixedDocGap, postingsBytes):
 
 
 class SkipReader:
-  """
-  Reads serialized Towers.
-  """
+  """Reads serialized Towers."""
 
   def __init__(self, b, inlined, skipInterval, fixedDocGap):
     self.b = b
@@ -320,15 +317,14 @@ class SkipReader:
     if level == 0:
       # No skipping
       return False
-    else:
-      level -= 1
-      while True:
-        # Jump on this level / move down a level:
-        level = self.readTower(self.nextTowerPositions[level], self.nextTowerLastDocIDs[level], targetDocID)
-        if level == -1:
-          break
+    level -= 1
+    while True:
+      # Jump on this level / move down a level:
+      level = self.readTower(self.nextTowerPositions[level], self.nextTowerLastDocIDs[level], targetDocID)
+      if level == -1:
+        break
 
-      return True
+    return True
 
 
 def makeDocs(r, count):
@@ -410,9 +406,7 @@ class ByteBufferReader:
 
 
 class WholeIntAbsCodec:
-  """
-  Each absolute docID is written as 4 bytes.
-  """
+  """Each absolute docID is written as 4 bytes."""
 
   lastReadCount = 0
 
@@ -435,9 +429,7 @@ class WholeIntAbsCodec:
 
 
 class WholeIntDeltaCodec:
-  """
-  Each delta docID is written as 4 bytes.
-  """
+  """Each delta docID is written as 4 bytes."""
 
   lastDocID = 0
   lastReadCount = 0
@@ -462,9 +454,7 @@ class WholeIntDeltaCodec:
 
 
 class VIntDeltaCodec:
-  """
-  Each delta docID is written as 4 bytes.
-  """
+  """Each delta docID is written as 4 bytes."""
 
   lastDocID = 0
   lastReadCount = 0

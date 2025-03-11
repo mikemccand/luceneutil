@@ -30,7 +30,7 @@ if hasattr(constants, "SEARCH_NUM_THREADS"):
   raise RuntimeError("please rename your localconstants.py SEARCH_NUM_THREADS to SEARCH_NUM_CONCURRENT_QUERIES")
 
 
-class Data(object):
+class Data:
   def __init__(self, name, lineFile, numDocs, tasksFile):
     self.name = name
     self.lineFile = lineFile
@@ -117,7 +117,7 @@ def sourceData(key=None):
   raise RuntimeError('unknown data source "%s" (valid keys: %s)' % (key, DATA.keys()))
 
 
-class Index(object):
+class Index:
   def __init__(
     self,
     checkout,
@@ -209,11 +209,11 @@ class Index(object):
       if vectorEncoding not in ("FLOAT32", "BYTE"):
         raise RuntimeError(f"vectorEncoding must be FLOAT32 or BYTE; got: {vectorEncoding}")
     elif vectorEncoding is not None:
-      raise RuntimeError(f"vectorEncoding must be None when there are no vectors to index (vectorFile is None)")
+      raise RuntimeError("vectorEncoding must be None when there are no vectors to index (vectorFile is None)")
 
     self.vectorEncoding = vectorEncoding
     self.mergeFactor = 10
-    if SEGS_PER_LEVEL >= self.mergeFactor:
+    if self.mergeFactor <= SEGS_PER_LEVEL:
       raise RuntimeError("SEGS_PER_LEVEL (%s) is greater than mergeFactor (%s)" % (SEGS_PER_LEVEL, self.mergeFactor))
     self.useCMS = useCMS
     self.rearrange = rearrange
@@ -272,7 +272,7 @@ class Index(object):
     return ".".join(name)
 
 
-class Competitor(object):
+class Competitor:
   doSort = False
 
   def __init__(
@@ -422,7 +422,7 @@ class Competitor(object):
       benchUtil.run("cp", "-r", os.path.join(perfSrc, "resources/*"), buildDir.replace("\\", "/"))
 
 
-class Competition(object):
+class Competition:
   def __init__(
     self,
     cold=False,

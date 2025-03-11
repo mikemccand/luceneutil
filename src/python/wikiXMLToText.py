@@ -34,7 +34,7 @@ class AllText:
     self.allText = []
 
   def start(self, name):
-    print("")
+    print()
     print("TEXT: %s" % name)
     self.text = []
     self.name = name
@@ -57,7 +57,7 @@ class AllText:
     mbPerPart = float(mb) / len(self.allText)
 
 
-reSpace = re.compile("\s+")
+reSpace = re.compile(r"\s+")
 
 
 def clean(s):

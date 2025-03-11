@@ -44,7 +44,7 @@ def run_benchmark(lucene_dir, geonames_csv_in, index_dir, nightly_log_dir, doc_l
     print(f"Now run {mode} with doc_limit={doc_limit}:")
     command = f"{localconstants.JAVA_EXE} -cp {lucene_core_jar}:build perf.StoredFieldsBenchmark {geonames_csv_in} {localconstants.INDEX_DIR_BASE}/geonames-stored-fields {mode} {doc_limit}"
     print(f"RUN: {command}")
-    results = subprocess.run(command, shell=True, capture_output=True)
+    results = subprocess.run(command, shell=True, capture_output=True, check=False)
     stdout = results.stdout.decode("utf-8")
     stderr = results.stderr.decode("utf-8")
 

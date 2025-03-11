@@ -60,7 +60,7 @@ def run_benchmark(lucene_dir, index_dir, data_dir, nightly_log_dir, doc_limit, n
   # run benchmark
   benchmark_cmd = f"{localconstants.JAVA_EXE} -cp {lucene_core_jar}:{lucene_facet_jar}:build perf.facets.BenchmarkFacets {index_dir} {num_iters}"
   print(f"RUN: {benchmark_cmd}, cwd={os.getcwd()}")
-  results = subprocess.run(benchmark_cmd, shell=True, capture_output=True)
+  results = subprocess.run(benchmark_cmd, shell=True, capture_output=True, check=False)
 
   stdout = results.stdout.decode("utf-8")
   stderr = results.stderr.decode("utf-8")

@@ -1,6 +1,6 @@
 import sys
 
-f = open(sys.argv[1], "r")
+f = open(sys.argv[1])
 fOut = open(sys.argv[2], "w")
 numCharLimit = int(sys.argv[3])
 

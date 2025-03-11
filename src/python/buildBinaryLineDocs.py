@@ -16,7 +16,7 @@ def flush(pending, pendingDocCount, fOut):
 
 print(f"build binary file from {sys.argv[1]} to {sys.argv[2]}")
 
-with open(sys.argv[1], "r", encoding="utf-8") as f, open(sys.argv[2], "wb") as fOut:
+with open(sys.argv[1], encoding="utf-8") as f, open(sys.argv[2], "wb") as fOut:
   first = True
   pending = io.BytesIO()
   pendingDocCount = 0

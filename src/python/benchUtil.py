@@ -38,7 +38,7 @@ import QPSChart
 PERF_EXE = which("perf")
 
 if PERF_EXE is None:
-  print(f"no perf executable; will not collect aggregate CPU profiling data")
+  print("no perf executable; will not collect aggregate CPU profiling data")
 else:
   print(f"perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
 
@@ -91,40 +91,35 @@ def addFiles(root):
 def htmlColor(v):
   if v < 0:
     return colorFormat(-v, "html", "red")
-  else:
-    return colorFormat(v, "html", "green")
+  return colorFormat(v, "html", "green")
 
 
 def htmlColor2(v):
   vstr = "%.1f X" % v
   if v < 1.0:
     return colorFormat(vstr, "html", "red")
-  else:
-    return colorFormat(vstr, "html", "green")
+  return colorFormat(vstr, "html", "green")
 
 
 def jiraColor(v):
   if v < 0:
     return colorFormat(-v, "jira", "red")
-  else:
-    return colorFormat(v, "jira", "green")
+  return colorFormat(v, "jira", "green")
 
 
 def pValueColor(v, form):
   vstr = "%.3f" % v
   if v <= 0.05:
     return colorFormat(vstr, form, "green")
-  else:
-    return colorFormat(vstr, form, "red")
+  return colorFormat(vstr, form, "red")
 
 
 def colorFormat(value, form, color):
   if form == "html":
-    return '<font color="{}">{}</font>'.format(color, value)
-  elif form == "jira":
-    return "{{color:{}}}{}{{color}}".format(color, value)
-  else:
-    raise RuntimeError("unknown format {}".format(form))
+    return f'<font color="{color}">{value}</font>'
+  if form == "jira":
+    return f"{{color:{color}}}{value}{{color}}"
+  raise RuntimeError(f"unknown format {form}")
 
 
 def getArg(argName, default, hasArg=True):
@@ -183,8 +178,7 @@ def nameToIndexPath(name):
 def decode(str_or_bytes):
   if PYTHON_MAJOR_VER < 3 or isinstance(str_or_bytes, str):
     return str_or_bytes
-  else:
-    return str_or_bytes.decode("utf-8")
+  return str_or_bytes.decode("utf-8")
 
 
 class SearchTask:
@@ -306,15 +300,14 @@ class SearchTask:
   def __eq__(self, other):
     if not isinstance(other, SearchTask):
       return False
-    else:
-      return (
-        self.query == other.query
-        and self.sort == other.sort
-        and self.groupField == other.groupField
-        and self.filter == other.filter
-        and self.facet_request == other.facet_request
-        and self.isCountOnly == other.isCountOnly
-      )
+    return (
+      self.query == other.query
+      and self.sort == other.sort
+      and self.groupField == other.groupField
+      and self.filter == other.filter
+      and self.facet_request == other.facet_request
+      and self.isCountOnly == other.isCountOnly
+    )
 
   def __hash__(self):
     return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facet_request)) + hash(self.isCountOnly)
@@ -340,8 +333,7 @@ class RespellTask:
   def __eq__(self, other):
     if not isinstance(other, RespellTask):
       return False
-    else:
-      return self.term == other.term
+    return self.term == other.term
 
   def __hash__(self):
     return hash(self.term)
@@ -361,8 +353,7 @@ class PKLookupTask:
   def __eq__(self, other):
     if not isinstance(other, PKLookupTask):
       return False
-    else:
-      return self.pkOrd == other.pkOrd
+    return self.pkOrd == other.pkOrd
 
   def __hash__(self):
     return hash(self.pkOrd)
@@ -382,8 +373,7 @@ class PKLookupWithTermStateTask:
   def __eq__(self, other):
     if not isinstance(other, PKLookupWithTermStateTask):
       return False
-    else:
-      return self.pkOrd == other.pkOrd
+    return self.pkOrd == other.pkOrd
 
   def __hash__(self):
     return hash(self.pkOrd)
@@ -403,8 +393,7 @@ class PointsPKLookupTask:
   def __eq__(self, other):
     if not isinstance(other, PointsPKLookupTask):
       return False
-    else:
-      return self.pkOrd == other.pkOrd
+    return self.pkOrd == other.pkOrd
 
   def __hash__(self):
     return hash(self.pkOrd)
@@ -857,16 +846,15 @@ def sum_hit_count(hc1, hc2):
     hc2 = int(hc2[:-1])
   else:
     hc2 = int(hc2)
-  return str(hc1 + hc2) + (lower_bound and "+" or "")
+  return str(hc1 + hc2) + ((lower_bound and "+") or "")
 
 
 def stats(l):
   # min, max, mean, stddev
   if len(l) == 0:
     return 0.0, 0.0, 0.0, 0.0
-  else:
-    mu = statistics.mean(l)
-    return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
+  mu = statistics.mean(l)
+  return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
 
 def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
@@ -945,7 +933,7 @@ class RunAlgs:
     if os.path.exists(fullIndexPath) and not index.doUpdate:
       print("  %s: already exists" % fullIndexPath)
       return fullIndexPath
-    elif index.doUpdate:
+    if index.doUpdate:
       if not os.path.exists(fullIndexPath):
         raise RuntimeError("index path does not exists: %s" % fullIndexPath)
       print("  %s: now update" % fullIndexPath)
@@ -1127,8 +1115,7 @@ class RunAlgs:
 
       print("  %s" % path)
       os.chdir(path)
-      if path.endswith("/"):
-        path = path[:-1]
+      path = path.removesuffix("/")
 
       cp = classPathToString(getClassPath(competitor.checkout))
       competitor.compile(cp)
@@ -1159,8 +1146,7 @@ class RunAlgs:
 
       print("  %s" % path)
       os.chdir(path)
-      if path.endswith("/"):
-        path = path[:-1]
+      path = path.removesuffix("/")
 
       cp = classPathToString(getClassPath(competitor.checkout))
       competitor.compile(cp)
@@ -1300,7 +1286,7 @@ class RunAlgs:
       if p.wait() != 0:
         print()
         print("SearchPerfTest FAILED:")
-        s = open(logFile + ".stdout", "r")
+        s = open(logFile + ".stdout")
         for line in s.readlines():
           print(line.rstrip())
         raise RuntimeError("SearchPerfTest failed; see log %s.stdout" % logFile)
@@ -1617,26 +1603,24 @@ class RunAlgs:
       pctP999 = 100 * (currentCmpMetrics["p999"] - currentBaseMetrics["p999"]) / currentBaseMetrics["p999"]
       pctP100 = 100 * (currentCmpMetrics["p100"] - currentBaseMetrics["p100"]) / currentBaseMetrics["p100"]
       print(
-        (
-          "||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s"
-          % (
-            currentCat,
-            currentBaseMetrics["p50"],
-            currentCmpMetrics["p50"],
-            pctP50,
-            currentBaseMetrics["p90"],
-            currentCmpMetrics["p90"],
-            pctP90,
-            currentBaseMetrics["p99"],
-            currentCmpMetrics["p99"],
-            pctP99,
-            currentBaseMetrics["p999"],
-            currentCmpMetrics["p999"],
-            pctP999,
-            currentBaseMetrics["p100"],
-            currentCmpMetrics["p100"],
-            pctP100,
-          )
+        "||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s"
+        % (
+          currentCat,
+          currentBaseMetrics["p50"],
+          currentCmpMetrics["p50"],
+          pctP50,
+          currentBaseMetrics["p90"],
+          currentCmpMetrics["p90"],
+          pctP90,
+          currentBaseMetrics["p99"],
+          currentCmpMetrics["p99"],
+          pctP99,
+          currentBaseMetrics["p999"],
+          currentCmpMetrics["p999"],
+          pctP999,
+          currentBaseMetrics["p100"],
+          currentCmpMetrics["p100"],
+          pctP100,
         )
       )
 
@@ -1827,17 +1811,16 @@ def tasksToMap(taskIters, verifyScores, verifyCounts):
       if len(d) == 0:
         d = run_d
       else:
-        for task in run_d.keys():
+        for task in run_d:
           if task not in d:
             # BUG
             raise RuntimeError(f"ERROR: tasks differ from one iteration to the next: task={task} in JVM {run_iter} is missing from JVM 0")
-          else:
-            # Make sure same task returned same results across JVMs:
-            try:
-              task.verifySame(d[task][0], verifyScores, verifyCounts)
-            except RuntimeError as re:
-              # BUG
-              raise RuntimeError(f"ERROR: hits across JVMs differ; something is acting non-deterministically across JVMs?  run 0 vs run {run_iter}") from re
+          # Make sure same task returned same results across JVMs:
+          try:
+            task.verifySame(d[task][0], verifyScores, verifyCounts)
+          except RuntimeError as re:
+            # BUG
+            raise RuntimeError(f"ERROR: hits across JVMs differ; something is acting non-deterministically across JVMs?  run 0 vs run {run_iter}") from re
         for task in d.keys():
           if task not in run_d:
             # BUG
@@ -1883,10 +1866,9 @@ def compareHits(r1, r2, verifyScores, verifyCounts):
 
   if len(warnings) == 0 and len(errors) == 0:
     return None
-  else:
-    inBoth = (len(d1) + len(d2) - onlyInD1 - onlyInD2) / 2
-    overlap = inBoth / float(max(len(d1), len(d2)))
-    return warnings, errors, overlap
+  inBoth = (len(d1) + len(d2) - onlyInD1 - onlyInD2) / 2
+  overlap = inBoth / float(max(len(d1), len(d2)))
+  return warnings, errors, overlap
 
 
 def htmlEscape(s):

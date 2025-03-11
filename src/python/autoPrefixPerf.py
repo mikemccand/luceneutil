@@ -4,7 +4,7 @@ import shutil
 
 # run from lucene subdir in trunk checkout
 
-reIter = re.compile(": (\d+) msec; totalHits=(\d+) hash=(\d+)")
+reIter = re.compile(r": (\d+) msec; totalHits=(\d+) hash=(\d+)")
 logsDir = "/x/tmp/prefixtermsperf2"
 
 
@@ -22,7 +22,7 @@ def parseLog(logFileName):
   indexTimeSec = None
   indexSizeBytes = None
 
-  f = open(logFileName, "r")
+  f = open(logFileName)
   while True:
     line = f.readline()
     if line == "":

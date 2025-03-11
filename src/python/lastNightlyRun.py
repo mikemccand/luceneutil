@@ -2,7 +2,7 @@ import datetime
 import os
 import re
 
-reDateTime = re.compile("^(\d\d\d\d).(\d\d).(\d\d).(\d\d).(\d\d).(\d\d)$")
+reDateTime = re.compile(r"^(\d\d\d\d).(\d\d).(\d\d).(\d\d).(\d\d).(\d\d)$")
 
 mostRecent = None
 

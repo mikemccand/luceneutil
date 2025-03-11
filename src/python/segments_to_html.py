@@ -148,13 +148,11 @@ USE_SVG = True
 
 
 def compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time):
-  """
-  Computes aggregate metrics by time: MB/sec writing
+  """Computes aggregate metrics by time: MB/sec writing
   (flushing/merging), number of segments, number/%tg deletes, max_doc,
   concurrent flush count, concurrent merge count, total disk usage,
   indexing rate, write amplification, delete rate, add rate
   """
-
   name_to_segment = {}
 
   # single list that mixes end and start times
@@ -296,26 +294,25 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           tot_size_mb += segment.size_mb
           tot_flush_write_mb += segment.size_mb
           tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
-      else:
-        if what == "segstart":
-          merge_mbs += mbs
-          merge_dps += dps
-          if segment.del_reclaims_per_sec is not None:
-            del_reclaims_per_sec += segment.del_reclaims_per_sec
-          merge_thread_count += 1
-          seg_name_to_size[segment.name] = segment.size_mb
-        elif what == "segend":
-          tot_size_mb -= segment.size_mb
-          tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
-        elif what == "seglight":
-          tot_size_mb += segment.size_mb
-          tot_merge_write_mb += segment.size_mb
-          merge_thread_count -= 1
-          merge_mbs -= mbs
-          merge_dps -= dps
-          if segment.del_reclaims_per_sec is not None:
-            del_reclaims_per_sec -= segment.del_reclaims_per_sec
-          tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
+      elif what == "segstart":
+        merge_mbs += mbs
+        merge_dps += dps
+        if segment.del_reclaims_per_sec is not None:
+          del_reclaims_per_sec += segment.del_reclaims_per_sec
+        merge_thread_count += 1
+        seg_name_to_size[segment.name] = segment.size_mb
+      elif what == "segend":
+        tot_size_mb -= segment.size_mb
+        tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
+      elif what == "seglight":
+        tot_size_mb += segment.size_mb
+        tot_merge_write_mb += segment.size_mb
+        merge_thread_count -= 1
+        merge_mbs -= mbs
+        merge_dps -= dps
+        if segment.del_reclaims_per_sec is not None:
+          del_reclaims_per_sec -= segment.del_reclaims_per_sec
+        tot_weighted_write_ampl += segment.size_mb * segment.net_write_amplification
 
       if cur_max_doc == 0:
         # sidestep delete-by-zero ha
@@ -516,10 +513,10 @@ def main():
   w("</div>")
   w("</form>")
   w("")
-  w(f'<div id="details" style="position:absolute;left: 5;top: 5; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
+  w('<div id="details" style="position:absolute;left: 5;top: 5; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
   w('<div id="details2" style="position:absolute; right:0; display: flex; justify-content: flex-end; z-index:10; background: rgba(255, 255, 255, 0.85); font-size: 18; font-weight: bold;"></div>')
 
-  w(f'<div id="divit" align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
+  w('<div id="divit" align=left style="position:absolute; left:5; top:5; overflow:scroll;height:100%;width:100%">')
 
   w(
     f'<svg preserveAspectRatio="none" id="it" viewBox="0 0 {whole_width + 400} {whole_height + 100}" width="{whole_width}" height="{whole_height}" xmlns="http://www.w3.org/2000/svg" style="height:100%">'
@@ -559,7 +556,7 @@ def main():
         l[0] += 1
         l[1] += segment.size_mb
 
-  w(f"\n\n  <!-- full flush events -->")
+  w("\n\n  <!-- full flush events -->")
   for flush_ord, (start_time, end_time) in enumerate(full_flush_events):
     if end_time is None:
       continue
@@ -572,7 +569,7 @@ def main():
     flush_id = f"ff_{flush_ord}"
     w(f'  <rect fill="{full_flush_color}" x={x0:.2f} y={y0:.2f} width={x1 - x0:.2f} height={y1 - y0:.2f} seg_name="{flush_id}" id="{flush_id}"/>')
 
-  w(f"\n\n  <!-- merge-on-commit events -->")
+  w("\n\n  <!-- merge-on-commit events -->")
   for moc_ord, (start_time, end_time) in enumerate(merge_during_commit_events):
     if end_time is None:
       continue
@@ -812,7 +809,7 @@ def main():
       else:
         new_color = merge_dawn_color
 
-      w(f"  <!--dawn:-->")
+      w("  <!--dawn:-->")
       w(f'  <rect x={x0:.2f} y={y0:.2f} width={x_light - x0:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
     if segment.merged_into is not None:
@@ -826,7 +823,7 @@ def main():
       dusk_timestamp = segment.merged_into.start_time
       assert dusk_timestamp < t1
       x_dusk = padding_x + x_pixels_per_sec * (dusk_timestamp - min_start_abs_time).total_seconds()
-      w(f"  <!--dusk:-->")
+      w("  <!--dusk:-->")
       w(f'  <rect x={x_dusk:.2f} y={y0:.2f} width={x1 - x_dusk:.2f} height={height:.2f} rx=4 fill="{new_color}" seg_name="{segment.name}"/>')
 
       light_timestamp2 = None
@@ -852,12 +849,12 @@ def main():
 
         if False:
           w('var l = document.createElementNS("http://www.w3.org/2000/svg", "line");')
-          w(f'l.setAttribute("id", ");')
+          w('l.setAttribute("id", ");')
           w(f'l.setAttribute("x1", {x_dusk});')
           w(f'l.setAttribute("y1", {y0 + y_pixels_per_level / 2});')
           w(f'l.setAttribute("x2", {x_light_merge});')
           w(f'l.setAttribute("y2", {y1a - y_pixels_per_level / 2});')
-          w(f"mysvg.appendChild(l);")
+          w("mysvg.appendChild(l);")
 
   # w('canvas.on("mouse:over", show_segment_details);')
   # w('canvas.on("mouse:out", function(e) {canvas.remove(textbox);  textbox = null;});')
@@ -938,8 +935,8 @@ def main():
       details += f"\n  {100.0 * segment.born_del_count / segment.max_doc:.1f}% stillborn"
 
     # w(f'seg_details_map.set("{segment.name}", {repr(details)});')
-    w(f'seg_details2_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, False))});')
-    w(f'seg_details3_map.set("{segment.name}", {repr(segment.to_verbose_string(min_start_abs_time, end_abs_time, True))});')
+    w(f'seg_details2_map.set("{segment.name}", {segment.to_verbose_string(min_start_abs_time, end_abs_time, False)!r});')
+    w(f'seg_details3_map.set("{segment.name}", {segment.to_verbose_string(min_start_abs_time, end_abs_time, True)!r});')
 
   w("""
   const top_details = document.getElementById('details');

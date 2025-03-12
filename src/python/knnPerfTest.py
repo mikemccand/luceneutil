@@ -73,11 +73,14 @@ PARAMS = {
   # 'metric': ('mip',),
   #'quantize': (True,),
   "quantizeBits": (32,),
+  # "quantizeBits": (1,),
+  # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
   "topK": (100,),
   # "bp": ("false", "true"),
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
+  # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   # "forceMerge": (True, False),
   #'niter': (10,),
@@ -237,16 +240,21 @@ def run_knn_benchmark(checkout, values):
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
   # turn filterType/selectivity back on for all runs
   # skip_headers = {'selectivity', 'filterType', 'visited'}
-  skip_headers = {"selectivity", "filterType"}
+  skip_headers = {"selectivity", "filterType", "visited"}
 
   if "-forceMerge" not in this_cmd:
-    skip_headers.add("force merge s")
+    skip_headers.add("force_merge(s)")
+  if "-overSample" not in this_cmd:
+    skip_headers.add("overSample")
+  if "-indexType" in this_cmd and "flat" in this_cmd:
+    skip_headers.add("maxConn")
+    skip_headers.add("beamWidth")
 
   print_fixed_width(all_results, skip_headers)
 
 
 def print_fixed_width(all_results, columns_to_skip):
-  header = "recall\tlatency (ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex s\tindex docs/s\tforce merge s\tnum segments\tindex size (MB)\tselectivity\tfilterType\tvec disk (MB)\tvec RAM (MB)"
+  header = "recall\tlatency(ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType"
 
   # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
   headers = header.split("\t")

@@ -31,6 +31,7 @@ import graphviz
 import intervaltree
 
 # TODO
+#   - tell me how many deletes for a seg as I mouse over it
 #   - draw merge lines in 2nd pass -- now some are occluded by some segments and some are not
 #   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
 #   - MOC: should be able to tell if it timed out on any merge vs all finished in time

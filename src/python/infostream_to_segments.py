@@ -69,6 +69,9 @@ class Segment:
 
   max_ancestor_depth = None
 
+  # true if this merge was selected by IW.forceMergeDeletes
+  is_force_merge_deletes = False
+
   all_segments = []
 
   # how many docs are deleted when this segment is first lit.  for a
@@ -115,7 +118,6 @@ class Segment:
   is_cfs = False
 
   def __init__(self, name, source, max_doc, size_mb, start_time, end_time, start_infostream_line_number):
-    # 'flush' or 'merge'
     Segment.all_segments.append(self)
     self.source = source
     self.name = name
@@ -147,6 +149,8 @@ class Segment:
       s += f" ({self.source} @ {self.ram_buffer_mb:.1f} MB buffer)"
     elif self.merge_during_commit is not None:
       s += " (merge-on-commit: " + " ".join(self.source[1]) + ")"
+    elif self.is_force_merge_deletes:
+      s += " (merge-force-deletes: " + " ".join(self.source[1]) + ")"
     else:
       s += " (merge: " + " ".join(self.source[1]) + ")"
     l.append(s)
@@ -426,6 +430,12 @@ def main():
   # BD 1 [2025-02-20T06:32:01.561945031Z; GCR-Writer-1-thread-8]: compressed 34384 to 1040 bytes (3.02%) for deletes/updates; private segment null
   re_bd_compressed = re.compile(r"^BD \d+ \[([^;]+); (.*?)\]: compressed .*?; private segment null$")
 
+  # e.g. IW 1 [2025-03-11T02:30:48.683898017Z; GCR-Writer-1-thread-20]: forceMergeDeletes: index now _7s(9.12.1):C331348/80627:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=2, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659638391}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=4 :id=f0n9dlan30ntuukei465a3xsu _a4(9.12.1):C223780/37011:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=1, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659871610}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xsv _8n(9.12.1):C270142/61221:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=2, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659721395}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=4 :id=f0n9dlan30ntuukei465a3xsw _am(9.12.1):C381258/43045:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=2, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659890146}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xsx _an(9.12.1):C274693/35956:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=4, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659890147}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xsy _9k(9.12.1):C173088/27503:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659805880}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=3 :id=f0n9dlan30ntuukei465a3xsz _bn(9.12.1):C216932/21056:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659983564}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xt0 _cq(9.12.1):C27133/814:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660070266}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xt1 _cm(9.12.1):C109775/5754:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660070249}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xt2 _bp(9.12.1):C50036/4069:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659983593}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=3 :id=f0n9dlan30ntuukei465a3xt3 _bo(9.12.1):C62456/5584:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741659983585}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=3 :id=f0n9dlan30ntuukei465a3xt4 _cp(9.12.1):C43268/931:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660070254}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xt5 _co(9.12.1):C49110/1357:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660070252}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xt6 _cn(9.12.1):C58416/1839:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660070250}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xt7 _dl(9.12.1):C39382/757:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660145963}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xt8 _dk(9.12.1):C46809/471:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660145963}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xt9 _dj(9.12.1):C52043/554:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660145944}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xta _dm(9.12.1):C17614/198:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=5, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660145967}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xtb _dn(9.12.1):C2368/28:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={mergeMaxNumSegments=-1, lucene.version=9.12.1, source=merge, os.arch=aarch64, java.runtime.version=23.0.2+7, mergeFactor=3, os=Linux, java.vendor=Amazon.com Inc., os.version=5.10.234-225.895.amzn2.aarch64, timestamp=1741660145989}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xtc _ce(9.12.1):C13477/1047:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660145234, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xtd _ch(9.12.1):C12442/164:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660144776, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xte _d3(9.12.1):C8104/84:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660181795, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xtf _d0(9.12.1):C8097/66:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660185508, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=2 :id=f0n9dlan30ntuukei465a3xtg _dg(9.12.1):C2366/5:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660212321, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs2 _d6(9.12.1):C7908/18:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660223692, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs3 _db(9.12.1):C3810:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660218189, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=f0n9dlan30ntuukei465a3xs4 _d5(9.12.1):C8523/12:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660227230, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs5 _da(9.12.1):C5032/15:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660227856, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs6 _d9(9.12.1):C6689/29:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660232027, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs7 _d8(9.12.1):C7459/68:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660235610, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs8 _d2(9.12.1):C8290/13:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660235299, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xs9 _de(9.12.1):C3205/49:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660230400, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xsa _d1(9.12.1):C9060/70:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660236983, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xsb _dc(9.12.1):C2980:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660235435, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=f0n9dlan30ntuukei465a3xsc _d7(9.12.1):C10002/17:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660241235, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xsn _dd(9.12.1):C3380/2:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660237021, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xso _df(9.12.1):C4973/2:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660239894, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xsp _do(9.12.1):C1636:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660237709, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=f0n9dlan30ntuukei465a3xsq _d4(9.12.1):C9825/33:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={os=Linux, java.vendor=Amazon.com Inc., java.runtime.version=23.0.2+7, timestamp=1741660248673, source=flush, lucene.version=9.12.1, os.version=5.10.234-225.895.amzn2.aarch64, os.arch=aarch64}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=f0n9dlan30ntuukei465a3xst
+  re_force_merge_deletes_start = re.compile(r"^IW \d+ \[([^;]+); (.*?)\]: forceMergeDeletes: index now")
+
+  # e.g. MS 1 [2025-03-11T02:30:48.686201756Z; GCR-Writer-1-thread-20]:   no more merges pending; now return
+  re_no_more_merges = re.compile(r"^MS \d+ \[([^;]+); (.*?)\]:\s+no more merges pending; now return")
+
   line_number = 0
 
   global_start_time = None
@@ -459,6 +469,8 @@ def main():
   in_full_flush = False
   merge_commit_merges = None
   do_strip_log_prefix = None
+  force_merge_deletes_thread_name = None
+  force_merge_deletes_threads = set()
 
   with open(infostream_log) as f:
     while True:
@@ -751,6 +763,12 @@ def main():
           segment.del_count_reclaimed = del_count_reclaimed
           segment.max_ancestor_depth = max_ancestor_depth + 1
 
+          if thread_name in force_merge_deletes_threads:
+            # TODO: would be less fragile to match by segments being merged?
+            # first merge done by this thread is force-merge-deletes:
+            force_merge_deletes_threads.remove(thread_name)
+            segment.is_force_merge_deletes = True
+
           if sum_live_size_mb == 0:
             segment.net_write_amplification = 0
           else:
@@ -852,7 +870,7 @@ def main():
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
-          print(f"MOC: start {thread_name} {line_number}")
+          # print(f"MOC: start {thread_name} {line_number} {timestamp}")
           merge_during_commit_events.append([timestamp, None])
           merge_on_commit_thread_name = thread_name
           merge_commit_threads = set()
@@ -891,13 +909,16 @@ def main():
             # so we know, for certain, that the merged kicked off during a merge-on-commit window
             # really came from the merge-on-commit thread
             merge_commit_threads.add(new_merge_thread_name)
+          # print(f"got launch new merge thread {thread_name=} {new_merge_thread_name} {force_merge_deletes_thread_name=}")
+          if force_merge_deletes_thread_name is not None:
+            force_merge_deletes_threads.add(new_merge_thread_name)
           continue
 
         m = re_merge_during_commit_end.match(line)
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
-          # print(f'MOC: end {thread_name} {line_number}')
+          # print(f'MOC: end {thread_name} {line_number} {timestamp}')
 
           merge_on_commit_thread_name = None
           merge_commit_threads = None
@@ -917,14 +938,14 @@ def main():
           in_full_flush = True
           full_flush_count += 1
           full_flush_start_time = timestamp
-          print(f"start full flush {line_number}")
+          # print(f"start full flush {line_number}")
           continue
 
         m = re_end_full_flush.match(line)
         if m is not None:
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
-          print("clear commit thread")
+          # print(f"clear commit thread")
           commit_thread_name = None
           assert full_flush_events[-1][1] is None
           full_flush_events[-1][1] = timestamp
@@ -936,7 +957,7 @@ def main():
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           commit_thread_name = thread_name
-          print(f"set commit thread {commit_thread_name}")
+          # print(f"set commit thread {commit_thread_name} {timestamp=}")
           continue
 
         m = re_start_commit_index.match(line)
@@ -945,7 +966,7 @@ def main():
           thread_name = m.group(2)
           seg_details = parse_seg_details(m.group(3))
           commits.append((timestamp, thread_name) + tuple(seg_details))
-          print(f"startCommit: {seg_details}")
+          # print(f"startCommit: {seg_details}")
           continue
 
         m = re_flushed_files.match(line)
@@ -995,6 +1016,22 @@ def main():
           # FP 1 [2025-02-20T06:32:01.061172105Z; GCR-Writer-1-thread-2]: 10 in-use non-flushing threads states
           # BD 1 [2025-02-20T06:32:01.561945031Z; GCR-Writer-1-thread-8]: compressed 34384 to 1040 bytes (3.02%) for deletes/updates; private segment null
           # DWPT 1 [2025-02-20T06:32:01.562510185Z; GCR-Writer-1-thread-8]: flush postings as segment _1h numDocs=17052
+
+        m = re_force_merge_deletes_start.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          force_merge_deletes_thread_name = thread_name
+
+        m = re_no_more_merges.match(line)
+        if m is not None:
+          timestamp = parse_timestamp(m.group(1))
+          thread_name = m.group(2)
+          if force_merge_deletes_thread_name is not None:
+            if force_merge_deletes_thread_name == thread_name:
+              force_merge_deletes_thread_name = None
+            else:
+              raise RuntimeError("WTF saw merges done from different thread than force_merge_deletes_thread_name?")
 
       except KeyboardInterrupt:
         raise

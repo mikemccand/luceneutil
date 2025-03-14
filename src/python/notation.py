@@ -658,4 +658,9 @@ KNOWN_CHANGES = [
     "Use DenseConjunctionBulkScorer for single queries sometimes. https://github.com/apache/lucene/pull/14293",
     "Use DenseConjunctionBulkScorer for single queries sometimes. https://github.com/apache/lucene/pull/14293",
   ),
+  (
+    "2025-03-13",
+    "Speed up scoring conjunctions a bit. https://github.com/apache/lucene/pull/14345",
+    "Speed up scoring conjunctions a bit. https://github.com/apache/lucene/pull/14345",
+  ),
 ]

@@ -140,7 +140,7 @@ class Segment:
     insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])
     self.events.insert(insert_at, (timestamp, event, infostream_line_number))
 
-  def to_verbose_string(self, global_start_time, global_end_time, with_line_numbers):
+  def to_verbose_string(self, global_start_time, global_end_time, with_line_numbers, with_all_deletes=False):
     l = []
     s = f"segment {self.name}"
     if self.source in ("flush", "flush-commit"):
@@ -220,6 +220,12 @@ class Segment:
       dtt = 0
       ltt = (global_end_time - self.start_time).total_seconds()
 
+    # how long the segment was alive just for searching, divided by its total (including dawn + dusk)
+    # lifetime.  if a segment, immediately on being written, is selected for merging, it has day_pct 0.
+    # this can never be 100% since it must take time to write and merge a segment...
+    day_pct = 100. * (ltt - btt - dtt) / ltt
+
+    l.append(f"  life-efficiency {day_pct:.1f}%")
     l.append(f"  times {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
     if self.merged_into is not None:
       l.append(f"  merged into {self.merged_into.name}")
@@ -269,12 +275,12 @@ class Segment:
         event += f" ({100.0 * sum_del_count / self.max_doc:.1f}%)"
       s = f"+{(ts - last_ts).total_seconds():.2f}"
 
-      if not is_del or i in do_del_print:
+      if not is_del or i in do_del_print or with_all_deletes:
         if with_line_numbers:
           s = f"    {s:>7s} s: {event} [line {line_number:,}]"
         else:
           s = f"    {s:>7s} s: {event}"
-        if is_del and do_del_print.get(i):
+        if not with_all_deletes and (is_del and do_del_print.get(i)):
           s += "..."
         l.append(s)
       last_ts = ts
@@ -548,6 +554,7 @@ def main():
               segment.del_count_reclaimed = 0
             global_start_time = timestamp
             # print(f'add initial segment {segment_name} {max_doc=} {del_count=}')
+            first_checkpoint = False
           else:
             for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = by_segment_name[segment_name]
@@ -561,13 +568,14 @@ def main():
                     del_inc = del_count
                   else:
                     del_inc = del_count - segment.del_count
-                  segment.add_event(timestamp, f"del +{del_inc:,} gen {del_gen}", line_number)
-                  segment.del_count = del_count
+                  if del_inc > 0:
+                    # TODO: is it normal/ok dels didn't change?  i think so?
+                    segment.add_event(timestamp, f"del +{del_inc:,} gen {del_gen}", line_number)
+                    segment.del_count = del_count
 
           checkpoints.append((timestamp, thread_name) + tuple(seg_details))
           # print(f'{seg_checkpoint=}')
 
-          first_checkpoint = False
           continue
 
         m = re_seg_size.match(line)
@@ -1040,7 +1048,7 @@ def main():
         raise
 
   for segment in Segment.all_segments:
-    print(f"\n{segment.name}:\n{segment.to_verbose_string(global_start_time, global_end_time, True)}")
+    print(f"\n{segment.name}:\n{segment.to_verbose_string(global_start_time, global_end_time, True, True)}")
     if segment.end_time is None:
       print(f"set end_time for segment {segment.name} to global end time")
       segment.end_time = global_end_time

@@ -16,6 +16,7 @@
 #
 
 import datetime
+import json
 import math
 import os
 import pickle
@@ -146,6 +147,58 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 
 USE_FABRIC = False
 USE_SVG = True
+
+def add_ts(by_time, timestamp, seg_name, del_count, max_doc):
+  # print(f"add_ts: {timestamp_secs=} {seg_name=} {del_count=}")
+  if timestamp not in by_time:
+    by_time[timestamp] = {}
+  by_time[timestamp][seg_name] = f"{del_count}/{max_doc}"
+
+def get_seg_del_times(segments):
+  by_time = {}
+  by_name = {}
+  for segment in segments:
+    by_name[segment.name] = segment
+    del_count = 0
+    if segment.max_doc is None:
+      continue
+    for timestamp, event, line_number in segment.events:
+
+      if False and event == 'light' and segment.born_del_count is not None and segment.born_del_count > 0:
+        del_count = segment.born_del_count
+        add_ts(by_time, timestamp, segment.name, segment.born_del_count, segment.max_doc)
+
+      if event.startswith("del "):
+        del_inc = int(event[4 : event.find(" ", 4)].replace(",", ""))
+        del_count += del_inc
+        add_ts(by_time, timestamp, segment.name, del_count, segment.max_doc)
+    if segment.end_time is not None:
+      # eol marker
+      add_ts(by_time, segment.end_time, segment.name, -1, -1)
+
+  l = sorted(by_time.items())
+  for i in range(1, len(l)):
+    cur = l[i][1]
+    for seg_name, dels in l[i-1][1].items():
+      # carry over prior time's deletions if this segment had no new ones now... this
+      # way at GUI-time we can just lookup one spot in this array and know the del count
+      # of all segments:
+      end_time = by_name[seg_name].end_time
+      if seg_name not in cur:
+        cur[seg_name] = dels
+    for seg_name, dels in list(cur.items()):
+      if dels == '-1/-1':
+        # eol marker
+        del cur[seg_name]
+    
+  if False:
+    for i in range(len(l)):
+      k, v = l[i]
+      l2 = sorted(v.items(), key=lambda x: -x[1])
+      l[i] = (k, l2)
+
+  # print(json.dumps(l, indent=2))
+  return l
 
 
 def compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time):
@@ -486,6 +539,10 @@ def main():
 
   time_aggs = compute_time_metrics(checkpoints, commits, full_flush_events, segments, start_abs_time, end_abs_time)
 
+  all_seg_del_times = get_seg_del_times(segments)
+
+  # get_seg_del_times(segments, start_abs_time, end_abs_time)
+
   _l = []
   w = _l.append
 
@@ -527,6 +584,8 @@ def main():
   # w(f'<svg id="it" width={whole_width} height={whole_height} xmlns="http://www.w3.org/2000/svg" style="height:100%">')
 
   min_start_abs_time = None
+  # TODO: agg_metrics starts at negative seconds now ...
+  # min_start_abs_time = start_abs_time
 
   by_flush_ord = {}
   by_moc_ord = {}
@@ -885,6 +944,11 @@ def main():
   w(f'full_flush_highlight_color = "{full_flush_highlight_color}";')
   w(f'merging_segment_highlight_color = "{merging_segment_highlight_color}";')
   w(f'segment_highlight_color = "{segment_highlight_color}";')
+  w("var selected_seg_name;")
+  w("var all_seg_del_times = [")
+  for k, v in all_seg_del_times:
+    w(f"  [{(k-min_start_abs_time).total_seconds():10.3f}, {v}],")
+  w("]")
   w("var agg_metrics = [")
   for tup in time_aggs:
     (
@@ -1067,6 +1131,25 @@ def main():
   w(f"      var t = (transformed_point.x - {padding_x}) / {x_pixels_per_sec};")
   w("""
 
+    // lookup segment del counts at this time:
+    // console.log("selected: " + selected_seg_name);
+    var cur_seg_del = null;
+    if (selected_seg_name != null) {
+      var spot0 = binarySearchWithInsertionPoint(all_seg_del_times, t) - 1;
+      if (spot0 >= 0) {
+        let del_map = all_seg_del_times[spot0];
+        // console.log("del_map=" + JSON.stringify(del_map));
+        if (selected_seg_name in del_map[1]) {
+          var seg_del = del_map[1][selected_seg_name];
+          // console.log("cur dels for " + selected_seg_name + ": " + seg_del);
+          var dels = seg_del.split("/");
+          var del_count = parseInt(dels[0]);
+          var seg_max_doc = parseInt(dels[1]);
+          cur_seg_del = selected_seg_name + " dels: " + (100.0*del_count/seg_max_doc).toFixed(1) + "% (" + del_count + "/" + seg_max_doc + ")";;
+        }
+      }
+    }
+
     var spot = binarySearchWithInsertionPoint(agg_metrics, t);
     // console.log(agg_metrics[spot]);
     let tup = agg_metrics[spot];
@@ -1101,6 +1184,10 @@ def main():
 
     if (time_window_details != null) {
       text += "<font color=red>" + time_window_details + "</font><br>";
+    }
+
+    if (cur_seg_del != null) {
+      text += "<font color=red>" + cur_seg_del + "</font><br>";
     }
 
     var write_ampl_all_time;
@@ -1182,12 +1269,12 @@ def main():
       if (!now_highlight.has(seg_name) && !now_sub_highlight.has(seg_name)) {
         //console.log("unhighlight " + name);
         if (seg_name.startsWith("ff_")) {
-          console.log("now unhighlight " + seg_name);
+          // console.log("now unhighlight " + seg_name);
           var el = document.getElementById(seg_name);
           el.setAttribute("fill", full_flush_color);
           time_window_details = null;
         } else if (seg_name.startsWith("moc_")) {
-          console.log("now unhighlight " + seg_name);
+          // console.log("now unhighlight " + seg_name);
           var el = document.getElementById(seg_name);
           el.setAttribute("fill", merge_on_commit_color);
           time_window_details = null;
@@ -1197,6 +1284,7 @@ def main():
         highlighting.delete(name);
       }
     }
+    selected_seg_name = null;
     for (let seg_name of now_highlight) {
       //console.log("highlight " + seg_name);
       var do_seg_details;
@@ -1207,6 +1295,9 @@ def main():
       }
 
       highlight(seg_name, "cyan", do_seg_details, evt.ctrlKey, transformed_point);
+      if (seg_name.startsWith("ff_") == false && seg_name.startsWith("moc_") == false) {
+        selected_seg_name = seg_name;
+      }
     }
     // TODO: just use map w/ colors?
     for (let seg_name of now_sub_highlight) {

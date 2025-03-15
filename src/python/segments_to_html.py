@@ -148,11 +148,13 @@ segment flushing/merging/deletes using fabric.js / HTML5 canvas.
 USE_FABRIC = False
 USE_SVG = True
 
+
 def add_ts(by_time, timestamp, seg_name, del_count, max_doc):
   # print(f"add_ts: {timestamp_secs=} {seg_name=} {del_count=}")
   if timestamp not in by_time:
     by_time[timestamp] = {}
   by_time[timestamp][seg_name] = f"{del_count}/{max_doc}"
+
 
 def get_seg_del_times(segments):
   by_time = {}
@@ -163,8 +165,7 @@ def get_seg_del_times(segments):
     if segment.max_doc is None:
       continue
     for timestamp, event, line_number in segment.events:
-
-      if False and event == 'light' and segment.born_del_count is not None and segment.born_del_count > 0:
+      if False and event == "light" and segment.born_del_count is not None and segment.born_del_count > 0:
         del_count = segment.born_del_count
         add_ts(by_time, timestamp, segment.name, segment.born_del_count, segment.max_doc)
 
@@ -179,7 +180,7 @@ def get_seg_del_times(segments):
   l = sorted(by_time.items())
   for i in range(1, len(l)):
     cur = l[i][1]
-    for seg_name, dels in l[i-1][1].items():
+    for seg_name, dels in l[i - 1][1].items():
       # carry over prior time's deletions if this segment had no new ones now... this
       # way at GUI-time we can just lookup one spot in this array and know the del count
       # of all segments:
@@ -187,10 +188,10 @@ def get_seg_del_times(segments):
       if seg_name not in cur:
         cur[seg_name] = dels
     for seg_name, dels in list(cur.items()):
-      if dels == '-1/-1':
+      if dels == "-1/-1":
         # eol marker
         del cur[seg_name]
-    
+
   if False:
     for i in range(len(l)):
       k, v = l[i]
@@ -947,7 +948,7 @@ def main():
   w("var selected_seg_name;")
   w("var all_seg_del_times = [")
   for k, v in all_seg_del_times:
-    w(f"  [{(k-min_start_abs_time).total_seconds():10.3f}, {v}],")
+    w(f"  [{(k - min_start_abs_time).total_seconds():10.3f}, {v}],")
   w("]")
   w("var agg_metrics = [")
   for tup in time_aggs:

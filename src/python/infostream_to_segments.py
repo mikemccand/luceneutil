@@ -223,7 +223,7 @@ class Segment:
     # how long the segment was alive just for searching, divided by its total (including dawn + dusk)
     # lifetime.  if a segment, immediately on being written, is selected for merging, it has day_pct 0.
     # this can never be 100% since it must take time to write and merge a segment...
-    day_pct = 100. * (ltt - btt - dtt) / ltt
+    day_pct = 100.0 * (ltt - btt - dtt) / ltt
 
     l.append(f"  life-efficiency {day_pct:.1f}%")
     l.append(f"  times {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")

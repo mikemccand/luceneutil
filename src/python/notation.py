@@ -663,4 +663,9 @@ KNOWN_CHANGES = [
     "Speed up scoring conjunctions a bit. https://github.com/apache/lucene/pull/14345",
     "Speed up scoring conjunctions a bit. https://github.com/apache/lucene/pull/14345",
   ),
+  (
+    "2025-03-16",
+    "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
+    "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
+  ),
 ]

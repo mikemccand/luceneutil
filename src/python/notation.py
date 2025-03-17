@@ -639,7 +639,7 @@ KNOWN_CHANGES = [
   ),
   ("2025-01-23", "Add a bias towards bit set encoding. https://github.com/apache/lucene/pull/14155", "Add a bias towards bit set encoding. https://github.com/apache/lucene/pull/14155"),
   (
-    "2025-01-26",
+    "2025-01-25",
     "Not maintain docBufferUpTo when only docs needed. https://github.com/apache/lucene/pull/14164",
     "Not maintain docBufferUpTo when only docs needed. https://github.com/apache/lucene/pull/14164",
   ),
@@ -662,5 +662,10 @@ KNOWN_CHANGES = [
     "2025-03-13",
     "Speed up scoring conjunctions a bit. https://github.com/apache/lucene/pull/14345",
     "Speed up scoring conjunctions a bit. https://github.com/apache/lucene/pull/14345",
+  ),
+  (
+    "2025-03-16",
+    "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
+    "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
   ),
 ]

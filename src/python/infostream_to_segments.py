@@ -28,6 +28,7 @@ def parse_timestamp(s):
 
 
 # TODO
+#   - also parse "skip apply merge during commit" message to validate timeout of MOC merge
 #   - why do del counts sometimes go backwards?  "now checkpoint" is not guaranteed to be monotonic?
 #   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?
 #   - support addIndexes source too
@@ -61,6 +62,14 @@ def sec_to_time_delta(td_sec):
 
 
 class Segment:
+  # the rate at which deletes are reclaimed (merged away) -- this is only set for
+  # merged segments:
+  del_reclaims_per_sec = None
+
+  # the rate at which the application is deleting documents in this segment:
+  del_creates_per_sec = None
+  del_create_count = None
+
   # net average write amplification from entire geneology of this
   # segment.  flushed segments start at 1 since that is a 1X write
   # amplification.  merged segments take a weighted average of their
@@ -83,13 +92,13 @@ class Segment:
   born_del_count = None
 
   # if this segment was produced by merge, the number of deleted docs that
-  # merge compacted away in total from the merging segments
+  # merge compacted away in total from the merging segments.
   del_count_reclaimed = None
 
   # how many of my own deletes were collapsed when I got merged
   del_count_merged_away = None
 
-  # current deleted doc count
+  # current (while parsing) and final (at end of parsing) deleted doc count
   del_count = None
 
   # when this segment was lit (enrolled into in-memory segment infos)
@@ -124,6 +133,7 @@ class Segment:
     assert (type(source) is str and source in ("flush", "flush-commit", "flush-by-RAM")) or (type(source) is tuple and source[0] == "merge" and len(source) > 1)
     self.max_doc = max_doc
     self.size_mb = size_mb
+    # this is when segment first started being written -- birth!
     self.start_time = start_time
     self.start_infostream_line_number = start_infostream_line_number
     self.end_time = end_time
@@ -187,8 +197,10 @@ class Segment:
     if self.is_cfs:
       l.append("  cfs")
 
-    if self.del_count_reclaimed is not None:
-      l.append(f"  dels reclaimed {self.del_count_reclaimed:,} ({100.0 * self.del_count_reclaimed / (self.max_doc + self.del_count_reclaimed):.1f}%)")
+    if self.del_creates_per_sec is not None:
+      l.append(f"  dels creates {self.del_create_count:,} ({self.del_creates_per_sec:.1f} dels/sec) ({100.0 * self.del_create_count / self.max_doc:.1f}%)")
+    if self.del_reclaims_per_sec is not None:
+      l.append(f"  dels reclaimed {self.del_count_reclaimed:,} ({self.del_reclaims_per_sec:.1f} dels/sec) ({100.0 * self.del_count_reclaimed / (self.max_doc + self.del_count_reclaimed):.1f}%)")
     if self.born_del_count is not None:
       l.append(f"  born dels {self.born_del_count:,} ({100.0 * self.born_del_count / self.max_doc:.1f}%)")
     if self.del_count is not None:
@@ -197,7 +209,7 @@ class Segment:
       else:
         end_time = self.end_time
       dps = self.del_count / (end_time - self.start_time).total_seconds()
-      l.append(f"  final dels {self.del_count:,} ({100.0 * self.del_count / self.max_doc:.1f}%, {dps:,.1f} dd/s)")
+      l.append(f"  final dels {self.del_count:,} ({100.0 * self.del_count / self.max_doc:.1f}%, {dps:,.1f} dels/s)")
     # l.append(f'  created at {(self.start_time - global_start_time).total_seconds():,.1f} sec')
     # if self.end_time is not None:
     #  l.append(f'  end_time: {self.end_time}')
@@ -1052,6 +1064,27 @@ def main():
     if segment.end_time is None:
       print(f"set end_time for segment {segment.name} to global end time")
       segment.end_time = global_end_time
+
+    # carefully accumulate delete count to avoid double-counting deletes.  it's tricky
+    # because deletes that arrive as a segment is being merged away are first applied (lit)
+    # in the merging segments.  but when the merge finishes, those new deletes (that arrived
+    # during merge) are carried over to the newly merged segment ("born delete count"), so
+    # we don't want to double count those concurrent deletes while merging.  deletes that were
+    # already applied to the merging segments before the merge started are compacted away.
+    del_count_so_far = 0
+
+    for timestamp, event, line_number in segment.events:
+      if event.startswith("del "):
+        del_count_so_far += int(event[4 : event.find(" ", 4)].replace(",", ""))
+      elif event == "light":
+        if segment.del_count_reclaimed is not None:
+          segment.del_reclaims_per_sec = segment.del_count_reclaimed / (timestamp - segment.start_time).total_seconds()
+        elif type(segment.source) is tuple:
+          print(f"WARNING: merged segment {segment.name} has no del_count_reclaimed")
+      elif event.startswith("start merge into"):
+        # this is dusk start for this segment -- carefully compute incoming deletes rate
+        segment.del_create_count = del_count_so_far
+        segment.del_creates_per_sec = del_count_so_far / (timestamp - segment.start_time).total_seconds()
 
   if len(Segment.all_segments) == 0:
     raise RuntimeError(f"found no segments in {infostream_log}")

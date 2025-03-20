@@ -32,6 +32,12 @@ import graphviz
 import intervaltree
 
 # TODO
+#   - can we somehow do better job conveying "new delete rate" vs "merge reclaim rate"?
+#     - add "new delete rate" to dygraph / top right text box
+#   - add max ancestor to aggs chart and RHS text box
+#   - add "new deletes during merging" onto merging segments?  opposite of born-del-count "new dels during dawn" and "new dels during dusk"
+#   - dot
+#     - color red/blue also
 #   - tell me how many deletes for a seg as I mouse over it
 #   - draw merge lines in 2nd pass -- now some are occluded by some segments and some are not
 #   - fix IW logging to say how many MOC merges kicked off / how many timed out / how many finished
@@ -218,15 +224,9 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
       continue
     all_times.append((segment.start_time, "segstart", segment))
 
-    segment.del_reclaims_per_sec = None
-
     for timestamp, event, line_number in segment.events:
       if event == "light":
         all_times.append((timestamp, "seglight", segment))
-        if segment.del_count_reclaimed is not None:
-          segment.del_reclaims_per_sec = segment.del_count_reclaimed / (timestamp - segment.start_time).total_seconds()
-        elif type(segment.source) is tuple:
-          print(f"WARNING: merged segment {segment.name} has no del_count_reclaimed")
         break
     else:
       print(
@@ -264,6 +264,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
   commit_size_mb = 0
   last_commit_size_mb = 0
   del_reclaims_per_sec = 0
+  del_creates_per_sec = 0
   flush_thread_count = 0
   merge_thread_count = 0
 
@@ -354,11 +355,15 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
         merge_dps += dps
         if segment.del_reclaims_per_sec is not None:
           del_reclaims_per_sec += segment.del_reclaims_per_sec
+        if segment.del_creates_per_sec is not None:
+          del_creates_per_sec += segment.del_creates_per_sec
         merge_thread_count += 1
         seg_name_to_size[segment.name] = segment.size_mb
       elif what == "segend":
         tot_size_mb -= segment.size_mb
         tot_weighted_write_ampl -= segment.size_mb * segment.net_write_amplification
+        if segment.del_creates_per_sec is not None:
+          del_creates_per_sec -= segment.del_creates_per_sec
       elif what == "seglight":
         tot_size_mb += segment.size_mb
         tot_merge_write_mb += segment.size_mb
@@ -418,7 +423,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
       # print(f'{upto=} {timestamp=} {what=} new Date({timestamp.year}, {timestamp.month}, {timestamp.day}, {timestamp.hour}, {timestamp.minute}, {timestamp.second + timestamp.microsecond/1000000:.4f})')
 
       l.append(
-        f"[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb / 1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs + flush_mbs:.3f}, {cur_max_doc / 1000000.0}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec / 100.0:.3f}, {flush_dps / 100:.3f}, {merge_dps / 100:.3f}, {commit_size_mb / 100.0:.3f}, {index_file_count / 100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}"
+        f"[{ts_to_js_date(timestamp)}, {num_segments}, {tot_size_mb / 1024:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {merge_mbs + flush_mbs:.3f}, {cur_max_doc / 1000000.0}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_creates_per_sec / 100.0:.3f}, {del_reclaims_per_sec / 100.0:.3f}, {flush_dps / 100:.3f}, {merge_dps / 100:.3f}, {commit_size_mb / 100.0:.3f}, {index_file_count / 100:.2f}, {last_real_full_flush_time_sec:.2f}], // {what=}"
       )
 
       if tot_size_mb == 0:
@@ -435,9 +440,11 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
           flush_mbs,
           merge_mbs + flush_mbs,
           cur_max_doc,
+          cur_del_count,
           del_pct,
           merge_thread_count,
           flush_thread_count,
+          del_creates_per_sec,
           del_reclaims_per_sec,
           flush_dps,
           merge_dps,
@@ -496,7 +503,7 @@ Dygraph.onDOMready(function onDOMready() {
     f.write("""
       ],
 
-      {labels: ["Time", "Segment count", "Size (GB)", "Merge (MB/s)", "Flush (MB/s)", "Tot (MB/s)", "Max Doc (M)", "Del %", "Merging Threads", "Flushing Threads", "Del reclaim rate (C/sec)", "Indexing rate (C docs/sec)", "Merging rate (C docs/sec)", "Commit delta (CMB)", "File count (C)", "Full flush time (sec)"],
+      {labels: ["Time", "Segment count", "Size (GB)", "Merge (MB/s)", "Flush (MB/s)", "Tot (MB/s)", "Maxdoc (M)", "Del %", "Merge threads", "Flush threads", "Del create (C/s)", "Del reclaim (C/s)", "Index rate (C/s)", "Merge rate (C/s)", "Commit delta (CMB)", "File count (C)", "Full flush (s)"],
        highlightCircleSize: 2,
        strokeWidth: 1,
 """)
@@ -680,9 +687,17 @@ def main():
     label = f"{segment.name}: docs={segment.max_doc:,}"
     if segment.size_mb is not None:
       label += f" mb={segment.size_mb:,.1f}"
-    segment_name_to_gv_node[segment.name] = gv.node(segment.name, label=label)
 
-    if type(segment.source) is str and segment.source.startswith("flush"):
+    is_flush = type(segment.source) is str and segment.source.startswith("flush")
+
+    if is_flush:
+      fill_color = flush_color
+    else:
+      fill_color = merge_color
+
+    segment_name_to_gv_node[segment.name] = gv.node(segment.name, label=label, color=fill_color)
+
+    if is_flush:
       pass
     else:
       for merged_seg_name in segment.source[1]:
@@ -693,13 +708,14 @@ def main():
         else:
           label = ""
           weight = 0
-        gv.edge(merged_seg_name, segment.name, label=label, weight=str(weight))
+        # gv.edge(merged_seg_name, segment.name, label=label, weight=str(weight))
+        gv.edge(merged_seg_name, segment.name, label=label)
   with open("ages_sizes.txt", "w") as f:
     for source, age_sec, size_mb, write_time, max_doc in ages_sizes:
       if size_mb is not None:
         f.write(f"{size_mb:.1f}\t{max_doc}\n")
 
-  if False:
+  if True:
     print(f"gv:\n{gv.source}")
     gv_file_name_out = gv.render("segments", format="svg")
     print(f"now render gv: {gv_file_name_out}")
@@ -960,10 +976,12 @@ def main():
       flush_mbs,
       tot_mbs,
       cur_max_doc,
+      del_count,
       del_pct,
       merge_thread_count,
       flush_thread_count,
       del_reclaims_per_sec,
+      del_create_per_sec,
       flush_dps,
       merge_dps,
       last_commit_size_mb,
@@ -975,7 +993,7 @@ def main():
     sec = (timestamp - min_start_abs_time).total_seconds()
     ts = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
     w(
-      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}", {tot_merge_write_mb:.3f}, {tot_flush_write_mb:.3f}, {write_ampl:.3f}],'
+      f'  [{sec:.4f}, {num_segments}, {tot_size_mb:.3f}, {merge_mbs:.3f}, {flush_mbs:.3f}, {tot_mbs:.3f}, {cur_max_doc}, {del_pct:.3f}, {merge_thread_count}, {flush_thread_count}, {del_reclaims_per_sec:.3f}, {flush_dps:.3f}, {merge_dps:.3f}, {last_commit_size_mb:.3f}, "{ts}", {tot_merge_write_mb:.3f}, {tot_flush_write_mb:.3f}, {write_ampl:.3f}, {del_create_per_sec:.3f}, {del_count}],'
     )
 
   w("];")
@@ -1172,6 +1190,8 @@ def main():
     let tot_merge_write_mb = tup[15];
     let tot_flush_write_mb = tup[16];
     let write_ampl = tup[17];
+    let del_create_per_sec = tup[18];
+    let tot_del_count = tup[19];
     let hr = Math.floor(t/3600.)
     let mn = Math.floor((t - hr*3600)/60.)
     let sc = t - hr*3600 - mn*60;
@@ -1202,12 +1222,12 @@ def main():
            abs_timestamp + "<br>" +
            num_segments + " segments<br>" +
            (tot_size_mb/1024.).toFixed(2) + " GB<br>" +
-           (max_doc/1000000.).toFixed(2) + "M docs (" + del_pct.toFixed(2) + "% deletes)<br>" +
-           "IO now: " + tot_mbs.toFixed(2) + " MB/sec<br>" +
+           (max_doc/1000000.).toFixed(2) + "M docs (" + (tot_del_count/1000).toFixed(2) + "K, " + del_pct.toFixed(2) + "% deletes)<br>" +
+           "IO now: " + tot_mbs.toFixed(2) + " MB/s<br>" +
            "Tot writes GB:<br>  " + (tot_merge_write_mb/1024.).toFixed(1) + " merge<br>  " + (tot_flush_write_mb/1024.).toFixed(1) + " flush<br>  " + write_ampl_all_time.toFixed(1) + "/" + write_ampl.toFixed(1) + " write-ampl<br>" +
            "Last commit: " + (last_commit_size_mb / 1024.).toFixed(2) + " GB<br>" +
-           "flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/sec<br>        " + flush_dps.toFixed(1) + " docs/sec<br>" +
-           "merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/sec<br>       " + merge_dps.toFixed(1) + " docs/sec<br>       " + del_reclaims_per_sec.toFixed(1) + " del-reclaim/sec<br>" +
+           "Flushes: " + flush_thread_count + " threads<br>        " + flush_mbs.toFixed(1) + " MB/s<br>        " + flush_dps.toFixed(1) + " docs/s<br>" +
+           "Merges: " + merge_thread_count + " threads<br>        " + merge_mbs.toFixed(1) + " MB/s<br>       " + merge_dps.toFixed(1) + " docs/s<br>       " + del_create_per_sec.toFixed(1) + "/" + del_reclaims_per_sec.toFixed(1) + " del create/reclaim/s<br>" +
            "</pre>";
 
     text += "</div>";

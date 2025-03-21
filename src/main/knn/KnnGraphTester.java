@@ -604,7 +604,7 @@ public class KnnGraphTester {
       double overHead = 0;
       if (quantize) {
         if (quantizeBits == 1) {
-          realEncodingByteSize = 1.0/32.0;
+          realEncodingByteSize = 1.0/8.0;
           overHead = Float.BYTES * 3 + Short.BYTES; // 3 floats & 1 short
         } else if (quantizeBits == 4) {
           overHead = 4; // 1 float

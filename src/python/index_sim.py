@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+import argparse
+import bisect
 import collections
 import random
 import sys
@@ -35,6 +37,7 @@ import sys
 
 
 # TODO
+#   - more accurately model spiky search traffic, in synchrony with incoming indexing events
 #   - better model merged segment size -- not just sum of non-deleted docs, but some synergy/overlap e.g. terms dict
 #   - more accurately model doc size -> segment size (and then RAM multiplier over that)
 #   - pluggable flush policy, instead of always flushing largest segment
@@ -131,6 +134,7 @@ class Index:
     print(f"both multiplier {self.both_multiplier}")
 
     self.ram_bytes_used = 0
+    self.merging_segments = set()
 
     self.max_ram_buffer_bytes = max_ram_buffer_mb * 1024 * 1024
 
@@ -159,9 +163,21 @@ class Index:
     return max_doc, del_count
 
   def refresh(self):
+    """
+    Returns frozen segments for searching.
+    """
+
     for index_thread, seg in list(self.index_thread_to_segment.items()):
       self.flush(index_thread, seg, "refresh")
     print(f"after refresh {self.ram_bytes_used} {len(self.index_thread_to_segment)}")
+
+    # all segments are now on-disk
+
+    l = []
+    for seg in self.segments:
+      l.append((seg, seg.deletes.copy()))
+
+    return l
 
   def flush(self, index_thread, seg, reason):
     print(f"{timestamp_sec:8.2f} s: now flush {seg=} {reason=} {index_thread=}")
@@ -175,8 +191,12 @@ class Index:
     self.maybe_merge("flush")
 
   def finish_merge(self, merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason):
+    for seg in to_merge_segments:
+      assert seg in self.merging_segments
+      self.merging_segments.remove(seg)
+
     merge_desc = ",".join(seg.name for seg in to_merge_segments)
-    print(f"{timestamp_sec:8.2f} s: now finish merge seg={merged_seg.name} reason={reason} seg={merged_seg.name} {merge_desc}")
+    print(f"{timestamp_sec:8.2f} s: now finish merge seg={merged_seg.name} reason={reason} {merge_desc}")
     to_reclaim = set(to_merge_segments)
 
     del_reclaim_count = 0
@@ -204,8 +224,9 @@ class Index:
           assert docid not in merged_seg.deletes
           merged_seg.deletes.add(docid)
 
-    print(f"  {len(merged_seg.deletes)} carryover deletes")
-    print(f"  {del_reclaim_count} reclaimed deletes")
+    print(f"    {len(merged_seg.deletes)} carryover deletes")
+    print(f"    {del_reclaim_count} reclaimed deletes")
+    print(f"    {merged_size_bytes / 1024 / 1024:.1f} MB")
     assert merged_size_bytes == final_size_bytes, f"{merged_size_bytes=} {final_size_bytes=}"
 
     merged_seg.size_in_bytes = merged_size_bytes
@@ -241,6 +262,10 @@ class Index:
     We model merge run-time as simple linear multiplier on size of merged segment.
     """
 
+    for seg in to_merge_segments:
+      assert seg not in self.merging_segments
+      self.merging_segments.add(seg)
+
     merged_seg = Segment()
 
     final_size_bytes = 0
@@ -265,18 +290,27 @@ class Index:
     merge_run_time_sec = (final_size_bytes / 1024 / 1024) / self.merge_mb_per_sec
 
     print(
-      f"{timestamp_sec:8.2f} s: start merge seg={merged_seg.name} {','.join(merge_seg_names)} del_reclaim={del_reclaim_bytes / 1024 / 1024:.1f} MB ({del_reclaim_count} docs) final_size={final_size_bytes / 1024 / 1024:.1f} MB - {del_reclaim_bytes / 1024 / 1024:.1f} MB; merge will take {merge_run_time_sec:.1f} s (= {timestamp_sec + merge_run_time_sec} s abs)"
+      f"{timestamp_sec:8.2f} s: start merge seg={merged_seg.name} {','.join(merge_seg_names)} del_reclaim={del_reclaim_bytes / 1024 / 1024:.1f} MB ({del_reclaim_count} docs) final_size={final_size_bytes / 1024 / 1024:.1f} MB - {del_reclaim_bytes / 1024 / 1024:.1f} MB; merge will take {merge_run_time_sec:.1f} s (= {timestamp_sec + merge_run_time_sec:.1f} s abs)"
     )
     final_size_bytes -= del_reclaim_bytes
 
-    self.pending.append((timestamp_sec + merge_run_time_sec, "finish-merge", merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason))
+    finish_time_sec = timestamp_sec + merge_run_time_sec
+    spot = bisect.bisect_left(self.pending, finish_time_sec, key=lambda x: x[0])
+
+    self.pending.insert(spot, (finish_time_sec, "finish-merge", merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason))
 
   def maybe_merge(self, reason):
-    if len(self.segments) > 10:
+    # we can only look at segments that are not already being merged:
+    eligible_segments = list(set(self.segments) - self.merging_segments)
+
+    # so we make deterministic choices under same random seed:
+    eligible_segments.sort(key=lambda x: -x.size_in_bytes)
+
+    if len(eligible_segments) > 10:
       # random merging!
       if self.rand.random() <= 0.2:
         merge_num_segments = self.rand.randint(2, 10)
-        segs = self.rand.sample(self.segments, merge_num_segments)
+        segs = self.rand.sample(eligible_segments, merge_num_segments)
         self.launch_merge(segs, reason)
 
   def add_document(self, docid, size_bytes):
@@ -286,14 +320,14 @@ class Index:
     seg = self.index_thread_to_segment[index_thread]
 
     if docid in seg.docs and docid in seg.deletes:
-      # weird case that Lucene supports but we do not, where same docid is indexed more than
+      # weird/annoying case that Lucene supports but we do not, where same docid is indexed more than
       # once into the same in-RAM segment.  for now we hack around this by pretending we didn't
       # see the prior add+delete, but this isn't accurate to Lucene.  hopefully minor...
       seg.size_in_bytes -= seg.docs[docid]
       self.ram_bytes_used -= self.both_multiplier * seg.docs[docid]
       del seg.docs[docid]
       seg.deletes.remove(docid)
-      print(f"WARNING: handling the weird double-add to RAM segment case for {docid=}")
+      # print(f"WARNING: {timestamp_sec:.2f} s: handling the annoying double-add to RAM segment case for {docid=}")
 
     seg.add_document(docid, size_bytes)
 
@@ -350,13 +384,15 @@ class Index:
 def main():
   global timestamp_sec
 
-  if len(sys.argv) != 2:
-    print(f"\nUsage: {sys.executable} index_sim.py index_events_file_name\n")
-    sys.exit(1)
+  parser = argparse.ArgumentParser("Simulates an indexing run from a captured log of actual indexing events, to test different merge policies")
+  parser.add_argument("events_file", type=str)
+  parser.add_argument("--seed", type=int, default=17, help="random seed")
+  args = parser.parse_args()
 
-  index_events_source = sys.argv[1]
+  index_events_source = args.events_file
 
-  rand_seed = 17
+  print(f"seed is {args.seed=}")
+  rand_seed = args.seed
   rand = random.Random(rand_seed)
   refresh_every_sec = 60
   print_every_sec = 5
@@ -365,6 +401,16 @@ def main():
 
   next_refresh_sec = refresh_every_sec
   next_print_sec = print_every_sec
+
+  # each doc's size is the incoming serialized size; deflate this to the "true" content size (ish):
+  incoming_size_mult = 0.33
+
+  searching_segs = []
+  replica_segs = set()
+
+  search_net_docs = 0
+  search_net_deletes = 0
+  net_replicate_bytes = 0
 
   with open(index_events_source, "r") as f:
     while True:
@@ -383,18 +429,15 @@ def main():
       match tup[1]:
         case "add":
           docid = tup[2]
-          size_bytes = int(tup[3])
+          size_bytes = int(incoming_size_mult * int(tup[3]))
           index.add_document(docid, size_bytes)
         case "update":
           docid = tup[2]
-          size_bytes = int(tup[3])
+          size_bytes = int(incoming_size_mult * int(tup[3]))
           index.update_document(docid, size_bytes)
         case "del":
           docid = tup[2]
           index.delete_document(docid)
-        case "refresh":
-          print(f"{timestamp_sec:8.2f} s: now refresh @ {index.ram_bytes_used / 1024 / 1024.0:.1f} MB")
-          index.refresh()
         case _:
           raise RuntimeError(f'operation must be add, update, or del; got "{tup[0]}"')
 
@@ -402,14 +445,32 @@ def main():
 
       if timestamp_sec > next_refresh_sec:
         print(f"\n{timestamp_sec:8.2f} s: now timed-refresh @ {index.ram_bytes_used / 1024 / 1024.0:.1f} MB")
-        index.refresh()
+        searching_segs = index.refresh()
         print(f"{len(index.segments)} on-disk segments")
         next_refresh_sec += refresh_every_sec
 
+        # add up search cost -- since we only get a new searchable image with every refresh, we just sum
+        # search cost, now, on the frozen deletes.  more accurate would be to record actual incoming query
+        # timestamps and replay against matched refreshed searchers
+
+        for seg, frozen_deletes in searching_segs:
+          search_net_docs += len(seg.docs)
+          search_net_deletes += len(frozen_deletes)
+          if seg not in replica_segs:
+            replica_segs.add(seg)
+            net_replicate_bytes += seg.size_in_bytes
+
       if timestamp_sec > next_print_sec:
         max_doc, del_count = index.get_doc_counts()
-        print(f"\n{timestamp_sec:8.2f} s: {max_doc=} {del_count=} merges_running={len(index.pending)}")
+        print(
+          f"\n{timestamp_sec:8.2f} s: seg_count={len(index.segments)} num_doc={max_doc - del_count:,} {max_doc=:,} {del_count=:,} ({100 * del_count / max_doc:.1f} %) merges_running={len(index.pending)}"
+        )
         next_print_sec += print_every_sec
+
+    # summary stats
+    print(f"\nDONE!")
+    print(f"  {search_net_docs=:,} {search_net_deletes=:,} ({100.0 * search_net_deletes / search_net_docs:.1f} %)")
+    print(f"  replicated {net_replicate_bytes / 1024 / 1024 / 1024.0:,.1f} GB")
 
 
 if __name__ == "__main__":

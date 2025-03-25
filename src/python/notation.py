@@ -670,7 +670,7 @@ KNOWN_CHANGES = [
   ),
   (
     "2025-03-20",
-    "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365",
-    "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365",
+    "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365", "Speedup merging of HNSW graphs. https://github.com/apache/lucene/pull/14331",
+    "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365", "Speedup merging of HNSW graphs. https://github.com/apache/lucene/pull/14331",
   ),
 ]

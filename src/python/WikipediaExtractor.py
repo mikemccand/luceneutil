@@ -528,7 +528,7 @@ def compact(text):
     # Drop residuals of lists
     elif line[0] in "{|" or line[-1] in "}" or (line[0] == "(" and line[-1] == ")") or line.strip(".-") == "":
       continue
-    elif len(headers):
+    elif headers:
       items = list(headers.items())
       items.sort()
       for i, v in items:

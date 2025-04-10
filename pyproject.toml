@@ -112,6 +112,7 @@ ignore = [
   "PLW0128", # Redeclared variable in assignment
   "PLW0602", # Using global for `VERBOSE` but no assignment is done
   "PLW0603", # Using the global statement to update `camelCase` is discouraged
+  "PLW1507", # Shallow copy of `os.environ` via `copy.copy(os.environ)`
   "PLW1509", # `preexec_fn` argument is unsafe when using threads
   "PLW2901", # `for` loop variable overwritten by assignment target
   "PT018",   # Assertion should be broken down into multiple parts
@@ -133,11 +134,13 @@ ignore = [
   "PTH204",  # `os.path.getmtime` should be replaced by `Path.stat().st_mtime`
   "PTH206",  # Replace `.split(os.sep)` with `Path.parts`
   "PTH207",  # Replace `glob` with `Path.glob` or `Path.rglob`
+  "PTH208",  # Use `pathlib.Path.iterdir()` instead.
   "PYI024",  # Use `typing.NamedTuple` instead of `collections.namedtuple`
   "RET504",  # Unnecessary assignment to variable before `return` statement
   "RET503",  # Missing explicit `return` at the end of function able to return non-`None` value
   "RUF005",  # Consider `["Foo", *series]` instead of concatenation
   "RUF012",  # Mutable class attributes should be annotated with `typing.ClassVar`
+  "RUF046",  # Value being cast to `int` is already an integer
   "S101",    # Use of `assert` detected
   "S102",    # Use of `exec` detected
   "S104",    #  Possible binding to all interfaces

@@ -1,0 +1,41 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+    commit-message:
+      prefix: ci
+    labels: [dependencies]
+    open-pull-requests-limit: 1
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+    commit-message:
+      prefix: build(deps)
+    labels:
+      - dependencies
+
+  - package-ecosystem: npm
+    directory: /src/javascript/2d
+    schedule:
+      interval: weekly
+      day: tuesday
+    commit-message:
+      prefix: build(deps)
+    labels:
+      - dependencies
+
+  - package-ecosystem: npm
+    directory: /src/javascript/3d
+    schedule:
+      interval: weekly
+      day: tuesday
+    commit-message:
+      prefix: build(deps)
+    labels:
+      - dependencies

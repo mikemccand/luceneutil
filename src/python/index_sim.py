@@ -19,7 +19,6 @@ import argparse
 import bisect
 import collections
 import random
-import sys
 
 #
 # each line of index events source is this syntax:
@@ -94,10 +93,7 @@ class Segment:
     return f"<segment {self.name} in_ram={self.in_ram} size={mult * self.size_in_bytes / 1024 / 1024:.1f} MB>"
 
   def add_document(self, docid, size_bytes):
-    """
-    Only used for in-memory segments.
-    """
-
+    """Only used for in-memory segments."""
     assert docid not in self.docs
     assert docid not in self.deletes
 
@@ -163,10 +159,7 @@ class Index:
     return max_doc, del_count
 
   def refresh(self):
-    """
-    Returns frozen segments for searching.
-    """
-
+    """Returns frozen segments for searching."""
     for index_thread, seg in list(self.index_thread_to_segment.items()):
       self.flush(index_thread, seg, "refresh")
     print(f"after refresh {self.ram_bytes_used} {len(self.index_thread_to_segment)}")
@@ -254,14 +247,12 @@ class Index:
     self.maybe_merge("finish-merge")
 
   def launch_merge(self, to_merge_segments, reason):
-    """
-    Simulates a merge running, scheduling the end of the merge to commit / reclaim deletes.
+    """Simulates a merge running, scheduling the end of the merge to commit / reclaim deletes.
     The merge runs in the background ... once the clock advances to the merge finish time,
     we commit the merge.
 
     We model merge run-time as simple linear multiplier on size of merged segment.
     """
-
     for seg in to_merge_segments:
       assert seg not in self.merging_segments
       self.merging_segments.add(seg)
@@ -412,7 +403,7 @@ def main():
   search_net_deletes = 0
   net_replicate_bytes = 0
 
-  with open(index_events_source, "r") as f:
+  with open(index_events_source) as f:
     while True:
       line = f.readline()
       if line == "":
@@ -468,7 +459,7 @@ def main():
         next_print_sec += print_every_sec
 
     # summary stats
-    print(f"\nDONE!")
+    print("\nDONE!")
     print(f"  {search_net_docs=:,} {search_net_deletes=:,} ({100.0 * search_net_deletes / search_net_docs:.1f} %)")
     print(f"  replicated {net_replicate_bytes / 1024 / 1024 / 1024.0:,.1f} GB")
 

@@ -9,7 +9,7 @@
         "url": "https://github.com/AnalyticalGraphicsInc/cesium.git"
     },
     "devDependencies": {
-        "jsdoc": "3.3.2",
+        "jsdoc": "4.0.4",
         "express": "4.20.0",
         "compression": "1.5.1",
         "request": "2.88.0",

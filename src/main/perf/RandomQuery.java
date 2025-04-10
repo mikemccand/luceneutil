@@ -18,6 +18,7 @@ package perf;
  */
 
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.AbstractDocIdSetIterator;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.DocIdSetIterator;
@@ -25,10 +26,8 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
-import org.apache.lucene.util.Bits;
 
 import java.io.IOException;
 
@@ -47,18 +46,19 @@ public class RandomQuery extends Query {
       public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
         final int maxDoc = context.reader().maxDoc();
         final int interval = (int) (1 / fractionKeep);
-        final DocIdSetIterator iterator = new DocIdSetIterator() {
-
-          int doc = -1;
-
-          @Override
-          public int docID() {
-            return doc;
-          }
+        final DocIdSetIterator iterator = new AbstractDocIdSetIterator() {
 
           @Override
           public int nextDoc() throws IOException {
-            return advance(doc + 1);
+            int intervalId = (doc + interval) / interval;
+            int addend = (31 * intervalId) % interval;
+            int newDoc = intervalId * interval + addend;
+            assert newDoc > doc;
+            if (doc >= maxDoc) {
+              return doc = NO_MORE_DOCS;
+            } else {
+              return doc = newDoc;
+            }
           }
 
           @Override

@@ -175,7 +175,7 @@ By default we use 100/300 dimension vectors, to use higher dimension vectors (mo
 2. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 
 
 To test vector search with [Cohere/wikipedia-22-12-en-embeddings](https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings) dataset, you need to do:
-1. run `python src/python/infer_token_vectors_cohere.py ../data/cohere-wikipedia-768.vec 10000000 ../data/cohere-wikipedia-queries-768.vec 10000` to generate vectors
+1. run `python src/python/infer_token_vectors_cohere.py -d 10000000 -q 10000` to generate vectors
 in the format that luceneutil vector search can understand. Instead of `10000000` increase the number of documents to `100000000` if you want to run vector search on 10M documents.
 2. In `src/python/knnPerTest.py` uncomment lines that define doc and query vectors for cohere dataset.
 3. run `src/python/knnPerTest.py` 

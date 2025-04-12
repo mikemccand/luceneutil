@@ -54,7 +54,7 @@ public class RandomQuery extends Query {
             int addend = (31 * intervalId) % interval;
             int newDoc = intervalId * interval + addend;
             assert newDoc > doc;
-            if (doc >= maxDoc) {
+            if (newDoc >= maxDoc) {
               return doc = NO_MORE_DOCS;
             } else {
               return doc = newDoc;

@@ -49,7 +49,7 @@ import java.util.function.BinaryOperator;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
-import org.apache.lucene.codecs.lucene101.Lucene101Codec;
+import org.apache.lucene.codecs.lucene103.Lucene103Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
@@ -1245,7 +1245,7 @@ public class KnnGraphTester {
       throw new IllegalArgumentException("only single bit quantization supports FLAT indices");
     }
     if (exec == null) {
-      return new Lucene101Codec() {
+      return new Lucene103Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           if (quantize) {
@@ -1263,7 +1263,7 @@ public class KnnGraphTester {
         }
       };
     } else {
-      return new Lucene101Codec() {
+      return new Lucene103Codec() {
         @Override
         public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
           if (quantize) {

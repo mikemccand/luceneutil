@@ -669,9 +669,9 @@ KNOWN_CHANGES = [
     "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
   ),
   (
-    "2025-03-16",
-    "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
-    "Decode doc ids in BKD leaves with auto-vectorized loops. https://github.com/apache/lucene/pull/14203",
+    "2025-03-20",
+    "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365",
+    "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365",
   ),
   (
     "2025-04-14",

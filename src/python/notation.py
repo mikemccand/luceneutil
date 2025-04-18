@@ -673,4 +673,9 @@ KNOWN_CHANGES = [
     "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365",
     "Implement bulk adding methods for dynamic pruning. https://github.com/apache/lucene/pull/14365",
   ),
+  (
+    "2025-04-14",
+    "A specialized Trie for Block Tree Index. https://github.com/apache/lucene/pull/14333",
+    "A specialized Trie for Block Tree Index. https://github.com/apache/lucene/pull/14333",
+  ),
 ]

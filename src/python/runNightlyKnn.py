@@ -292,7 +292,7 @@ html * {
 </style>
 
 <div id="summary" style="height:17%%; width:95%%">
-This benchmark indexes and searches Cohere 768 dimensin vectors from https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings.
+This benchmark indexes 8.0M and searches Cohere 768 dimension vectors from https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings.
 </div>
 """)
 

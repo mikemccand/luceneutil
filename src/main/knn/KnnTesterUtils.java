@@ -32,15 +32,14 @@ public class KnnTesterUtils {
   public static int[] getResultIds(TopDocs topDocs, StoredFields storedFields) throws IOException {
     int[] resultIds = new int[topDocs.scoreDocs.length];
     int i = 0;
+    // TODO: switch to doc values for this id field?  more efficent than stored fields
+    // TODO: or, at least load the stored documents in index (Lucene docid) order to
+    //       amortize cost of decompressing each stored doc block (hmm, though, this cost/time
+    //       is not included in the reported benchy results... this is called after all KNN
+    //       queries have run)
     for (ScoreDoc doc : topDocs.scoreDocs) {
-      if (doc.doc != NO_MORE_DOCS) {
-        // there is a bug somewhere that can result in doc=NO_MORE_DOCS!  I think it happens
-        // in some degenerate case (like input query has NaN in it?) that causes no results to
-        // be returned from HNSW search?
-        resultIds[i++] = Integer.parseInt(storedFields.document(doc.doc).get(KnnGraphTester.ID_FIELD));
-      } else {
-        System.out.println("NO_MORE_DOCS!");
-      }
+      assert doc.doc != NO_MORE_DOCS: "illegal docid " + doc.doc + " returned from KNN search?";
+      resultIds[i++] = Integer.parseInt(storedFields.document(doc.doc).get(KnnGraphTester.ID_FIELD));
     }
     return resultIds;
   }

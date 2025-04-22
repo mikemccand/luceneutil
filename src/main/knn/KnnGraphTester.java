@@ -466,7 +466,7 @@ public class KnnGraphTester {
       throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
     }
     if (indexPath == null) {
-      indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
+      indexPath = Paths.get(formatIndexPath(docVectorsPath, numDocs)); // derive index path
       log("Index Path = %s\n", indexPath);
     }
     if (parentJoin && reindex == false && isParentJoinIndex(indexPath) == false) {
@@ -665,7 +665,8 @@ public class KnnGraphTester {
     }
   }
 
-  private String formatIndexPath(Path docsPath) {
+  private String formatIndexPath(Path docsPath, int numDocs) {
+    // TODO: shouldn't this use the same hashing that we use when saving exact results to cache file?
     List<String> suffix = new ArrayList<>();
     if (indexType == IndexType.FLAT) {
       suffix.add("flat");
@@ -685,6 +686,8 @@ public class KnnGraphTester {
     if (parentJoin) {
       suffix.add("parentJoin");
     }
+    // make sure we reindex if numDocs has changed:
+    suffix.add(Integer.toString(numDocs));
     return INDEX_DIR + "/" + docsPath.getFileName() + "-" + String.join("-", suffix) + ".index";
   }
 

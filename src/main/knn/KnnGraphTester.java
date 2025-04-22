@@ -849,7 +849,10 @@ public class KnnGraphTester {
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
           IndexSearcher searcher = new IndexSearcher(reader);
-          numDocs = reader.maxDoc();
+          int indexNumDocs = reader.maxDoc();
+          if (numDocs != indexNumDocs) {
+            throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
+          }
           // warm up
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
@@ -989,8 +992,8 @@ public class KnnGraphTester {
     int totalMatches = 0;
     int totalResults = results.length * topK;
     for (int i = 0; i < results.length; i++) {
-      // System.out.println(Arrays.toString(nn[i]));
-      // System.out.println(Arrays.toString(results[i].scoreDocs));
+      // System.out.println("compare " + Arrays.toString(nn[i]) + " to ");
+      // System.out.println(Arrays.toString(results[i]));
       totalMatches += compareNN(nn[i], results[i]);
     }
     return totalMatches / (float) totalResults;
@@ -1088,6 +1091,9 @@ public class KnnGraphTester {
     List<ComputeNNByteTask> tasks = new ArrayList<>();
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
+      if (reader.maxDoc() != numDocs) {
+        throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
+      }
       try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
         VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
         for (int i = 0; i < numQueryVectors; i++) {
@@ -1145,6 +1151,9 @@ public class KnnGraphTester {
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
       log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
+      if (reader.maxDoc() != numDocs) {
+        throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
+      }
       if (parentJoin) {
         CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
       }

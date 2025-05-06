@@ -26,7 +26,7 @@
     "express": "^4.13.3",
     "body-parser": "^1.14.1",
     "browserify": "~12.0.0",
-    "leaflet": "~0.7.2",
+    "leaflet": "~1.9.4",
     "uglifyjs": "^2.3.6"
   }
 }

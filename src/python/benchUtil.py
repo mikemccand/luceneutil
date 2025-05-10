@@ -42,6 +42,65 @@ if PERF_EXE is None:
 else:
   print(f"perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
 
+# Helper function to generate flamegraph using async-profiler tools
+def generate_flamegraph(jfr_output_path, async_profiler_dir):
+    """Generates a flamegraph HTML file from a JFR file."""
+    if not constants.ASYNC_PROFILER_HOME:
+        return
+
+    if not os.path.exists(jfr_output_path):
+        print(f"Warning: JFR file not found at {jfr_output_path}, cannot generate flamegraph.")
+        return
+
+    async_profiler_dir = constants.ASYNC_PROFILER_HOME
+
+    flamegraph_file = jfr_output_path.replace(".jfr", ".html")
+    print(f"Attempting to generate flamegraph: {flamegraph_file}")
+
+    jfrconv_path = os.path.join(async_profiler_dir, "bin", "jfrconv")
+
+    cmd_to_run = None
+    cmd_desc = ""
+
+    if os.path.exists(jfrconv_path):
+        cmd_to_run = [jfrconv_path, jfr_output_path, flamegraph_file]
+        cmd_desc = "jfrconv"
+    else:
+        print(f"Error: Could not find jfrconv ('{jfrconv_path}') in {async_profiler_dir}")
+        print("Flamegraphs will not be generated.")
+        return
+
+    try:
+        print(f"  Using {cmd_desc}: {' '.join(cmd_to_run)}")
+        result = subprocess.run(cmd_to_run, check=True, capture_output=True, text=True, timeout=300) # Added timeout
+        # Print stdout/stderr for debugging
+        if result.stdout:
+            print(f"  {cmd_desc} stdout:\n{result.stdout}")
+        if result.stderr:
+            print(f"  {cmd_desc} stderr:\n{result.stderr}")
+
+        if os.path.exists(flamegraph_file) and os.path.getsize(flamegraph_file) > 0:
+             print(f"✓ Flamegraph created: {flamegraph_file}")
+        else:
+             print(f"Error: Flamegraph file not created or is empty after running command: {flamegraph_file}")
+             if result.returncode == 0:
+                 print("  Command executed successfully, but the output file is missing or empty.")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Failed to generate flamegraph using {cmd_desc}.")
+        print(f"  Command: {' '.join(e.cmd)}")
+        print(f"  Return code: {e.returncode}")
+        if e.stdout:
+            print(f"  Stdout:\n{e.stdout}")
+        if e.stderr:
+            print(f"  Stderr:\n{e.stderr}")
+    except subprocess.TimeoutExpired:
+        print(f"Error: Flamegraph generation timed out after 300 seconds.")
+        print(f"  Command: {' '.join(cmd_to_run)}")
+    except Exception as e:
+        print(f"Error: An unexpected error occurred during flamegraph generation: {e}")
+        traceback.print_exc()
+
 PYTHON_MAJOR_VER = sys.version_info.major
 
 VMSTAT_PATH = shutil.which("vmstat")
@@ -56,7 +115,8 @@ WARM_SKIP = 3
 SLOW_SKIP_PCT = 10
 
 # Disregard first N seconds of query tasks for computing avg QPS:
-DISCARD_QPS_WARMUP_SEC = 5
+# Set to 0 for very fast benchmarks like wikimedium10k where total runtime < warmup
+DISCARD_QPS_WARMUP_SEC = 0
 
 # From the N times we run each task in a single JVM, how do we pick
 # the single QPS to represent those results:
@@ -422,8 +482,9 @@ rePKOrd = re.compile(r"PK(?:TS)?(.*?)\[")
 reOneGroup = re.compile("group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$", re.DOTALL)
 reHeap = re.compile("HEAP: ([0-9]+)$")
 reLatencyAndStartTime = re.compile(r"^([\d.]+) msec @ ([\d.]+) msec$")
-reTasksWinddown = re.compile("^Start of tasks winddown: ([0-9.]+) msec$")
-reAvgCPUCores = re.compile("^Average CPU cores used: (-?[0-9.]+)$")
+# Allow for leading whitespace/newlines in these lines from Java's println
+reTasksWinddown = re.compile(r"^\s*Start of tasks winddown: ([0-9.]+) msec$")
+reAvgCPUCores = re.compile(r"^\s*Average CPU cores used: (-?[0-9.]+)$")
 
 
 def parse_times_line(task, line):
@@ -435,8 +496,14 @@ def parse_times_line(task, line):
 
 
 def parseResults(resultsFiles):
+  if len(resultsFiles) == 0:
+    raise RuntimeError("No result files found")
+
   taskIters = []
   heaps = []
+  tasksWindownMSs = []
+  avgCPUCoresList = []
+
   for resultsFile in resultsFiles:
     tasks = []
 
@@ -469,6 +536,7 @@ def parseResults(resultsFiles):
       if line.startswith(b"HEAP: "):
         m = reHeap.match(decode(line))
         heaps.append(int(m.group(1)))
+        continue
 
       if line.startswith(b"TASK: cat="):
         task = SearchTask()
@@ -668,10 +736,10 @@ def parseResults(resultsFiles):
 
     if tasksWindownMS == -1:
       raise RuntimeError(f'did not find "Start of tasks winddown: " line in results file {resultsFile}')
+    tasksWindownMSs.append(tasksWindownMS)
+    avgCPUCoresList.append(avgCPUCores)
 
-  # TODO: why are we returning tasksWindownMS (which is per-result-file) here when
-  # we were given multiple results files?
-  return taskIters, heaps, tasksWindownMS, avgCPUCores
+  return taskIters, heaps, tasksWindownMSs, avgCPUCoresList
 
 
 # Collect task latencies segregated by categories across all the runs of the task
@@ -892,6 +960,93 @@ def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
 reCoreJar = re.compile("lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")
 
 
+def add_async_profiler_args(command_list, jfr_output_path, base_log_path):
+  """Appends async-profiler agent arguments to the command list."""
+
+  if not sys.platform.startswith("linux") and not sys.platform.startswith("darwin"):
+    print("WARNING: async-profiler currently supported only on Linux/macOS – skipping.")
+    return
+
+  def _merge_user_options(user_opts_raw: str,
+                          fixed_map: dict[str, str],
+                          reserved_flags: set[str]) -> str:
+    """
+    • `user_opts_raw`  – raw string from ASYNC_PROFILER_OPTIONS ("foo=1,bar,baz=2")
+    • `fixed_map`      – key/value pairs that must never be overridden
+    • `reserved_flags` – flag-only options (no =) that must never be overridden
+    Returns a comma-joined string of SAFE user options, or "".
+    """
+    if not user_opts_raw:
+      return ""
+
+    safe_items = []
+    seen_keys  = set()
+
+    for token in (t.strip() for t in user_opts_raw.split(',')):
+      if not token:
+        continue
+      if '=' in token:
+        key, value = token.split('=', 1)
+        key = key.strip()
+        if key in fixed_map:
+          print(f"WARNING: ignoring async-profiler option '{token}' – "
+                f"conflicts with reserved setting.")
+          continue
+        if key in seen_keys:
+          continue                # ignore duplicate user keys
+        seen_keys.add(key)
+        safe_items.append(f"{key}={value.strip()}")
+      else:
+        flag = token
+        if flag in reserved_flags:
+          print(f"WARNING: ignoring async-profiler flag '{flag}' – "
+                f"conflicts with reserved setting.")
+          continue
+        if flag in seen_keys:
+          continue
+        seen_keys.add(flag)
+        safe_items.append(flag)
+
+    return ",".join(safe_items)
+
+
+  lib_name = {
+          "linux": "libasyncProfiler.so",
+          "darwin": "libasyncProfiler.dylib"
+  }["darwin" if sys.platform.startswith("darwin") else "linux"]
+
+  lib_path = os.path.join(constants.ASYNC_PROFILER_HOME, "lib", lib_name)
+
+  if not os.path.exists(lib_path):
+    print(f"WARNING: {lib_name} not found at {lib_path}; skipping async-profiler.")
+    return
+
+  profiler_log = f"{base_log_path}.profiler.log"
+
+  fixed_async_args = (
+    "start,"
+    f"delay={constants.ASYNC_PROFILER_DELAY_SEC}s,"
+    "event=cpu,"
+    "alloc=512k,"
+    "jfr=true,"
+    f"file={jfr_output_path},"
+    f"log={profiler_log}"
+  )
+
+  reserved_flags = set()
+
+  user_part = _merge_user_options(constants.ASYNC_PROFILER_OPTIONS,
+                                fixed_kv,
+                                reserved_flags)
+
+  all_opts = ",".join(
+    [f"{k}={v}" for k, v in fixed_kv.items()] +
+    ([user_part] if user_part else [])
+  )
+
+  command_list.append(f"-agentpath:{lib_path}=start,{all_opts}")
+  print(f"      async-profiler log: {profiler_log}")
+
 class RunAlgs:
   def __init__(self, javaCommand, verifyScores, verifyCounts):
     self.logCounter = 0
@@ -952,12 +1107,16 @@ class RunAlgs:
 
       jfrOutput = f"{constants.LOGS_DIR}/bench-index-{id}-{index.getName()}.jfr"
 
-      # 77: always enable Java Flight Recorder profiling
-      w(
-        f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
-        "-XX:+UnlockDiagnosticVMOptions",
-        "-XX:+DebugNonSafepoints",
-      )
+      fullLogFile = "%s/%s.%s.log" % (constants.LOGS_DIR, id, index.getName())
+
+      # Add profiling options
+      w("-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints")
+
+      if constants.PROFILER_TYPE == 'ASYNC':
+        add_async_profiler_args(cmd, jfrOutput, fullLogFile)
+      else:
+        # Use JFR (default)
+        w(f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}")
 
       w("perf.Indexer")
       w("-dirImpl", index.directory)
@@ -1046,8 +1205,6 @@ class RunAlgs:
       if index.quantizeKNNGraph:
         w("-quantizeKNNGraph")
 
-      fullLogFile = "%s/%s.%s.log" % (constants.LOGS_DIR, id, index.getName())
-
       print("    log %s" % fullLogFile)
 
       t0 = time.time()
@@ -1077,6 +1234,8 @@ class RunAlgs:
       if os.path.exists(fullIndexPath):
         shutil.rmtree(fullIndexPath)
       raise
+
+    generate_flamegraph(jfrOutput, constants.ASYNC_PROFILER_HOME)
 
     profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize)
 
@@ -1184,14 +1343,19 @@ class RunAlgs:
       command += [PERF_EXE, "stat", "-dd"]
     command += c.javaCommand.split()
 
-    # 77: always enable Java Flight Recorder profiling
-    command += [
-      f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
-      "-XX:+UnlockDiagnosticVMOptions",
-      "-XX:+DebugNonSafepoints",
-      # uncomment the line below to enable remote debugging
-      # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
-    ]
+    jfrOutput = f"{constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr"
+
+    command += ["-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints"]
+
+    # Add profiling options conditionally
+    if constants.PROFILER_TYPE == 'ASYNC':
+        add_async_profiler_args(command, jfrOutput, logFile)
+    else:
+      # Use JFR (default)
+      command.append(f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfrOutput}")
+
+    # uncomment the line below to enable remote debugging
+    # command.append('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891')
 
     w = lambda *xs: [command.append(str(x)) for x in xs]
     w("-classpath", cp)
@@ -1291,13 +1455,20 @@ class RunAlgs:
           print(line.rstrip())
         raise RuntimeError("SearchPerfTest failed; see log %s.stdout" % logFile)
 
+    generate_flamegraph(jfrOutput, constants.ASYNC_PROFILER_HOME)
+
     # run(command, logFile + '.stdout', indent='      ')
     print("      %.1f s" % (time.time() - t0))
 
     # nocommit don't wastefully load/process here too!!
-    raw_results, heap_base, tasks_winddown_ms, avg_cpu_cores = parseResults([logFile])
+    # parseResults returns: taskIters, heaps, durations, avgCPUCores
+    taskIters, heaps, tasks_winddown_ms_list, avg_cpu_cores_list = parseResults([logFile])
+    # Since we only pass one log file, extract the first inner list
+    raw_results = taskIters[0]
+    # tasks_winddown_ms is also a list, take the first element
+    tasks_winddown_ms = tasks_winddown_ms_list[0]
     qpss = self.compute_qps(raw_results, tasks_winddown_ms)
-    print("      %.1f actual sustained QPS; %.1f CPU cores used" % (qpss[0], avg_cpu_cores))
+    print("      %.1f actual sustained QPS; %.1f CPU cores used" % (qpss, avg_cpu_cores_list[0]))
 
     return logFile
 
@@ -1336,57 +1507,77 @@ class RunAlgs:
     return resultLatencyMetrics
 
   def compute_qps(self, raw_results, tasks_winddown_ms):
-    # one per JVM iteration
-    qpss = []
-    for tasks in raw_results:
-      # make full copy -- don't mess up sort of incoming tasks
-      sorted_tasks = tasks[:]
-      sorted_tasks.sort(key=lambda x: x.startMsec)
-      # print(f'{len(sorted_tasks)} tasks:')
-      by_second = {}
-      count = 0
-      # nocommit couldn't we dynamically infer warmup by looking for second-by-second QPS
-      keep_after_ms = sorted_tasks[0].startMsec + DISCARD_QPS_WARMUP_SEC * 1000
-      for task in sorted_tasks:
-        # print(f'  {task.startMsec} {task.msec}')
-        finish_time_ms = task.startMsec + task.msec
-        if finish_time_ms < keep_after_ms:
-          # print(f'  task too early {finish_time_ms} vs {keep_after_ms}')
-          continue
+    # raw_results is the list of tasks from a single JVM iteration
 
-        if finish_time_ms > tasks_winddown_ms:
-          # print(f'  task too late {finish_time_ms} vs {tasks_winddown_ms}')
-          continue
+    # make full copy -- don't mess up sort of incoming tasks
+    sorted_tasks = raw_results[:] # Use raw_results directly
+    sorted_tasks.sort(key=lambda x: x.startMsec)
+    # print(f'{len(sorted_tasks)} tasks:')
+    by_second = {}
+    count = 0
+    # nocommit couldn't we dynamically infer warmup by looking for second-by-second QPS
+    if not sorted_tasks: # Handle empty results case
+        return 0.0 # Or perhaps raise an error or return None
 
-        finish_time_sec = int(finish_time_ms / 1000)
-        by_second[finish_time_sec] = 1 + by_second.get(finish_time_sec, 0)
-        count += 1
+    keep_after_ms = sorted_tasks[0].startMsec + DISCARD_QPS_WARMUP_SEC * 1000
+    for task in sorted_tasks:
+      # print(f'  {task.startMsec} {task.msec}')
+      finish_time_ms = task.startMsec + task.msec
+      if finish_time_ms < keep_after_ms:
+        # print(f'  task too early {finish_time_ms} vs {keep_after_ms}')
+        continue
 
-      qps = count / ((tasks_winddown_ms - keep_after_ms) / 1000.0)
-      qpss.append(qps)
+      if finish_time_ms > tasks_winddown_ms:
+        # print(f'  task too late {finish_time_ms} vs {tasks_winddown_ms}')
+        continue
 
-      if False:
-        # curious to see how QPS varies second by second...:
-        l = list(by_second.items())
-        l.sort()
-        for sec, count in l:
-          print(f"  {sec:3d}: qps={count}")
+      finish_time_sec = int(finish_time_ms / 1000)
+      by_second[finish_time_sec] = 1 + by_second.get(finish_time_sec, 0)
+      count += 1
 
-    return qpss
+    # Calculate duration for QPS calculation
+    duration_sec = (tasks_winddown_ms - keep_after_ms) / 1000.0
+    if duration_sec <= 0:
+        # Avoid division by zero or negative duration
+        qps = 0.0 # Or handle as appropriate
+    else:
+        qps = count / duration_sec
+
+    if False:
+      # curious to see how QPS varies second by second...:
+      l = list(by_second.items())
+      l.sort()
+      for sec, count_per_sec in l: # Renamed count to count_per_sec for clarity
+        print(f"  {sec:3d}: qps={count_per_sec}")
+
+    return qps
 
   if False:
 
     def only_qps_report(self, baseLogFiles, cmpLogFiles):
       # nocommit must also validate tasks' results validity
-      baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
-      cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
+      baseRawResults, heapBase, baseTasksWindownMSs, baseAvgCpuCores = parseResults(baseLogFiles)
+      cmpRawResults, heapCmp, cmpTasksWindownMSs, cmpAvgCpuCores = parseResults(cmpLogFiles)
 
-      base_qpss = self.compute_qps(baseRawResults, baseTasksWindownMS)
-      cmp_qpss = self.compute_qps(cmpRawResults, cmpTasksWindownMS)
+      # Check if the number of results matches the number of durations
+      if len(baseRawResults) != len(baseTasksWindownMSs):
+          raise ValueError(f"Mismatch between number of base results ({len(baseRawResults)}) and durations ({len(baseTasksWindownMSs)})")
+      if len(cmpRawResults) != len(cmpTasksWindownMSs):
+          raise ValueError(f"Mismatch between number of comparison results ({len(cmpRawResults)}) and durations ({len(cmpTasksWindownMSs)})")
+
+      base_qpss = []
+      for tasks, duration_ms in zip(baseRawResults, baseTasksWindownMSs):
+          qps = self.compute_qps(tasks, duration_ms)
+          base_qpss.append(qps)
+
+      cmp_qpss = []
+      for tasks, duration_ms in zip(cmpRawResults, cmpTasksWindownMSs):
+          qps = self.compute_qps(tasks, duration_ms)
+          cmp_qpss.append(qps)
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc="Standard", cmpDesc=None, writer=sys.stdout.write):
-    baseRawResults, heapBase, ignore, baseAvgCpuCores = parseResults(baseLogFiles)
-    cmpRawResults, heapCmp, ignore, cmpAvgCpuCores = parseResults(cmpLogFiles)
+    baseRawResults, heapBase, ignore_durations, baseAvgCpuCores = parseResults(baseLogFiles)
+    cmpRawResults, heapCmp, ignore_durations, cmpAvgCpuCores = parseResults(cmpLogFiles)
 
     # make sure they got identical results
     cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores, self.verifyCounts)

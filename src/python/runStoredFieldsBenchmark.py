@@ -32,7 +32,7 @@ def run_benchmark(lucene_dir, geonames_csv_in, index_dir, nightly_log_dir, doc_l
   lucene_core_jar = lucene_core_jar[0]
 
   # compile
-  cmd = f"javac -cp {lucene_core_jar} -d build src/extra/perf/StoredFieldsBenchmark.java"
+  cmd = f"{localconstants.JAVAC_EXE} -cp {lucene_core_jar} -d build src/extra/perf/StoredFieldsBenchmark.java"
   print(f"RUN: {cmd}, cwd={os.getcwd()}")
   subprocess.check_call(cmd, shell=True)
 

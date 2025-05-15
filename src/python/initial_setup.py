@@ -39,12 +39,22 @@ USAGE = """
 Usage: python initial_setup.py [-download]
 
 Options:
-  -download downloads a 5GB linedoc file 
+  -download downloads a 5GB linedoc file
 
 """
 DEFAULT_LOCAL_CONST = """
 BASE_DIR = '%(base_dir)s'
 BENCH_BASE_DIR = '%(base_dir)s/%(cwd)s'
+
+# Type of profiler to use: 'JFR' (default) or 'ASYNC'
+PROFILER_TYPE = 'JFR'
+
+# Path to async-profiler installation directory (required if PROFILER_TYPE is 'ASYNC')
+ASYNC_PROFILER_HOME = f"{BENCH_BASE_DIR}/async-profiler"
+
+# Additional arguments to pass to async-profiler (e.g., "interval=10ms,live")
+ASYNC_PROFILER_OPTIONS = 'cstack=vm'
+
 """
 
 

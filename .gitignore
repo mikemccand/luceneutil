@@ -40,6 +40,8 @@ work/
 node_modules/
 knnIndices/
 
+async-profiler/
+
 # emacs temporary files
 *~
 #*

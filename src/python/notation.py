@@ -684,6 +684,11 @@ KNOWN_CHANGES = [
     "Kernel upgrade from 6.12.4 -> 6.14.4, which including changing HZ (how many time slices per sec the Linux scheduler creates) from 300 (Arch Linux) to 1000, likely the cause of our slowdown",
   ),
   (
+    "2025-05-13",
+    "Regression from optimistic KNN query -- see https://github.com/apache/lucene/issues/14671",
+    "Regression from optimistic KNN query -- see https://github.com/apache/lucene/issues/14671",
+  ),
+  (
     "2025-05-15",
     "Downgraded from Java 24 to Java 23, and Lucene to #612f0da4a4ce3a133b40402a87ec5cf7eeb290cc, but perf regression remains",
     "Downgraded from Java 24 to Java 23, and Lucene to #612f0da4a4ce3a133b40402a87ec5cf7eeb290cc, but perf regression remains",

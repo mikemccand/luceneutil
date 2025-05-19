@@ -74,16 +74,15 @@ class IndexerThread extends Thread {
   }
 
   private void _run() throws IOException {
-    int docsIndexed = 0;
     while (true) {
-      int id = numDocsIndexed.getAndIncrement();
-      if (id >= numDocsToIndex) {
-        // yay, done!
-        break;
-      }
-      
+      int id;
       Document doc = new Document();
       synchronized (vectorReader) {
+        id = numDocsIndexed.getAndIncrement();
+        if (id >= numDocsToIndex) {
+          // yay, done!
+          break;
+        }
         switch (vectorEncoding) {
           case BYTE -> {
             byte[] bytes = ((VectorReaderByte) vectorReader).nextBytes();

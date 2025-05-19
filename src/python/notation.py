@@ -678,4 +678,19 @@ KNOWN_CHANGES = [
     "A specialized Trie for Block Tree Index. https://github.com/apache/lucene/pull/14333",
     "A specialized Trie for Block Tree Index. https://github.com/apache/lucene/pull/14333",
   ),
+  (
+    "2025-05-01",
+    "Kernel upgrade from 6.12.4 -> 6.14.4, which including changing HZ (how many time slices per sec the Linux scheduler creates) from 300 (Arch Linux) to 1000, likely the cause of our slowdown",
+    "Kernel upgrade from 6.12.4 -> 6.14.4, which including changing HZ (how many time slices per sec the Linux scheduler creates) from 300 (Arch Linux) to 1000, likely the cause of our slowdown",
+  ),
+  (
+    "2025-05-15",
+    "Downgraded from Java 24 to Java 23, and Lucene to #612f0da4a4ce3a133b40402a87ec5cf7eeb290cc, but perf regression remains",
+    "Downgraded from Java 24 to Java 23, and Lucene to #612f0da4a4ce3a133b40402a87ec5cf7eeb290cc, but perf regression remains",
+  ),
+  (
+    "2025-05-17",
+    "Downgraded Linux kernel from 6.14.4 back to 6.12.4, recovering lost performance (temporarily)",
+    "Downgraded Linux kernel from 6.14.4 back to 6.12.4, recovering lost performance (temporarily)",
+  ),
 ]

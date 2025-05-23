@@ -693,4 +693,9 @@ KNOWN_CHANGES = [
     "Downgraded Linux kernel from 6.14.4 back to 6.12.4, recovering lost performance (temporarily)",
     "Downgraded Linux kernel from 6.14.4 back to 6.12.4, recovering lost performance (temporarily)",
   ),
+  (
+    "2025-05-22",
+    "Speed up exhaustive evaluation https://github.com/apache/lucene/pull/14679",
+    "Speed up exhaustive evaluation https://github.com/apache/lucene/pull/14679",
+  ),
 ]

@@ -297,7 +297,7 @@ class Competitor:
     exitable=False,
     searchConcurrency=0,
     javacCommand=constants.JAVAC_EXE,
-    topN=100,
+    topN=1000,
     testContext="",
   ):
     self.name = name

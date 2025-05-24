@@ -42,3 +42,65 @@ allprojects {
         }
     }
 }
+
+task setupAsyncProfiler {
+    description = 'Download and unpack async-profiler unless its native library is already present.'
+    group       = 'build setup'
+
+    // ─────────── platform detection ───────────
+    def version = '4.0'
+    def os      = org.gradle.internal.os.OperatingSystem.current()
+    def classifier, libName
+
+    if (os.isLinux()) {
+        classifier = 'linux-x64'
+        libName    = 'libasyncProfiler.so'
+    } else if (os.isMacOsX()) {
+        classifier = System.getProperty('os.arch').contains('aarch')
+                ? 'macos-arm64'
+                : 'macos-x64'
+        libName    = 'libasyncProfiler.dylib'
+    } else {
+        throw new GradleException("async-profiler: unsupported OS '${os.getName()}'")
+    }
+
+    def downloadUrl = "https://github.com/async-profiler/async-profiler/releases/" +
+            "download/v${version}/async-profiler-${version}-${classifier}.tar.gz"
+
+    // ─────────── up-to-date checks ───────────
+    def targetDir     = project.file("${project.projectDir}/async-profiler")
+    def targetLibFile = project.file("${targetDir}/lib/${libName}")
+
+    outputs.file(targetLibFile)
+    onlyIf { !targetLibFile.exists() } // skip whole task once extracted
+
+    doLast {
+        println "▶ Installing async-profiler ${version} (${classifier})"
+
+        // 1) download
+        def dlFile = project.layout.buildDirectory
+                .file("tmp/async-profiler-${version}-${classifier}.tgz")
+                .get().asFile
+        dlFile.parentFile.mkdirs()
+
+        ant.get(src: downloadUrl, dest: dlFile, verbose: true)
+
+        // 2) extract (flatten leading dir)
+        copy {
+            from tarTree(resources.gzip(dlFile))
+            into targetDir
+            includeEmptyDirs = false
+            eachFile { f ->
+                f.path = f.path.replaceFirst('^async-profiler-[^/]+/', '')
+            }
+        }
+
+        // 3) cleanup
+        dlFile.delete()
+
+        if (!targetLibFile.exists()) {
+            throw new GradleException("Extraction finished, but ${libName} not found in ${targetDir}")
+        }
+        println "✔ async-profiler ready – native lib at ${targetLibFile}"
+    }
+}

@@ -1037,7 +1037,7 @@ public class KnnGraphTester {
       // checking low-precision recall
       int[][] nn;
       if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-        nn = computeExactNNByte(docPath, queryPath, queryStartIndex);
+        nn = computeExactNNByte(queryPath, queryStartIndex);
       } else {
         nn = computeExactNN(queryPath, queryStartIndex);
       }
@@ -1085,12 +1085,13 @@ public class KnnGraphTester {
     }
   }
 
-  private int[][] computeExactNNByte(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
+  private int[][] computeExactNNByte(Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     int[][] result = new int[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors\n");
     List<ComputeNNByteTask> tasks = new ArrayList<>();
-    try (Directory dir = FSDirectory.open(indexPath);
-         DirectoryReader reader = DirectoryReader.open(dir)) {
+    try (MMapDirectory dir = new MMapDirectory(indexPath)) {
+      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      try (DirectoryReader reader = DirectoryReader.open(dir)) {
       if (reader.maxDoc() != numDocs) {
         throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
       }
@@ -1104,6 +1105,7 @@ public class KnnGraphTester {
       ForkJoinPool.commonPool().invokeAll(tasks);
     }
     return result;
+      }
   }
 
   class ComputeNNByteTask implements Callable<Void> {

@@ -104,6 +104,7 @@ public class KnnIndexer {
     // aim for more compact/realistic index:
     TieredMergePolicy tmp = (TieredMergePolicy) iwc.getMergePolicy();
     tmp.setFloorSegmentMB(256);
+    tmp.setNoCFSRatio(0);
     // tmp.setSegmentsPerTier(5);
     if (useBp) {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));

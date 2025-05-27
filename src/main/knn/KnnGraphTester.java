@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BinaryOperator;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -70,6 +69,7 @@ import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.StandardDirectoryReader;
 import org.apache.lucene.index.StoredFields;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.internal.hppc.IntIntHashMap;
@@ -93,10 +93,14 @@ import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.join.BitSetProducer;
 import org.apache.lucene.search.join.CheckJoinIndex;
+import org.apache.lucene.search.join.DiversifyingChildrenFloatKnnVectorQuery;
+import org.apache.lucene.search.join.ToParentBlockJoinQuery;
+import org.apache.lucene.search.join.QueryBitSetProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -136,6 +140,8 @@ public class KnnGraphTester {
   public static final String WIKI_ID_FIELD = "wikiID";
   public static final String WIKI_PARA_ID_FIELD = "wikiParaID";
 
+  public static final BitSetProducer parentsFilter =
+    new QueryBitSetProducer(new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_PARENT)));
   private Long randomSeed;
   private Random random;
   private int numDocs;
@@ -850,7 +856,7 @@ public class KnnGraphTester {
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
           IndexSearcher searcher = new IndexSearcher(reader);
           int indexNumDocs = reader.maxDoc();
-          if (numDocs != indexNumDocs) {
+          if (numDocs != indexNumDocs && !parentJoin) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
           // warm up
@@ -972,8 +978,9 @@ public class KnnGraphTester {
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, boolean prefilter, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
-      ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(vector, null, k);
-      TopDocs topDocs = searcher.search(parentJoinQuery, k);
+      var topChildVectors = new DiversifyingChildrenFloatKnnVectorQuery(KNN_FIELD, vector, null, k + fanout, parentsFilter);
+      var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
+      TopDocs topDocs = searcher.search(query, k);
       return new Result(topDocs, 0, 0);
     }
     ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, prefilter ? filter : null);
@@ -1092,7 +1099,7 @@ public class KnnGraphTester {
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
       dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
-      if (reader.maxDoc() != numDocs) {
+      if (reader.maxDoc() != numDocs && !parentJoin) {
         throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
       }
       try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
@@ -1154,11 +1161,11 @@ public class KnnGraphTester {
       dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
-        if (reader.maxDoc() != numDocs) {
+        if (reader.maxDoc() != numDocs && !parentJoin) {
           throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
         }
         if (parentJoin) {
-          CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
+          CheckJoinIndex.check(reader, parentsFilter);
         }
         List<Callable<Void>> tasks = new ArrayList<>();
         try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
@@ -1237,11 +1244,17 @@ public class KnnGraphTester {
     @Override
     public Void call() {
       // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
+      IndexSearcher searcher = new IndexSearcher(reader);
       try {
-        ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
-        TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
-        StoredFields storedFields = reader.storedFields();
-        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
+        var queryVector = new ConstKnnFloatValueSource(query);
+        var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
+        var childQuery = new BooleanQuery.Builder()
+          .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
+          .add(new TermQuery(new Term(DOCTYPE_FIELD, DOCTYPE_CHILD)), BooleanClause.Occur.FILTER)
+          .build();
+        var query = new ToParentBlockJoinQuery(childQuery, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
+        var topDocs = searcher.search(query, topK);
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

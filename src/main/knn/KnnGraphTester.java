@@ -1148,29 +1148,31 @@ public class KnnGraphTester {
     int[][] result = new int[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors\n");
     log("parentJoin = %s\n", parentJoin);
-    try (Directory dir = FSDirectory.open(indexPath);
-         DirectoryReader reader = DirectoryReader.open(dir)) {
-      log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
-      if (reader.maxDoc() != numDocs) {
-        throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
-      }
-      if (parentJoin) {
-        CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
-      }
-      List<Callable<Void>> tasks = new ArrayList<>();
-      try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-        VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
-        for (int i = 0; i < numQueryVectors; i++) {
-          float[] query = queryReader.next().clone();
-          if (parentJoin) {
-            tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader));
-          } else {
-            tasks.add(new ComputeNNFloatTask(i, query, result, reader));
-          }
+    try (MMapDirectory dir = new MMapDirectory(indexPath)) {
+      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      try (DirectoryReader reader = DirectoryReader.open(dir)) {
+        log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
+        if (reader.maxDoc() != numDocs) {
+          throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
         }
-        ForkJoinPool.commonPool().invokeAll(tasks);
+        if (parentJoin) {
+          CheckJoinIndex.check(reader, ParentJoinBenchmarkQuery.parentsFilter);
+        }
+        List<Callable<Void>> tasks = new ArrayList<>();
+        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
+          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+          for (int i = 0; i < numQueryVectors; i++) {
+            float[] query = queryReader.next().clone();
+            if (parentJoin) {
+              tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader));
+            } else {
+              tasks.add(new ComputeNNFloatTask(i, query, result, reader));
+            }
+          }
+          ForkJoinPool.commonPool().invokeAll(tasks);
+        }
+        return result;
       }
-      return result;
     }
   }
 

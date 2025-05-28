@@ -157,7 +157,7 @@ public class SearchPerfTest {
   }
 
   /** Snapshots all running threads and their CPU counters */
-  static final class ThreadDetails {
+  public static final class ThreadDetails {
     public final long[] threadIDs;
     public final long[] cpuTimesNS;
     public final ThreadInfo[] threadInfos;

@@ -862,9 +862,6 @@ public class KnnGraphTester {
       }
       log("searching " + numQueryVectors + " query vectors; topK=" + topK + ", fanout=" + fanout + "\n");
       long startNS;
-      ThreadMXBean bean = ManagementFactory.getThreadMXBean();
-      long cpuTimeStartNs = 0;
-      long endTimeStartNs = 0;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
         try (DirectoryReader reader = DirectoryReader.open(dir)) {

@@ -44,8 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BinaryOperator;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -201,6 +199,7 @@ public class KnnGraphTester {
     quantizeBits = 7;
     quantizeCompress = false;
     numIndexThreads = 8;
+    numSearchThread = 0;
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
@@ -439,10 +438,16 @@ public class KnnGraphTester {
           }
           break;
         case "-numSearchThread":
+          // 0: single thread mode (not passing a executorService) 
+          // -1: use number of threads equal to the number available processors
+          // Otherwise: create a fixed pool with determined number of threads.
           numSearchThread = Integer.parseInt(args[++iarg]);
-          if (numSearchThread < 0) {
-            throw new IllegalArgumentException("-numSearchThread should be >= 0");
+          if (numSearchThread == -1) {
+            numSearchThread = Runtime.getRuntime().availableProcessors();
+          } else if (numSearchThread < 0) {
+            throw new IllegalArgumentException("-numSearchThread must be >= 0");
           }
+          log("numSearchThead = %d\n", numSearchThread);
           break;
         case "-parentJoin":
           if (iarg == args.length - 1) {
@@ -869,7 +874,6 @@ public class KnnGraphTester {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
           // warm up
-          AtomicReference<ThreadDetails> endThreadDetailsRef = new AtomicReference<>();
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
@@ -881,7 +885,6 @@ public class KnnGraphTester {
           }
           targetReader.reset();
           startNS = System.nanoTime();
-          cpuTimeStartNs = bean.getCurrentThreadCpuTime();
           ThreadDetails startThreadDetails = new ThreadDetails();
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
@@ -892,32 +895,19 @@ public class KnnGraphTester {
               results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
             }
           }
-          endTimeStartNs = bean.getCurrentThreadCpuTime();
           ThreadDetails endThreadDetails = new ThreadDetails();
-          long endCPUTimeNS = 0;
           long startCPUTimeNS = 0;
-
-          if (Arrays.equals(startThreadDetails.threadIDs, endThreadDetails.threadIDs)) {
-            for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
-//              if (bean.getThreadInfo(startThreadDetails.threadIDs[i]).getThreadName().startsWith("hnsw-search")) {
-                startCPUTimeNS += startThreadDetails.cpuTimesNS[i];
-//              };
-            }
-
-            for(int i=0;i<endThreadDetails.threadIDs.length;i++) {
-//              if (bean.getThreadInfo(endThreadDetails.threadIDs[i]).getThreadName().startsWith("hnsw-search")) {
-                endCPUTimeNS += endThreadDetails.cpuTimesNS[i];
-//              };
-            }
-
-            totalCpuTimeMS = TimeUnit.NANOSECONDS.toMillis(endCPUTimeNS - startCPUTimeNS);
-//          totalCpuTimeMS =  TimeUnit.NANOSECONDS.toMillis(bean.getCurrentThreadCpuTime() - cpuTimeStartNs);
-            elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
-          } else {
-            elapsed = 0;
-            totalCpuTimeMS = 0;
-            System.out.println("NOTE: start/end threads changed;");
+          long endCPUTimeNS = 0;
+          for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+              startCPUTimeNS += startThreadDetails.cpuTimesNS[i];
           }
+
+          for(int i=0;i<endThreadDetails.threadIDs.length;i++) {
+              endCPUTimeNS += endThreadDetails.cpuTimesNS[i];
+          }
+
+          totalCpuTimeMS = TimeUnit.NANOSECONDS.toMillis(endCPUTimeNS - startCPUTimeNS);
+          elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
           
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
@@ -965,9 +955,11 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
-          recall, elapsed / (float) numQueryVectors,
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
+          recall,
+          elapsed / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
+          totalCpuTimeMS / (float) elapsed,
           numDocs,
           this.topK,
           this.fanout,
@@ -1066,7 +1058,7 @@ public class KnnGraphTester {
    */
   private int[][] getExactNN(Path docPath, Path indexPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, prefilter ? selectivity : 1f, prefilter ? randomSeed : 0f), 36);
+    String hash = Integer.toString(Objects.hash(docPath, indexPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, prefilter ? selectivity : 1f, prefilter ? randomSeed : 0f), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath)) {

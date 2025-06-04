@@ -52,7 +52,7 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (1_200_000,),
+  "ndoc": (500_000,),
   #'ndoc': (50_000,),
   #'maxConn': (32, 64, 96),
   "maxConn": (64,),
@@ -65,16 +65,16 @@ PARAMS = {
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
-  "numMergeThread": (2,),
-  "numSearchThread": (2, 6,),
+  "numMergeThread": (4,),
+  "numSearchThread": (0,),
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
   # 'metric': ('angular',),  # default is angular (dot_product)
   # 'metric': ('mip',),
-  'quantize': (True,),
-  # "quantizeBits": (32,),
-  "quantizeBits": (7, 4, 1,),
+  #'quantize': (True,),
+  "quantizeBits": (32,),
+  # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
   "topK": (100,),
@@ -84,7 +84,7 @@ PARAMS = {
   # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   # "forceMerge": (True, False),
-  'niter': (2000,),
+  #'niter': (10,),
 }
 
 
@@ -122,14 +122,10 @@ def run_knn_benchmark(checkout, values):
   # doc_vectors = '/d/electronics_asin_emb.bin'
   # query_vectors = '/d/electronics_query_vectors.bin'
 
-  dim = 256
-  doc_vectors = f"{constants.BASE_DIR}/data/asin_vectors.vec"
-  query_vectors = f"{constants.BASE_DIR}/data/query_vectors_new.vec"
-
   # Cohere dataset
-  # dim = 768
-  # doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
-  # query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
+  dim = 768
+  doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
+  query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
   # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
   # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
   # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
@@ -200,8 +196,6 @@ def run_knn_benchmark(checkout, values):
         "-docs",
         doc_vectors,
         "-reindex",
-        # "-indexPath",
-        # "/Users/huynmg/lucene-bench-home/luceneutil/knnIndices/asin_vectors.vec-64-250-1000000.index",
         "-search-and-stats",
         query_vectors,
         "-numIndexThreads",
@@ -261,7 +255,7 @@ def run_knn_benchmark(checkout, values):
 
 
 def print_fixed_width(all_results, columns_to_skip):
-  header = "recall\tlatency(ms)\tnetCPU\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType"
+  header = "recall\tlatency(ms)\tnetCPU\tavgCpuCount\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType"
 
   # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
   headers = header.split("\t")

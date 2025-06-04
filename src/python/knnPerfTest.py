@@ -8,11 +8,13 @@
 #   - report net concurrency utilized in the table
 
 import multiprocessing
+import os
 import re
 import subprocess
 import sys
 
 import benchUtil
+from benchUtil import add_async_profiler_args # Import the helper function
 import constants
 from common import getLuceneDirFromGradleProperties
 
@@ -130,6 +132,8 @@ def run_knn_benchmark(checkout, values):
   # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
+  # Define a base log path for the profiler log, derived from jfr_output
+  profiler_base_log_path = f"{constants.LOGS_DIR}/knn-perf-test"
 
   cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f"{constants.BENCH_BASE_DIR}/build",))
   cmd = constants.JAVA_EXE.split(" ") + [
@@ -144,7 +148,11 @@ def run_knn_benchmark(checkout, values):
   ]
 
   if DO_PROFILING:
-    cmd += [f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
+    if constants.PROFILER_TYPE == 'ASYNC':
+        add_async_profiler_args(cmd, jfr_output, profiler_base_log_path)
+    else:
+      # Use JFR (default)
+      cmd += [f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
 
   cmd += ["knn.KnnGraphTester"]
 

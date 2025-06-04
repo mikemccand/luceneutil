@@ -195,3 +195,87 @@ python src/python/localrunFacets.py -source facetsWikimediumAll
 
 Note that only comparison of taxonomy based facets is supported at the moment. We need to add SSDV facets support
 to the sandbox facets module, as well as add support for other facet types to this package.
+
+
+# Profiling
+
+Choose the profiler in **`src/python/localconstants.py`**:
+
+```python
+# 'JFR'  – default (-XX:StartFlightRecording)
+# 'ASYNC' – async-profiler agent + flame-graph
+PROFILER_TYPE = 'JFR'
+```
+
+---
+
+#### Quick setup — one command
+
+#### Note: you will generally have to setup proper permissions for async-profiler to run, see Troubleshooting section below.
+
+```bash
+# from util/ directory
+./gradlew setupAsyncProfiler
+```
+
+This creates
+
+```
+util/
+ └─ async-profiler/
+    ├─ bin/  (profiler.sh, jfrconv, …)
+    └─ lib/  (libasyncProfiler.so | libasyncProfiler.dylib)
+```
+
+---
+
+#### Manual install
+
+```bash
+wget https://github.com/async-profiler/async-profiler/releases/download/v4.0/async-profiler-4.0-linux-x64.tar.gz
+tar -xzf async-profiler-4.0-linux-x64.tar.gz
+mv async-profiler $LUCENE_BENCH_HOME/util/
+# or set ASYNC_PROFILER_HOME in localconstants.py
+```
+
+---
+
+#### Running a benchmark with async-profiler
+
+Choose the profiler in **`src/python/localconstants.py`**:
+
+```python
+# enable the profiler
+PROFILER_TYPE = 'ASYNC'
+```
+
+# run any benchmark
+```bash
+python src/python/localrun.py -source wikimedium10k
+```
+
+Output (in `logs/`):
+
+* `*.jfr` — same format as JFR runs
+* `*.html` — interactive flame-graph
+
+---
+
+#### Tuning (optional)
+
+```python
+ASYNC_PROFILER_OPTIONS   = "interval=10ms,threads"  # extra agent args
+```
+
+Keys `event, alloc, delay, file, log, jfr` are reserved and cannot be
+overridden.
+
+---
+
+#### Troubleshooting
+
+| Symptom                            | Fix                                                                                                                      |
+|------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| **Library not found**              | Ensure `async-profiler/lib/libasyncProfiler.so` (Linux) or `.dylib` (macOS) exists and `ASYNC_PROFILER_HOME` is correct. |
+| **perf permission errors (Linux)** | `sudo sysctl kernel.perf_event_paranoid=1`<br/>`sudo sysctl kernel.kptr_restrict=0`                                      |
+| **No flame-graph generated**       | Check console for warnings—usually `jfrconv` missing or agent failed to attach.                                          |

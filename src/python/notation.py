@@ -698,4 +698,9 @@ KNOWN_CHANGES = [
     "Speed up exhaustive evaluation https://github.com/apache/lucene/pull/14679",
     "Speed up exhaustive evaluation https://github.com/apache/lucene/pull/14679",
   ),
+  (
+    "2025-05-29",
+    "Refactor main top-n bulk scorers to evaluate hits in a more term-at-a-time fashion https://github.com/apache/lucene/pull/14701, Speed up TermQuery https://github.com/apache/lucene/pull/14709",
+    "Refactor main top-n bulk scorers to evaluate hits in a more term-at-a-time fashion https://github.com/apache/lucene/pull/14701, Speed up TermQuery https://github.com/apache/lucene/pull/14709",
+  ),
 ]

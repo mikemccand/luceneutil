@@ -1051,7 +1051,10 @@ def main():
             if force_merge_deletes_thread_name == thread_name:
               force_merge_deletes_thread_name = None
             else:
-              raise RuntimeError("WTF saw merges done from different thread than force_merge_deletes_thread_name?")
+              # this can legit happen if one thread is doing merge-on-commit, and another thread calls forceMergeDeletes.  in this case,
+              # the FMD thread can register a bunch of merges, but the MOC thread pulls (some of) those merges and launches them
+              # raise RuntimeError(f"WTF saw merges done from different {thread_name=} than {force_merge_deletes_thread_name=}?")
+              force_merge_deletes_thread_name = None
 
       except KeyboardInterrupt:
         raise

@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BinaryOperator;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -106,6 +105,7 @@ import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
+import perf.SearchPerfTest.ThreadDetails;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 //TODO Lucene may make these unavailable, we should pull in this from hppc directly
@@ -161,6 +161,7 @@ public class KnnGraphTester {
   private boolean quantizeCompress;
   private int numMergeThread;
   private int numMergeWorker;
+  private int numSearchThread;
   private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
@@ -198,6 +199,7 @@ public class KnnGraphTester {
     quantizeBits = 7;
     quantizeCompress = false;
     numIndexThreads = 8;
+    numSearchThread = 0;
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
@@ -434,6 +436,18 @@ public class KnnGraphTester {
           if (numMergeThread <= 0) {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
+          break;
+        case "-numSearchThread":
+          // 0: single thread mode (not passing a executorService) 
+          // -1: use number of threads equal to the number available processors
+          // Otherwise: create a fixed pool with determined number of threads.
+          numSearchThread = Integer.parseInt(args[++iarg]);
+          if (numSearchThread == -1) {
+            numSearchThread = Runtime.getRuntime().availableProcessors();
+          } else if (numSearchThread < 0) {
+            throw new IllegalArgumentException("-numSearchThread must be >= 0");
+          }
+          log("numSearchThead = %d\n", numSearchThread);
           break;
         case "-parentJoin":
           if (iarg == args.length - 1) {
@@ -832,7 +846,12 @@ public class KnnGraphTester {
     long elapsed, totalCpuTimeMS, totalVisited = 0;
     int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
     int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
-    ExecutorService executorService = Executors.newFixedThreadPool(8);
+    ExecutorService executorService;
+    if (numSearchThread > 0) {
+      executorService = Executors.newFixedThreadPool(numSearchThread, new NamedThreadFactory("hnsw-search"));
+    } else {
+      executorService = null;
+    }
     try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
       long queryPathSizeInBytes = input.size();
       log((int) (queryPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " query vectors in queryPath \"" + queryPath + "\"\n");
@@ -843,12 +862,10 @@ public class KnnGraphTester {
       }
       log("searching " + numQueryVectors + " query vectors; topK=" + topK + ", fanout=" + fanout + "\n");
       long startNS;
-      ThreadMXBean bean = ManagementFactory.getThreadMXBean();
-      long cpuTimeStartNs;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
-          IndexSearcher searcher = new IndexSearcher(reader);
+          IndexSearcher searcher = new IndexSearcher(reader, executorService);
           int indexNumDocs = reader.maxDoc();
           if (numDocs != indexNumDocs) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
@@ -865,7 +882,7 @@ public class KnnGraphTester {
           }
           targetReader.reset();
           startNS = System.nanoTime();
-          cpuTimeStartNs = bean.getCurrentThreadCpuTime();
+          ThreadDetails startThreadDetails = new ThreadDetails();
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
@@ -875,10 +892,20 @@ public class KnnGraphTester {
               results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
             }
           }
-          totalCpuTimeMS =
-            TimeUnit.NANOSECONDS.toMillis(bean.getCurrentThreadCpuTime() - cpuTimeStartNs);
-          elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
+          ThreadDetails endThreadDetails = new ThreadDetails();
+          long startCPUTimeNS = 0;
+          long endCPUTimeNS = 0;
+          for(int i=0;i<startThreadDetails.threadIDs.length;i++) {
+              startCPUTimeNS += startThreadDetails.cpuTimesNS[i];
+          }
 
+          for(int i=0;i<endThreadDetails.threadIDs.length;i++) {
+              endCPUTimeNS += endThreadDetails.cpuTimesNS[i];
+          }
+
+          totalCpuTimeMS = TimeUnit.NANOSECONDS.toMillis(endCPUTimeNS - startCPUTimeNS);
+          elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
+          
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
@@ -899,7 +926,9 @@ public class KnnGraphTester {
         }
       }
     } finally {
-      executorService.shutdown();
+      if (executorService != null) {
+        executorService.shutdown();
+      }
     }
     if (outputPath != null) {
       ByteBuffer tmp =
@@ -923,9 +952,11 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
           recall,
+          elapsed / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
+          totalCpuTimeMS / (float) elapsed,
           numDocs,
           this.topK,
           this.fanout,

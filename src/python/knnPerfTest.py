@@ -66,6 +66,7 @@ PARAMS = {
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
   "numMergeThread": (4,),
+  "numSearchThread": (0,),
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
@@ -254,7 +255,7 @@ def run_knn_benchmark(checkout, values):
 
 
 def print_fixed_width(all_results, columns_to_skip):
-  header = "recall\tlatency(ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType"
+  header = "recall\tlatency(ms)\tnetCPU\tavgCpuCount\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType"
 
   # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
   headers = header.split("\t")

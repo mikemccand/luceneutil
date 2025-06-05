@@ -594,6 +594,9 @@ def run():
 
       message("now generate KNN nightly charts")
       runNightlyKnn.write_graph()
+    except:
+      print("Nightly KNN benchy failed; ignoring:")
+      traceback.print_exc()
     finally:
       os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
 

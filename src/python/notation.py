@@ -708,4 +708,9 @@ KNOWN_CHANGES = [
     "Refactor main top-n bulk scorers to evaluate hits in a more term-at-a-time fashion https://github.com/apache/lucene/pull/14701, Speed up TermQuery https://github.com/apache/lucene/pull/14709",
     "Refactor main top-n bulk scorers to evaluate hits in a more term-at-a-time fashion https://github.com/apache/lucene/pull/14701, Speed up TermQuery https://github.com/apache/lucene/pull/14709",
   ),
+  (
+    "2025-06-03",
+    "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
+    "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
+  ),
 ]

@@ -718,4 +718,9 @@ KNOWN_CHANGES = [
     "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
     "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
   ),
+  (
+    "2025-06-06",
+    "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
+    "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
+  ),
 ]

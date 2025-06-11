@@ -103,7 +103,7 @@ public class KnnIndexerMain {
     ExecutorService exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
 
     new KnnIndexer(inputs.docVectorsPath, inputs.indexPath,
-                   KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, quantizeCompress),
+                   KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, KnnGraphTester.IndexType.HNSW, quantizeCompress),
                    numMergeThread, inputs.vectorEncoding,
                    inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet,
                    inputs.parentJoin, inputs.parentJoinMetaFile, inputs.useBp).createIndex();

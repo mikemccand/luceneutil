@@ -61,7 +61,7 @@ PARAMS = {
   "beamWidthIndex": (250,),
   #'beamWidthIndex': (50,),
   #'fanout': (20, 100, 250)
-  "fanout": (50,),
+  "fanout": (100,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
@@ -83,7 +83,7 @@ PARAMS = {
   "quantizeCompress": (True,),
   # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
-  # "forceMerge": (True, False),
+  "forceMerge": (False, ),
   #'niter': (10,),
 }
 
@@ -128,7 +128,7 @@ def run_knn_benchmark(checkout, values):
   query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
   # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
   # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+  parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
 
@@ -196,12 +196,12 @@ def run_knn_benchmark(checkout, values):
         "-docs",
         doc_vectors,
         "-reindex",
-        "-search-and-stats",
+        "-search",
         query_vectors,
         "-numIndexThreads",
         "8",
-        #'-metric', 'mip',
-        # '-parentJoin', parentJoin_meta_file,
+        '-metric', 'mip',
+        '-parentJoin', parentJoin_meta_file,
         # '-numMergeThread', '8', '-numMergeWorker', '8',
         #'-forceMerge',
         #'-stats',

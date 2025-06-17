@@ -723,4 +723,9 @@ KNOWN_CHANGES = [
     "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
     "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
   ),
+  (
+    "2025-06-13",
+    "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
+    "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
+  ),
 ]

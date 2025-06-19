@@ -11,6 +11,7 @@ import multiprocessing
 import re
 import subprocess
 import sys
+import argparse
 
 import benchUtil
 import constants
@@ -33,60 +34,42 @@ from common import getLuceneDirFromGradleProperties
 #
 # you may want to modify the following settings:
 
-DO_PROFILING = False
-
 # e.g. to compile KnnIndexer:
 #
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
-NOISY = True
-
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
-PARAMS = {
-  # "ndoc": (10_000_000,),
-  #'ndoc': (10000, 100000, 200000, 500000),
-  #'ndoc': (10000, 100000, 200000, 500000),
-  #'ndoc': (2_000_000,),
-  #'ndoc': (1_000_000,),
-  "ndoc": (500_000,),
-  #'ndoc': (50_000,),
-  #'maxConn': (32, 64, 96),
-  "maxConn": (64,),
-  #'maxConn': (32,),
-  #'beamWidthIndex': (250, 500),
-  "beamWidthIndex": (250,),
-  #'beamWidthIndex': (50,),
-  #'fanout': (20, 100, 250)
-  "fanout": (50,),
-  #'quantize': None,
-  #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (12,),
-  "numMergeThread": (4,),
-  "numSearchThread": (0,),
-  #'numMergeWorker': (1,),
-  #'numMergeThread': (1,),
-  "encoding": ("float32",),
-  # 'metric': ('angular',),  # default is angular (dot_product)
-  # 'metric': ('mip',),
-  #'quantize': (True,),
-  "quantizeBits": (32,),
-  # "quantizeBits": (1,),
-  # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
-  #'fanout': (0,),
-  "topK": (100,),
-  # "bp": ("false", "true"),
-  #'quantizeCompress': (True, False),
-  "quantizeCompress": (True,),
-  # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
-  "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
-  # "forceMerge": (True, False),
-  #'niter': (10,),
-}
 
+def str2bool(v):
+    if v.lower() == 'true':
+        return True
+    elif v.lower() == 'false':
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Expected boolean value(s).")
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run KNN benchmark with configurable parameters.")
+
+    parser.add_argument("--ndoc", type=int, nargs="+", default=[500_000], help="Number of documents")
+    parser.add_argument("--topK", type=int, nargs="+", default=[100], help="Top K results to retrieve")
+    parser.add_argument("--maxConn", type=int, nargs="+", default=[64], help="Max connections in the graph")
+    parser.add_argument("--beamWidthIndex", type=int, nargs="+", default=[250], help="Beam width at index time")
+    parser.add_argument("--fanout", type=int, nargs="+", default=[50], help="Fanout parameter")
+    parser.add_argument("--quantizeBits", type=int, nargs="+", default=[32], help="Quantization bits")
+    parser.add_argument("--quantizeCompress", type=str2bool, nargs="+", default=[True], help="Enable quantize compression")
+    parser.add_argument("--numMergeWorker", type=int, nargs="+", default=[12], help="Number of merge workers")
+    parser.add_argument("--numMergeThread", type=int, nargs="+", default=[4], help="Number of merge threads")
+    parser.add_argument("--encoding", type=str, nargs="+", default=["float32"], help="Encoding type")
+    parser.add_argument("--queryStartIndex", type=int, nargs="+", default=[0], help="Query start index")
+    parser.add_argument("--profile", action="store_true", help="Enable Java profiling")
+    parser.add_argument("--quiet", action="store_true", help="Suppress benchmark output")
+
+    return parser.parse_args()
 
 def advance(ix, values):
   for i in reversed(range(len(ix))):
@@ -284,6 +267,11 @@ def print_fixed_width(all_results, columns_to_skip):
 
 
 if __name__ == "__main__":
+  args = parse_args()
+  PARAMS = vars(args)
+  DO_PROFILING = PARAMS.pop("profile")
+  NOISY = not PARAMS.pop("quiet")
+
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
   run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

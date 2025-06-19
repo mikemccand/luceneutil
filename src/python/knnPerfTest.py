@@ -67,6 +67,9 @@ def parse_args():
     parser.add_argument("--encoding", type=str, nargs="+", default=["float32"], help="Encoding type")
     parser.add_argument("--queryStartIndex", type=int, nargs="+", default=[0], help="Query start index")
     parser.add_argument("--numSearchThread", type=int, nargs="+", default=[0], help="Number of search threads")
+    parser.add_argument("--dim", type=int, nargs="+", default=[768], help="Vector dimensionality")
+    parser.add_argument("--docVectors", type=str, nargs="+", default=[f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-768d.vec"], help="Path to document vectors")
+    parser.add_argument("--queryVectors", type=str, nargs="+", default=[f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-768d.vec"], help="Path to query vectors")
     parser.add_argument("--parentJoin", type=str, nargs="+", default=[], help="Path to parent join metadata file")
     parser.add_argument("--profile", action="store_true", help="Enable Java profiling")
     parser.add_argument("--quiet", action="store_true", help="Suppress benchmark output")
@@ -87,9 +90,11 @@ def advance(ix, values):
 
 
 def run_knn_benchmark(checkout, values):
-  indexes = [0] * len(values.keys())
-  indexes[-1] = -1
-  args = []
+  DO_PROFILING = values.pop("profile")
+  NOISY = not values.pop("quiet")
+  if not values["parentJoin"]:
+    del values["parentJoin"]
+
   # dim = 100
   # doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
   # query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
@@ -108,12 +113,16 @@ def run_knn_benchmark(checkout, values):
   # query_vectors = '/d/electronics_query_vectors.bin'
 
   # Cohere dataset
-  dim = 768
-  doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
-  query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
+  dim = values.pop("dim")
+  doc_vectors = values.pop("docVectors")
+  query_vectors = values.pop("queryVectors")
   # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
   # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
   # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+
+  indexes = [0] * len(values.keys())
+  indexes[-1] = -1
+  args = []
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
 
@@ -271,10 +280,6 @@ def print_fixed_width(all_results, columns_to_skip):
 if __name__ == "__main__":
   args = parse_args()
   PARAMS = vars(args)
-  DO_PROFILING = PARAMS.pop("profile")
-  NOISY = not PARAMS.pop("quiet")
-  if not PARAMS["parentJoin"]:
-    del PARAMS["parentJoin"]
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
   run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

@@ -273,7 +273,8 @@ if __name__ == "__main__":
   PARAMS = vars(args)
   DO_PROFILING = PARAMS.pop("profile")
   NOISY = not PARAMS.pop("quiet")
-
+  if not PARAMS["parentJoin"]:
+    del PARAMS["parentJoin"]
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
   run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)

@@ -67,6 +67,7 @@ def parse_args():
     parser.add_argument("--encoding", type=str, nargs="+", default=["float32"], help="Encoding type")
     parser.add_argument("--queryStartIndex", type=int, nargs="+", default=[0], help="Query start index")
     parser.add_argument("--numSearchThread", type=int, nargs="+", default=[0], help="Number of search threads")
+    parser.add_argument("--parentJoin", type=str, nargs="+", default=[], help="Path to parent join metadata file")
     parser.add_argument("--profile", action="store_true", help="Enable Java profiling")
     parser.add_argument("--quiet", action="store_true", help="Suppress benchmark output")
 

@@ -120,8 +120,9 @@ def run_knn_benchmark(checkout, values):
   # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
   # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
+  # iterator state through all possible index combinations of incoming arguments
   indexes = [0] * len(values.keys())
-  indexes[-1] = -1
+  indexes[-1] = -1 # for advance(...) to roll to all zeros at very first call
   args = []
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"

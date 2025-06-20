@@ -90,8 +90,8 @@ def advance(ix, values):
 
 
 def run_knn_benchmark(checkout, values):
-  DO_PROFILING = values.pop("profile")
-  NOISY = not values.pop("quiet")
+  do_profiling = values.pop("profile")
+  noisy = not values.pop("quiet")
   if not values["parentJoin"]:
     del values["parentJoin"]
 
@@ -138,14 +138,14 @@ def run_knn_benchmark(checkout, values):
     "-XX:+DebugNonSafepoints",
   ]
 
-  if DO_PROFILING:
+  if do_profiling:
     cmd += [f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
 
   cmd += ["knn.KnnGraphTester"]
 
   all_results = []
   while advance(indexes, values):
-    if NOISY:
+    if noisy:
       print("\nNEXT:")
     pv = {}
     args = []
@@ -202,7 +202,7 @@ def run_knn_benchmark(checkout, values):
         #'-quiet'
       ]
     )
-    if NOISY:
+    if noisy:
       print(f"  cmd: {this_cmd}")
     else:
       cmd += ["-quiet"]
@@ -215,7 +215,7 @@ def run_knn_benchmark(checkout, values):
       if line == "":
         break
       lines += line
-      if NOISY:
+      if noisy:
         sys.stdout.write(line)
       m = re_summary.match(line)
       if m is not None:
@@ -226,10 +226,10 @@ def run_knn_benchmark(checkout, values):
     if job.returncode != 0:
       raise RuntimeError(f"command failed with exit {job.returncode}")
     all_results.append(summary)
-    if DO_PROFILING:
+    if do_profiling:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
 
-  if NOISY:
+  if noisy:
     print("\nResults:")
 
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
@@ -279,7 +279,7 @@ def print_fixed_width(all_results, columns_to_skip):
 
 if __name__ == "__main__":
   args = parse_args()
-  PARAMS = vars(args)
+  params = vars(args)
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-  run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+  run_knn_benchmark(LUCENE_CHECKOUT, params)

@@ -50,7 +50,7 @@ def str2bool(v):
     elif v.lower() == 'false':
         return False
     else:
-        raise argparse.ArgumentTypeError("Expected boolean value(s).")
+        raise argparse.ArgumentTypeError(f"Unexpected value: {v}. Expected boolean value(s).")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run KNN benchmark with configurable parameters.")

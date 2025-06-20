@@ -53,7 +53,10 @@ def str2bool(v):
         raise argparse.ArgumentTypeError(f"Unexpected value: {v}. Expected boolean value(s).")
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run KNN benchmark with configurable parameters.")
+    parser = argparse.ArgumentParser(
+      description="Run KNN benchmark with configurable parameters.",
+      epilog="Example: python src/python/knnPerfTest.py --docVectors ../data/cohere-wikipedia-docs-768d.vec --queryVectors ../data/cohere-wikipedia-queries-768d.vec --topK 10 50 100 --maxConn 32 64 --quantizeCompress True False"
+    )
 
     parser.add_argument("--ndoc", type=int, nargs="+", default=[500_000], help="Number of documents")
     parser.add_argument("--topK", type=int, nargs="+", default=[100], help="Top K results to retrieve")

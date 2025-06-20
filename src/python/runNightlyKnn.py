@@ -186,7 +186,9 @@ def is_git_clone_dirty(git_clone_path):
   )
   return bool(p.returncode)
 
+
 re_date_time = re.compile(r"/(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)/")
+
 
 def convert_v0_to_v1(v0_result):
   """Convert a KNNResultV0 result to KNNResultV1 format."""
@@ -195,13 +197,14 @@ def convert_v0_to_v1(v0_result):
 
   # total cpu and net cpu cores added in https://github.com/mikemccand/luceneutil/commit/20ad142136f38360ac6c5b54c954d1575527ce2b
   assert len(fields) == 26, f"got {len(fields)}"
-    
+
   # Insert placeholder values for the new fields after cpu_time_ms
   cpu_time_index = 7  # Index of cpu_time_ms in KNNResultV0
   fields.insert(cpu_time_index + 1, 0.0)  # netCPU
   fields.insert(cpu_time_index + 2, 0.0)  # avgCpuCount
-    
+
   return KNNResultV1(*fields)
+
 
 def main():
   if "-write_graph" in sys.argv:
@@ -229,12 +232,11 @@ def write_graph():
     lucene_git_rev = None
     luceneutil_git_rev = None
     for run in result:
-
       # TODO: messy, messy -- how can I check that the class type is exactly KNNResultV0?
       # Unpickle does something weird... type(run) is runNightlyKnn.KNNResultV0 but KNNResultV0 is __main_)_.KNResultV0
       if str(type(run)).endswith(".KNNResultV0'>"):
         run = convert_v0_to_v1(run)
-        
+
       if lucene_git_rev is None:
         lucene_git_rev = run.lucene_git_rev
       elif lucene_git_rev != run.lucene_git_rev:
@@ -392,7 +394,7 @@ This benchmark indexes 8.0M and searches Cohere 768 dimension vectors from https
       headers=("Date", "float32", "float32 1seg", "7 bits", "7 bits 1seg", "4 bits", "4 bits 1seg"),
       ylabel="Net CPU time per query (msec)",
     )
-    
+
     write_one_graph(
       f,
       timestamps,
@@ -409,7 +411,7 @@ This benchmark indexes 8.0M and searches Cohere 768 dimension vectors from https
       headers=("Date", "float32", "float32 1seg", "7 bits", "7 bits 1seg", "4 bits", "4 bits 1seg"),
       ylabel="CPU cores per query",
     )
-    
+
     write_one_graph(
       f,
       timestamps,
@@ -763,39 +765,39 @@ def _run(results_dir):
       all_summaries.append(summary)
 
       cols = summary.split("\t")
-      
+
       assert len(cols) >= 21
 
       result = KNNResultV1(
-          lucene_git_rev,
-          luceneutil_git_rev,
-          INDEX_VECTORS_FILE,
-          SEARCH_VECTORS_FILE,
-          VECTORS_DIM,
-          do_force_merge,
-          float(cols[0]),  # recall
-          float(cols[1]),  # cpu_time_ms
-          float(cols[2]),  # netCPU
-          float(cols[3]),  # avgCpuCount
-          int(cols[4]),    # num_docs
-          int(cols[5]),    # top_k
-          int(cols[6]),    # fanout
-          int(cols[7]),    # max_conn
-          int(cols[8]),    # beam_width
-          cols[9],         # quantize_desc
-          int(cols[10]),   # total_visited
-          float(cols[11]), # index_time_sec
-          float(cols[12]), # index_docs_per_sec
-          float(cols[13]), # force_merge_time_sec
-          int(cols[14]),   # index_num_segments
-          float(cols[15]), # index_size_on_disk_mb
-          float(cols[16]), # selectivity
-          cols[17],        # pre_post_filter
-          float(cols[18]), # vec_disk_mb
-          float(cols[19]), # vec_ram_mb
-          graph_level_conn_p_values,  # graph_level_conn_p_values
-          combined_run_time,  # time to run KnnGraphTester
-        )
+        lucene_git_rev,
+        luceneutil_git_rev,
+        INDEX_VECTORS_FILE,
+        SEARCH_VECTORS_FILE,
+        VECTORS_DIM,
+        do_force_merge,
+        float(cols[0]),  # recall
+        float(cols[1]),  # cpu_time_ms
+        float(cols[2]),  # netCPU
+        float(cols[3]),  # avgCpuCount
+        int(cols[4]),  # num_docs
+        int(cols[5]),  # top_k
+        int(cols[6]),  # fanout
+        int(cols[7]),  # max_conn
+        int(cols[8]),  # beam_width
+        cols[9],  # quantize_desc
+        int(cols[10]),  # total_visited
+        float(cols[11]),  # index_time_sec
+        float(cols[12]),  # index_docs_per_sec
+        float(cols[13]),  # force_merge_time_sec
+        int(cols[14]),  # index_num_segments
+        float(cols[15]),  # index_size_on_disk_mb
+        float(cols[16]),  # selectivity
+        cols[17],  # pre_post_filter
+        float(cols[18]),  # vec_disk_mb
+        float(cols[19]),  # vec_ram_mb
+        graph_level_conn_p_values,  # graph_level_conn_p_values
+        combined_run_time,  # time to run KnnGraphTester
+      )
       print(f"result: {result}")
       all_results.append(result)
 
@@ -815,6 +817,7 @@ def _run(results_dir):
   print(f"done!  took {(end_time_epoch_secs - start_time_epoch_secs):.1f} seconds total")
 
   return all_results
+
 
 if __name__ == "__main__":
   main()

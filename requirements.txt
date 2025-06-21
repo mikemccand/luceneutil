@@ -1,5 +1,5 @@
 # used by segments-to-html
-graphviz==0.20.3
+graphviz==0.21
 intervaltree==3.1.0
 
 # used by infer-token-vectors

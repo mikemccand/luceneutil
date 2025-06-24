@@ -546,10 +546,8 @@ def main():
 
           if first_checkpoint:
             # seed the initial segments in the index
-            print("do first")
             for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
-              segment.size_mb = 1
               # this is most likely not correct (underestimate), so if index was pre-existing, all write amplification will
               # be undercounted:
               segment.net_write_amplification = 1
@@ -596,6 +594,9 @@ def main():
           size_mb = float(m.group(4))
           segment = by_segment_name[segment_name]
           if segment.size_mb is None:
+            # necessary when IW started up on an already populated index -- we see which segments it
+            # initially loaded, but it's only later (now, on this line) where we see how large each
+            # of those initial segment is:
             print(f"now set initial segment size for {segment_name} to {size_mb:.3f}")
             segment.size_mb = size_mb
           if global_start_time is None:

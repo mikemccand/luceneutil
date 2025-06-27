@@ -728,4 +728,9 @@ KNOWN_CHANGES = [
     "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
     "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
   ),
+  (
+    "2025-06-26",
+    "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
+    "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
+  ),
 ]

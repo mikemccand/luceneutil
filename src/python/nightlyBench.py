@@ -1488,6 +1488,9 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, "DismaxTerm", "Term query")
   writeOneLine(w, done, "DismaxOrHighMed", "Disjunctive query on a high-frequency term and a medium-frequency term")
   writeOneLine(w, done, "DismaxOrHighHigh", "Disjunctive query on two high-frequency terms")
+  writeOneLine(w, done, "FilteredDismaxTerm", "Filtered term query")
+  writeOneLine(w, done, "FilteredDismaxOrHighMed", "Filtered disjunctive query on a high-frequency term and a medium-frequency term")
+  writeOneLine(w, done, "FilteredDismaxOrHighHigh", "Filtered disjunctive query on two high-frequency terms")
 
   w("<br><br><b>Proximity queries:</b>")
   writeOneLine(w, done, "Phrase", "Exact phrase")

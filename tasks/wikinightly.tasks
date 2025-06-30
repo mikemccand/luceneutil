@@ -275,6 +275,24 @@ DismaxOrHighMed: http 9 +dismaxFields=titleTokenized,body
 DismaxOrHighMed: they hard +dismaxFields=titleTokenized,body
 DismaxOrHighMed: title bay +dismaxFields=titleTokenized,body
 
+FilteredDismaxTerm: 0 +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: names +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: nbsp +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: part +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: st +dismaxFields=titleTokenized,body +filter=5%
+
+FilteredDismaxOrHighHigh: are last +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: at united +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: but year +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: name its +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: to but +dismaxFields=titleTokenized,body +filter=5%
+
+FilteredDismaxOrHighMed: at mostly +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: his interview +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: http 9 +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: they hard +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: title bay +dismaxFields=titleTokenized,body +filter=5%
+
 # Counting queries. This helps track performance of exhaustive evaluation, plus
 # some counting-specific optimizations like counting ones in a bitset for
 # disjunctions.

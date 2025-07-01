@@ -733,4 +733,9 @@ KNOWN_CHANGES = [
     "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
     "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
   ),
+  (
+    "2025-06-30",
+    "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
+    "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
+  ),
 ]

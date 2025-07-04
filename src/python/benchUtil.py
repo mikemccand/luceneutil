@@ -209,7 +209,7 @@ class SearchTask:
         if self.hitCount != other.hitCount:
           self.fail("wrong hitCount: %s vs %s" % (self.hitCount, other.hitCount))
         if self.countOnlyCount != other.countOnlyCount:
-          self.fail("wrong countOnlyCount: %s vs %s" % (self.countOnlyCount, other.coutnOnlyCount))
+          self.fail("wrong countOnlyCount: %s vs %s" % (self.countOnlyCount, other.countOnlyCount))
 
       if len(self.hits) != len(other.hits):
         self.fail("wrong top hit count: %s vs %s" % (len(self.hits), len(other.hits)))

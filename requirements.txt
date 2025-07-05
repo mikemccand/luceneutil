@@ -21,4 +21,4 @@ rtree==1.4.0
 # linter and formatter
 ruff==0.11.6
 # type checker
-basedpyright==1.29.0
+basedpyright==1.29.5

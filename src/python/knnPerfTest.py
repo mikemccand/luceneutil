@@ -315,8 +315,9 @@ def print_fixed_width(all_results, columns_to_skip):
 
 
 def arglist_to_argmap(arglist):
-  """map args starting with - to the next value in the list unless it starts with -
-  in which case map to the empty string"""
+  """Map args starting with - to the next value in the list unless it starts with -
+  in which case map to the empty string
+  """
   argmap = dict()
   for i in range(len(arglist)):
     if arglist[i][0] == "-":
@@ -419,8 +420,7 @@ def print_chart(results):
 def chart_args_label(args):
   if len(args) == 0:
     return "baseline"
-  else:
-    return str(args)
+  return str(args)
 
 
 if __name__ == "__main__":

@@ -61,7 +61,7 @@ def delete(label):
 
 
 def run_command(cmd):
-  print(f"Blunders: now run {cmd}")
+  # print(f"Blunders: now run {cmd}")
   out = os.system(cmd)
   if out:
     raise RuntimeError("command failed: %s" % cmd)

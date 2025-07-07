@@ -21,13 +21,85 @@ import os
 import pickle
 import re
 import sys
+from typing import Optional
 
+# thank you Claude:
+def parse_timestamp(timestamp_str: str) -> Optional[datetime.datetime]:
+    """
+    Parse ISO 8601 timestamp with cross-Python version compatibility.
+    
+    Fixes the issue where datetime.datetime.fromisoformat() fails on Python < 3.11 with:
+    - Nanosecond precision timestamps (e.g., '.744930252')
+    - 'Z' timezone designator 
+    
+    Args:
+        timestamp_str: ISO 8601 timestamp string
+                      (e.g., '2025-06-22T17:29:31.744930252Z')
+    
+    Returns:
+        datetime object, or exception if parsing fails
+        
+    Example usage:
+        # Replace this:
+        # dt = datetime.datetime.fromisoformat(timestamp_str)
+        
+        # With this:
+        dt = parse_timestamp_compatible(timestamp_str)
+        if dt is None:
+            # Handle parsing error
+            continue
+    """
 
-def parse_timestamp(s):
-  return datetime.datetime.fromisoformat(s)
+    # For Python 3.11+, try native fromisoformat first
+    if sys.version_info >= (3, 11):
+        try:
+            return datetime.datetime.fromisoformat(timestamp_str)
+        except ValueError:
+            # Fall through to compatibility handling
+            pass
 
+    # Compatibility processing for older Python versions
+    processed = timestamp_str.strip()
+
+    # Step 1: Handle 'Z' timezone (replace with '+00:00')
+    if processed.endswith('Z'):
+        processed = processed[:-1] + '+00:00'
+
+    # Step 2: Handle nanosecond precision
+    if '.' in processed:
+        # Find the fractional seconds part
+        if '+' in processed:
+            main_part, tz_part = processed.rsplit('+', 1)
+            tz_part = '+' + tz_part
+        elif processed.count('-') >= 3:  # Date has 2 dashes, timezone has 1
+            main_part, tz_part = processed.rsplit('-', 1)
+            tz_part = '-' + tz_part
+        else:
+            main_part = processed
+            tz_part = ''
+
+        # Split main part to get fractional seconds
+        if '.' in main_part:
+            datetime_part, fractional_part = main_part.split('.', 1)
+
+            # Truncate nanoseconds to microseconds (max 6 digits)
+            if len(fractional_part) > 6:
+                fractional_part = fractional_part[:6]
+
+            # Reconstruct timestamp
+            processed = f"{datetime_part}.{fractional_part}{tz_part}"
+
+    # Parse the processed timestamp
+    return datetime.datetime.fromisoformat(processed)
 
 # TODO
+#   - CMS logs helpful progress indicators for each merge thread -- can we parse this and render somehow?:
+#      merge thread Lucene Merge Thread #154 estSize=4674.5 MB (written=3931.3 MB) runTime=17016.6s (stopped=0.0s, paused=0.0s) rate=unlimited
+#        leave running at Infinity MB/sec
+#      merge thread Lucene Merge Thread #401 estSize=3353.0 MB (written=738.2 MB) runTime=3437.3s (stopped=0.0s, paused=0.0s) rate=unlimited
+#        leave running at Infinity MB/sec
+#      merge thread Lucene Merge Thread #463 estSize=3128.8 MB (written=726.3 MB) runTime=145.2s (stopped=0.0s, paused=0.0s) rate=unlimited
+#        leave running at Infinity MB/sec"
 #   - also parse "skip apply merge during commit" message to validate timeout of MOC merge
 #   - why do del counts sometimes go backwards?  "now checkpoint" is not guaranteed to be monotonic?
 #   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?

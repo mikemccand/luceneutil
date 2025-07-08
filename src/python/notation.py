@@ -743,4 +743,9 @@ KNOWN_CHANGES = [
     "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
     "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
   ),
+  (
+    "2025-07-07",
+    "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+    "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+  ),
 ]

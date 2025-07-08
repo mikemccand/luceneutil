@@ -15,19 +15,19 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
+
 import bisect
 import datetime
 import os
 import pickle
 import re
 import sys
-from typing import Optional
 
 
 # thank you Claude:
-def parse_timestamp(timestamp_str: str) -> Optional[datetime.datetime]:
-  """
-  Parse ISO 8601 timestamp with cross-Python version compatibility.
+def parse_timestamp(timestamp_str: str) -> datetime.datetime | None:
+  """Parse ISO 8601 timestamp with cross-Python version compatibility.
 
   Fixes the issue where datetime.datetime.fromisoformat() fails on Python < 3.11 with:
   - Nanosecond precision timestamps (e.g., '.744930252')
@@ -49,8 +49,8 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime.datetime]:
       if dt is None:
           # Handle parsing error
           continue
-  """
 
+  """
   # For Python 3.11+, try native fromisoformat first
   if sys.version_info >= (3, 11):
     try:

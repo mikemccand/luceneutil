@@ -723,4 +723,29 @@ KNOWN_CHANGES = [
     "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
     "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
   ),
+  (
+    "2025-06-13",
+    "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
+    "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
+  ),
+  (
+    "2025-06-15",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+  ),
+  (
+    "2025-06-26",
+    "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
+    "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
+  ),
+  (
+    "2025-06-30",
+    "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
+    "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
+  ),
+  (
+    "2025-07-07",
+    "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+    "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+  ),
 ]

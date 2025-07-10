@@ -843,7 +843,7 @@ public class KnnGraphTester {
       throws IOException {
     Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
-    long elapsed, totalCpuTimeMS, totalVisited = 0;
+    long elapsedMS, totalCpuTimeMS, totalVisited = 0;
     int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
     int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
     ExecutorService executorService;
@@ -904,7 +904,7 @@ public class KnnGraphTester {
           }
 
           totalCpuTimeMS = TimeUnit.NANOSECONDS.toMillis(endCPUTimeNS - startCPUTimeNS);
-          elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
+          elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
           
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
@@ -916,9 +916,9 @@ public class KnnGraphTester {
               "completed "
               + numQueryVectors
               + " searches in "
-              + elapsed
+              + elapsedMS
               + " ms: "
-              + ((1000 * numQueryVectors) / elapsed)
+              + ((1000 * numQueryVectors) / elapsedMS)
               + " QPS "
               + "CPU time="
               + totalCpuTimeMS
@@ -954,9 +954,9 @@ public class KnnGraphTester {
           Locale.ROOT,
           "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
           recall,
-          elapsed / (float) numQueryVectors,
+          elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
-          totalCpuTimeMS / (float) elapsed,
+          totalCpuTimeMS / (float) elapsedMS,
           numDocs,
           this.topK,
           this.fanout,

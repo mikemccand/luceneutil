@@ -67,12 +67,7 @@ public class CreateQueries {
 
   private static class MostFrequentTerms extends PriorityQueue<TermFreq> {
     public MostFrequentTerms(int maxSize) {
-      super(maxSize);
-    }
-
-    @Override
-    protected boolean lessThan(TermFreq tf1, TermFreq tf2) {
-      return tf1.df < tf2.df;
+      super(maxSize, (tf1, tf2) -> tf1.df < tf2.df);
     }
   }
 

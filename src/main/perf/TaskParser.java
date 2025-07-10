@@ -49,11 +49,11 @@ import org.apache.lucene.queries.spans.SpanQuery;
 import org.apache.lucene.queries.spans.SpanTermQuery;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.sandbox.search.CombinedFieldQuery;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.CombinedFieldQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
@@ -606,11 +606,10 @@ class TaskParser implements Closeable {
 
     private Query rewriteToCombinedFieldQuery(Query query) {
       if (query instanceof TermQuery tq) {
-        CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder();
+        CombinedFieldQuery.Builder cfqBuilder = new CombinedFieldQuery.Builder(tq.getTerm().bytes());
         for (FieldAndWeight fieldAndWeight : combinedFields) {
           cfqBuilder.addField(fieldAndWeight.field, fieldAndWeight.weight);
         }
-        cfqBuilder.addTerm(tq.getTerm().bytes());
         return cfqBuilder.build();
       } else if (query instanceof BooleanQuery bq) {
         BooleanQuery.Builder builder = new BooleanQuery.Builder();

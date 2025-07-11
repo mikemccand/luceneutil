@@ -131,30 +131,10 @@ def run_knn_benchmark(checkout, values):
   if not values["parentJoin"]:
     del values["parentJoin"]
 
-  # dim = 100
-  # doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
-  # query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
-  # dim = 768
-  # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
-  # query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
-  # dim = 384
-  # doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
-  # query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
-  # dim = 300
-  # doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
-  # query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
-
-  # dim = 256
-  # doc_vectors = '/d/electronics_asin_emb.bin'
-  # query_vectors = '/d/electronics_query_vectors.bin'
-
   # Cohere dataset
   dim = values.pop("dim")
   doc_vectors = values.pop("docVectors")
   query_vectors = values.pop("queryVectors")
-  # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-  # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   # iterator state through all possible index combinations of incoming arguments
   indexes = [0] * len(values.keys())

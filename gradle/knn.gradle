@@ -47,7 +47,10 @@ task runKnnPerfTest (type: Exec) {
 
     workingDir rootProject.getRootDir()
 
+    def scriptArgs = project.hasProperty('args') ? project.args.split('\\s+') : []
+
     commandLine 'python3', 'src/python/knnPerfTest.py'
+    args scriptArgs
 }
 
 task extractVectorTasks (type: Copy) {

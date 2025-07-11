@@ -28,7 +28,15 @@ from common import getLuceneDirFromGradleProperties
 ### Create document and task vectors
 # ./gradlew vectors-100
 #
-# change the parameters below and then run (you can still manually run this file, but using gradle command
+# To run this script directly with arguments:
+#   python src/python/knnPerfTest.py --ndoc 1000000 --topK 10 50
+#
+# To run this script with arguments via Gradle, use the -Pargs property:
+#   ./gradlew runKnnPerfTest -Pargs="--ndoc 1000000 --topK 10 50"
+#
+# The -Pargs property will forward the arguments to the Python script.
+#
+# add parameters as needed below and then run (you can still manually run this file, but using gradle command
 # below will auto recompile if you made any changes to java files in luceneutils)
 # ./gradlew runKnnPerfTest
 #

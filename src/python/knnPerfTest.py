@@ -81,7 +81,7 @@ def parse_args():
     parser.add_argument("--dim", type=int, default=768, help="Vector dimensionality")
     parser.add_argument("--docVectors", type=str, default=f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-768d.vec", help="Path to document vectors")
     parser.add_argument("--queryVectors", type=str, default=f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-768d.vec", help="Path to query vectors")
-    parser.add_argument("--parentJoin", type=str, nargs="*", default=[], help="Path to parent join metadata file")
+    parser.add_argument("--parentJoin", type=str, default=None, help="Path to parent join metadata file")
     parser.add_argument("--profile", action="store_true", help="Enable Java profiling")
     parser.add_argument("--quiet", action="store_true", help="Suppress benchmark output")
 
@@ -128,8 +128,13 @@ def advance(ix, values):
 def run_knn_benchmark(checkout, values):
   do_profiling = values.pop("profile")
   noisy = not values.pop("quiet")
-  if not values["parentJoin"]:
+
+  # Ensure parentJoin is always a list for consistency
+  parent_join = values.get("parentJoin")
+  if parent_join is None or parent_join == "":
     del values["parentJoin"]
+  else:
+    values["parentJoin"] = [parent_join]
 
   # Cohere dataset
   dim = values.pop("dim")

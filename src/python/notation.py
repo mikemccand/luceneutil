@@ -768,4 +768,9 @@ KNOWN_CHANGES = [
     "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
     "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
   ),
+  (
+    "2025-07-24",
+    "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
+    "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
+  ),
 ]

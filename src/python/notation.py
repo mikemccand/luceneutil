@@ -763,4 +763,9 @@ KNOWN_CHANGES = [
     "Optimize bitset to array https://github.com/apache/lucene/pull/14935",
     "Optimize bitset to array https://github.com/apache/lucene/pull/14935",
   ),
+  (
+    "2025-07-17",
+    "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
+    "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
+  ),
 ]

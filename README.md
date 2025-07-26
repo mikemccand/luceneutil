@@ -164,7 +164,7 @@ You can create your own line doc file from an arbitrary Wikimedia dump by follow
 # Running the KNN benchmark
 
 Some knn-related tasks are included in the main benchmarks. If you specifically want to test
-KNN/HNSW there is a script dedicated to that in src/python/knnPerfTest.py which has instructions on
+KNN/HNSW there is a script dedicated to that in `src/python/knnPerfTest.py` which has instructions on
 how to run it in its comments.
 
 ## Testing with higher dimension vectors
@@ -172,13 +172,17 @@ how to run it in its comments.
 By default we use 100/300 dimension vectors, to use higher dimension vectors (more than 384, check `highDimDataSets` in `gradle/knn.gradle`), you need to:
 
 1. run `./gradlew vectors-mpnet` or `./gradlew vectors-minilm` depend on your needs (this step will run `infer_token_vectors.py` for you, and then generate task and document vectors)
-2. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerTest.py` (see instructions inside the file) of your choice, 
+2. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerfTest.py` (see instructions inside the file) of your choice, 
 
 To test vector search with [Cohere/wikipedia-22-12-en-embeddings](https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings) dataset, you need to do:
 1. run `python src/python/infer_token_vectors_cohere.py -d 10000000 -q 10000` to generate vectors
 in the format that luceneutil vector search can understand. Instead of `10000000` increase the number of documents to `100000000` if you want to run vector search on 10M documents.
-2. In `src/python/knnPerTest.py` uncomment lines that define doc and query vectors for cohere dataset.
-3. run `src/python/knnPerTest.py` 
+2. Run `src/python/knnPerfTest.py` with the `--docVectors` and `--queryVectors` arguments to specify your generated files (see more options by running with `--help`).
+
+Example:
+```sh
+./gradlew runKnnPerfTest -Pargs="--docVectors /path/to/your/docVectors.vec --queryVectors /path/to/your/queryVectors.vec [other options]"
+```
 
 # Running the facets benchmark
 

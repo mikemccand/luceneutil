@@ -719,6 +719,11 @@ KNOWN_CHANGES = [
     "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
   ),
   (
+    "2025-06-05",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+  ),
+  (
     "2025-06-06",
     "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
     "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
@@ -744,8 +749,28 @@ KNOWN_CHANGES = [
     "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
   ),
   (
+    "2025-07-01",
+    "Use LessThan here rather than Comparator for some key PriorityQueues https://github.com/apache/lucene/pull/14871",
+    "Use LessThan here rather than Comparator for some key PriorityQueues https://github.com/apache/lucene/pull/14871",
+  ),
+  (
     "2025-07-07",
     "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
     "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+  ),
+  (
+    "2025-07-13",
+    "Optimize bitset to array https://github.com/apache/lucene/pull/14935",
+    "Optimize bitset to array https://github.com/apache/lucene/pull/14935",
+  ),
+  (
+    "2025-07-17",
+    "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
+    "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
+  ),
+  (
+    "2025-07-24",
+    "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
+    "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
   ),
 ]

@@ -10,6 +10,7 @@
 import argparse
 import multiprocessing
 import re
+import statistics
 import subprocess
 import sys
 
@@ -17,7 +18,6 @@ import benchUtil
 import constants
 from common import getLuceneDirFromGradleProperties
 
-import statistics
 # Measure vector search recall and latency while exploring hyperparameters
 
 # SETUP:
@@ -32,6 +32,9 @@ import statistics
 # change the parameters below and then run (you can still manually run this file, but using gradle command
 # below will auto recompile if you made any changes to java files in luceneutils)
 # ./gradlew runKnnPerfTest
+#
+# for the median result of n runs with the same parameters:
+# ./gradlew runKnnPerfTest -Pruns=n
 #
 # you may want to modify the following settings:
 
@@ -426,22 +429,19 @@ def chart_args_label(args):
   return str(args)
 
 
-if __name__ == "__main__":
-  n = 10
+
+def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   rec, lat, net, avg = [], [], [], []
-
-  # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
-  LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
   for i in range(n):
-    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
-    first_4_numbers = results[0].split('\t')[:4]
-    first_4_numbers = [float(num) for num in first_4_numbers]
+      results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+      first_4_numbers = results[0].split('\t')[:4]
+      first_4_numbers = [float(num) for num in first_4_numbers]
 
-    # store relevant data points
-    rec.append(first_4_numbers[0])
-    lat.append(first_4_numbers[1])
-    net.append(first_4_numbers[2])
-    avg.append(first_4_numbers[3])
+      # store relevant data points
+      rec.append(first_4_numbers[0])
+      lat.append(first_4_numbers[1])
+      net.append(first_4_numbers[2])
+      avg.append(first_4_numbers[3])
 
   # reconstruct string with median results
   med_results = []
@@ -461,6 +461,20 @@ if __name__ == "__main__":
   print("\nMedian Results:")
   print_chart(med_results)
   print_fixed_width(med_results, skip_headers)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run KNN benchmarks')
+    parser.add_argument('--runs', type=int, default=1,
+                       help='Number of times to run the benchmark (default: 1)')
+    n = parser.parse_args()
+
+    # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
+    LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
+    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
+
+
+
 
 
 

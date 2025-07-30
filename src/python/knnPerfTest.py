@@ -57,16 +57,16 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (500_000,),
-  #'ndoc': (50_000,),
-  "maxConn": (32, 64, 96),
-  # "maxConn": (64,),
+  #"ndoc": (500_000,),
+  'ndoc': (50_000,),
+  #"maxConn": (32, 64, 96),
+   "maxConn": (64,),
   #'maxConn': (32,),
-  "beamWidthIndex": (250, 500),
-  # "beamWidthIndex": (250,),
+  #"beamWidthIndex": (250, 500),
+   "beamWidthIndex": (250,),
   #'beamWidthIndex': (50,),
-  "fanout": (20, 50, 100, 250),
-  # "fanout": (50,),
+  #"fanout": (20, 50, 100, 250),
+   "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
@@ -78,11 +78,11 @@ PARAMS = {
   # 'metric': ('angular',),  # default is angular (dot_product)
   # 'metric': ('mip',),
   #'quantize': (True,),
-  "quantizeBits": (
-    4,
-    7,
-    32,
-  ),
+#   "quantizeBits": (
+#     4,
+#     7,
+#     32,
+#   ),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -288,7 +288,7 @@ def run_knn_benchmark(checkout, values):
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)
-  return all_results[0], skip_headers
+  return all_results, skip_headers
 
 
 def print_fixed_width(all_results, columns_to_skip):
@@ -432,9 +432,11 @@ def chart_args_label(args):
 
 def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   rec, lat, net, avg = [], [], [], []
+  tests = []
   for i in range(n):
       results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
-      first_4_numbers = results[0].split('\t')[:4]
+      tests.append(results)
+      first_4_numbers = results[0][0].split('\t')[:4]
       first_4_numbers = [float(num) for num in first_4_numbers]
 
       # store relevant data points
@@ -451,11 +453,17 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   med_string += f"{round(statistics.median(net), 3)}\t"
   med_string += f"{round(statistics.median(avg), 3)}\t"
 
-  split_results = results[0].split('\t')
+  split_results = results[0][0].split('\t')
   split_string = '\t'.join(split_results[4:])
   med_string += split_string
-  med_tuple = (med_string, results[1])
+  med_tuple = (med_string, results[0][1])
   med_results.append(med_tuple)
+
+  #re-print all tables in a row
+  print("\nFinal Results:")
+  for i in range(n):
+    print(f"\nTest {i+1}:")
+    print_fixed_width(tests[i], skip_headers)
 
   # print median results in table
   print("\nMedian Results:")
@@ -471,7 +479,10 @@ if __name__ == "__main__":
 
     # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
     LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
+    if n.runs == 1:
+      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+    else:
+      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
 
 
 

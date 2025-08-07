@@ -23,14 +23,16 @@ import org.apache.lucene.search.TopDocs;
 
 import java.io.IOException;
 
+import static knn.KnnGraphTester.ID_FIELD;
+import static knn.KnnGraphTester.ResultIds;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
 public class KnnTesterUtils {
 
   /** Fetches values for the "id" field from search results
    */
-  public static int[] getResultIds(TopDocs topDocs, StoredFields storedFields) throws IOException {
-    int[] resultIds = new int[topDocs.scoreDocs.length];
+  public static ResultIds[] getResultIds(TopDocs topDocs, StoredFields storedFields, int k) throws IOException {
+    ResultIds[] resultIds = new ResultIds[k];
     int i = 0;
     // TODO: switch to doc values for this id field?  more efficent than stored fields
     // TODO: or, at least load the stored documents in index (Lucene docid) order to
@@ -39,7 +41,7 @@ public class KnnTesterUtils {
     //       queries have run)
     for (ScoreDoc doc : topDocs.scoreDocs) {
       assert doc.doc != NO_MORE_DOCS: "illegal docid " + doc.doc + " returned from KNN search?";
-      resultIds[i++] = Integer.parseInt(storedFields.document(doc.doc).get(KnnGraphTester.ID_FIELD));
+      resultIds[i++] = new ResultIds(Integer.parseInt(storedFields.document(doc.doc).get(ID_FIELD)), doc.score);
     }
     return resultIds;
   }

@@ -52,17 +52,16 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-#   "ndoc": (500_000,),
-#   "ndoc": (10_000,),
-  'ndoc': (100_000, 500_000, 1_000_000, 2_000_000, 10_000_000),
-#   "maxConn": (32, 64, 96),
+  "ndoc": (500_000,),
+  #'ndoc': (50_000,),
+  "maxConn": (32, 64, 96),
   # "maxConn": (64,),
-  'maxConn': (32,),
-#   "beamWidthIndex": (250, 500),
-#   "beamWidthIndex": (250,),
-  'beamWidthIndex': (50,),
-#   "fanout": (20, 50, 100, 250),
-  "fanout": (20,),
+  #'maxConn': (32,),
+  "beamWidthIndex": (250, 500),
+  # "beamWidthIndex": (250,),
+  #'beamWidthIndex': (50,),
+  "fanout": (20, 50, 100, 250),
+  # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
@@ -76,8 +75,8 @@ PARAMS = {
   #'quantize': (True,),
   "quantizeBits": (
     4,
-#     7,
-#     32,
+    7,
+    32,
   ),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
@@ -90,7 +89,7 @@ PARAMS = {
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   # "forceMerge": (True, False),
   #'niter': (10,),
-  "rerank": (False, True),
+  # "rerank": (False, True),
 }
 
 

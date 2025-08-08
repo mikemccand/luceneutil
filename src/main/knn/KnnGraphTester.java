@@ -937,7 +937,7 @@ public class KnnGraphTester {
         executorService.shutdown();
       }
     }
-    // TODO: do we need to write nn here again? Didnt we already read it from some file?
+    // Do we need to write nn here again? We already wrote it in getExactNN()
     if (outputPath != null) {
       writeExactNN(nn, outputPath);
     } else {

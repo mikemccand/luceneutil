@@ -1114,7 +1114,6 @@ public class KnnGraphTester {
       long startNS = System.nanoTime();
       // TODO: enable computing NN from high precision vectors when
       // checking low-precision recall
-//      int[][] nn;
       ResultIds[][] nn;
       if (vectorEncoding.equals(VectorEncoding.BYTE)) {
         nn = computeExactNNByte(queryPath, queryStartIndex);
@@ -1149,17 +1148,6 @@ public class KnnGraphTester {
     } catch (ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
-//
-//    try (FileChannel in = FileChannel.open(nnPath)) {
-//      IntBuffer intBuffer =
-//          in.map(FileChannel.MapMode.READ_ONLY, 0, numQueryVectors * topK * Integer.BYTES)
-//              .order(ByteOrder.LITTLE_ENDIAN)
-//              .asIntBuffer();
-//      for (int i = 0; i < numQueryVectors; i++) {
-//        nn[i] = new int[topK];
-//        intBuffer.get(nn[i]);
-//      }
-//    }
     return nn;
   }
 

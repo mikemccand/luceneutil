@@ -83,6 +83,8 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.DoubleValuesSourceRescorer;
+import org.apache.lucene.search.FullPrecisionFloatVectorSimilarityValuesSource;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
@@ -179,6 +181,8 @@ public class KnnGraphTester {
   private IndexType indexType;
   // oversampling, e.g. the multiple * k to gather before checking recall
   private float overSample;
+  // rerank using full precision vectors
+  private boolean rerank;
 
   private KnnGraphTester() {
     // set defaults
@@ -202,6 +206,7 @@ public class KnnGraphTester {
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
+    rerank = false;
   }
 
   private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding, boolean noisy) throws IOException {
@@ -282,6 +287,9 @@ public class KnnGraphTester {
           if (overSample < 1) {
             throw new IllegalArgumentException("-overSample must be >= 1");
           }
+          break;
+        case "-rerank":
+          rerank = true;
           break;
         case "-fanout":
           if (iarg == args.length - 1) {
@@ -932,14 +940,6 @@ public class KnnGraphTester {
     // TODO: do we need to write nn here again? Didnt we already read it from some file?
     if (outputPath != null) {
       writeExactNN(nn, outputPath);
-//      ByteBuffer tmp =
-//        ByteBuffer.allocate(resultIds[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-//      try (OutputStream out = Files.newOutputStream(outputPath)) {
-//        for (int i = 0; i < numQueryVectors; i++) {
-//          tmp.asIntBuffer().put(nn[i]);
-//          out.write(tmp.array());
-//        }
-//      }
     } else {
       log("checking results\n");
       float recall = checkRecall(resultIds, nn);
@@ -1004,7 +1004,7 @@ public class KnnGraphTester {
     return new Result(docs, profiledQuery.totalVectorCount(), 0);
   }
 
-  private static Result doKnnVectorQuery(
+  private Result doKnnVectorQuery(
       IndexSearcher searcher, String field, float[] vector, int k, int fanout, boolean prefilter, Query filter, boolean isParentJoinQuery)
       throws IOException {
     if (isParentJoinQuery) {
@@ -1018,6 +1018,17 @@ public class KnnGraphTester {
             .add(filter, BooleanClause.Occur.FILTER)
             .build();
     TopDocs docs = searcher.search(query, k);
+    if (rerank) {
+      FullPrecisionFloatVectorSimilarityValuesSource valuesSource = new FullPrecisionFloatVectorSimilarityValuesSource(vector, field);
+      DoubleValuesSourceRescorer rescorer = new DoubleValuesSourceRescorer(valuesSource) {
+        @Override
+        protected float combine(float firstPassScore, boolean valuePresent, double sourceValue) {
+          return valuePresent ? (float) sourceValue : firstPassScore;
+        }
+      };
+      TopDocs rerankedDocs = rescorer.rescore(searcher, docs, topK);
+      return new Result(rerankedDocs, profiledQuery.totalVectorCount(), 0);
+    }
     return new Result(docs, profiledQuery.totalVectorCount(), 0);
   }
 

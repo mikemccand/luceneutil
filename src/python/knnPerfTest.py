@@ -75,8 +75,8 @@ PARAMS = {
   #'quantize': (True,),
   "quantizeBits": (
     4,
-    7,
-    32,
+#     7,
+#     32,
   ),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
@@ -89,6 +89,7 @@ PARAMS = {
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   # "forceMerge": (True, False),
   #'niter': (10,),
+  "rerank": (False, True),
 }
 
 
@@ -282,6 +283,9 @@ def run_knn_benchmark(checkout, values):
   if "-indexType" in this_cmd and "flat" in this_cmd:
     skip_headers.add("maxConn")
     skip_headers.add("beamWidth")
+  if "-rerank" not in this_cmd:
+    skip_headers.add("ndcg@10")
+    skip_headers.add("ndcg@K")
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

@@ -23,11 +23,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +32,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -97,7 +93,6 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.store.Directory;
@@ -947,7 +942,9 @@ public class KnnGraphTester {
 //      }
     } else {
       log("checking results\n");
-      float recall = checkResults(resultIds, nn);
+      float recall = checkRecall(resultIds, nn);
+      double ndcg10 = calculateNDCG(nn, resultIds, 10);
+      double ndcgK = calculateNDCG(nn, resultIds, topK);
       totalVisited /= numQueryVectors;
       String quantizeDesc;
       if (quantize) {
@@ -958,8 +955,10 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
           recall,
+          ndcg10,
+          ndcgK,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) elapsedMS,
@@ -1028,7 +1027,7 @@ public class KnnGraphTester {
   /** Holds ids and scores for corpus docs in search results */
   record ResultIds(int id, float score) implements Serializable {}
 
-  private float checkResults(ResultIds[][] results, ResultIds[][] expected) {
+  private float checkRecall(ResultIds[][] results, ResultIds[][] expected) {
     int totalMatches = 0;
     int totalResults = expected.length * topK;
     for (int i = 0; i < expected.length; i++) {
@@ -1037,6 +1036,35 @@ public class KnnGraphTester {
       totalMatches += compareNN(expected[i], results[i]);
     }
     return totalMatches / (float) totalResults;
+  }
+
+  /**
+   * Calculates Normalized Discounted Cumulative Gain (NDCG) at K.
+   *
+   * <p>We use full precision vector similarity scores for relevance. Since actual
+   * knn search result may hold quantized scores, we use scores for the corresponding
+   * document "id" from {@code ideal} search results. If a document is not present
+   * in ideal, it is considered irrelevant, and we assign it a score of 0f.
+   */
+  private double calculateNDCG(ResultIds[][] ideal, ResultIds[][] actual, int k) {
+    double ndcg = 0;
+    for (int i = 0; i < ideal.length; i++) {
+      float[] exactResultsRelevance = new float[ideal[i].length];
+      HashMap<Integer, Float> idToRelevance = new HashMap<Integer, Float>(ideal[i].length);
+      for (int rank = 0; rank < ideal[i].length; rank++) {
+        exactResultsRelevance[rank] = ideal[i][rank].score();
+        idToRelevance.put(ideal[i][rank].id(), ideal[i][rank].score());
+      }
+      float[] actualResultsRelevance = new float[actual[i].length];
+      for (int rank = 0; rank < actual[i].length; rank++) {
+        actualResultsRelevance[rank] = idToRelevance.getOrDefault(actual[i][rank].id(), 0f);
+      }
+      double idealDCG = KnnTesterUtils.dcg(exactResultsRelevance, k);
+      double actualDCG = KnnTesterUtils.dcg(actualResultsRelevance, k);
+      ndcg += (actualDCG / idealDCG);
+    }
+    ndcg /= ideal.length;
+    return ndcg;
   }
 
   private int compareNN(ResultIds[] expected, ResultIds[] results) {

@@ -53,7 +53,7 @@ PARAMS = {
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
 #   "ndoc": (500_000,),
-  'ndoc': (10_000,),
+  'ndoc': (10_000, 50_000, 100_000),
 #   "maxConn": (32, 64, 96),
   # "maxConn": (64,),
   'maxConn': (32,),
@@ -75,8 +75,8 @@ PARAMS = {
   #'quantize': (True,),
   "quantizeBits": (
     4,
-#     7,
-#     32,
+    7,
+    32,
   ),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
@@ -94,6 +94,8 @@ PARAMS = {
 
 OUTPUT_HEADERS = [
   "recall",
+  "ndcg@10",
+  "ndcg@K",
   "latency(ms)",
   "netCPU",
   "avgCpuCount",

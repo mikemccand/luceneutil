@@ -45,4 +45,18 @@ public class KnnTesterUtils {
     }
     return resultIds;
   }
+
+  /**
+   * Calculates Discounted Cumulative Gain @k
+   * @param relevance Relevance scores sorted by rank of search results.
+   * @param k DCG is calculated up to this rank
+   */
+  public static double dcg(float[] relevance, int k) {
+    double dcg = 0;
+    k = Math.min(relevance.length, k);
+    for (int i = 0; i < k; i++) {
+      dcg += relevance[i] / (Math.log(2 + i) / Math.log(2)); // rank = (i+1)
+    }
+    return dcg;
+  }
 }

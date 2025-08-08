@@ -53,7 +53,8 @@ PARAMS = {
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
 #   "ndoc": (500_000,),
-  'ndoc': (10_000,),
+#   "ndoc": (10_000,),
+  'ndoc': (100_000, 500_000, 1_000_000, 2_000_000, 10_000_000),
 #   "maxConn": (32, 64, 96),
   # "maxConn": (64,),
   'maxConn': (32,),
@@ -61,7 +62,7 @@ PARAMS = {
 #   "beamWidthIndex": (250,),
   'beamWidthIndex': (50,),
 #   "fanout": (20, 50, 100, 250),
-  "fanout": (50,),
+  "fanout": (20,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
@@ -97,6 +98,7 @@ OUTPUT_HEADERS = [
   "recall",
   "ndcg@10",
   "ndcg@K",
+  "rerank",
   "latency(ms)",
   "netCPU",
   "avgCpuCount",
@@ -284,6 +286,7 @@ def run_knn_benchmark(checkout, values):
     skip_headers.add("maxConn")
     skip_headers.add("beamWidth")
   if "-rerank" not in this_cmd:
+    skip_headers.add("rerank")
     skip_headers.add("ndcg@10")
     skip_headers.add("ndcg@K")
 

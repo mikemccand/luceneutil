@@ -955,10 +955,11 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%s\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
           recall,
           ndcg10,
           ndcgK,
+          rerank,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) elapsedMS,
@@ -1159,15 +1160,6 @@ public class KnnGraphTester {
         objectOutputStream.writeObject(nn[i]);
       }
     }
-
-//    ByteBuffer tmp =
-//        ByteBuffer.allocate(nn[0].length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-//    try (OutputStream out = Files.newOutputStream(nnPath)) {
-//      for (int i = 0; i < numQueryVectors; i++) {
-//        tmp.asIntBuffer().put(nn[i]);
-//        out.write(tmp.array());
-//      }
-//    }
   }
 
   private ResultIds[][] computeExactNNByte(Path queryPath, int queryStartIndex) throws IOException, InterruptedException {

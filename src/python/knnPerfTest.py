@@ -286,8 +286,6 @@ def run_knn_benchmark(checkout, values):
     skip_headers.add("beamWidth")
   if "-rerank" not in this_cmd:
     skip_headers.add("rerank")
-    skip_headers.add("ndcg@10")
-    skip_headers.add("ndcg@K")
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

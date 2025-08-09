@@ -917,7 +917,7 @@ public class KnnGraphTester {
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
             totalVisited += results[i].visitedCount();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields, this.topK);
+            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
           }
           log(
               "completed "
@@ -1210,7 +1210,7 @@ public class KnnGraphTester {
                 .add(filterQuery, BooleanClause.Occur.FILTER)
                 .build();
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields(), topK);
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1284,7 +1284,7 @@ public class KnnGraphTester {
                 .add(filterQuery, BooleanClause.Occur.FILTER)
                 .build();
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields(), topK);
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1318,7 +1318,7 @@ public class KnnGraphTester {
         ParentJoinBenchmarkQuery parentJoinQuery = new ParentJoinBenchmarkQuery(query, null, topK);
         TopDocs topHits = ParentJoinBenchmarkQuery.runExactSearch(reader, parentJoinQuery);
         StoredFields storedFields = reader.storedFields();
-        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields, topK);
+        result[queryOrd] = KnnTesterUtils.getResultIds(topHits, storedFields);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

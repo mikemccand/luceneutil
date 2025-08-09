@@ -31,8 +31,8 @@ public class KnnTesterUtils {
 
   /** Fetches values for the "id" field from search results
    */
-  public static ResultIds[] getResultIds(TopDocs topDocs, StoredFields storedFields, int k) throws IOException {
-    ResultIds[] resultIds = new ResultIds[k];
+  public static ResultIds[] getResultIds(TopDocs topDocs, StoredFields storedFields) throws IOException {
+    ResultIds[] resultIds = new ResultIds[topDocs.scoreDocs.length];
     int i = 0;
     // TODO: switch to doc values for this id field?  more efficent than stored fields
     // TODO: or, at least load the stored documents in index (Lucene docid) order to

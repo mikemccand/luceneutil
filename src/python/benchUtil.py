@@ -1238,6 +1238,8 @@ class RunAlgs:
       w("-vectorScale", c.vectorScale)
     if c.exitable:
       w("-exitable")
+    if c.pollute:
+      w("-pollute")
 
     print("      log: %s + stdout" % logFile)
     t0 = time.time()

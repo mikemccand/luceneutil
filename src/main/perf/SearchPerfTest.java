@@ -236,7 +236,12 @@ public class SearchPerfTest {
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
     final boolean exitable = args.getFlag("-exitable");
+    final boolean pollute = args.getFlag("-pollute");
     final TestContext testContext = TestContext.parse(args.getString("-context", ""));
+
+    if (pollute) {
+      TypePolluter.pollute();
+    }
 
     if (searchConcurrency == -1) {
       searchConcurrency = Runtime.getRuntime().availableProcessors();

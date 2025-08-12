@@ -50,7 +50,7 @@ class IndexThreads {
   final AtomicLong lastRefreshNS;
 
   public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
-                      boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, java.util.concurrent.atomic.AtomicReference<Double> docsPerSecPerThreadRef, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
@@ -77,7 +77,7 @@ class IndexThreads {
 
     for(int thread=0;thread<numThreads;thread++) {
       threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode,
-              groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener,
+              groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThreadRef, failed, updatesListener,
               nrtEverySec, randomDocIDMax);
       threads[thread].setName("Index #" + thread);
       threads[thread].start();
@@ -141,7 +141,7 @@ class IndexThreads {
     private final Mode mode;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
-    private final float docsPerSec;
+    private final java.util.concurrent.atomic.AtomicReference<Double> docsPerSecRef;
     private final Random random;
     private final AtomicBoolean failed;
     private final UpdatesListener updatesListener;
@@ -151,7 +151,7 @@ class IndexThreads {
     final int randomDocIDMax;
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
                        LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
-                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, float docsPerSec,
+                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, java.util.concurrent.atomic.AtomicReference<Double> docsPerSecRef,
                        AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
@@ -162,7 +162,7 @@ class IndexThreads {
       this.mode = mode;
       this.groupBlockIndex = groupBlockIndex;
       this.stop = stop;
-      this.docsPerSec = docsPerSec;
+      this.docsPerSecRef = docsPerSecRef;
       this.random = random;
       this.failed = failed;
       this.updatesListener = updatesListener;
@@ -329,7 +329,7 @@ class IndexThreads {
 
             docState.doc.removeField("groupend");
           }
-        } else if (docsPerSec > 0 && mode != null) {
+        } else if (docsPerSecRef.get() > 0 && mode != null) {
           System.out.println("Indexing single docs (add/updateDocument)");
           final long startNS = System.nanoTime();
           int threadCount = 0;
@@ -382,6 +382,7 @@ class IndexThreads {
               System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
 
+            double docsPerSec = docsPerSecRef.get();
             final long sleepNS = startNS + (long) (1000000000*(threadCount/docsPerSec)) - System.nanoTime();
             if (sleepNS > 0) {
               final long sleepMS = sleepNS/1000000;

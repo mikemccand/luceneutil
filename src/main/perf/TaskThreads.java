@@ -115,21 +115,26 @@ public class TaskThreads {
           // Run the task in the IndexSearcher's executor. This is important because IndexSearcher#search also uses the current thread to
           // search, so not running #search from the executor would artificially use one more thread than configured via luceneutil.
           // We're counting time within the task to not include forking time for the top-level search in the reported time.
+          final Task clonedTask = task.clone();
           executor.submit(() -> {
-            task.startTimeNanos = System.nanoTime();
+            clonedTask.startTimeNanos = System.nanoTime();
             try {
-              task.go(indexState, taskParser);
+              clonedTask.go(indexState, taskParser);
             } catch (IOException ioe) {
               throw new RuntimeException(ioe);
             }
             try {
-              tasks.taskDone(task, task.startTimeNanos-task.recvTimeNS, task.totalHitCount);
+              tasks.taskDone(clonedTask, clonedTask.startTimeNanos-clonedTask.recvTimeNS, clonedTask.totalHitCount);
             } catch (Exception e) {
               System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
               e.printStackTrace();
             }
-            task.runTimeNanos = System.nanoTime()-task.startTimeNanos;
+            clonedTask.runTimeNanos = System.nanoTime()-clonedTask.startTimeNanos;
           }).get();
+          
+          // Copy results back to original task for reporting
+          task.totalHitCount = clonedTask.totalHitCount;
+          task.runTimeNanos = clonedTask.runTimeNanos;
 
           task.threadID = threadID;
         }

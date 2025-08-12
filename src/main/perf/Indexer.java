@@ -573,7 +573,7 @@ public final class Indexer {
       float docsPerSecPerThread = -1f;
       //float docsPerSecPerThread = 100f;
 
-      IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThread, null, nrtEverySec,
+      IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, new java.util.concurrent.atomic.AtomicReference<>((double)docsPerSecPerThread), null, nrtEverySec,
                                               randomDocIDMax);
 
       System.out.println("\nIndexer: start");

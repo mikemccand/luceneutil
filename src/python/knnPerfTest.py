@@ -11,6 +11,7 @@ import multiprocessing
 import re
 import subprocess
 import sys
+import argparse
 
 import benchUtil
 import constants
@@ -27,70 +28,64 @@ from common import getLuceneDirFromGradleProperties
 ### Create document and task vectors
 # ./gradlew vectors-100
 #
-# change the parameters below and then run (you can still manually run this file, but using gradle command
+# To run this script directly with arguments:
+#   python src/python/knnPerfTest.py --ndoc 1000000 --topK 10 50
+#
+# To run this script with arguments via Gradle, use the -Pargs property:
+#   ./gradlew runKnnPerfTest -Pargs="--ndoc 1000000 --topK 10 50"
+#
+# The -Pargs property will forward the arguments to the Python script.
+#
+# add parameters as needed below and then run (you can still manually run this file, but using gradle command
 # below will auto recompile if you made any changes to java files in luceneutils)
 # ./gradlew runKnnPerfTest
 #
 # you may want to modify the following settings:
-
-DO_PROFILING = False
 
 # e.g. to compile KnnIndexer:
 #
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
-NOISY = True
-
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
-PARAMS = {
-  # "ndoc": (10_000_000,),
-  #'ndoc': (10000, 100000, 200000, 500000),
-  #'ndoc': (10000, 100000, 200000, 500000),
-  #'ndoc': (2_000_000,),
-  #'ndoc': (1_000_000,),
-  "ndoc": (500_000,),
-  #'ndoc': (50_000,),
-  "maxConn": (32, 64, 96),
-  # "maxConn": (64,),
-  #'maxConn': (32,),
-  "beamWidthIndex": (250, 500),
-  # "beamWidthIndex": (250,),
-  #'beamWidthIndex': (50,),
-  "fanout": (20, 50, 100, 250),
-  # "fanout": (50,),
-  #'quantize': None,
-  #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (12,),
-  "numMergeThread": (4,),
-  "numSearchThread": (0,),
-  #'numMergeWorker': (1,),
-  #'numMergeThread': (1,),
-  "encoding": ("float32",),
-  # 'metric': ('angular',),  # default is angular (dot_product)
-  # 'metric': ('mip',),
-  #'quantize': (True,),
-  "quantizeBits": (
-    4,
-    7,
-    32,
-  ),
-  # "quantizeBits": (1,),
-  # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
-  #'fanout': (0,),
-  "topK": (100,),
-  # "bp": ("false", "true"),
-  #'quantizeCompress': (True, False),
-  "quantizeCompress": (True,),
-  # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
-  "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
-  # "forceMerge": (True, False),
-  #'niter': (10,),
-}
 
+def str2bool(v):
+    if v.lower() == 'true':
+        return True
+    elif v.lower() == 'false':
+        return False
+    else:
+        raise argparse.ArgumentTypeError(f"Unexpected value: {v}. Expected boolean value(s).")
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+      description="Run KNN benchmark with configurable parameters.",
+      epilog="Example: python src/python/knnPerfTest.py --docVectors ../data/cohere-wikipedia-docs-768d.vec --queryVectors ../data/cohere-wikipedia-queries-768d.vec --topK 10 50 100 --maxConn 32 64 --quantizeCompress True False"
+    )
+
+    parser.add_argument("--ndoc", type=int, nargs="*", default=[500_000], help="Number of documents")
+    parser.add_argument("--topK", type=int, nargs="*", default=[100], help="Top K results to retrieve")
+    parser.add_argument("--maxConn", type=int, nargs="*", default=[64], help="Max connections in the graph")
+    parser.add_argument("--beamWidthIndex", type=int, nargs="*", default=[250], help="Beam width at index time")
+    parser.add_argument("--fanout", type=int, nargs="*", default=[50], help="Fanout parameter")
+    parser.add_argument("--quantizeBits", type=int, nargs="*", default=[32], help="Quantization bits")
+    parser.add_argument("--quantizeCompress", type=str2bool, nargs="*", default=[True], help="Enable quantize compression")
+    parser.add_argument("--numMergeWorker", type=int, nargs="*", default=[12], help="Number of merge workers")
+    parser.add_argument("--numMergeThread", type=int, nargs="*", default=[4], help="Number of merge threads")
+    parser.add_argument("--encoding", type=str, nargs="*", default=["float32"], help="Encoding type")
+    parser.add_argument("--queryStartIndex", type=int, nargs="*", default=[0], help="Query start index")
+    parser.add_argument("--numSearchThread", type=int, nargs="*", default=[0], help="Number of search threads")
+    parser.add_argument("--dim", type=int, default=768, help="Vector dimensionality")
+    parser.add_argument("--docVectors", type=str, default=f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-768d.vec", help="Path to document vectors")
+    parser.add_argument("--queryVectors", type=str, default=f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-768d.vec", help="Path to query vectors")
+    parser.add_argument("--parentJoin", type=str, default=None, help="Path to parent join metadata file")
+    parser.add_argument("--profile", action="store_true", help="Enable Java profiling")
+    parser.add_argument("--quiet", action="store_true", help="Suppress benchmark output")
+
+    return parser.parse_args()
 
 OUTPUT_HEADERS = [
   "recall",
@@ -117,7 +112,6 @@ OUTPUT_HEADERS = [
   "indexType",
 ]
 
-
 def advance(ix, values):
   for i in reversed(range(len(ix))):
     # scary to rely on dict key enumeration order?  but i guess if dict never changes while we do this, it's stable?
@@ -132,33 +126,25 @@ def advance(ix, values):
 
 
 def run_knn_benchmark(checkout, values):
-  indexes = [0] * len(values.keys())
-  indexes[-1] = -1
-  args = []
-  # dim = 100
-  # doc_vectors = constants.GLOVE_VECTOR_DOCS_FILE
-  # query_vectors = '%s/luceneutil/tasks/vector-task-100d.vec' % constants.BASE_DIR
-  # dim = 768
-  # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
-  # query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
-  # dim = 384
-  # doc_vectors = '%s/data/enwiki-20120502-lines-1k-minilm.vec' % constants.BASE_DIR
-  # query_vectors = '%s/luceneutil/tasks/vector-task-minilm.vec' % constants.BASE_DIR
-  # dim = 300
-  # doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
-  # query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
+  do_profiling = values.pop("profile")
+  noisy = not values.pop("quiet")
 
-  # dim = 256
-  # doc_vectors = '/d/electronics_asin_emb.bin'
-  # query_vectors = '/d/electronics_query_vectors.bin'
+  # Ensure parentJoin is always a list for consistency
+  parent_join = values.get("parentJoin")
+  if parent_join is None or parent_join == "":
+    del values["parentJoin"]
+  else:
+    values["parentJoin"] = [parent_join]
 
   # Cohere dataset
-  dim = 768
-  doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
-  query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
-  # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-  # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+  dim = values.pop("dim")
+  doc_vectors = values.pop("docVectors")
+  query_vectors = values.pop("queryVectors")
+
+  # iterator state through all possible index combinations of incoming arguments
+  indexes = [0] * len(values.keys())
+  indexes[-1] = -1 # for advance(...) to roll to all zeros at very first call
+  args = []
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
 
@@ -174,14 +160,14 @@ def run_knn_benchmark(checkout, values):
     "-XX:+DebugNonSafepoints",
   ]
 
-  if DO_PROFILING:
+  if do_profiling:
     cmd += [f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
 
   cmd += ["knn.KnnGraphTester"]
 
   all_results = []
   while advance(indexes, values):
-    if NOISY:
+    if noisy:
       print("\nNEXT:")
     pv = {}
     args = []
@@ -238,7 +224,7 @@ def run_knn_benchmark(checkout, values):
         #'-quiet'
       ]
     )
-    if NOISY:
+    if noisy:
       print(f"  cmd: {this_cmd}")
     else:
       cmd += ["-quiet"]
@@ -251,7 +237,7 @@ def run_knn_benchmark(checkout, values):
       if line == "":
         break
       lines += line
-      if NOISY:
+      if noisy:
         sys.stdout.write(line)
       m = re_summary.match(line)
       if m is not None:
@@ -262,10 +248,10 @@ def run_knn_benchmark(checkout, values):
     if job.returncode != 0:
       raise RuntimeError(f"command failed with exit {job.returncode}")
     all_results.append((summary, args))
-    if DO_PROFILING:
+    if do_profiling:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
 
-  if NOISY:
+  if noisy:
     print("\nResults:")
 
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
@@ -424,6 +410,8 @@ def chart_args_label(args):
 
 
 if __name__ == "__main__":
+  args = parse_args()
+  params = vars(args)
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-  run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+  run_knn_benchmark(LUCENE_CHECKOUT, params)

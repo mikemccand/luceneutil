@@ -337,6 +337,7 @@ public class NRTPerfTest {
     
     // AGGRESSIVE UPDATE STORM SETTINGS:
     // Allow more deletes before forcing merges
+    // nocommit
     tmp.setDeletesPctAllowed(2.0);
     
     conf.setMergePolicy(tmp);
@@ -347,6 +348,7 @@ public class NRTPerfTest {
 
     // Make sure merges run @ higher prio than indexing:
     final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) conf.getMergeScheduler();
+    // Can swap to your own MergeScheduler impl
     // cms.setMaxMergesAndThreads(4, 1);
 
     conf.setMergedSegmentWarmer(new MergedReaderWarmer(field));

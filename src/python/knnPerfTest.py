@@ -87,7 +87,7 @@ PARAMS = {
   "quantizeCompress": (True,),
   # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
-  "forceMerge": (False, ),
+  "forceMerge": (False,),
   #'niter': (10,),
 }
 
@@ -230,8 +230,10 @@ def run_knn_benchmark(checkout, values):
         query_vectors,
         "-numIndexThreads",
         "8",
-        '-metric', 'mip',
-        '-parentJoin', parentJoin_meta_file,
+        "-metric",
+        "mip",
+        "-parentJoin",
+        parentJoin_meta_file,
         # '-numMergeThread', '8', '-numMergeWorker', '8',
         #'-forceMerge',
         #'-stats',

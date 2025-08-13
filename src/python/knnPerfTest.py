@@ -54,25 +54,30 @@ PARAMS = {
   #'ndoc': (1_000_000,),
   "ndoc": (500_000,),
   #'ndoc': (50_000,),
-  #'maxConn': (32, 64, 96),
-  "maxConn": (64,),
+  "maxConn": (32, 64, 96),
+  # "maxConn": (64,),
   #'maxConn': (32,),
-  #'beamWidthIndex': (250, 500),
-  "beamWidthIndex": (250,),
+  "beamWidthIndex": (250, 500),
+  # "beamWidthIndex": (250,),
   #'beamWidthIndex': (50,),
-  #'fanout': (20, 100, 250)
-  "fanout": (100,),
+  "fanout": (20, 50, 100, 250),
+  # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
   "numMergeThread": (4,),
+  "numSearchThread": (0,),
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
   # 'metric': ('angular',),  # default is angular (dot_product)
   # 'metric': ('mip',),
   #'quantize': (True,),
-  "quantizeBits": (32,),
+  "quantizeBits": (
+    4,
+    7,
+    32,
+  ),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -85,6 +90,32 @@ PARAMS = {
   "forceMerge": (False, ),
   #'niter': (10,),
 }
+
+
+OUTPUT_HEADERS = [
+  "recall",
+  "latency(ms)",
+  "netCPU",
+  "avgCpuCount",
+  "nDoc",
+  "topK",
+  "fanout",
+  "maxConn",
+  "beamWidth",
+  "quantized",
+  "visited",
+  "index(s)",
+  "index_docs/s",
+  "force_merge(s)",
+  "num_segments",
+  "index_size(MB)",
+  "selectivity",
+  "filterType",
+  "overSample",
+  "vec_disk(MB)",
+  "vec_RAM(MB)",
+  "indexType",
+]
 
 
 def advance(ix, values):
@@ -194,8 +225,8 @@ def run_knn_benchmark(checkout, values):
         str(dim),
         "-docs",
         doc_vectors,
-        "-reindex",
-        "-search",
+        # "-reindex",
+        "-search-and-stats",
         query_vectors,
         "-numIndexThreads",
         "8",
@@ -230,7 +261,7 @@ def run_knn_benchmark(checkout, values):
     job.wait()
     if job.returncode != 0:
       raise RuntimeError(f"command failed with exit {job.returncode}")
-    all_results.append(summary)
+    all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
 
@@ -251,10 +282,11 @@ def run_knn_benchmark(checkout, values):
     skip_headers.add("beamWidth")
 
   print_fixed_width(all_results, skip_headers)
+  print_chart(all_results)
 
 
 def print_fixed_width(all_results, columns_to_skip):
-  header = "recall\tlatency(ms)\tnDoc\ttopK\tfanout\tmaxConn\tbeamWidth\tquantized\tvisited\tindex(s)\tindex_docs/s\tforce_merge(s)\tnum_segments\tindex_size(MB)\tselectivity\tfilterType\toverSample\tvec_disk(MB)\tvec_RAM(MB)\tindexType"
+  header = "\t".join(OUTPUT_HEADERS)
 
   # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
   headers = header.split("\t")
@@ -262,7 +294,7 @@ def print_fixed_width(all_results, columns_to_skip):
   # print(f'{num_columns} columns')
   max_by_col = [0] * num_columns
 
-  rows_to_print = [header] + all_results
+  rows_to_print = [header] + [result[0] for result in all_results]
 
   skip_column_index = {headers.index(h) for h in columns_to_skip}
 
@@ -280,6 +312,115 @@ def print_fixed_width(all_results, columns_to_skip):
     cols = row.split("\t")
     cols = tuple(cols[x] for x in range(len(cols)) if x not in skip_column_index)
     print(row_fmt % cols)
+
+
+def arglist_to_argmap(arglist):
+  """Map args starting with - to the next value in the list unless it starts with -
+  in which case map to the empty string
+  """
+  argmap = dict()
+  for i in range(len(arglist)):
+    if arglist[i][0] == "-":
+      if i < len(arglist) - 1 and arglist[i + 1][0] != "-":
+        argmap[arglist[i]] = arglist[i + 1]
+      else:
+        argmap[arglist[i]] = ""
+  return argmap
+
+
+def remove_common_args(argmaps):
+  common_args = argmaps[0].copy()
+  for args in argmaps[1:]:
+    for k in list(common_args.keys()):
+      if k not in args or args[k] != common_args[k]:
+        del common_args[k]
+  # don't use fanout as a dimension in a data series label
+  # TODO: also remove other "minor" dimensions such as beam_width and maxconn?
+  # or place under user control somehow
+  common_args["-fanout"] = 1
+  # everything remaining is in common to all rows, now remove them
+  unique_args = []
+  for args in argmaps:
+    ua = dict()
+    for k, v in args.items():
+      if k not in common_args:
+        ua[k] = v
+    unique_args.append(ua)
+  return unique_args
+
+
+CHART_HEADER = """
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+"""
+
+CHART_FOOTER = """        ]);
+
+        var options = {
+          //title: '$TITLE$',
+          pointSize: 5,
+          //legend: {position: 'none'},
+          hAxis: {title: 'Recall'},
+          vAxis: {title: 'CPU (msec)', direction: -1},
+          interpolateNulls: true
+        };
+
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="chart_div" style="width: 1200px; height: 600px;"></div>
+  </body>
+</html>
+"""
+
+
+def print_chart(results):
+  # (recall, nCpu) for each result
+  argmaps = [arglist_to_argmap(r[1]) for r in results]
+  argmaps = remove_common_args(argmaps)
+  # TODO: also remove "minor" args that may vary the performance but are not shown on the axes
+  # and then show the corresponding value(s) in the tooltips
+  output = CHART_HEADER
+  labels = dict()
+  for argmap in argmaps:
+    label = chart_args_label(argmap)
+    if label in labels:
+      index = labels[label]
+    else:
+      index = len(labels)
+      labels[label] = index
+
+  output += str([""] + list(labels.keys()))
+  output += ",\n"
+
+  for i, row in enumerate(results):
+    values = row[0].split("\t")
+    label = chart_args_label(argmaps[i])
+    index = labels[label]
+    # recall on x axis, cpu on y axis. nulls for the other label indices
+    data_row = [float(values[0])] + ["null"] * index + [float(values[2])] + ["null"] * (len(labels) - index - 1)
+    output += str(data_row).replace("'null'", "null")
+    output += ",\n"
+
+  output += CHART_FOOTER
+  with open("knnPerfChart.html", "w") as fout:
+    print(output, file=fout)
+
+
+def chart_args_label(args):
+  if len(args) == 0:
+    return "baseline"
+  return str(args)
 
 
 if __name__ == "__main__":

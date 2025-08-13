@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
+
 import bisect
 import datetime
 import os
@@ -23,11 +25,83 @@ import re
 import sys
 
 
-def parse_timestamp(s):
-  return datetime.datetime.fromisoformat(s)
+# thank you Claude:
+def parse_timestamp(timestamp_str: str) -> datetime.datetime | None:
+  """Parse ISO 8601 timestamp with cross-Python version compatibility.
+
+  Fixes the issue where datetime.datetime.fromisoformat() fails on Python < 3.11 with:
+  - Nanosecond precision timestamps (e.g., '.744930252')
+  - 'Z' timezone designator
+
+  Args:
+      timestamp_str: ISO 8601 timestamp string
+                    (e.g., '2025-06-22T17:29:31.744930252Z')
+
+  Returns:
+      datetime object, or exception if parsing fails
+
+  Example usage:
+      # Replace this:
+      # dt = datetime.datetime.fromisoformat(timestamp_str)
+
+      # With this:
+      dt = parse_timestamp_compatible(timestamp_str)
+      if dt is None:
+          # Handle parsing error
+          continue
+
+  """
+  # For Python 3.11+, try native fromisoformat first
+  if sys.version_info >= (3, 11):
+    try:
+      return datetime.datetime.fromisoformat(timestamp_str)
+    except ValueError:
+      # Fall through to compatibility handling
+      pass
+
+  # Compatibility processing for older Python versions
+  processed = timestamp_str.strip()
+
+  # Step 1: Handle 'Z' timezone (replace with '+00:00')
+  if processed.endswith("Z"):
+    processed = processed[:-1] + "+00:00"
+
+  # Step 2: Handle nanosecond precision
+  if "." in processed:
+    # Find the fractional seconds part
+    if "+" in processed:
+      main_part, tz_part = processed.rsplit("+", 1)
+      tz_part = "+" + tz_part
+    elif processed.count("-") >= 3:  # Date has 2 dashes, timezone has 1
+      main_part, tz_part = processed.rsplit("-", 1)
+      tz_part = "-" + tz_part
+    else:
+      main_part = processed
+      tz_part = ""
+
+    # Split main part to get fractional seconds
+    if "." in main_part:
+      datetime_part, fractional_part = main_part.split(".", 1)
+
+      # Truncate nanoseconds to microseconds (max 6 digits)
+      if len(fractional_part) > 6:
+        fractional_part = fractional_part[:6]
+
+      # Reconstruct timestamp
+      processed = f"{datetime_part}.{fractional_part}{tz_part}"
+
+  # Parse the processed timestamp
+  return datetime.datetime.fromisoformat(processed)
 
 
 # TODO
+#   - CMS logs helpful progress indicators for each merge thread -- can we parse this and render somehow?:
+#      merge thread Lucene Merge Thread #154 estSize=4674.5 MB (written=3931.3 MB) runTime=17016.6s (stopped=0.0s, paused=0.0s) rate=unlimited
+#        leave running at Infinity MB/sec
+#      merge thread Lucene Merge Thread #401 estSize=3353.0 MB (written=738.2 MB) runTime=3437.3s (stopped=0.0s, paused=0.0s) rate=unlimited
+#        leave running at Infinity MB/sec
+#      merge thread Lucene Merge Thread #463 estSize=3128.8 MB (written=726.3 MB) runTime=145.2s (stopped=0.0s, paused=0.0s) rate=unlimited
+#        leave running at Infinity MB/sec"
 #   - also parse "skip apply merge during commit" message to validate timeout of MOC merge
 #   - why do del counts sometimes go backwards?  "now checkpoint" is not guaranteed to be monotonic?
 #   - we could validate MOC parsing by checking segments actually committed (IW logs this) vs our re-parsing / re-construction?
@@ -454,6 +528,8 @@ def main():
   # e.g. MS 1 [2025-03-11T02:30:48.686201756Z; GCR-Writer-1-thread-20]:   no more merges pending; now return
   re_no_more_merges = re.compile(r"^MS \d+ \[([^;]+); (.*?)\]:\s+no more merges pending; now return")
 
+  re_line_lead = re.compile(r"^([A-Z]+) (\d+) ")
+
   line_number = 0
 
   global_start_time = None
@@ -503,6 +579,11 @@ def main():
       line = line.strip()
       # print(f'{line}')
 
+      m = re_line_lead.search(line)
+      if m is not None:
+        if int(m.group(2)) != 3:
+          continue
+
       if do_strip_log_prefix is None:
         do_strip_log_prefix = line.find("LoggingInfoStream:") != -1
 
@@ -546,10 +627,8 @@ def main():
 
           if first_checkpoint:
             # seed the initial segments in the index
-            print("do first")
             for segment_name, source, is_cfs, max_doc, del_count, del_gen, diagnostics, attributes in seg_details:
               segment = Segment(segment_name, source, max_doc, None, timestamp - datetime.timedelta(seconds=30), None, line_number)
-              segment.size_mb = 1
               # this is most likely not correct (underestimate), so if index was pre-existing, all write amplification will
               # be undercounted:
               segment.net_write_amplification = 1
@@ -596,6 +675,9 @@ def main():
           size_mb = float(m.group(4))
           segment = by_segment_name[segment_name]
           if segment.size_mb is None:
+            # necessary when IW started up on an already populated index -- we see which segments it
+            # initially loaded, but it's only later (now, on this line) where we see how large each
+            # of those initial segment is:
             print(f"now set initial segment size for {segment_name} to {size_mb:.3f}")
             segment.size_mb = size_mb
           if global_start_time is None:
@@ -949,6 +1031,7 @@ def main():
 
         m = re_start_full_flush.match(line)
         if m is not None:
+          print(f"got start full flush {line_number}")
           # we should NOT be in the middle of a flush-by-RAM?  hmm but what if commit
           # is called when we are ...?
           assert trigger_flush_thread_name is None, f"{trigger_flush_thread_name} on line {line_number}"
@@ -1051,7 +1134,10 @@ def main():
             if force_merge_deletes_thread_name == thread_name:
               force_merge_deletes_thread_name = None
             else:
-              raise RuntimeError("WTF saw merges done from different thread than force_merge_deletes_thread_name?")
+              # this can legit happen if one thread is doing merge-on-commit, and another thread calls forceMergeDeletes.  in this case,
+              # the FMD thread can register a bunch of merges, but the MOC thread pulls (some of) those merges and launches them
+              # raise RuntimeError(f"WTF saw merges done from different {thread_name=} than {force_merge_deletes_thread_name=}?")
+              force_merge_deletes_thread_name = None
 
       except KeyboardInterrupt:
         raise

@@ -85,7 +85,7 @@ def runPrecommit(logFile):
       raise RuntimeError("git clean -xfd lucene solr failed!")
 
     t0 = time.time()
-    if not os.system("./gradlew --stacktrace precommit -Ptask.times=true >> %s.tmp 2>&1" % logFile):
+    if not os.system("./gradlew --stacktrace check -x test  -Ptask.times=true >> %s.tmp 2>&1" % logFile):
       # Success
       t1 = time.time()
       open(logFile + ".tmp", "a").write("\nTOTAL SEC: %s" % (t1 - t0))

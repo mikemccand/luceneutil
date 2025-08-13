@@ -157,7 +157,7 @@ public class SearchPerfTest {
   }
 
   /** Snapshots all running threads and their CPU counters */
-  static final class ThreadDetails {
+  public static final class ThreadDetails {
     public final long[] threadIDs;
     public final long[] cpuTimesNS;
     public final ThreadInfo[] threadInfos;
@@ -236,7 +236,12 @@ public class SearchPerfTest {
     final int topN = args.getInt("-topN");
     final boolean doStoredLoads = args.getFlag("-loadStoredFields");
     final boolean exitable = args.getFlag("-exitable");
+    final boolean pollute = args.getFlag("-pollute");
     final TestContext testContext = TestContext.parse(args.getString("-context", ""));
+
+    if (pollute) {
+      TypePolluter.pollute();
+    }
 
     if (searchConcurrency == -1) {
       searchConcurrency = Runtime.getRuntime().availableProcessors();

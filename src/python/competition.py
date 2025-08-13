@@ -299,6 +299,7 @@ class Competitor:
     javacCommand=constants.JAVAC_EXE,
     topN=100,
     testContext="",
+    pollute=True,
   ):
     self.name = name
     self.checkout = checkout
@@ -349,6 +350,9 @@ class Competitor:
     # different implementations of the same functionality.
     # See also TestContext#parse
     self.testContext = testContext
+
+    # Whether to pollute call sites so that they are not all magically monomorphic
+    self.pollute = pollute
 
   def getAggregateProfilerResult(self, id, mode, count=30, stackSize=1):
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each

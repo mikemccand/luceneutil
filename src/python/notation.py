@@ -684,6 +684,11 @@ KNOWN_CHANGES = [
     "Kernel upgrade from 6.12.4 -> 6.14.4, which including changing HZ (how many time slices per sec the Linux scheduler creates) from 300 (Arch Linux) to 1000, likely the cause of our slowdown",
   ),
   (
+    "2025-05-13",
+    "Regression from optimistic KNN query -- see https://github.com/apache/lucene/issues/14671",
+    "Regression from optimistic KNN query -- see https://github.com/apache/lucene/issues/14671",
+  ),
+  (
     "2025-05-15",
     "Downgraded from Java 24 to Java 23, and Lucene to #612f0da4a4ce3a133b40402a87ec5cf7eeb290cc, but perf regression remains",
     "Downgraded from Java 24 to Java 23, and Lucene to #612f0da4a4ce3a133b40402a87ec5cf7eeb290cc, but perf regression remains",
@@ -697,5 +702,75 @@ KNOWN_CHANGES = [
     "2025-05-22",
     "Speed up exhaustive evaluation https://github.com/apache/lucene/pull/14679",
     "Speed up exhaustive evaluation https://github.com/apache/lucene/pull/14679",
+  ),
+  (
+    "2025-05-29",
+    "Refactor main top-n bulk scorers to evaluate hits in a more term-at-a-time fashion https://github.com/apache/lucene/pull/14701, Speed up TermQuery https://github.com/apache/lucene/pull/14709",
+    "Refactor main top-n bulk scorers to evaluate hits in a more term-at-a-time fashion https://github.com/apache/lucene/pull/14701, Speed up TermQuery https://github.com/apache/lucene/pull/14709",
+  ),
+  (
+    "2025-06-02",
+    "Keep evaluating conjunction one doc-at-a-time until dynamic pruning kicks in. https://github.com/apache/lucene/pull/14739",
+    "Keep evaluating conjunction one doc-at-a-time until dynamic pruning kicks in. https://github.com/apache/lucene/pull/14739",
+  ),
+  (
+    "2025-06-03",
+    "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
+    "Merge DocAndFreqBuffer and DocAndScoreBuffer https://github.com/apache/lucene/pull/14748",
+  ),
+  (
+    "2025-06-05",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+  ),
+  (
+    "2025-06-06",
+    "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
+    "Respect minCompetitiveScore in BlockMaxConjunctionBulkScorer https://github.com/apache/lucene/pull/14751",
+  ),
+  (
+    "2025-06-13",
+    "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
+    "Upgrade Linux kernel from 6.14.4 to 6.15.2, curiously impacting many queries",
+  ),
+  (
+    "2025-06-15",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+    "Swap out some simple PriorityQueue subclasses for one using a Comparator https://github.com/apache/lucene/pull/14705",
+  ),
+  (
+    "2025-06-26",
+    "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
+    "Implement nextDocAndScores on CombinedFieldQuery and ConstantScoreQuery https://github.com/apache/lucene/pull/14834 https://github.com/apache/lucene/pull/14772",
+  ),
+  (
+    "2025-06-30",
+    "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
+    "Using BatchScoreBulkScorer on CombinedFieldQuery https://github.com/apache/lucene/pull/14854",
+  ),
+  (
+    "2025-07-01",
+    "Use LessThan here rather than Comparator for some key PriorityQueues https://github.com/apache/lucene/pull/14871",
+    "Use LessThan here rather than Comparator for some key PriorityQueues https://github.com/apache/lucene/pull/14871",
+  ),
+  (
+    "2025-07-07",
+    "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+    "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
+  ),
+  (
+    "2025-07-13",
+    "Optimize bitset to array https://github.com/apache/lucene/pull/14935",
+    "Optimize bitset to array https://github.com/apache/lucene/pull/14935",
+  ),
+  (
+    "2025-07-17",
+    "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
+    "Vectorize filterCompetitiveHits https://github.com/apache/lucene/pull/14896",
+  ),
+  (
+    "2025-07-24",
+    "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
+    "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
   ),
 ]

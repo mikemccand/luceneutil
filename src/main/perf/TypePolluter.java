@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.lucene.codecs.simpletext.SimpleTextCodec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.KnnFloatVectorField;
@@ -18,7 +17,6 @@ import org.apache.lucene.index.QueryTimeoutImpl;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.FieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
@@ -46,10 +44,10 @@ public class TypePolluter {
   public static void pollute() throws IOException {
     // Use ByteBuffersDirectory instead of MMapDirectory to have multiple IndexInput sub-classes used by queries
     try (Directory dir = new ByteBuffersDirectory()) {
-      
+
       // TODO: configure a non-default codec?
       IndexWriterConfig config = new IndexWriterConfig(null);;
-      
+
       try (IndexWriter w = new IndexWriter(dir, config)) {
         // Add enough documents for the inverted index to have full blocks (128 postings)
         int docCount = 1024;
@@ -58,32 +56,38 @@ public class TypePolluter {
           doc.add(new StringField("id", Integer.toString(i), Store.NO));
           if (i % 3 != 0) {
             doc.add(new StringField("body", "a", Store.NO));
+            doc.add(new NumericDocValuesField("int1", i % 3));
           }
           if (i % 7 != 0) {
             doc.add(new StringField("body", "b", Store.NO));
+            doc.add(new NumericDocValuesField("int2", i % 7));
           }
           if (i % 11 != 0) {
             doc.add(new StringField("body", "c", Store.NO));
+            doc.add(new NumericDocValuesField("int3", i % 11));
           }
           if (i % 13 != 0) {
             doc.add(new KnnFloatVectorField("vector", new float[] { i % 7 }));
           }
-          if (i % 17 != 0) {
-            doc.add(new NumericDocValuesField("int", i));
-          }
           w.addDocument(doc);
         }
         w.forceMerge(1);
+
+        try (DirectoryReader reader = DirectoryReader.open(w)) {
+          // Run queries with no deletions
+          runQueries(reader);
+        }
         // Add deleted docs to make sure that branches that exercise deleted docs are used even
         // though the benchmark may be running with no deleted docs
         for (int i = 0; i < docCount; i += 23) {
           w.deleteDocuments(new Term("id", Integer.toString(i)));
         }
-      }
-      try (DirectoryReader reader = DirectoryReader.open(dir)) {
-        runQueries(reader);
-        // ExitableDirectoryReader adds lots of wrappers everywhere
-        runQueries(new ExitableDirectoryReader(reader, new QueryTimeoutImpl(Long.MAX_VALUE)));
+        try (DirectoryReader reader = DirectoryReader.open(w)) {
+          // Now run queries with deletions
+          runQueries(reader);
+          // ExitableDirectoryReader adds lots of wrappers everywhere
+          runQueries(new ExitableDirectoryReader(reader, new QueryTimeoutImpl(Long.MAX_VALUE)));
+        }
       }
     }
   }
@@ -95,12 +99,11 @@ public class TypePolluter {
     booleanSearcher.setSimilarity(new BooleanSimilarity());
     IndexSearcher classicSearcher = new IndexSearcher(reader);
     classicSearcher.setSimilarity(new ClassicSimilarity());
-    
-    
+
     Query query1 = new TermQuery(new Term("body", "a"));
     Query query2 = new TermQuery(new Term("body", "b"));
-    Query query3 = new ConstantScoreQuery(query1);
-    Query query4 = new ConstantScoreQuery(query2);
+    Query query3 = new FieldExistsQuery("int1");
+    Query query4 = new FieldExistsQuery("int2");
     Query query5 = new BooleanQuery.Builder()
         .add(query1, Occur.SHOULD)
         .add(query2, Occur.SHOULD)
@@ -117,7 +120,7 @@ public class TypePolluter {
         .add(query3, Occur.MUST)
         .add(query4, Occur.MUST)
         .build();
-    
+
     Query[] baseQueries = new Query[] { query1, query2, query3, query4, query5, query6, query7, query8 };
 
     // dense filter
@@ -125,10 +128,10 @@ public class TypePolluter {
     // sparse filter (especially useful to make sure that the vector search query exercises exact search)
     Query filter2 = new TermQuery(new Term("id", "1"));
     // filter not based on postings
-    Query filter3 = new FieldExistsQuery("int");
-    
+    Query filter3 = new FieldExistsQuery("int3");
+
     List<Query> queries = new ArrayList<>();
-    
+
     for (Query query : baseQueries) {
       queries.add(query);
       for (Query filter : new Query[] { filter1, filter2, filter3 }) {
@@ -142,14 +145,14 @@ public class TypePolluter {
 
     // Handle vector search separately since filters need to be applied differently
     {
-      Query query9 = new KnnFloatVectorQuery("vector", new float[] { 1.5f }, 10);
-      queries.add(query9);
+      Query vectorQuery = new KnnFloatVectorQuery("vector", new float[] { 1.5f }, 10);
+      queries.add(vectorQuery);
       for (Query filter : new Query[] { filter1, filter2, filter3 }) {
         Query filteredQuery = new KnnFloatVectorQuery("vector", new float[] { 1.5f }, 10, filter);
         queries.add(filteredQuery);
       }
     }
-    
+
     for (Query query : queries) {
       // Exhaustive evaluation, no scoring
       int count = searcher.count(query);

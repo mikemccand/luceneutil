@@ -26,7 +26,6 @@ import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -387,14 +386,14 @@ public class NRTPerfTest {
     }
 
     final DirectSpellChecker spellChecker = new DirectSpellChecker();
-    final IndexState indexState = new IndexState(null, manager, null, field, spellChecker, "FastVectorHighlighter", null, new HashMap<>());
+    final IndexState indexState = new IndexState(null, manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
     TaskParserFactory taskParserFactory =
       new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, null, -1, true, TestContext.parse(""));
     // Periodically increase docsPerSec
     Thread docsPerSecIncreaser = new Thread(() -> {
       try {
         int increaseCount = 0;
-        final int maxIncreases = 8;
+        int maxIncreases = 8;
         while (increaseCount < maxIncreases) {
           Thread.sleep(20000); // every 20 seconds
           double newRate = docsPerSecRef.updateAndGet(rate -> rate * 2);

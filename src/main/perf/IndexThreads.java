@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -49,8 +50,11 @@ class IndexThreads {
   final AtomicBoolean refreshing;
   final AtomicLong lastRefreshNS;
 
+  /**
+   * @param docsPerSecPerThreadRef AtomicReference for thread-safe rate updates across multiple threads.
+   */
   public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
-                      boolean addGroupingFields, boolean printDPS, Mode mode, java.util.concurrent.atomic.AtomicReference<Double> docsPerSecPerThreadRef, UpdatesListener updatesListener,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, AtomicReference<Double> docsPerSecPerThreadRef, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
     throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
@@ -141,7 +145,7 @@ class IndexThreads {
     private final Mode mode;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
-    private final java.util.concurrent.atomic.AtomicReference<Double> docsPerSecRef;
+    private final AtomicReference<Double> docsPerSecRef;
     private final Random random;
     private final AtomicBoolean failed;
     private final UpdatesListener updatesListener;
@@ -151,7 +155,7 @@ class IndexThreads {
     final int randomDocIDMax;
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
                        LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
-                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, java.util.concurrent.atomic.AtomicReference<Double> docsPerSecRef,
+                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, AtomicReference<Double> docsPerSecRef,
                        AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;

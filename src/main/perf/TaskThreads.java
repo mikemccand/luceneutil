@@ -103,38 +103,36 @@ public class TaskThreads {
 
       try {
         while (stop.get() == false) {
-          final Task task = tasks.nextTask();
-          if (task == null) {
+          final Task originalTask = tasks.nextTask();
+          if (originalTask == null) {
             // Done
             this.tasksStopNanos = System.nanoTime();
             // first thread that finishes snapshots all threads.  this way we do not include "winddown" time in our measurement.
             endThreadDetails.compareAndSet(null, new SearchPerfTest.ThreadDetails());
             break;
           }
+          
+          // Clone the task to avoid reuse issues
+          final Task task = originalTask.clone();
 
           // Run the task in the IndexSearcher's executor. This is important because IndexSearcher#search also uses the current thread to
           // search, so not running #search from the executor would artificially use one more thread than configured via luceneutil.
           // We're counting time within the task to not include forking time for the top-level search in the reported time.
-          final Task clonedTask = task.clone();
           executor.submit(() -> {
-            clonedTask.startTimeNanos = System.nanoTime();
+            task.startTimeNanos = System.nanoTime();
             try {
-              clonedTask.go(indexState, taskParser);
+              task.go(indexState, taskParser);
             } catch (IOException ioe) {
               throw new RuntimeException(ioe);
             }
             try {
-              tasks.taskDone(clonedTask, clonedTask.startTimeNanos-clonedTask.recvTimeNS, clonedTask.totalHitCount);
+              tasks.taskDone(task, task.startTimeNanos-task.recvTimeNS, task.totalHitCount);
             } catch (Exception e) {
               System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
               e.printStackTrace();
             }
-            clonedTask.runTimeNanos = System.nanoTime()-clonedTask.startTimeNanos;
+            task.runTimeNanos = System.nanoTime()-task.startTimeNanos;
           }).get();
-          
-          // Copy results back to original task for reporting
-          task.totalHitCount = clonedTask.totalHitCount;
-          task.runTimeNanos = clonedTask.runTimeNanos;
 
           task.threadID = threadID;
         }

@@ -1779,7 +1779,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData
   w("<br>")
   w("<br>")
   w("<br>")
-  w(getOneGraphHTML("MedVectorsIndexTime", medVectorsChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs, with KNN Vectors", errorBars=False, pctOffset=90))
+  w(getOneGraphHTML("MedVectorsIndexTime", medVectorsChartData, "Plain text GB/hour", "~1 KB Wikipedia English docs, with KNN Vectors", errorBars=False, pctOffset=90))
   w("\n")
 
   w("<br>")
@@ -1787,7 +1787,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData
   w("<br>")
   w(
     getOneGraphHTML(
-      "MedQuantizedVectorsIndexTime", medQuantizedVectorsChartData, "Plain text GB/hour", "~4 KB Wikipedia English docs, with KNN Scalar Quantized Vectors", errorBars=False, pctOffset=170
+      "MedQuantizedVectorsIndexTime", medQuantizedVectorsChartData, "Plain text GB/hour", "~1 KB Wikipedia English docs, with KNN Scalar Quantized Vectors", errorBars=False, pctOffset=170
     )
   )
   w("\n")

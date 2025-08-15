@@ -783,4 +783,9 @@ KNOWN_CHANGES = [
     "Add bulk off-heap scoring for float32 vectors https://github.com/apache/lucene/pull/14980",
     "Add bulk off-heap scoring for float32 vectors https://github.com/apache/lucene/pull/14980",
   ),
+  (
+    "2025-08-08",
+    "Change default readadvice back to NORMAL from RANDOM https://github.com/apache/lucene/pull/15040",
+    "Change default readadvice back to NORMAL from RANDOM https://github.com/apache/lucene/pull/15040",
+  ),
 ]

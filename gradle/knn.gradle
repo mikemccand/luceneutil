@@ -47,7 +47,10 @@ task runKnnPerfTest (type: Exec) {
 
     workingDir rootProject.getRootDir()
 
-    commandLine 'python3', 'src/python/knnPerfTest.py'
+    doFirst {
+        def runs = project.hasProperty('runs') ? project.property('runs') : '1'
+        commandLine 'python3', 'src/python/knnPerfTest.py', '--runs', runs
+    }
 }
 
 task extractVectorTasks (type: Copy) {

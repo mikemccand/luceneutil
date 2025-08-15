@@ -579,10 +579,11 @@ def main():
       line = line.strip()
       # print(f'{line}')
 
-      m = re_line_lead.search(line)
-      if m is not None:
-        if int(m.group(2)) != 3:
-          continue
+      if False:
+        m = re_line_lead.search(line)
+        if m is not None:
+          if int(m.group(2)) != 3:
+            continue
 
       if do_strip_log_prefix is None:
         do_strip_log_prefix = line.find("LoggingInfoStream:") != -1
@@ -592,7 +593,7 @@ def main():
       if do_strip_log_prefix:
         spot = line.find("LoggingInfoStream:")
         line = line[spot + 19 :]
-        print(f"now: {line}")
+        # print(f"now: {line}")
 
       try:
         if next_line_is_flush_by_ram:

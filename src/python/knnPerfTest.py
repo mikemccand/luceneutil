@@ -60,13 +60,13 @@ PARAMS = {
   "ndoc": (500_000,),
   #'ndoc': (50_000,),
   "maxConn": (32, 64, 96),
-   #"maxConn": (64,),
+  # "maxConn": (64,),
   #'maxConn': (32,),
   "beamWidthIndex": (250, 500),
-  #"beamWidthIndex": (250,),
+  # "beamWidthIndex": (250,),
   #'beamWidthIndex': (50,),
   "fanout": (20, 50, 100, 250),
-  #"fanout": (50,),
+  # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (12,),
@@ -141,8 +141,8 @@ def run_knn_benchmark(checkout, values):
   indexes[-1] = -1
   args = []
   dim = 100
-  doc_vectors = '%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec' % constants.BASE_DIR
-  query_vectors = '%s/lucene_util/tasks/vector-task-100d.vec' % constants.BASE_DIR
+  doc_vectors = "%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec" % constants.BASE_DIR
+  query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
   # dim = 768
   # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
   # query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
@@ -431,21 +431,20 @@ def chart_args_label(args):
   return str(args)
 
 
-
 def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   rec, lat, net, avg = [], [], [], []
   tests = []
   for i in range(n):
-      results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
-      tests.append(results)
-      first_4_numbers = results[0][0].split('\t')[:4]
-      first_4_numbers = [float(num) for num in first_4_numbers]
+    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+    tests.append(results)
+    first_4_numbers = results[0][0].split("\t")[:4]
+    first_4_numbers = [float(num) for num in first_4_numbers]
 
-      # store relevant data points
-      rec.append(first_4_numbers[0])
-      lat.append(first_4_numbers[1])
-      net.append(first_4_numbers[2])
-      avg.append(first_4_numbers[3])
+    # store relevant data points
+    rec.append(first_4_numbers[0])
+    lat.append(first_4_numbers[1])
+    net.append(first_4_numbers[2])
+    avg.append(first_4_numbers[3])
 
   # reconstruct string with median results
   med_results = []
@@ -455,16 +454,16 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   med_string += f"{round(statistics.median(net), 3)}\t"
   med_string += f"{round(statistics.median(avg), 3)}\t"
 
-  split_results = results[0][0].split('\t')
-  split_string = '\t'.join(split_results[4:])
+  split_results = results[0][0].split("\t")
+  split_string = "\t".join(split_results[4:])
   med_string += split_string
   med_tuple = (med_string, results[0][1])
   med_results.append(med_tuple)
 
-  #re-print all tables in a row
+  # re-print all tables in a row
   print("\nFinal Results:")
   for i in range(n):
-    print(f"\nTest {i+1}:")
+    print(f"\nTest {i + 1}:")
     print_fixed_width(tests[i], skip_headers)
 
   # print median results in table
@@ -474,20 +473,13 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run KNN benchmarks')
-    parser.add_argument('--runs', type=int, default=1,
-                       help='Number of times to run the benchmark (default: 1)')
-    n = parser.parse_args()
+  parser = argparse.ArgumentParser(description="Run KNN benchmarks")
+  parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
+  n = parser.parse_args()
 
-    # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
-    LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-    if n.runs == 1:
-      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
-    else:
-      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
-
-
-
-
-
-
+  # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
+  LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
+  if n.runs == 1:
+    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+  else:
+    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)

@@ -528,6 +528,8 @@ def main():
   # e.g. MS 1 [2025-03-11T02:30:48.686201756Z; GCR-Writer-1-thread-20]:   no more merges pending; now return
   re_no_more_merges = re.compile(r"^MS \d+ \[([^;]+); (.*?)\]:\s+no more merges pending; now return")
 
+  re_line_lead = re.compile(r"^([A-Z]+) (\d+) ")
+
   line_number = 0
 
   global_start_time = None
@@ -577,6 +579,12 @@ def main():
       line = line.strip()
       # print(f'{line}')
 
+      if False:
+        m = re_line_lead.search(line)
+        if m is not None:
+          if int(m.group(2)) != 3:
+            continue
+
       if do_strip_log_prefix is None:
         do_strip_log_prefix = line.find("LoggingInfoStream:") != -1
 
@@ -585,7 +593,7 @@ def main():
       if do_strip_log_prefix:
         spot = line.find("LoggingInfoStream:")
         line = line[spot + 19 :]
-        print(f"now: {line}")
+        # print(f"now: {line}")
 
       try:
         if next_line_is_flush_by_ram:
@@ -1024,6 +1032,7 @@ def main():
 
         m = re_start_full_flush.match(line)
         if m is not None:
+          print(f"got start full flush {line_number}")
           # we should NOT be in the middle of a flush-by-RAM?  hmm but what if commit
           # is called when we are ...?
           assert trigger_flush_thread_name is None, f"{trigger_flush_thread_name} on line {line_number}"

@@ -679,6 +679,11 @@ KNOWN_CHANGES = [
     "A specialized Trie for Block Tree Index. https://github.com/apache/lucene/pull/14333",
   ),
   (
+    "2025-04-30",
+    "Fix silly bug in Cohere 768 dim vectors that mis-interpreted double as two adjacent floats: https://github.com/mikemccand/luceneutil/commit/615ff6c75157f395dfbe2b133c67415c81fe5399",
+    "Fix silly bug in Cohere 768 dim vectors that mis-interpreted double as two adjacent floats: https://github.com/mikemccand/luceneutil/commit/615ff6c75157f395dfbe2b133c67415c81fe5399",
+  ),
+  (
     "2025-05-01",
     "Kernel upgrade from 6.12.4 -> 6.14.4, which including changing HZ (how many time slices per sec the Linux scheduler creates) from 300 (Arch Linux) to 1000, likely the cause of our slowdown",
     "Kernel upgrade from 6.12.4 -> 6.14.4, which including changing HZ (how many time slices per sec the Linux scheduler creates) from 300 (Arch Linux) to 1000, likely the cause of our slowdown",

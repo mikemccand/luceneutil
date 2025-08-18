@@ -433,7 +433,7 @@ def run():
     waitForMerges=False,
     waitForCommit=False,
     grouping=False,
-    verbose=False,
+    verbose=True,
     mergePolicy="TieredMergePolicy",
     useCMS=True,
     vectorFile=constants.VECTORS_DOCS_FILE,

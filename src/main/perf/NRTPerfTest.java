@@ -391,18 +391,21 @@ public class NRTPerfTest {
       new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, null, -1, true, TestContext.parse(""));
     // Periodically increase docsPerSec
     Thread docsPerSecIncreaser = new Thread(() -> {
-      try {
-        int increaseCount = 0;
-        int maxIncreases = 8;
-        while (increaseCount < maxIncreases) {
-          Thread.sleep(20000); // every 20 seconds
-          double newRate = docsPerSecRef.updateAndGet(rate -> rate * 2);
-          System.out.println("Increased docsPerSec per thread to " + newRate);
-          increaseCount++;
+      while (true) {
+        try {
+          int increaseCount = 0;
+          int maxIncreases = 8;
+          while (increaseCount < maxIncreases) {
+            Thread.sleep(20000); // every 20 seconds
+            double newRate = docsPerSecRef.updateAndGet(rate -> rate * 2);
+            System.out.println("Increased docsPerSec per thread to " + newRate);
+            increaseCount++;
+          }
+          System.out.println("Reached max increases (" + maxIncreases + "), now peace time mode");
+          Thread.sleep(300000); // 5 minutes of peace time
+        } catch (InterruptedException e) {
+          // exit thread
         }
-        System.out.println("Reached max increases (" + maxIncreases + "), now peace time mode");
-      } catch (InterruptedException e) {
-        // exit thread
       }
     });
     docsPerSecIncreaser.setDaemon(true);

@@ -309,7 +309,7 @@ def print_fixed_width(all_results, columns_to_skip):
   for row in rows_to_print:
     by_column = row.split("\t")
     if len(by_column) != num_columns:
-      raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)} in "{row}"')
+      raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)} in row "{row}"')
     for i, s in enumerate(by_column):
       max_by_col[i] = max(max_by_col[i], len(s))
 

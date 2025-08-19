@@ -807,7 +807,7 @@ def _run(results_dir):
         shutil.rmtree(index_path)
 
   skip_headers = {"selectivity", "filterType", "visited"}
-  knnPerfTest.print_fixed_width(all_summaries, skip_headers)
+  knnPerfTest.print_fixed_width([(x, None) for x in all_summaries], skip_headers)
 
   results_file = f"{results_dir}/knn_results.pk"
   print(f"saving all results to {results_file}")

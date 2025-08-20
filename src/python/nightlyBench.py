@@ -146,6 +146,13 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   indexPath = benchUtil.nameToIndexPath(index.getName())
   if os.path.exists(indexPath):
     shutil.rmtree(indexPath)
+
+  # clean up after any failed runs first:
+  for tool in ("vmstat", "top"):
+    logFileName = f"{constants.LOGS_DIR}/nightly.{tool}.log"
+    if os.path.exists(logFileName):
+      os.remove(logFileName)
+
   # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
   indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES)
 

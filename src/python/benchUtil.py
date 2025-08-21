@@ -27,6 +27,7 @@ import sys
 import time
 import traceback
 import types
+import shlex
 from shutil import which
 
 import common
@@ -1910,10 +1911,10 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
         f"-Dtests.profile.mode={mode}",
         f"-Dtests.profile.count={profilerCount}",
         f"-Dtests.profile.stacksize={stackSize}",
-        "org.apache.lucene.gradle.ProfileResults",
+        "org.apache.lucene.gradle.plugins.java.ProfileResults",
         jfrOutput,
       ]
-      print(f"profile command: {profileCommand}")
+      print(f"profile command: {' '.join([shlex.quote(x) for x in profileCommand])}")
       try:
         result = subprocess.run(profileCommand, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
       except subprocess.CalledProcessError as e:

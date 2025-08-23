@@ -759,6 +759,11 @@ KNOWN_CHANGES = [
     "Use LessThan here rather than Comparator for some key PriorityQueues https://github.com/apache/lucene/pull/14871",
   ),
   (
+    "2025-07-04",
+    "Pre-calculate minRequiredScore to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14827",
+    "Pre-calculate minRequiredScore to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14827",
+  ),
+  (
     "2025-07-07",
     "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
     "Use branchless way to speedup filterCompetitiveHits https://github.com/apache/lucene/pull/14906",
@@ -792,5 +797,15 @@ KNOWN_CHANGES = [
     "2025-08-08",
     "Change default readadvice back to NORMAL from RANDOM https://github.com/apache/lucene/pull/15040",
     "Change default readadvice back to NORMAL from RANDOM https://github.com/apache/lucene/pull/15040",
+  ),
+  (
+    "2025-08-13",
+    "Add call site pollution https://github.com/mikemccand/luceneutil/pull/436",
+    "Add call site pollution https://github.com/mikemccand/luceneutil/pull/436",
+  ),
+  (
+    "2025-08-21",
+    "Better vectorize score computations https://github.com/apache/lucene/pull/15039",
+    "Better vectorize score computations https://github.com/apache/lucene/pull/15039",
   ),
 ]

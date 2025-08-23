@@ -20,6 +20,7 @@ import os
 import pickle
 import pwd
 import re
+import shlex
 import shutil
 import statistics
 import subprocess
@@ -27,7 +28,6 @@ import sys
 import time
 import traceback
 import types
-import shlex
 from shutil import which
 
 import common

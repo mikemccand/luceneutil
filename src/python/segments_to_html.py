@@ -683,7 +683,11 @@ def main():
 
     assert segment.name not in segment_name_to_segment, f"segment name {segment.name} appears twice?"
     segment_name_to_segment[segment.name] = segment
-    label = f"{segment.name}: docs={segment.max_doc:,}"
+    if segment.max_doc is None:
+      max_doc_string = "N/A"
+    else:
+      max_doc_string = f"{segment.max_doc:,}"
+    label = f"{segment.name}: docs={max_doc_string}"
     if segment.size_mb is not None:
       label += f" mb={segment.size_mb:,.1f}"
 

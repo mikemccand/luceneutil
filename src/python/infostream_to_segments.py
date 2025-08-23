@@ -238,7 +238,10 @@ class Segment:
     else:
       s += " (merge: " + " ".join(self.source[1]) + ")"
     l.append(s)
-    md = f"  {self.max_doc:,} max_doc"
+    if self.max_doc is None:
+      md = "  N/A max_doc"
+    else:
+      md = f"  {self.max_doc:,} max_doc"
     if self.size_mb is not None:
       md += f" ({self.max_doc / self.size_mb:,.1f} docs/MB)"
     l.append(md)
@@ -1034,8 +1037,8 @@ def main():
         if m is not None:
           print(f"got start full flush {line_number}")
           # we should NOT be in the middle of a flush-by-RAM?  hmm but what if commit
-          # is called when we are ...?
-          assert trigger_flush_thread_name is None, f"{trigger_flush_thread_name} on line {line_number}"
+          # is called when we are ...?  Indeed, nightly benchy tickled this:
+          # assert trigger_flush_thread_name is None, f"{trigger_flush_thread_name} on line {line_number}"
           timestamp = parse_timestamp(m.group(1))
           thread_name = m.group(2)
           full_flush_events.append([timestamp, None])

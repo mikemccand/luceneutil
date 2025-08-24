@@ -21,6 +21,8 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -331,6 +333,12 @@ public class NRTPerfTest {
     tmp.setMaxMergedSegmentMB(1000000.0);
     //tmp.setReclaimDeletesWeight(3.0);
     //tmp.setMaxMergedSegmentMB(7000.0);
+    
+    // AGGRESSIVE UPDATE STORM SETTINGS:
+    // Allow more deletes before forcing merges
+    // nocommit
+    tmp.setDeletesPctAllowed(2.0);
+    
     conf.setMergePolicy(tmp);
 
     if (!commit.equals("none")) {
@@ -339,10 +347,14 @@ public class NRTPerfTest {
 
     // Make sure merges run @ higher prio than indexing:
     final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) conf.getMergeScheduler();
-    cms.setMaxMergesAndThreads(4, 1);
+    // Can swap to your own MergeScheduler impl
+    // cms.setMaxMergesAndThreads(4, 1);
 
     conf.setMergedSegmentWarmer(new MergedReaderWarmer(field));
 
+    // Set infoStream to log to file
+    PrintStream infoStream = new PrintStream(new FileOutputStream("lucene-infostream.log", true), true, "UTF-8");
+    conf.setInfoStream(infoStream);
     final IndexWriter w = new IndexWriter(dir, conf);
     // w.setInfoStream(System.out);
 
@@ -360,8 +372,9 @@ public class NRTPerfTest {
         }
       };
     IndexWriter.DocStats stats = w.getDocStats();
+    final AtomicReference<Double> docsPerSecRef = new AtomicReference<>(docsPerSec / numIndexThreads);
     IndexThreads indexThreads = new IndexThreads(random, w, new AtomicBoolean(false), docs, numIndexThreads, -1, false, false, mode,
-                                                 (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, stats.maxDoc);
+                                                 docsPerSecRef, updatesListener, -1.0, stats.maxDoc);
 
     // NativePosixUtil.mlockTermsDict(startR, "id");
     final SearcherManager manager = new SearcherManager(w, null);
@@ -376,12 +389,35 @@ public class NRTPerfTest {
     final IndexState indexState = new IndexState(null, manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
     TaskParserFactory taskParserFactory =
       new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, null, -1, true, TestContext.parse(""));
-    final TaskSource tasks = new RandomTaskSource(tasksFile, random, taskParserFactory.getTaskParser()) {
+    // Periodically increase docsPerSec
+    Thread docsPerSecIncreaser = new Thread(() -> {
+      while (true) {
+        try {
+          int increaseCount = 0;
+          int maxIncreases = 8;
+          while (increaseCount < maxIncreases) {
+            Thread.sleep(20000); // every 20 seconds
+            double newRate = docsPerSecRef.updateAndGet(rate -> rate * 2);
+            System.out.println("Increased docsPerSec per thread to " + newRate);
+            increaseCount++;
+          }
+          System.out.println("Reached max increases (" + maxIncreases + "), now peace time mode");
+          Thread.sleep(300000); // 5 minutes of peace time
+        } catch (InterruptedException e) {
+          // exit thread
+        }
+      }
+    });
+    docsPerSecIncreaser.setDaemon(true);
+    docsPerSecIncreaser.start();
+    // Aggressive delete storm task source
+    final TaskSource baseTasks = new RandomTaskSource(tasksFile, random, taskParserFactory.getTaskParser()) {
         @Override
         public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
           searchesByTime[currentQT.get()].incrementAndGet();
         }
       };
+    final TaskSource tasks = baseTasks;
     System.out.println("Task repeat count 1");
     System.out.println("Tasks file " + tasksFile);
     System.out.println("Num task per cat 20");

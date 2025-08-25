@@ -127,7 +127,7 @@ public class KnnIndexer {
       indexPath.toFile().mkdirs();
     }
 
-    long start = System.nanoTime();
+    long start = System.nanoTime(), elapsed;
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc);
          FileChannel in = FileChannel.open(docsPath)) {
@@ -218,6 +218,7 @@ public class KnnIndexer {
           log("Indexed %d documents with %d parent docs. now flush", childDocs, parentDocs);
         }
       }
+      elapsed = System.nanoTime() - start;
 
       // give merges a chance to kick off and finish:
       log("now IndexWriter.commit()");
@@ -227,7 +228,6 @@ public class KnnIndexer {
       cms.sync();
       log("done ConcurrentMergeScheduler.sync()");
     }
-    long elapsed = System.nanoTime() - start;
     log("Indexed %d docs in %d seconds", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsed));
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
   }

@@ -500,6 +500,11 @@ KNOWN_CHANGES = [
   ),
   ("2024-04-29", "#264: use Lucene defaults for ConcurrentMergeSchedular", "#264: use Lucene defaults for ConcurrentMergeSchedular"),
   (
+    "2024-04-30",
+    "#256: regenerate 768 dimension Cohere vectors to fix float64 -> float32 conversion bug https://github.com/mikemccand/luceneutil/issues/256",
+    "#256: regenerate 768 dimension Cohere vectors to fix float64 -> float32 conversion bug https://github.com/mikemccand/luceneutil/issues/256",
+  ),
+  (
     "2024-05-20",
     "Disjunction as CompetitiveIterator for numeric dynamic pruning https://github.com/apache/lucene/pull/13221",
     "Disjunction as CompetitiveIterator for numeric dynamic pruning https://github.com/apache/lucene/pull/13221",

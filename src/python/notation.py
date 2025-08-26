@@ -805,7 +805,7 @@ KNOWN_CHANGES = [
   ),
   (
     "2025-08-21",
-    "Better vectorize score computations https://github.com/apache/lucene/pull/15039",
-    "Better vectorize score computations https://github.com/apache/lucene/pull/15039",
+    "Enable InfoStream when indexing vectors; better vectorize score computations https://github.com/apache/lucene/pull/15039",
+    "Enable InfoStream when indexing vectors; better vectorize score computations https://github.com/apache/lucene/pull/15039",
   ),
 ]

@@ -526,7 +526,7 @@ def write_one_graph(f, timestamps, series, id, title, headers=None, ylabel=None)
   for i in range(len(timestamps)):
     timestamp = timestamps[i]
     values = [series[x][i] for x in range(len(series))]
-    f.write('  + "%s-%s-%s %s:%s:%s' % (timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second))
+    f.write('  + "%04d-%02d-%02d %02d:%02d:%02d' % (timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second))
     f.write(',%s\\n"\n' % ",".join([str(x) for x in values]))
 
   f.write(f'''

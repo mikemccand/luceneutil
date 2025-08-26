@@ -575,7 +575,7 @@ public final class Indexer {
       //float docsPerSecPerThread = 100f;
 
       IndexThreads threads = new IndexThreads(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, new AtomicReference<>((double)docsPerSecPerThread), null, nrtEverySec,
-                                              randomDocIDMax);
+                                              randomDocIDMax, false);
 
       System.out.println("\nIndexer: start");
       final long t0 = System.currentTimeMillis();

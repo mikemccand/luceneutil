@@ -218,11 +218,12 @@ public class KnnIndexer {
           log("Indexed %d documents with %d parent docs. now flush", childDocs, parentDocs);
         }
       }
-      elapsed = System.nanoTime() - start;
 
       // give merges a chance to kick off and finish:
       log("now IndexWriter.commit()");
       iw.commit();
+
+      elapsed = System.nanoTime() - start;
 
       // wait for running merges to complete -- not sure why this is needed -- IW should wait for merges on close by default
       cms.sync();

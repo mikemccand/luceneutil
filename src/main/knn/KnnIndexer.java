@@ -127,7 +127,7 @@ public class KnnIndexer {
       indexPath.toFile().mkdirs();
     }
 
-    long start = System.nanoTime();
+    long start = System.nanoTime(), elapsed;
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc);
          FileChannel in = FileChannel.open(docsPath)) {
@@ -223,11 +223,12 @@ public class KnnIndexer {
       log("now IndexWriter.commit()");
       iw.commit();
 
+      elapsed = System.nanoTime() - start;
+
       // wait for running merges to complete -- not sure why this is needed -- IW should wait for merges on close by default
       cms.sync();
       log("done ConcurrentMergeScheduler.sync()");
     }
-    long elapsed = System.nanoTime() - start;
     log("Indexed %d docs in %d seconds", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsed));
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
   }

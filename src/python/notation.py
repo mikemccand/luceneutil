@@ -789,6 +789,11 @@ KNOWN_CHANGES = [
     "Further improve filtering by score https://github.com/apache/lucene/pull/14970",
   ),
   (
+    "2025-07-29",
+    "Improve byte vector scoring by loading on v/s off-heap vectors more appropriately https://github.com/apache/lucene/pull/14874",
+    "Improve byte vector scoring by loading on v/s off-heap vectors more appropriately https://github.com/apache/lucene/pull/14874",
+  ),
+  (
     "2025-08-06",
     "GroupVarInt encoding for HNSW graphs https://github.com/apache/lucene/pull/14932",
     "GroupVarInt encoding for HNSW graphs https://github.com/apache/lucene/pull/14932",

@@ -346,7 +346,9 @@ public class NRTPerfTest {
 
     TieredMergePolicy tmp = new TieredMergePolicy();
     tmp.setNoCFSRatio(0.0);
-    tmp.setMaxMergedSegmentMB(1000000.0);
+    if (!enableUpdateStorms) {
+      tmp.setMaxMergedSegmentMB(1000000.0); // effectively unlimited
+    }
     //tmp.setReclaimDeletesWeight(3.0);
     //tmp.setMaxMergedSegmentMB(7000.0);
     

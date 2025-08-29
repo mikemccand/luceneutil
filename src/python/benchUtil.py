@@ -96,10 +96,11 @@ def htmlColor(v):
 
 
 def htmlColor2(v):
-  vstr = "%.4f X" % v
+  vstr = "%.2f %%" % (100 * (v - 1))
   if v < 1.0:
     return colorFormat(vstr, "html", "red")
-  return colorFormat(vstr, "html", "green")
+  else:
+    return colorFormat(vstr, "html", "green")
 
 
 def jiraColor(v):

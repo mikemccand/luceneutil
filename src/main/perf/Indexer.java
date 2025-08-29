@@ -593,8 +593,11 @@ public final class Indexer {
         }
       }
 
+      long tPreStop = System.nanoTime();
       threads.stop();
-
+      long tPostStop = System.nanoTime();
+      System.out.println(String.format(Locale.ROOT, "\nIndexer: stopping threads took %.1f msec", (tPostStop - tPreStop)/1000000.));
+                         
       final long t1 = System.currentTimeMillis();
       System.out.println("\nIndexer: indexing done (" + (t1-t0) + " msec); total " + w.getDocStats().maxDoc + " docs");
       // if we update we can not tell how many docs
@@ -638,7 +641,10 @@ public final class Indexer {
         long t3 = System.currentTimeMillis();
         System.out.println("\nIndexer: commit multi (took " + (t3-t2) + " msec)");
       } else {
+        long t2 = System.currentTimeMillis();
         w.rollback();
+        long t3 = System.currentTimeMillis();
+        System.out.println("\nIndexer: rollback (took " + (t3-t2) + " msec)");
         w = null;
       }
 
@@ -703,8 +709,8 @@ public final class Indexer {
         SegmentInfos infos = SegmentInfos.readLatestCommit(dir);
         System.out.println("\nIndex size (as committed): " + sizeInBytes(infos) + " bytes");
         System.out.println("\nIndexer: at close: " + infos.size() + " segments: " + infos);
-        System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
       }
+      System.out.println("\nIndexer: close took " + (System.currentTimeMillis() - tCloseStart) + " msec");
 
       // separately print total disk usage in the dir in case IndexWriter sprouts a bug that fails to reclaim temp files or killed merges or whatnot:
       System.out.println("Directory total size: " + sizeInBytes(dir) + " bytes");

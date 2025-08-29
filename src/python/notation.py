@@ -818,4 +818,9 @@ KNOWN_CHANGES = [
     "Enable InfoStream when indexing vectors; better vectorize score computations https://github.com/apache/lucene/pull/15039",
     "Enable InfoStream when indexing vectors; better vectorize score computations https://github.com/apache/lucene/pull/15039",
   ),
+  (
+    "2025-08-25",
+    "Rewrite of the GroupVInt optimization without lambdas, varhandles and no code in subclasses https://github.com/apache/lucene/commit/ebfd863ac728f9abfcaa42fec7fce90b62900df5",
+    "Rewrite of the GroupVInt optimization without lambdas, varhandles and no code in subclasses https://github.com/apache/lucene/commit/ebfd863ac728f9abfcaa42fec7fce90b62900df5",
+  ),
 ]

@@ -95,9 +95,9 @@ def htmlColor(v):
   return colorFormat(v, "html", "green")
 
 
-def htmlColor2(v):
-  vstr = "%.2f %%" % (100 * (v - 1))
-  if v < 1.0:
+def htmlColor2(pct):
+  vstr = "%.2f %%" % pct
+  if pct < 0:
     return colorFormat(vstr, "html", "red")
   else:
     return colorFormat(vstr, "html", "green")
@@ -1535,7 +1535,7 @@ class RunAlgs:
         w("|%s-%s" % (jiraColor(psWorst), jiraColor(psBest)))
       elif html:
         # w('<td>%s (%s - %s)</td>' % (htmlColor(psAvg), htmlColor(psWorst), htmlColor(psBest)))
-        w("<td>%s</td>" % htmlColor2(1 + psAvg / 100.0))
+        w("<td>%s</td>" % htmlColor2(psAvg))
       else:
         w("%16s" % ("%7.1f%% (%4d%% - %4d%%)" % (psAvg, psWorst, psBest)))
 

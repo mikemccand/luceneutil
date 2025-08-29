@@ -96,7 +96,7 @@ def htmlColor(v):
 
 
 def htmlColor2(v):
-  vstr = "%.1f X" % v
+  vstr = "%.4f X" % v
   if v < 1.0:
     return colorFormat(vstr, "html", "red")
   return colorFormat(vstr, "html", "green")

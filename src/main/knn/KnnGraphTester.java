@@ -538,7 +538,7 @@ public class KnnGraphTester {
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
           } else {
-            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex));
+            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, queryPath, queryStartIndex));
           }
           if (operation.equals("-search-and-stats")) {
             // also print stats, after searching
@@ -1061,9 +1061,9 @@ public class KnnGraphTester {
    * The method runs "numQueryVectors" target queries and returns "topK" nearest neighbors
    * for each of them. Nearest Neighbors are computed using exact match.
    */
-  private int[][] getExactNN(Path docPath, Path indexPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
+  private int[][] getExactNN(Path docPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, indexPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, prefilter ? selectivity : 1f, prefilter ? randomSeed : 0f), 36);
+    String hash = Integer.toString(Objects.hash(docPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, prefilter ? selectivity : 1f, prefilter ? randomSeed : 0f), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath)) {

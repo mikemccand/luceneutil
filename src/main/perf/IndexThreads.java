@@ -52,6 +52,17 @@ class IndexThreads {
   final boolean enableUpdateStorms;
 
   /**
+   * Constructor with default enableUpdateStorms=false for backward compatibility
+   * @param docsPerSecPerThreadRef AtomicReference for thread-safe rate updates across multiple threads.
+   */
+  public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, AtomicReference<Double> docsPerSecPerThreadRef, UpdatesListener updatesListener,
+                      double nrtEverySec, int randomDocIDMax)
+    throws IOException, InterruptedException {
+    this(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThreadRef, updatesListener, nrtEverySec, -1, false);
+  }
+
+  /**
    * @param docsPerSecPerThreadRef AtomicReference for thread-safe rate updates across multiple threads.
    */
   public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,

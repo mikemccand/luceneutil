@@ -823,4 +823,9 @@ KNOWN_CHANGES = [
     "Rewrite of the GroupVInt optimization without lambdas, varhandles and no code in subclasses https://github.com/apache/lucene/commit/ebfd863ac728f9abfcaa42fec7fce90b62900df5",
     "Rewrite of the GroupVInt optimization without lambdas, varhandles and no code in subclasses https://github.com/apache/lucene/commit/ebfd863ac728f9abfcaa42fec7fce90b62900df5",
   ),
+  (
+   "2025-09-02", 
+   "Optimize TopScoreDocCollector with TernaryLongHeap for improved performance over Binary-LongHeap https://github.com/apache/lucene/commit/ac90517c17ef78a469c65868e2026461f6ddcddc",
+   "Optimize TopScoreDocCollector with TernaryLongHeap for improved performance over Binary-LongHeap https://github.com/apache/lucene/commit/ac90517c17ef78a469c65868e2026461f6ddcddc"
+  )
 ]

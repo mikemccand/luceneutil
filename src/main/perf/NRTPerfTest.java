@@ -72,6 +72,22 @@ import perf.IndexThreads.Mode;
 //   - hmm: we really should have a separate line file, shuffled, that holds the IDs for each line; this way we can update doc w/ same original doc and then we can assert hit counts match
 //   - share *Task code from SearchPerfTest
 
+// CONFIGURATION SETTINGS:
+// 
+// Normal Operation Settings:
+//   - RAM Buffer Size: 256MB
+//   - TieredMergePolicy deletesPctAllowed: default (10.0)
+//   - Max merged segment size: 1000000MB (effectively unlimited)
+//   - ConcurrentMergeScheduler: 4 max merges, 1 thread
+//
+// Update Storms Settings (-updateStorms true, see nrtPerf.py for example):
+//   - RAM Buffer Size: 4GB
+//   - TieredMergePolicy deletesPctAllowed: 2.0
+//   - Max merged segment size: use Lucene defaults
+//   - ConcurrentMergeScheduler: use Lucene defaults for max merges & threads
+//   - Vector indexing enabled for testing heavy update workloads:
+//        docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, "/path/to/vectors_file", 768, VectorEncoding.FLOAT32);
+
 public class NRTPerfTest {
 
   static final class MergedReaderWarmer implements IndexWriter.IndexReaderWarmer {
@@ -281,12 +297,7 @@ public class NRTPerfTest {
     final Random random = new Random(seed);
 
     final LineFileDocs docs;
-    if (enableUpdateStorms) {
-      docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, "../data/cohere-wikipedia-docs-5M-768d.vec", 768, VectorEncoding.FLOAT32);
-      System.out.println("Update storms: vector indexing enabled");
-    } else {
-      docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, null, 0, null);
-    }
+    docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, null, 0, null);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {
@@ -311,11 +322,7 @@ public class NRTPerfTest {
     StandardAnalyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
     final IndexWriterConfig conf = new IndexWriterConfig(analyzer);
     conf.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
-    if (enableUpdateStorms) {
-      conf.setRAMBufferSizeMB(2048.0); // 2GB RAM buffer for aggressive update storms
-    } else {
-      conf.setRAMBufferSizeMB(256.0); // 256MB RAM buffer for normal operation
-    }
+    conf.setRAMBufferSizeMB(256.0); // 256MB RAM buffer for normal operation
     
     //iwc.setMergeScheduler(ms);
 
@@ -346,21 +353,11 @@ public class NRTPerfTest {
 
     TieredMergePolicy tmp = new TieredMergePolicy();
     tmp.setNoCFSRatio(0.0);
-    if (!enableUpdateStorms) {
-      tmp.setMaxMergedSegmentMB(1000000.0); // effectively unlimited
-    }
+    tmp.setMaxMergedSegmentMB(1000000.0); // effectively unlimited
     //tmp.setReclaimDeletesWeight(3.0);
     //tmp.setMaxMergedSegmentMB(7000.0);
     
-    // AGGRESSIVE UPDATE STORM SETTINGS (only if enabled):
-    if (enableUpdateStorms) {
-      // Allow less deletes before forcing merges
-      tmp.setDeletesPctAllowed(2.0);
-      System.out.println("Update storms enabled: using aggressive deletesPctAllowed=2.0");
-    } else {
-      // Use default settings for normal operation
-      System.out.println("Update storms disabled: using default merge policy settings");
-    }
+    tmp.setDeletesPctAllowed(2.0);
     
     conf.setMergePolicy(tmp);
 
@@ -371,12 +368,7 @@ public class NRTPerfTest {
     // Make sure merges run @ higher prio than indexing:
     final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) conf.getMergeScheduler();
     // Can swap to your own MergeScheduler impl
-    if (enableUpdateStorms) {
-      // cms.setMaxMergesAndThreads(4, 1);
-      // Use Lucene default settings for max merges & threads
-    } else {
-      cms.setMaxMergesAndThreads(4, 1);
-    }
+    cms.setMaxMergesAndThreads(4, 1);
 
     conf.setMergedSegmentWarmer(new MergedReaderWarmer(field));
 

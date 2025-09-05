@@ -17,6 +17,14 @@
 
 # Measures the NRT performance under different document updates mode
 # (add, update, ndv_update, bdv_update)
+#
+# EXAMPLE USAGE:
+#
+# Normal operation:
+# python nrtPerf.py -source /path/to/source -dps 100 -rps 1.0 -rts 3000
+#
+# With update storms enabled (aggressive indexing bursts):
+# python nrtPerf.py -source /path/to/source -dps 200 -rps 0.06 -nst 8 -nit 8 -rts 3000 -updateStorms true
 
 import os
 import re
@@ -53,6 +61,7 @@ def runOne(
   numIndexThreads=constants.INDEX_NUM_THREADS,
   statsEverySec=1,
   commit="no",
+  enableUpdateStorms=False,
 ):
   logFileName = "%s/%s_dps%s_reopen%s.txt" % (constants.LOGS_DIR, mode, docsPerSec, reopensPerSec)
   print("log: %s" % logFileName)
@@ -75,6 +84,8 @@ def runOne(
   command += " %s" % commit
   command += " 0.0"
   command += " %s" % data.tasksFile
+  if enableUpdateStorms:
+    command += " true"
   command += " > %s 2>&1" % logFileName
 
   if VERBOSE:
@@ -190,6 +201,7 @@ if __name__ == "__main__":
       for rps in reopenPerSec.split(","):
         print()
         print("params: mode=%s docs/sec=%s reopen/sec=%s runTime(s)=%s searchThreads=%s indexThreads=%s" % (mode, dps, rps, runTimeSec, numSearchThreads, numIndexThreads))
+        enableUpdateStorms = benchUtil.getArg("-updateStorms", "false", True).lower() == "true"
         reopenStats = runOne(
           classpath=cp,
           mode=mode,
@@ -200,6 +212,7 @@ if __name__ == "__main__":
           runTimeSec=runTimeSec,
           numSearchThreads=numSearchThreads,
           numIndexThreads=numIndexThreads,
+          enableUpdateStorms=enableUpdateStorms,
         )
         allStats.append((dps, rps, runTimeSec, reopenStats))
 

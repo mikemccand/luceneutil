@@ -103,14 +103,17 @@ public class TaskThreads {
 
       try {
         while (stop.get() == false) {
-          final Task task = tasks.nextTask();
-          if (task == null) {
+          final Task originalTask = tasks.nextTask();
+          if (originalTask == null) {
             // Done
             this.tasksStopNanos = System.nanoTime();
             // first thread that finishes snapshots all threads.  this way we do not include "winddown" time in our measurement.
             endThreadDetails.compareAndSet(null, new SearchPerfTest.ThreadDetails());
             break;
           }
+          
+          // Clone the task to avoid reuse issues
+          final Task task = originalTask.clone();
 
           // Run the task in the IndexSearcher's executor. This is important because IndexSearcher#search also uses the current thread to
           // search, so not running #search from the executor would artificially use one more thread than configured via luceneutil.

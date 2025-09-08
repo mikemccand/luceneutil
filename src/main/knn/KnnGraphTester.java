@@ -350,8 +350,8 @@ public class KnnGraphTester {
             throw new IllegalArgumentException("-quantizeBits requires a following number");
           }
           quantizeBits = Integer.parseInt(args[++iarg]);
-          if (quantizeBits != 1 && quantizeBits != 4 && quantizeBits != 7) {
-            throw new IllegalArgumentException("-quantizeBits must be 1, 4 or 7");
+          if (quantizeBits != 1 && quantizeBits != 4 && quantizeBits != 7 && quantizeBits != 8) {
+            throw new IllegalArgumentException("-quantizeBits must be 1, 4, 7 or 8");
           }
           break;
         case "-quantizeCompress":
@@ -634,11 +634,11 @@ public class KnnGraphTester {
           } else {
             realEncodingByteSize = 1;
           }
-        } else if (quantizeBits == 7) {
+        } else if (quantizeBits ==  7 || quantizeBits == 8) {
           overHead = Float.BYTES; // 1 float
           realEncodingByteSize = 1;
         } else {
-          throw new IllegalStateException("can only handle int4 and int7 quantized");
+          throw new IllegalStateException("can only handle int1, int4, int7, and int8 quantized");
         }
       } else {
         realEncodingByteSize = Float.BYTES;

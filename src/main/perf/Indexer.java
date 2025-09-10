@@ -46,7 +46,7 @@ import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
-import org.apache.lucene.codecs.lucene103.Lucene103Codec;
+import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.facet.FacetsConfig;
@@ -461,7 +461,7 @@ public final class Indexer {
       }
     
       // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
-      final Codec codec = new Lucene103Codec() {
+      final Codec codec = new Lucene104Codec() {
           @Override
           public PostingsFormat getPostingsFormatForField(String field) {
             return PostingsFormat.forName(field.equals("id") ?

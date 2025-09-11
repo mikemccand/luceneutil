@@ -29,10 +29,14 @@ BASE_URL2 = "https://home.apache.org/~sokolov"
 
 DATA_FILES = [
   # remote url, local name
-  ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma", "enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"),
+  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma", "enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"),
+  ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma", "enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"),
   # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-docs-768d.vec", "cohere-wikipedia-docs-768d.vec"),
-  ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-docs-5M-768d.vec", "cohere-wikipedia-docs-5M-768d.vec"),
-  ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-queries-768d.vec", "cohere-wikipedia-queries-768d.vec"),
+  # ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/cohere-wikipedia-docs-768d.vec", "cohere-wikipedia-docs-768d.vec"),
+  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-docs-5M-768d.vec", "cohere-wikipedia-docs-5M-768d.vec"),
+  ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/cohere-wikipedia-docs-5M-768d.vec", "cohere-wikipedia-docs-5M-768d.vec"),
+  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-queries-768d.vec", "cohere-wikipedia-queries-768d.vec"),
+  ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/cohere-wikipedia-queries-768d.vec", "cohere-wikipedia-queries-768d.vec"),
   ("https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip", "glove.6B.zip"),
 ]
 

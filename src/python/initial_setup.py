@@ -120,7 +120,7 @@ class Downloader:
 
   def download(self):
     opener = request.build_opener()
-    opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36')]
+    opener.addheaders = [("User-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")]
     request.install_opener(opener)
     request.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
 

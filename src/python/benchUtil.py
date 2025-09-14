@@ -99,8 +99,8 @@ def htmlColor2(pct):
   vstr = "%.2f %%" % pct
   if pct < 0:
     return colorFormat(vstr, "html", "red")
-  else:
-    return colorFormat(vstr, "html", "green")
+
+  return colorFormat(vstr, "html", "green")
 
 
 def jiraColor(v):

@@ -135,11 +135,12 @@ def advance(ix, values):
       return True
   return False
 
+
 def get_skip_headers_from_columns(selected_columns):
   if not selected_columns:
     return set()
 
-  selected_set = set(col.strip() for col in selected_columns.split(','))
+  selected_set = set(col.strip() for col in selected_columns.split(","))
   all_headers = set(OUTPUT_HEADERS)
   return all_headers - selected_set
 
@@ -487,7 +488,8 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, selected_columns=None):
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Run KNN benchmarks")
   parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
-  parser.add_argument("--columns", help="Comma-separated list of columns to display (default: all)")
+  available_columns = ", ".join(OUTPUT_HEADERS)
+  parser.add_argument("--columns", help=f"Comma-separated list of columns to display. Available columns: {available_columns}  (default: all)")
   n = parser.parse_args()
 
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties

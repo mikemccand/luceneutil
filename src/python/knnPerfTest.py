@@ -94,6 +94,8 @@ PARAMS = {
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   "forceMerge": (False,),
   #'niter': (10,),
+  # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
+  # "filterSelectivity": ("0.5", "0.2", "0.1", "0.01",),
 }
 
 
@@ -114,8 +116,8 @@ OUTPUT_HEADERS = [
   "force_merge(s)",
   "num_segments",
   "index_size(MB)",
-  "selectivity",
-  "filterType",
+  "filterStrategy",
+  "filterSelectivity",
   "overSample",
   "vec_disk(MB)",
   "vec_RAM(MB)",
@@ -276,9 +278,7 @@ def run_knn_benchmark(checkout, values):
     print("\nResults:")
 
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
-  # turn filterType/selectivity back on for all runs
-  # skip_headers = {'selectivity', 'filterType', 'visited'}
-  skip_headers = {"selectivity", "filterType", "visited"}
+  skip_headers = set()
 
   if "-forceMerge" not in this_cmd:
     skip_headers.add("force_merge(s)")
@@ -287,6 +287,10 @@ def run_knn_benchmark(checkout, values):
   if "-indexType" in this_cmd and "flat" in this_cmd:
     skip_headers.add("maxConn")
     skip_headers.add("beamWidth")
+  if "-filterStrategy" not in this_cmd:
+    skip_headers.add("filterStrategy")
+  if "-filterSelectivity" not in this_cmd:
+    skip_headers.add("filterSelectivity")
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

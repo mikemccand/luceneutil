@@ -162,7 +162,7 @@ if __name__ == "__main__":
   index = comp.newIndex(
     constants.TRUNK_CHECKOUT,
     sourceData,
-    postingsFormat="Lucene103",
+    postingsFormat="Lucene104",
     idFieldPostingsFormat="Memory",
     grouping=False,
     doDeletions=False,

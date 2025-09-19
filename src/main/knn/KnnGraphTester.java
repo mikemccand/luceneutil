@@ -48,8 +48,9 @@ import java.util.concurrent.TimeUnit;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
-import org.apache.lucene.codecs.lucene103.Lucene103Codec;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene104.Lucene104Codec;
+import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.lucene102.Lucene102BinaryQuantizedVectorsFormat;
@@ -507,7 +508,7 @@ public class KnnGraphTester {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, quantizeCompress),
+        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -627,16 +628,14 @@ public class KnnGraphTester {
         if (quantizeBits == 1) {
           realEncodingByteSize = 1.0/8.0;
           overHead = Float.BYTES * 3 + Short.BYTES; // 3 floats & 1 short
-        } else if (quantizeBits == 4) {
-          overHead = 4; // 1 float
-          if (quantizeCompress) {
+        } else if (quantizeBits == 4 || quantizeBits == 7 || quantizeBits == 8) {
+          // upper, lower, additional correction (similarity dependent), component sum.
+          overHead = Float.BYTES * 3 + Integer.BYTES;
+          if (quantizeBits == 4) {
             realEncodingByteSize = 0.5;
           } else {
             realEncodingByteSize = 1;
           }
-        } else if (quantizeBits ==  7 || quantizeBits == 8) {
-          overHead = Float.BYTES; // 1 float
-          realEncodingByteSize = 1;
         } else {
           throw new IllegalStateException("can only handle int1, int4, int7, and int8 quantized");
         }
@@ -747,7 +746,7 @@ public class KnnGraphTester {
   @SuppressForbidden(reason = "Prints stuff")
   private double forceMerge() throws IOException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, quantizeCompress));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType));
     log("Force merge index in " + indexPath + "\n");
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
@@ -1301,47 +1300,29 @@ public class KnnGraphTester {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType, boolean quantizeCompress) {
+  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
     if (quantize && quantizeBits != 1 && indexType == IndexType.FLAT) {
       throw new IllegalArgumentException("only single bit quantization supports FLAT indices");
     }
-    if (exec == null) {
-      return new Lucene103Codec() {
-        @Override
-        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          if (quantize) {
-            if (quantizeBits == 1) {
-              return switch (indexType) {
-                case FLAT -> new Lucene102BinaryQuantizedVectorsFormat();
-                case HNSW -> new Lucene102HnswBinaryQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
-              };
-            } else {
-              return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, null);
-            }
-          } else {
-            return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
-          }
+    return new Lucene104Codec() {
+      @Override
+      public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+        if (quantize) {
+          return switch (quantizeBits) {
+            case 1 -> switch (indexType) {
+              case FLAT -> new Lucene102BinaryQuantizedVectorsFormat();
+              case HNSW -> new Lucene102HnswBinaryQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+            };
+            case 4 -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
+            case 7 -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);
+            case 8 -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE, maxConn, beamWidth, numMergeWorker, exec);
+            default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
+          };
+        } else {
+          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
         }
-      };
-    } else {
-      return new Lucene103Codec() {
-        @Override
-        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-          if (quantize) {
-            if (quantizeBits == 1) {
-              return switch (indexType) {
-                case FLAT -> new Lucene102BinaryQuantizedVectorsFormat();
-                case HNSW -> new Lucene102HnswBinaryQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
-              };
-            } else {
-              return new Lucene99HnswScalarQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, quantizeBits, quantizeCompress, null, exec);
-            }
-          } else {
-            return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   private static void usage() {

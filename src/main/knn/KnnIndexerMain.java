@@ -102,11 +102,12 @@ public class KnnIndexerMain {
     int numMergeThread = 8;
     ExecutorService exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
 
+    // TODO: allow filter from command line?
     new KnnIndexer(inputs.docVectorsPath, inputs.indexPath,
                    KnnGraphTester.getCodec(inputs.maxConn, inputs.beamWidth, exec, numMergeWorker, quantize, quantizeBits, KnnGraphTester.IndexType.HNSW, quantizeCompress),
                    numMergeThread, inputs.vectorEncoding,
                    inputs.dimension, inputs.similarityFunction, inputs.numDocs, inputs.docStartIndex, inputs.quiet,
-                   inputs.parentJoin, inputs.parentJoinMetaFile, inputs.useBp).createIndex();
+                   inputs.parentJoin, inputs.parentJoinMetaFile, inputs.useBp, null).createIndex();
 
     if (!inputs.quiet) {
       System.out.println("Successfully created index.");

@@ -278,7 +278,7 @@ def run_knn_benchmark(checkout, values):
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
   # turn filterType/selectivity back on for all runs
   # skip_headers = {'selectivity', 'filterType', 'visited'}
-  skip_headers = {"selectivity", "filterType", "visited"}
+  skip_headers = {"selectivity", "filterType"}
 
   if "-forceMerge" not in this_cmd:
     skip_headers.add("force_merge(s)")

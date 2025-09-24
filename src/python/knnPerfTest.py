@@ -136,7 +136,16 @@ def advance(ix, values):
   return False
 
 
-def run_knn_benchmark(checkout, values):
+def get_skip_headers_from_columns(selected_columns):
+  if not selected_columns:
+    return set()
+
+  selected_set = set(col.strip() for col in selected_columns.split(","))
+  all_headers = set(OUTPUT_HEADERS)
+  return all_headers - selected_set
+
+
+def run_knn_benchmark(checkout, values, selected_columns=None):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
   args = []
@@ -278,7 +287,11 @@ def run_knn_benchmark(checkout, values):
   # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
   # turn filterType/selectivity back on for all runs
   # skip_headers = {'selectivity', 'filterType', 'visited'}
-  skip_headers = {"selectivity", "filterType", "visited"}
+  if selected_columns:
+    skip_headers = get_skip_headers_from_columns(selected_columns)
+    skip_headers.update({"selectivity", "filterType", "visited"})
+  else:
+    skip_headers = {"selectivity", "filterType", "visited"}
 
   if "-forceMerge" not in this_cmd:
     skip_headers.add("force_merge(s)")
@@ -431,11 +444,11 @@ def chart_args_label(args):
   return str(args)
 
 
-def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
+def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, selected_columns=None):
   rec, lat, net, avg = [], [], [], []
   tests = []
   for i in range(n):
-    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, selected_columns)
     tests.append(results)
     first_4_numbers = results[0][0].split("\t")[:4]
     first_4_numbers = [float(num) for num in first_4_numbers]
@@ -475,11 +488,13 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Run KNN benchmarks")
   parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
+  available_columns = ", ".join(OUTPUT_HEADERS)
+  parser.add_argument("--columns", help=f"Comma-separated list of columns to display. Available columns: {available_columns}  (default: all)")
   n = parser.parse_args()
 
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
   if n.runs == 1:
-    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, n.columns)
   else:
-    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
+    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs, n.columns)

@@ -46,9 +46,10 @@ import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104Codec;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.codecs.lucene104.Lucene104Codec;
+import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -484,13 +485,11 @@ public final class Indexer {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
             if (quantizeKNNGraph) {
-              return new Lucene99HnswScalarQuantizedVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                hnswThreadsPerMerge,
-                7,     // bits
-                false, // compress
-                null,  // configuredQuantile
-                hnswMergeExec);
+              return new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT,
+                                                                   Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                                                                   Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                                                                   hnswThreadsPerMerge,
+                                                                   hnswMergeExec);
             } else {
               return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
                 Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,

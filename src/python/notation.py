@@ -833,4 +833,9 @@ KNOWN_CHANGES = [
     "Bump block size to 256 https://github.com/apache/lucene/pull/15160",
     "Bump block size to 256 https://github.com/apache/lucene/pull/15160",
   ),
+  (
+    "2025-09-21",
+    "Vectorise expand8 in ForUtil using JDK Vector API https://github.com/apache/lucene/pull/15198",
+    "Vectorise expand8 in ForUtil using JDK Vector API https://github.com/apache/lucene/pull/15198",
+  ),
 ]

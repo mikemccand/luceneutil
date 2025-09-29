@@ -277,7 +277,6 @@ def run_knn_benchmark(checkout, values):
   if NOISY:
     print("\nResults:")
 
-  # TODO: be more careful when we skip/show headers e.g. if some of the runs involve filtering,
   skip_headers = set()
 
   if "-forceMerge" not in this_cmd:

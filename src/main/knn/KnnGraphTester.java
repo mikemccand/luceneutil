@@ -422,7 +422,7 @@ public class KnnGraphTester {
           break;
         case "-filterStrategy":
           if (iarg == args.length - 1) {
-            throw new IllegalArgumentException("-filterStrategy requires a following pathname");
+            throw new IllegalArgumentException("-filterStrategy requires a following string, one of (case-insensitive) {'query-time-pre-filter', 'query-time-post-filter', 'index-time-filter'}");
           }
           String filterStrategyVal = args[++iarg].toLowerCase().trim();
           filterStrategy = switch (filterStrategyVal) {

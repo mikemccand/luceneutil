@@ -525,9 +525,7 @@ public class KnnGraphTester {
     if (forceMerge) {
       forceMergeTimeSec = forceMerge();
     }
-    if (!quiet) {
-      printIndexStatistics(indexPath);
-    }
+    printIndexStatistics(indexPath);
     if (operation != null) {
       switch (operation) {
         case "-search":

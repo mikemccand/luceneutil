@@ -429,7 +429,7 @@ public class KnnGraphTester {
             case "query-time-pre-filter" -> FilterStrategy.QUERY_TIME_PRE_FILTER;
             case "query-time-post-filter" -> FilterStrategy.QUERY_TIME_POST_FILTER;
             case "index-time-filter" -> FilterStrategy.INDEX_TIME_FILTER;
-            default -> throw new IllegalArgumentException("-filterStrategy can be 'query-time-pre-filter' or 'query-time-post-filter' or 'index-time-filter' only");
+            default -> throw new IllegalArgumentException("-filterStrategy must be one of (case-insensitive) {'query-time-pre-filter', 'query-time-post-filter', 'index-time-filter'}, found: " + filterStrategyVal);
           };
           break;
         case "-filterSelectivity":

@@ -340,6 +340,7 @@ def run():
 
   print("uname -a: %s" % os.popen("uname -a 2>&1").read().strip())
   print("lsb_release -a:\n%s" % os.popen("lsb_release -a 2>&1").read().strip())
+  print("\ninstalled packages (pacman -Q):\n%s" % os.popen("pacman -Q 2>&1").read().strip())
 
   if not REAL:
     os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))

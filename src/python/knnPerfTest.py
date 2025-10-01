@@ -94,11 +94,15 @@ PARAMS = {
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   "forceMerge": (False,),
   #'niter': (10,),
+  # "rerank": (False, True),
 }
 
 
 OUTPUT_HEADERS = [
   "recall",
+  "ndcg@10",
+  "ndcg@K",
+  "rerank",
   "latency(ms)",
   "netCPU",
   "avgCpuCount",
@@ -287,6 +291,8 @@ def run_knn_benchmark(checkout, values):
   if "-indexType" in this_cmd and "flat" in this_cmd:
     skip_headers.add("maxConn")
     skip_headers.add("beamWidth")
+  if "-rerank" not in this_cmd:
+    skip_headers.add("rerank")
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

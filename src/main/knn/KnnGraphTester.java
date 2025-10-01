@@ -19,8 +19,6 @@ package knn;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -133,7 +131,14 @@ public class KnnGraphTester {
     FLAT
   }
 
+  enum FilterStrategy {
+    QUERY_TIME_PRE_FILTER,
+    QUERY_TIME_POST_FILTER,
+    INDEX_TIME_FILTER
+  }
+
   public static final String KNN_FIELD = "knn";
+  public static final String KNN_FIELD_FILTERED = "knn-filtered";
   public static final String ID_FIELD = "id";
   private static final String INDEX_DIR = "knnIndices";
   public static final String DOCTYPE_FIELD = "docType";
@@ -174,8 +179,8 @@ public class KnnGraphTester {
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
   private Query filterQuery;
-  private float selectivity;
-  private boolean prefilter;
+  private FilterStrategy filterStrategy;
+  private Float filterSelectivity;
   private boolean randomCommits;
   private boolean parentJoin;
   private Path parentJoinMetaFile;
@@ -200,8 +205,8 @@ public class KnnGraphTester {
     fanout = topK;
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
-    selectivity = 1f;
-    prefilter = false;
+    filterStrategy = null;
+    filterSelectivity = null;
     quantize = false;
     randomCommits = false;
     quantizeBits = 7;
@@ -412,18 +417,27 @@ public class KnnGraphTester {
         case "-forceMerge":
           forceMerge = true;
           break;
-        case "-prefilter":
-          prefilter = true;
-          break;
         case "-randomCommits":
           randomCommits = true;
+          break;
+        case "-filterStrategy":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-filterStrategy requires a following string, one of (case-insensitive) {'query-time-pre-filter', 'query-time-post-filter', 'index-time-filter'}");
+          }
+          String filterStrategyVal = args[++iarg].toLowerCase().trim();
+          filterStrategy = switch (filterStrategyVal) {
+            case "query-time-pre-filter" -> FilterStrategy.QUERY_TIME_PRE_FILTER;
+            case "query-time-post-filter" -> FilterStrategy.QUERY_TIME_POST_FILTER;
+            case "index-time-filter" -> FilterStrategy.INDEX_TIME_FILTER;
+            default -> throw new IllegalArgumentException("-filterStrategy must be one of (case-insensitive) {'query-time-pre-filter', 'query-time-post-filter', 'index-time-filter'}, found: " + filterStrategyVal);
+          };
           break;
         case "-filterSelectivity":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-filterSelectivity requires a following float");
           }
-          selectivity = Float.parseFloat(args[++iarg]);
-          if (selectivity <= 0 || selectivity >= 1) {
+          filterSelectivity = Float.parseFloat(args[++iarg]);
+          if (filterSelectivity <= 0 || filterSelectivity >= 1) {
             throw new IllegalArgumentException("-filterSelectivity must be between 0 and 1");
           }
           break;
@@ -484,8 +498,10 @@ public class KnnGraphTester {
     if (operation == null && reindex == false) {
       usage();
     }
-    if (prefilter && selectivity == 1f) {
-      throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
+
+    BitSet filtered = null;
+    if (filterStrategy != null && filterSelectivity == null || filterStrategy == null && filterSelectivity != null) {
+      throw new IllegalArgumentException("Either both or none of -filterStrategy or -filterSelectivity should be specified");
     }
     if (indexPath == null) {
       indexPath = Paths.get(formatIndexPath(docVectorsPath, numDocs)); // derive index path
@@ -501,10 +517,19 @@ public class KnnGraphTester {
     log("Seed = %d\n", randomSeed);
     random = new Random(randomSeed);
 
+    if (filterSelectivity != null) {
+      filtered = selectRandomDocs(random, numDocs, filterSelectivity);
+    }
     if (reindex || Files.exists(indexPath) == false) {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
+
+      BitSet indexTimeFilter = null;
+      if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
+        indexTimeFilter = filtered;
+      }
+
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
@@ -518,7 +543,8 @@ public class KnnGraphTester {
         quiet,
         parentJoin,
         parentJoinMetaFile,
-        useBp
+        useBp,
+        indexTimeFilter
       ).createIndex();
       log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
     }
@@ -533,7 +559,9 @@ public class KnnGraphTester {
           if (docVectorsPath == null) {
             throw new IllegalArgumentException("missing -docs arg");
           }
-          filterQuery = selectivity == 1f ? new MatchAllDocsQuery() : generateRandomQuery(random, indexPath, numDocs, selectivity);
+          if (filterSelectivity != null) {
+            filterQuery = createFilterQuery(indexPath, filtered);
+          }
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
           } else {
@@ -655,7 +683,7 @@ public class KnnGraphTester {
     }
   }
 
-  private static Query generateRandomQuery(Random random, Path indexPath, int size, float selectivity) throws IOException {
+  private static BitSet selectRandomDocs(Random random, int size, float selectivity) {
     FixedBitSet bitSet = new FixedBitSet(size);
     for (int i = 0; i < size; i++) {
       if (random.nextFloat() < selectivity) {
@@ -664,7 +692,10 @@ public class KnnGraphTester {
         bitSet.clear(i);
       }
     }
+    return bitSet;
+  }
 
+  private static Query createFilterQuery(Path indexPath, BitSet bitSet) throws IOException {
     try (Directory dir = FSDirectory.open(indexPath);
          DirectoryReader reader = DirectoryReader.open(dir)) {
       BitSet[] segmentDocs = new BitSet[reader.leaves().size()];
@@ -706,6 +737,14 @@ public class KnnGraphTester {
     }
     // make sure we reindex if numDocs has changed:
     suffix.add(Integer.toString(numDocs));
+
+    // make sure we reindex if index-time filter is used
+    if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
+      suffix.add(filterStrategy.toString());
+      suffix.add(filterSelectivity.toString());
+      suffix.add(String.valueOf(randomSeed));
+    }
+
     return INDEX_DIR + "/" + docsPath.getFileName() + "-" + String.join("-", suffix) + ".index";
   }
 
@@ -878,10 +917,10 @@ public class KnnGraphTester {
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
+              doKnnByteVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery);
             } else {
               float[] target = targetReader.next();
-              doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
+              doKnnVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery, parentJoin);
             }
           }
           targetReader.reset();
@@ -890,10 +929,10 @@ public class KnnGraphTester {
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              results[i] = doKnnByteVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery);
+              results[i] = doKnnByteVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery);
             } else {
               float[] target = targetReader.next();
-              results[i] = doKnnVectorQuery(searcher, KNN_FIELD, target, topK, fanout, prefilter, filterQuery, parentJoin);
+              results[i] = doKnnVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery, parentJoin);
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
@@ -956,7 +995,7 @@ public class KnnGraphTester {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%.2f\t%5.3f\t%5.3f\t%5.3f\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -973,8 +1012,8 @@ public class KnnGraphTester {
           forceMergeTimeSec,
           indexNumSegments,
           indexSizeOnDiskMB,
-          selectivity,
-          prefilter ? "pre-filter" : "post-filter",
+          filterStrategy.toString().toLowerCase().replace('_', '-'),
+          filterSelectivity,
           overSample,
           vectorDiskSizeBytes / 1024. / 1024.,
           vectorRAMSizeBytes / 1024. / 1024.,
@@ -992,31 +1031,62 @@ public class KnnGraphTester {
   }
 
   private static Result doKnnByteVectorQuery(
-    IndexSearcher searcher, String field, byte[] vector, int k, int fanout, boolean prefilter, Query filter)
+    IndexSearcher searcher, byte[] vector, int k, int fanout, FilterStrategy filterStrategy, Query filter)
     throws IOException {
-    ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(field, vector, k, fanout, prefilter ? filter : null);
-    Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
-            .add(profiledQuery, BooleanClause.Occur.MUST)
-            .add(filter, BooleanClause.Occur.FILTER)
-            .build();
+
+    Query queryTimeFilter = null;
+    if (filterStrategy == FilterStrategy.QUERY_TIME_PRE_FILTER) {
+      queryTimeFilter = filter;
+    }
+
+    String knnField = KNN_FIELD;
+    if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
+      knnField = KNN_FIELD_FILTERED;
+    }
+
+    ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
+
+    Query query = profiledQuery;
+    if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
+      query = new BooleanQuery.Builder()
+              .add(profiledQuery, BooleanClause.Occur.MUST)
+              .add(filter, BooleanClause.Occur.FILTER)
+              .build();
+    }
     TopDocs docs = searcher.search(query, k);
     return new Result(docs, profiledQuery.totalVectorCount(), 0);
   }
 
   private static Result doKnnVectorQuery(
-      IndexSearcher searcher, String field, float[] vector, int k, int fanout, boolean prefilter, Query filter, boolean isParentJoinQuery)
+      IndexSearcher searcher, float[] vector, int k, int fanout, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery)
       throws IOException {
+
+    Query queryTimeFilter = null;
+    if (filterStrategy == FilterStrategy.QUERY_TIME_PRE_FILTER) {
+      queryTimeFilter = filter;
+    }
+
+    String knnField = KNN_FIELD;
+    if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
+      knnField = KNN_FIELD_FILTERED;
+    }
+
     if (isParentJoinQuery) {
-      var topChildVectors = new DiversifyingChildrenFloatKnnVectorQuery(KNN_FIELD, vector, null, k + fanout, parentsFilter);
+      var topChildVectors = new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
       TopDocs topDocs = searcher.search(query, k);
       return new Result(topDocs, 0, 0);
     }
-    ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(field, vector, k, fanout, prefilter ? filter : null);
-    Query query = prefilter ? profiledQuery : new BooleanQuery.Builder()
-            .add(profiledQuery, BooleanClause.Occur.MUST)
-            .add(filter, BooleanClause.Occur.FILTER)
-            .build();
+
+    ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
+
+    Query query = profiledQuery;
+    if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
+      query = new BooleanQuery.Builder()
+              .add(profiledQuery, BooleanClause.Occur.MUST)
+              .add(filter, BooleanClause.Occur.FILTER)
+              .build();
+    }
     TopDocs docs = searcher.search(query, k);
     return new Result(docs, profiledQuery.totalVectorCount(), 0);
   }
@@ -1060,7 +1130,7 @@ public class KnnGraphTester {
    */
   private int[][] getExactNN(Path docPath, Path indexPath, Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     // look in working directory for cached nn file
-    String hash = Integer.toString(Objects.hash(docPath, indexPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, prefilter ? selectivity : 1f, prefilter ? randomSeed : 0f), 36);
+    String hash = Integer.toString(Objects.hash(docPath, indexPath, queryPath, numDocs, numQueryVectors, topK, similarityFunction.ordinal(), parentJoin, queryStartIndex, filterSelectivity == null ? 0 : Objects.hash(filterSelectivity, randomSeed)), 36);
     String nnFileName = "nn-" + hash + ".bin";
     Path nnPath = Paths.get(nnFileName);
     if (Files.exists(nnPath) && isNewer(nnPath, docPath, queryPath)) {
@@ -1164,10 +1234,13 @@ public class KnnGraphTester {
       try {
         var queryVector = new ConstKnnByteVectorValueSource(query);
         var docVectors = new ByteKnnVectorFieldSource(KNN_FIELD);
-        var query = new BooleanQuery.Builder()
-                .add(new FunctionQuery(new ByteVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
-                .add(filterQuery, BooleanClause.Occur.FILTER)
-                .build();
+        Query query = new FunctionQuery(new ByteVectorSimilarityFunction(similarityFunction, queryVector, docVectors));
+        if (filterQuery != null) {
+          query = new BooleanQuery.Builder()
+                  .add(query, BooleanClause.Occur.SHOULD)
+                  .add(filterQuery, BooleanClause.Occur.FILTER)
+                  .build();
+        }
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
@@ -1238,10 +1311,13 @@ public class KnnGraphTester {
       try {
         var queryVector = new ConstKnnFloatValueSource(query);
         var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
-        var query = new BooleanQuery.Builder()
-                .add(new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors)), BooleanClause.Occur.SHOULD)
-                .add(filterQuery, BooleanClause.Occur.FILTER)
-                .build();
+        Query query = new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction, queryVector, docVectors));
+        if (filterQuery != null) {
+          query = new BooleanQuery.Builder()
+                  .add(query, BooleanClause.Occur.SHOULD)
+                  .add(filterQuery, BooleanClause.Occur.FILTER)
+                  .build();
+        }
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
         if ((queryOrd + 1) % 10 == 0) {

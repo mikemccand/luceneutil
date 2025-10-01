@@ -47,6 +47,7 @@ import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.misc.index.BPReorderingMergePolicy;
 import org.apache.lucene.misc.index.BpVectorReorderer;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
 import static knn.KnnGraphTester.DOCTYPE_CHILD;
@@ -70,11 +71,12 @@ public class KnnIndexer {
   private final boolean parentJoin;
   private final Path parentJoinMetaPath;
   private final boolean useBp;
+  private final BitSet filtered;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
-                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp) {
+                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, BitSet filtered) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
     this.codec = codec;
@@ -88,6 +90,7 @@ public class KnnIndexer {
     this.parentJoin = parentJoin;
     this.parentJoinMetaPath = parentJoinMetaPath;
     this.useBp = useBp;
+    this.filtered = filtered;
   }
 
   public int createIndex() throws IOException, InterruptedException {
@@ -144,7 +147,7 @@ public class KnnIndexer {
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs);
+          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filtered);
           t.setDaemon(true);
           t.start();
           threads.add(t);
@@ -173,11 +176,20 @@ public class KnnIndexer {
             String currParaId = line[1];
             Document doc = new Document();
             switch (vectorEncoding) {
-            case BYTE -> doc.add(
-                                 new KnnByteVectorField(
-                                                        KnnGraphTester.KNN_FIELD, ((VectorReaderByte) vectorReader).nextBytes(), fieldType));
-            case FLOAT32 -> doc.add(
-                                    new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vectorReader.next(), fieldType));
+              case BYTE -> {
+                byte[] vector = ((VectorReaderByte) vectorReader).nextBytes();
+                doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
+                if (filtered != null && filtered.get(docIds)) {
+                  doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
+                }
+              }
+              case FLOAT32 -> {
+                float[] vector = vectorReader.next();
+                doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
+                if (filtered != null && filtered.get(docIds)) {
+                  doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
+                }
+              }
             }
             doc.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
             doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));

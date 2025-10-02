@@ -834,8 +834,18 @@ KNOWN_CHANGES = [
     "Bump block size to 256 https://github.com/apache/lucene/pull/15160",
   ),
   (
+    "2025-09-16",
+    "Off-heap quantized vector scoring for the Lucene99 vector format https://github.com/apache/lucene/pull/14863",
+    "Off-heap quantized vector scoring for the Lucene99 vector format https://github.com/apache/lucene/pull/14863",
+  ),
+  (
     "2025-09-21",
     "Vectorise expand8 in ForUtil using JDK Vector API https://github.com/apache/lucene/pull/15198",
     "Vectorise expand8 in ForUtil using JDK Vector API https://github.com/apache/lucene/pull/15198",
+  ),
+  (
+    "2025-09-25",
+    "Use new OSQ-based Lucene104 quantized vector format https://github.com/apache/lucene/pull/15169",
+    "Use new OSQ-based Lucene104 quantized vector format https://github.com/apache/lucene/pull/15169",
   ),
 ]

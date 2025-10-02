@@ -1007,7 +1007,7 @@ public class KnnGraphTester {
           forceMergeTimeSec,
           indexNumSegments,
           indexSizeOnDiskMB,
-          filterStrategy == null ? "none" : filterStrategy.toString().toLowerCase().replace('_', '-'),
+          filterStrategy == null ? "null" : filterStrategy.toString().toLowerCase().replace('_', '-'),
           filterSelectivity,
           overSample,
           vectorDiskSizeBytes / 1024. / 1024.,

@@ -324,13 +324,13 @@ html * {
 .dygraph-legend > span.highlight {
   border: 2px solid black;
   font-weight: bold;
-  font-size: 24;
+  font-size: 12;
   width: 500px;
 }
 
 .dygraph-legend > span {
   font-weight: bold;
-  font-size: 24;
+  font-size: 12;
   width: 500px;
 }
 </style>
@@ -811,7 +811,7 @@ def _run(results_dir):
         print(f"now remove KNN index {index_path}")
         shutil.rmtree(index_path)
 
-  skip_headers = {"selectivity", "filterType", "visited"}
+  skip_headers = {"filterSelectivity", "filterStrategy", "visited"}
   knnPerfTest.print_fixed_width([(x, None) for x in all_summaries], skip_headers)
 
   results_file = f"{results_dir}/knn_results.pk"

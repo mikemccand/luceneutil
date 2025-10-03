@@ -48,12 +48,10 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
-import org.apache.lucene.codecs.lucene102.Lucene102BinaryQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsFormat;
-import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
@@ -86,7 +84,6 @@ import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
-import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
@@ -1010,7 +1007,7 @@ public class KnnGraphTester {
           forceMergeTimeSec,
           indexNumSegments,
           indexSizeOnDiskMB,
-          filterStrategy.toString().toLowerCase().replace('_', '-'),
+          filterStrategy == null ? "none" : filterStrategy.toString().toLowerCase().replace('_', '-'),
           filterSelectivity,
           overSample,
           vectorDiskSizeBytes / 1024. / 1024.,
@@ -1382,8 +1379,8 @@ public class KnnGraphTester {
         if (quantize) {
           return switch (quantizeBits) {
             case 1 -> switch (indexType) {
-              case FLAT -> new Lucene102BinaryQuantizedVectorsFormat();
-              case HNSW -> new Lucene102HnswBinaryQuantizedVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
+              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
             };
             case 4 -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
             case 7 -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);

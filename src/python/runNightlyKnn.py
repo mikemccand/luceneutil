@@ -768,7 +768,7 @@ def _run(results_dir):
 
       assert len(cols) >= 21
 
-      if cols[17] == 'N/A':
+      if cols[17] == "N/A":
         selectivity = None
       else:
         selectivity = float(cols[17])
@@ -796,7 +796,7 @@ def _run(results_dir):
         float(cols[13]),  # force_merge_time_sec
         int(cols[14]),  # index_num_segments
         float(cols[15]),  # index_size_on_disk_mb
-        selectivity,    # selectivity
+        selectivity,  # selectivity
         cols[16],  # filter-strategy
         float(cols[18]),  # vec_disk_mb
         float(cols[19]),  # vec_ram_mb

@@ -848,4 +848,9 @@ KNOWN_CHANGES = [
     "Use new OSQ-based Lucene104 quantized vector format https://github.com/apache/lucene/pull/15169",
     "Use new OSQ-based Lucene104 quantized vector format https://github.com/apache/lucene/pull/15169",
   ),
+  (
+    "2025-10-10",
+    "Implement longValues for MultiFieldNormValues to speedup CombinedQuery https://github.com/apache/lucene/pull/15261",
+    "Implement longValues for MultiFieldNormValues to speedup CombinedQuery https://github.com/apache/lucene/pull/15261",
+  ),
 ]

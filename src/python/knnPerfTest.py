@@ -10,10 +10,11 @@
 import argparse
 import multiprocessing
 import re
+import shutil
 import statistics
 import subprocess
 import sys
-import shutil
+
 import benchUtil
 import constants
 from common import getLuceneDirFromGradleProperties

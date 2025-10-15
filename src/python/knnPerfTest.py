@@ -13,7 +13,7 @@ import re
 import statistics
 import subprocess
 import sys
-
+import shutil
 import benchUtil
 import constants
 from common import getLuceneDirFromGradleProperties
@@ -39,6 +39,12 @@ from common import getLuceneDirFromGradleProperties
 # you may want to modify the following settings:
 
 DO_PROFILING = False
+
+
+# Set this to True to generate the disassembled code to verify the intended SIMD instructions are getting used or not
+PERF_MODE = False
+
+PERF_PATH = shutil.which("perf")
 
 # e.g. to compile KnnIndexer:
 #
@@ -186,6 +192,7 @@ def run_knn_benchmark(checkout, values):
 
   cmd += ["knn.KnnGraphTester"]
 
+  index_run = 1
   all_results = []
   while advance(indexes, values):
     if NOISY:
@@ -247,6 +254,17 @@ def run_knn_benchmark(checkout, values):
         #'-quiet'
       ]
     )
+    if PERF_MODE and PERF_PATH:
+      print("Will be recording the executed instructions in perf.data file")
+      perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
+      job = subprocess.run(perf_cmd)
+      if NOISY:
+        print(f"  cmd: {perf_cmd}")
+      index_run += 1
+      continue
+    elif PERF_MODE:
+      print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
+      sys.exit(1)
     if NOISY:
       print(f"  cmd: {this_cmd}")
     else:
@@ -273,6 +291,10 @@ def run_knn_benchmark(checkout, values):
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
+    index_run += 1
+
+  if PERF_MODE:
+    return
 
   if NOISY:
     print("\nResults:")

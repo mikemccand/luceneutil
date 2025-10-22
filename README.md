@@ -50,10 +50,10 @@ need to follow the rest procedure.
 
 The benchmark compares a baseline version of Lucene to a patched one. Therefore we need two checkouts of Lucene, for example:
 
-* `$LUCENE_BENCH_HOME/lucene_baseline`: contains a complete svn checkout of Lucene, this is the baseline for comparison
-* `$LUCENE_BENCH_HOME/lucene_candidate`: contains a complete svn checkout of Lucene with some change applied that should be benchmarked against the baseline.
+* `$LUCENE_BENCH_HOME/lucene_baseline`: contains a complete git clone of Lucene, this is the baseline for comparison
+* `$LUCENE_BENCH_HOME/lucene_candidate`: contains a complete git clone of Lucene with some change applied that should be benchmarked against the baseline.
 
-A trunk version of Lucene can be checked out with
+The main branch of Lucene can be checked out with
 
 ```
 cd $LUCENE_BENCH_HOME

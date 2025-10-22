@@ -1411,7 +1411,7 @@ def writeCheckIndexTimeHTML():
     w(
       '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
     )
-    w('  <li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/Indexer.java"><tt>Indexer.java</tt></a>')
+    w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/Indexer.java"><tt>Indexer.java</tt></a>')
     w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
     w("</ul>")
     w('<br><a href="index.html">Back to all results</a><br>')
@@ -1448,7 +1448,7 @@ def writeIndexHTML(searchChartData, days):
   header(w, "Lucene nightly benchmarks")
   w("<h1>Lucene nightly benchmarks</h1>")
   w(
-    'Each night, an <a href="https://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
+    'Each night, an <a href="https://github.com/mikemccand/luceneutil/blob/main/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
   )
   w(
     '<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>'
@@ -1685,14 +1685,14 @@ def writeOneGraphHTML(title, fileName, chartHTML):
     w('<li>Lookup 4000 random documents using unique field "id"')
     w('<li>The "id" field is indexed with Pulsing codec.')
   w(
-    '<li> Test runs %s instances of each tasks/query category (auto-discovered with <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/CreateQueries.java">this Java tool</a>)'
+    '<li> Test runs %s instances of each tasks/query category (auto-discovered with <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/CreateQueries.java">this Java tool</a>)'
     % COUNTS_PER_CAT
   )
   w("<li> Each of the %s instances are run %s times per JVM instance; we keep the best (fastest) time per task/query instance" % (COUNTS_PER_CAT, TASK_REPEAT_COUNT))
   w("<li> %s JVM instances are run; we compute mean/stddev from these" % JVM_COUNT)
   w("<li> %d concurrent queries\n" % constants.SEARCH_NUM_CONCURRENT_QUERIES)
   w("<li> One sigma error bars")
-  w('<li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/SearchPerfTest.java"><tt>SearchPerfTest.java</tt></a>')
+  w('<li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/SearchPerfTest.java"><tt>SearchPerfTest.java</tt></a>')
   w('<li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w("</ul>")
   w('<br><a href="index.html"><b>Back to all results...</b></a><br>')
@@ -1837,7 +1837,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData
   w(
     '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
   )
-  w('  <li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/Indexer.java"><tt>Indexer.java</tt></a>')
+  w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/Indexer.java"><tt>Indexer.java</tt></a>')
   w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w("</ul>")
   w('<br><a href="index.html">Back to all results</a><br>')
@@ -1862,7 +1862,7 @@ def writeNRTHTML(nrtChartData):
   w("  <li> %s indexing thread" % NRT_INDEX_THREADS)
   w("  <li> 1 reopen thread")
   w("  <li> %s searching threads" % NRT_SEARCH_THREADS)
-  w('  <li> Source code: <a href="http://code.google.com/a/apache-extras.org/p/luceneutil/source/browse/perf/NRTPerfTest.java"><tt>NRTPerfTest.java</tt></a>')
+  w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/NRTPerfTest.java"><tt>NRTPerfTest.java</tt></a>')
   w('<li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w("</ul>")
 

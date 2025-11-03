@@ -97,7 +97,7 @@ PARAMS = {
   # "bp": ("false", "true"),
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
-  # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
+  # "indexType": ("flat", "hnsw"), # index type,
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   "forceMerge": (False,),
   #'niter': (10,),

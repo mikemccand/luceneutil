@@ -97,7 +97,7 @@ PARAMS = {
   # "bp": ("false", "true"),
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
-  # "indexType": ("flat", "hnsw"), # index type, only works with singlt bit
+  # "indexType": ("flat", "hnsw"), # index type,
   "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
   "forceMerge": (False,),
   #'niter': (10,),
@@ -258,12 +258,12 @@ def run_knn_benchmark(checkout, values):
     if PERF_MODE and PERF_PATH:
       print("Will be recording the executed instructions in perf.data file")
       perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
-      job = subprocess.run(perf_cmd)
+      job = subprocess.run(perf_cmd, check=False)
       if NOISY:
         print(f"  cmd: {perf_cmd}")
       index_run += 1
       continue
-    elif PERF_MODE:
+    if PERF_MODE:
       print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
       sys.exit(1)
     if NOISY:
@@ -295,7 +295,7 @@ def run_knn_benchmark(checkout, values):
     index_run += 1
 
   if PERF_MODE:
-    return
+    return None
 
   if NOISY:
     print("\nResults:")

@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import math
 import os
 import pickle
@@ -946,13 +947,20 @@ class RunAlgs:
     print("    cd %s" % s)
     os.chdir(s)
 
+    # Create timestamped log subdirectory to avoid conflicts between runs
+    now = datetime.datetime.now()
+    timeStamp = now.strftime("%Y.%m.%d.%H.%M.%S")
+    runLogDir = f"{constants.LOGS_DIR}/{id}/{timeStamp}"
+    os.makedirs(runLogDir, exist_ok=True)
+    print(f"    log dir {runLogDir}")
+
     try:
       cmd = []
       cmd += index.javaCommand.split()
       w = lambda *xs: [cmd.append(str(x)) for x in xs]
       w("-classpath", classPathToString(getClassPath(index.checkout)))
 
-      jfrOutput = f"{constants.LOGS_DIR}/bench-index-{id}-{index.getName()}.jfr"
+      jfrOutput = f"{runLogDir}/bench-index-{id}-{index.getName()}.jfr"
 
       # 77: always enable Java Flight Recorder profiling
       w(
@@ -1048,16 +1056,16 @@ class RunAlgs:
       if index.quantizeKNNGraph:
         w("-quantizeKNNGraph")
 
-      fullLogFile = "%s/%s.%s.log" % (constants.LOGS_DIR, id, index.getName())
+      fullLogFile = "%s/%s.%s.log" % (runLogDir, id, index.getName())
 
       print("    log %s" % fullLogFile)
 
       t0 = time.time()
       if VMSTAT_PATH is not None:
-        vmstatLogFile = f"{constants.LOGS_DIR}/{id}.vmstat.log"
+        vmstatLogFile = f"{runLogDir}/{id}.vmstat.log"
       else:
         vmstatLogFile = None
-      topLogFile = f"{constants.LOGS_DIR}/{id}.top.log"
+      topLogFile = f"{runLogDir}/{id}.top.log"
       run(cmd, fullLogFile, vmstatLogFile=vmstatLogFile, topLogFile=topLogFile)
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:

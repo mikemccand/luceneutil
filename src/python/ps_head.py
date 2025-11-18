@@ -48,7 +48,7 @@ class PSTopN:
 
     # edit: ok I asked Claude "what is the origin of the odd unix spelling daemon?":
 
-    '''
+    """
 The Unix spelling "daemon" has a fascinating origin that predates computing entirely. It comes from ancient Greek mythology, where a "daemon" (δαίμων) referred to a supernatural being or spirit that worked in the background, often as an intermediary between gods and humans - neither good nor evil, just quietly doing its job.
 
 The computing use was coined at MIT's Project MAC in 1963. According to Fernando J. Corbató (who worked on the project), they deliberately chose this spelling over "demon" to avoid any negative connotations. The team liked the metaphor of these helpful background spirits that quietly performed tasks without direct human interaction.
@@ -58,8 +58,8 @@ The acronym backronym "Disk And Execution MONitor" was created later, but it's n
 This naming choice reflects the playful academic culture at MIT and other early computing centers, where classical education often influenced technical terminology. The researchers appreciated how perfectly the mythological concept mapped to these background processes - invisible helpers doing necessary work behind the scenes, starting up when needed and running continuously without human intervention.
 
 It's one of many examples where Unix culture embraced clever wordplay and literary references (like "grep" from "g/re/p" - globally search for regular expression and print).
-'''
-    
+"""
+
     self.thread = threading.Thread(target=self.__run_thread, daemon=True)
     self.thread.start()
 

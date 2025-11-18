@@ -949,7 +949,7 @@ class RunAlgs:
 
     # Create timestamped log subdirectory to avoid conflicts between runs
     now = datetime.datetime.now()
-    timeStamp = "%04d.%02d.%02d.%02d.%02d.%02d" % (now.year, now.month, now.day, now.hour, now.minute, now.second)
+    timeStamp = now.strftime("%Y.%m.%d.%H.%M.%S")
     runLogDir = f"{constants.LOGS_DIR}/{id}/{timeStamp}"
     os.makedirs(runLogDir, exist_ok=True)
     print(f"    log dir {runLogDir}")

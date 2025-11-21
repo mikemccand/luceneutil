@@ -861,7 +861,7 @@ def stats(l):
 
 
 def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
-  print("%srun: %s, cwd=%s" % (indent, cmd, os.getcwd()))
+  print("%srun: %s, cwd=%s vmstatLogFile=%s topLogFile=%s" % (indent, cmd, os.getcwd(), vmstatLogFile, topLogFile))
   if logFile is not None:
     out = open(logFile, "wb")
   else:

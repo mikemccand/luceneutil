@@ -151,6 +151,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   for tool in ("vmstat", "top"):
     logFileName = f"{constants.LOGS_DIR}/nightly.{tool}.log"
     if os.path.exists(logFileName):
+      print(f'remove pre-existing log file {logFileName}')
       os.remove(logFileName)
 
   # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:

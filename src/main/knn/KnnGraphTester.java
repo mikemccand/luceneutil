@@ -698,7 +698,7 @@ public class KnnGraphTester implements FormatterLogger {
       log("index has %d segments: %s\n", indexNumSegments, ((StandardDirectoryReader) reader).getSegmentInfos());
 
       if (indexNumSegments == 1 && numSearchThread > 1) {
-        log("WARNING: intra-query concurrency requestd (numSearchThread=%d) but index has only one segment so there will be no concurrency!", indexNumSegments);
+        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment so there will be no concurrency!", numSearchThread);
       }
           
       long indexSizeOnDiskBytes = 0;

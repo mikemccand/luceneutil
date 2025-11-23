@@ -837,7 +837,7 @@ public class KnnGraphTester implements FormatterLogger {
                                        boolean quantize, int quantizeBits, boolean quantizeCompress,
                                        boolean parentJoin, FilterStrategy filterStrategy,
                                        Float filterSelectivity, Long randomSeed,
-                                       Path docPath, int numDocs, String metric) {
+                                       Path docPath, int numDocs, String metric) throws IOException {
 
     List<String> suffix = new ArrayList<>();
 

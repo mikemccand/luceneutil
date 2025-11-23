@@ -8,6 +8,7 @@
 #   - report net concurrency utilized in the table
 #   - report total cpu for all indexing threads too
 #   - hmm how come so much faster to compute exact NN at queryStartIndex=0 than 10000, 20000?  60 sec vs ~470 sec!?
+#     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
 import multiprocessing

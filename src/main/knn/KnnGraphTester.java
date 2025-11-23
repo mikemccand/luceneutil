@@ -1405,11 +1405,12 @@ public class KnnGraphTester implements FormatterLogger {
         if (reader.maxDoc() != numDocs && !parentJoin) {
           throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
         }
+        IndexSearcher searcher = new IndexSearcher(reader);
         try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
           VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
           for (int i = 0; i < numQueryVectors; i++) {
             byte[] query = queryReader.nextBytes().clone();
-            tasks.add(new ComputeNNByteTask(i, query, result, reader));
+            tasks.add(new ComputeNNByteTask(searcher, i, query, result));
           }
         }
 
@@ -1429,18 +1430,17 @@ public class KnnGraphTester implements FormatterLogger {
     private final int queryOrd;
     private final byte[] query;
     private final int[][] result;
-    private final IndexReader reader;
+    private final IndexSearcher searcher;
 
-    ComputeNNByteTask(int queryOrd, byte[] query, int[][] result, IndexReader reader) {
+    ComputeNNByteTask(IndexSearcher searcher, int queryOrd, byte[] query, int[][] result) {
+      this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
-      this.reader = reader;
     }
 
     @Override
     public Void call() {
-      IndexSearcher searcher = new IndexSearcher(reader);
       try {
         var queryVector = new ConstKnnByteVectorValueSource(query);
         var docVectors = new ByteKnnVectorFieldSource(KNN_FIELD);
@@ -1452,7 +1452,7 @@ public class KnnGraphTester implements FormatterLogger {
                   .build();
         }
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1476,6 +1476,7 @@ public class KnnGraphTester implements FormatterLogger {
         if (reader.maxDoc() != numDocs && parentJoin == false) {
           throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
         }
+        IndexSearcher searcher = new IndexSearcher(reader);
         if (parentJoin) {
           CheckJoinIndex.check(reader, parentsFilter);
         }
@@ -1485,9 +1486,9 @@ public class KnnGraphTester implements FormatterLogger {
           for (int i = 0; i < numQueryVectors; i++) {
             float[] query = queryReader.next().clone();
             if (parentJoin) {
-              tasks.add(new ComputeExactSearchNNFloatTask(i, query, result, reader));
+              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result));
             } else {
-              tasks.add(new ComputeNNFloatTask(i, query, result, reader));
+              tasks.add(new ComputeNNFloatTask(searcher, i, query, result));
             }
           }
           // don't use the common pool else it messes up accounting total CPU spend across threads in ThreadDetails.subtract!
@@ -1507,22 +1508,21 @@ public class KnnGraphTester implements FormatterLogger {
   // from chunks of indexed vectors?
   class ComputeNNFloatTask implements Callable<Void> {
 
+    private final IndexSearcher searcher;
     private final int queryOrd;
     private final float[] query;
     private final int[][] result;
-    private final IndexReader reader;
 
-    ComputeNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+    ComputeNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result) {
+      this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
-      this.reader = reader;
     }
 
     @Override
     public Void call() {
       // TODO: support docStartIndex here too
-      IndexSearcher searcher = new IndexSearcher(reader);
       try {
         var queryVector = new ConstKnnFloatValueSource(query);
         var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
@@ -1534,7 +1534,7 @@ public class KnnGraphTester implements FormatterLogger {
                   .build();
         }
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
         if ((queryOrd + 1) % 10 == 0) {
           log(" " + (queryOrd + 1));
         }
@@ -1549,22 +1549,21 @@ public class KnnGraphTester implements FormatterLogger {
    */
   class ComputeExactSearchNNFloatTask implements Callable<Void> {
 
+    private final IndexSearcher searcher;
     private final int queryOrd;
     private final float[] query;
     private final int[][] result;
-    private final IndexReader reader;
 
-    ComputeExactSearchNNFloatTask(int queryOrd, float[] query, int[][] result, IndexReader reader) {
+    ComputeExactSearchNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result) {
+      this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
-      this.reader = reader;
     }
 
     @Override
     public Void call() {
       // we only use this for ParentJoin benchmarks right now, TODO: extend for all computeExactNN needs.
-      IndexSearcher searcher = new IndexSearcher(reader);
       try {
         var queryVector = new ConstKnnFloatValueSource(query);
         var docVectors = new FloatKnnVectorFieldSource(KNN_FIELD);
@@ -1574,7 +1573,7 @@ public class KnnGraphTester implements FormatterLogger {
           .build();
         var query = new ToParentBlockJoinQuery(childQuery, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
         var topDocs = searcher.search(query, topK);
-        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, reader.storedFields());
+        result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

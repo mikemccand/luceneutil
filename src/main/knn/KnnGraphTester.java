@@ -1113,7 +1113,7 @@ public class KnnGraphTester implements FormatterLogger {
           perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
           elapsedMS = TimeUnit.NANOSECONDS.toMillis(endThreadDetails.ns - startThreadDetails.ns);
           if (elapsed != null) {
-            totalCpuTimeMS = (long) elapsed.avgCPUCount() * elapsedMS;
+            totalCpuTimeMS = (long) (elapsed.avgCPUCount() * elapsedMS);
           } else {
             totalCpuTimeMS = -1;
           }
@@ -1134,7 +1134,7 @@ public class KnnGraphTester implements FormatterLogger {
               + " QPS "
               + "CPU time="
               + totalCpuTimeMS
-              + "ms\n");
+              + " ms\n");
         }
       }
     } finally {

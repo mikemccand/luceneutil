@@ -1314,8 +1314,15 @@ public class KnnGraphTester implements FormatterLogger {
     Path nnPath = Paths.get("knn-reuse", "exact-nn", exactNNKey + ".bin");
 
     // make sure the docs/queries source vectors were not changed since the cached .nn file was created:
-    boolean nnIsNewerThanVectors = isNewer(nnPath, docPath, queryPath);
     boolean exists = Files.exists(nnPath);
+    boolean nnIsNewerThanVectors;
+
+    if (exists) {
+      nnIsNewerThanVectors = isNewer(nnPath, docPath, queryPath);
+    } else {
+      nnIsNewerThanVectors = false;
+    }
+
     if (exists && nnIsNewerThanVectors) {
       log("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"\n");
       return readExactNN(nnPath);

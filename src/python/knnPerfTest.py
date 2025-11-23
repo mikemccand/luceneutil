@@ -96,7 +96,7 @@ PARAMS = {
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
   # "indexType": ("flat", "hnsw"), # index type,
-  "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000),  # seek to this start vector before searching, to sample different vectors
+  "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
   "forceMerge": (True,),
   "niter": (10000,),
   # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),

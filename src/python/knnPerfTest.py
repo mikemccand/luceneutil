@@ -67,7 +67,7 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (500_000,),
+  "ndoc": (1_000_000,),
   #'ndoc': (50_000,),
   "maxConn": (64,),
   # "maxConn": (64,),
@@ -79,8 +79,8 @@ PARAMS = {
   # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (12,),
-  "numMergeThread": (4,),
+  "numMergeWorker": (24,),
+  "numMergeThread": (8,),
   "numSearchThread": (4,),
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
@@ -88,7 +88,7 @@ PARAMS = {
   # 'metric': ('angular',),  # default is angular (dot_product)
   # 'metric': ('dotproduct',),
   #'quantize': (True,),
-  "quantizeBits": (32,),
+  "quantizeBits": (4, 8, 32),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -97,7 +97,8 @@ PARAMS = {
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
   # "indexType": ("flat", "hnsw"), # index type,
-  "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
+  # "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
+  "queryStartIndex": (0, 200000, 400000, 600000),
   "forceMerge": (True,),
   "niter": (10000,),
   # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
@@ -154,7 +155,7 @@ def run_knn_benchmark(checkout, values):
 
   dim = 768
   # doc_vectors = "/big/cohere-wikipedia-docs-768d.vec"
-  doc_vectors = "/big/cohere-wikipedia-docs-768d-shuffle2.vec"
+  doc_vectors = "/big/cohere-wikipedia-docs-768d-1M-shuffled.vec"
   query_vectors = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
 
   # dim = 768

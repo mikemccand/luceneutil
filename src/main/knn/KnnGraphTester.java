@@ -42,7 +42,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -527,7 +529,7 @@ public class KnnGraphTester implements FormatterLogger {
                                      quantize, quantizeBits, quantizeCompress,
                                      parentJoin, filterStrategy, filterSelectivity, randomSeed,
                                      docVectorsPath, numDocs, metric);
-    log("Index Key = %s\n", indexKey);
+    log("index key = %s\n", indexKey);
     
     if (indexPath == null) {
       // use indexKey for path so that we reindex if anything volatile to indexing changes:
@@ -1310,6 +1312,8 @@ public class KnnGraphTester implements FormatterLogger {
                                          filterStrategy, filterSelectivity, randomSeed, docPath, queryPath, numDocs, metric,
                                          numQueryVectors, queryStartIndex, topK);
     
+    log("exact nn key = %s\n", exactNNKey);
+
     // look in knn-exact-nn sub-directory for cached nn file
     Path nnPath = Paths.get("knn-reuse", "exact-nn", exactNNKey + ".bin");
 
@@ -1395,10 +1399,56 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
+  private static void runTasksWithProgress(List<Callable<Void>> tasks, AtomicInteger completedCount, FormatterLogger log) throws IOException, InterruptedException {
+    // don't use the common pool else it messes up accounting total CPU spend across threads in ThreadDetails.subtract!
+    // ForkJoinPool.commonPool().invokeAll(tasks);    
+
+    int coreCount = Runtime.getRuntime().availableProcessors();
+
+    // oddly, at least on beast3 (128 cores), exact NN is much slower with all (including hyperthread'd) cores:
+    ForkJoinPool pool = new ForkJoinPool(max(1, coreCount/2));
+
+    int taskCount = tasks.size();
+
+    // submit all tasks
+    List<Future<Void>> futures = new ArrayList<>(taskCount);
+    for (Callable<Void> task : tasks) {
+      futures.add(pool.submit(task));
+    }
+
+    // report progress every 5 seconds
+    long startNS = System.nanoTime();
+    long nextReportTimeNS = System.nanoTime();
+    while (true) {
+      boolean isDone = completedCount.get() == taskCount;
+
+      long nowNS = System.nanoTime();
+      if (isDone || nowNS > nextReportTimeNS) {
+        // isDone above ensures we see the final 100%
+        int completed = completedCount.get();
+        double pct = 100.0 * completed / taskCount;
+        log.log("  %6.1f s: %5.1f %% (%5d / %d) vectors\n",
+                (nowNS - startNS) / 1000000000.,
+                pct, completed, taskCount);
+        nextReportTimeNS += TimeUnit.SECONDS.toNanos(5);
+      }
+
+      if (isDone) {
+        break;
+      }
+
+      // TODO: we could use an object monitor to wait/notify to avoid this final up to 10 msec delay on completion...
+      Thread.sleep(10); // check every 100ms
+    }
+
+    pool.shutdown();
+  }
+
   private int[][] computeExactNNByte(Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     int[][] result = new int[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors\n");
-    List<ComputeNNByteTask> tasks = new ArrayList<>();
+    AtomicInteger completedCount = new AtomicInteger(0);
+    List<Callable<Void>> tasks = new ArrayList<>();
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
       dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
@@ -1410,16 +1460,11 @@ public class KnnGraphTester implements FormatterLogger {
           VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
           for (int i = 0; i < numQueryVectors; i++) {
             byte[] query = queryReader.nextBytes().clone();
-            tasks.add(new ComputeNNByteTask(searcher, i, query, result));
+            tasks.add(new ComputeNNByteTask(searcher, i, query, result, completedCount));
           }
         }
 
-        // don't use the common pool else it messes up accounting total CPU spend across threads in ThreadDetails.subtract!
-        ForkJoinPool pool = new ForkJoinPool();
-        pool.invokeAll(tasks);
-        pool.shutdown();
-        
-        // ForkJoinPool.commonPool().invokeAll(tasks);
+        runTasksWithProgress(tasks, completedCount, this);
       }
       return result;
     }
@@ -1431,12 +1476,14 @@ public class KnnGraphTester implements FormatterLogger {
     private final byte[] query;
     private final int[][] result;
     private final IndexSearcher searcher;
+    private final AtomicInteger completedCount;
 
-    ComputeNNByteTask(IndexSearcher searcher, int queryOrd, byte[] query, int[][] result) {
+    ComputeNNByteTask(IndexSearcher searcher, int queryOrd, byte[] query, int[][] result, AtomicInteger completedCount) {
       this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
+      this.completedCount = completedCount;
     }
 
     @Override
@@ -1453,9 +1500,7 @@ public class KnnGraphTester implements FormatterLogger {
         }
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
-        if ((queryOrd + 1) % 10 == 0) {
-          log(" " + (queryOrd + 1));
-        }
+        completedCount.incrementAndGet();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -1469,6 +1514,7 @@ public class KnnGraphTester implements FormatterLogger {
     int[][] result = new int[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors\n");
     log("parentJoin = %s\n", parentJoin);
+    AtomicInteger completedCount = new AtomicInteger(0);
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
       dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
@@ -1486,17 +1532,12 @@ public class KnnGraphTester implements FormatterLogger {
           for (int i = 0; i < numQueryVectors; i++) {
             float[] query = queryReader.next().clone();
             if (parentJoin) {
-              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result));
+              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result, completedCount));
             } else {
-              tasks.add(new ComputeNNFloatTask(searcher, i, query, result));
+              tasks.add(new ComputeNNFloatTask(searcher, i, query, result, completedCount));
             }
           }
-          // don't use the common pool else it messes up accounting total CPU spend across threads in ThreadDetails.subtract!
-          ForkJoinPool pool = new ForkJoinPool();
-          pool.invokeAll(tasks);
-          pool.shutdown();
-        
-          // ForkJoinPool.commonPool().invokeAll(tasks);
+          runTasksWithProgress(tasks, completedCount, this);
         }
         return result;
       }
@@ -1512,12 +1553,14 @@ public class KnnGraphTester implements FormatterLogger {
     private final int queryOrd;
     private final float[] query;
     private final int[][] result;
+    private final AtomicInteger completedCount;
 
-    ComputeNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result) {
+    ComputeNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, AtomicInteger completedCount) {
       this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
+      this.completedCount = completedCount;
     }
 
     @Override
@@ -1535,9 +1578,7 @@ public class KnnGraphTester implements FormatterLogger {
         }
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
-        if ((queryOrd + 1) % 10 == 0) {
-          log(" " + (queryOrd + 1));
-        }
+        completedCount.incrementAndGet();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -1553,12 +1594,14 @@ public class KnnGraphTester implements FormatterLogger {
     private final int queryOrd;
     private final float[] query;
     private final int[][] result;
+    private final AtomicInteger completedCount;
 
-    ComputeExactSearchNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result) {
+    ComputeExactSearchNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, AtomicInteger completedCount) {
       this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
+      this.completedCount = completedCount;
     }
 
     @Override
@@ -1574,6 +1617,7 @@ public class KnnGraphTester implements FormatterLogger {
         var query = new ToParentBlockJoinQuery(childQuery, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
+        completedCount.incrementAndGet();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

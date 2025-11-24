@@ -927,7 +927,7 @@ class RunAlgs:
     else:
       print("OS:\n%s" % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1):
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each
     if type(profilerStackSize) is int:
       profilerStackSize = (profilerStackSize,)
@@ -947,12 +947,15 @@ class RunAlgs:
     print("    cd %s" % s)
     os.chdir(s)
 
-    # Create timestamped log subdirectory to avoid conflicts between runs
-    now = datetime.datetime.now()
-    timeStamp = now.strftime("%Y.%m.%d.%H.%M.%S")
-    runLogDir = f"{constants.LOGS_DIR}/{id}/{timeStamp}"
-    os.makedirs(runLogDir, exist_ok=True)
-    print(f"    log dir {runLogDir}")
+    if useLogSubDir:
+      # Create timestamped log subdirectory to avoid conflicts between runs
+      now = datetime.datetime.now()
+      timeStamp = now.strftime("%Y.%m.%d.%H.%M.%S")
+      runLogDir = f"{constants.LOGS_DIR}/{id}/{timeStamp}"
+      os.makedirs(runLogDir, exist_ok=True)
+      print(f"    log dir {runLogDir}")
+    else:
+      runLogDir = constants.LOGS_DIR
 
     try:
       cmd = []

@@ -48,9 +48,9 @@ import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.misc.index.BPReorderingMergePolicy;
-import org.apache.lucene.misc.index.BpVectorReorderer;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BpVectorReorderer;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
 import static knn.KnnGraphTester.DOCTYPE_CHILD;
@@ -75,13 +75,13 @@ public class KnnIndexer implements FormatterLogger {
   private final boolean parentJoin;
   private final Path parentJoinMetaPath;
   private final boolean useBp;
-  private final BitSet filtered;
+  private final FilterScheme filterScheme;
   private final TrackingConcurrentMergeScheduler tcms;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
-                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, BitSet filtered) {
+                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, FilterScheme filterScheme) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
     this.codec = codec;
@@ -95,7 +95,7 @@ public class KnnIndexer implements FormatterLogger {
     this.parentJoin = parentJoin;
     this.parentJoinMetaPath = parentJoinMetaPath;
     this.useBp = useBp;
-    this.filtered = filtered;
+    this.filterScheme = filterScheme;
     this.tcms = new TrackingConcurrentMergeScheduler();
   }
 
@@ -155,7 +155,7 @@ public class KnnIndexer implements FormatterLogger {
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filtered);
+          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filterScheme);
           t.setDaemon(true);
           t.start();
           threads.add(t);
@@ -174,7 +174,7 @@ public class KnnIndexer implements FormatterLogger {
           log("Parent join metaFile columns: %s | %s\n", headers[0], headers[1]);
           int childDocs = 0;
           int parentDocs = 0;
-          int docIds = 0;
+          int docId = 0;
           String prevWikiId = "null";
           String currWikiId;
           List<Document> block = new ArrayList<>();
@@ -186,20 +186,24 @@ public class KnnIndexer implements FormatterLogger {
             switch (vectorEncoding) {
               case BYTE -> {
                 byte[] vector = ((VectorReaderByte) vectorReader).nextBytes();
-                doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
-                if (filtered != null && filtered.get(docIds)) {
+                if (filterScheme == null || filterScheme.keepUnfiltered) {
+                  doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
+                }
+                if (filterScheme != null && filterScheme.filter.get(docId)) {
                   doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
                 }
               }
               case FLOAT32 -> {
                 float[] vector = vectorReader.next();
-                doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
-                if (filtered != null && filtered.get(docIds)) {
+                if (filterScheme == null || filterScheme.keepUnfiltered) {
+                  doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
+                }
+                if (filterScheme != null && filterScheme.filter.get(docId)) {
                   doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
                 }
               }
             }
-            doc.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+            doc.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
             doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
             doc.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, currParaId, Field.Store.YES));
             doc.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_CHILD, Field.Store.NO));
@@ -208,7 +212,7 @@ public class KnnIndexer implements FormatterLogger {
             // Close block and create a new one when wiki article changes.
             if (!currWikiId.equals(prevWikiId) && !"null".equals(prevWikiId)) {
               Document parent = new Document();
-              parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+              parent.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
               parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
               parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
               parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
@@ -228,7 +232,7 @@ public class KnnIndexer implements FormatterLogger {
           } while (childDocs < numDocs);
           if (!block.isEmpty()) {
             Document parent = new Document();
-            parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+            parent.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
             parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
             parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
             parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
@@ -331,4 +335,6 @@ public class KnnIndexer implements FormatterLogger {
       return "  " + String.join("\n  ", addEm);
     }
   }
+
+  record FilterScheme(Bits filter, boolean keepUnfiltered) { }
 }

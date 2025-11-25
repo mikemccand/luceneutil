@@ -128,8 +128,10 @@ OUTPUT_HEADERS = [
   "overSample",
   "vec_disk(MB)",
   "vec_RAM(MB)",
+  "bp-reorder",
   "indexType",
 ]
+# TODO:  "bp",
 
 
 def advance(ix, values):
@@ -168,17 +170,13 @@ def run_knn_benchmark(checkout, values):
   # doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
   # query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
 
-  # dim = 256
-  # doc_vectors = '/d/electronics_asin_emb.bin'
-  # query_vectors = '/d/electronics_query_vectors.bin'
-
   # Cohere dataset
   # dim = 768
   # doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
   # query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
   # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
   # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-  parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
 
@@ -313,17 +311,11 @@ def run_knn_benchmark(checkout, values):
 
   skip_headers = set()
 
-  if "-forceMerge" not in this_cmd:
-    skip_headers.add("force_merge(s)")
-  if "-overSample" not in this_cmd:
-    skip_headers.add("overSample")
-  if "-indexType" in this_cmd and "flat" in this_cmd:
-    skip_headers.add("maxConn")
-    skip_headers.add("beamWidth")
-  if "-filterStrategy" not in this_cmd:
-    skip_headers.add("filterStrategy")
-  if "-filterSelectivity" not in this_cmd:
-    skip_headers.add("filterSelectivity")
+  # skip columns that have the same value for every row
+  if len(all_results) > 1:
+    for col in range(len(OUTPUT_HEADERS)):
+      if len(set([result[0].split('\t')[col] for result in all_results])) == 1:
+        skip_headers.add(OUTPUT_HEADERS[col])
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

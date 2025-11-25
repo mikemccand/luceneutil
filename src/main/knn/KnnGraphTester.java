@@ -588,7 +588,7 @@ public class KnnGraphTester implements FormatterLogger {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, useBp),
+        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -1629,6 +1629,7 @@ public class KnnGraphTester implements FormatterLogger {
     private final float[] query;
     private final int[][] result;
     private final AtomicInteger completedCount;
+    private final String field;
 
     ComputeExactSearchNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, AtomicInteger completedCount) {
       this.searcher = searcher;
@@ -1636,6 +1637,11 @@ public class KnnGraphTester implements FormatterLogger {
       this.query = query;
       this.result = result;
       this.completedCount = completedCount;
+      if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
+        field = KNN_FIELD_FILTERED;
+      } else {
+        field = KNN_FIELD;
+      }
     }
 
     @Override

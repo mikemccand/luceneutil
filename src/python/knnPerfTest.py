@@ -314,7 +314,7 @@ def run_knn_benchmark(checkout, values):
   # skip columns that have the same value for every row
   if len(all_results) > 1:
     for col in range(len(OUTPUT_HEADERS)):
-      if len(set([result[0].split('\t')[col] for result in all_results])) == 1:
+      if len(set([result[0].split("\t")[col] for result in all_results])) == 1:
         skip_headers.add(OUTPUT_HEADERS[col])
 
   print_fixed_width(all_results, skip_headers)

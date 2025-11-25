@@ -1406,7 +1406,7 @@ public class KnnGraphTester implements FormatterLogger {
     int coreCount = Runtime.getRuntime().availableProcessors();
 
     // oddly, at least on beast3 (128 cores), exact NN is much slower with all (including hyperthread'd) cores:
-    ForkJoinPool pool = new ForkJoinPool(max(1, coreCount/2));
+    ForkJoinPool pool = new ForkJoinPool(Math.max(1, coreCount/2));
 
     int taskCount = tasks.size();
 

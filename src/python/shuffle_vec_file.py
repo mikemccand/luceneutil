@@ -1,7 +1,6 @@
 import array
 import os
 import random
-import subprocess
 import sys
 import time
 

@@ -8,13 +8,21 @@ import time
 def main():
   filename_in = sys.argv[1]
   filename_out = sys.argv[2]
+  if len(sys.argv) > 3:
+    dimensions = int(sys.argv[3])
+  else:
+    dimensions = 768
+  if len(sys.argv) > 4:
+    mapping_in = sys.argv[4]
+  else:
+    mapping_in = None
 
   # print('dropping all IO caches...')
   # subprocess.run('sudo sync', shell=True, check=True)
   # subprocess.run('sudo bash -c "echo 3 > /proc/sys/vm/drop_caches"', shell=True, check=True)
   # print('  done')
 
-  record_size = 768 * 4
+  record_size = dimensions * 4
   size_in_bytes = os.path.getsize(filename_in)
   if size_in_bytes % record_size != 0:
     raise RuntimeError(f"input file size is {size_in_bytes} but that is not an even multiple of {record_size}")
@@ -33,6 +41,20 @@ def main():
   if False:
     positions = list(range(n_records))
     r.shuffle(positions)
+  elif mapping_in is not None:
+    positions = array.array("i", [0] * n_records)
+    with open(mapping_in) as f:
+      upto = 0
+      while True:
+        line = f.readline()
+        if line == '':
+          break
+        idx = int(line.strip())
+        positions[upto] = idx
+        upto += 1
+      if upto != n_records:
+        raise RuntimeError(f'saw wrong number of mappings {upto} from input mapping file {mapping_in}; expected {n_records}')
+    
   else:
     positions = array.array("i", range(n_records))
     r.shuffle(positions)

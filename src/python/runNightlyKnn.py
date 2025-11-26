@@ -579,7 +579,7 @@ def run(results_dir):
     return _run(results_dir)
   finally:
     # these get quite large (~78 GB for three indices):
-    indicesDir = f"{constants.BENCH_BASE_DIR}/knnIndices"
+    indicesDir = f"{constants.BENCH_BASE_DIR}/knn-reuse/indices"
     if os.path.exists(indicesDir):
       print(f"removing KNN indices dir {indicesDir}")
       shutil.rmtree(indicesDir)
@@ -602,7 +602,7 @@ def _run(results_dir):
       raise RuntimeError(f"luceneutil clone {constants.BENCH_BASE_DIR} is git-dirty")
 
   # make sure nothing is shared from prior runs
-  indicesDir = f"{constants.BENCH_BASE_DIR}/knnIndices"
+  indicesDir = f"{constants.BENCH_BASE_DIR}/knn-reuse/indices"
   if os.path.exists(indicesDir):
     print(f"removing KNN indices dir {indicesDir}")
     shutil.rmtree(indicesDir)

@@ -579,11 +579,17 @@ public class KnnGraphTester implements FormatterLogger {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
 
-      KnnIndexer.FilterScheme indexTimeFilter = switch (filterStrategy) {
-        case INDEX_TIME_FILTER -> new KnnIndexer.FilterScheme(filtered, true);
-        case INDEX_TIME_SPARSE -> new KnnIndexer.FilterScheme(filtered, false);
-        default -> null;
-      };
+      KnnIndexer.FilterScheme indexTimeFilter;
+
+      if (filterStrategy == null) {
+        indexTimeFilter = null;
+      } else if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
+        indexTimeFilter = new KnnIndexer.FilterScheme(filtered, true);
+      } else if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
+        indexTimeFilter = new KnnIndexer.FilterScheme(filtered, false);
+      } else {
+        indexTimeFilter = null;
+      }
 
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
@@ -1225,6 +1231,16 @@ public class KnnGraphTester implements FormatterLogger {
     return ms / (double) 1_000;
   }
 
+  private static String getKnnField(FilterStrategy strategy) {
+    if (strategy == null) {
+      return KNN_FIELD;
+    } else if (strategy == FilterStrategy.INDEX_TIME_FILTER || strategy == FilterStrategy.INDEX_TIME_SPARSE) {
+      return KNN_FIELD_FILTERED;
+    } else {
+      return KNN_FIELD;
+    }
+  }
+
   private static Result doKnnByteVectorQuery(
     IndexSearcher searcher, byte[] vector, int k, int fanout, FilterStrategy filterStrategy, Query filter)
     throws IOException {
@@ -1234,10 +1250,7 @@ public class KnnGraphTester implements FormatterLogger {
       queryTimeFilter = filter;
     }
 
-    String knnField = switch(filterStrategy) {
-      case INDEX_TIME_FILTER, INDEX_TIME_SPARSE -> KNN_FIELD_FILTERED;
-      default -> KNN_FIELD;
-    };
+    String knnField = getKnnField(filterStrategy);
 
     ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
 
@@ -1261,11 +1274,8 @@ public class KnnGraphTester implements FormatterLogger {
       queryTimeFilter = filter;
     }
 
-    String knnField = switch(filterStrategy) {
-      case INDEX_TIME_FILTER, INDEX_TIME_SPARSE -> KNN_FIELD_FILTERED;
-      default -> KNN_FIELD;
-    };
-
+    String knnField = getKnnField(filterStrategy);
+    
     if (isParentJoinQuery) {
       var topChildVectors = new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);

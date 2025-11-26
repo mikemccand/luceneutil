@@ -973,11 +973,13 @@ public class KnnGraphTester implements FormatterLogger {
     iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType));
     KnnIndexer.TrackingConcurrentMergeScheduler tcms = new KnnIndexer.TrackingConcurrentMergeScheduler();
     iwc.setMergeScheduler(tcms);
+    KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
+    iwc.setMergePolicy(ttmp);
     log("Force merge index in " + indexPath + "\n");
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1, false);
-      KnnIndexer.waitForMergesWithStatus(tcms, this);
+      KnnIndexer.waitForMergesWithStatus(ttmp, tcms, this);
     }
     long endNS = System.nanoTime();
     double elapsedSec = nsToSec(endNS - startNS);
@@ -1423,7 +1425,9 @@ public class KnnGraphTester implements FormatterLogger {
     int coreCount = Runtime.getRuntime().availableProcessors();
 
     // oddly, at least on beast3 (128 cores), exact NN is much slower with all (including hyperthread'd) cores:
-    ForkJoinPool pool = new ForkJoinPool(Math.max(1, coreCount/2));
+    int poolThreadCount = Math.max(1, coreCount/2);
+    log.log("using %d threads to compute exact NN", poolThreadCount);
+    ForkJoinPool pool = new ForkJoinPool(poolThreadCount);
 
     int taskCount = tasks.size();
 

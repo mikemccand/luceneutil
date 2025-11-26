@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +45,9 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.MergePolicy.OneMerge;
 import org.apache.lucene.index.MergeRateLimiter;
+import org.apache.lucene.index.MergeTrigger;
+import org.apache.lucene.index.SegmentCommitInfo;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
@@ -77,6 +81,7 @@ public class KnnIndexer implements FormatterLogger {
   private final boolean useBp;
   private final FilterScheme filterScheme;
   private final TrackingConcurrentMergeScheduler tcms;
+  private final TrackingTieredMergePolicy ttmp;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
@@ -97,6 +102,7 @@ public class KnnIndexer implements FormatterLogger {
     this.useBp = useBp;
     this.filterScheme = filterScheme;
     this.tcms = new TrackingConcurrentMergeScheduler();
+    this.ttmp = new TrackingTieredMergePolicy();
   }
 
   public int createIndex() throws IOException, InterruptedException {
@@ -113,9 +119,10 @@ public class KnnIndexer implements FormatterLogger {
     iwc.setMaxFullFlushMergeWaitMillis(0);
 
     // aim for more compact/realistic index:
-    TieredMergePolicy tmp = (TieredMergePolicy) iwc.getMergePolicy();
-    tmp.setFloorSegmentMB(256);
-    tmp.setNoCFSRatio(0);
+    
+    iwc.setMergePolicy(ttmp);
+    ttmp.setFloorSegmentMB(256);
+    ttmp.setNoCFSRatio(0);
     // tmp.setSegmentsPerTier(5);
     if (useBp) {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));
@@ -249,13 +256,13 @@ public class KnnIndexer implements FormatterLogger {
 
       elapsedNS = System.nanoTime() - startNS;
 
-      waitForMergesWithStatus(tcms, this);
+      waitForMergesWithStatus(ttmp, tcms, this);
     }
     log("Indexed %d docs in %d seconds\n", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsedNS);
   }
 
-  public static void waitForMergesWithStatus(TrackingConcurrentMergeScheduler tcms, FormatterLogger log) throws InterruptedException {
+  public static void waitForMergesWithStatus(TrackingTieredMergePolicy ttmp, TrackingConcurrentMergeScheduler tcms, FormatterLogger log) throws InterruptedException {
     long startNS = System.nanoTime();
     
     // wait for running merges to complete, and print coarse status updates
@@ -277,8 +284,9 @@ public class KnnIndexer implements FormatterLogger {
         break;
       }
       if (nowNS > nextPrintNS) {
-        log.log("%.1f sec: %d merges\n%s\n",
+        log.log("%.1f sec: %d segments, %d merges\n%s\n",
                 (nowNS - startNS)/1_000_000_000.,
+                ttmp.getLastSegmentCount(),
                 mergeCount, tcms.whatsUp());
         // print status every 5 sec
         nextPrintNS += 5_000_000_000L;
@@ -299,7 +307,35 @@ public class KnnIndexer implements FormatterLogger {
 
   private static record OneMergeAndStartTime(long startTimeNS, OneMerge oneMerge) {};
 
-  // Simple little class to track progress in merges...
+  // Simple little parasite class to track index stats (total segment count)
+  static class TrackingTieredMergePolicy extends TieredMergePolicy {
+
+    private volatile int lastSegmentCount = -1;
+    
+    @Override
+    public MergeSpecification findMerges(
+                                         MergeTrigger mergeTrigger, SegmentInfos infos, MergeContext mergeContext) throws IOException {
+      lastSegmentCount = infos.size();
+      return super.findMerges(mergeTrigger, infos, mergeContext);
+    }
+
+    @Override
+    public MergeSpecification findForcedMerges(
+                                               SegmentInfos infos,
+                                               int maxSegmentCount,
+                                               Map<SegmentCommitInfo, Boolean> segmentsToMerge,
+                                               MergeContext mergeContext)
+      throws IOException {
+      lastSegmentCount = infos.size();
+      return super.findForcedMerges(infos, maxSegmentCount, segmentsToMerge, mergeContext);
+    }
+    
+    public int getLastSegmentCount() {
+      return lastSegmentCount;
+    }
+  }
+
+  // Simple little parasite class to track progress in merges...
   static class TrackingConcurrentMergeScheduler extends ConcurrentMergeScheduler {
 
     private final List<OneMergeAndStartTime> running = new ArrayList<>();
@@ -319,14 +355,25 @@ public class KnnIndexer implements FormatterLogger {
       }
     }
 
+    // TODO: maybe wrap Directory to watch IO?
     public String whatsUp() {
       List<String> addEm = new ArrayList<>();
       long nowNS = System.nanoTime();
       synchronized(running) {
         for (OneMergeAndStartTime mos : running) {
+          // there is a brief window when a merge is kicked off (and added to our
+          // "running" List) but it has not yet had a SegmentCommitInfo set for
+          // the merged segment, so we sidestep NPE:
+          SegmentCommitInfo info = mos.oneMerge.getMergeInfo();
+          String segName;
+          if (info == null) {
+            segName = "?";
+          } else {
+            segName = info.info.name;
+          }
           addEm.add(String.format(Locale.ROOT, "%6.1fs %3s: %2d segs, %.1f K docs, %6.1f MB",
                                   (nowNS - mos.startTimeNS)/1000000000.,
-                                  mos.oneMerge.getMergeInfo().info.name,
+                                  segName,
                                   mos.oneMerge.segments.size(),
                                   mos.oneMerge.totalNumDocs()/1000.,
                                   mos.oneMerge.totalBytesSize()/1024./1024.));

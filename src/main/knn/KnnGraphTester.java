@@ -628,13 +628,13 @@ public class KnnGraphTester implements FormatterLogger {
         s = Files.readString(path);
       } catch (NoSuchFileException nsfe) {
         // ok -- back compat: old index that didn't write indexing time
-        log("WARNING: index did not record index time msec in %s", path);
+        log("WARNING: index did not record index time msec in %s\n", path);
         s = null;
       }
       if (s != null) {
         log("retrieving previously saved indexing time in %s\n", path);
         reindexTimeMsec = Integer.parseInt(s);
-        log("read previously saved indexing time: %d msec", reindexTimeMsec);
+        log("read previously saved indexing time: %d msec\n", reindexTimeMsec);
       } else {
         reindexTimeMsec = -1;
       }
@@ -649,13 +649,13 @@ public class KnnGraphTester implements FormatterLogger {
           s = Files.readString(path);
         } catch (NoSuchFileException nsfe) {
           // ok -- back compat: old index that didn't write force merge time
-          log("WARNING: index did not record force-merge-time seconds in %s", path);
+          log("WARNING: index did not record force-merge-time seconds in %s\n", path);
           s = null;
         }
         if (s != null) {
           log("retrieving previously saved force merge time in %s\n", path);
           forceMergeTimeSec = Double.parseDouble(s);
-          log("previously saved force merge time: %g sec", forceMergeTimeSec);
+          log("previously saved force merge time: %g sec\n", forceMergeTimeSec);
         } else {
           forceMergeTimeSec = -1;
         }
@@ -714,7 +714,7 @@ public class KnnGraphTester implements FormatterLogger {
       log("index has %d segments: %s\n", indexNumSegments, ((StandardDirectoryReader) reader).getSegmentInfos());
 
       if (indexNumSegments == 1 && numSearchThread > 1) {
-        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment so there will be no concurrency!", numSearchThread);
+        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment so there will be no concurrency!\n", numSearchThread);
       }
           
       long indexSizeOnDiskBytes = 0;
@@ -1436,7 +1436,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     // oddly, at least on beast3 (128 cores), exact NN is much slower with all (including hyperthread'd) cores:
     int poolThreadCount = Math.max(1, coreCount/2);
-    log.log("using %d threads to compute exact NN", poolThreadCount);
+    log.log("using %d threads to compute exact NN\n", poolThreadCount);
     ForkJoinPool pool = new ForkJoinPool(poolThreadCount);
 
     int taskCount = tasks.size();
@@ -1624,10 +1624,10 @@ public class KnnGraphTester implements FormatterLogger {
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
         completedCount.incrementAndGet();
       } catch (IOException e) {
-        log("Exception " + e);
+        log("Exception " + e + "\n");
         throw new RuntimeException(e);
       } catch (Throwable t) {
-        log("Throwable " + t);
+        log("Throwable " + t + "\n");
         throw t;
       }
       return null;

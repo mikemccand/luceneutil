@@ -62,6 +62,7 @@ import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.facet.FacetField;
@@ -98,6 +99,7 @@ public class LineFileDocs implements Closeable {
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
+  private final boolean addSparseIndexes;
   private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
   private final BlockingQueue<LineFileDoc> recycleBin = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
@@ -111,7 +113,7 @@ public class LineFileDocs implements Closeable {
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
-                      FacetsConfig facetsConfig, boolean addDVFields, String vectorFile, int vectorDimension,
+                      FacetsConfig facetsConfig, boolean addDVFields, boolean addSparseIndexes, String vectorFile, int vectorDimension,
                       VectorEncoding vectorEncoding)
     throws IOException {
     this.path = path;
@@ -125,6 +127,7 @@ public class LineFileDocs implements Closeable {
     this.facetFields = facetFields;
     this.facetsConfig = facetsConfig;
     this.addDVFields = addDVFields;
+    this.addSparseIndexes = addSparseIndexes;
     this.vectorFile = vectorFile;
     this.vectorDimension = vectorDimension;
     this.vectorEncoding = vectorEncoding;
@@ -351,9 +354,9 @@ public class LineFileDocs implements Closeable {
     final Field titleTokenized;
     final Field title;
     final Field month;
-    final IntField dayOfYear;
+    final Field dayOfYear;
     final BinaryDocValuesField titleBDV;
-    final LongField lastMod;
+    final Field lastMod;
     final Field body;
     final Field id;
     final Field idPoint;
@@ -376,7 +379,7 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, int vectorDimension, VectorEncoding vectorEncoding) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, boolean addSparseIndexes, int vectorDimension, VectorEncoding vectorEncoding) {
       doc = new Document();
 
       if (addDVFields == false) {
@@ -390,16 +393,32 @@ public class LineFileDocs implements Closeable {
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
         doc.add(titleBDV);
 
-        lastMod = new LongField("lastMod", -1, Field.Store.NO);
+        if (addSparseIndexes) {
+            lastMod = NumericDocValuesField.indexedField("lastMod", -1);
+        } else {
+            lastMod = new LongField("lastMod", -1, Field.Store.NO);
+        }
         doc.add(lastMod);
 
-        month = new KeywordField("month", "", Store.NO);
+        if (addSparseIndexes) {
+            month = SortedDocValuesField.indexedField("month", new BytesRef(""));
+        } else {
+            month = new KeywordField("month", "", Store.NO);
+        }
         doc.add(month);
 
-        dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
+        if (addSparseIndexes) {
+            dayOfYear = NumericDocValuesField.indexedField("dayOfYear", 0);
+        } else {
+            dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
+        }
         doc.add(dayOfYear);
 
-        idDV = new NumericDocValuesField("id", 0);
+        if (addSparseIndexes) {
+            idDV = NumericDocValuesField.indexedField("id", 0);
+        } else {
+            idDV = new NumericDocValuesField("id", 0);
+        }
         doc.add(idDV);
       } else {
         titleBDV = null;
@@ -469,7 +488,7 @@ public class LineFileDocs implements Closeable {
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, vectorDimension, vectorEncoding);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, addSparseIndexes, vectorDimension, vectorEncoding);
   }
 
   // TODO: is there a pre-existing way to do this!!!

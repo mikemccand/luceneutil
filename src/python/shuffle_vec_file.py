@@ -47,14 +47,14 @@ def main():
       upto = 0
       while True:
         line = f.readline()
-        if line == '':
+        if line == "":
           break
         idx = int(line.strip())
         positions[upto] = idx
         upto += 1
       if upto != n_records:
-        raise RuntimeError(f'saw wrong number of mappings {upto} from input mapping file {mapping_in}; expected {n_records}')
-    
+        raise RuntimeError(f"saw wrong number of mappings {upto} from input mapping file {mapping_in}; expected {n_records}")
+
   else:
     positions = array.array("i", range(n_records))
     r.shuffle(positions)

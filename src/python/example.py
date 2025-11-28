@@ -29,12 +29,14 @@ if __name__ == "__main__":
   parser.add_argument("-b", "--baseline", default=os.environ.get("BASELINE") or "lucene_baseline", help="Path to lucene repo to be used for baseline")
   parser.add_argument("-c", "--candidate", default=os.environ.get("CANDIDATE") or "lucene_candidate", help="Path to lucene repo to be used for candidate")
   parser.add_argument("-r", "--reindex", action="store_true", help="Reindex data for candidate run")
+  parser.add_argument("-iterations", "--iterations", default=20, type=int, help="Number of JVM iterations (separate JVM processes, default: 20)")
+  parser.add_argument("-warmups", "--warmups", default=20, type=int, help="Number of times each query runs within a single JVM for warmup (default: 20)")
   args = parser.parse_args()
   print("Running benchmarks with the following args: %s" % args)
 
   sourceData = competition.sourceData(args.source)
   countsAreCorrect = args.searchConcurrency != 0
-  comp = competition.Competition(verifyCounts=not countsAreCorrect)
+  comp = competition.Competition(verifyCounts=not countsAreCorrect, jvmCount=args.iterations, taskRepeatCount=args.warmups)
 
   index = comp.newIndex(
     args.baseline,

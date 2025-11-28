@@ -110,6 +110,17 @@ While benchmarking an indexing side change, you might want to recreate the index
 python src/python/localrun.py -source wikimediumall -r
 ```
 
+For quick patch testing, you can control the number of JVM iterations and query repetitions to speed up the benchmark:
+```bash
+# Quick test: 5 JVM iterations, 10 query repetitions per JVM
+python src/python/localrun.py -source wikimediumall -iterations 5 -warmups 10
+
+# Full benchmark (default): 20 JVM iterations, 20 query repetitions per JVM
+python src/python/localrun.py -source wikimediumall -iterations 20 -warmups 20
+```
+
+**Note:** The `-iterations` parameter controls how many separate JVM processes are launched (default: 20), and `-warmups` controls how many times each query runs within a single JVM (default: 20). Running with default settings (20×20) provides the most statistically reliable results and recommended for benchmarks testing to get a complete picture. For quick patch validation, reducing these values significantly speeds up testing.
+
 For details on all the available options, use the `-h` or `--help` parameter.
 
 # Running the geo benchmark

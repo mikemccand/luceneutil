@@ -336,7 +336,7 @@ public final class Indexer {
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges", -1);
     final boolean addDVFields = args.getFlag("-dvfields");
-    final boolean addSparseIndexes = args.getFlag("-addSparseIndexes");
+    final boolean addDVSkippers = args.getFlag("-addDVSkippers");
     final boolean doRandomCommit = args.getFlag("-randomCommit");
     final boolean useCMS = args.getFlag("-useCMS");
     final Optional<Boolean> ioThrottle = args.getOptionalBoolean("-ioThrottle");
@@ -567,7 +567,7 @@ public final class Indexer {
       final Random random = new Random(17);
 
       LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
-                                                   taxoWriter, facetDimMethods, facetsConfig, addDVFields, addSparseIndexes,
+                                                   taxoWriter, facetDimMethods, facetsConfig, addDVFields, addDVSkippers,
                                                    vectorFile, vectorDimension, vectorEncoding);
 
       float docsPerSecPerThread = -1f;

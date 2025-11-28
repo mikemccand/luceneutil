@@ -99,7 +99,7 @@ public class LineFileDocs implements Closeable {
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
-  private final boolean addSparseIndexes;
+  private final boolean addDVSkippers;
   private final BlockingQueue<LineFileDoc> queue = new ArrayBlockingQueue<>(1024);
   private final BlockingQueue<LineFileDoc> recycleBin = new ArrayBlockingQueue<>(1024);
   private final Thread readerThread;
@@ -113,7 +113,7 @@ public class LineFileDocs implements Closeable {
 
   public LineFileDocs(String path, boolean doRepeat, boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets,
                       boolean doClone, TaxonomyWriter taxoWriter, Map<String,Integer> facetFields,
-                      FacetsConfig facetsConfig, boolean addDVFields, boolean addSparseIndexes, String vectorFile, int vectorDimension,
+                      FacetsConfig facetsConfig, boolean addDVFields, boolean addDVSkippers, String vectorFile, int vectorDimension,
                       VectorEncoding vectorEncoding)
     throws IOException {
     this.path = path;
@@ -127,7 +127,7 @@ public class LineFileDocs implements Closeable {
     this.facetFields = facetFields;
     this.facetsConfig = facetsConfig;
     this.addDVFields = addDVFields;
-    this.addSparseIndexes = addSparseIndexes;
+    this.addDVSkippers = addDVSkippers;
     this.vectorFile = vectorFile;
     this.vectorDimension = vectorDimension;
     this.vectorEncoding = vectorEncoding;
@@ -379,7 +379,7 @@ public class LineFileDocs implements Closeable {
     final Calendar dateCal = Calendar.getInstance();
     final ParsePosition datePos = new ParsePosition(0);
 
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, boolean addSparseIndexes, int vectorDimension, VectorEncoding vectorEncoding) {
+    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, boolean addDVSkippers, int vectorDimension, VectorEncoding vectorEncoding) {
       doc = new Document();
 
       if (addDVFields == false) {
@@ -393,28 +393,28 @@ public class LineFileDocs implements Closeable {
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
         doc.add(titleBDV);
 
-        if (addSparseIndexes) {
+        if (addDVSkippers) {
             lastMod = NumericDocValuesField.indexedField("lastMod", -1);
         } else {
             lastMod = new LongField("lastMod", -1, Field.Store.NO);
         }
         doc.add(lastMod);
 
-        if (addSparseIndexes) {
+        if (addDVSkippers) {
             month = SortedDocValuesField.indexedField("month", new BytesRef(""));
         } else {
             month = new KeywordField("month", "", Store.NO);
         }
         doc.add(month);
 
-        if (addSparseIndexes) {
+        if (addDVSkippers) {
             dayOfYear = NumericDocValuesField.indexedField("dayOfYear", 0);
         } else {
             dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
         }
         doc.add(dayOfYear);
 
-        if (addSparseIndexes) {
+        if (addDVSkippers) {
             idDV = NumericDocValuesField.indexedField("id", 0);
         } else {
             idDV = new NumericDocValuesField("id", 0);
@@ -488,7 +488,7 @@ public class LineFileDocs implements Closeable {
   }
 
   public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, addSparseIndexes, vectorDimension, vectorEncoding);
+    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, addDVSkippers, vectorDimension, vectorEncoding);
   }
 
   // TODO: is there a pre-existing way to do this!!!

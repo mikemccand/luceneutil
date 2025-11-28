@@ -985,8 +985,8 @@ class RunAlgs:
       if index.addDVFields:
         w("-dvfields")
 
-      if index.addSparseIndexes:
-        w("-addSparseIndexes")
+      if index.addDVSkippers:
+        w("-addDVSkippers")
 
       if index.useCMS:
         w("-useCMS")

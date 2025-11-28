@@ -72,6 +72,7 @@ JFR_STACK_SIZES = (1, 2, 4, 8, 12)
 
 if DEBUG:
   NIGHTLY_DIR = "trunk"
+  constants.GRADLE_EXE = f"{constants.BASE_DIR}/{NIGHTLY_DIR}/gradlew"
 else:
   NIGHTLY_DIR = "trunk.nightly"
 
@@ -151,10 +152,11 @@ def buildIndex(r, runLogDir, desc, index, logFile):
   for tool in ("vmstat", "top"):
     logFileName = f"{constants.LOGS_DIR}/nightly.{tool}.log"
     if os.path.exists(logFileName):
+      print(f"remove pre-existing log file {logFileName}")
       os.remove(logFileName)
 
   # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
-  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES)
+  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False)
 
   # indexTime = (now()-t0)
 
@@ -392,7 +394,7 @@ def run():
   else:
     print("transparent_hugepages: %s" % s)
 
-  runCommand("%s clean > %s/clean-lucene.log 2>&1" % (constants.GRADLE_EXE, runLogDir))
+  runCommand("%s --stacktrace clean > %s/clean-lucene.log 2>&1" % (constants.GRADLE_EXE, runLogDir))
   runCommand("%s jar > %s/jar-lucene.log 2>&1" % (constants.GRADLE_EXE, runLogDir))
 
   verifyScores = True

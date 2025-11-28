@@ -31,7 +31,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.VectorEncoding;
-import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.Bits;
 
 class IndexerThread extends Thread {
   private final IndexWriter iw;
@@ -42,16 +42,17 @@ class IndexerThread extends Thread {
   private final VectorEncoding vectorEncoding;
   private final byte[] byteVectorBuffer;
   private final float[] floatVectorBuffer;
-  private final BitSet filtered;
+  private final KnnIndexer.FilterScheme filterScheme;
 
-  public IndexerThread(IndexWriter iw, int dims, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType, AtomicInteger numDocsIndexed, int numDocsToIndex, BitSet filtered) {
+  public IndexerThread(IndexWriter iw, int dims, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType,
+                       AtomicInteger numDocsIndexed, int numDocsToIndex, KnnIndexer.FilterScheme filterScheme) {
     this.iw = iw;
     this.vectorReader = vectorReader;
     this.vectorEncoding = vectorEncoding;
     this.fieldType = fieldType;
     this.numDocsIndexed = numDocsIndexed;
     this.numDocsToIndex = numDocsToIndex;
-    this.filtered = filtered;
+    this.filterScheme = filterScheme;
     switch (vectorEncoding) {
       case BYTE -> {
         byteVectorBuffer = new byte[dims];
@@ -90,16 +91,20 @@ class IndexerThread extends Thread {
           case BYTE -> {
             byte[] bytes = ((VectorReaderByte) vectorReader).nextBytes();
             System.arraycopy(bytes, 0, byteVectorBuffer, 0, bytes.length);
-            doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, byteVectorBuffer, fieldType));
-            if (filtered != null && filtered.get(id)) {
+            if (filterScheme == null || filterScheme.keepUnfiltered()) {
+              doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, byteVectorBuffer, fieldType));
+            }
+            if (filterScheme != null && filterScheme.filter().get(id)) {
               doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, byteVectorBuffer, fieldType));
             }
           }
           case FLOAT32 -> {
             float[] floats = vectorReader.next();
             System.arraycopy(floats, 0, floatVectorBuffer, 0, floats.length);
-            doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, floatVectorBuffer, fieldType));
-            if (filtered != null && filtered.get(id)) {
+            if (filterScheme == null || filterScheme.keepUnfiltered()) {
+              doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, floatVectorBuffer, fieldType));
+            }
+            if (filterScheme != null && filterScheme.filter().get(id)) {
               doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, floatVectorBuffer, fieldType));
             }
           }

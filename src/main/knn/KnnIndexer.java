@@ -24,6 +24,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -32,28 +34,34 @@ import java.util.stream.Collectors;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.MergePolicy.OneMerge;
+import org.apache.lucene.index.MergeRateLimiter;
+import org.apache.lucene.index.MergeTrigger;
+import org.apache.lucene.index.SegmentCommitInfo;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.misc.index.BPReorderingMergePolicy;
 import org.apache.lucene.misc.index.BpVectorReorderer;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.PrintStreamInfoStream;
 
 import static knn.KnnGraphTester.DOCTYPE_CHILD;
 import static knn.KnnGraphTester.DOCTYPE_PARENT;
 
-public class KnnIndexer {
+public class KnnIndexer implements FormatterLogger {
+
   // use smaller ram buffer so we get to merging sooner, making better use of
   // many cores
   private static final double WRITER_BUFFER_MB = 128;
@@ -71,12 +79,14 @@ public class KnnIndexer {
   private final boolean parentJoin;
   private final Path parentJoinMetaPath;
   private final boolean useBp;
-  private final BitSet filtered;
+  private final FilterScheme filterScheme;
+  private final TrackingConcurrentMergeScheduler tcms;
+  private final TrackingTieredMergePolicy ttmp;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
-                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, BitSet filtered) {
+                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, FilterScheme filterScheme) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
     this.codec = codec;
@@ -90,14 +100,18 @@ public class KnnIndexer {
     this.parentJoin = parentJoin;
     this.parentJoinMetaPath = parentJoinMetaPath;
     this.useBp = useBp;
-    this.filtered = filtered;
+    this.filterScheme = filterScheme;
+    this.tcms = new TrackingConcurrentMergeScheduler();
+    this.ttmp = new TrackingTieredMergePolicy();
   }
 
   public int createIndex() throws IOException, InterruptedException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     iwc.setCodec(codec);
+    iwc.setMergeScheduler(tcms);
     // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     iwc.setRAMBufferSizeMB(WRITER_BUFFER_MB);
+    
     iwc.setUseCompoundFile(false);
     // iwc.setMaxBufferedDocs(10000);
 
@@ -105,9 +119,10 @@ public class KnnIndexer {
     iwc.setMaxFullFlushMergeWaitMillis(0);
 
     // aim for more compact/realistic index:
-    TieredMergePolicy tmp = (TieredMergePolicy) iwc.getMergePolicy();
-    tmp.setFloorSegmentMB(256);
-    tmp.setNoCFSRatio(0);
+    
+    iwc.setMergePolicy(ttmp);
+    ttmp.setFloorSegmentMB(256);
+    ttmp.setNoCFSRatio(0);
     // tmp.setSegmentsPerTier(5);
     if (useBp) {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));
@@ -130,7 +145,7 @@ public class KnnIndexer {
       indexPath.toFile().mkdirs();
     }
 
-    long start = System.nanoTime(), elapsed;
+    long startNS = System.nanoTime(), elapsedNS;
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc);
          FileChannel in = FileChannel.open(docsPath)) {
@@ -141,13 +156,13 @@ public class KnnIndexer {
       System.out.println((int) (docsPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " doc vectors in docsPath \"" + docsPath + "\"");
         
       VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, docsStartIndex);
-      log("parentJoin=%s", parentJoin);
+      log("parentJoin=%s\n", parentJoin);
       if (parentJoin == false) {
         ExecutorService exec = Executors.newFixedThreadPool(numIndexThreads);
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filtered);
+          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filterScheme);
           t.setDaemon(true);
           t.start();
           threads.add(t);
@@ -163,10 +178,10 @@ public class KnnIndexer {
           if (headers.length != 2) {
             throw new IllegalStateException("Expected two columns in parentJoinMetadata csv. Found: " + headers.length);
           }
-          log("Parent join metaFile columns: %s | %s", headers[0], headers[1]);
+          log("Parent join metaFile columns: %s | %s\n", headers[0], headers[1]);
           int childDocs = 0;
           int parentDocs = 0;
-          int docIds = 0;
+          int docId = 0;
           String prevWikiId = "null";
           String currWikiId;
           List<Document> block = new ArrayList<>();
@@ -178,20 +193,24 @@ public class KnnIndexer {
             switch (vectorEncoding) {
               case BYTE -> {
                 byte[] vector = ((VectorReaderByte) vectorReader).nextBytes();
-                doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
-                if (filtered != null && filtered.get(docIds)) {
+                if (filterScheme == null || filterScheme.keepUnfiltered) {
+                  doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
+                }
+                if (filterScheme != null && filterScheme.filter.get(docId)) {
                   doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
                 }
               }
               case FLOAT32 -> {
                 float[] vector = vectorReader.next();
-                doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
-                if (filtered != null && filtered.get(docIds)) {
+                if (filterScheme == null || filterScheme.keepUnfiltered) {
+                  doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
+                }
+                if (filterScheme != null && filterScheme.filter.get(docId)) {
                   doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
                 }
               }
             }
-            doc.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+            doc.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
             doc.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, currWikiId, Field.Store.YES));
             doc.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, currParaId, Field.Store.YES));
             doc.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_CHILD, Field.Store.NO));
@@ -200,7 +219,7 @@ public class KnnIndexer {
             // Close block and create a new one when wiki article changes.
             if (!currWikiId.equals(prevWikiId) && !"null".equals(prevWikiId)) {
               Document parent = new Document();
-              parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+              parent.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
               parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
               parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
               parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
@@ -215,39 +234,154 @@ public class KnnIndexer {
             }
             prevWikiId = currWikiId;
             if (childDocs % 25000 == 0) {
-              log("indexed %d child documents, with %d parents", childDocs, parentDocs);
+              log("indexed %d child documents, with %d parents\n", childDocs, parentDocs);
             }
           } while (childDocs < numDocs);
           if (!block.isEmpty()) {
             Document parent = new Document();
-            parent.add(new StoredField(KnnGraphTester.ID_FIELD, docIds++));
+            parent.add(new StoredField(KnnGraphTester.ID_FIELD, docId++));
             parent.add(new StringField(KnnGraphTester.DOCTYPE_FIELD, DOCTYPE_PARENT, Field.Store.NO));
             parent.add(new StringField(KnnGraphTester.WIKI_ID_FIELD, prevWikiId, Field.Store.YES));
             parent.add(new StringField(KnnGraphTester.WIKI_PARA_ID_FIELD, "_", Field.Store.YES));
             block.add(parent);
             iw.addDocuments(block);
           }
-          log("Indexed %d documents with %d parent docs. now flush", childDocs, parentDocs);
+          log("Indexed %d documents with %d parent docs. now flush\n", childDocs, parentDocs);
         }
       }
 
       // give merges a chance to kick off and finish:
-      log("now IndexWriter.commit()");
+      log("now IndexWriter.commit()\n");
       iw.commit();
 
-      elapsed = System.nanoTime() - start;
+      elapsedNS = System.nanoTime() - startNS;
 
-      // wait for running merges to complete -- not sure why this is needed -- IW should wait for merges on close by default
-      cms.sync();
-      log("done ConcurrentMergeScheduler.sync()");
+      waitForMergesWithStatus(ttmp, tcms, this);
     }
-    log("Indexed %d docs in %d seconds", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsed));
-    return (int) TimeUnit.NANOSECONDS.toMillis(elapsed);
+    log("Indexed %d docs in %d seconds\n", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
+    return (int) TimeUnit.NANOSECONDS.toMillis(elapsedNS);
   }
 
-  private void log(String msg, Object... args) {
+  public static void waitForMergesWithStatus(TrackingTieredMergePolicy ttmp, TrackingConcurrentMergeScheduler tcms, FormatterLogger log) throws InterruptedException {
+    long startNS = System.nanoTime();
+    
+    // wait for running merges to complete, and print coarse status updates
+    log.log("now wait for already running merges to finish\n");
+
+    // silliness to just be able to print progress in waiting (so long...) for merges:
+    long nextPrintNS = System.nanoTime();
+    long lastNonZeroNS = -1;
+    
+    while (true) {
+      long nowNS = System.nanoTime();
+      int mergeCount = tcms.mergeThreadCount();
+      if (mergeCount > 0) {
+        lastNonZeroNS = nowNS;
+      } else if (nowNS - lastNonZeroNS > 1_000_000_000) {
+        // hackity -- in case merges finish and new merges kick off but that is not atomic, we wait
+        // for 1 second period of no merges.  we are still calling CMS.sync below, so worst case that will
+        // accurately wait for all merges in that call.
+        break;
+      }
+      if (nowNS > nextPrintNS) {
+        log.log("%.1f sec: %d segments, %d merges\n%s\n",
+                (nowNS - startNS)/1_000_000_000.,
+                ttmp.getLastSegmentCount(),
+                mergeCount, tcms.whatsUp());
+        // print status every 5 sec
+        nextPrintNS += 5_000_000_000L;
+      }
+      Thread.sleep(100);
+    }
+    log.log("done first pass waiting for merges\n");
+    tcms.sync();
+    log.log("done second pass waiting for merges (CMS.sync())\n");
+  }
+
+  public void log(String msg, Object... args) {
     if (quiet == false) {
-      System.out.printf((msg) + "%n", args);
+      System.out.printf(msg, args);
+      System.out.flush();
     }
   }
+
+  private static record OneMergeAndStartTime(long startTimeNS, OneMerge oneMerge) {};
+
+  // Simple little parasite class to track index stats (total segment count)
+  static class TrackingTieredMergePolicy extends TieredMergePolicy {
+
+    private volatile int lastSegmentCount = -1;
+    
+    @Override
+    public MergeSpecification findMerges(
+                                         MergeTrigger mergeTrigger, SegmentInfos infos, MergeContext mergeContext) throws IOException {
+      lastSegmentCount = infos.size();
+      return super.findMerges(mergeTrigger, infos, mergeContext);
+    }
+
+    @Override
+    public MergeSpecification findForcedMerges(
+                                               SegmentInfos infos,
+                                               int maxSegmentCount,
+                                               Map<SegmentCommitInfo, Boolean> segmentsToMerge,
+                                               MergeContext mergeContext)
+      throws IOException {
+      lastSegmentCount = infos.size();
+      return super.findForcedMerges(infos, maxSegmentCount, segmentsToMerge, mergeContext);
+    }
+    
+    public int getLastSegmentCount() {
+      return lastSegmentCount;
+    }
+  }
+
+  // Simple little parasite class to track progress in merges...
+  static class TrackingConcurrentMergeScheduler extends ConcurrentMergeScheduler {
+
+    private final List<OneMergeAndStartTime> running = new ArrayList<>();
+    
+    @Override
+    protected void doMerge(MergeSource mergeSource, OneMerge merge) throws IOException {
+      OneMergeAndStartTime mos = new OneMergeAndStartTime(System.nanoTime(), merge);
+      synchronized(running) {
+        running.add(mos);
+      }
+      try {
+        super.doMerge(mergeSource, merge);
+      } finally {
+        synchronized(running) {
+          running.remove(mos);
+        }
+      }
+    }
+
+    // TODO: maybe wrap Directory to watch IO?
+    public String whatsUp() {
+      List<String> addEm = new ArrayList<>();
+      long nowNS = System.nanoTime();
+      synchronized(running) {
+        for (OneMergeAndStartTime mos : running) {
+          // there is a brief window when a merge is kicked off (and added to our
+          // "running" List) but it has not yet had a SegmentCommitInfo set for
+          // the merged segment, so we sidestep NPE:
+          SegmentCommitInfo info = mos.oneMerge.getMergeInfo();
+          String segName;
+          if (info == null) {
+            segName = "?";
+          } else {
+            segName = info.info.name;
+          }
+          addEm.add(String.format(Locale.ROOT, "%6.1fs %3s: %2d segs, %.1f K docs, %6.1f MB",
+                                  (nowNS - mos.startTimeNS)/1000000000.,
+                                  segName,
+                                  mos.oneMerge.segments.size(),
+                                  mos.oneMerge.totalNumDocs()/1000.,
+                                  mos.oneMerge.totalBytesSize()/1024./1024.));
+        }
+      }
+      return "  " + String.join("\n  ", addEm);
+    }
+  }
+
+  record FilterScheme(Bits filter, boolean keepUnfiltered) { }
 }

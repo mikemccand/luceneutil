@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import math
 import os
 import pickle
@@ -860,7 +861,7 @@ def stats(l):
 
 
 def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
-  print("%srun: %s, cwd=%s" % (indent, cmd, os.getcwd()))
+  print("%srun: %s, cwd=%s vmstatLogFile=%s topLogFile=%s" % (indent, cmd, os.getcwd(), vmstatLogFile, topLogFile))
   if logFile is not None:
     out = open(logFile, "wb")
   else:
@@ -926,7 +927,7 @@ class RunAlgs:
     else:
       print("OS:\n%s" % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1):
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each
     if type(profilerStackSize) is int:
       profilerStackSize = (profilerStackSize,)
@@ -946,13 +947,23 @@ class RunAlgs:
     print("    cd %s" % s)
     os.chdir(s)
 
+    if useLogSubDir:
+      # Create timestamped log subdirectory to avoid conflicts between runs
+      now = datetime.datetime.now()
+      timeStamp = now.strftime("%Y.%m.%d.%H.%M.%S")
+      runLogDir = f"{constants.LOGS_DIR}/{id}/{timeStamp}"
+      os.makedirs(runLogDir, exist_ok=True)
+      print(f"    log dir {runLogDir}")
+    else:
+      runLogDir = constants.LOGS_DIR
+
     try:
       cmd = []
       cmd += index.javaCommand.split()
       w = lambda *xs: [cmd.append(str(x)) for x in xs]
       w("-classpath", classPathToString(getClassPath(index.checkout)))
 
-      jfrOutput = f"{constants.LOGS_DIR}/bench-index-{id}-{index.getName()}.jfr"
+      jfrOutput = f"{runLogDir}/bench-index-{id}-{index.getName()}.jfr"
 
       # 77: always enable Java Flight Recorder profiling
       w(
@@ -1051,16 +1062,16 @@ class RunAlgs:
       if index.quantizeKNNGraph:
         w("-quantizeKNNGraph")
 
-      fullLogFile = "%s/%s.%s.log" % (constants.LOGS_DIR, id, index.getName())
+      fullLogFile = "%s/%s.%s.log" % (runLogDir, id, index.getName())
 
       print("    log %s" % fullLogFile)
 
       t0 = time.time()
       if VMSTAT_PATH is not None:
-        vmstatLogFile = f"{constants.LOGS_DIR}/{id}.vmstat.log"
+        vmstatLogFile = f"{runLogDir}/{id}.vmstat.log"
       else:
         vmstatLogFile = None
-      topLogFile = f"{constants.LOGS_DIR}/{id}.top.log"
+      topLogFile = f"{runLogDir}/{id}.top.log"
       run(cmd, fullLogFile, vmstatLogFile=vmstatLogFile, topLogFile=topLogFile)
       t1 = time.time()
       if printCharts and IndexChart.Gnuplot is not None:

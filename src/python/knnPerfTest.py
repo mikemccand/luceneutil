@@ -6,6 +6,9 @@
 #   - why force merge 12X slower
 #   - why only one thread
 #   - report net concurrency utilized in the table
+#   - report total cpu for all indexing threads too
+#   - hmm how come so much faster to compute exact NN at queryStartIndex=0 than 10000, 20000?  60 sec vs ~470 sec!?
+#     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
 import multiprocessing
@@ -64,32 +67,28 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (500_000,),
+  "ndoc": (1_000_000,),
   #'ndoc': (50_000,),
-  "maxConn": (32, 64, 96),
+  "maxConn": (64,),
   # "maxConn": (64,),
   #'maxConn': (32,),
-  "beamWidthIndex": (250, 500),
+  "beamWidthIndex": (250,),
   # "beamWidthIndex": (250,),
   #'beamWidthIndex': (50,),
-  "fanout": (20, 50, 100, 250),
+  "fanout": (100,),
   # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (12,),
-  "numMergeThread": (4,),
-  "numSearchThread": (0,),
+  "numMergeWorker": (24,),
+  "numMergeThread": (8,),
+  "numSearchThread": (4,),
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
   # 'metric': ('angular',),  # default is angular (dot_product)
-  # 'metric': ('mip',),
+  # 'metric': ('dotproduct',),
   #'quantize': (True,),
-  "quantizeBits": (
-    4,
-    7,
-    32,
-  ),
+  "quantizeBits": (4, 8, 32),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -98,9 +97,10 @@ PARAMS = {
   #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
   # "indexType": ("flat", "hnsw"), # index type,
-  "queryStartIndex": (0,),  # seek to this start vector before searching, to sample different vectors
-  "forceMerge": (False,),
-  #'niter': (10,),
+  # "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
+  "queryStartIndex": (0, 200000, 400000, 600000),
+  "forceMerge": (True,),
+  "niter": (10000,),
   # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
   # "filterSelectivity": ("0.5", "0.2", "0.1", "0.01",),
 }
@@ -128,8 +128,10 @@ OUTPUT_HEADERS = [
   "overSample",
   "vec_disk(MB)",
   "vec_RAM(MB)",
+  "bp-reorder",
   "indexType",
 ]
+# TODO:  "bp",
 
 
 def advance(ix, values):
@@ -149,9 +151,15 @@ def run_knn_benchmark(checkout, values):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
   args = []
-  dim = 100
-  doc_vectors = "%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec" % constants.BASE_DIR
-  query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
+  # dim = 100
+  # doc_vectors = "%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec" % constants.BASE_DIR
+  # query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
+
+  dim = 768
+  # doc_vectors = "/big/cohere-wikipedia-docs-768d.vec"
+  doc_vectors = "/big/cohere-wikipedia-docs-768d-1M-shuffled.vec"
+  query_vectors = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
+
   # dim = 768
   # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
   # query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
@@ -162,17 +170,13 @@ def run_knn_benchmark(checkout, values):
   # doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
   # query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
 
-  # dim = 256
-  # doc_vectors = '/d/electronics_asin_emb.bin'
-  # query_vectors = '/d/electronics_query_vectors.bin'
-
   # Cohere dataset
   # dim = 768
   # doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
   # query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
   # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
   # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-  parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
 
@@ -247,8 +251,8 @@ def run_knn_benchmark(checkout, values):
         "8",
         "-metric",
         "mip",
-        "-parentJoin",
-        parentJoin_meta_file,
+        # "-parentJoin",
+        # parentJoin_meta_file,
         # '-numMergeThread', '8', '-numMergeWorker', '8',
         #'-forceMerge',
         #'-stats',
@@ -273,6 +277,7 @@ def run_knn_benchmark(checkout, values):
     job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
     re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
     summary = None
+    hit_exception = False
     lines = ""
     while True:
       line = job.stdout.readline()
@@ -284,6 +289,10 @@ def run_knn_benchmark(checkout, values):
       m = re_summary.match(line)
       if m is not None:
         summary = m.group(1)
+      if "Exception in" in line:
+        hit_exception = True
+    if hit_exception:
+      raise RuntimeError("unhandled java exception while running")
     if summary is None:
       raise RuntimeError("could not find summary line in output! " + lines)
     job.wait()
@@ -302,17 +311,11 @@ def run_knn_benchmark(checkout, values):
 
   skip_headers = set()
 
-  if "-forceMerge" not in this_cmd:
-    skip_headers.add("force_merge(s)")
-  if "-overSample" not in this_cmd:
-    skip_headers.add("overSample")
-  if "-indexType" in this_cmd and "flat" in this_cmd:
-    skip_headers.add("maxConn")
-    skip_headers.add("beamWidth")
-  if "-filterStrategy" not in this_cmd:
-    skip_headers.add("filterStrategy")
-  if "-filterSelectivity" not in this_cmd:
-    skip_headers.add("filterSelectivity")
+  # skip columns that have the same value for every row
+  if len(all_results) > 1:
+    for col in range(len(OUTPUT_HEADERS)):
+      if len(set([result[0].split("\t")[col] for result in all_results])) == 1:
+        skip_headers.add(OUTPUT_HEADERS[col])
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

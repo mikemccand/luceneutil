@@ -500,7 +500,7 @@ public class LineFileDocs implements Closeable {
       if (f instanceof StringField) {
         doc2.add(new StringField(f.name(), f.stringValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
       } else if (f instanceof KeywordField) {
-        doc2.add(new KeywordField(f.name(), f.stringValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
+        doc2.add(new KeywordField(f.name(), f.binaryValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
       } else if (f instanceof TextField) {
         doc2.add(new TextField(f.name(), f.stringValue(), f.fieldType().stored() ? Field.Store.YES : Field.Store.NO));
       } else if (f instanceof IntField) {
@@ -722,7 +722,7 @@ public class LineFileDocs implements Closeable {
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
       final String month = months[doc.dateCal.get(Calendar.MONTH)];
-      doc.month.setStringValue(month);
+      doc.month.setBytesValue(new BytesRef(month));
       doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.idDV.setLongValue(myID);
     }

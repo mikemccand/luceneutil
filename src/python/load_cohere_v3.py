@@ -65,13 +65,15 @@ def run(command):
   subprocess.run(command, shell=True, check=True)
   print(f"  took {time.time() - t0:.1f} sec")
 
+def to_gb(b):
+  return b / 1024 / 1024 / 1024
 
 def main():
   # where we will download and write our shuffled vectors, before splitting into queries and docs
-  csv_source_file = "/b3/cohere-wikipedia-v3.csv"
-  vec_source_file = "/b3/cohere-wikipedia-v3.vec"
-
-  if False:
+  csv_source_file = '/b3/take2/cohere-wikipedia-v3.csv'
+  vec_source_file = '/b3/take2/cohere-wikipedia-v3.vec'
+  
+  if True:
     docs = datasets.load_dataset("Cohere/wikipedia-2023-11-embed-multilingual-v3", LANG, split="train", streaming=True)
     # print(f'columns: {docs.column_names}')
 
@@ -116,8 +118,8 @@ def main():
 
         # You can add more specific checks for nested features or specific types if needed
         print("-" * 20)
-
-  if False:
+    
+  if True:
     row_count = 0
     dimensions = 1024
     headers = ["id", "title", "text", "url"]
@@ -130,14 +132,16 @@ def main():
     total_doc_count = 0
     cur_wiki_id = None
 
+    next_print_time_sec = start_time_sec
     with open(csv_source_file, "w") as meta_out, open(vec_source_file, "wb") as vec_out:
       meta_csv_out = csv.writer(meta_out)
       meta_csv_out.writerow(headers)
       for doc in docs:
-        meta_csv_out.writerow([doc["_id"], doc["title"], doc["text"]])
+        meta_csv_out.writerow([doc["_id"], doc["title"], doc["text"], doc["url"]])
         total_text_chars += len(doc["text"])
         total_title_chars += len(doc["title"])
         wiki_id, paragraph_id = split_id(doc["_id"], row_count)
+
         if wiki_id != cur_wiki_id:
           total_doc_count += 1
           cur_wiki_id = wiki_id
@@ -149,8 +153,13 @@ def main():
         # print(f'{type(emb)}')
         emb.tofile(vec_out)
         row_count += 1
-        if row_count % 10000 == 0:
-          print(f"{time.time() - start_time_sec:6.1f} sec: {row_count} ({total_doc_count} wiki docs)... {vec_out.tell()} and {meta_out.tell()}")
+        now_sec = time.time()
+        if now_sec > next_print_time_sec:
+          pct = row_count * 100 / 41_488_110
+          print(f'{now_sec - start_time_sec:6.1f} sec: {pct:.2f}% ({row_count} rows) ({total_doc_count} wiki docs)... vec {to_gb(vec_out.tell()):.2f} G, meta {to_gb(meta_out.tell()):.2f} G')
+          next_print_time_sec += 10.0
+
+      print(f'{now_sec - start_time_sec:6.1f} sec: {row_count} ({total_doc_count} wiki docs)... {vec_out.tell()} and {meta_out.tell()}')
 
     print(f"Done initial download!\n  {row_count=} {total_doc_count=} {total_text_chars=} {total_title_chars=}")
     print(f"{csv_source_file} is {os.path.getsize(csv_source_file) / 1024 / 1024 / 1024:.2f} GB")
@@ -166,25 +175,30 @@ def main():
     print("strip csv header")
     run(f"sed '1d' {csv_source_file} > {csv_source_file}.noheader")
 
-    print("now insert line numbers")
-    run(f"nl -v 0 -ba {csv_source_file}.noheader > {csv_source_file}.num")
+    if False:
+      print("now insert line numbers")
+      run(f"nl -v 0 -ba {csv_source_file}.noheader > {csv_source_file}.num")
 
-    print("now shuffle")
-    run(f"shuf {csv_source_file}.num > {csv_source_file}.num.shuf")
+      print("now shuffle")
+      run(f"shuf {csv_source_file}.num > {csv_source_file}.num.shuf")
 
-    # this is the actual output meta CSV, post shuffle
-    print("now remove line numbers")
-    run(f"cut -f 2- {csv_source_file}.num.shuf > {csv_source_file}.final")
+      # this is the actual output meta CSV, post shuffle
+      print("now remove line numbers")
+      run(f"cut -f 2- {csv_source_file}.num.shuf > {csv_source_file}.final")
 
-    print("now sort to get reverse mapping")
-    run(f"nl -v 0 -ba {csv_source_file}.num.shuf | sort -nk2 > {csv_source_file}.mapping")
+      print("now sort to get reverse mapping")
+      run(f"nl -v 0 -ba {csv_source_file}.num.shuf | sort -nk2 > {csv_source_file}.mapping")
 
-    print("now cut to just the one new-position column")
-    run(f"cut -f1 {csv_source_file}.mapping > {csv_source_file}.only_mapping")
+      print("now cut to just the one new-position column")
+      run(f"cut -f1 {csv_source_file}.mapping > {csv_source_file}.only_mapping")
 
-    # this is the actual output vectors, post same shuffle -- this took FOREVER (took 42733.5 sec)
-    print("now shuffle vectors to match")
-    run(f"python3 -u src/python/shuffle_vec_file.py {vec_source_file} {vec_source_file}.shuffled {DIMENSIONS} {csv_source_file}.only_mapping")
+      # this is the actual output vectors, post same shuffle -- this took FOREVER (took 42733.5 sec)
+      print("now shuffle vectors to match")
+      run(f"python3 -u src/python/shuffle_vec_file.py {vec_source_file} {vec_source_file}.shuffled {DIMENSIONS} {csv_source_file}.only_mapping")
+
+    # Shuffle wiki_ids while keeping all paragraphs of each wiki_id together
+    print(f'Shuffling wiki_ids (keeping paragraphs together)...')
+    run(f'python3 -u src/python/shuffle_wiki_ids.py {csv_source_file} {vec_source_file} {DIMENSIONS} {csv_source_file}.final {vec_source_file}.shuffled')
 
     with open(f"{vec_source_file}.shuffled", "rb") as f:
       # sanity check: print first 10 vectors
@@ -198,7 +212,7 @@ def main():
           sumsq += v * v
         print(f"  sumsq={sumsq}")
 
-  if True:
+  if False:
     # split into docs/queries -- files are now shuffled so we can safely take first
     # N as queries and remainder as docs and we are pulling from the same well stirred
     # chicken soup (hmm, but gravity ... analogy doesn't fully work)
@@ -221,15 +235,15 @@ def main():
         raise RuntimeError(f"did not consume all vector file vectors?  {vec_in.tell()} vs {os.path.getsize(vec_source_file)}")
 
 
-def split_id(id, line_num):
-  if not id.startswith(ID_PREFIX):
-    raise RuntimeError(f"all wiki_id should start with {ID_PREFIX=} but saw {id} at row {line_num}")
-  tup = id[len(ID_PREFIX) :].split("_")
+def split_id(id_str, line_num, id_prefix='20231101.en_'):
+  """Parse wiki_id and paragraph_id from the full ID."""
+  if not id_str.startswith(id_prefix):
+    raise RuntimeError(f'all wiki_id should start with {id_prefix} but saw {id_str} at row {line_num}')
+  tup = id_str[len(id_prefix):].split('_')
   if len(tup) != 2:
-    raise RuntimeError(f"all wiki_id should start have form wiki-id_paragraph-id but saw {id[len(ID_PREFIX) :]} at row {line_num}")
+    raise RuntimeError(f'all wiki_id should have form wiki-id_paragraph-id but saw {id_str[len(id_prefix):]} at row {line_num}')
   # TODO: should we further valdiate \d+ for each?  coalesced correctly ("see once" each wiki_id)
-  return tup
-
+  return tup[0], tup[1]  # wiki_id, paragraph_id
 
 def copy_meta_and_vec(csv_dest_file, vec_dest_file, meta_csv_in, vec_in, name, doc_copy_count):
   vector_size_bytes = DIMENSIONS * 4

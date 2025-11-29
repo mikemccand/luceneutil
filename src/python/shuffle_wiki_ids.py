@@ -17,9 +17,9 @@ import time
 import os
 import subprocess
 
-STOP_AT = 1000000
+# STOP_AT = 1000000
 # STOP_AT = 4_700_000
-# STOP_AT = None
+STOP_AT = None
 
 ID_PREFIX = "20231101.en_"
 
@@ -35,7 +35,8 @@ def read_exact(f, n_bytes, file_type='file'):
   return data
 
 def add_paragraph_count_column(input_csv, output_csv):
-  """read csv file grouping by wiki_id, count paragraphs per wiki_id, and write with paragraph_count column."""
+  """read csv file grouping by wiki_id, count paragraphs per wiki_id, and write with paragraph_count column.
+  also strip common prefix in id. """
   # get total file size for progress estimation
   total_file_size_bytes = os.path.getsize(input_csv)
 
@@ -46,15 +47,16 @@ def add_paragraph_count_column(input_csv, output_csv):
   # else we hit: _csv.Error: field larger than field limit (131072)
   csv_module.field_size_limit(1024 * 1024 * 40)
 
-  with open(input_csv, 'r', encoding='utf-8') as f_in, open(output_csv, 'w', encoding='utf-8', newline='') as f_out:
-    csv_in = csv_module.reader(f_in)
-    csv_out = csv_module.writer(f_out)
+  with open(input_csv, 'r', encoding='utf-8', newline='') as f_in, open(output_csv, 'w', encoding='utf-8', newline='') as f_out:
+    csv_in = csv_module.reader(f_in, lineterminator='\n')
+    csv_out = csv_module.writer(f_out, lineterminator='\n')
 
     # read and write header (add paragraph_count column after id field)
     header_row = next(csv_in)
     new_header = [header_row[0], 'paragraph_count'] + header_row[1:]
     csv_out.writerow(new_header)
     header_bytes_len = len(','.join(new_header) + '\n')
+    print(f'{header_bytes_len=}')
 
     # read lines and group by wiki_id
     row_count = 0
@@ -77,6 +79,8 @@ def add_paragraph_count_column(input_csv, output_csv):
 
         buffered_rows = []
         wiki_page_count += 1
+        if STOP_AT is not None and wiki_page_count >= STOP_AT:
+          break
 
         now_sec = time.time()
         if now_sec >= next_progress_time_sec:
@@ -86,6 +90,10 @@ def add_paragraph_count_column(input_csv, output_csv):
           next_progress_time_sec = now_sec + 5
 
       current_wiki_id = wiki_id
+
+      # strip whole-corpus common prefix:
+      csv_row[0] = f'{wiki_id}_{para_id}'
+      
       buffered_rows.append(csv_row)
 
     # write out the last buffered group
@@ -101,19 +109,27 @@ def add_paragraph_count_column(input_csv, output_csv):
     print(f'  CSV: {wiki_page_count}/{TOTAL_DOC_COUNT} wiki_ids (100.0%), {row_count} rows ({elapsed_sec:.1f} sec)')
     return header_bytes_len
 
-def copy_using_write_plan(input_file, output_file, output_size, write_plan, file_type):
+def copy_using_write_plan(input_file, output_file, output_size, write_plan, file_type, header_bytes=None):
   """read input file sequentially and write to output file using random access (shuffled) write plan."""
   total_wiki_page_count = len(write_plan)
   start_time_sec = time.time()
   next_progress_time_sec = start_time_sec + 5
 
   with open(input_file, 'rb') as f_in, open(output_file, 'wb') as f_out:
-    # pre-allocate output file
-    os.posix_fallocate(f_out.fileno(), 0, output_size)
+    if header_bytes is not None:
+      f_out.write(header_bytes)
+      f_in.read(len(header_bytes))
+    # pre-allocate output file (extend if needed)
+    current_size = f_out.seek(0, os.SEEK_END)
+    if current_size < output_size:
+      os.posix_fallocate(f_out.fileno(), current_size, output_size - current_size)
+      # print(f'fallocate to {output_size} from {current_size}')
 
     for i, (read_len, write_pos) in enumerate(write_plan):
       # read sequential block from input
+      fpos = f_in.tell()
       block = read_exact(f_in, read_len, file_type)
+      # print(f'{read_len=} read_pos={fpos} of {f_in} {write_pos=} file size is {os.path.getsize(output_file)}')
 
       # write to shuffled output position
       f_out.seek(write_pos)
@@ -128,7 +144,7 @@ def copy_using_write_plan(input_file, output_file, output_size, write_plan, file
 
     elapsed_sec = time.time() - start_time_sec
     f_out.seek(0, os.SEEK_END)
-    assert f_out.tell() == output_size, f'{f_out.tell()=} {output_size=}'
+    assert f_out.tell() == output_size, f'{output_file} wrong size: {f_out.tell()=} {output_size=}'
     print(f'  {file_type}: {total_wiki_page_count}/{total_wiki_page_count} wiki_ids (100.0%) ({elapsed_sec:.1f} sec)')
 
 def split_id(id_str, line_num, id_prefix=ID_PREFIX):
@@ -138,6 +154,14 @@ def split_id(id_str, line_num, id_prefix=ID_PREFIX):
   tup = id_str[len(id_prefix):].split('_')
   if len(tup) != 2:
     raise RuntimeError(f'all wiki_id should have form wiki-id_paragraph-id but saw {id_str[len(id_prefix):]} at row {line_num}')
+  # TODO: should we further valdiate \d+ for each?  coalesced correctly ("see once" each wiki_id)
+  return tup[0], tup[1]  # wiki_id, paragraph_id
+
+def split_non_prefix_id(id_str, line_num):
+  """Parse wiki_id and paragraph_id from the full ID."""
+  tup = id_str.split('_')
+  if len(tup) != 2:
+    raise RuntimeError(f'all wiki_id should have form wiki-id_paragraph-id but saw {id_str} at row {line_num}')
   # TODO: should we further valdiate \d+ for each?  coalesced correctly ("see once" each wiki_id)
   return tup[0], tup[1]  # wiki_id, paragraph_id
 
@@ -169,6 +193,7 @@ def build_index(csv_file, vec_file, dimensions):
     # skip header line
     header = f.readline()
     csv_start_byte = f.tell()
+    print(f'{csv_start_byte=}')
     vec_start_byte = 0
 
     while True:
@@ -182,17 +207,16 @@ def build_index(csv_file, vec_file, dimensions):
           # line_start_byte is the end of the current wiki_id since it's the start of the next wiki_id
           wiki_id_index[current_wiki_id] = (csv_start_byte, line_start_byte, vec_start_byte, vec_end_byte, paragraph_count)
           wiki_ids_in_order.append(current_wiki_id)
+          # print(f'add last {current_wiki_id=} with {csv_start_byte=} and csv_end_byte={line_start_byte}')
         break
 
       # decode line and parse csv
       line_str = line.decode('utf-8').rstrip('\r\n')
       # simple csv split - split on first comma to get the id field
       fields = line_str.split(',', 1)
-      if not fields:
-        continue
 
       full_id = fields[0]
-      wiki_id, paragraph_id = split_id(full_id, row_count + 1)
+      wiki_id, paragraph_id = split_non_prefix_id(full_id, row_count + 1)
 
       if wiki_id != current_wiki_id:
         # new wiki_id group - save the previous one
@@ -201,6 +225,7 @@ def build_index(csv_file, vec_file, dimensions):
           # line_start_byte is the end of the current wiki_id since it's the start of the next wiki_id
           wiki_id_index[current_wiki_id] = (csv_start_byte, line_start_byte, vec_start_byte, vec_end_byte, paragraph_count)
           wiki_ids_in_order.append(current_wiki_id)
+          #print(f'add {current_wiki_id=} with {csv_start_byte=} and csv_end_byte={line_start_byte}')
 
           # nocommit
           if STOP_AT is not None and len(wiki_ids_in_order) >= STOP_AT:
@@ -210,7 +235,7 @@ def build_index(csv_file, vec_file, dimensions):
         # start new group
         current_wiki_id = wiki_id
         csv_start_byte = line_start_byte
-        vec_start_byte = vec_start_byte + (paragraph_count * vector_size_bytes) if current_wiki_id is not None else 0
+        vec_start_byte += paragraph_count * vector_size_bytes
         paragraph_count = 0
 
       paragraph_count += 1
@@ -249,7 +274,9 @@ def shuffle_and_copy(header_bytes_len, csv_file, vec_file, output_csv, output_ve
 
   # shuffle wiki_ids with fixed seed for reproducibility
   print(f'Shuffling {len(wiki_ids_in_order)} wiki_ids...')
-  r = random.Random(42 * 17)
+  seed = int(10000 * time.time())
+  print(f'SEED: {seed}')
+  r = random.Random(seed)
   wiki_ids_in_shuffled_order = list(wiki_ids_in_order)
   r.shuffle(wiki_ids_in_shuffled_order)
 
@@ -283,7 +310,8 @@ def shuffle_and_copy(header_bytes_len, csv_file, vec_file, output_csv, output_ve
 
     pos = csv_input_to_output[csv_start]
     assert pos + csv_len <= output_csv_pos
-    csv_write_plan.append((csv_len, pos))
+    # account for header at top of CSV file:
+    csv_write_plan.append((csv_len, header_bytes_len + pos))
 
     pos = vec_input_to_output[vec_start]
     assert pos + vec_len <= output_vec_pos
@@ -292,7 +320,13 @@ def shuffle_and_copy(header_bytes_len, csv_file, vec_file, output_csv, output_ve
   print(f'Reading input files sequentially and writing to shuffled positions...')
   overall_start_time_sec = time.time()
 
-  copy_using_write_plan(csv_file, output_csv, total_csv_size, csv_write_plan, 'CSV')
+  # Write header to output CSV first
+  with open(csv_file, 'r', encoding='utf-8') as f_in:
+    header_line = f_in.readline()
+    print(f'{header_line=}')
+
+  copy_using_write_plan(csv_file, output_csv, total_csv_size + header_bytes_len, csv_write_plan,
+                        'CSV', header_line.encode('utf-8'))
   copy_using_write_plan(vec_file, output_vec, total_vec_size, vec_write_plan, 'VEC')
 
   elapsed_sec = time.time() - overall_start_time_sec
@@ -309,6 +343,17 @@ def main():
   output_csv = sys.argv[4]
   output_vec = sys.argv[5]
 
+  with open(csv_file, 'rb') as f:
+    content = f.read(128*1024)
+    found_newlines = set()
+    if b'\r\n' in content:
+      found_newlines.add("Windows (CRLF)")
+    if b'\n' in content and b'\r\n' not in content: # Exclude if CRLF already found
+      found_newlines.add("Unix/Linux/macOS (LF)")
+    if b'\r' in content and b'\r\n' not in content: # Exclude if CRLF already found
+      found_newlines.add("Old Mac (CR)")
+    print(f'{found_newlines}')
+
   # first: add paragraph_count column to csv and save as temp file
   print(f'Adding paragraph_count column to CSV...')
   temp_csv = output_csv + '.para_count'
@@ -321,7 +366,8 @@ def main():
   shuffle_and_copy(header_bytes_len, temp_csv, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions)
 
   # clean up temporary file
-  os.remove(temp_csv)
+  # nocommit -- put back, under finally
+  # os.remove(temp_csv)
 
   print(f'Done!')
   print(f'  {output_csv} written')

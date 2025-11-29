@@ -23,6 +23,10 @@ STOP_AT = 1000000
 
 ID_PREFIX = "20231101.en_"
 
+# Cohere v3 Wikipedia corpus statistics
+TOTAL_PARAGRAPH_COUNT = 41_488_110
+TOTAL_DOC_COUNT = 5_854_887
+
 def read_exact(f, n_bytes, file_type='file'):
   """read exactly n_bytes from file or raise an exception."""
   data = f.read(n_bytes)
@@ -38,69 +42,63 @@ def add_paragraph_count_column(input_csv, output_csv):
   start_time_sec = time.time()
   next_progress_time_sec = start_time_sec + 5
 
-  with open(input_csv, 'rb') as f_in, open(output_csv, 'wb') as f_out:
+  import csv as csv_module
+  # else we hit: _csv.Error: field larger than field limit (131072)
+  csv_module.field_size_limit(1024 * 1024 * 40)
+
+  with open(input_csv, 'r', encoding='utf-8') as f_in, open(output_csv, 'w', encoding='utf-8', newline='') as f_out:
+    csv_in = csv_module.reader(f_in)
+    csv_out = csv_module.writer(f_out)
+
     # read and write header (add paragraph_count column after id field)
-    header_line = f_in.readline().decode('utf-8').rstrip('\r\n')
-    header_parts = header_line.split(',', 1)  # split on first comma to get id field
-    if len(header_parts) >= 2:
-      new_header = header_parts[0] + ',paragraph_count,' + header_parts[1]
-    else:
-      new_header = header_line + ',paragraph_count'
-    header_bytes = (new_header + '\n').encode('utf-8')
-    f_out.write(header_bytes)
-    header_bytes_len = len(header_bytes)
+    header_row = next(csv_in)
+    new_header = [header_row[0], 'paragraph_count'] + header_row[1:]
+    csv_out.writerow(new_header)
+    header_bytes_len = len(','.join(new_header) + '\n')
 
     # read lines and group by wiki_id
     row_count = 0
     wiki_page_count = 0
     current_wiki_id = None
-    buffered_lines = []
+    buffered_rows = []
 
-    for line in f_in:
-      line_str = line.decode('utf-8').rstrip('\r\n')
-      parts = line_str.split(',', 1)
-
-      if len(parts) < 2:
-        raise RuntimeError(f'invalid csv line: {line_str}')
-
-      full_id = parts[0]
+    for csv_row in csv_in:
+      full_id = csv_row[0]
       # extract wiki_id from full_id (format: prefix.language_wiki-id_paragraph-id)
-      wiki_id, para_id = split_id(full_id, row_count+len(buffered_lines)+1)
+      wiki_id, para_id = split_id(full_id, row_count+len(buffered_rows)+1)
 
-      # if we hit a new wiki_id, write out the buffered lines with their paragraph count
+      # if we hit a new wiki_id, write out the buffered rows with their paragraph count
       if current_wiki_id is not None and wiki_id != current_wiki_id:
-        para_count = len(buffered_lines)
-        for buffered_line in buffered_lines:
-          buffered_parts = buffered_line.split(',', 1)
-          modified_line = buffered_parts[0] + ',' + str(para_count) + ',' + buffered_parts[1]
-          f_out.write((modified_line + '\n').encode('utf-8'))
+        para_count = len(buffered_rows)
+        for buffered_row in buffered_rows:
+          modified_row = [buffered_row[0], str(para_count)] + buffered_row[1:]
+          csv_out.writerow(modified_row)
           row_count += 1
 
-        buffered_lines = []
+        buffered_rows = []
         wiki_page_count += 1
 
         now_sec = time.time()
         if now_sec >= next_progress_time_sec:
           elapsed_sec = now_sec - start_time_sec
-          pct = 100.0 * f_in.tell() / total_file_size_bytes
-          print(f'  CSV: {wiki_page_count} wiki_ids, {row_count} rows ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
+          pct = 100.0 * wiki_page_count / TOTAL_DOC_COUNT
+          print(f'  CSV: {wiki_page_count}/{TOTAL_DOC_COUNT} wiki_ids ({pct:.1f}%), {row_count} rows ({elapsed_sec:.1f} sec)...')
           next_progress_time_sec = now_sec + 5
 
       current_wiki_id = wiki_id
-      buffered_lines.append(line_str)
+      buffered_rows.append(csv_row)
 
     # write out the last buffered group
-    if buffered_lines:
-      para_count = len(buffered_lines)
-      for buffered_line in buffered_lines:
-        buffered_parts = buffered_line.split(',', 1)
-        modified_line = buffered_parts[0] + ',' + str(para_count) + ',' + buffered_parts[1]
-        f_out.write((modified_line + '\n').encode('utf-8'))
+    if buffered_rows:
+      para_count = len(buffered_rows)
+      for buffered_row in buffered_rows:
+        modified_row = [buffered_row[0], str(para_count)] + buffered_row[1:]
+        csv_out.writerow(modified_row)
         row_count += 1
       wiki_page_count += 1
 
     elapsed_sec = time.time() - start_time_sec
-    print(f'  CSV: {wiki_page_count} wiki_ids, {row_count} rows (100.0%) ({elapsed_sec:.1f} sec)')
+    print(f'  CSV: {wiki_page_count}/{TOTAL_DOC_COUNT} wiki_ids (100.0%), {row_count} rows ({elapsed_sec:.1f} sec)')
     return header_bytes_len
 
 def copy_using_write_plan(input_file, output_file, output_size, write_plan, file_type):

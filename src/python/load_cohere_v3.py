@@ -7,8 +7,9 @@ import time
 import datasets
 import numpy as np
 
-from shuffle_wiki_ids import split_id, read_exact
+from shuffle_wiki_ids import split_id, read_exact, TOTAL_DOC_COUNT, TOTAL_PARAGRAPH_COUNT
 
+# else we hit: _csv.Error: field larger than field limit (131072)
 csv.field_size_limit(1024 * 1024 * 40)
 
 # TODO
@@ -45,13 +46,6 @@ https://github.com/mikemccand/luceneutil/issues/494).
 """
 
 DIMENSIONS = 1024
-
-# total 15_562_116_893 chars in text
-# total 851_864_089 chars in title
-
-TOTAL_PARAGRAPH_COUNT = 41_488_110  # + 1 header in the initial CSV
-
-TOTAL_DOC_COUNT = 5_854_887
 
 LANG = "en"
 

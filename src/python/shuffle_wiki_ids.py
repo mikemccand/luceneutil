@@ -17,9 +17,9 @@ import time
 import os
 import subprocess
 
-# STOP_AT = 1000000
+STOP_AT = 1000000
 # STOP_AT = 4_700_000
-STOP_AT = None
+# STOP_AT = None
 
 ID_PREFIX = "20231101.en_"
 

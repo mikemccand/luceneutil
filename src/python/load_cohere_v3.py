@@ -7,7 +7,7 @@ import time
 import datasets
 import numpy as np
 
-from shuffle_wiki_ids import split_id
+from shuffle_wiki_ids import split_id, read_exact
 
 csv.field_size_limit(1024 * 1024 * 40)
 
@@ -222,117 +222,98 @@ def main():
     # each wiki_id together
 
     query_wiki_id_count = 250_000
-    split_shuffled_by_wiki_id(csv_source_file, vec_source_file, csv_shuffled_file, vec_shuffled_file, query_wiki_id_count)
+    partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, vec_source_file, query_wiki_id_count)
 
-def copy_n_wiki_ids(csv_in_reader, vec_in, csv_out_file, vec_out_file, wiki_id_count_target, subset_name, start_time_sec):
-  """copy N wiki_ids from input csv/vec to output csv/vec files, keeping all paragraphs together."""
-  vector_size_bytes = DIMENSIONS * 4
-  new_headers = ("wiki_id", "paragraph_count", "paragraph_id", "title", "text", "url")
-
-  if subset_name == 'docs':
-    print(f'  copying remaining wiki_ids to {subset_name}...')
-  else:
-    print(f'  copying {wiki_id_count_target} wiki_ids to {subset_name}...')
-
-  with open(csv_out_file, "w") as csv_out, open(vec_out_file, "wb") as vec_out:
-    csv_out_writer = csv.writer(csv_out)
-    csv_out_writer.writerow(new_headers)
-
-    current_wiki_id = None
-    wiki_id_count = 0
-    row_count = 0
-    next_progress_time_sec = start_time_sec + 5
-
-    for csv_row in csv_in_reader:
-      # parse wiki_id from full id
-      full_id = csv_row[0]
-      wiki_id, paragraph_id = split_id(full_id, row_count + 1)
-
-      # if we hit a new wiki_id, increment the counter
-      if wiki_id != current_wiki_id:
-        wiki_id_count += 1
-        current_wiki_id = wiki_id
-
-        # if we've reached the target, stop
-        if wiki_id_count > wiki_id_count_target:
-          # because we incremented above but will not actually process the new wiki_id
-          wiki_id_count -= 1
-          break
-
-      # read corresponding vector
-      vec_bytes = vec_in.read(vector_size_bytes)
-      if len(vec_bytes) != vector_size_bytes:
-        raise RuntimeError(f"failed to read expected {vector_size_bytes=} bytes")
-
-      # write wiki_id, paragraph_count (from csv), paragraph_id, and rest of row
-      # csv_row[0] is the full id (we already parsed it)
-      # csv_row[1] should be paragraph_count
-      # csv_row[2:] are the rest (title, text, url)
-      csv_out_writer.writerow([wiki_id, csv_row[1], paragraph_id] + csv_row[2:])
-      vec_out.write(vec_bytes)
-
-      row_count += 1
-
-      now_sec = time.time()
-      if now_sec >= next_progress_time_sec:
-        elapsed_sec = now_sec - start_time_sec
-        if subset_name == 'docs':
-          print(f'    {wiki_id_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)...')
-        else:
-          pct = 100.0 * wiki_id_count / wiki_id_count_target
-          print(f'    {wiki_id_count}/{wiki_id_count_target} wiki_ids ({pct:.1f}%), {row_count} rows ({elapsed_sec:.1f} sec)...')
-        next_progress_time_sec = now_sec + 5
-
-  assert wiki_id_count == wiki_id_count_target, f'failed to reach exactly expected number of docs: {wiki_id_count=} vs {wiki_id_count_target=}')
-  elapsed_sec = time.time() - start_time_sec
-  if subset_name == 'docs':
-    print(f'    done! {wiki_id_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)')
-  else:
-    pct = 100.0 * wiki_id_count / wiki_id_count_target
-    print(f'    done! {wiki_id_count}/{wiki_id_count_target} wiki_ids (100.0%), {row_count} rows ({elapsed_sec:.1f} sec)')
-  print(f'      csv: {os.path.getsize(csv_out_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-  print(f'      vec: {os.path.getsize(vec_out_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-
-  return wiki_id_count, row_count
-
-def split_shuffled_by_wiki_id(csv_source_file, vec_source_file, csv_shuffled_file, vec_shuffled_file, query_wiki_id_count):
-  """split shuffled corpus into queries and docs, keeping all paragraphs of each wiki_id together."""
-  print(f'splitting into queries (first {query_wiki_id_count} wiki_ids) and docs (remainder)...')
+def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, vec_source_file, query_wiki_id_count):
+  """partition shuffled corpus into queries and docs in a single pass, keeping all paragraphs of each wiki_id together."""
+  print(f'partitioning into queries (first {query_wiki_id_count} wiki_ids) and docs (remainder)...')
 
   queries_csv_file = csv_source_file.replace(".csv", ".queries.csv")
   queries_vec_file = vec_source_file.replace(".vec", ".queries.vec")
   docs_csv_file = csv_source_file.replace(".csv", ".docs.csv")
   docs_vec_file = vec_source_file.replace(".vec", ".docs.vec")
 
-  start_time_sec = time.time()
+  vector_size_bytes = DIMENSIONS * 4
+  new_headers = ("wiki_id", "paragraph_count", "paragraph_id", "title", "text", "url")
 
-  with open(csv_shuffled_file, "r") as csv_in, open(vec_shuffled_file, "rb") as vec_in:
+  start_time_sec = time.time()
+  next_progress_time_sec = start_time_sec + 5
+
+  # Open all files once
+  with open(csv_shuffled_file, "r") as csv_in, \
+       open(vec_shuffled_file, "rb") as vec_in, \
+       open(queries_csv_file, "w") as queries_csv_out, \
+       open(queries_vec_file, "wb") as queries_vec_out, \
+       open(docs_csv_file, "w") as docs_csv_out, \
+       open(docs_vec_file, "wb") as docs_vec_out:
+
     csv_in_reader = csv.reader(csv_in)
 
-    # skip header
+    # skip header in input
     next(csv_in_reader)
 
-    # copy queries
-    query_wiki_id_count_actual, query_row_count = copy_n_wiki_ids(
-      csv_in_reader, vec_in, queries_csv_file, queries_vec_file,
-      query_wiki_id_count, "queries", start_time_sec
-    )
+    # write headers to both outputs
+    queries_csv_writer = csv.writer(queries_csv_out)
+    queries_csv_writer.writerow(new_headers)
+    docs_csv_writer = csv.writer(docs_csv_out)
+    docs_csv_writer.writerow(new_headers)
 
-    # copy docs (remainder)
-    docs_wiki_id_count, docs_row_count = copy_n_wiki_ids(
-      csv_in_reader, vec_in, docs_csv_file, docs_vec_file,
-      TOTAL_DOC_COUNT - query_wiki_id_count, "docs", start_time_sec  # float('inf') means copy all remaining
-    )
+    current_wiki_id = None
+    wiki_id_count = 0
+    query_row_count = 0
+    docs_row_count = 0
+    total_row_count = 0
+    writing_to_queries = True
+
+    for csv_row in csv_in_reader:
+      # parse wiki_id from full id
+      full_id = csv_row[0]
+      wiki_id, paragraph_id = split_id(full_id, total_row_count + 1)
+
+      # if we hit a new wiki_id, increment the counter
+      if wiki_id != current_wiki_id:
+        wiki_id_count += 1
+        current_wiki_id = wiki_id
+
+        # if we've crossed the threshold, switch to docs
+        if wiki_id_count > query_wiki_id_count and writing_to_queries:
+          writing_to_queries = False
+          print(f'  switched to docs after {wiki_id_count - 1} wiki_ids ({query_row_count} rows)')
+
+      # read corresponding vector
+      vec_bytes = read_exact(vec_in, vector_size_bytes, 'vector')
+
+      # write to appropriate output
+      output_row = [wiki_id, csv_row[1], paragraph_id] + csv_row[2:]
+
+      if writing_to_queries:
+        queries_csv_writer.writerow(output_row)
+        queries_vec_out.write(vec_bytes)
+        query_row_count += 1
+      else:
+        docs_csv_writer.writerow(output_row)
+        docs_vec_out.write(vec_bytes)
+        docs_row_count += 1
+
+      total_row_count += 1
+
+      now_sec = time.time()
+      if now_sec >= next_progress_time_sec:
+        elapsed_sec = now_sec - start_time_sec
+        query_pct = 100.0 * (wiki_id_count - 1) / query_wiki_id_count if writing_to_queries else 100.0
+        print(f'  {wiki_id_count} wiki_ids ({query_pct:.1f}%), {total_row_count} total rows ({elapsed_sec:.1f} sec)...')
+        next_progress_time_sec = now_sec + 5
 
   elapsed_sec = time.time() - start_time_sec
-  total_wiki_ids = query_wiki_id_count_actual + docs_wiki_id_count
-  total_rows = query_row_count + docs_row_count
+  total_wiki_ids = wiki_id_count
 
-  assert total_wiki_ids == TOTAL_DOC_COUNT
-  assert total_rows == TOTAL_PARAGRAPH_COUNT
-  
-  print(f'done! split into {total_wiki_ids} total wiki_ids: {query_wiki_id_count_actual} queries, {docs_wiki_id_count} docs ({elapsed_sec:.1f} sec)')
-  print(f'  {total_rows} total rows')
+  print(f'  done! {total_wiki_ids} total wiki_ids: {query_wiki_id_count} queries ({query_row_count} rows), {total_wiki_ids - query_wiki_id_count} docs ({docs_row_count} rows) ({elapsed_sec:.1f} sec)')
+  print(f'  queries:')
+  print(f'    csv: {os.path.getsize(queries_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'    vec: {os.path.getsize(queries_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'  docs:')
+  print(f'    csv: {os.path.getsize(docs_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'    vec: {os.path.getsize(docs_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
 
 if __name__ == "__main__":
   main()

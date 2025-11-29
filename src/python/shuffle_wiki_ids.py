@@ -32,6 +32,9 @@ def read_exact(f, n_bytes, file_type='file'):
 
 def add_paragraph_count_column(input_csv, output_csv):
   """read csv file grouping by wiki_id, count paragraphs per wiki_id, and write with paragraph_count column."""
+  # get total file size for progress estimation
+  total_file_size_bytes = os.path.getsize(input_csv)
+
   start_time_sec = time.time()
   next_progress_time_sec = start_time_sec + 5
 
@@ -43,7 +46,9 @@ def add_paragraph_count_column(input_csv, output_csv):
       new_header = header_parts[0] + ',paragraph_count,' + header_parts[1]
     else:
       new_header = header_line + ',paragraph_count'
-    f_out.write((new_header + '\n').encode('utf-8'))
+    header_bytes = (new_header + '\n').encode('utf-8')
+    f_out.write(header_bytes)
+    header_bytes_len = len(header_bytes)
 
     # read lines and group by wiki_id
     row_count = 0
@@ -77,7 +82,8 @@ def add_paragraph_count_column(input_csv, output_csv):
         now_sec = time.time()
         if now_sec >= next_progress_time_sec:
           elapsed_sec = now_sec - start_time_sec
-          print(f'  CSV: {wiki_page_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)...')
+          pct = 100.0 * f_in.tell() / total_file_size_bytes
+          print(f'  CSV: {wiki_page_count} wiki_ids, {row_count} rows ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
           next_progress_time_sec = now_sec + 5
 
       current_wiki_id = wiki_id
@@ -95,6 +101,7 @@ def add_paragraph_count_column(input_csv, output_csv):
 
     elapsed_sec = time.time() - start_time_sec
     print(f'  CSV: {wiki_page_count} wiki_ids, {row_count} rows (100.0%) ({elapsed_sec:.1f} sec)')
+    return header_bytes_len
 
 def copy_using_write_plan(input_file, output_file, output_size, write_plan, file_type):
   """read input file sequentially and write to output file using random access (shuffled) write plan."""
@@ -221,7 +228,7 @@ def build_index(csv_file, vec_file, dimensions):
 
   return wiki_id_index, wiki_ids_in_order
 
-def shuffle_and_copy(csv_file, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions):
+def shuffle_and_copy(header_bytes_len, csv_file, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions):
   """
   Shuffle wiki_ids using write-side random access.
 
@@ -239,8 +246,8 @@ def shuffle_and_copy(csv_file, vec_file, output_csv, output_vec, wiki_id_index, 
 
   # since we are purely shuffling, the sizes should not change
   if STOP_AT is None:
-    assert total_vec_size == os.path.getsize(vec_file)
-    assert total_csv_size == os.path.getsize(csv_file)
+    assert total_vec_size == os.path.getsize(vec_file), f'{total_vec_size=} {os.path.getsize(vec_file)=}'
+    assert header_bytes_len + total_csv_size == os.path.getsize(csv_file), f'{total_csv_size=} {os.path.getsize(csv_file)=}'
 
   # shuffle wiki_ids with fixed seed for reproducibility
   print(f'Shuffling {len(wiki_ids_in_order)} wiki_ids...')
@@ -307,13 +314,13 @@ def main():
   # first: add paragraph_count column to csv and save as temp file
   print(f'Adding paragraph_count column to CSV...')
   temp_csv = output_csv + '.para_count'
-  add_paragraph_count_column(csv_file, temp_csv)
+  header_bytes_len = add_paragraph_count_column(csv_file, temp_csv)
 
   # build index from the temp csv with paragraph count
   wiki_id_index, wiki_ids_in_order = build_index(temp_csv, vec_file, dimensions)
 
   # shuffle and copy
-  shuffle_and_copy(temp_csv, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions)
+  shuffle_and_copy(header_bytes_len, temp_csv, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions)
 
   # clean up temporary file
   os.remove(temp_csv)

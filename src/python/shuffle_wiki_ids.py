@@ -21,6 +21,8 @@ import subprocess
 # STOP_AT = 4_700_000
 STOP_AT = None
 
+ID_PREFIX = "20231101.en_"
+
 def read_exact(f, n_bytes, file_type='file'):
   """read exactly n_bytes from file or raise an exception."""
   data = f.read(n_bytes)
@@ -124,14 +126,15 @@ def copy_using_write_plan(input_file, output_file, output_size, write_plan, file
     assert f_out.tell() == output_size, f'{f_out.tell()=} {output_size=}'
     print(f'  {file_type}: {total_wiki_page_count}/{total_wiki_page_count} wiki_ids (100.0%) ({elapsed_sec:.1f} sec)')
 
-def split_id(id_str, line_num, id_prefix='20231101.en_'):
+def split_id(id_str, line_num, id_prefix=ID_PREFIX):
   """Parse wiki_id and paragraph_id from the full ID."""
   if not id_str.startswith(id_prefix):
     raise RuntimeError(f'all wiki_id should start with {id_prefix} but saw {id_str} at row {line_num}')
   tup = id_str[len(id_prefix):].split('_')
   if len(tup) != 2:
     raise RuntimeError(f'all wiki_id should have form wiki-id_paragraph-id but saw {id_str[len(id_prefix):]} at row {line_num}')
-  return tup[0], tup[1]  # wiki_id and paragraph_id
+  # TODO: should we further valdiate \d+ for each?  coalesced correctly ("see once" each wiki_id)
+  return tup[0], tup[1]  # wiki_id, paragraph_id
 
 def build_index(csv_file, vec_file, dimensions):
   """

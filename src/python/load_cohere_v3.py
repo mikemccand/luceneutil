@@ -7,6 +7,8 @@ import time
 import datasets
 import numpy as np
 
+from shuffle_wiki_ids import split_id
+
 csv.field_size_limit(1024 * 1024 * 40)
 
 # TODO
@@ -22,7 +24,6 @@ csv.field_size_limit(1024 * 1024 * 40)
 #   - then make separate query + index files
 
 """
-
 This tool downloads all metadata + vectors from
 https://huggingface.co/datasets/Cohere/wikipedia-2023-11-embed-multilingual-v3
 (Cohere v3 Wikipedia embeddings).
@@ -41,10 +42,7 @@ Unlike the v2 Cohere Wikipedia vectors
 do not have a stated sort order.  Still, we shuffle them to remove any
 possible hidden compass bias (see
 https://github.com/mikemccand/luceneutil/issues/494).
-
 """
-
-ID_PREFIX = "20231101.en_"
 
 DIMENSIONS = 1024
 
@@ -73,7 +71,7 @@ def main():
   csv_source_file = '/b3/take2/cohere-wikipedia-v3.csv'
   vec_source_file = '/b3/take2/cohere-wikipedia-v3.vec'
   
-  if True:
+  if False:
     docs = datasets.load_dataset("Cohere/wikipedia-2023-11-embed-multilingual-v3", LANG, split="train", streaming=True)
     # print(f'columns: {docs.column_names}')
 
@@ -119,7 +117,8 @@ def main():
         # You can add more specific checks for nested features or specific types if needed
         print("-" * 20)
     
-  if True:
+  if False:
+    # do the actual (slow!) slurping of the full corpus from HuggingFace, down to local csv/vec file:
     row_count = 0
     dimensions = 1024
     headers = ["id", "title", "text", "url"]
@@ -171,11 +170,12 @@ def main():
     if row_count != TOTAL_DOC_COUNT:
       raise RuntimeError(f"expected {TOTAL_DOC_COUNT=} but saw {row_count=}")
 
-  if False:
-    print("strip csv header")
-    run(f"sed '1d' {csv_source_file} > {csv_source_file}.noheader")
+  if True:
 
     if False:
+      print("strip csv header")
+      run(f"sed '1d' {csv_source_file} > {csv_source_file}.noheader")
+      
       print("now insert line numbers")
       run(f"nl -v 0 -ba {csv_source_file}.noheader > {csv_source_file}.num")
 
@@ -198,9 +198,10 @@ def main():
 
     # Shuffle wiki_ids while keeping all paragraphs of each wiki_id together
     print(f'Shuffling wiki_ids (keeping paragraphs together)...')
-    run(f'python3 -u src/python/shuffle_wiki_ids.py {csv_source_file} {vec_source_file} {DIMENSIONS} {csv_source_file}.final {vec_source_file}.shuffled')
+    # write full shuffled csv/vec to /b3 (different drive) to reduce IO contention and go faster:
+    run(f'python3 -u src/python/shuffle_wiki_ids.py {csv_source_file} {vec_source_file} {DIMENSIONS} /b3/coherev3/shuffled.csv /b3/coherev3/shuffled.vec')
 
-    with open(f"{vec_source_file}.shuffled", "rb") as f:
+    with open(f"/b3/coherev3/shuffled.vec", "rb") as f:
       # sanity check: print first 10 vectors
       for i in range(10):
         b = f.read(DIMENSIONS * 4)
@@ -208,7 +209,7 @@ def main():
         print(f"vec {i} is length {len(one_vec)}")
         sumsq = 0
         for i, v in enumerate(one_vec):
-          print(f"  {i:4d}: {v:g}")
+          # print(f"  {i:4d}: {v:g}")
           sumsq += v * v
         print(f"  sumsq={sumsq}")
 
@@ -233,17 +234,6 @@ def main():
         raise RuntimeError(f"did not consume all metadata file rows?  {meta_in.tell()} vs {os.path.getsize(csv_source_file)}")
       if vec_in.tell() != os.path.getsize(vec_source_file):
         raise RuntimeError(f"did not consume all vector file vectors?  {vec_in.tell()} vs {os.path.getsize(vec_source_file)}")
-
-
-def split_id(id_str, line_num, id_prefix='20231101.en_'):
-  """Parse wiki_id and paragraph_id from the full ID."""
-  if not id_str.startswith(id_prefix):
-    raise RuntimeError(f'all wiki_id should start with {id_prefix} but saw {id_str} at row {line_num}')
-  tup = id_str[len(id_prefix):].split('_')
-  if len(tup) != 2:
-    raise RuntimeError(f'all wiki_id should have form wiki-id_paragraph-id but saw {id_str[len(id_prefix):]} at row {line_num}')
-  # TODO: should we further valdiate \d+ for each?  coalesced correctly ("see once" each wiki_id)
-  return tup[0], tup[1]  # wiki_id, paragraph_id
 
 def copy_meta_and_vec(csv_dest_file, vec_dest_file, meta_csv_in, vec_in, name, doc_copy_count):
   vector_size_bytes = DIMENSIONS * 4

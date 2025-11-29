@@ -49,8 +49,7 @@ DIMENSIONS = 1024
 # total 15_562_116_893 chars in text
 # total 851_864_089 chars in title
 
-TOTAL_DOC_COUNT = 41_488_110  # + 1 header in the initial CSV
-
+TOTAL_PARAGRAPH_COUNT = 41_488_110  # + 1 header in the initial CSV
 
 TOTAL_DOC_COUNT = 5_854_887
 
@@ -158,7 +157,7 @@ def main():
         row_count += 1
         now_sec = time.time()
         if now_sec > next_print_time_sec:
-          pct = row_count * 100 / 41_488_110
+          pct = row_count * 100 / TOTAL_PARAGRAPH_COUNT
           print(f'{now_sec - start_time_sec:6.1f} sec: {pct:.2f}% ({row_count} rows) ({total_doc_count} wiki docs)... vec {to_gb(vec_out.tell()):.2f} G, meta {to_gb(meta_out.tell()):.2f} G')
           next_print_time_sec += 10.0
 
@@ -230,7 +229,10 @@ def copy_n_wiki_ids(csv_in_reader, vec_in, csv_out_file, vec_out_file, wiki_id_c
   vector_size_bytes = DIMENSIONS * 4
   new_headers = ("wiki_id", "paragraph_count", "paragraph_id", "title", "text", "url")
 
-  print(f'  copying {wiki_id_count_target} wiki_ids to {subset_name}...')
+  if subset_name == 'docs':
+    print(f'  copying remaining wiki_ids to {subset_name}...')
+  else:
+    print(f'  copying {wiki_id_count_target} wiki_ids to {subset_name}...')
 
   with open(csv_out_file, "w") as csv_out, open(vec_out_file, "wb") as vec_out:
     csv_out_writer = csv.writer(csv_out)
@@ -253,6 +255,8 @@ def copy_n_wiki_ids(csv_in_reader, vec_in, csv_out_file, vec_out_file, wiki_id_c
 
         # if we've reached the target, stop
         if wiki_id_count > wiki_id_count_target:
+          # because we incremented above but will not actually process the new wiki_id
+          wiki_id_count -= 1
           break
 
       # read corresponding vector
@@ -272,11 +276,20 @@ def copy_n_wiki_ids(csv_in_reader, vec_in, csv_out_file, vec_out_file, wiki_id_c
       now_sec = time.time()
       if now_sec >= next_progress_time_sec:
         elapsed_sec = now_sec - start_time_sec
-        print(f'    {wiki_id_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)...')
+        if subset_name == 'docs':
+          print(f'    {wiki_id_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)...')
+        else:
+          pct = 100.0 * wiki_id_count / wiki_id_count_target
+          print(f'    {wiki_id_count}/{wiki_id_count_target} wiki_ids ({pct:.1f}%), {row_count} rows ({elapsed_sec:.1f} sec)...')
         next_progress_time_sec = now_sec + 5
 
+  assert wiki_id_count == wiki_id_count_target, f'failed to reach exactly expected number of docs: {wiki_id_count=} vs {wiki_id_count_target=}')
   elapsed_sec = time.time() - start_time_sec
-  print(f'    done! {wiki_id_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)')
+  if subset_name == 'docs':
+    print(f'    done! {wiki_id_count} wiki_ids, {row_count} rows ({elapsed_sec:.1f} sec)')
+  else:
+    pct = 100.0 * wiki_id_count / wiki_id_count_target
+    print(f'    done! {wiki_id_count}/{wiki_id_count_target} wiki_ids (100.0%), {row_count} rows ({elapsed_sec:.1f} sec)')
   print(f'      csv: {os.path.getsize(csv_out_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
   print(f'      vec: {os.path.getsize(vec_out_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
 
@@ -308,15 +321,15 @@ def split_shuffled_by_wiki_id(csv_source_file, vec_source_file, csv_shuffled_fil
     # copy docs (remainder)
     docs_wiki_id_count, docs_row_count = copy_n_wiki_ids(
       csv_in_reader, vec_in, docs_csv_file, docs_vec_file,
-      float('inf'), "docs", start_time_sec  # float('inf') means copy all remaining
+      TOTAL_DOC_COUNT - query_wiki_id_count, "docs", start_time_sec  # float('inf') means copy all remaining
     )
 
   elapsed_sec = time.time() - start_time_sec
   total_wiki_ids = query_wiki_id_count_actual + docs_wiki_id_count
   total_rows = query_row_count + docs_row_count
 
-  assert total_wiki_ids == 5_854_887
-  assert total_rows == 41_488_110
+  assert total_wiki_ids == TOTAL_DOC_COUNT
+  assert total_rows == TOTAL_PARAGRAPH_COUNT
   
   print(f'done! split into {total_wiki_ids} total wiki_ids: {query_wiki_id_count_actual} queries, {docs_wiki_id_count} docs ({elapsed_sec:.1f} sec)')
   print(f'  {total_rows} total rows')

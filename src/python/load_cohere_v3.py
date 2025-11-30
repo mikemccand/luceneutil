@@ -4,6 +4,7 @@ import os
 import struct
 import subprocess
 import time
+import random
 
 import datasets
 import numpy as np
@@ -14,6 +15,7 @@ from shuffle_wiki_ids import split_id, split_non_prefix_id, read_exact, TOTAL_DO
 csv.field_size_limit(1024 * 1024 * 40)
 
 # TODO
+#   - make STOP_AT work on entire process and run the whole thing ot make sure it's repeatable, then run real thing and capture & save full log
 #   - write up overview ocf how this tool works / how corpus is designed
 #   - how to use the text?  make matching wiki linefiledocs source?
 #   - strip common prefix from ids
@@ -53,6 +55,8 @@ https://github.com/mikemccand/luceneutil/issues/494).
 
 # stats: row_count=41488110 total_doc_count=5854887 total_text_chars=15_562_116_893 total_title_chars=851_864_089
 
+# queries have 250_000 wiki_ids, docs have the balance 5_604_887
+
 DIMENSIONS = 1024
 
 LANG = "en"
@@ -60,7 +64,8 @@ LANG = "en"
 DO_INIT_LOAD = False
 DO_SHUFFLE = False
 DO_PARTITION = False
-DO_VALIDATE = True
+DO_VALIDATE = False
+DO_SHUFFLE_ENTIRELY = True
 
 def run(command):
   print(f"RUN: {command}")
@@ -71,15 +76,37 @@ def run(command):
 def to_gb(b):
   return b / 1024 / 1024 / 1024
 
-def main():
-  # where we will download and write our shuffled vectors, before splitting into queries and docs
-  csv_source_file = '/b3/take2/cohere-wikipedia-v3.csv'
-  vec_source_file = '/b3/take2/cohere-wikipedia-v3.vec'
+# best to use two storage devices to separate the heavy concurrent read-io and write-io
+storage1 = '/b3/take2'
+storage2 = '/b2/coherev3'
 
-  # on a different mount point so the heavy read / write are split across hard drives
-  csv_shuffled_file = '/b2/coherev3/shuffled.csv'
-  vec_shuffled_file = '/b2/coherev3/shuffled.vec'
+# where we first download and write the original corpus
+csv_source_file = f'{storage1}/cohere-wikipedia-v3.csv'
+vec_source_file = f'{storage1}/cohere-wikipedia-v3.vec'
+
+# holds entire corpus, shuffled, while preserving paragraphs together with their wiki_id
+csv_shuffled_file = f'{storage2}/shuffled.csv'
+vec_shuffled_file = f'{storage2}shuffled.vec'
+
+# then we partition whole corpus into N=250_000 wiki-ids for queries, and the balance 5_604_887
+# paragraphs are still coalesced together (for parent join benchy)
+queries_coalesced_csv_file = f'{storage1}/cohere-wikipedia-v3.queries-coalesced.csv'
+queries_coalesced_vec_file = f'{storage1}/cohere-wikipedia-v3.ved-coalesced.csv'
+docs_coalesced_csv_file = f'{storage1}/cohere-wikipedia-v3.docs-coalesced.csv'
+docs_coalesced_vec_file = f'{storage1}/cohere-wikipedia-v3.ved-coalesced.csv'
+
+# fully shuffled (not coalesced paragraphs under same wiki_id) -- same vectors as coalesced
+# versions, just re-shuffled without coalescing
+queries_csv_file = f'{storage2}/cohere-wikipedia-v3.queries.csv'
+queries_vec_file = f'{storage2}/cohere-wikipedia-v3.queries.vec'
+docs_csv_file = f'{storage2}/cohere-wikipedia-v3.docs.csv'
+docs_vec_file = f'{storage2}/cohere-wikipedia-v3.docs.vec'
+
+# TODO: change to support single-sourced STOP_AT for fast full through test
+wiki_id_total_count = 5_854_887
+total_paragraph_count = 41_488_110
   
+def main():
   if DO_INIT_LOAD:
     # takes a long time!  ~3.2 hours
     docs = datasets.load_dataset("Cohere/wikipedia-2023-11-embed-multilingual-v3", LANG, split="train", streaming=True)
@@ -164,7 +191,7 @@ def main():
           row_count += 1
           now_sec = time.time()
           if now_sec > next_print_time_sec:
-            pct = row_count * 100 / TOTAL_PARAGRAPH_COUNT
+            pct = row_count * 100 / total_paragraph_count
             print(f'{now_sec - start_time_sec:6.1f} sec: {pct:.2f}% ({row_count} rows) ({total_doc_count} wiki docs)... vec {to_gb(vec_out.tell()):.2f} G, meta {to_gb(meta_out.tell()):.2f} G')
             next_print_time_sec += 5.0
 
@@ -234,18 +261,130 @@ def main():
     # split into queries/docs -- files are now shuffled so we can safely take first
     # N wiki_ids as queries and remainder as docs, while keeping all paragraphs of
     # each wiki_id together
-
     query_wiki_id_count = 250_000
     partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, vec_source_file, query_wiki_id_count)
 
   if DO_VALIDATE:
-    queries_csv_file = csv_source_file.replace(".csv", ".queries.csv")
-    queries_vec_file = vec_source_file.replace(".vec", ".queries.vec")
-    docs_csv_file = csv_source_file.replace(".csv", ".docs.csv")
-    docs_vec_file = vec_source_file.replace(".vec", ".docs.vec")
+    # make sure the coalesced queries and docs files are correct -- have the same (by wiki_id) vectors
+    # that we see on original input, and that no wiki_ids are missing nor dup'd
     validate_vector_integrity(csv_source_file, vec_source_file,
-                              [(queries_csv_file, queries_vec_file),
-                               (docs_csv_file, docs_vec_file)])
+                              [(queries_coalesced_csv_file, queries_coalesced_vec_file),
+                               (docs_coalesced_csv_file, docs_coalesced_vec_file)],
+                              wiki_id_total_count)
+
+  if DO_SHUFFLE_ENTIRELY:
+    # finally, we also shuffle without preserving paragraphs together, for testing the (common) non-parent-join case
+    shuffle_queries_and_docs(total_paragraph_count,
+                             queries_coalesced_csv_file, queries_coalesced_vec_file, docs_coalesced_csv_file, docs_coalesced_vec_file,
+                             queries_csv_file, queries_vec_file, docs_csv_file, docs_vec_file)
+
+def shuffle_queries_and_docs(total_paragraph_count,
+                             queries_coalesced_csv_file, queries_coalesced_vec_file, docs_coalesced_csv_file, docs_coalesced_vec_file,
+                             queries_csv_file, queries_vec_file, docs_csv_file, docs_vec_file):
+  """shuffle queries and docs files (individual rows, not grouped by wiki_id).
+
+  This creates shuffled versions for normal (non-parent-join) benchmarking,
+  where paragraphs from the same wiki_id are not kept together.
+  """
+
+  def shuffle_csv_and_vec_pair(total_paragraph_count, csv_input, vec_input, csv_output, vec_output, file_label):
+    """shuffle CSV and VEC files identically using a write plan."""
+    vector_size_bytes = DIMENSIONS * 4
+
+    print(f'  {file_label}: {total_paragraph_count} rows to shuffle')
+
+    # generate shuffle permutation with fixed seed for reproducibility
+    seed = int(10000 * time.time())
+    print(f'SEED: {seed}')
+    r = random.Random(seed)
+    
+    indices = list(range(total_rows))
+    r.shuffle(indices)
+
+    # build write plan: invert input position to output position
+    write_plan = [None] * total_rows
+    for output_pos, input_pos in enumerate(indices):
+      write_plan[input_pos] = output_pos
+
+    total_vec_size_bytes = os.path.getsize(vec_input)
+    assert total_vec_size_bytes == total_paragraph_count * vector_size_bytes
+
+    total_csv_size_bytes = os.path.getsize(csv_input)
+
+    print(f'  {file_label}: reading input and writing to shuffled positions...')
+    start_time_sec = time.time()
+    next_progress_time_sec = start_time_sec + 5
+
+    # read input files sequentially, write to shuffled positions
+    with open(csv_input, 'r', encoding='utf-8', newline='') as csv_in, \
+         open(vec_input, 'rb') as vec_in, \
+         open(csv_output, 'w', encoding='utf-8', newline='') as csv_out, \
+         open(vec_output, 'wb') as vec_out:
+
+      # pre-allocate output files
+      os.posix_fallocate(vec_out.fileno(), 0, total_vec_size)
+      os.posix_fallocate(csv_out.fileno(), 0, total_csv_size)
+
+      csv_reader = csv.reader(csv_in, lineterminator='\n')
+
+      # copy csv header
+      header = next(csv_reader)
+      csv_out.writerow(header)
+
+      # track output positions
+      csv_output_lines = [''] * total_rows
+
+      for input_pos, csv_row in enumerate(csv_reader):
+        # read vector
+        vec_bytes = read_exact(vec_in, vector_size_bytes, 'vector')
+
+        # get output position for this row
+        output_pos = write_plan[input_pos]
+
+        # write vector to shuffled position
+        vec_out.seek(output_pos * vector_size_bytes)
+        vec_out.write(vec_bytes)
+
+        # buffer CSV row for later writing (to maintain line order)
+        csv_output_lines[output_pos] = ','.join(csv_row) + '\n'
+
+        if (input_pos + 1) % 10000 == 0:
+          now_sec = time.time()
+          if now_sec >= next_progress_time_sec:
+            elapsed_sec = now_sec - start_time_sec
+            pct = 100.0 * (input_pos + 1) / total_rows
+            print(f'    {input_pos + 1}/{total_rows} rows ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
+            next_progress_time_sec = now_sec + 5
+
+      # write CSV rows in order
+      for line in csv_output_lines:
+        csv_out.write(line)
+
+    elapsed_sec = time.time() - start_time_sec
+    print(f'  {file_label}: done shuffling ({elapsed_sec:.1f} sec)')
+    print(f'    csv: {os.path.getsize(csv_output) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+    print(f'    vec: {os.path.getsize(vec_output) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+
+  print(f'Shuffling queries and docs for benchmarking (individual rows, not grouped by wiki_id)...')
+
+  queries_shuffled_csv = csv_queries.replace('.csv', '.shuffled.csv')
+  queries_shuffled_vec = vec_queries.replace('.vec', '.shuffled.vec')
+  docs_shuffled_csv = csv_docs.replace('.csv', '.shuffled.csv')
+  docs_shuffled_vec = vec_docs.replace('.vec', '.shuffled.vec')
+
+  shuffle_csv_and_vec_pair(total_paragraph_count,
+                           queries_coalesced_csv_file,
+                           queries_coalesced_vec_file,
+                           queries_csv_file,
+                           queries_vec_file,
+                           'queries')
+  shuffle_csv_and_vec_pair(total_paragraph_count,
+                           docs_coalesced_csv_file,
+                           docs_coalesced_vec_file,
+                           docs_csv_file,
+                           docs_vec_file,
+                           'docs')
+  print(f'Done non-coalesced shuffling')
 
 def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected_total_vectors=None):
   """compute SHA256 hash of all vectors grouped by wiki_id for integrity checking.
@@ -329,7 +468,7 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
 
   return wiki_id_hashes
 
-def validate_vector_integrity(input_csv, input_vec, output_files_list):
+def validate_vector_integrity(input_csv, input_vec, output_files_list, wiki_id_total_count):
   """validate that all vectors were preserved correctly through shuffling/partitioning."""
   print(f'Validating vector integrity...')
 
@@ -364,6 +503,9 @@ def validate_vector_integrity(input_csv, input_vec, output_files_list):
   if extra:
     raise RuntimeError(f'ERROR: {len(extra)} extra wiki_ids in output')
 
+  assert len(input_wiki_ids) == wiki_id_total_count
+  assert len(output_wiki_ids) == len(input_wiki_ids)
+  
   # verify hashes match
   mismatches = []
   for wiki_id in input_wiki_ids:
@@ -384,11 +526,6 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
   """partition shuffled corpus into queries and docs in a single pass, keeping all paragraphs of each wiki_id together."""
   print(f'partitioning into queries (first {query_wiki_id_count} wiki_ids) and docs (remainder)...')
 
-  queries_csv_file = csv_source_file.replace(".csv", ".queries.csv")
-  queries_vec_file = vec_source_file.replace(".vec", ".queries.vec")
-  docs_csv_file = csv_source_file.replace(".csv", ".docs.csv")
-  docs_vec_file = vec_source_file.replace(".vec", ".docs.vec")
-
   vector_size_bytes = DIMENSIONS * 4
   new_headers = ("wiki_id", "paragraph_count", "paragraph_id", "title", "text", "url")
 
@@ -398,10 +535,10 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
   # Open all files once
   with open(csv_shuffled_file, "r", newline='') as csv_in, \
        open(vec_shuffled_file, "rb") as vec_in, \
-       open(queries_csv_file, "w", newline='') as queries_csv_out, \
-       open(queries_vec_file, "wb") as queries_vec_out, \
-       open(docs_csv_file, "w", newline='') as docs_csv_out, \
-       open(docs_vec_file, "wb") as docs_vec_out:
+       open(queries_coalesced_csv_file, "w", newline='') as queries_csv_out, \
+       open(queries_coalesced_vec_file, "wb") as queries_vec_out, \
+       open(docs_coalesced_csv_file, "w", newline='') as docs_csv_out, \
+       open(docs_coalesced_vec_file, "wb") as docs_vec_out:
 
     csv_in_reader = csv.reader(csv_in, lineterminator='\n')
 
@@ -468,11 +605,11 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
 
   print(f'  done! {total_wiki_ids} total wiki_ids: {query_wiki_id_count} queries ({query_row_count} rows), {total_wiki_ids - query_wiki_id_count} docs ({docs_row_count} rows) ({elapsed_sec:.1f} sec)')
   print(f'  queries:')
-  print(f'    csv: {os.path.getsize(queries_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-  print(f'    vec: {os.path.getsize(queries_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'    csv: {os.path.getsize(queries_coalesced_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'    vec: {os.path.getsize(queries_coalesded_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
   print(f'  docs:')
-  print(f'    csv: {os.path.getsize(docs_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-  print(f'    vec: {os.path.getsize(docs_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'    csv: {os.path.getsize(docs_coalesced_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f'    vec: {os.path.getsize(docs_coalesced_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
 
 if __name__ == "__main__":
   main()

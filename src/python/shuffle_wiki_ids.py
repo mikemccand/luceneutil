@@ -31,7 +31,7 @@ def read_exact(f, n_bytes, file_type='file'):
   """read exactly n_bytes from file or raise an exception."""
   data = f.read(n_bytes)
   if len(data) != n_bytes:
-    raise RuntimeError(f'failed to read {n_bytes} bytes from {file_type}')
+    raise RuntimeError(f'failed to read {n_bytes} bytes from {f} ({file_type})')
   return data
 
 def add_paragraph_count_column(input_csv, output_csv):
@@ -331,6 +331,7 @@ def shuffle_and_copy(header_bytes_len, csv_file, vec_file, output_csv, output_ve
 
   elapsed_sec = time.time() - overall_start_time_sec
   print(f'Shuffled files written in {elapsed_sec:.1f} sec')
+  return seed
 
 def main():
   if len(sys.argv) != 6:
@@ -363,7 +364,7 @@ def main():
   wiki_id_index, wiki_ids_in_order = build_index(temp_csv, vec_file, dimensions)
 
   # shuffle and copy
-  shuffle_and_copy(header_bytes_len, temp_csv, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions)
+  seed = shuffle_and_copy(header_bytes_len, temp_csv, vec_file, output_csv, output_vec, wiki_id_index, wiki_ids_in_order, dimensions)
 
   # clean up temporary file
   # nocommit -- put back, under finally

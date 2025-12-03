@@ -10,21 +10,21 @@ import random
 import datasets
 import numpy as np
 
-from shuffle_wiki_ids import split_id, split_non_prefix_id, read_exact, TOTAL_DOC_COUNT, TOTAL_PARAGRAPH_COUNT
+import shuffle_wiki_ids
+
+from shuffle_wiki_ids import split_id, split_non_prefix_id, read_exact
 
 # else we hit: _csv.Error: field larger than field limit (131072)
 csv.field_size_limit(1024 * 1024 * 40)
 
 # TODO
 #   - consistently name it total_paragraph_count
+#   - maybe validate each wiki_id's vector count too?  but hashing prolly would catch missing / extra vector...
 #   - detect if there are embedded \n in the csv?
 #   - if RAM allows, maybe go back and redo the horribly complex file-offset-based CSV shuffling to also just buffer lines in memory?
 #   - make STOP_AT work on entire process and run the whole thing ot make sure it's repeatable, then run real thing and capture & save full log
-#   - write up overview ocf how this tool works / how corpus is designed
+#   - write up overview of how this tool works / how corpus is designed
 #   - how to use the text?  make matching wiki linefiledocs source?
-#   - strip common prefix from ids
-#   - ugh -- need to fix shuffle to keep pages (all adjacent rows with same wiki_id) together
-#   - validator: aslo check paragraph counts
 #   - finish/publish these new v3 vec sources, send email
 #     - babysit nightly, then add annot
 #   - test knn
@@ -101,8 +101,15 @@ queries_vec_file = f'{storage2}/cohere-wikipedia-v3.queries.vec'
 docs_csv_file = f'{storage2}/cohere-wikipedia-v3.docs.csv'
 docs_vec_file = f'{storage2}/cohere-wikipedia-v3.docs.vec'
 
+TOTAL_PARAGRAPH_COUNT = 41_488_110
+assert TOTAL_PARAGRAPH_COUNT == shuffle_wiki_ids.TOTAL_PARAGRAPH_COUNT
+
+TOTAL_DOC_COUNT = 5_854_887
+assert TOTAL_DOC_COUNT == shuffle_wiki_ids.TOTAL_DOC_COUNT
+
 # TODO: change to support single-sourced STOP_AT for fast full through test
-wiki_id_total_count = 5_854_887
+total_doc_count = 5_854_887
+
 total_paragraph_count = 41_488_110
   
 def run(command):
@@ -187,6 +194,8 @@ def main():
           wiki_id, paragraph_id = split_id(doc["_id"], row_count)
 
           if wiki_id != cur_wiki_id:
+            if STOP_AT is not None and total_doc_count >= STOP_AT:
+              break
             total_doc_count += 1
             cur_wiki_id = wiki_id
 
@@ -218,9 +227,12 @@ def main():
       os.chmod('/lucenedata/enwiki/cohere-v3/init.csv', 0o444)
       os.chmod('/lucenedata/enwiki/cohere-v3/init.vec', 0o444)
 
-      if STOP_AT is None and row_count != TOTAL_DOC_COUNT:
+      if STOP_AT is None and row_count != TOTAL_PARAGRAPH_COUNT:
         raise RuntimeError(f"expected {TOTAL_DOC_COUNT=} but saw {row_count=}")
-
+  else:
+    row_count = TOTAL_PARAGRAPH_COUNT
+    total_doc_count = TOTAL_DOC_COUNT
+        
   if DO_SHUFFLE:
 
     if False:
@@ -285,10 +297,13 @@ def main():
     # make sure the coalesced queries and docs files are correct -- have the same (by wiki_id) vectors
     # that we see on original input, and that no wiki_ids are missing nor dup'd
     validate_vector_integrity(csv_source_file, vec_source_file,
-                              [(queries_coalesced_csv_file, queries_coalesced_vec_file),
-                               (docs_coalesced_csv_file, docs_coalesced_vec_file),
-                               (queries_csv_file, docs_csv_file)],
-                              wiki_id_total_count)
+                              [['coalesced', False,
+                                (queries_coalesced_csv_file, queries_coalesced_vec_file, queries_paragraph_count),
+                                (docs_coalesced_csv_file, docs_coalesced_vec_file, docs_paragraph_count)],
+                               ['scattered', True,
+                                (queries_csv_file, queries_vec_file, queries_paragraph_count),
+                                (docs_csv_file, docs_vec_file, docs_paragraph_count)]],
+                              total_doc_count)
 
 
 def shuffle_entirely(queries_paragraph_count,
@@ -406,7 +421,31 @@ def escape_row_to_csv_string(row_values):
     scratch_output.truncate(0)
     scratch_output.seek(0)
 
-def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected_total_vectors=None):
+def xor_vector_hash(prior_hash_bytes, vector_bytes):
+  """compute order-invariant hash by XORing individual vector hashes.
+
+  this allows verification of vectors even when they've been shuffled (scattered),
+  since XOR is commutative: a ⊕ b = b ⊕ a.
+
+  Args:
+    prior_hash_bytes: bytes object with prior accumulated hash, or None to start
+    vector_bytes: bytes object containing the vector data to hash and XOR
+
+  Returns:
+    bytes object with new accumulated hash
+  """
+  # hash the new vector
+  new_hash_bytes = hashlib.sha256(vector_bytes).digest()
+
+  # if no prior hash, return this hash
+  if prior_hash_bytes is None:
+    return new_hash_bytes
+
+  # XOR byte by byte
+  result_bytes = bytes(a ^ b for a, b in zip(prior_hash_bytes, new_hash_bytes))
+  return result_bytes
+
+def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected_total_vectors=None, is_scattered=False):
   """compute SHA256 hash of all vectors grouped by wiki_id for integrity checking.
 
   Args:
@@ -433,10 +472,9 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
       # original input CSV
       assert header == ['id', 'title', 'text', 'url']
 
-    current_wiki_id = None
-    wiki_id_vector_bytes = b''
-    vector_count_for_wiki = 0
     total_vectors = 0
+
+    current_wiki_id = None
 
     for csv_row in csv_reader:
       # extract wiki_id from first column
@@ -446,49 +484,37 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
 
       # read corresponding vector bytes
       vec_bytes = read_exact(vec_f, vector_size_bytes, 'vector')
+
+      prior_wiki_id_hash = wiki_id_hashes.get(wiki_id)
+
+      if wiki_id != current_wiki_id:
+        # on transition to new wiki_id in the coalesced version, we shouldn't have seen the new wiki_id before:
+        assert is_scattered or prior_wiki_id_hash is None
+        current_wiki_id = wiki_id
+      
+      # order invariant hash, what a set would use for hashing from its member's hashes
+      wiki_id_hashes[wiki_id] = xor_vector_hash(prior_wiki_id_hash, vec_bytes)
+      
       total_vectors += 1
 
-      # if we've hit a new wiki_id, hash and store the previous one
-      if current_wiki_id is not None and wiki_id != current_wiki_id:
-        # hash all vectors for this wiki_id
-        wiki_id_hash = hashlib.sha256(wiki_id_vector_bytes).hexdigest()
-
-        assert current_wiki_id not in wiki_id_hashes
-        wiki_id_hashes[current_wiki_id] = wiki_id_hash
-
-        now_sec = time.time()
-        if now_sec >= next_progress_time_sec:
-          elapsed_sec = now_sec - start_time_sec
-          if expected_total_vectors is not None:
-            pct = 100.0 * total_vectors / expected_total_vectors
-            print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
-          else:
-            print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({elapsed_sec:.1f} sec)...')
-          next_progress_time_sec = now_sec + 5
-
-        wiki_id_vector_bytes = b''
-        vector_count_for_wiki = 0
-
-      current_wiki_id = wiki_id
-      wiki_id_vector_bytes += vec_bytes
-      vector_count_for_wiki += 1
-
-    # hash the last wiki_id
-    if current_wiki_id is not None:
-      wiki_id_hash = hashlib.sha256(wiki_id_vector_bytes).hexdigest()
-      assert current_wiki_id not in wiki_id_hashes
-      wiki_id_hashes[current_wiki_id] = wiki_id_hash
+      now_sec = time.time()
+      if now_sec >= next_progress_time_sec:
+        elapsed_sec = now_sec - start_time_sec
+        if expected_total_vectors is not None:
+          pct = 100.0 * total_vectors / expected_total_vectors
+          print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
+        else:
+          print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({elapsed_sec:.1f} sec)...')
+        next_progress_time_sec = now_sec + 5
 
     elapsed_sec = time.time() - start_time_sec
     if expected_total_vectors is not None:
-      pct = 100.0 * total_vectors / expected_total_vectors
-      print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({pct:.1f}%) ({elapsed_sec:.1f} sec)')
-    else:
-      print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors (100.0%) ({elapsed_sec:.1f} sec)')
+      assert total_vectors == expected_total_vectors
+    print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors (100.0%) ({elapsed_sec:.1f} sec)')
 
   return wiki_id_hashes
 
-def validate_vector_integrity(input_csv, input_vec, output_files_list, wiki_id_total_count):
+def validate_vector_integrity(input_csv, input_vec, output_files_lists, wiki_id_total_count):
   """validate that all vectors were preserved correctly through shuffling/partitioning."""
   print(f'Validating vector integrity...')
 
@@ -499,47 +525,54 @@ def validate_vector_integrity(input_csv, input_vec, output_files_list, wiki_id_t
 
   # compute hashes from all output files (no total expected since they may be partitioned)
   print(f'  computing output file hashes...')
-  output_hashes = {}
-  for csv_file, vec_file in output_files_list:
-    if os.path.exists(csv_file) and os.path.exists(vec_file):
-      file_hashes = compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False)
-      # TODO: fails to catch dups across query/docs?
+  for partitions in output_files_lists:
+    output_hashes = {}
+    partition_desc = partitions[0]
+    is_scattered = partitions[1]
+    print(f'  now verify {partition_desc}')
+    for csv_file, vec_file, expected_total_vector_count in partitions[2:]:
+      file_hashes = compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False,
+                                                  is_scattered=is_scattered,
+                                                  expected_total_vectors=expected_total_vector_count)
       inter = set(output_hashes.keys()) & set(file_hashes.keys())
       if len(inter) > 0:
-        raise RuntimeError(f'output file {csv_file} has {len(inter)} overlapping keys with previous output file')
+        raise RuntimeError(f'{partition_desc}: output file {csv_file} has {len(inter)} overlapping keys with previous output file')
       output_hashes.update(file_hashes)
-  print(f'  output: {len(output_hashes)} unique wiki_ids')
+      print(f'  output: {len(output_hashes)} unique wiki_ids')
 
-  # verify all wiki_ids are present
-  input_wiki_ids = set(input_hashes.keys())
-  output_wiki_ids = set(output_hashes.keys())
+    # verify all wiki_ids are present
+    input_wiki_ids = set(input_hashes.keys())
+    output_wiki_ids = set(output_hashes.keys())
 
-  missing = input_wiki_ids - output_wiki_ids
-  extra = output_wiki_ids - input_wiki_ids
+    missing = input_wiki_ids - output_wiki_ids
+    extra = output_wiki_ids - input_wiki_ids
 
-  if missing:
-    raise RuntimeError(f'ERROR: missing {len(missing)} wiki_ids from output')
+    if missing:
+      raise RuntimeError(f'ERROR: {partition_desc}: missing {len(missing)} wiki_ids from output')
 
-  if extra:
-    raise RuntimeError(f'ERROR: {len(extra)} extra wiki_ids in output')
+    if extra:
+      raise RuntimeError(f'ERROR: {partition_desc}: {len(extra)} extra wiki_ids in output')
 
-  assert len(input_wiki_ids) == wiki_id_total_count
-  assert len(output_wiki_ids) == len(input_wiki_ids)
+    assert len(input_wiki_ids) == wiki_id_total_count
+    assert len(output_wiki_ids) == len(input_wiki_ids)
+
+    # verify hashes match
+    mismatches = []
+    for wiki_id in input_wiki_ids:
+      if input_hashes[wiki_id] != output_hashes[wiki_id]:
+        mismatches.append(wiki_id)
+
+    if mismatches:
+      print(f'ERROR: {partition_desc}: {len(mismatches)} wiki_ids have mismatched vector hashes')
+      if len(mismatches) <= 10:
+        for wiki_id in mismatches:
+          print(f'  {wiki_id}: input={input_hashes[wiki_id][:16]}... output={output_hashes[wiki_id][:16]}...')
+      raise RuntimeError(f'ERROR: {partition_desc}: {len(mismatches)} wiki_ids have mismatched vector hashes')
+
+    print(f'SUCCESS: {partition_desc}: all {len(input_wiki_ids)} wiki_ids with correct vector hashes preserved')
+
+  print(f'SUCCESS: all partitions wiki_id/vectors match')
   
-  # verify hashes match
-  mismatches = []
-  for wiki_id in input_wiki_ids:
-    if input_hashes[wiki_id] != output_hashes[wiki_id]:
-      mismatches.append(wiki_id)
-
-  if mismatches:
-    print(f'ERROR: {len(mismatches)} wiki_ids have mismatched vector hashes')
-    if len(mismatches) <= 10:
-      for wiki_id in mismatches:
-        print(f'  {wiki_id}: input={input_hashes[wiki_id][:16]}... output={output_hashes[wiki_id][:16]}...')
-    raise RuntimeError(f'ERROR: {len(mismatches)} wiki_ids have mismatched vector hashes')
-
-  print(f'SUCCESS: all {len(input_wiki_ids)} wiki_ids with correct vector hashes preserved')
   return True
 
 def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, vec_source_file, query_wiki_id_count):
@@ -634,4 +667,6 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
   return query_row_count, docs_row_count
 
 if __name__ == "__main__":
-  main()
+  import autologger
+  with autologger.capture_output():
+    main()

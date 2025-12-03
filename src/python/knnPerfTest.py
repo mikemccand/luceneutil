@@ -98,7 +98,7 @@ PARAMS = {
   "quantizeCompress": (True,),
   # "indexType": ("flat", "hnsw"), # index type,
   # "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
-  "queryStartIndex": (0, 200000, 400000, 600000),
+  # "queryStartIndex": (0, 200000, 400000, 600000),
   "forceMerge": (True,),
   "niter": (10000,),
   # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
@@ -157,7 +157,7 @@ def run_knn_benchmark(checkout, values):
 
   dim = 768
   # doc_vectors = "/big/cohere-wikipedia-docs-768d.vec"
-  doc_vectors = "/big/cohere-wikipedia-docs-768d-1M-shuffled.vec"
+  doc_vectors = "/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec"
   query_vectors = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
 
   # dim = 768

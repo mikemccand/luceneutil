@@ -95,6 +95,7 @@ EUROPARL_MEDIUM_DOCS_LINE_FILE = "%s/data/europarl.para.lines.txt" % BASE_DIR
 EUROPARL_MEDIUM_TASKS_FILE = "%s/data/europarlmedium.tasks" % BASE_DIR
 
 LOGS_DIR = "%s/logs" % BASE_DIR
+TOOL_LOGS_DIR = "%s/tool-logs" % BASE_DIR
 
 TRUNK_CHECKOUT = "trunk"
 

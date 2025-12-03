@@ -40,16 +40,17 @@ python src/python/infer_token_vectors_cohere.py -h
 # DIMENSIONS = 768
 
 # new V3:
-LANG = 'en'
-DATASET_PATH = 'Cohere/wikipedia-2023-11-embed-multilingual-v3'
+LANG = "en"
+DATASET_PATH = "Cohere/wikipedia-2023-11-embed-multilingual-v3"
 # en has 41,488,110 vectors
 # simple has 646,424 vectors
 # _id, url, title, text, emb
 
 DIMENSIONS = 768
 
-from datasets import load_dataset
-LANG = 'en'  # TODO: what is "simple"?  k
+
+LANG = "en"  # TODO: what is "simple"?  k
+
 
 def fetch_cohere_vectors():
   parser = argparse.ArgumentParser(

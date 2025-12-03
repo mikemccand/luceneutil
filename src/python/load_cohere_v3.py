@@ -1,18 +1,17 @@
 import csv
-import io
 import hashlib
+import io
 import os
+import random
+import shutil
 import struct
 import subprocess
 import time
-import random
 
 import datasets
 import numpy as np
-
 import shuffle_wiki_ids
-
-from shuffle_wiki_ids import split_id, split_non_prefix_id, read_exact
+from shuffle_wiki_ids import read_exact, split_id, split_non_prefix_id
 
 # else we hit: _csv.Error: field larger than field limit (131072)
 csv.field_size_limit(1024 * 1024 * 40)
@@ -74,32 +73,32 @@ DO_SHUFFLE_ENTIRELY = False
 DO_VALIDATE = True
 
 # best to use two storage devices to separate the heavy concurrent read-io and write-io
-storage1 = '/b3/take2'
-storage2 = '/b2/coherev3'
+storage1 = "/b3/take2"
+storage2 = "/b2/coherev3"
 
 query_wiki_id_count = 250_000
 
 # where we first download and write the original corpus
-csv_source_file = f'{storage1}/cohere-wikipedia-v3.csv'
-vec_source_file = f'{storage1}/cohere-wikipedia-v3.vec'
+csv_source_file = f"{storage1}/cohere-wikipedia-v3.csv"
+vec_source_file = f"{storage1}/cohere-wikipedia-v3.vec"
 
 # holds entire corpus, shuffled, while preserving paragraphs together with their wiki_id
-csv_shuffled_file = f'{storage2}/shuffled.csv'
-vec_shuffled_file = f'{storage2}shuffled.vec'
+csv_shuffled_file = f"{storage2}/shuffled.csv"
+vec_shuffled_file = f"{storage2}shuffled.vec"
 
 # then we partition whole corpus into N=250_000 wiki-ids for queries, and the balance 5_604_887
 # paragraphs are still coalesced together (for parent join benchy)
-queries_coalesced_csv_file = f'{storage1}/cohere-wikipedia-v3.queries-coalesced.csv'
-queries_coalesced_vec_file = f'{storage1}/cohere-wikipedia-v3.queries-coalesced.vec'
-docs_coalesced_csv_file = f'{storage1}/cohere-wikipedia-v3.docs-coalesced.csv'
-docs_coalesced_vec_file = f'{storage1}/cohere-wikipedia-v3.docs-coalesced.vec'
+queries_coalesced_csv_file = f"{storage1}/cohere-wikipedia-v3.queries-coalesced.csv"
+queries_coalesced_vec_file = f"{storage1}/cohere-wikipedia-v3.queries-coalesced.vec"
+docs_coalesced_csv_file = f"{storage1}/cohere-wikipedia-v3.docs-coalesced.csv"
+docs_coalesced_vec_file = f"{storage1}/cohere-wikipedia-v3.docs-coalesced.vec"
 
 # fully shuffled (not coalesced paragraphs under same wiki_id) -- same vectors as coalesced
 # versions, just re-shuffled without coalescing
-queries_csv_file = f'{storage2}/cohere-wikipedia-v3.queries.csv'
-queries_vec_file = f'{storage2}/cohere-wikipedia-v3.queries.vec'
-docs_csv_file = f'{storage2}/cohere-wikipedia-v3.docs.csv'
-docs_vec_file = f'{storage2}/cohere-wikipedia-v3.docs.vec'
+queries_csv_file = f"{storage2}/cohere-wikipedia-v3.queries.csv"
+queries_vec_file = f"{storage2}/cohere-wikipedia-v3.queries.vec"
+docs_csv_file = f"{storage2}/cohere-wikipedia-v3.docs.csv"
+docs_vec_file = f"{storage2}/cohere-wikipedia-v3.docs.vec"
 
 TOTAL_PARAGRAPH_COUNT = 41_488_110
 assert TOTAL_PARAGRAPH_COUNT == shuffle_wiki_ids.TOTAL_PARAGRAPH_COUNT
@@ -111,15 +110,18 @@ assert TOTAL_DOC_COUNT == shuffle_wiki_ids.TOTAL_DOC_COUNT
 total_doc_count = 5_854_887
 
 total_paragraph_count = 41_488_110
-  
+
+
 def run(command):
   print(f"RUN: {command}")
   t0 = time.time()
   subprocess.run(command, shell=True, check=True)
   print(f"  took {time.time() - t0:.1f} sec")
 
+
 def to_gb(b):
   return b / 1024 / 1024 / 1024
+
 
 def main():
   if DO_INIT_LOAD:
@@ -168,7 +170,7 @@ def main():
 
         # You can add more specific checks for nested features or specific types if needed
         print("-" * 20)
-    
+
     if True:
       # do the actual (slow!) slurping of the full corpus from HuggingFace, down to local csv/vec file:
       row_count = 0
@@ -184,8 +186,8 @@ def main():
       cur_wiki_id = None
 
       next_print_time_sec = start_time_sec
-      with open(csv_source_file, "w", newlines='') as meta_out, open(vec_source_file, "wb") as vec_out:
-        meta_csv_out = csv.writer(meta_out, lineterminator='\n')
+      with open(csv_source_file, "w", newlines="") as meta_out, open(vec_source_file, "wb") as vec_out:
+        meta_csv_out = csv.writer(meta_out, lineterminator="\n")
         meta_csv_out.writerow(headers)
         for doc in docs:
           meta_csv_out.writerow([doc["_id"], doc["title"], doc["text"], doc["url"]])
@@ -209,10 +211,10 @@ def main():
           now_sec = time.time()
           if now_sec > next_print_time_sec:
             pct = row_count * 100 / total_paragraph_count
-            print(f'{now_sec - start_time_sec:6.1f} sec: {pct:.2f}% ({row_count} rows) ({total_doc_count} wiki docs)... vec {to_gb(vec_out.tell()):.2f} G, meta {to_gb(meta_out.tell()):.2f} G')
+            print(f"{now_sec - start_time_sec:6.1f} sec: {pct:.2f}% ({row_count} rows) ({total_doc_count} wiki docs)... vec {to_gb(vec_out.tell()):.2f} G, meta {to_gb(meta_out.tell()):.2f} G")
             next_print_time_sec += 5.0
 
-        print(f'{now_sec - start_time_sec:6.1f} sec: {row_count} ({total_doc_count} wiki docs)... {vec_out.tell()} and {meta_out.tell()}')
+        print(f"{now_sec - start_time_sec:6.1f} sec: {row_count} ({total_doc_count} wiki docs)... {vec_out.tell()} and {meta_out.tell()}")
 
       print(f"Done initial download!\n  {row_count=} {total_doc_count=} {total_text_chars=} {total_title_chars=}")
       print(f"{csv_source_file} is {os.path.getsize(csv_source_file) / 1024 / 1024 / 1024:.2f} GB")
@@ -221,30 +223,29 @@ def main():
       os.chmod(csv_source_file, 0o444)
       os.chmod(vec_source_file, 0o444)
 
-      shutil.copyfile(csv_source_file, '/lucenedata/enwiki/cohere-v3/init.csv')
-      shutil.copyfile(vec_source_file, '/lucenedata/enwiki/cohere-v3/init.vec')
-      
-      os.chmod('/lucenedata/enwiki/cohere-v3/init.csv', 0o444)
-      os.chmod('/lucenedata/enwiki/cohere-v3/init.vec', 0o444)
+      shutil.copyfile(csv_source_file, "/lucenedata/enwiki/cohere-v3/init.csv")
+      shutil.copyfile(vec_source_file, "/lucenedata/enwiki/cohere-v3/init.vec")
+
+      os.chmod("/lucenedata/enwiki/cohere-v3/init.csv", 0o444)
+      os.chmod("/lucenedata/enwiki/cohere-v3/init.vec", 0o444)
 
       if STOP_AT is None and row_count != TOTAL_PARAGRAPH_COUNT:
         raise RuntimeError(f"expected {TOTAL_DOC_COUNT=} but saw {row_count=}")
   else:
     row_count = TOTAL_PARAGRAPH_COUNT
     total_doc_count = TOTAL_DOC_COUNT
-        
-  if DO_SHUFFLE:
 
+  if DO_SHUFFLE:
     if False:
       print("strip csv header")
       run(f"sed '1d' {csv_source_file} > {csv_source_file}.noheader")
-      
+
       print("now insert line numbers")
       run(f"nl -v 0 -ba {csv_source_file}.noheader > {csv_source_file}.num")
 
       print("now shuffle")
       run(f"shuf {csv_source_file}.num > {csv_source_file}.num.shuf")
- 
+
       # this is the actual output meta CSV, post shuffle
       print("now remove line numbers")
       run(f"cut -f 2- {csv_source_file}.num.shuf > {csv_source_file}.final")
@@ -261,9 +262,9 @@ def main():
 
     # Shuffle wiki_ids while keeping all paragraphs coalesced (each wiki_id keeps all of its paragraphs together),
     # for realisic testing of parent/join or multi-valued vectors:
-    print(f'Shuffling wiki_ids (keeping paragraphs together)...')
+    print("Shuffling wiki_ids (keeping paragraphs together)...")
 
-    run(f'python3 -u src/python/shuffle_wiki_ids.py {csv_source_file} {vec_source_file} {DIMENSIONS} {csv_shuffled_file} {vec_shuffled_file}')
+    run(f"python3 -u src/python/shuffle_wiki_ids.py {csv_source_file} {vec_source_file} {DIMENSIONS} {csv_shuffled_file} {vec_shuffled_file}")
 
     with open(vec_shuffled_file, "rb") as f:
       # sanity check: print first 10 vectors
@@ -288,45 +289,62 @@ def main():
 
   if DO_SHUFFLE_ENTIRELY:
     # finally, we also shuffle without preserving paragraphs together, for testing the (common) non-parent-join case
-    shuffle_entirely(queries_paragraph_count,
-                     docs_paragraph_count,
-                     queries_coalesced_csv_file, queries_coalesced_vec_file, docs_coalesced_csv_file, docs_coalesced_vec_file,
-                     queries_csv_file, queries_vec_file, docs_csv_file, docs_vec_file)
+    shuffle_entirely(
+      queries_paragraph_count,
+      docs_paragraph_count,
+      queries_coalesced_csv_file,
+      queries_coalesced_vec_file,
+      docs_coalesced_csv_file,
+      docs_coalesced_vec_file,
+      queries_csv_file,
+      queries_vec_file,
+      docs_csv_file,
+      docs_vec_file,
+    )
 
   if DO_VALIDATE:
     # make sure the coalesced queries and docs files are correct -- have the same (by wiki_id) vectors
     # that we see on original input, and that no wiki_ids are missing nor dup'd
-    validate_vector_integrity(csv_source_file, vec_source_file,
-                              [['coalesced', False,
-                                (queries_coalesced_csv_file, queries_coalesced_vec_file, queries_paragraph_count),
-                                (docs_coalesced_csv_file, docs_coalesced_vec_file, docs_paragraph_count)],
-                               ['scattered', True,
-                                (queries_csv_file, queries_vec_file, queries_paragraph_count),
-                                (docs_csv_file, docs_vec_file, docs_paragraph_count)]],
-                              total_doc_count)
+    validate_vector_integrity(
+      csv_source_file,
+      vec_source_file,
+      [
+        ["coalesced", False, (queries_coalesced_csv_file, queries_coalesced_vec_file, queries_paragraph_count), (docs_coalesced_csv_file, docs_coalesced_vec_file, docs_paragraph_count)],
+        ["scattered", True, (queries_csv_file, queries_vec_file, queries_paragraph_count), (docs_csv_file, docs_vec_file, docs_paragraph_count)],
+      ],
+      total_doc_count,
+    )
 
 
-def shuffle_entirely(queries_paragraph_count,
-                     docs_paragraph_count,
-                     queries_coalesced_csv_file, queries_coalesced_vec_file, docs_coalesced_csv_file, docs_coalesced_vec_file,
-                     queries_csv_file, queries_vec_file, docs_csv_file, docs_vec_file):
-  """shuffle queries and docs files (individual rows, not grouped by wiki_id).
+def shuffle_entirely(
+  queries_paragraph_count,
+  docs_paragraph_count,
+  queries_coalesced_csv_file,
+  queries_coalesced_vec_file,
+  docs_coalesced_csv_file,
+  docs_coalesced_vec_file,
+  queries_csv_file,
+  queries_vec_file,
+  docs_csv_file,
+  docs_vec_file,
+):
+  """Shuffle queries and docs files (individual rows, not grouped by wiki_id).
 
   This creates shuffled versions for normal (non-parent-join) benchmarking,
   where paragraphs from the same wiki_id are not kept together.
   """
 
   def shuffle_pair(total_paragraph_count, csv_input, vec_input, csv_output, vec_output, file_label):
-    """shuffle CSV and VEC files identically using a write plan."""
+    """Shuffle CSV and VEC files identically using a write plan."""
     vector_size_bytes = DIMENSIONS * 4
 
-    print(f'  {file_label}: {total_paragraph_count} rows to shuffle')
+    print(f"  {file_label}: {total_paragraph_count} rows to shuffle")
 
     # generate shuffle permutation with fixed seed for reproducibility
     seed = int(10000 * time.time())
-    print(f'SEED: {seed}')
+    print(f"SEED: {seed}")
     r = random.Random(seed)
-    
+
     indices = list(range(total_paragraph_count))
     r.shuffle(indices)
 
@@ -336,35 +354,36 @@ def shuffle_entirely(queries_paragraph_count,
       write_plan[input_pos] = output_pos
 
     total_vec_size_bytes = os.path.getsize(vec_input)
-    assert total_vec_size_bytes == total_paragraph_count * vector_size_bytes, f'{total_vec_size_bytes} {total_paragraph_count * vector_size_bytes} {total_paragraph_count}'
+    assert total_vec_size_bytes == total_paragraph_count * vector_size_bytes, f"{total_vec_size_bytes} {total_paragraph_count * vector_size_bytes} {total_paragraph_count}"
 
     total_csv_size_bytes = os.path.getsize(csv_input)
 
-    print(f'  {file_label}: reading input and writing to shuffled positions...')
+    print(f"  {file_label}: reading input and writing to shuffled positions...")
     start_time_sec = time.time()
     next_progress_time_sec = start_time_sec + 5
 
     # read input files sequentially, write to shuffled positions
-    with open(csv_input, 'r', encoding='utf-8', newline='') as csv_in, \
-         open(vec_input, 'rb') as vec_in, \
-         open(csv_output, 'w', encoding='utf-8', newline='') as csv_out, \
-         open(vec_output, 'wb') as vec_out:
-
+    with (
+      open(csv_input, encoding="utf-8", newline="") as csv_in,
+      open(vec_input, "rb") as vec_in,
+      open(csv_output, "w", encoding="utf-8", newline="") as csv_out,
+      open(vec_output, "wb") as vec_out,
+    ):
       # pre-allocate output files
       os.posix_fallocate(vec_out.fileno(), 0, total_vec_size_bytes)
       os.posix_fallocate(csv_out.fileno(), 0, total_csv_size_bytes)
 
-      csv_reader = csv.reader(csv_in, lineterminator='\n')
+      csv_reader = csv.reader(csv_in, lineterminator="\n")
 
       # copy csv header
       header = next(csv_reader)
 
       # track output positions
-      csv_output_lines = [''] * total_paragraph_count
+      csv_output_lines = [""] * total_paragraph_count
 
       for input_pos, csv_row in enumerate(csv_reader):
         # read vector
-        vec_bytes = read_exact(vec_in, vector_size_bytes, 'vector')
+        vec_bytes = read_exact(vec_in, vector_size_bytes, "vector")
 
         # get output position for this row
         output_pos = write_plan[input_pos]
@@ -381,48 +400,41 @@ def shuffle_entirely(queries_paragraph_count,
         if now_sec >= next_progress_time_sec:
           elapsed_sec = now_sec - start_time_sec
           pct = 100.0 * (input_pos + 1) / total_paragraph_count
-          print(f'    {input_pos + 1}/{total_paragraph_count} rows ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
+          print(f"    {input_pos + 1}/{total_paragraph_count} rows ({pct:.1f}%) ({elapsed_sec:.1f} sec)...")
           next_progress_time_sec = now_sec + 5
 
       # write CSV rows in order
-      csv_out.write(','.join(header) + '\n')
+      csv_out.write(",".join(header) + "\n")
       for line in csv_output_lines:
         csv_out.write(line)
 
     elapsed_sec = time.time() - start_time_sec
-    print(f'  {file_label}: done shuffling ({elapsed_sec:.1f} sec)')
-    print(f'    csv: {os.path.getsize(csv_output) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-    print(f'    vec: {os.path.getsize(vec_output) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+    print(f"  {file_label}: done shuffling ({elapsed_sec:.1f} sec)")
+    print(f"    csv: {os.path.getsize(csv_output) / 1024.0 / 1024.0 / 1024.0:.2f} GB")
+    print(f"    vec: {os.path.getsize(vec_output) / 1024.0 / 1024.0 / 1024.0:.2f} GB")
 
-  print(f'Shuffling queries and docs for benchmarking (individual rows, not grouped by wiki_id)...')
+  print("Shuffling queries and docs for benchmarking (individual rows, not grouped by wiki_id)...")
 
-  shuffle_pair(queries_paragraph_count,
-               queries_coalesced_csv_file,
-               queries_coalesced_vec_file,
-               queries_csv_file,
-               queries_vec_file,
-               'queries')
-  shuffle_pair(docs_paragraph_count,
-               docs_coalesced_csv_file,
-               docs_coalesced_vec_file,
-               docs_csv_file,
-               docs_vec_file,
-               'docs')
-  print(f'Done non-coalesced shuffling')
+  shuffle_pair(queries_paragraph_count, queries_coalesced_csv_file, queries_coalesced_vec_file, queries_csv_file, queries_vec_file, "queries")
+  shuffle_pair(docs_paragraph_count, docs_coalesced_csv_file, docs_coalesced_vec_file, docs_csv_file, docs_vec_file, "docs")
+  print("Done non-coalesced shuffling")
+
 
 scratch_output = io.StringIO()
-scratch_csv_writer = csv.writer(scratch_output, quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+scratch_csv_writer = csv.writer(scratch_output, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
+
 
 def escape_row_to_csv_string(row_values):
   try:
     scratch_csv_writer.writerow(row_values)
-    return scratch_output.getvalue().strip() + '\n'
+    return scratch_output.getvalue().strip() + "\n"
   finally:
     scratch_output.truncate(0)
     scratch_output.seek(0)
 
+
 def xor_vector_hash(prior_hash_bytes, vector_bytes):
-  """compute order-invariant hash by XORing individual vector hashes.
+  """Compute order-invariant hash by XORing individual vector hashes.
 
   this allows verification of vectors even when they've been shuffled (scattered),
   since XOR is commutative: a ⊕ b = b ⊕ a.
@@ -433,6 +445,7 @@ def xor_vector_hash(prior_hash_bytes, vector_bytes):
 
   Returns:
     bytes object with new accumulated hash
+
   """
   # hash the new vector
   new_hash_bytes = hashlib.sha256(vector_bytes).digest()
@@ -445,16 +458,21 @@ def xor_vector_hash(prior_hash_bytes, vector_bytes):
   result_bytes = bytes(a ^ b for a, b in zip(prior_hash_bytes, new_hash_bytes))
   return result_bytes
 
+
 def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected_total_vectors=None, is_scattered=False):
-  """compute SHA256 hash of all vectors grouped by wiki_id for integrity checking.
+  """Compute SHA256 hash of all vectors grouped by wiki_id for integrity checking.
 
   Args:
     csv_file: path to CSV file (with wiki_id in first column)
     vec_file: path to binary vector file
     expected_total_vectors: optional expected total vector count for percentage reporting
+    is_full_id: True if the incoming id field column still has the full original prefix
+    expected_total_vectors: how many paragraphs (vectors) we should see
+    is_scattered: True if the vectors are not coalesced under their wiki_id
 
   Returns:
     dict mapping wiki_id -> SHA256 hash of concatenated vectors for that wiki_id
+
   """
   vector_size_bytes = DIMENSIONS * 4
   wiki_id_hashes = {}
@@ -462,15 +480,14 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
   start_time_sec = time.time()
   next_progress_time_sec = start_time_sec + 5
 
-  with open(csv_file, 'r', encoding='utf-8', newline='') as csv_f, \
-       open(vec_file, 'rb') as vec_f:
-    csv_reader = csv.reader(csv_f, lineterminator='\n')
+  with open(csv_file, encoding="utf-8", newline="") as csv_f, open(vec_file, "rb") as vec_f:
+    csv_reader = csv.reader(csv_f, lineterminator="\n")
 
     # skip header
     header = next(csv_reader)
     if is_full_id:
       # original input CSV
-      assert header == ['id', 'title', 'text', 'url']
+      assert header == ["id", "title", "text", "url"]
 
     total_vectors = 0
 
@@ -480,10 +497,10 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
       # extract wiki_id from first column
       wiki_id = csv_row[0]
       if is_full_id:
-        wiki_id, para_id = split_id(wiki_id, line_num = csv_reader.line_num)
+        wiki_id, para_id = split_id(wiki_id, line_num=csv_reader.line_num)
 
       # read corresponding vector bytes
-      vec_bytes = read_exact(vec_f, vector_size_bytes, 'vector')
+      vec_bytes = read_exact(vec_f, vector_size_bytes, "vector")
 
       prior_wiki_id_hash = wiki_id_hashes.get(wiki_id)
 
@@ -491,10 +508,10 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
         # on transition to new wiki_id in the coalesced version, we shouldn't have seen the new wiki_id before:
         assert is_scattered or prior_wiki_id_hash is None
         current_wiki_id = wiki_id
-      
+
       # order invariant hash, what a set would use for hashing from its member's hashes
       wiki_id_hashes[wiki_id] = xor_vector_hash(prior_wiki_id_hash, vec_bytes)
-      
+
       total_vectors += 1
 
       now_sec = time.time()
@@ -502,43 +519,42 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
         elapsed_sec = now_sec - start_time_sec
         if expected_total_vectors is not None:
           pct = 100.0 * total_vectors / expected_total_vectors
-          print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({pct:.1f}%) ({elapsed_sec:.1f} sec)...')
+          print(f"  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({pct:.1f}%) ({elapsed_sec:.1f} sec)...")
         else:
-          print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({elapsed_sec:.1f} sec)...')
+          print(f"  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors ({elapsed_sec:.1f} sec)...")
         next_progress_time_sec = now_sec + 5
 
     elapsed_sec = time.time() - start_time_sec
     if expected_total_vectors is not None:
       assert total_vectors == expected_total_vectors
-    print(f'  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors (100.0%) ({elapsed_sec:.1f} sec)')
+    print(f"  hashing: {len(wiki_id_hashes)} wiki_ids, {total_vectors} vectors (100.0%) ({elapsed_sec:.1f} sec)")
 
   return wiki_id_hashes
 
+
 def validate_vector_integrity(input_csv, input_vec, output_files_lists, wiki_id_total_count):
-  """validate that all vectors were preserved correctly through shuffling/partitioning."""
-  print(f'Validating vector integrity...')
+  """Validate that all vectors were preserved correctly through shuffling/partitioning."""
+  print("Validating vector integrity...")
 
   # compute hashes from input (expect full corpus)
-  print(f'  computing input file hashes...')
+  print("  computing input file hashes...")
   input_hashes = compute_wiki_id_vector_hashes(input_csv, input_vec, is_full_id=True, expected_total_vectors=TOTAL_PARAGRAPH_COUNT)
-  print(f'  input: {len(input_hashes)} unique wiki_ids')
+  print(f"  input: {len(input_hashes)} unique wiki_ids")
 
   # compute hashes from all output files (no total expected since they may be partitioned)
-  print(f'  computing output file hashes...')
+  print("  computing output file hashes...")
   for partitions in output_files_lists:
     output_hashes = {}
     partition_desc = partitions[0]
     is_scattered = partitions[1]
-    print(f'  now verify {partition_desc}')
+    print(f"  now verify {partition_desc}")
     for csv_file, vec_file, expected_total_vector_count in partitions[2:]:
-      file_hashes = compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False,
-                                                  is_scattered=is_scattered,
-                                                  expected_total_vectors=expected_total_vector_count)
+      file_hashes = compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, is_scattered=is_scattered, expected_total_vectors=expected_total_vector_count)
       inter = set(output_hashes.keys()) & set(file_hashes.keys())
       if len(inter) > 0:
-        raise RuntimeError(f'{partition_desc}: output file {csv_file} has {len(inter)} overlapping keys with previous output file')
+        raise RuntimeError(f"{partition_desc}: output file {csv_file} has {len(inter)} overlapping keys with previous output file")
       output_hashes.update(file_hashes)
-      print(f'  output: {len(output_hashes)} unique wiki_ids')
+      print(f"  output: {len(output_hashes)} unique wiki_ids")
 
     # verify all wiki_ids are present
     input_wiki_ids = set(input_hashes.keys())
@@ -548,10 +564,10 @@ def validate_vector_integrity(input_csv, input_vec, output_files_lists, wiki_id_
     extra = output_wiki_ids - input_wiki_ids
 
     if missing:
-      raise RuntimeError(f'ERROR: {partition_desc}: missing {len(missing)} wiki_ids from output')
+      raise RuntimeError(f"ERROR: {partition_desc}: missing {len(missing)} wiki_ids from output")
 
     if extra:
-      raise RuntimeError(f'ERROR: {partition_desc}: {len(extra)} extra wiki_ids in output')
+      raise RuntimeError(f"ERROR: {partition_desc}: {len(extra)} extra wiki_ids in output")
 
     assert len(input_wiki_ids) == wiki_id_total_count
     assert len(output_wiki_ids) == len(input_wiki_ids)
@@ -563,21 +579,22 @@ def validate_vector_integrity(input_csv, input_vec, output_files_lists, wiki_id_
         mismatches.append(wiki_id)
 
     if mismatches:
-      print(f'ERROR: {partition_desc}: {len(mismatches)} wiki_ids have mismatched vector hashes')
+      print(f"ERROR: {partition_desc}: {len(mismatches)} wiki_ids have mismatched vector hashes")
       if len(mismatches) <= 10:
         for wiki_id in mismatches:
-          print(f'  {wiki_id}: input={input_hashes[wiki_id][:16]}... output={output_hashes[wiki_id][:16]}...')
-      raise RuntimeError(f'ERROR: {partition_desc}: {len(mismatches)} wiki_ids have mismatched vector hashes')
+          print(f"  {wiki_id}: input={input_hashes[wiki_id][:16]}... output={output_hashes[wiki_id][:16]}...")
+      raise RuntimeError(f"ERROR: {partition_desc}: {len(mismatches)} wiki_ids have mismatched vector hashes")
 
-    print(f'SUCCESS: {partition_desc}: all {len(input_wiki_ids)} wiki_ids with correct vector hashes preserved')
+    print(f"SUCCESS: {partition_desc}: all {len(input_wiki_ids)} wiki_ids with correct vector hashes preserved")
 
-  print(f'SUCCESS: all partitions wiki_id/vectors match')
-  
+  print("SUCCESS: all partitions wiki_id/vectors match")
+
   return True
 
+
 def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, vec_source_file, query_wiki_id_count):
-  """partition shuffled corpus into queries and docs in a single pass, keeping all paragraphs of each wiki_id together."""
-  print(f'partitioning into queries (first {query_wiki_id_count} wiki_ids) and docs (remainder)...')
+  """Partition shuffled corpus into queries and docs in a single pass, keeping all paragraphs of each wiki_id together."""
+  print(f"partitioning into queries (first {query_wiki_id_count} wiki_ids) and docs (remainder)...")
 
   vector_size_bytes = DIMENSIONS * 4
   new_headers = ("wiki_id", "paragraph_count", "paragraph_id", "title", "text", "url")
@@ -586,22 +603,23 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
   next_progress_time_sec = start_time_sec + 5
 
   # Open all files once
-  with open(csv_shuffled_file, "r", newline='') as csv_in, \
-       open(vec_shuffled_file, "rb") as vec_in, \
-       open(queries_coalesced_csv_file, "w", newline='') as queries_csv_out, \
-       open(queries_coalesced_vec_file, "wb") as queries_vec_out, \
-       open(docs_coalesced_csv_file, "w", newline='') as docs_csv_out, \
-       open(docs_coalesced_vec_file, "wb") as docs_vec_out:
-
-    csv_in_reader = csv.reader(csv_in, lineterminator='\n')
+  with (
+    open(csv_shuffled_file, newline="") as csv_in,
+    open(vec_shuffled_file, "rb") as vec_in,
+    open(queries_coalesced_csv_file, "w", newline="") as queries_csv_out,
+    open(queries_coalesced_vec_file, "wb") as queries_vec_out,
+    open(docs_coalesced_csv_file, "w", newline="") as docs_csv_out,
+    open(docs_coalesced_vec_file, "wb") as docs_vec_out,
+  ):
+    csv_in_reader = csv.reader(csv_in, lineterminator="\n")
 
     # skip header in input
     next(csv_in_reader)
 
     # write headers to both outputs
-    queries_csv_writer = csv.writer(queries_csv_out, lineterminator='\n')
+    queries_csv_writer = csv.writer(queries_csv_out, lineterminator="\n")
     queries_csv_writer.writerow(new_headers)
-    docs_csv_writer = csv.writer(docs_csv_out, lineterminator='\n')
+    docs_csv_writer = csv.writer(docs_csv_out, lineterminator="\n")
     docs_csv_writer.writerow(new_headers)
 
     current_wiki_id = None
@@ -624,10 +642,10 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
         # if we've crossed the threshold, switch to docs
         if wiki_id_count > query_wiki_id_count and writing_to_queries:
           writing_to_queries = False
-          print(f'  switched to docs after {wiki_id_count - 1} wiki_ids ({query_row_count} rows)')
+          print(f"  switched to docs after {wiki_id_count - 1} wiki_ids ({query_row_count} rows)")
 
       # read corresponding vector
-      vec_bytes = read_exact(vec_in, vector_size_bytes, 'vector')
+      vec_bytes = read_exact(vec_in, vector_size_bytes, "vector")
 
       # write to appropriate output
       output_row = [wiki_id, csv_row[1], paragraph_id] + csv_row[2:]
@@ -650,23 +668,25 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
           pct = 100.0 * (wiki_id_count - 1) / query_wiki_id_count
         else:
           pct = 100.0 * (wiki_id_count - query_wiki_id_count) / (TOTAL_DOC_COUNT - query_wiki_id_count)
-        print(f'  {wiki_id_count} wiki_ids ({pct:.1f}%), {total_row_count} total rows ({elapsed_sec:.1f} sec)...')
+        print(f"  {wiki_id_count} wiki_ids ({pct:.1f}%), {total_row_count} total rows ({elapsed_sec:.1f} sec)...")
         next_progress_time_sec = now_sec + 5
 
   elapsed_sec = time.time() - start_time_sec
   total_wiki_ids = wiki_id_count
 
-  print(f'  done! {total_wiki_ids} total wiki_ids: {query_wiki_id_count} queries ({query_row_count} rows), {total_wiki_ids - query_wiki_id_count} docs ({docs_row_count} rows) ({elapsed_sec:.1f} sec)')
-  print(f'  queries:')
-  print(f'    csv: {os.path.getsize(queries_coalesced_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-  print(f'    vec: {os.path.getsize(queries_coalesded_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-  print(f'  docs:')
-  print(f'    csv: {os.path.getsize(docs_coalesced_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
-  print(f'    vec: {os.path.getsize(docs_coalesced_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB')
+  print(f"  done! {total_wiki_ids} total wiki_ids: {query_wiki_id_count} queries ({query_row_count} rows), {total_wiki_ids - query_wiki_id_count} docs ({docs_row_count} rows) ({elapsed_sec:.1f} sec)")
+  print("  queries:")
+  print(f"    csv: {os.path.getsize(queries_coalesced_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB")
+  print(f"    vec: {os.path.getsize(queries_coalesced_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB")
+  print("  docs:")
+  print(f"    csv: {os.path.getsize(docs_coalesced_csv_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB")
+  print(f"    vec: {os.path.getsize(docs_coalesced_vec_file) / 1024.0 / 1024.0 / 1024.0:.2f} GB")
 
   return query_row_count, docs_row_count
 
+
 if __name__ == "__main__":
   import autologger
+
   with autologger.capture_output():
     main()

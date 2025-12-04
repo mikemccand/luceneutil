@@ -18,47 +18,25 @@ csv.field_size_limit(1024 * 1024 * 40)
 
 # TODO
 #   - consistently name it total_paragraph_count
-#   - maybe validate each wiki_id's vector count too?  but hashing prolly would catch missing / extra vector...
 #   - detect if there are embedded \n in the csv?
 #   - if RAM allows, maybe go back and redo the horribly complex file-offset-based CSV shuffling to also just buffer lines in memory?
 #   - make STOP_AT work on entire process and run the whole thing ot make sure it's repeatable, then run real thing and capture & save full log
-#   - write up overview of how this tool works / how corpus is designed
 #   - how to use the text?  make matching wiki linefiledocs source?
 #   - finish/publish these new v3 vec sources, send email
 #     - babysit nightly, then add annot
-#   - test knn
 #   - install for nightly knn, babysit
 #   - what is "split"
 #   - write meta file for parent/child join
-#   - write title/id/other-features
-#   - shuffle
-#   - then make separate query + index files
-#   - add random end validator: confirm the right vectors ended with the right lines
 
 """
-This tool downloads all metadata + vectors from
-https://huggingface.co/datasets/Cohere/wikipedia-2023-11-embed-multilingual-v3
-(Cohere v3 Wikipedia embeddings).
-
-We download just lang="en" and split="train".
-
-This is 41_488_110 rows, but each row is one paragraph from a wiki
-page and (in general) multiple paragraphs per page.  There are
-5_854_887 unique pages, so ~7.1 paragraphs per page on average.
-
-Vectors are 1024 dimensions (up from 768 in Cohere v2), float32, and
-seem to be unit-sphere normalized (at least the first 10 vectors are).
-
-Unlike the v2 Cohere Wikipedia vectors
-(https://huggingface.co/datasets/Cohere/wikipedia-22-12), these docs
-do not have a stated sort order.  Still, we shuffle them to remove any
-possible hidden compass bias (see
-https://github.com/mikemccand/luceneutil/issues/494).
+See cohere-v3-README.txt
 """
 
 # stats: row_count=41488110 total_doc_count=5854887 total_text_chars=15_562_116_893 total_title_chars=851_864_089
 
 # queries have 250_000 wiki_ids, docs have the balance 5_604_887
+
+DATASET_NAME = "Cohere/wikipedia-2023-11-embed-multilingual-v3"
 
 DIMENSIONS = 1024
 
@@ -122,11 +100,17 @@ def run(command):
 def to_gb(b):
   return b / 1024 / 1024 / 1024
 
-
 def main():
+  dataset_info = datasets.get_dataset_config_info(DATASET_NAME, LANG)
+
+  print(f'\nDataset metadata for lang={LANG}:')
+  print(dataset_info.splits)
+  print('\n')
+  
   if DO_INIT_LOAD:
     # takes a long time!  ~3.2 hours
-    docs = datasets.load_dataset("Cohere/wikipedia-2023-11-embed-multilingual-v3", LANG, split="train", streaming=True)
+    # NOTE: train is the only split
+    docs = datasets.load_dataset(DATASET_NAME, LANG, split="train", streaming=True)
     # print(f'columns: {docs.column_names}')
 
     features = docs.features
@@ -688,5 +672,6 @@ def partition_documents(csv_shuffled_file, vec_shuffled_file, csv_source_file, v
 if __name__ == "__main__":
   import autologger
 
+  # so that every run is logged to $BASE_DIR/tools-logs by default:
   with autologger.capture_output():
     main()

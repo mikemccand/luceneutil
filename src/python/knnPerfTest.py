@@ -17,6 +17,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import autologger
 
 import benchUtil
 import constants
@@ -88,7 +89,7 @@ PARAMS = {
   # 'metric': ('angular',),  # default is angular (dot_product)
   # 'metric': ('dotproduct',),
   #'quantize': (True,),
-  "quantizeBits": (4, 8, 32),
+  "quantizeBits": (4, 4, 4, 8, 8, 8, 32, 32, 32),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -156,9 +157,10 @@ def run_knn_benchmark(checkout, values):
   # query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
 
   dim = 768
-  # doc_vectors = "/big/cohere-wikipedia-docs-768d.vec"
-  doc_vectors = "/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec"
-  query_vectors = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
+  # doc_vectors = "/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec"
+  # query_vectors = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
+  doc_vectors = "/b2/coherev3/cohere-wikipedia-v3.docs.vec"
+  query_vectors = "/b2/coherev3/cohere-wikipedia-v3.queries.vec"
 
   # dim = 768
   # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
@@ -502,13 +504,14 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
 
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description="Run KNN benchmarks")
-  parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
-  n = parser.parse_args()
+  with autologger.capture_output():
+    parser = argparse.ArgumentParser(description="Run KNN benchmarks")
+    parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
+    n = parser.parse_args()
 
-  # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
-  LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
-  if n.runs == 1:
-    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
-  else:
-    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
+    # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
+    LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
+    if n.runs == 1:
+      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+    else:
+      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)

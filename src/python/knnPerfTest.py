@@ -17,8 +17,8 @@ import shutil
 import statistics
 import subprocess
 import sys
-import autologger
 
+import autologger
 import benchUtil
 import constants
 from common import getLuceneDirFromGradleProperties

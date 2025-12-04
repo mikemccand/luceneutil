@@ -100,13 +100,14 @@ def run(command):
 def to_gb(b):
   return b / 1024 / 1024 / 1024
 
+
 def main():
   dataset_info = datasets.get_dataset_config_info(DATASET_NAME, LANG)
 
-  print(f'\nDataset metadata for lang={LANG}:')
+  print(f"\nDataset metadata for lang={LANG}:")
   print(dataset_info.splits)
-  print('\n')
-  
+  print("\n")
+
   if DO_INIT_LOAD:
     # takes a long time!  ~3.2 hours
     # NOTE: train is the only split

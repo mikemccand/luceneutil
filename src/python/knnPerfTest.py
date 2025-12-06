@@ -11,8 +11,6 @@
 #     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
-import struct
-import time
 import math
 import multiprocessing
 import os
@@ -20,8 +18,10 @@ import random
 import re
 import shutil
 import statistics
+import struct
 import subprocess
 import sys
+import time
 
 import autologger
 import benchUtil
@@ -153,12 +153,10 @@ def advance(ix, values):
   return False
 
 
-def smell_vectors(dim, file_name, do_check_norms = True):
-  """
-  Runs some simple sanity checks on the vector source file, because we don't store any
+def smell_vectors(dim, file_name, do_check_norms=True):
+  """Runs some simple sanity checks on the vector source file, because we don't store any
   self-describing metadata in the .vec source file.
   """
-  
   size_bytes = os.path.getsize(file_name)
 
   vec_size_bytes = dim * 4
@@ -167,19 +165,20 @@ def smell_vectors(dim, file_name, do_check_norms = True):
   num_vectors, leftover = divmod(size_bytes, vec_size_bytes)
 
   if leftover != 0:
-    raise RuntimeError(f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?')
+    raise RuntimeError(
+      f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
+    )
 
   if do_check_norms:
     struct_fmt = f"<{dim}f"
 
     with open(file_name, "rb") as f:
-
       # sanity check
       t0 = time.time()
       checked_count = 0
       not_norm_count = 0
       for i in range(100):
-        vec_idx = random.randint(0, num_vectors-1)
+        vec_idx = random.randint(0, num_vectors - 1)
         f.seek(vec_idx * vec_size_bytes)
         b = f.read(vec_size_bytes)
         one_vec = struct.unpack(struct_fmt, b)
@@ -190,7 +189,7 @@ def smell_vectors(dim, file_name, do_check_norms = True):
           sumsq += v * v
         norm_euclidean_length = math.sqrt(sumsq)
 
-        if math.isclose(norm_euclidean_length, 1.0, rel_tol=.0001, abs_tol=.0001) == False:
+        if not math.isclose(norm_euclidean_length, 1.0, rel_tol=0.0001, abs_tol=0.0001):
           # not normalized
           print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norm_euclidean_length} (not normalized)')
           not_norm_count += 1
@@ -204,6 +203,7 @@ def smell_vectors(dim, file_name, do_check_norms = True):
 
       if not_norm_count:
         print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {checked_count} randomly checked vectors are not normalized in "{file_name}"')
+
 
 def run_knn_benchmark(checkout, values):
   indexes = [0] * len(values.keys())
@@ -226,7 +226,7 @@ def run_knn_benchmark(checkout, values):
     dim = 768
     doc_vectors = f"/lucenedata/enwiki/cohere-wikipedia-docs-{dim}d.vec"
     query_vectors = f"/lucenedata/enwiki/cohere-wikipedia-queries-{dim}d.vec"
-    
+
   # dim = 768
   # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
   # query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'

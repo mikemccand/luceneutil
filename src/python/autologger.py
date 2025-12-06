@@ -67,6 +67,8 @@ def capture_output(log_dir=constants.TOOL_LOGS_DIR):
     exception_info = traceback.format_exc()
     raise
   finally:
+    print(f"\nAUTOLOGGER: see all output in {log_file_path}\n")
+
     sys.stdout = old_stdout
     sys.stderr = old_stderr
 

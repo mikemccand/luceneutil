@@ -533,6 +533,75 @@ def chart_args_label(args):
   return str(args)
 
 
+def print_cpu_info():
+  """Read and print CPU information from /proc/cpuinfo if present (linux only)"""
+  cpuinfo_path = "/proc/cpuinfo"
+
+  if not os.path.exists(cpuinfo_path):
+    print("CPU info: /proc/cpuinfo not found (not running on Linux)")
+    return
+
+  # parse /proc/cpuinfo - it repeats info for each logical core
+  cpu_info = {}
+  processor_count = 0
+
+  with open(cpuinfo_path) as f:
+    for line in f:
+      line = line.strip()
+      if not line:
+        continue
+
+      if ":" in line:
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+
+        # count processors
+        if key == "processor":
+          processor_count += 1
+
+        # capture these fields (they repeat for each core, so we only need one)
+        elif key == "model name" and "model_name" not in cpu_info:
+          cpu_info["model_name"] = value
+        elif key == "cpu cores" and "cpu_cores" not in cpu_info:
+          cpu_info["cpu_cores"] = value
+        elif key == "microcode" and "microcode" not in cpu_info:
+          cpu_info["microcode"] = value
+        elif key == "flags" and "flags" not in cpu_info:
+          cpu_info["flags"] = value
+        elif key == "vmx flags" and "vmx_flags" not in cpu_info:
+          cpu_info["vmx_flags"] = value
+        elif key == "bugs" and "bugs" not in cpu_info:
+          cpu_info["bugs"] = value
+
+  # print cpu information
+  print("\nCPU Information:")
+  print(f"  model: {cpu_info.get('model_name', 'unknown')}")
+  print(f"  logical cores: {processor_count}")
+  print(f"  physical cores per socket: {cpu_info.get('cpu_cores', 'unknown')}")
+  print(f"  microcode: {cpu_info.get('microcode', 'unknown')}")
+
+  flags = cpu_info.get("flags", "")
+  if flags:
+    print(f"  flags: {flags}")
+  else:
+    print("  flags: unknown")
+
+  vmx_flags = cpu_info.get("vmx_flags", "")
+  if vmx_flags:
+    print(f"  vmx flags: {vmx_flags}")
+  else:
+    print("  vmx flags: none")
+
+  bugs = cpu_info.get("bugs", "")
+  if bugs:
+    print(f"  bugs: {bugs}")
+  else:
+    print("  bugs: none")
+
+  print()
+
+
 def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   rec, lat, net, avg = [], [], [], []
   tests = []
@@ -576,6 +645,9 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
 
 if __name__ == "__main__":
   with autologger.capture_output():
+    # print cpu information at the start
+    print_cpu_info()
+
     parser = argparse.ArgumentParser(description="Run KNN benchmarks")
     parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
     n = parser.parse_args()

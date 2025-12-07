@@ -602,6 +602,88 @@ def print_cpu_info():
   print()
 
 
+def format_memory_kb(value_str):
+  """Convert memory value from kB to appropriate units (kB, MB, GB, TB)"""
+  try:
+    # parse value (format is like "65916396 kB")
+    parts = value_str.split()
+    if len(parts) < 1:
+      return value_str
+
+    value_kb = int(parts[0])
+
+    # choose appropriate unit
+    if value_kb >= 1024 * 1024 * 1024:  # >= 1 TB
+      return f"{value_kb / (1024 * 1024 * 1024):.2f} TB"
+    if value_kb >= 1024 * 1024:  # >= 1 GB
+      return f"{value_kb / (1024 * 1024):.2f} GB"
+    if value_kb >= 1024:  # >= 1 MB
+      return f"{value_kb / 1024:.2f} MB"
+    return f"{value_kb} kB"
+  except (ValueError, IndexError):
+    return value_str
+
+
+def print_mem_info():
+  """Read and print memory information from /proc/meminfo if present (linux only)"""
+  meminfo_path = "/proc/meminfo"
+
+  if not os.path.exists(meminfo_path):
+    print("Memory info: /proc/meminfo not found (not running on Linux)")
+    return
+
+  mem_info = {}
+
+  with open(meminfo_path) as f:
+    for line in f:
+      line = line.strip()
+      if not line:
+        continue
+
+      if ":" in line:
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+
+        # capture memory fields
+        if key == "MemTotal":
+          mem_info["mem_total"] = value
+        elif key == "MemFree":
+          mem_info["mem_free"] = value
+        elif key == "MemAvailable":
+          mem_info["mem_available"] = value
+        elif key == "Dirty":
+          mem_info["mem_dirty"] = value
+
+  # print memory information
+  print("Memory Information:")
+
+  mem_total = mem_info.get("mem_total", "unknown")
+  mem_free = mem_info.get("mem_free", "unknown")
+  mem_available = mem_info.get("mem_available", "unknown")
+  mem_dirty = mem_info.get("mem_dirty", "unknown")
+
+  print(f"  total RAM: {format_memory_kb(mem_total) if mem_total != 'unknown' else 'unknown'}")
+  print(f"  free RAM: {format_memory_kb(mem_free) if mem_free != 'unknown' else 'unknown'}")
+  print(f"  available RAM: {format_memory_kb(mem_available) if mem_available != 'unknown' else 'unknown'}")
+
+  # calculate used ram if we have total and available
+  if "mem_total" in mem_info and "mem_available" in mem_info:
+    try:
+      # parse values (they come in format like "65916396 kB")
+      total_kb = int(mem_info["mem_total"].split()[0])
+      available_kb = int(mem_info["mem_available"].split()[0])
+      used_kb = total_kb - available_kb
+      print(f"  used RAM: {format_memory_kb(f'{used_kb} kB')}")
+    except (ValueError, IndexError):
+      print("  used RAM: unknown")
+  else:
+    print("  used RAM: unknown")
+
+  print(f"  dirty RAM: {format_memory_kb(mem_dirty) if mem_dirty != 'unknown' else 'unknown'}")
+  print()
+
+
 def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
   rec, lat, net, avg = [], [], [], []
   tests = []
@@ -645,8 +727,9 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
 
 if __name__ == "__main__":
   with autologger.capture_output():
-    # print cpu information at the start
+    # print cpu and memory information at the start
     print_cpu_info()
+    print_mem_info()
 
     parser = argparse.ArgumentParser(description="Run KNN benchmarks")
     parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")

@@ -29,22 +29,19 @@ BASE_URL2 = "https://home.apache.org/~sokolov"
 
 DATA_FILES = [
   # remote url, local name
-  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma", "enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"),
-  ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma", "enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"),
-  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-docs-768d.vec", "cohere-wikipedia-docs-768d.vec"),
-  # ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/cohere-wikipedia-docs-768d.vec", "cohere-wikipedia-docs-768d.vec"),
-  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-docs-5M-768d.vec", "cohere-wikipedia-docs-5M-768d.vec"),
-  ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/cohere-wikipedia-docs-5M-768d.vec", "cohere-wikipedia-docs-5M-768d.vec"),
-  # ("https://luceneutil-corpus-files.s3.ca-central-1.amazonaws.com/cohere-wikipedia-queries-768d.vec", "cohere-wikipedia-queries-768d.vec"),
-  ("https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/cohere-wikipedia-queries-768d.vec", "cohere-wikipedia-queries-768d.vec"),
-  ("https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip", "glove.6B.zip"),
+  "https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma",
+  "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec",
+  "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.csv",
+  "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec",
+  "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.csv",
+  "https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip",
 ]
 
 USAGE = """
 Usage: python initial_setup.py [-download]
 
 Options:
-  -download downloads a 5GB linedoc file 
+  -download downloads a 5GB linedoc file and untold GB of vector files
 
 """
 DEFAULT_LOCAL_CONST = """
@@ -90,7 +87,14 @@ def runSetup(download):
     print("localrun.py already exists - skipping")
 
   if download:
-    for url_source, local_filename in DATA_FILES:
+    for tup in DATA_FILES:
+      if type(tup) is str:
+        url_source = tup
+        local_filename = os.path.basename(url_source)
+      elif type(tup) is tuple and len(tup) == 2:
+        url_source, local_filename = tup
+      else:
+        raise RuntimeError(f"DATA_FILES elements should be single string or length 2 tuple; got: {tup}")
       target_file = os.path.join(data_dir, local_filename)
       if os.path.exists(target_file):
         print("file %s already exists - skipping" % target_file)

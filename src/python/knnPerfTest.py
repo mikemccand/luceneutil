@@ -91,8 +91,9 @@ PARAMS = {
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
-  # 'metric': ('angular',),  # default is angular (dot_product)
+  "metric": ("angular",),  # default is angular (dot_product)
   # 'metric': ('dotproduct',),
+  # 'metric': ('mip',),
   #'quantize': (True,),
   "quantizeBits": (4, 4, 4, 4, 8, 8, 8, 8, 32, 32, 32, 32),
   # "quantizeBits": (1,),
@@ -220,8 +221,8 @@ def run_knn_benchmark(checkout, values):
 
   if v3:
     dim = 1024
-    doc_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered.docs.vec"
-    query_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered.queries.vec"
+    doc_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"
+    query_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec"
   else:
     dim = 768
     doc_vectors = f"/lucenedata/enwiki/cohere-wikipedia-docs-{dim}d.vec"
@@ -319,8 +320,8 @@ def run_knn_benchmark(checkout, values):
         query_vectors,
         "-numIndexThreads",
         "8",
-        "-metric",
-        "mip",
+        # "-metric",
+        # "mip",
         # "-parentJoin",
         # parentJoin_meta_file,
         # '-numMergeThread', '8', '-numMergeWorker', '8',
@@ -384,8 +385,10 @@ def run_knn_benchmark(checkout, values):
   # skip columns that have the same value for every row
   if len(all_results) > 1:
     for col in range(len(OUTPUT_HEADERS)):
-      if len(set([result[0].split("\t")[col] for result in all_results])) == 1:
+      unique_values = set([result[0].split("\t")[col] for result in all_results])
+      if len(unique_values) == 1:
         skip_headers.add(OUTPUT_HEADERS[col])
+        print(f"NOTE: {OUTPUT_HEADERS[col]} = {unique_values.pop()} for all runs; skipping column")
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)

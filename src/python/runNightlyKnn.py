@@ -34,9 +34,15 @@ import knnPerfTest
 # LUCENE_CHECKOUT = constants.LUCENE_CHECKOUT
 
 # e.g. Cohere v2
-INDEX_VECTORS_FILE = "/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec"
-SEARCH_VECTORS_FILE = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
-VECTORS_DIM = 768
+# INDEX_VECTORS_FILE = "/lucenedata/enwiki/cohere-wikipedia-docs-768d.vec"
+# SEARCH_VECTORS_FILE = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
+# VECTORS_DIM =  768
+
+# Cohere v3, switched Dec 7 2025:
+INDEX_VECTORS_FILE = '/big/cohere-v3-wikipedia-en-scattered-1024d.docs.vec'
+SEARCH_VECTORS_FILE = '/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec'
+VECTORS_DIM = 1024
+
 VECTORS_ENCODING = "float32"
 LUCENE_CHECKOUT = "/l/trunk.nightly"
 INDEX_THREAD_COUNT = 8
@@ -607,7 +613,7 @@ def _run(results_dir):
     print(f"removing KNN indices dir {indicesDir}")
     shutil.rmtree(indicesDir)
 
-  for cacheFileName in glob.glob(f"{constants.BENCH_BASE_DIR}/*.bin"):
+  for cacheFileName in glob.glob(f"{constants.BENCH_BASE_DIR}/knn-reuse/exact-nn/*.bin"):
     print(f"removing cached KNN results {cacheFileName}")
     os.remove(cacheFileName)
 
@@ -645,13 +651,21 @@ def _run(results_dir):
     "-search-and-stats",
     SEARCH_VECTORS_FILE,
     "-metric",
-    "mip",
+    "dot_product",
     "-numMergeThread",
     "16",
     "-numMergeWorker",
     "48",
     #'-forceMerge'
   ]
+
+  # print cpu and memory information at the start
+  knnPerfTest.print_cpu_info()
+  knnPerfTest.print_mem_info()
+
+  # sanity check vectors
+  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE, True)
+  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE, True)
 
   all_results = []
   all_summaries = []

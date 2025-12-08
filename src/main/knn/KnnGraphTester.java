@@ -531,7 +531,7 @@ public class KnnGraphTester implements FormatterLogger {
     String indexKey = formatIndexKey(indexType, maxConn, beamWidth, useBp,
                                      quantize, quantizeBits, quantizeCompress,
                                      parentJoin, filterStrategy, filterSelectivity, randomSeed,
-                                     docVectorsPath, numDocs, metric);
+                                     docVectorsPath, numDocs, metric, forceMerge);
     log("index key = %s\n", indexKey);
     
     if (indexPath == null) {
@@ -853,7 +853,8 @@ public class KnnGraphTester implements FormatterLogger {
                                        boolean quantize, int quantizeBits, boolean quantizeCompress,
                                        boolean parentJoin, FilterStrategy filterStrategy,
                                        Float filterSelectivity, Long randomSeed,
-                                       Path docPath, int numDocs, String metric) throws IOException {
+                                       Path docPath, int numDocs, String metric, boolean forceMerge)
+    throws IOException {
 
     List<String> suffix = new ArrayList<>();
 
@@ -898,6 +899,10 @@ public class KnnGraphTester implements FormatterLogger {
 
     if (parentJoin) {
       suffix.add("parentJoin");
+    }
+
+    if (forceMerge) {
+      suffix.add("fm");
     }
 
     return String.join("-", suffix);
@@ -1404,8 +1409,12 @@ public class KnnGraphTester implements FormatterLogger {
   private int[][] readExactNN(Path nnPath) throws IOException {
     int[][] result = new int[numQueryVectors][];
     try (FileChannel in = FileChannel.open(nnPath)) {
+      long expectedSize = numQueryVectors * topK * Integer.BYTES;
+      if (in.size() != expectedSize) {
+        throw new IllegalStateException("exact-nn file \"" + nnPath + "\" should be size()=" + expectedSize + " but is actually " + in.size());
+      }
       IntBuffer intBuffer =
-          in.map(FileChannel.MapMode.READ_ONLY, 0, numQueryVectors * topK * Integer.BYTES)
+        in.map(FileChannel.MapMode.READ_ONLY, 0, expectedSize)
               .order(ByteOrder.LITTLE_ENDIAN)
               .asIntBuffer();
       for (int i = 0; i < numQueryVectors; i++) {

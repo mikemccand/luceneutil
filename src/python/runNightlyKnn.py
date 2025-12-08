@@ -39,8 +39,8 @@ import knnPerfTest
 # VECTORS_DIM =  768
 
 # Cohere v3, switched Dec 7 2025:
-INDEX_VECTORS_FILE = '/big/cohere-v3-wikipedia-en-scattered-1024d.docs.vec'
-SEARCH_VECTORS_FILE = '/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec'
+INDEX_VECTORS_FILE = "/big/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"
+SEARCH_VECTORS_FILE = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec"
 VECTORS_DIM = 1024
 
 VECTORS_ENCODING = "float32"
@@ -613,9 +613,13 @@ def _run(results_dir):
     print(f"removing KNN indices dir {indicesDir}")
     shutil.rmtree(indicesDir)
 
-  for cacheFileName in glob.glob(f"{constants.BENCH_BASE_DIR}/knn-reuse/exact-nn/*.bin"):
-    print(f"removing cached KNN results {cacheFileName}")
-    os.remove(cacheFileName)
+  if False:
+    # we should be able to safely reuse the "answer key" -- the hash/key should work --
+    # if we change something here, it should recompute, and if not, it's buggy, and we should
+    # fix it!
+    for cacheFileName in glob.glob(f"{constants.BENCH_BASE_DIR}/knn-reuse/exact-nn/*.bin"):
+      print(f"removing cached KNN results {cacheFileName}")
+      os.remove(cacheFileName)
 
   print(f"compile Lucene jars at {LUCENE_CHECKOUT}")
   os.chdir(LUCENE_CHECKOUT)

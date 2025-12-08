@@ -903,6 +903,8 @@ public class KnnGraphTester implements FormatterLogger {
 
     if (forceMerge) {
       suffix.add("fm");
+    } else {
+      suffix.add("notfm");
     }
 
     return String.join("-", suffix);

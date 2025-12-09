@@ -16,7 +16,7 @@ pillow==11.1.0
 iso8601==2.1.0
 
 # used by indexosm
-rtree==1.4.0
+rtree==1.4.1
 
 # linter and formatter
 ruff==0.11.6

@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -48,14 +49,30 @@ class IndexThreads {
   final Thread[] threads;
   final AtomicBoolean refreshing;
   final AtomicLong lastRefreshNS;
+  final boolean enableUpdateStorms;
 
+  /**
+   * Constructor with default enableUpdateStorms=false for backward compatibility
+   * @param docsPerSecPerThreadRef AtomicReference for thread-safe rate updates across multiple threads.
+   */
   public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
-                      boolean addGroupingFields, boolean printDPS, Mode mode, float docsPerSecPerThread, UpdatesListener updatesListener,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, AtomicReference<Double> docsPerSecPerThreadRef, UpdatesListener updatesListener,
                       double nrtEverySec, int randomDocIDMax)
+    throws IOException, InterruptedException {
+    this(random, w, indexingFailed, lineFileDocs, numThreads, docCountLimit, addGroupingFields, printDPS, mode, docsPerSecPerThreadRef, updatesListener, nrtEverySec, -1, false);
+  }
+
+  /**
+   * @param docsPerSecPerThreadRef AtomicReference for thread-safe rate updates across multiple threads.
+   */
+  public IndexThreads(Random random, IndexWriter w, AtomicBoolean indexingFailed, LineFileDocs lineFileDocs, int numThreads, int docCountLimit,
+                      boolean addGroupingFields, boolean printDPS, Mode mode, AtomicReference<Double> docsPerSecPerThreadRef, UpdatesListener updatesListener,
+                      double nrtEverySec, int randomDocIDMax, boolean enableUpdateStorms)
     throws IOException, InterruptedException {
     final AtomicInteger groupBlockIndex;
 
     this.docs = lineFileDocs;
+    this.enableUpdateStorms = enableUpdateStorms;
     if (addGroupingFields) {
       IndexThread.group100 = randomStrings(100, random);
       IndexThread.group10K = randomStrings(10000, random);
@@ -77,8 +94,8 @@ class IndexThreads {
 
     for(int thread=0;thread<numThreads;thread++) {
       threads[thread] = new IndexThread(random, startLatch, stopLatch, w, docs, docCountLimit, count, mode,
-              groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThread, failed, updatesListener,
-              nrtEverySec, randomDocIDMax);
+              groupBlockIndex, stop, refreshing, lastRefreshNS, docsPerSecPerThreadRef, failed, updatesListener,
+              nrtEverySec, randomDocIDMax, enableUpdateStorms);
       threads[thread].setName("Index #" + thread);
       threads[thread].start();
     }
@@ -141,7 +158,7 @@ class IndexThreads {
     private final Mode mode;
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
-    private final float docsPerSec;
+    private final AtomicReference<Double> docsPerSecRef;
     private final Random random;
     private final AtomicBoolean failed;
     private final UpdatesListener updatesListener;
@@ -149,10 +166,11 @@ class IndexThreads {
     private final AtomicLong lastRefreshNS;
     private final double nrtEverySec;
     final int randomDocIDMax;
+    private final boolean enableUpdateStorms;
     public IndexThread(Random random, CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w,
                        LineFileDocs docs, int numTotalDocs, AtomicInteger count, Mode mode, AtomicInteger groupBlockIndex,
-                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, float docsPerSec,
-                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax) {
+                       AtomicBoolean stop, AtomicBoolean refreshing, AtomicLong lastRefreshNS, AtomicReference<Double> docsPerSecRef,
+                       AtomicBoolean failed, UpdatesListener updatesListener, double nrtEverySec, int randomDocIDMax, boolean enableUpdateStorms) {
       this.startLatch = startLatch;
       this.stopLatch = stopLatch;
       this.w = w;
@@ -162,7 +180,7 @@ class IndexThreads {
       this.mode = mode;
       this.groupBlockIndex = groupBlockIndex;
       this.stop = stop;
-      this.docsPerSec = docsPerSec;
+      this.docsPerSecRef = docsPerSecRef;
       this.random = random;
       this.failed = failed;
       this.updatesListener = updatesListener;
@@ -170,6 +188,7 @@ class IndexThreads {
       this.lastRefreshNS = lastRefreshNS;
       this.nrtEverySec = nrtEverySec;
       this.randomDocIDMax = randomDocIDMax;
+      this.enableUpdateStorms = enableUpdateStorms;
     }
 
     private static Field getStringIDField(Document doc) {
@@ -329,7 +348,7 @@ class IndexThreads {
 
             docState.doc.removeField("groupend");
           }
-        } else if (docsPerSec > 0 && mode != null) {
+        } else if (docsPerSecRef.get() > 0 && mode != null) {
           System.out.println("Indexing single docs (add/updateDocument)");
           final long startNS = System.nanoTime();
           int threadCount = 0;
@@ -382,10 +401,24 @@ class IndexThreads {
               System.out.println("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
             }
 
+            double docsPerSec = docsPerSecRef.get();
             final long sleepNS = startNS + (long) (1000000000*(threadCount/docsPerSec)) - System.nanoTime();
             if (sleepNS > 0) {
-              final long sleepMS = sleepNS/1000000;
-              final int sleepNS2 = (int) (sleepNS - sleepMS*1000000);
+              final long sleepMS;
+              final int sleepNS2;
+
+              if (enableUpdateStorms) {
+                // Cap sleep at 100ms for update storms to maintain responsiveness
+                final long maxSleepNS = 100000000L; // 100 ms in nanoseconds
+                final long actualSleepNS = Math.min(sleepNS, maxSleepNS);
+                sleepMS = actualSleepNS/1000000;
+                sleepNS2 = (int) (actualSleepNS - sleepMS*1000000);
+                System.out.println("Update storms: capped indexer sleep at " + sleepMS + " ms, " + sleepNS2 + " ns (requested: " + (sleepNS/1000000) + " ms)");
+              } else {
+                // Normal operation: no sleep cap, use original behavior
+                sleepMS = sleepNS/1000000;
+                sleepNS2 = (int) (sleepNS - sleepMS*1000000);
+              }
               Thread.sleep(sleepMS, sleepNS2);
             }
 

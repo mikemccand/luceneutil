@@ -16,17 +16,18 @@ import multiprocessing
 import os
 import random
 import re
+import shlex
 import shutil
 import statistics
 import struct
 import subprocess
 import sys
 import time
-import ps_head
 
 import autologger
 import benchUtil
 import constants
+import ps_head
 from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
@@ -206,17 +207,19 @@ def smell_vectors(dim, file_name, do_check_norms=True):
       if not_norm_count:
         print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {checked_count} randomly checked vectors are not normalized in "{file_name}"')
 
+
 def get_unique_log_name(log_path, sub_tool):
   log_dir_name, log_base_name = log_path
   upto = 0
   while True:
-    log_file_name = f'{log_dir_name}/{log_base_name}-{sub_tool}'
+    log_file_name = f"{log_dir_name}/{log_base_name}-{sub_tool}"
     if upto > 0:
-      log_file_name += f'-{upto}'
-    log_file_name += '.log'
+      log_file_name += f"-{upto}"
+    log_file_name += ".log"
     if not os.path.exists(log_file_name):
       return log_file_name
     upto += 1
+
 
 def run_knn_benchmark(checkout, values, log_path):
   indexes = [0] * len(values.keys())
@@ -282,6 +285,9 @@ def run_knn_benchmark(checkout, values, log_path):
 
   index_run = 1
   all_results = []
+  log_dir_name, log_file_name = log_path
+  vmstat_index_out = open(f"{log_dir_name}/{log_file_name}-vmstats.html", "w")
+  vmstat_index_out.write("<h2>vmstat results for each run</h2>\n")
   while advance(indexes, values):
     if NOISY:
       print("\nNEXT:")
@@ -343,27 +349,33 @@ def run_knn_benchmark(checkout, values, log_path):
       ]
     )
 
+    if PERF_MODE and PERF_PATH:
+      print("Will be recording the executed instructions in perf.data file")
+      perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
+      job = subprocess.run(perf_cmd, check=False)
+      if NOISY:
+        print(f"  cmd: {perf_cmd}")
+      index_run += 1
+      continue
+    if PERF_MODE:
+      print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
+      sys.exit(1)
+    if NOISY:
+      print(f"  cmd: {this_cmd}")
+    else:
+      cmd += ["-quiet"]
+
     # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...
-    ps_log_file_name = get_unique_log_name(log_path, 'ps')
-    print(f'  saving top (ps) processes to {ps_log_file_name}')
-    ps_process = ps_head.PSTopN(3, ps_log_file_name)
+    ps_log_file_name = get_unique_log_name(log_path, "ps")
+    ps_process = ps_head.PSTopN(1, ps_log_file_name)
+    print(f"\nsaving top (ps) processes: {ps_process.cmd}")
+
+    vmstat_log_file_name = get_unique_log_name(log_path, "vmstat")
+    vmstat_cmd = f"{benchUtil.VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstat_log_file_name} 2>/dev/null &"
+    print(f'saving vmstat: "{vmstat_cmd}"\n')
+    vmstat_process = subprocess.Popen(vmstat_cmd, shell=True, preexec_fn=os.setsid)
 
     try:
-      if PERF_MODE and PERF_PATH:
-        print("Will be recording the executed instructions in perf.data file")
-        perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
-        job = subprocess.run(perf_cmd, check=False)
-        if NOISY:
-          print(f"  cmd: {perf_cmd}")
-        index_run += 1
-        continue
-      if PERF_MODE:
-        print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
-        sys.exit(1)
-      if NOISY:
-        print(f"  cmd: {this_cmd}")
-      else:
-        cmd += ["-quiet"]
       job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
       re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
       summary = None
@@ -382,8 +394,20 @@ def run_knn_benchmark(checkout, values, log_path):
         if "Exception in" in line:
           hit_exception = True
     finally:
+      print(f"now stop ps process...")
       ps_process.stop()
-      
+
+      print(f"now stop vmstat (pid={vmstat_process.pid})...")
+      # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
+      subprocess.check_call(["pkill", "-u", benchUtil.get_username(), "vmstat"])
+      if vmstat_process.poll() is None:
+        raise RuntimeError("failed to kill vmstat child process?  pid={vmstat_process.pid}")
+
+    vmstat_subdir_name = write_vmstat_pretties(vmstat_log_file_name, this_cmd)
+
+    str_this_cmd = " ".join([shlex.quote(x) for x in this_cmd])
+    vmstat_index_out.write(f'<a href="{vmstat_subdir_name}/index.html">run {index_run}: {str_this_cmd}</a><br><br>\n')
+
     if hit_exception:
       raise RuntimeError("unhandled java exception while running")
     if summary is None:
@@ -398,6 +422,8 @@ def run_knn_benchmark(checkout, values, log_path):
 
   if PERF_MODE:
     return None
+
+  print(f"vmstat: all results at {log_dir_name}/vmstats.html")
 
   if NOISY:
     print("\nResults:")
@@ -415,6 +441,37 @@ def run_knn_benchmark(checkout, values, log_path):
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)
   return all_results, skip_headers
+
+
+def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
+  print(f"write vmstat pretties from log={vmstat_log_file_name}")
+
+  dir_name, file_name = os.path.split(vmstat_log_file_name)
+  base_name, ext = os.path.splitext(file_name)
+
+  vmstat_dir_name = f"{dir_name}/{base_name}-vmstat-charts"
+  print(f"see {vmstat_dir_name}/index.html for vmstat visualization")
+  os.mkdir(vmstat_dir_name)
+
+  # our own little pushd/popd!
+  cwd = os.getcwd()
+  try:
+    # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
+    os.chdir(dir_name)
+    print(f"cd {vmstat_dir_name=}")
+
+    # TODO: optimize to single shared copy!
+    shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", vmstat_dir_name)
+    shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{vmstat_dir_name}/index.html")
+
+    with open("index.html", "w") as index_out:
+      index_out.write("<h2>vmstat charts</h2>\n")
+      index_out.write(f"<b>command</b>: {full_cmd}\n")
+      subprocess.check_call(f"gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
+  finally:
+    os.chdir(cwd)
+
+  return os.path.split(vmstat_dir_name)[1]
 
 
 def print_fixed_width(all_results, columns_to_skip):
@@ -749,7 +806,6 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
 
 if __name__ == "__main__":
   with autologger.capture_output() as log_path:
-
     log_dir_name, log_file_name = os.path.split(log_path)
     log_base_name, log_ext = os.path.splitext(log_file_name)
 

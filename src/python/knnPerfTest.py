@@ -22,6 +22,7 @@ import struct
 import subprocess
 import sys
 import time
+import ps_head
 
 import autologger
 import benchUtil
@@ -73,7 +74,7 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (1_000_000,),
+  "ndoc": (400_000,),
   #'ndoc': (50_000,),
   "maxConn": (64,),
   # "maxConn": (64,),
@@ -91,7 +92,7 @@ PARAMS = {
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
-  "metric": ("angular",),  # default is angular (dot_product)
+  "metric": ("cosine",),  # default is angular (dot_product)
   # 'metric': ('dotproduct',),
   # 'metric': ('mip',),
   #'quantize': (True,),
@@ -205,8 +206,19 @@ def smell_vectors(dim, file_name, do_check_norms=True):
       if not_norm_count:
         print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {checked_count} randomly checked vectors are not normalized in "{file_name}"')
 
+def get_unique_log_name(log_path, sub_tool):
+  log_dir_name, log_base_name = log_path
+  upto = 0
+  while True:
+    log_file_name = f'{log_dir_name}/{log_base_name}-{sub_tool}'
+    if upto > 0:
+      log_file_name += f'-{upto}'
+    log_file_name += '.log'
+    if not os.path.exists(log_file_name):
+      return log_file_name
+    upto += 1
 
-def run_knn_benchmark(checkout, values):
+def run_knn_benchmark(checkout, values, log_path):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
   args = []
@@ -216,7 +228,7 @@ def run_knn_benchmark(checkout, values):
 
   do_check_norms = True
 
-  # Cohere Wikipedia en vectors - see cohere-v3-README.txt
+  # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
   v3 = True
 
   if v3:
@@ -330,38 +342,48 @@ def run_knn_benchmark(checkout, values):
         #'-quiet'
       ]
     )
-    if PERF_MODE and PERF_PATH:
-      print("Will be recording the executed instructions in perf.data file")
-      perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
-      job = subprocess.run(perf_cmd, check=False)
+
+    # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...
+    ps_log_file_name = get_unique_log_name(log_path, 'ps')
+    print(f'  saving top (ps) processes to {ps_log_file_name}')
+    ps_process = ps_head.PSTopN(3, ps_log_file_name)
+
+    try:
+      if PERF_MODE and PERF_PATH:
+        print("Will be recording the executed instructions in perf.data file")
+        perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
+        job = subprocess.run(perf_cmd, check=False)
+        if NOISY:
+          print(f"  cmd: {perf_cmd}")
+        index_run += 1
+        continue
+      if PERF_MODE:
+        print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
+        sys.exit(1)
       if NOISY:
-        print(f"  cmd: {perf_cmd}")
-      index_run += 1
-      continue
-    if PERF_MODE:
-      print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
-      sys.exit(1)
-    if NOISY:
-      print(f"  cmd: {this_cmd}")
-    else:
-      cmd += ["-quiet"]
-    job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
-    re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
-    summary = None
-    hit_exception = False
-    lines = ""
-    while True:
-      line = job.stdout.readline()
-      if line == "":
-        break
-      lines += line
-      if NOISY:
-        sys.stdout.write(line)
-      m = re_summary.match(line)
-      if m is not None:
-        summary = m.group(1)
-      if "Exception in" in line:
-        hit_exception = True
+        print(f"  cmd: {this_cmd}")
+      else:
+        cmd += ["-quiet"]
+      job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
+      re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
+      summary = None
+      hit_exception = False
+      lines = ""
+      while True:
+        line = job.stdout.readline()
+        if line == "":
+          break
+        lines += line
+        if NOISY:
+          sys.stdout.write(line)
+        m = re_summary.match(line)
+        if m is not None:
+          summary = m.group(1)
+        if "Exception in" in line:
+          hit_exception = True
+    finally:
+      ps_process.stop()
+      
     if hit_exception:
       raise RuntimeError("unhandled java exception while running")
     if summary is None:
@@ -684,11 +706,11 @@ def print_mem_info():
   print()
 
 
-def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
+def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
   rec, lat, net, avg = [], [], [], []
   tests = []
   for i in range(n):
-    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, log_path)
     tests.append(results)
     first_4_numbers = results[0][0].split("\t")[:4]
     first_4_numbers = [float(num) for num in first_4_numbers]
@@ -726,7 +748,11 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n):
 
 
 if __name__ == "__main__":
-  with autologger.capture_output():
+  with autologger.capture_output() as log_path:
+
+    log_dir_name, log_file_name = os.path.split(log_path)
+    log_base_name, log_ext = os.path.splitext(log_file_name)
+
     # print cpu and memory information at the start
     print_cpu_info()
     print_mem_info()
@@ -738,6 +764,6 @@ if __name__ == "__main__":
     # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
     LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
     if n.runs == 1:
-      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS)
+      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, (log_dir_name, log_base_name))
     else:
-      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs)
+      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs, (log_dir_name, log_base_name))

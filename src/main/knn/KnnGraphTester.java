@@ -50,13 +50,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
+import org.apache.lucene.codecs.hnsw.FlatVectorScorerUtil;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.CodecReader;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.KnnVectorValues;
@@ -183,10 +186,9 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean quantize;
   private int quantizeBits;
   private boolean quantizeCompress;
+  private int numMaxMerge;
   private int numMergeThread;
-  private int numMergeWorker;
   private int numSearchThread;
-  private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
   private Query filterQuery;
@@ -217,8 +219,8 @@ public class KnnGraphTester implements FormatterLogger {
     numQueryVectors = 1000;
     dim = 256;
     topK = 100;
-    numMergeThread = 1;
-    numMergeWorker = 1;
+    numMaxMerge = ConcurrentMergeScheduler.AUTO_DETECT_MERGES_AND_THREADS;
+    numMergeThread = ConcurrentMergeScheduler.AUTO_DETECT_MERGES_AND_THREADS;
     fanout = topK;
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
@@ -247,21 +249,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   public static void main(String... args) throws Exception {
-    new KnnGraphTester().runWithCleanUp(args);
-  }
-
-  private void runWithCleanUp(String... args) throws Exception {
-    try {
-      run(args);
-    } finally {
-      cleanUp();
-    }
-  }
-
-  private void cleanUp() {
-    if (exec != null) {
-      exec.shutdownNow();
-    }
+    new KnnGraphTester().run(args);
   }
 
   private void run(String... args) throws Exception {
@@ -470,17 +458,14 @@ public class KnnGraphTester implements FormatterLogger {
         case "-quiet":
           quiet = true;
           break;
-        case "-numMergeWorker":
-          numMergeWorker = Integer.parseInt(args[++iarg]);
-          if (numMergeWorker <= 0) {
-            throw new IllegalArgumentException("-numMergeWorker should be >= 1");
+        case "-numMaxMerge":
+          numMaxMerge = Integer.parseInt(args[++iarg]);
+          if (numMaxMerge <= 0) {
+            throw new IllegalArgumentException("-numMaxMerge should be >= 1");
           }
           break;
         case "-numMergeThread":
           numMergeThread = Integer.parseInt(args[++iarg]);
-          if (numMergeThread > 1) {
-            exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
-          }
           if (numMergeThread <= 0) {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
@@ -618,7 +603,6 @@ public class KnnGraphTester implements FormatterLogger {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -630,7 +614,14 @@ public class KnnGraphTester implements FormatterLogger {
         parentJoinMetaFile,
         useBp,
         indexTimeFilter
-      ).createIndex();
+      ).createIndex(iwc -> {
+        ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
+        cms.setMaxMergesAndThreads(numMaxMerge, numMergeThread);
+        cms.setDefaultMaxMergesAndThreads(false);
+        log("Indexing with %d worker(s) and %d thread(s)\n", cms.getMaxMergeCount(), cms.getMaxThreadCount());
+
+        iwc.setCodec(getCodec(maxConn, beamWidth, cms.getMaxThreadCount(), quantize, quantizeBits, indexType));
+      });
       Files.writeString(indexKeyPath, indexKey);
       log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
       // save indexing time so future runs that re-use this index remember:
@@ -1022,13 +1013,17 @@ public class KnnGraphTester implements FormatterLogger {
 
   @SuppressForbidden(reason = "Prints stuff")
   private double forceMerge() throws IOException, InterruptedException {
-    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType));
     KnnIndexer.TrackingConcurrentMergeScheduler tcms = new KnnIndexer.TrackingConcurrentMergeScheduler();
+    tcms.setMaxMergesAndThreads(numMaxMerge, numMergeThread);
+    tcms.setDefaultMaxMergesAndThreads(false);
+    log("Force merge using %d worker(s) and %d thread(s)\n", tcms.getMaxMergeCount(), tcms.getMaxThreadCount());
+
+    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+    iwc.setCodec(getCodec(maxConn, beamWidth, tcms.getMaxThreadCount(), quantize, quantizeBits, indexType));
     iwc.setMergeScheduler(tcms);
     KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
     iwc.setMergePolicy(ttmp);
-    log("Force merge index in " + indexPath + "\n");
+    log("Force merge index in %s\n", indexPath);
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1, false);
@@ -1998,46 +1993,36 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
-      KnnVectorsFormat knnVectorsFormat;
-      if (quantize) {
-          knnVectorsFormat = switch (quantizeBits) {
-              case 1 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 2 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 4 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 7 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 8 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
-          };
-      } else {
-          knnVectorsFormat = new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
-      }
-      return new Lucene104Codec() {
-          @Override
-          public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-              return knnVectorsFormat;
-          }
+  static Codec getCodec(int maxConn, int beamWidth, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
+    KnnVectorsFormat knnVectorsFormat;
+    if (quantize) {
+      knnVectorsFormat = switch (indexType) {
+        case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits));
+        case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits), maxConn, beamWidth, numMergeWorker, null);
       };
+    } else {
+      knnVectorsFormat = switch (indexType) {
+        case FLAT -> new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
+        case HNSW -> new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+      };
+    }
+      return new Lucene104Codec() {
+        @Override
+        public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+          return knnVectorsFormat;
+        }
+      };
+  }
+
+  static ScalarEncoding getScalarEncodingForBits(int quantizeBits) {
+    return switch (quantizeBits) {
+      case 1 -> ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+      case 2 -> ScalarEncoding.DIBIT_QUERY_NIBBLE;
+      case 4 -> ScalarEncoding.PACKED_NIBBLE;
+      case 7 -> ScalarEncoding.SEVEN_BIT;
+      case 8 -> ScalarEncoding.UNSIGNED_BYTE;
+      default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
+    };
   }
 
   private static void usage() {

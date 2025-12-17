@@ -51,7 +51,8 @@ from common import getLuceneDirFromGradleProperties
 # you may want to modify the following settings:
 
 DO_PROFILING = False
-
+DO_PS = True
+DO_VMSTAT = True
 
 # Set this to True to generate the disassembled code to verify the intended SIMD instructions are getting used or not
 PERF_MODE = False
@@ -365,15 +366,22 @@ def run_knn_benchmark(checkout, values, log_path):
     else:
       cmd += ["-quiet"]
 
-    # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...
-    ps_log_file_name = get_unique_log_name(log_path, "ps")
-    ps_process = ps_head.PSTopN(1, ps_log_file_name)
-    print(f"\nsaving top (ps) processes: {ps_process.cmd}")
+    if DO_PS:
+      # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...
+      ps_log_file_name = get_unique_log_name(log_path, "ps")
+      ps_process = ps_head.PSTopN(1, ps_log_file_name)
+      print(f"\nsaving top (ps) processes: {ps_process.cmd}")
+    else:
+      print(f"WARNING: top (ps) processes is disabled!")
+      ps_process = None
 
-    vmstat_log_file_name = get_unique_log_name(log_path, "vmstat")
-    vmstat_cmd = f"{benchUtil.VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstat_log_file_name} 2>/dev/null &"
-    print(f'saving vmstat: "{vmstat_cmd}"\n')
-    vmstat_process = subprocess.Popen(vmstat_cmd, shell=True, preexec_fn=os.setsid)
+    if DO_VMSTAT:
+      vmstat_log_file_name = get_unique_log_name(log_path, "vmstat")
+      vmstat_cmd = f"{benchUtil.VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstat_log_file_name} 2>/dev/null &"
+      print(f'saving vmstat: "{vmstat_cmd}"\n')
+      vmstat_process = subprocess.Popen(vmstat_cmd, shell=True, preexec_fn=os.setsid)
+    else:
+      print(f"WARNING: vmstat is disabled!")
 
     try:
       job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
@@ -394,19 +402,21 @@ def run_knn_benchmark(checkout, values, log_path):
         if "Exception in" in line:
           hit_exception = True
     finally:
-      print(f"now stop ps process...")
-      ps_process.stop()
+      if DO_PS:
+        print(f"now stop ps process...")
+        ps_process.stop()
 
-      print(f"now stop vmstat (pid={vmstat_process.pid})...")
-      # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
-      subprocess.check_call(["pkill", "-u", benchUtil.get_username(), "vmstat"])
-      if vmstat_process.poll() is None:
-        raise RuntimeError("failed to kill vmstat child process?  pid={vmstat_process.pid}")
+      if DO_VMSTAT:
+        print(f"now stop vmstat (pid={vmstat_process.pid})...")
+        # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
+        subprocess.check_call(["pkill", "-u", benchUtil.get_username(), "vmstat"])
+        if vmstat_process.poll() is None:
+          raise RuntimeError("failed to kill vmstat child process?  pid={vmstat_process.pid}")
 
-    vmstat_subdir_name = write_vmstat_pretties(vmstat_log_file_name, this_cmd)
-
-    str_this_cmd = " ".join([shlex.quote(x) for x in this_cmd])
-    vmstat_index_out.write(f'<a href="{vmstat_subdir_name}/index.html">run {index_run}: {str_this_cmd}</a><br><br>\n')
+    if DO_VMSTAT:
+      vmstat_subdir_name = write_vmstat_pretties(vmstat_log_file_name, this_cmd)
+      str_this_cmd = " ".join([shlex.quote(x) for x in this_cmd])
+      vmstat_index_out.write(f'<a href="{vmstat_subdir_name}/index.html">run {index_run}: {str_this_cmd}</a><br><br>\n')
 
     if hit_exception:
       raise RuntimeError("unhandled java exception while running")
@@ -423,7 +433,8 @@ def run_knn_benchmark(checkout, values, log_path):
   if PERF_MODE:
     return None
 
-  print(f"vmstat: all results at {log_dir_name}/vmstats.html")
+  if DO_VMSTAT:
+    print(f"vmstat: all results at {log_dir_name}/vmstats.html")
 
   if NOISY:
     print("\nResults:")

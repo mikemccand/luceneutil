@@ -976,17 +976,15 @@ public class KnnGraphTester implements FormatterLogger {
       for (LeafReaderContext context : reader.leaves()) {
         LeafReader leafReader = context.reader();
         KnnVectorsReader vectorsReader = ((CodecReader) leafReader).getVectorReader().unwrapReaderForField(field);
-        HnswGraph knnValues;
         if (vectorsReader instanceof Lucene99HnswVectorsReader hnswVectorsReader) {
-          knnValues = hnswVectorsReader.getGraph(field);
+          final var knnValues = hnswVectorsReader.getGraph(KNN_FIELD);
+          log("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
+          log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
+          printGraphFanout(knnValues, leafReader.maxDoc());
+          printGraphConnectedNess(knnValues);
         } else {
           throw new IllegalStateException("unsupported vectors reader: " + vectorsReader.getClass().getName());
         }
-
-        log("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
-        log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
-        printGraphFanout(knnValues, leafReader.maxDoc());
-        printGraphConnectedNess(knnValues);
       }
     }
   }

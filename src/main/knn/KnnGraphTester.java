@@ -883,15 +883,20 @@ public class KnnGraphTester implements FormatterLogger {
       suffix.add(String.valueOf(randomSeed));
     }
     
-    if (indexType == IndexType.FLAT) {
-      suffix.add("flat");
-    } else {
-      // if HNSW hyperparams change, or bg (vector reordering) is enabled, reindex:
-      suffix.add(Integer.toString(maxConn));
-      suffix.add(Integer.toString(beamWidth));
-      if (useBp) {
-        suffix.add("bp");
+    switch (indexType) {
+      case FLAT -> {
+        suffix.add("flat");
       }
+      case HNSW -> {
+        // if HNSW hyperparams change, or bp (vector reordering) is enabled, reindex:
+        suffix.add("hnsw");
+        suffix.add(Integer.toString(maxConn));
+        suffix.add(Integer.toString(beamWidth));
+        if (useBp) {
+          suffix.add("bp");
+        }
+      }
+      default -> throw new IllegalArgumentException("Unknown indexType: " + indexType);
     }
     if (quantize) {
       suffix.add(Integer.toString(quantizeBits));

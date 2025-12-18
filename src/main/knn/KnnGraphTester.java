@@ -277,16 +277,11 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-indexType requires a following pathname");
           }
           String indexKind = args[++iarg].toLowerCase().trim();
-          switch (indexKind) {
-            case "hnsw":
-              indexType = IndexType.HNSW;
-              break;
-            case "flat":
-              indexType = IndexType.FLAT;
-              break;
-            default:
-              throw new IllegalArgumentException("-indexType can be 'hnsw' or 'flat' only");
-          }
+          indexType = switch (indexKind) {
+            case "hnsw" -> IndexType.HNSW;
+            case "flat" -> IndexType.FLAT;
+            default -> throw new IllegalArgumentException("-indexType can be 'hnsw' or 'flat' only");
+          };
           break;
         case "-overSample":
           if (iarg == args.length - 1) {

@@ -904,6 +904,8 @@ public class KnnGraphTester implements FormatterLogger {
       if (quantizeCompress) {
         suffix.add("compressed");
       }
+    } else {
+      suffix.add("full");
     }
 
     if (parentJoin) {

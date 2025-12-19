@@ -388,14 +388,13 @@ def run_knn_benchmark(checkout, values, log_path):
       re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
       summary = None
       hit_exception = False
-      lines = ""
-      while True:
+      while job.poll() is None:
         line = job.stdout.readline()
-        if line == "":
-          break
-        lines += line
+        if not line:
+          continue
         if NOISY:
           sys.stdout.write(line)
+          sys.stdout.flush()
         m = re_summary.match(line)
         if m is not None:
           summary = m.group(1)
@@ -420,11 +419,11 @@ def run_knn_benchmark(checkout, values, log_path):
 
     if hit_exception:
       raise RuntimeError("unhandled java exception while running")
-    if summary is None:
-      raise RuntimeError("could not find summary line in output! " + lines)
     job.wait()
     if job.returncode != 0:
       raise RuntimeError(f"command failed with exit {job.returncode}")
+    if summary is None:
+      raise RuntimeError("could not find summary line in output! ")
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))

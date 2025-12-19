@@ -29,6 +29,7 @@ import autologger
 import benchUtil
 import constants
 import ps_head
+from benchUtil import PERF_EXE
 from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
@@ -57,8 +58,6 @@ DO_VMSTAT = True
 
 # Set this to True to generate the disassembled code to verify the intended SIMD instructions are getting used or not
 PERF_MODE = False
-
-PERF_PATH = shutil.which("perf")
 
 # e.g. to compile KnnIndexer:
 #
@@ -351,9 +350,9 @@ def run_knn_benchmark(checkout, values, log_path):
       ]
     )
 
-    if PERF_MODE and PERF_PATH:
+    if PERF_MODE and PERF_EXE:
       print("Will be recording the executed instructions in perf.data file")
-      perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
+      perf_cmd = [PERF_EXE, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
       job = subprocess.run(perf_cmd, check=False)
       if NOISY:
         print(f"  cmd: {perf_cmd}")

@@ -1729,20 +1729,10 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static class ProfiledKnnByteVectorQuery extends KnnByteVectorQuery {
-    private final Query filter;
-    private final int k;
-    private final int fanout;
-    private final String field;
-    private final byte[] target;
     private long totalVectorCount;
 
     ProfiledKnnByteVectorQuery(String field, byte[] target, int k, int fanout, Query filter) {
       super(field, target, k + fanout, filter);
-      this.field = field;
-      this.target = target;
-      this.k = k;
-      this.fanout = fanout;
-      this.filter = filter;
     }
 
     @Override
@@ -1753,7 +1743,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
-      TopDocs td = TopDocs.merge(k, perLeafResults);
+      final TopDocs td = super.mergeLeafResults(perLeafResults);
       // merge leaf can happen any number of times during a rewrite
       totalVectorCount += td.totalHits.value();
       return td;
@@ -1765,20 +1755,10 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
-    private final Query filter;
-    private final int k;
-    private final int fanout;
-    private final String field;
-    private final float[] target;
     private long totalVectorCount;
 
     ProfiledKnnFloatVectorQuery(String field, float[] target, int k, int fanout, Query filter) {
       super(field, target, k + fanout, filter);
-      this.field = field;
-      this.target = target;
-      this.k = k;
-      this.fanout = fanout;
-      this.filter = filter;
     }
 
     @Override
@@ -1789,7 +1769,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
-      TopDocs td = TopDocs.merge(k, perLeafResults);
+      final TopDocs td = super.mergeLeafResults(perLeafResults);
       // merge leaf can happen any number of times during a rewrite
       totalVectorCount += td.totalHits.value();
       return td;
@@ -1798,7 +1778,6 @@ public class KnnGraphTester implements FormatterLogger {
     long totalVectorCount() {
       return totalVectorCount;
     }
-
   }
 
   private static class BitSetQuery extends Query {

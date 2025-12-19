@@ -2,10 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-In Python sources:
+important code styling:
   - use lower case for comments
-  - do not import modules inside functions.  put them at the top of the source.
+  - Python: do not import modules inside functions.  put them at the top of the source.
   - when naming variables that measure something always put the units into the name, for example elapsed_time_sec
+  - shrink wrap all exceptions: the code inside the try should be absolutely minimal even when it means you must separarate declaration from assignment
+
 
 ## Project Overview
 

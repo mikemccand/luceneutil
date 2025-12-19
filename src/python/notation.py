@@ -853,4 +853,9 @@ KNOWN_CHANGES = [
     "Implement longValues for MultiFieldNormValues to speedup CombinedQuery https://github.com/apache/lucene/pull/15261",
     "Implement longValues for MultiFieldNormValues to speedup CombinedQuery https://github.com/apache/lucene/pull/15261",
   ),
+  (
+    "2025-12-07",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
+  ),
 ]

@@ -137,6 +137,7 @@ OUTPUT_HEADERS = [
   "filterStrategy",
   "filterSelectivity",
   "overSample",
+  "rerank",
   "vec_disk(MB)",
   "vec_RAM(MB)",
   "bp-reorder",

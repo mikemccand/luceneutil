@@ -1305,12 +1305,16 @@ public class KnnGraphTester implements FormatterLogger {
       return searcher.search(query, topK);
     }
 
-    final int k = (overSample > 1) ? Math.round((topK + fanout) * overSample) : topK + fanout;
-    final var profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, queryTimeFilter);
-    Query query = profiledQuery;
-    if (rerank) {
-      query = RescoreTopNQuery.createFullPrecisionRescorerQuery(query, vector, knnField, topK);
-    }
+    final ProfiledKnnFloatVectorQuery profiledQuery;
+    Query query = switch (indexType) {
+      default -> {
+        final int k = (overSample > 1) ? (int) ((topK + fanout) * overSample) : topK + fanout;
+        profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, queryTimeFilter);
+        if (rerank) {
+          yield RescoreTopNQuery.createFullPrecisionRescorerQuery(profiledQuery, vector, knnField, topK);
+        } else yield profiledQuery;
+      }
+    };
 
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
       query = new BooleanQuery.Builder()

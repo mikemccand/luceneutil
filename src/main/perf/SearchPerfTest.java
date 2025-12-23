@@ -30,6 +30,7 @@ import java.lang.management.ThreadInfo;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -377,6 +378,13 @@ public class SearchPerfTest {
       throw new UnsupportedOperationException("recacheFilterDeletes was deprecated");
     }
 
+    Comparator<LeafReader> descendingMaxDoc = new Comparator<>() {
+        @Override
+        public int compare(LeafReader a, LeafReader b) {
+          return -Integer.compare(a.maxDoc(), b.maxDoc());
+        }
+      };
+
     if (args.getFlag("-nrt")) {
       // TODO: get taxoReader working here too
       // TODO: factor out & share this CL processing w/ Indexer
@@ -516,10 +524,12 @@ public class SearchPerfTest {
       final DirectoryReader _reader;
       if (commit != null && commit.length() > 0) {
         System.out.println("Opening searcher on commit=" + commit);
+        // nocommit: hmm which API?
+        //_reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), descendingMaxDoc);
         _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
       } else {
-        // open last commit
-        _reader = DirectoryReader.open(dir);
+        // open most recent commit
+         _reader = DirectoryReader.open(dir, descendingMaxDoc);
       }
       // if exitable == true, wrap the directory readery by ExitableDirectoryReader with (almost) infinite timeout budget.
       final DirectoryReader reader = exitable ? ExitableDirectoryReader.wrap(_reader, new QueryTimeoutImpl(-1L)) : _reader;

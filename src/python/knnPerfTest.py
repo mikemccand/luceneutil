@@ -372,7 +372,7 @@ def run_knn_benchmark(checkout, values, log_path):
       ps_process = ps_head.PSTopN(1, ps_log_file_name)
       print(f"\nsaving top (ps) processes: {ps_process.cmd}")
     else:
-      print(f"WARNING: top (ps) processes is disabled!")
+      print("WARNING: top (ps) processes is disabled!")
       ps_process = None
 
     if DO_VMSTAT:
@@ -381,7 +381,7 @@ def run_knn_benchmark(checkout, values, log_path):
       print(f'saving vmstat: "{vmstat_cmd}"\n')
       vmstat_process = subprocess.Popen(vmstat_cmd, shell=True, preexec_fn=os.setsid)
     else:
-      print(f"WARNING: vmstat is disabled!")
+      print("WARNING: vmstat is disabled!")
 
     try:
       job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
@@ -403,7 +403,7 @@ def run_knn_benchmark(checkout, values, log_path):
           hit_exception = True
     finally:
       if DO_PS:
-        print(f"now stop ps process...")
+        print("now stop ps process...")
         ps_process.stop()
 
       if DO_VMSTAT:

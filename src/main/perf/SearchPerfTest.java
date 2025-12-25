@@ -86,6 +86,7 @@ import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.apache.lucene.util.Version;
 
 import com.sun.management.ThreadMXBean;
 
@@ -523,12 +524,11 @@ public class SearchPerfTest {
       writer = null;
       final DirectoryReader _reader;
       if (commit != null && commit.length() > 0) {
-        System.out.println("Opening searcher on commit=" + commit);
-        // nocommit: hmm which API?
-        //_reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), descendingMaxDoc);
-        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
+        System.out.println("Opening searcher on commit=" + commit + ", sorting leaves by descending maxDoc");
+        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR, descendingMaxDoc);
       } else {
         // open most recent commit
+        System.out.println("Opening searcher on latest commit, sorting leaves by descending maxDoc");
          _reader = DirectoryReader.open(dir, descendingMaxDoc);
       }
       // if exitable == true, wrap the directory readery by ExitableDirectoryReader with (almost) infinite timeout budget.

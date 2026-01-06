@@ -530,7 +530,7 @@ public class SearchPerfTest {
         //System.out.println("Opening searcher on commit=" + commit + ", sorting leaves by descending maxDoc");
         //_reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR, descendingMaxDoc);
         System.out.println("Opening searcher on commit=" + commit);
-        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR);
+        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
       } else {
         // open most recent commit
         System.out.println("Opening searcher on latest commit, sorting leaves by descending maxDoc");

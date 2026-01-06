@@ -887,9 +887,9 @@ def run():
 
   if cmpDiffs is not None:
     warnings, errors, overlap = cmpDiffs
-    print("WARNING: search result differences: %s" % str(warnings))
+    print("WARNING: search result differences: warnings=%s errors=%s" % (str(warnings), str(errors)))
     if len(errors) > 0 and not DO_RESET:
-      raise RuntimeError("search result differences: %s" % str(errors))
+      raise RuntimeError("search result differences: warnings=%s errors=%s" % (str(warnings), str(errors)))
   else:
     cmpDiffs = None
     searchHeaps = None

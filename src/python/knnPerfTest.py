@@ -472,7 +472,7 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
   try:
     # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
     os.chdir(dir_name)
-    print(f"cd {vmstat_dir_name=}")
+    print(f"cd {vmstat_dir_name}")
 
     # TODO: optimize to single shared copy!
     shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", vmstat_dir_name)

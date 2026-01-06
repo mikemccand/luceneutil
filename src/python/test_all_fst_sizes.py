@@ -23,7 +23,7 @@ max_actual = None
 while True:
   print(f"\nTest ram_mb={ram_mb}")
   stdout = subprocess.check_output(
-    f"java -cp .:lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar IndexToFST /l/indices/wikimediumall.trunk.facets.taxonomy:Date.taxonomy:Month.taxonomy:DayOfYear.taxonomy:RandomLabel.taxonomy.sortedset:Date.sortedset:Month.sortedset:DayOfYear.sortedset:RandomLabel.sortedset.Lucene90.Lucene90.dvfields.nd33.3326M/index {ram_mb}",
+    f"java -cp .:lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar IndexToFST /l/indices/wikimediumall.trunk.nd33.3326M/index {ram_mb}",
     shell=True,
   )
 

@@ -8,7 +8,7 @@
 # /root/jdk1.6.0_31/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC
 
 /opt/zing/zingLX-jdk1.6.0_31-5.2.0.0-18-x86_64/bin/java -verbose:gc -Xms40G -Xmx40G -cp .:$LUCENE_HOME/build/core/classes/java:$LUCENE_HOME/build/highlighter/classes/java:$LUCENE_HOME/build/test-framework/classes/java:$LUCENE_HOME/build/queryparser/classes/java:$LUCENE_HOME/build/suggest/classes/java:$LUCENE_HOME/build/analysis/common/classes/java:$LUCENE_HOME/build/grouping/classes/java perf.SearchPerfTest \
-    -indexPath /large/indices/wikimediumall.lucene4x.Lucene40.nd33.3326M/index \
+    -indexPath /large/indices/wikimediumall.lucene4x.nd33.3326M/index \
     -dirImpl RAMDirectory \
     -analyzer StandardAnalyzer \
     -taskSource server:localhost:7777 \

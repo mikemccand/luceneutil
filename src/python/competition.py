@@ -236,37 +236,29 @@ class Index:
     if self.useCFS:
       name.append("cfs")
 
-    # TODO: adding facets to filename makes it too long and runs into limits on some machines
-    # Can we remove this from file name and record it in a different logfile.
+    # Print index configuration instead of adding to filename
+    config_parts = []
     if self.facets is not None:
-      name.append("facets")
-      for arg in self.facets:
-        name.append(arg[0])
-      name.append(self.facetDVFormat)
-
+      config_parts.append(f"facets: {[arg[0] for arg in self.facets]} (format: {self.facetDVFormat})")
     if self.bodyTermVectors:
-      name.append("tv")
-
+      config_parts.append("bodyTermVectors: enabled")
     if self.bodyStoredFields:
-      name.append("stored")
-
+      config_parts.append("bodyStoredFields: enabled")
     if self.bodyPostingsOffsets:
-      name.append("offsets")
-
-    name.append(self.postingsFormat)
+      config_parts.append("bodyPostingsOffsets: enabled")
+    config_parts.append(f"postingsFormat: {self.postingsFormat}")
     if self.postingsFormat != self.idFieldPostingsFormat:
-      name.append(self.idFieldPostingsFormat)
-
+      config_parts.append(f"idFieldPostingsFormat: {self.idFieldPostingsFormat}")
     if self.addDVFields:
-      name.append("dvfields")
-
+      config_parts.append("addDVFields: enabled")
     if self.indexSort:
-      name.append("sort=%s" % self.indexSort)
-
+      config_parts.append(f"indexSort: {self.indexSort}")
     if self.vectorFile:
-      name.append("vectors=%d" % self.vectorDimension)
+      config_parts.append(f"vectors: dimension={self.vectorDimension}")
       if self.quantizeKNNGraph:
-        name.append("int8-quantized")
+        config_parts.append("quantizeKNNGraph: enabled")
+    config_parts.append(f"numDocs: {self.numDocs / 1000000.0:.3f}M")
+    print(f"Index configuration for {'.'.join(name)}: {', '.join(config_parts)}")
 
     name.append("nd%gM" % (self.numDocs / 1000000.0))
     return ".".join(name)

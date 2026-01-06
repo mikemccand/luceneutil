@@ -522,14 +522,20 @@ public class SearchPerfTest {
     } else {
       dir = dir0;
       writer = null;
+
       final DirectoryReader _reader;
+      // TODO: re-enable "sort by maxDoc descending", but put it under command-line option, and cannot enable in nightly benchy easily
+      // because tie-break on sorting causes hits in different order and fails benchy
       if (commit != null && commit.length() > 0) {
-        System.out.println("Opening searcher on commit=" + commit + ", sorting leaves by descending maxDoc");
-        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR, descendingMaxDoc);
+        //System.out.println("Opening searcher on commit=" + commit + ", sorting leaves by descending maxDoc");
+        //_reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR, descendingMaxDoc);
+        System.out.println("Opening searcher on commit=" + commit);
+        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR);
       } else {
         // open most recent commit
         System.out.println("Opening searcher on latest commit, sorting leaves by descending maxDoc");
-         _reader = DirectoryReader.open(dir, descendingMaxDoc);
+        //_reader = DirectoryReader.open(dir, descendingMaxDoc);
+        _reader = DirectoryReader.open(dir);
       }
       // if exitable == true, wrap the directory readery by ExitableDirectoryReader with (almost) infinite timeout budget.
       final DirectoryReader reader = exitable ? ExitableDirectoryReader.wrap(_reader, new QueryTimeoutImpl(-1L)) : _reader;

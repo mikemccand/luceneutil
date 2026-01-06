@@ -112,6 +112,7 @@ def main():
     # takes a long time!  ~3.2 hours
     # NOTE: train is the only split
     docs = datasets.load_dataset(DATASET_NAME, LANG, split="train", streaming=True)
+    docs = docs.with_format("numpy")
     # print(f'columns: {docs.column_names}')
 
     features = docs.features
@@ -187,8 +188,10 @@ def main():
             total_doc_count += 1
             cur_wiki_id = wiki_id
 
-          emb = np.array(doc["emb"], dtype=np.float32)
+          emb = doc["emb"]
 
+          if emb.dtype != np.dtype("<f4"):
+            raise RuntimeError(f"planned on little-endian float32 encoding but corpus is {emb.dtype}!")
           if len(emb) != DIMENSIONS:
             raise RuntimeError(f"planned on {DIMENSIONS} dims but corpus is {len(emb)}!")
           # print(f'{type(emb)}')

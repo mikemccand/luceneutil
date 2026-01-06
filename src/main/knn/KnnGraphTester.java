@@ -1124,7 +1124,7 @@ public class KnnGraphTester implements FormatterLogger {
       long startNS;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         // TODO: hmm dangerous since index isn't necessarily going to fit in RAM?
-        dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+        dir.setPreload(MMapDirectory.PRELOAD_HINT);
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
           final IndexSearcher searcher = new IndexSearcher(reader, searchExecutor);
           int indexNumDocs = reader.maxDoc();
@@ -1544,7 +1544,7 @@ public class KnnGraphTester implements FormatterLogger {
     AtomicInteger completedCount = new AtomicInteger(0);
     List<Callable<Void>> tasks = new ArrayList<>();
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
-      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      dir.setPreload(MMapDirectory.PRELOAD_HINT);
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         if (reader.maxDoc() != numDocs && !parentJoin) {
           throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
@@ -1615,7 +1615,7 @@ public class KnnGraphTester implements FormatterLogger {
     log("parentJoin = %s\n", parentJoin);
     AtomicInteger completedCount = new AtomicInteger(0);
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
-      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      dir.setPreload(MMapDirectory.PRELOAD_HINT);
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
         if (reader.maxDoc() != numDocs && parentJoin == false) {

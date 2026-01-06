@@ -172,7 +172,7 @@ def main():
 
       next_print_time_sec = start_time_sec
       last_vec_out_pos = 0
-      with open(csv_source_file, "w", newlines="") as meta_out, open(vec_source_file, "wb") as vec_out:
+      with open(csv_source_file, "w", newline="") as meta_out, open(vec_source_file, "wb") as vec_out:
         meta_csv_out = csv.writer(meta_out, lineterminator="\n")
         meta_csv_out.writerow(headers)
         for doc in docs:

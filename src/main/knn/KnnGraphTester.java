@@ -17,6 +17,8 @@
 
 package knn;
 
+import io.github.jbellis.jvector.graph.disk.OnDiskGraphIndex;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -89,6 +91,9 @@ import org.apache.lucene.queries.function.valuesource.ConstKnnByteVectorValueSou
 import org.apache.lucene.queries.function.valuesource.ConstKnnFloatValueSource;
 import org.apache.lucene.queries.function.valuesource.FloatKnnVectorFieldSource;
 import org.apache.lucene.queries.function.valuesource.FloatVectorSimilarityFunction;
+import org.apache.lucene.sandbox.codecs.jvector.JVectorFormat;
+import org.apache.lucene.sandbox.codecs.jvector.JVectorReader;
+import org.apache.lucene.sandbox.codecs.jvector.JVectorSearchStrategy;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreScorer;
@@ -111,6 +116,7 @@ import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.search.join.DiversifyingChildrenFloatKnnVectorQuery;
 import org.apache.lucene.search.join.QueryBitSetProducer;
 import org.apache.lucene.search.join.ToParentBlockJoinQuery;
+import org.apache.lucene.search.knn.KnnSearchStrategy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -141,6 +147,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   enum IndexType {
     HNSW,
+    JVECTOR,
     FLAT
   }
 
@@ -280,7 +287,8 @@ public class KnnGraphTester implements FormatterLogger {
           indexType = switch (indexKind) {
             case "hnsw" -> IndexType.HNSW;
             case "flat" -> IndexType.FLAT;
-            default -> throw new IllegalArgumentException("-indexType can be 'hnsw' or 'flat' only");
+            case "jvector" -> IndexType.JVECTOR;
+            default -> throw new IllegalArgumentException("-indexType can be 'hnsw', 'jvector', or 'flat' only");
           };
           break;
         case "-overSample":
@@ -896,6 +904,15 @@ public class KnnGraphTester implements FormatterLogger {
           suffix.add("bp");
         }
       }
+      case JVECTOR -> {
+        suffix.add("jvector");
+        suffix.add(Integer.toString(maxConn));
+        suffix.add(Integer.toString(beamWidth));
+        if (useBp) {
+          suffix.add("bp");
+        }
+        break;
+      }
       default -> throw new IllegalArgumentException("Unknown indexType: " + indexType);
     }
     if (quantize) {
@@ -982,6 +999,12 @@ public class KnnGraphTester implements FormatterLogger {
           log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
           printGraphFanout(knnValues, leafReader.maxDoc());
           printGraphConnectedNess(knnValues);
+        } else if (vectorsReader instanceof JVectorReader jVectorReader) {
+          final var index = jVectorReader.getIndex(KNN_FIELD);
+          log("Leaf %d has %d layers\n", context.ord, index.getMaxLevel() + 1);
+          log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
+          printGraphFanout(index, leafReader.maxDoc());
+          printGraphConnectedness(index);
         } else {
           throw new IllegalStateException("unsupported vectors reader: " + vectorsReader.getClass().getName());
         }
@@ -1041,6 +1064,32 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
+  private void printGraphConnectedness(OnDiskGraphIndex graph) {
+    final var view = graph.getView();
+    for (int level = graph.getMaxLevel(); level >= 0; level--) {
+      final var nodesIterator = graph.getNodes(level);
+      final int numNodesOnLayer = nodesIterator.size();
+      final IntIntHashMap connectedNodes = new IntIntHashMap(numNodesOnLayer);
+      // Start at entry point and search all nodes on this level
+      final int entryPoint = view.entryNode().node;
+      final Deque<Integer> stack = new ArrayDeque<>();
+      stack.push(entryPoint);
+      while (!stack.isEmpty()) {
+        int node = stack.pop();
+        if (connectedNodes.containsKey(node)) {
+          continue;
+        }
+        connectedNodes.put(node, 1);
+        var neighbors = view.getNeighborsIterator(level, node);
+        while (neighbors.hasNext()) {
+          stack.push(neighbors.nextInt());
+        }
+      }
+      log("Graph level=%d size=%d, connectedness=%.2f\n",
+        level, numNodesOnLayer, connectedNodes.size() / (float) numNodesOnLayer);
+    }
+  }
+
   @SuppressForbidden(reason = "Prints stuff")
   private void printGraphFanout(HnswGraph knnValues, int numDocs) throws IOException {
     int numLevels = knnValues.numLevels();
@@ -1075,6 +1124,53 @@ public class KnnGraphTester implements FormatterLogger {
       }
       log("Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d, meandelta=%.2f\n",
           level, count, min, total / (float) count, max, sumDelta / (float) total);
+      if (!quiet) {
+        printHist(leafHist, max, count, 10);
+      }
+    }
+  }
+
+  private void printGraphFanout(OnDiskGraphIndex graph, int numDocs) {
+    final var view = graph.getView();
+    for (int level = graph.getMaxLevel(); level >= 0; level--) {
+      int count = 0;
+      int min = Integer.MAX_VALUE, max = 0, total = 0;
+      long sumDelta = 0;
+      var nodesIterator = graph.getNodes(level);
+      int[] leafHist = new int[nodesIterator.size()];
+      while (nodesIterator.hasNext()) {
+        int node = nodesIterator.nextInt();
+        int n = 0;
+        var neighbors = view.getNeighborsIterator(level, node);
+        int lastNeighbor = -1, firstNeighbor = -1;
+        while (neighbors.hasNext()) {
+          final int nbr = neighbors.nextInt();
+          if (firstNeighbor == -1) {
+            firstNeighbor = nbr;
+          }
+          if (neighbors.size() >= nodesIterator.size()) {
+            System.err.printf(java.util.Locale.ROOT, "layer %d: %d -> %d\n", level, node, nbr);
+          }
+          lastNeighbor = nbr;
+          ++n;
+        }
+        assert n == neighbors.size();
+        if (n >= leafHist.length) {
+          log("WARN: node %d has duplicate neighbors (degree=%d, layerSize=%d, entrypoint=%s)\n", node, n, leafHist.length, view.entryNode());
+          continue;
+        }
+
+        ++leafHist[n];
+        max = Math.max(max, n);
+        min = Math.min(min, n);
+        if (n > 0) {
+          ++count;
+          total += n;
+          sumDelta += lastNeighbor - firstNeighbor;
+        }
+      }
+      log("Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d, meandelta=%.2f\n",
+        level, count, min, total / (float) count, max, sumDelta / (float) total);
       if (!quiet) {
         printHist(leafHist, max, count, 10);
       }
@@ -1305,9 +1401,18 @@ public class KnnGraphTester implements FormatterLogger {
 
     final ProfiledKnnFloatVectorQuery profiledQuery;
     Query query = switch (indexType) {
+      case JVECTOR -> {
+        final var searchStrategy =
+            JVectorSearchStrategy.builder()
+                .withOverQueryFactor(overSample)
+                .withUseReranking(rerank)
+                .build();
+            profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, topK + fanout, queryTimeFilter, searchStrategy);
+        yield profiledQuery;
+      }
       default -> {
         final int k = (overSample > 1) ? (int) ((topK + fanout) * overSample) : topK + fanout;
-        profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, queryTimeFilter);
+        profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, queryTimeFilter, null);
         if (rerank) {
           yield RescoreTopNQuery.createFullPrecisionRescorerQuery(profiledQuery, vector, knnField, topK);
         } else yield profiledQuery;
@@ -1755,11 +1860,14 @@ public class KnnGraphTester implements FormatterLogger {
           return switch (indexType) {
             case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits));
             case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits), maxConn, beamWidth, numMergeWorker, null);
+            case JVECTOR -> new JVectorFormat(maxConn, beamWidth, 1.2f, 1.0f, dim -> dim * quantizeBits / 8, 128_000, true);
+            // compressed size = 8 bits * subspace count = dim * quantizeBits
           };
         } else {
           return switch (indexType) {
             case FLAT -> new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
             case HNSW -> new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+            case JVECTOR -> new JVectorFormat(maxConn, beamWidth, 1.2f, 1.0f, _ -> 0, Integer.MAX_VALUE, true);
           };
         }
       }
@@ -1812,8 +1920,8 @@ public class KnnGraphTester implements FormatterLogger {
   private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
     private long totalVectorCount;
 
-    ProfiledKnnFloatVectorQuery(String field, float[] target, int k, Query filter) {
-      super(field, target, k, filter);
+    ProfiledKnnFloatVectorQuery(String field, float[] target, int k, Query filter, KnnSearchStrategy searchStrategy) {
+      super(field, target, k, filter, searchStrategy);
     }
 
     @Override

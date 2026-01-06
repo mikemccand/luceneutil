@@ -893,6 +893,7 @@ def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
 
 
 reCoreJar = re.compile("lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")
+reSandboxJar = re.compile("lucene-sandbox-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")
 
 
 class RunAlgs:
@@ -1752,6 +1753,11 @@ def getClassPath(checkout):
       break
   if core_jar_file is None:
     raise RuntimeError("can't find core JAR file in %s" % ("%s/lucene/core/build/libs" % path))
+
+  for filename in os.listdir("%s/lucene/sandbox/build/libs" % path):
+    if reSandboxJar.match(filename) is not None:
+      cp.append(f'{path}/lucene/sandbox/build/libs/{filename}')
+      break
 
   cp.append(core_jar_file)
   cp.append("%s/lucene/sandbox/build/classes/java/main" % path)

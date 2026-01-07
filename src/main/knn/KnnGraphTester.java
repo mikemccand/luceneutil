@@ -223,17 +223,6 @@ public class KnnGraphTester implements FormatterLogger {
     overSample = 1f;
   }
 
-  private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding, boolean noisy) throws IOException {
-    FileChannel in = FileChannel.open(path);
-    if (noisy) {
-      System.out.println("path=" + path + " dim=" + dim + " vectorEncoding.byteSize=" + vectorEncoding.byteSize);
-    }
-    if (in.size() % (dim * vectorEncoding.byteSize) != 0) {
-      throw new IllegalArgumentException("vectors file \"" + path + "\" does not contain a whole number of vectors?  size=" + in.size());
-    }
-    return in;
-  }
-
   public static void main(String... args) throws Exception {
     new KnnGraphTester().run(args);
   }
@@ -1094,15 +1083,9 @@ public class KnnGraphTester implements FormatterLogger {
     } else {
       executorService = null;
     }
-    try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-      long queryPathSizeInBytes = input.size();
-      log((int) (queryPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " query vectors in queryPath \"" + queryPath + "\"\n");
-      VectorReader targetReader = VectorReader.create(input, dim, vectorEncoding, queryStartIndex);
-      VectorReaderByte targetReaderByte = null;
-      if (targetReader instanceof VectorReaderByte b) {
-        targetReaderByte = b;
-      }
-      log("searching " + numQueryVectors + " query vectors; topK=" + topK + ", fanout=" + fanout + "\n");
+    try (VectorReader<?> targetReader = VectorReader.create(queryPath, dim, vectorEncoding)) {
+      log(targetReader.getVectorCount() + " query vectors in queryPath \"" + queryPath + "\"\n");
+      log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, topK, fanout);
       long startNS;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         // TODO: hmm dangerous since index isn't necessarily going to fit in RAM?
@@ -1115,20 +1098,13 @@ public class KnnGraphTester implements FormatterLogger {
           }
           // warm up
           for (int i = 0; i < numQueryVectors; i++) {
-            switch (vectorEncoding) {
-              case BYTE -> doKnnVectorQuery(targetReaderByte.nextBytes(), searcher);
-              case FLOAT32 -> doKnnVectorQuery(targetReader.next(), searcher);
-            };
+            doKnnVectorQuery(queryStartIndex + i, targetReader, searcher);
           }
           log("done warmup\n");
-          targetReader.reset();
           startNS = System.nanoTime();
           ThreadDetails startThreadDetails = new ThreadDetails();
           for (int i = 0; i < numQueryVectors; i++) {
-            results[i] = switch (vectorEncoding) {
-              case BYTE -> doKnnVectorQuery(targetReaderByte.nextBytes(), searcher);
-              case FLOAT32 -> doKnnVectorQuery(targetReader.next(), searcher);
-            };
+            results[i] = doKnnVectorQuery(queryStartIndex + i, targetReader, searcher);
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
           perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
@@ -1234,6 +1210,13 @@ public class KnnGraphTester implements FormatterLogger {
     } else {
       return KNN_FIELD;
     }
+  }
+
+  private TopDocs doKnnVectorQuery(int index, VectorReader<?> targetReader, IndexSearcher searcher) throws IOException {
+    return switch (targetReader) {
+      case VectorReader.Byte byteVectors -> doKnnVectorQuery(byteVectors.read(index), searcher);
+      case VectorReader.Float32 floatVectors -> doKnnVectorQuery(floatVectors.read(index), searcher);
+    };
   }
 
   private TopDocs doKnnVectorQuery(byte[] vector, IndexSearcher searcher) throws IOException {
@@ -1483,11 +1466,10 @@ public class KnnGraphTester implements FormatterLogger {
           throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
         }
         IndexSearcher searcher = new IndexSearcher(reader);
-        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-          VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
+        try (var queryReader = (VectorReader.Byte) VectorReader.create(queryPath, dim, VectorEncoding.BYTE)) {
           for (int i = 0; i < numQueryVectors; i++) {
-            byte[] query = queryReader.nextBytes().clone();
-            tasks.add(new ComputeNNByteTask(searcher, i, query, result, completedCount));
+            byte[] query = queryReader.read(queryStartIndex + i);
+            tasks.add(new ComputeNNByteTask(searcher, i + queryStartIndex, query, result, completedCount));
           }
         }
         runTasksWithProgress(tasks, completedCount, this);
@@ -1560,14 +1542,13 @@ public class KnnGraphTester implements FormatterLogger {
           CheckJoinIndex.check(reader, parentsFilter);
         }
         List<Callable<Void>> tasks = new ArrayList<>();
-        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+        try (var queryReader = (VectorReader.Float32) VectorReader.create(queryPath, dim, VectorEncoding.FLOAT32)) {
           for (int i = 0; i < numQueryVectors; i++) {
-            float[] query = queryReader.next().clone();
+            float[] query = queryReader.read(queryStartIndex + i);
             if (parentJoin) {
-              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result, completedCount));
+              tasks.add(new ComputeExactSearchNNFloatTask(searcher, queryStartIndex + i, query, result, completedCount));
             } else {
-              tasks.add(new ComputeNNFloatTask(searcher, i, query, result, completedCount));
+              tasks.add(new ComputeNNFloatTask(searcher, queryStartIndex + i, query, result, completedCount));
             }
           }
           runTasksWithProgress(tasks, completedCount, this);

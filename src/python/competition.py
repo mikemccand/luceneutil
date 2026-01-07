@@ -230,36 +230,6 @@ class Index:
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
 
-    if self.optimize:
-      name.append("opt")
-
-    if self.useCFS:
-      name.append("cfs")
-
-    # Print index configuration instead of adding to filename
-    config_parts = []
-    if self.facets is not None:
-      config_parts.append(f"facets: {[arg[0] for arg in self.facets]} (format: {self.facetDVFormat})")
-    if self.bodyTermVectors:
-      config_parts.append("bodyTermVectors: enabled")
-    if self.bodyStoredFields:
-      config_parts.append("bodyStoredFields: enabled")
-    if self.bodyPostingsOffsets:
-      config_parts.append("bodyPostingsOffsets: enabled")
-    config_parts.append(f"postingsFormat: {self.postingsFormat}")
-    if self.postingsFormat != self.idFieldPostingsFormat:
-      config_parts.append(f"idFieldPostingsFormat: {self.idFieldPostingsFormat}")
-    if self.addDVFields:
-      config_parts.append("addDVFields: enabled")
-    if self.indexSort:
-      config_parts.append(f"indexSort: {self.indexSort}")
-    if self.vectorFile:
-      config_parts.append(f"vectors: dimension={self.vectorDimension}")
-      if self.quantizeKNNGraph:
-        config_parts.append("quantizeKNNGraph: enabled")
-    config_parts.append(f"numDocs: {self.numDocs / 1000000.0:.3f}M")
-    print(f"Index configuration for {'.'.join(name)}: {', '.join(config_parts)}")
-
     name.append("nd%gM" % (self.numDocs / 1000000.0))
     return ".".join(name)
 

@@ -3,6 +3,24 @@
 # disable bash leniency, and log all errors to stderr!
 set -ex
 
+DF_LOG_FILE="/l/logs.nightly/df_nightly_monitor.log"
+
+# Start the background process
+(
+    while true; do
+      echo "\n$(date -Iseconds) $(df --output)" >> "$DF_LOG_FILE"
+      sleep 1
+    done
+) &
+
+DF_BG_PID=$!
+echo "Started background df monitor with PID: $DF_BG_PID"
+
+# since we check in each nightly all.log we can start anew each night:
+echo -n > /l/logs.nightly/all.log
+echo "start: disk usage on /l:" > /l/logs.nightly/all.log
+df -h /l >> /l/logs.nightly/all.log
+
 # Oracle java 1.6.0_26
 #export PATH=/usr/local/src/jdk1.6.0_26/bin:/usr/lib64/qt-3.3/bin:/usr/kerberos/sbin:/usr/kerberos/bin:/usr/lib64/ccache:/usr/local/bin:/bin:/usr/bin
 #export JAVA_HOME=/usr/local/src/jdk1.6.0_26
@@ -48,8 +66,18 @@ set -ex
 #export GRADLE_HOME=/usr/local/src/gradle-2.9
 #export PATH=$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
 
+#export ANT_HOME=/usr/local/src/apache-ant-1.9.5
+#export JAVA_HOME=/usr/lib/jvm/jdk-23.0.2
+#export GRADLE_HOME=/usr/local/src/gradle-2.9
+#export PATH=$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
+
+#export ANT_HOME=/usr/local/src/apache-ant-1.9.5
+#export JAVA_HOME=/usr/lib/jvm/java-24-openjdk
+#export GRADLE_HOME=/usr/local/src/gradle-2.9
+#export PATH=$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
+
 export ANT_HOME=/usr/local/src/apache-ant-1.9.5
-export JAVA_HOME=/usr/lib/jvm/java-23-openjdk
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
 export GRADLE_HOME=/usr/local/src/gradle-2.9
 export PATH=$ANT_HOME/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
 
@@ -61,10 +89,11 @@ echo -e "\n\n$(date): now start nightly benchmarks"
 pkill java || true
 pkill mencoder || true
 
-echo "now git pull and build Lucene JARs..."
+#echo "now git pull and build Lucene JARs..."
 cd /l/trunk.nightly/lucene
 git checkout main
 git pull origin main
+#echo "NOTE: not git pulling!! -- fix me once we debug #14630"
 ../gradlew clean
 ../gradlew jar >> gradlew.jar.geo.log 2>&1
 
@@ -76,14 +105,9 @@ mkdir build
 
 git pull origin main
 
-# since we check in each nightly all.log we can start anew each night:
-echo -n > /l/logs.nightly/all.log
-echo "start: disk usage on /l:" > /l/logs.nightly/all.log
-df -h /l >> /l/logs.nightly/all.log
-
 # Do this one first so the rsync run in nightlyBench.py picks up the chart:
 echo "Run gradle test"
-/usr/bin/python3 -uO /l/util.nightly/src/python/runNightlyGradleTestPrecommit.py >> /l/logs.nightly/all.log 2>&1
+/usr/bin/python3 -u /l/util.nightly/src/python/runNightlyGradleTestPrecommit.py >> /l/logs.nightly/all.log 2>&1
 
 echo "Run lucene nightly"
 /usr/bin/python -uO /l/util.nightly/src/python/nightlyBench.py -run >> /l/logs.nightly/all.log 2>&1
@@ -106,13 +130,6 @@ cd /l/util.nightly
 
 #/usr/bin/python3 -u systemtests/benchmark.py writeGraph -copy >> /l/logs.nightly/all.log 2>&1
 
-echo
-echo "Now git add/commit new nightly results"
-cd /l/lucenenightly
-git add .
-git commit -m "$(date): auto commit nightly benchy results"
-git push
-
 echo "Now rsync"
 date
 rsync --delete -lrtSO /l/logs.nightly/ /x/tmp/beast3.logs/logs.nightly/
@@ -128,3 +145,15 @@ rsync -a /l/logs.nightly/ /ssd/logs.nightly.bak/
 
 echo "end: disk usage on /l:" >> /l/logs.nightly/all.log
 df -h /l >> /l/logs.nightly/all.log
+
+
+# Reclaim (terminate) the background process
+echo "Stopping background df process..."
+kill $DF_BG_PID 2>/dev/null
+wait $DF_BG_PID 2>/dev/null
+
+echo "Background process stopped. Log file: $DF_LOG_FILE"
+echo "Sample output:"
+tail -3 "$DF_LOG_FILE"
+
+

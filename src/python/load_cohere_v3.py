@@ -171,6 +171,7 @@ def main():
       cur_wiki_id = None
 
       next_print_time_sec = start_time_sec
+      last_vec_out_pos = 0
       with open(csv_source_file, "w", newlines="") as meta_out, open(vec_source_file, "wb") as vec_out:
         meta_csv_out = csv.writer(meta_out, lineterminator="\n")
         meta_csv_out.writerow(headers)
@@ -192,6 +193,15 @@ def main():
             raise RuntimeError(f"planned on {DIMENSIONS} dims but corpus is {len(emb)}!")
           # print(f'{type(emb)}')
           emb.tofile(vec_out)
+
+          # NOTE: logic below completely untested!
+
+          # paranoia -- we could also hold our paranoia until after whole file is written and check then hah:
+          vec_out_pos = vec_out.tell()
+          if vec_out_pos - last_vec_out_pos != DIMENSIONS * 4:
+            raise RuntimeError(f"expected {DIMENSIONS * 4} bytes written (4 bytes (float32) per dimension={DIMENSIONS}) but saw {vec_out_pos - last_vec_out_pos}")
+          last_vec_out_pos = vec_out_pos
+
           row_count += 1
           now_sec = time.time()
           if now_sec > next_print_time_sec:

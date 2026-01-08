@@ -7,8 +7,12 @@ DF_LOG_FILE="/l/logs.nightly/df_nightly_monitor.log"
 
 # Start the background process
 (
+    set +x  # Disable trace mode in this subshell
     while true; do
-      echo "\n$(date -Iseconds) $(df --output)" >> "$DF_LOG_FILE"
+      echo >> "$DF_LOG_FILE"
+      date -Iseconds >> "$DF_LOG_FILE"
+      df --output / | tail -n +2 >> "$DF_LOG_FILE"
+      echo "---" >> "$DF_LOG_FILE"
       sleep 1
     done
 ) &

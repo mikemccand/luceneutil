@@ -23,6 +23,7 @@ import struct
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import autologger
 import benchUtil
@@ -457,8 +458,10 @@ def run_knn_benchmark(checkout, values, log_path):
 def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
   print(f"write vmstat pretties from log={vmstat_log_file_name}")
 
-  dir_name, file_name = os.path.split(vmstat_log_file_name)
-  base_name, ext = os.path.splitext(file_name)
+  vmstat_log_path = Path(vmstat_log_file_name)
+  dir_name = vmstat_log_path.parent
+  base_name = vmstat_log_path.stem
+  ext = vmstat_log_path.suffix
 
   vmstat_dir_name = f"{dir_name}/{base_name}-vmstat-charts"
   print(f"see {vmstat_dir_name}/index.html for vmstat visualization")
@@ -817,8 +820,10 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
 
 if __name__ == "__main__":
   with autologger.capture_output() as log_path:
-    log_dir_name, log_file_name = os.path.split(log_path)
-    log_base_name, log_ext = os.path.splitext(log_file_name)
+    log_path = Path(log_path)
+    log_dir_name = log_path.parent
+    log_base_name = log_path.stem
+    log_ext = log_path.suffix
 
     # print cpu and memory information at the start
     print_cpu_info()

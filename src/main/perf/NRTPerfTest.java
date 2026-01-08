@@ -433,8 +433,11 @@ public class NRTPerfTest {
       Thread.sleep(25);
     }
 
+    System.out.println("stop task threads...");
     taskThreads.stop();
+    System.out.println("stop reopen thread...");
     reopenThread.join();
+    System.out.println("stop index threads...");
     indexThreads.stop();
 
     System.out.println("By time:");

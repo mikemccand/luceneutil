@@ -202,7 +202,7 @@ public class NRTPerfTest {
     @Override
     public Task nextTask() {
       final int next = nextTask.getAndIncrement() % numTasks;
-      return tasks.get(next);
+      return tasks.get(next).clone();
     }
 
     @Override

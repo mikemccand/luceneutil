@@ -187,6 +187,8 @@ def buildIndex(r, runLogDir, desc, index, logFile):
 
   message("  took %.1f sec" % indexTimeSec)
 
+  fail_if_java_exceptions(f"buildIndex:{desc}", newLogFileName)
+
   if "(fast)" in desc:
     # don't run checkIndex: we rollback in the end
     pass
@@ -207,12 +209,25 @@ def checkIndex(r, indexPath, checkLogFileName):
     checkLogFileName,
   )
   runCommand(cmd)
+  fail_if_java_exceptions("checkIndex:" + indexPath, checkLogFileName)
   if open(checkLogFileName, encoding="utf-8").read().find("No problems were detected with this index") == -1:
     raise RuntimeError("CheckIndex failed")
 
+# Pattern matches common Java exception formats
+EXCEPTION_PATTERN = re.compile(
+    r'(?:Exception|Error|Throwable)(?::|$)|'
+    r'^\s+at\s+[\w.$]+\([\w.]+:\d+\)|'
+    r'^\s+\.\.\.\s+\d+\s+more|'
+    r'Caused by:'
+)
+
+def fail_if_java_exceptions(desc, log_file):
+  with open(log_file, 'r') as f:
+    for line_num, line in enumerate(f, 1):
+      if EXCEPTION_PATTERN.search(line):
+        raise RuntimeError(f"{desc}: java exceptions found in log file \"{log_file}\": line {line_num}: {line.rstrip()}")
 
 reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)
-
 
 def runNRTTest(r, indexPath, runLogDir):
   open("body10.tasks", "w").write("Term: body:10\n")
@@ -233,6 +248,8 @@ def runNRTTest(r, indexPath, runLogDir):
   logFile = "%s/nrt.log" % runLogDir
   cmd += "> %s 2>&1" % logFile
   runCommand(cmd)
+
+  fail_if_java_exceptions('runNRTTest', logFile)
 
   times = []
   for s in reNRTReopenTime.findall(open(logFile, encoding="utf-8").read()):
@@ -634,6 +651,7 @@ def run():
   nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")
   message("nrtMedIndexAtClose %s" % atClose)
   nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
+  shutil.rmtree(nrtIndexPath)
 
   # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
   bigIndexPath, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, "big index (fast)", fastIndexBig, "fastIndexBigDocs.log")

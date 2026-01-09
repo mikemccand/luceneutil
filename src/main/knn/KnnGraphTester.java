@@ -19,6 +19,7 @@ package knn;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -31,6 +32,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -39,12 +41,16 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -108,6 +114,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.IOSupplier;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
@@ -177,6 +184,7 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean quantizeCompress;
   private int numMergeThread;
   private int numMergeWorker;
+  private int numQueryThread;
   private int numSearchThread;
   private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
@@ -215,6 +223,7 @@ public class KnnGraphTester implements FormatterLogger {
     quantizeBits = 7;
     quantizeCompress = false;
     numIndexThreads = 8;
+    numQueryThread = 0;
     numSearchThread = 0;
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
@@ -460,6 +469,18 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
           break;
+        case "-numQueryThread":
+          // 0: single thread mode (not passing a executorService)
+          // -1: use number of threads equal to the number available processors
+          // Otherwise: create a fixed pool with determined number of threads.
+          numQueryThread = Integer.parseInt(args[++iarg]);
+          if (numQueryThread == -1) {
+            numQueryThread = Runtime.getRuntime().availableProcessors();
+          } else if (numQueryThread < 0) {
+            throw new IllegalArgumentException("-numQueryThread must be >= 0");
+          }
+          log("numQueryThread = %d\n", numQueryThread);
+          break;
         case "-numSearchThread":
           // 0: single thread mode (not passing a executorService) 
           // -1: use number of threads equal to the number available processors
@@ -704,7 +725,7 @@ public class KnnGraphTester implements FormatterLogger {
       log("index has %d segments: %s\n", indexNumSegments, ((StandardDirectoryReader) reader).getSegmentInfos());
 
       if (indexNumSegments == 1 && numSearchThread > 1) {
-        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment so there will be no concurrency!\n", numSearchThread);
+        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment!\n", numSearchThread);
       }
           
       long indexSizeOnDiskBytes = 0;
@@ -1079,14 +1100,16 @@ public class KnnGraphTester implements FormatterLogger {
   @SuppressForbidden(reason = "Prints stuff")
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
       throws IOException {
-    TopDocs[] results = new TopDocs[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsedMS, totalCpuTimeMS, totalVisited = 0;
-    ExecutorService executorService;
+    ExecutorService queryExecutor = null;
+    if (numQueryThread > 0) {
+      queryExecutor = Executors.newFixedThreadPool(numQueryThread, new NamedThreadFactory("query-dispatch"));
+    }
+
+    ExecutorService searchExecutor = null;
     if (numSearchThread > 0) {
-      executorService = Executors.newFixedThreadPool(numSearchThread, new NamedThreadFactory("hnsw-search"));
-    } else {
-      executorService = null;
+      searchExecutor = Executors.newFixedThreadPool(numSearchThread, new NamedThreadFactory("search-worker"));
     }
     try (VectorReader<?> targetReader = VectorReader.create(queryPath, dim, vectorEncoding)) {
       log(targetReader.getVectorCount() + " query vectors in queryPath \"" + queryPath + "\"\n");
@@ -1096,21 +1119,23 @@ public class KnnGraphTester implements FormatterLogger {
         // TODO: hmm dangerous since index isn't necessarily going to fit in RAM?
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
-          IndexSearcher searcher = new IndexSearcher(reader, executorService);
+          IndexSearcher searcher = new IndexSearcher(reader, searchExecutor);
           int indexNumDocs = reader.maxDoc();
           if (numDocs != indexNumDocs && !parentJoin) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
+
+          List<IOSupplier<TopDocs>> queries =
+              IntStream.range(queryStartIndex, queryStartIndex + numQueryVectors)
+              .<IOSupplier<TopDocs>>mapToObj(i -> () -> doKnnVectorQuery(i, targetReader, searcher))
+              .toList();
+
           // warm up
-          for (int i = 0; i < numQueryVectors; i++) {
-            doKnnVectorQuery(queryStartIndex + i, targetReader, searcher);
-          }
+          invokeAllAsync(queries, queryExecutor).join();
           log("done warmup\n");
           startNS = System.nanoTime();
           ThreadDetails startThreadDetails = new ThreadDetails();
-          for (int i = 0; i < numQueryVectors; i++) {
-            results[i] = doKnnVectorQuery(queryStartIndex + i, targetReader, searcher);
-          }
+          List<TopDocs> results = invokeAllAsync(queries, queryExecutor).join();
           ThreadDetails endThreadDetails = new ThreadDetails();
           perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
           elapsedMS = TimeUnit.NANOSECONDS.toMillis(endThreadDetails.ns - startThreadDetails.ns);
@@ -1123,8 +1148,8 @@ public class KnnGraphTester implements FormatterLogger {
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
-            totalVisited += results[i].totalHits.value();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i], storedFields);
+            totalVisited += results.get(i).totalHits.value();
+            resultIds[i] = KnnTesterUtils.getResultIds(results.get(i), storedFields);
           }
           log(
               "completed "
@@ -1140,8 +1165,11 @@ public class KnnGraphTester implements FormatterLogger {
         }
       }
     } finally {
-      if (executorService != null) {
-        executorService.shutdown();
+      if (queryExecutor != null) {
+        queryExecutor.shutdown();
+      }
+      if (searchExecutor != null) {
+        searchExecutor.shutdown();
       }
     }
 
@@ -1277,6 +1305,39 @@ public class KnnGraphTester implements FormatterLogger {
     TopDocs topDocs = searcher.search(query, topK);
     // Use the profiled visitedCount
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), topDocs.totalHits.relation()), topDocs.scoreDocs);
+  }
+
+  private static <T> CompletableFuture<List<T>> invokeAllAsync(Collection<IOSupplier<T>> suppliers, Executor executor) {
+    ArrayList<T> results = new ArrayList<>(suppliers.size());
+    if (executor == null) {
+      // Execute on current thread
+      try {
+        for (IOSupplier<T> supplier : suppliers) {
+          results.add(supplier.get());
+        }
+        return CompletableFuture.completedFuture(results);
+      } catch (IOException e) {
+        return CompletableFuture.failedFuture(e);
+      }
+    }
+
+    CompletableFuture<List<T>> result = CompletableFuture.completedFuture(results);
+    for (IOSupplier<T> supplier : suppliers) {
+      final Supplier<T> uncheckedSupplier = () -> {
+        try {
+          return supplier.get();
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      };
+      result = result.thenCombine(
+          CompletableFuture.supplyAsync(uncheckedSupplier, executor != null ? executor : Runnable::run),
+          (list, next) -> {
+            list.add(next);
+            return list;
+          });
+    }
+    return result;
   }
 
   private float checkResults(int[][] results, int[][] nn) {

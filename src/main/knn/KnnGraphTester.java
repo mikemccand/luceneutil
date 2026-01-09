@@ -19,6 +19,7 @@ package knn;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -32,6 +33,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -39,6 +41,8 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -46,6 +50,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -109,8 +115,10 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.IOSupplier;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.SuppressForbidden;
+import org.apache.lucene.util.ThreadInterruptedException;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.HnswGraphSearcher;
 import org.apache.lucene.util.hnsw.RandomVectorScorer;
@@ -186,7 +194,8 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean quantizeCompress;
   private int numMergeThread;
   private int numMergeWorker;
-  private int numSearchThread;
+  private int numConcurrentQueries;
+  private int numIntraQueryThreads;
   private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
@@ -230,7 +239,8 @@ public class KnnGraphTester implements FormatterLogger {
     quantizeBits = 7;
     quantizeCompress = false;
     numIndexThreads = 8;
-    numSearchThread = 0;
+    numConcurrentQueries = -1;
+    numIntraQueryThreads = -1;
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
@@ -475,17 +485,23 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
           break;
-        case "-numSearchThread":
-          // 0: single thread mode (not passing a executorService) 
-          // -1: use number of threads equal to the number available processors
-          // Otherwise: create a fixed pool with determined number of threads.
-          numSearchThread = Integer.parseInt(args[++iarg]);
-          if (numSearchThread == -1) {
-            numSearchThread = Runtime.getRuntime().availableProcessors();
-          } else if (numSearchThread < 0) {
-            throw new IllegalArgumentException("-numSearchThread must be >= 0");
+        case "-numConcurrentQueries":
+          numConcurrentQueries = Integer.parseInt(args[++iarg]);
+          if (numConcurrentQueries == 0) {
+            numConcurrentQueries = Runtime.getRuntime().availableProcessors();
+          } else if (numConcurrentQueries < 0) {
+            throw new IllegalArgumentException("-numConcurrentQueries should be either a positive number of threads or 0 for one thread per core; got: " + numConcurrentQueries);
           }
-          log("numSearchThread = %d\n", numSearchThread);
+          log("numConcurrentQueries = %d\n", numConcurrentQueries);
+          break;
+        case "-numIntraQueryThreads":
+        numIntraQueryThreads = Integer.parseInt(args[++iarg]);
+        if (numIntraQueryThreads == 0) {
+            numIntraQueryThreads = Runtime.getRuntime().availableProcessors();
+        } else if (numIntraQueryThreads < 0) {
+            throw new IllegalArgumentException("-numIntraQueryThreads should be either a positive number of threads or 0 for one thread per core; got: " + numIntraQueryThreads);
+          }
+          log("numIntraQueryThreads = %d\n", numIntraQueryThreads);
           break;
         case "-parentJoin":
           if (iarg == args.length - 1) {
@@ -740,8 +756,8 @@ public class KnnGraphTester implements FormatterLogger {
       indexNumSegments = reader.leaves().size();
       log("index has %d segments: %s\n", indexNumSegments, ((StandardDirectoryReader) reader).getSegmentInfos());
 
-      if (indexNumSegments == 1 && numSearchThread > 1) {
-        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment so there will be no concurrency!\n", numSearchThread);
+      if (indexNumSegments == 1 && numIntraQueryThreads > 1) {
+        log("WARNING: intra-query concurrency requested (-numIntraQueryThreads=%d) but index has only one segment!\n", numIntraQueryThreads);
       }
           
       long indexSizeOnDiskBytes = 0;
@@ -1120,14 +1136,16 @@ public class KnnGraphTester implements FormatterLogger {
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, ExactNNResult exactNN, String metric)
       throws IOException {
     int[][] nn = exactNN != null ? exactNN.ids() : null;
-    TopDocs[] results = new TopDocs[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsedMS, totalCpuTimeMS, totalVisited = 0;
-    ExecutorService executorService;
-    if (numSearchThread > 0) {
-      executorService = Executors.newFixedThreadPool(numSearchThread, new NamedThreadFactory("hnsw-search"));
-    } else {
-      executorService = null;
+    ExecutorService concurrentQueryExecutor = null;
+    if (numConcurrentQueries > 0) {
+      concurrentQueryExecutor = Executors.newFixedThreadPool(numConcurrentQueries, new NamedThreadFactory("query-dispatch"));
+    }
+
+    ExecutorService intraQueryExecutor = null;
+    if (numIntraQueryThreads > 0) {
+      intraQueryExecutor = Executors.newFixedThreadPool(numIntraQueryThreads, new NamedThreadFactory("query-worker"));
     }
 
     log("queryPath=%s dim=%d vectorEncoding.byteSize=%d\n", queryPath, dim, vectorEncoding.byteSize);
@@ -1139,25 +1157,29 @@ public class KnnGraphTester implements FormatterLogger {
         // TODO: hmm dangerous since index isn't necessarily going to fit in RAM?
         dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
-          IndexSearcher searcher = new IndexSearcher(reader, executorService);
+          IndexSearcher searcher = new IndexSearcher(reader, intraQueryExecutor);
           int indexNumDocs = reader.maxDoc();
           if (numDocs != indexNumDocs && !parentJoin) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
+
+          final TopDocs[] results = new TopDocs[numQueryVectors];
+          List<RunnableKnnQuery> queries = IntStream
+              .range(0, numQueryVectors)
+              .mapToObj(i -> new RunnableKnnQuery(i, targetReader, searcher, results))
+              .toList();
+
           // warm up (and optionally collect HNSW traversal scores)
           if (hnswScoreHistogram && targetReader instanceof VectorReader.Float32 floatVectorReader) {
             collectHnswTraversalScores(reader, floatVectorReader, getKnnField(filterStrategy), topK, fanout, metric);
           } else {
-            for (int i = 0; i < numQueryVectors; i++) {
-              doKnnVectorQuery(queryStartIndex + i, targetReader, searcher);
-            }
+            invokeAll(queries, concurrentQueryExecutor);
+            Arrays.fill(results, null);
           }
           log("done warmup\n");
           startNS = System.nanoTime();
           ThreadDetails startThreadDetails = new ThreadDetails();
-          for (int i = 0; i < numQueryVectors; i++) {
-            results[i] = doKnnVectorQuery(queryStartIndex + i, targetReader, searcher);
-          }
+          invokeAll(queries, concurrentQueryExecutor);
           ThreadDetails endThreadDetails = new ThreadDetails();
           perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
           elapsedMS = TimeUnit.NANOSECONDS.toMillis(endThreadDetails.ns - startThreadDetails.ns);
@@ -1187,8 +1209,11 @@ public class KnnGraphTester implements FormatterLogger {
         }
       }
     } finally {
-      if (executorService != null) {
-        executorService.shutdown();
+      if (concurrentQueryExecutor != null) {
+        concurrentQueryExecutor.shutdown();
+      }
+      if (intraQueryExecutor != null) {
+        intraQueryExecutor.shutdown();
       }
     }
 
@@ -1218,11 +1243,12 @@ public class KnnGraphTester implements FormatterLogger {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) elapsedMS,
+          numConcurrentQueries,
           numDocs,
           this.topK,
           this.fanout,
@@ -1336,11 +1362,27 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  private TopDocs doKnnVectorQuery(int index, VectorReader targetReader, IndexSearcher searcher) throws IOException {
-    return switch (targetReader) {
-      case VectorReader.Byte byteVectors -> doKnnVectorQuery(byteVectors.read(index), searcher);
-      case VectorReader.Float32 floatVectors -> doKnnVectorQuery(floatVectors.read(index), searcher);
-    };
+  private final class RunnableKnnQuery implements Callable<Void> {
+    final int index;
+    final VectorReader targetReader;
+    final IndexSearcher searcher;
+    final TopDocs[] results;
+
+    RunnableKnnQuery(int index, VectorReader targetReader, IndexSearcher searcher, TopDocs[] results) {
+      this.index = index;
+      this.targetReader = targetReader;
+      this.searcher = searcher;
+      this.results = results;
+    }
+
+    @Override
+    public Void call() throws IOException {
+      results[index] = switch (targetReader) {
+        case VectorReader.Byte byteVectors -> doKnnVectorQuery(byteVectors.read(queryStartIndex + index), searcher);
+        case VectorReader.Float32 floatVectors -> doKnnVectorQuery(floatVectors.read(queryStartIndex + index), searcher);
+      };
+      return null;
+    }
   }
 
   private TopDocs doKnnVectorQuery(byte[] vector, IndexSearcher searcher) throws IOException {
@@ -1402,6 +1444,40 @@ public class KnnGraphTester implements FormatterLogger {
     TopDocs topDocs = searcher.search(query, topK);
     // Use the profiled totalVectorCount as TopDocs.totalHits
     return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), topDocs.totalHits.relation()), topDocs.scoreDocs);
+  }
+
+  private static void invokeAll(List<RunnableKnnQuery> runnables, ExecutorService executor) throws IOException {
+    if (executor == null) {
+      for (RunnableKnnQuery runnable : runnables) {
+        runnable.call();
+      }
+      return;
+    }
+
+    List<Future<Void>> results;
+    try {
+      results = executor.invokeAll(runnables);
+    } catch (InterruptedException e) {
+      throw new ThreadInterruptedException(e);
+    }
+
+    for (Future<Void> result : results) {
+      switch (result.state()) {
+        case FAILED:
+          final Throwable exception = result.exceptionNow();
+          if (exception instanceof IOException ioException) {
+              throw ioException;
+          } else if (exception instanceof RuntimeException runtimeException) {
+              throw runtimeException;
+          } else throw new RuntimeException("Query FAILED", exception);
+        case CANCELLED:
+          throw new IllegalStateException("Query CANCELLED");
+        case RUNNING:
+          throw new IllegalStateException("Query RUNNING`");
+        case SUCCESS:
+          break;
+      }
+    }
   }
 
   private float checkResults(int[][] results, int[][] nn) {

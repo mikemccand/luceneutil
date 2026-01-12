@@ -35,37 +35,22 @@ import org.apache.lucene.util.Bits;
 
 class IndexerThread extends Thread {
   private final IndexWriter iw;
-  private final VectorReader vectorReader;
+  private final VectorReader<?> vectorReader;
   private final AtomicInteger numDocsIndexed;
+  private final int docsStartIndex;
   private final int numDocsToIndex;
   private final FieldType fieldType;
-  private final VectorEncoding vectorEncoding;
-  private final byte[] byteVectorBuffer;
-  private final float[] floatVectorBuffer;
   private final KnnIndexer.FilterScheme filterScheme;
 
-  public IndexerThread(IndexWriter iw, int dims, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType,
-                       AtomicInteger numDocsIndexed, int numDocsToIndex, KnnIndexer.FilterScheme filterScheme) {
+  public IndexerThread(IndexWriter iw, int dims, VectorReader<?> vectorReader, FieldType fieldType, AtomicInteger numDocsIndexed,
+                       int docsStartIndex, int numDocsToIndex, KnnIndexer.FilterScheme filterScheme) {
     this.iw = iw;
     this.vectorReader = vectorReader;
-    this.vectorEncoding = vectorEncoding;
     this.fieldType = fieldType;
     this.numDocsIndexed = numDocsIndexed;
+    this.docsStartIndex = docsStartIndex;
     this.numDocsToIndex = numDocsToIndex;
     this.filterScheme = filterScheme;
-    switch (vectorEncoding) {
-      case BYTE -> {
-        byteVectorBuffer = new byte[dims];
-        floatVectorBuffer = null;
-      }
-      case FLOAT32 -> {
-        floatVectorBuffer = new float[dims];
-        byteVectorBuffer = null;
-      }
-      default -> {
-        throw new IllegalArgumentException("unexpected vector encoding: " + vectorEncoding);
-      }
-    }
   }
 
   @Override
@@ -79,42 +64,36 @@ class IndexerThread extends Thread {
 
   private void _run() throws IOException {
     while (true) {
-      int id;
-      Document doc = new Document();
-      synchronized (vectorReader) {
-        id = numDocsIndexed.getAndIncrement();
-        if (id >= numDocsToIndex) {
-          // yay, done!
-          break;
-        }
-        switch (vectorEncoding) {
-          case BYTE -> {
-            byte[] bytes = ((VectorReaderByte) vectorReader).nextBytes();
-            System.arraycopy(bytes, 0, byteVectorBuffer, 0, bytes.length);
-            if (filterScheme == null || filterScheme.keepUnfiltered()) {
-              doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, byteVectorBuffer, fieldType));
-            }
-            if (filterScheme != null && filterScheme.filter().get(id)) {
-              doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, byteVectorBuffer, fieldType));
-            }
+      final Document doc = new Document();
+      final int id = numDocsIndexed.getAndIncrement();
+      if (id >= numDocsToIndex) {
+        // yay, done!
+        break;
+      }
+      switch (vectorReader) {
+        case VectorReader.Byte byteVectors -> {
+          final byte[] bytes = byteVectors.read(docsStartIndex + id);
+          if (filterScheme == null || filterScheme.keepUnfiltered()) {
+            doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, bytes, fieldType));
           }
-          case FLOAT32 -> {
-            float[] floats = vectorReader.next();
-            System.arraycopy(floats, 0, floatVectorBuffer, 0, floats.length);
-            if (filterScheme == null || filterScheme.keepUnfiltered()) {
-              doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, floatVectorBuffer, fieldType));
-            }
-            if (filterScheme != null && filterScheme.filter().get(id)) {
-              doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, floatVectorBuffer, fieldType));
-            }
+          if (filterScheme != null && filterScheme.filter().get(id)) {
+            doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, bytes, fieldType));
           }
         }
+        case VectorReader.Float32 floatVectors -> {
+          final float[] floats = floatVectors.read(docsStartIndex + id);
+          if (filterScheme == null || filterScheme.keepUnfiltered()) {
+            doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, floats, fieldType));
+          }
+          if (filterScheme != null && filterScheme.filter().get(id)) {
+            doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, floats, fieldType));
+          }
+        }
+      }
 
-        // paranoia: a bit of a lie (we didn't index OUR doc yet), but do it in sync block to prevent sysouts from stomping
-        // each other ... not sure if line buffering / atomicity would do this for free?
-        if ((id + 1) % 25000 == 0) {
-          System.out.println("Done indexing " + (id + 1) + " documents.");
-        }
+
+      if (id % 25000 == 0) {
+        System.out.println("Done indexing " + (id + 1) + " documents.");
       }
       doc.add(new StoredField(KnnGraphTester.ID_FIELD, id));
       iw.addDocument(doc);

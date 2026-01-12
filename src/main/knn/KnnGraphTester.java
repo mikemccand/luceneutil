@@ -17,8 +17,11 @@
 
 package knn;
 
+import io.github.jbellis.jvector.graph.disk.OnDiskGraphIndex;
+
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -31,6 +34,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -39,24 +43,31 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
+import org.apache.lucene.codecs.hnsw.FlatVectorScorerUtil;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.CodecReader;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexReader;
@@ -80,6 +91,9 @@ import org.apache.lucene.queries.function.valuesource.ConstKnnByteVectorValueSou
 import org.apache.lucene.queries.function.valuesource.ConstKnnFloatValueSource;
 import org.apache.lucene.queries.function.valuesource.FloatKnnVectorFieldSource;
 import org.apache.lucene.queries.function.valuesource.FloatVectorSimilarityFunction;
+import org.apache.lucene.sandbox.codecs.jvector.JVectorFormat;
+import org.apache.lucene.sandbox.codecs.jvector.JVectorReader;
+import org.apache.lucene.sandbox.codecs.jvector.JVectorSearchStrategy;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreScorer;
@@ -89,17 +103,20 @@ import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
+import org.apache.lucene.search.RescoreTopNQuery;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.BitSetProducer;
 import org.apache.lucene.search.join.CheckJoinIndex;
 import org.apache.lucene.search.join.DiversifyingChildrenFloatKnnVectorQuery;
 import org.apache.lucene.search.join.QueryBitSetProducer;
 import org.apache.lucene.search.join.ToParentBlockJoinQuery;
+import org.apache.lucene.search.knn.KnnSearchStrategy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -107,6 +124,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.IOSupplier;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
@@ -129,6 +147,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   enum IndexType {
     HNSW,
+    JVECTOR,
     FLAT
   }
 
@@ -176,8 +195,8 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean quantizeCompress;
   private int numMergeThread;
   private int numMergeWorker;
+  private int numQueryThread;
   private int numSearchThread;
-  private ExecutorService exec;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
   private Query filterQuery;
@@ -195,6 +214,8 @@ public class KnnGraphTester implements FormatterLogger {
   private IndexType indexType;
   // oversampling, e.g. the multiple * k to gather before checking recall
   private float overSample;
+  /// Rerank results with full-precision vectors (useful with [`overSample`][#overSample])
+  private boolean rerank;
 
   private KnnGraphTester() {
     // set defaults
@@ -202,8 +223,8 @@ public class KnnGraphTester implements FormatterLogger {
     numQueryVectors = 1000;
     dim = 256;
     topK = 100;
-    numMergeThread = 1;
-    numMergeWorker = 1;
+    numMergeThread = ConcurrentMergeScheduler.AUTO_DETECT_MERGES_AND_THREADS;
+    numMergeWorker = ConcurrentMergeScheduler.AUTO_DETECT_MERGES_AND_THREADS;
     fanout = topK;
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
@@ -214,39 +235,16 @@ public class KnnGraphTester implements FormatterLogger {
     quantizeBits = 7;
     quantizeCompress = false;
     numIndexThreads = 8;
+    numQueryThread = 0;
     numSearchThread = 0;
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
-  }
-
-  private static FileChannel getVectorFileChannel(Path path, int dim, VectorEncoding vectorEncoding, boolean noisy) throws IOException {
-    FileChannel in = FileChannel.open(path);
-    if (noisy) {
-      System.out.println("path=" + path + " dim=" + dim + " vectorEncoding.byteSize=" + vectorEncoding.byteSize);
-    }
-    if (in.size() % (dim * vectorEncoding.byteSize) != 0) {
-      throw new IllegalArgumentException("vectors file \"" + path + "\" does not contain a whole number of vectors?  size=" + in.size());
-    }
-    return in;
+    rerank = false;
   }
 
   public static void main(String... args) throws Exception {
-    new KnnGraphTester().runWithCleanUp(args);
-  }
-
-  private void runWithCleanUp(String... args) throws Exception {
-    try {
-      run(args);
-    } finally {
-      cleanUp();
-    }
-  }
-
-  private void cleanUp() {
-    if (exec != null) {
-      exec.shutdownNow();
-    }
+    new KnnGraphTester().run(args);
   }
 
   private void run(String... args) throws Exception {
@@ -286,16 +284,12 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-indexType requires a following pathname");
           }
           String indexKind = args[++iarg].toLowerCase().trim();
-          switch (indexKind) {
-            case "hnsw":
-              indexType = IndexType.HNSW;
-              break;
-            case "flat":
-              indexType = IndexType.FLAT;
-              break;
-            default:
-              throw new IllegalArgumentException("-indexType can be 'hnsw' or 'flat' only");
-          }
+          indexType = switch (indexKind) {
+            case "hnsw" -> IndexType.HNSW;
+            case "flat" -> IndexType.FLAT;
+            case "jvector" -> IndexType.JVECTOR;
+            default -> throw new IllegalArgumentException("-indexType can be 'hnsw', 'jvector', or 'flat' only");
+          };
           break;
         case "-overSample":
           if (iarg == args.length - 1) {
@@ -305,6 +299,9 @@ public class KnnGraphTester implements FormatterLogger {
           if (overSample < 1) {
             throw new IllegalArgumentException("-overSample must be >= 1");
           }
+          break;
+        case "-rerank":
+          rerank = true;
           break;
         case "-fanout":
           if (iarg == args.length - 1) {
@@ -463,12 +460,21 @@ public class KnnGraphTester implements FormatterLogger {
           break;
         case "-numMergeThread":
           numMergeThread = Integer.parseInt(args[++iarg]);
-          if (numMergeThread > 1) {
-            exec = Executors.newFixedThreadPool(numMergeThread, new NamedThreadFactory("hnsw-merge"));
-          }
           if (numMergeThread <= 0) {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
+          break;
+        case "-numQueryThread":
+          // 0: single thread mode (not passing a executorService)
+          // -1: use number of threads equal to the number available processors
+          // Otherwise: create a fixed pool with determined number of threads.
+          numQueryThread = Integer.parseInt(args[++iarg]);
+          if (numQueryThread == -1) {
+            numQueryThread = Runtime.getRuntime().availableProcessors();
+          } else if (numQueryThread < 0) {
+            throw new IllegalArgumentException("-numQueryThread must be >= 0");
+          }
+          log("numQueryThread = %d\n", numQueryThread);
           break;
         case "-numSearchThread":
           // 0: single thread mode (not passing a executorService) 
@@ -594,7 +600,6 @@ public class KnnGraphTester implements FormatterLogger {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -606,7 +611,14 @@ public class KnnGraphTester implements FormatterLogger {
         parentJoinMetaFile,
         useBp,
         indexTimeFilter
-      ).createIndex();
+      ).createIndex(iwc -> {
+        ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
+        cms.setMaxMergesAndThreads(numMergeWorker, numMergeThread);
+        cms.setDefaultMaxMergesAndThreads(false);
+        log("Indexing with %d worker(s) and %d thread(s)\n", cms.getMaxMergeCount(), cms.getMaxThreadCount());
+
+        iwc.setCodec(getCodec(maxConn, beamWidth, cms.getMaxMergeCount(), quantize, quantizeBits, indexType));
+      });
       Files.writeString(indexKeyPath, indexKey);
       log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
       // save indexing time so future runs that re-use this index remember:
@@ -714,7 +726,7 @@ public class KnnGraphTester implements FormatterLogger {
       log("index has %d segments: %s\n", indexNumSegments, ((StandardDirectoryReader) reader).getSegmentInfos());
 
       if (indexNumSegments == 1 && numSearchThread > 1) {
-        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment so there will be no concurrency!\n", numSearchThread);
+        log("WARNING: intra-query concurrency requested (-numSearchThread=%d) but index has only one segment!\n", numSearchThread);
       }
           
       long indexSizeOnDiskBytes = 0;
@@ -879,15 +891,29 @@ public class KnnGraphTester implements FormatterLogger {
       suffix.add(String.valueOf(randomSeed));
     }
     
-    if (indexType == IndexType.FLAT) {
-      suffix.add("flat");
-    } else {
-      // if HNSW hyperparams change, or bg (vector reordering) is enabled, reindex:
-      suffix.add(Integer.toString(maxConn));
-      suffix.add(Integer.toString(beamWidth));
-      if (useBp) {
-        suffix.add("bp");
+    switch (indexType) {
+      case FLAT -> {
+        suffix.add("flat");
       }
+      case HNSW -> {
+        // if HNSW hyperparams change, or bp (vector reordering) is enabled, reindex:
+        suffix.add("hnsw");
+        suffix.add(Integer.toString(maxConn));
+        suffix.add(Integer.toString(beamWidth));
+        if (useBp) {
+          suffix.add("bp");
+        }
+      }
+      case JVECTOR -> {
+        suffix.add("jvector");
+        suffix.add(Integer.toString(maxConn));
+        suffix.add(Integer.toString(beamWidth));
+        if (useBp) {
+          suffix.add("bp");
+        }
+        break;
+      }
+      default -> throw new IllegalArgumentException("Unknown indexType: " + indexType);
     }
     if (quantize) {
       suffix.add(Integer.toString(quantizeBits));
@@ -895,6 +921,8 @@ public class KnnGraphTester implements FormatterLogger {
       if (quantizeCompress) {
         suffix.add("compressed");
       }
+    } else {
+      suffix.add("full");
     }
 
     if (parentJoin) {
@@ -965,30 +993,38 @@ public class KnnGraphTester implements FormatterLogger {
       for (LeafReaderContext context : reader.leaves()) {
         LeafReader leafReader = context.reader();
         KnnVectorsReader vectorsReader = ((CodecReader) leafReader).getVectorReader().unwrapReaderForField(field);
-        HnswGraph knnValues;
         if (vectorsReader instanceof Lucene99HnswVectorsReader hnswVectorsReader) {
-          knnValues = hnswVectorsReader.getGraph(field);
+          final var knnValues = hnswVectorsReader.getGraph(KNN_FIELD);
+          log("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
+          log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
+          printGraphFanout(knnValues, leafReader.maxDoc());
+          printGraphConnectedNess(knnValues);
+        } else if (vectorsReader instanceof JVectorReader jVectorReader) {
+          final var index = jVectorReader.getIndex(KNN_FIELD);
+          log("Leaf %d has %d layers\n", context.ord, index.getMaxLevel() + 1);
+          log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
+          printGraphFanout(index, leafReader.maxDoc());
+          printGraphConnectedness(index);
         } else {
           throw new IllegalStateException("unsupported vectors reader: " + vectorsReader.getClass().getName());
         }
-
-        log("Leaf %d has %d layers\n", context.ord, knnValues.numLevels());
-        log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
-        printGraphFanout(knnValues, leafReader.maxDoc());
-        printGraphConnectedNess(knnValues);
       }
     }
   }
 
   @SuppressForbidden(reason = "Prints stuff")
   private double forceMerge() throws IOException, InterruptedException {
-    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType));
     KnnIndexer.TrackingConcurrentMergeScheduler tcms = new KnnIndexer.TrackingConcurrentMergeScheduler();
+    tcms.setMaxMergesAndThreads(numMergeWorker, numMergeThread);
+    tcms.setDefaultMaxMergesAndThreads(false);
+    log("Force merge using %d worker(s) and %d thread(s)\n", tcms.getMaxMergeCount(), tcms.getMaxThreadCount());
+
+    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+    iwc.setCodec(getCodec(maxConn, beamWidth, tcms.getMaxMergeCount(), quantize, quantizeBits, indexType));
     iwc.setMergeScheduler(tcms);
     KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
     iwc.setMergePolicy(ttmp);
-    log("Force merge index in " + indexPath + "\n");
+    log("Force merge index in %s\n", indexPath);
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1, false);
@@ -1021,6 +1057,32 @@ public class KnnGraphTester implements FormatterLogger {
         int friendOrd;
         while ((friendOrd = knnValues.nextNeighbor()) != NO_MORE_DOCS) {
           stack.push(friendOrd);
+        }
+      }
+      log("Graph level=%d size=%d, connectedness=%.2f\n",
+        level, numNodesOnLayer, connectedNodes.size() / (float) numNodesOnLayer);
+    }
+  }
+
+  private void printGraphConnectedness(OnDiskGraphIndex graph) {
+    final var view = graph.getView();
+    for (int level = graph.getMaxLevel(); level >= 0; level--) {
+      final var nodesIterator = graph.getNodes(level);
+      final int numNodesOnLayer = nodesIterator.size();
+      final IntIntHashMap connectedNodes = new IntIntHashMap(numNodesOnLayer);
+      // Start at entry point and search all nodes on this level
+      final int entryPoint = view.entryNode().node;
+      final Deque<Integer> stack = new ArrayDeque<>();
+      stack.push(entryPoint);
+      while (!stack.isEmpty()) {
+        int node = stack.pop();
+        if (connectedNodes.containsKey(node)) {
+          continue;
+        }
+        connectedNodes.put(node, 1);
+        var neighbors = view.getNeighborsIterator(level, node);
+        while (neighbors.hasNext()) {
+          stack.push(neighbors.nextInt());
         }
       }
       log("Graph level=%d size=%d, connectedness=%.2f\n",
@@ -1068,6 +1130,53 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
+  private void printGraphFanout(OnDiskGraphIndex graph, int numDocs) {
+    final var view = graph.getView();
+    for (int level = graph.getMaxLevel(); level >= 0; level--) {
+      int count = 0;
+      int min = Integer.MAX_VALUE, max = 0, total = 0;
+      long sumDelta = 0;
+      var nodesIterator = graph.getNodes(level);
+      int[] leafHist = new int[nodesIterator.size()];
+      while (nodesIterator.hasNext()) {
+        int node = nodesIterator.nextInt();
+        int n = 0;
+        var neighbors = view.getNeighborsIterator(level, node);
+        int lastNeighbor = -1, firstNeighbor = -1;
+        while (neighbors.hasNext()) {
+          final int nbr = neighbors.nextInt();
+          if (firstNeighbor == -1) {
+            firstNeighbor = nbr;
+          }
+          if (neighbors.size() >= nodesIterator.size()) {
+            System.err.printf(java.util.Locale.ROOT, "layer %d: %d -> %d\n", level, node, nbr);
+          }
+          lastNeighbor = nbr;
+          ++n;
+        }
+        assert n == neighbors.size();
+        if (n >= leafHist.length) {
+          log("WARN: node %d has duplicate neighbors (degree=%d, layerSize=%d, entrypoint=%s)\n", node, n, leafHist.length, view.entryNode());
+          continue;
+        }
+
+        ++leafHist[n];
+        max = Math.max(max, n);
+        min = Math.min(min, n);
+        if (n > 0) {
+          ++count;
+          total += n;
+          sumDelta += lastNeighbor - firstNeighbor;
+        }
+      }
+      log("Graph level=%d size=%d, Fanout min=%d, mean=%.2f, max=%d, meandelta=%.2f\n",
+        level, count, min, total / (float) count, max, sumDelta / (float) total);
+      if (!quiet) {
+        printHist(leafHist, max, count, 10);
+      }
+    }
+  }
+
   @SuppressForbidden(reason = "Prints stuff")
   private void printHist(int[] hist, int max, int count, int nbuckets) {
     System.out.print("%");
@@ -1089,59 +1198,47 @@ public class KnnGraphTester implements FormatterLogger {
   @SuppressForbidden(reason = "Prints stuff")
   private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
       throws IOException {
-    Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsedMS, totalCpuTimeMS, totalVisited = 0;
-    int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
-    int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
-    ExecutorService executorService;
-    if (numSearchThread > 0) {
-      executorService = Executors.newFixedThreadPool(numSearchThread, new NamedThreadFactory("hnsw-search"));
+    final ExecutorService queryExecutor;
+    if (numQueryThread > 0) {
+      queryExecutor = Executors.newFixedThreadPool(numQueryThread, new NamedThreadFactory("query-dispatch"));
     } else {
-      executorService = null;
+      // Run on current thread
+      queryExecutor = null;
     }
-    try (FileChannel input = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-      long queryPathSizeInBytes = input.size();
-      log((int) (queryPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " query vectors in queryPath \"" + queryPath + "\"\n");
-      VectorReader targetReader = VectorReader.create(input, dim, vectorEncoding, queryStartIndex);
-      VectorReaderByte targetReaderByte = null;
-      if (targetReader instanceof VectorReaderByte b) {
-        targetReaderByte = b;
-      }
-      log("searching " + numQueryVectors + " query vectors; topK=" + topK + ", fanout=" + fanout + "\n");
+
+    final ExecutorService searchExecutor;
+    if (numSearchThread > 0) {
+      searchExecutor = Executors.newFixedThreadPool(numSearchThread, new NamedThreadFactory("search-worker"));
+    } else {
+      searchExecutor = null;
+    }
+    try (VectorReader<?> targetReader = VectorReader.create(queryPath, dim, vectorEncoding)) {
+      log(targetReader.getVectorCount() + " query vectors in queryPath \"" + queryPath + "\"\n");
+      log("searching %d query vectors; topK=%d, fanout=%d, overSample=%.3f, rerank=%s\n", numQueryVectors, topK, fanout, overSample, rerank);
       long startNS;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         // TODO: hmm dangerous since index isn't necessarily going to fit in RAM?
-        dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+        dir.setPreload(MMapDirectory.PRELOAD_HINT);
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
-          IndexSearcher searcher = new IndexSearcher(reader, executorService);
+          final IndexSearcher searcher = new IndexSearcher(reader, searchExecutor);
           int indexNumDocs = reader.maxDoc();
           if (numDocs != indexNumDocs && !parentJoin) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
+
+          final List<IOSupplier<TopDocs>> queries =
+              IntStream.range(queryStartIndex, queryStartIndex + numQueryVectors)
+              .<IOSupplier<TopDocs>>mapToObj(i -> () -> doKnnVectorQuery(i, targetReader, searcher))
+              .toList();
+
           // warm up
-          for (int i = 0; i < numQueryVectors; i++) {
-            if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-              byte[] target = targetReaderByte.nextBytes();
-              doKnnByteVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery);
-            } else {
-              float[] target = targetReader.next();
-              doKnnVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery, parentJoin);
-            }
-          }
+          invokeAllAsync(queries, queryExecutor).join();
           log("done warmup\n");
-          targetReader.reset();
           startNS = System.nanoTime();
           ThreadDetails startThreadDetails = new ThreadDetails();
-          for (int i = 0; i < numQueryVectors; i++) {
-            if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-              byte[] target = targetReaderByte.nextBytes();
-              results[i] = doKnnByteVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery);
-            } else {
-              float[] target = targetReader.next();
-              results[i] = doKnnVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery, parentJoin);
-            }
-          }
+          final List<TopDocs> results = invokeAllAsync(queries, queryExecutor).join();
           ThreadDetails endThreadDetails = new ThreadDetails();
           perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
           elapsedMS = TimeUnit.NANOSECONDS.toMillis(endThreadDetails.ns - startThreadDetails.ns);
@@ -1154,8 +1251,8 @@ public class KnnGraphTester implements FormatterLogger {
           // Fetch, validate and write result document ids.
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
-            totalVisited += results[i].visitedCount();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            totalVisited += results.get(i).totalHits.value();
+            resultIds[i] = KnnTesterUtils.getResultIds(results.get(i), storedFields);
           }
           log(
               "completed "
@@ -1171,8 +1268,11 @@ public class KnnGraphTester implements FormatterLogger {
         }
       }
     } finally {
-      if (executorService != null) {
-        executorService.shutdown();
+      if (queryExecutor != null) {
+        queryExecutor.shutdown();
+      }
+      if (searchExecutor != null) {
+        searchExecutor.shutdown();
       }
     }
 
@@ -1202,7 +1302,7 @@ public class KnnGraphTester implements FormatterLogger {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%s\t%5.3f\t%5.3f\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1222,6 +1322,7 @@ public class KnnGraphTester implements FormatterLogger {
           filterStrategy == null ? "null" : filterStrategy.toString().toLowerCase().replace('_', '-'),
           filterSelectivity == null ? "N/A" : String.format(Locale.ROOT, "%.2f", filterSelectivity),
           overSample,
+          rerank,
           vectorDiskSizeBytes / 1024. / 1024.,
           vectorRAMSizeBytes / 1024. / 1024.,
           Boolean.valueOf(useBp).toString(),
@@ -1248,62 +1349,118 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  private static Result doKnnByteVectorQuery(
-    IndexSearcher searcher, byte[] vector, int k, int fanout, FilterStrategy filterStrategy, Query filter)
-    throws IOException {
+  private TopDocs doKnnVectorQuery(int index, VectorReader<?> targetReader, IndexSearcher searcher) throws IOException {
+    return switch (targetReader) {
+      case VectorReader.Byte byteVectors -> doKnnVectorQuery(byteVectors.read(index), searcher);
+      case VectorReader.Float32 floatVectors -> doKnnVectorQuery(floatVectors.read(index), searcher);
+    };
+  }
 
+  private TopDocs doKnnVectorQuery(byte[] vector, IndexSearcher searcher) throws IOException {
     Query queryTimeFilter = null;
     if (filterStrategy == FilterStrategy.QUERY_TIME_PRE_FILTER) {
-      queryTimeFilter = filter;
+      queryTimeFilter = filterQuery;
     }
 
     String knnField = getKnnField(filterStrategy);
 
-    ProfiledKnnByteVectorQuery profiledQuery = new ProfiledKnnByteVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
-
+    if (rerank) {
+      throw new UnsupportedOperationException("Cannot rerank KnnByteVectorQuery");
+    }
+    final int k = (overSample > 1) ? Math.round((topK + fanout) * overSample) : topK + fanout;
+    final var profiledQuery = new ProfiledKnnByteVectorQuery(knnField, vector, k, queryTimeFilter);
     Query query = profiledQuery;
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
       query = new BooleanQuery.Builder()
               .add(profiledQuery, BooleanClause.Occur.MUST)
-              .add(filter, BooleanClause.Occur.FILTER)
+              .add(filterQuery, BooleanClause.Occur.FILTER)
               .build();
     }
-    TopDocs docs = searcher.search(query, k);
-    return new Result(docs, profiledQuery.totalVectorCount(), 0);
+
+    final TopDocs topDocs = searcher.search(query, topK);
+    // Use the profiled visitedCount
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), topDocs.totalHits.relation()), topDocs.scoreDocs);
   }
 
-  private static Result doKnnVectorQuery(
-    IndexSearcher searcher, float[] vector, int k, int fanout, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery)
-    throws IOException {
-
+  private TopDocs doKnnVectorQuery(float[] vector, IndexSearcher searcher) throws IOException {
     Query queryTimeFilter = null;
     if (filterStrategy == FilterStrategy.QUERY_TIME_PRE_FILTER) {
-      queryTimeFilter = filter;
+      queryTimeFilter = filterQuery;
     }
 
     String knnField = getKnnField(filterStrategy);
-    
-    if (isParentJoinQuery) {
-      var topChildVectors = new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
+    if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
+      knnField = KNN_FIELD_FILTERED;
+    }
+
+    if (parentJoin) {
+      var topChildVectors = new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, topK + fanout, parentsFilter);
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
-      TopDocs topDocs = searcher.search(query, k);
-      return new Result(topDocs, 0, 0);
+      return searcher.search(query, topK);
     }
 
-    ProfiledKnnFloatVectorQuery profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
+    final ProfiledKnnFloatVectorQuery profiledQuery;
+    Query query = switch (indexType) {
+      case JVECTOR -> {
+        final var searchStrategy =
+            JVectorSearchStrategy.builder()
+                .withOverQueryFactor(overSample)
+                .withUseReranking(rerank)
+                .build();
+            profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, topK + fanout, queryTimeFilter, searchStrategy);
+        yield profiledQuery;
+      }
+      default -> {
+        final int k = (overSample > 1) ? (int) ((topK + fanout) * overSample) : topK + fanout;
+        profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, queryTimeFilter, null);
+        if (rerank) {
+          yield RescoreTopNQuery.createFullPrecisionRescorerQuery(profiledQuery, vector, knnField, topK);
+        } else yield profiledQuery;
+      }
+    };
 
-    Query query = profiledQuery;
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
       query = new BooleanQuery.Builder()
-              .add(profiledQuery, BooleanClause.Occur.MUST)
-              .add(filter, BooleanClause.Occur.FILTER)
-              .build();
+          .add(query, BooleanClause.Occur.MUST)
+          .add(filterQuery, BooleanClause.Occur.FILTER)
+          .build();
     }
-    TopDocs docs = searcher.search(query, k);
-    return new Result(docs, profiledQuery.totalVectorCount(), 0);
+
+    final TopDocs topDocs = searcher.search(query, topK);
+    // Use the profiled visitedCount
+    return new TopDocs(new TotalHits(profiledQuery.totalVectorCount(), topDocs.totalHits.relation()), topDocs.scoreDocs);
   }
 
-  record Result(TopDocs topDocs, long visitedCount, int reentryCount) {
+  private static <T> CompletableFuture<List<T>> invokeAllAsync(Collection<IOSupplier<T>> suppliers, Executor executor) {
+    final ArrayList<T> results = new ArrayList<>(suppliers.size());
+    if (executor == null) {
+      try {
+        for (IOSupplier<T> supplier : suppliers) {
+          results.add(supplier.get());
+        }
+        return CompletableFuture.completedFuture(results);
+      } catch (IOException e) {
+        return CompletableFuture.failedFuture(e);
+      }
+    }
+
+    CompletableFuture<List<T>> result = CompletableFuture.completedFuture(results);
+    for (IOSupplier<T> supplier : suppliers) {
+      final Supplier<T> uncheckedSupplier = () -> {
+        try {
+          return supplier.get();
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      };
+      result = result.thenCombine(
+          CompletableFuture.supplyAsync(uncheckedSupplier, executor != null ? executor : Runnable::run),
+          (list, next) -> {
+            list.add(next);
+            return list;
+          });
+    }
+    return result;
   }
 
   private float checkResults(int[][] results, int[][] nn) {
@@ -1492,17 +1649,16 @@ public class KnnGraphTester implements FormatterLogger {
     AtomicInteger completedCount = new AtomicInteger(0);
     List<Callable<Void>> tasks = new ArrayList<>();
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
-      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      dir.setPreload(MMapDirectory.PRELOAD_HINT);
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         if (reader.maxDoc() != numDocs && !parentJoin) {
           throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
         }
         IndexSearcher searcher = new IndexSearcher(reader);
-        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-          VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
+        try (var queryReader = (VectorReader.Byte) VectorReader.create(queryPath, dim, VectorEncoding.BYTE)) {
           for (int i = 0; i < numQueryVectors; i++) {
-            byte[] query = queryReader.nextBytes().clone();
-            tasks.add(new ComputeNNByteTask(searcher, i, query, result, completedCount));
+            byte[] query = queryReader.read(queryStartIndex + i);
+            tasks.add(new ComputeNNByteTask(searcher, i + queryStartIndex, query, result, completedCount));
           }
         }
         runTasksWithProgress(tasks, completedCount, this);
@@ -1564,7 +1720,7 @@ public class KnnGraphTester implements FormatterLogger {
     log("parentJoin = %s\n", parentJoin);
     AtomicInteger completedCount = new AtomicInteger(0);
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
-      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      dir.setPreload(MMapDirectory.PRELOAD_HINT);
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
         if (reader.maxDoc() != numDocs && parentJoin == false) {
@@ -1575,14 +1731,13 @@ public class KnnGraphTester implements FormatterLogger {
           CheckJoinIndex.check(reader, parentsFilter);
         }
         List<Callable<Void>> tasks = new ArrayList<>();
-        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
-          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+        try (var queryReader = (VectorReader.Float32) VectorReader.create(queryPath, dim, VectorEncoding.FLOAT32)) {
           for (int i = 0; i < numQueryVectors; i++) {
-            float[] query = queryReader.next().clone();
+            float[] query = queryReader.read(queryStartIndex + i);
             if (parentJoin) {
-              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result, completedCount));
+              tasks.add(new ComputeExactSearchNNFloatTask(searcher, queryStartIndex + i, query, result, completedCount));
             } else {
-              tasks.add(new ComputeNNFloatTask(searcher, i, query, result, completedCount));
+              tasks.add(new ComputeNNFloatTask(searcher, queryStartIndex + i, query, result, completedCount));
             }
           }
           runTasksWithProgress(tasks, completedCount, this);
@@ -1697,34 +1852,35 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
+  static Codec getCodec(int maxConn, int beamWidth, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
     return new Lucene104Codec() {
       @Override
       public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
         if (quantize) {
-          return switch (quantizeBits) {
-            case 1 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 4 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 7 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 8 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
+          return switch (indexType) {
+            case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits));
+            case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits), maxConn, beamWidth, numMergeWorker, null);
+            case JVECTOR -> new JVectorFormat(maxConn, beamWidth, 1.2f, 1.0f, dim -> dim * quantizeBits / 8, 128_000, true);
+            // compressed size = 8 bits * subspace count = dim * quantizeBits
           };
         } else {
-          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
+          return switch (indexType) {
+            case FLAT -> new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
+            case HNSW -> new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+            case JVECTOR -> new JVectorFormat(maxConn, beamWidth, 1.2f, 1.0f, _ -> 0, Integer.MAX_VALUE, true);
+          };
         }
       }
+    };
+  }
+
+  static ScalarEncoding getScalarEncodingForBits(int quantizeBits) {
+    return switch (quantizeBits) {
+      case 1 -> ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+      case 4 -> ScalarEncoding.PACKED_NIBBLE;
+      case 7 -> ScalarEncoding.SEVEN_BIT;
+      case 8 -> ScalarEncoding.UNSIGNED_BYTE;
+      default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
     };
   }
 
@@ -1736,20 +1892,10 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static class ProfiledKnnByteVectorQuery extends KnnByteVectorQuery {
-    private final Query filter;
-    private final int k;
-    private final int fanout;
-    private final String field;
-    private final byte[] target;
     private long totalVectorCount;
 
-    ProfiledKnnByteVectorQuery(String field, byte[] target, int k, int fanout, Query filter) {
-      super(field, target, k + fanout, filter);
-      this.field = field;
-      this.target = target;
-      this.k = k;
-      this.fanout = fanout;
-      this.filter = filter;
+    ProfiledKnnByteVectorQuery(String field, byte[] target, int k, Query filter) {
+      super(field, target, k, filter);
     }
 
     @Override
@@ -1760,7 +1906,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
-      TopDocs td = TopDocs.merge(k, perLeafResults);
+      final TopDocs td = super.mergeLeafResults(perLeafResults);
       // merge leaf can happen any number of times during a rewrite
       totalVectorCount += td.totalHits.value();
       return td;
@@ -1772,20 +1918,10 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static class ProfiledKnnFloatVectorQuery extends KnnFloatVectorQuery {
-    private final Query filter;
-    private final int k;
-    private final int fanout;
-    private final String field;
-    private final float[] target;
     private long totalVectorCount;
 
-    ProfiledKnnFloatVectorQuery(String field, float[] target, int k, int fanout, Query filter) {
-      super(field, target, k + fanout, filter);
-      this.field = field;
-      this.target = target;
-      this.k = k;
-      this.fanout = fanout;
-      this.filter = filter;
+    ProfiledKnnFloatVectorQuery(String field, float[] target, int k, Query filter, KnnSearchStrategy searchStrategy) {
+      super(field, target, k, filter, searchStrategy);
     }
 
     @Override
@@ -1796,7 +1932,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
-      TopDocs td = TopDocs.merge(k, perLeafResults);
+      final TopDocs td = super.mergeLeafResults(perLeafResults);
       // merge leaf can happen any number of times during a rewrite
       totalVectorCount += td.totalHits.value();
       return td;
@@ -1805,7 +1941,6 @@ public class KnnGraphTester implements FormatterLogger {
     long totalVectorCount() {
       return totalVectorCount;
     }
-
   }
 
   private static class BitSetQuery extends Query {

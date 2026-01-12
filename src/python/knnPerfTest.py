@@ -29,6 +29,7 @@ import autologger
 import benchUtil
 import constants
 import ps_head
+from benchUtil import PERF_EXE
 from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
@@ -57,8 +58,6 @@ DO_VMSTAT = True
 
 # Set this to True to generate the disassembled code to verify the intended SIMD instructions are getting used or not
 PERF_MODE = False
-
-PERF_PATH = shutil.which("perf")
 
 # e.g. to compile KnnIndexer:
 #
@@ -137,6 +136,7 @@ OUTPUT_HEADERS = [
   "filterStrategy",
   "filterSelectivity",
   "overSample",
+  "rerank",
   "vec_disk(MB)",
   "vec_RAM(MB)",
   "bp-reorder",
@@ -351,9 +351,9 @@ def run_knn_benchmark(checkout, values, log_path):
       ]
     )
 
-    if PERF_MODE and PERF_PATH:
+    if PERF_MODE and PERF_EXE:
       print("Will be recording the executed instructions in perf.data file")
-      perf_cmd = [PERF_PATH, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
+      perf_cmd = [PERF_EXE, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
       job = subprocess.run(perf_cmd, check=False)
       if NOISY:
         print(f"  cmd: {perf_cmd}")
@@ -389,14 +389,13 @@ def run_knn_benchmark(checkout, values, log_path):
       re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
       summary = None
       hit_exception = False
-      lines = ""
-      while True:
+      while job.poll() is None:
         line = job.stdout.readline()
-        if line == "":
-          break
-        lines += line
+        if not line:
+          continue
         if NOISY:
           sys.stdout.write(line)
+          sys.stdout.flush()
         m = re_summary.match(line)
         if m is not None:
           summary = m.group(1)
@@ -421,11 +420,11 @@ def run_knn_benchmark(checkout, values, log_path):
 
     if hit_exception:
       raise RuntimeError("unhandled java exception while running")
-    if summary is None:
-      raise RuntimeError("could not find summary line in output! " + lines)
     job.wait()
     if job.returncode != 0:
       raise RuntimeError(f"command failed with exit {job.returncode}")
+    if summary is None:
+      raise RuntimeError("could not find summary line in output! ")
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
@@ -472,7 +471,7 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
   try:
     # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
     os.chdir(dir_name)
-    print(f"cd {vmstat_dir_name=}")
+    print(f"cd {vmstat_dir_name}")
 
     # TODO: optimize to single shared copy!
     shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", vmstat_dir_name)
@@ -541,6 +540,7 @@ def remove_common_args(argmaps):
   # TODO: also remove other "minor" dimensions such as beam_width and maxconn?
   # or place under user control somehow
   common_args["-fanout"] = 1
+  common_args["-overSample"] = 1
   # everything remaining is in common to all rows, now remove them
   unique_args = []
   for args in argmaps:

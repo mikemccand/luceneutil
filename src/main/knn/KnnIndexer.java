@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.lucene.codecs.Codec;
@@ -49,6 +50,9 @@ import org.apache.lucene.index.MergeTrigger;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.misc.index.BPReorderingMergePolicy;
@@ -71,7 +75,6 @@ public class KnnIndexer implements FormatterLogger {
   private final VectorEncoding vectorEncoding;
   private final int dim;
   private final VectorSimilarityFunction similarityFunction;
-  private final Codec codec;
   private final int numDocs;
   private final int docsStartIndex;
   private final int numIndexThreads;
@@ -80,16 +83,12 @@ public class KnnIndexer implements FormatterLogger {
   private final Path parentJoinMetaPath;
   private final boolean useBp;
   private final FilterScheme filterScheme;
-  private final TrackingConcurrentMergeScheduler tcms;
-  private final TrackingTieredMergePolicy ttmp;
 
-  public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
-                    VectorEncoding vectorEncoding, int dim,
+  public KnnIndexer(Path docsPath, Path indexPath, int numIndexThreads, VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
                     boolean parentJoin, Path parentJoinMetaPath, boolean useBp, FilterScheme filterScheme) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
-    this.codec = codec;
     this.numIndexThreads = numIndexThreads;
     this.vectorEncoding = vectorEncoding;
     this.dim = dim;
@@ -101,13 +100,12 @@ public class KnnIndexer implements FormatterLogger {
     this.parentJoinMetaPath = parentJoinMetaPath;
     this.useBp = useBp;
     this.filterScheme = filterScheme;
-    this.tcms = new TrackingConcurrentMergeScheduler();
-    this.ttmp = new TrackingTieredMergePolicy();
   }
 
-  public int createIndex() throws IOException, InterruptedException {
+  public int createIndex(Consumer<IndexWriterConfig> iwcMutator) throws IOException, InterruptedException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-    iwc.setCodec(codec);
+
+    TrackingConcurrentMergeScheduler tcms = new TrackingConcurrentMergeScheduler();
     iwc.setMergeScheduler(tcms);
     // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
     iwc.setRAMBufferSizeMB(WRITER_BUFFER_MB);
@@ -119,7 +117,7 @@ public class KnnIndexer implements FormatterLogger {
     iwc.setMaxFullFlushMergeWaitMillis(0);
 
     // aim for more compact/realistic index:
-    
+    TrackingTieredMergePolicy ttmp = new TrackingTieredMergePolicy();
     iwc.setMergePolicy(ttmp);
     ttmp.setFloorSegmentMB(256);
     ttmp.setNoCFSRatio(0);
@@ -128,8 +126,8 @@ public class KnnIndexer implements FormatterLogger {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));
     }
 
-    ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
-    // cms.setMaxMergesAndThreads(24, 12);
+    // Apply any other changes on top of these defaults
+    iwcMutator.accept(iwc);
 
     FieldType fieldType =
         switch (vectorEncoding) {
@@ -148,21 +146,15 @@ public class KnnIndexer implements FormatterLogger {
     long startNS = System.nanoTime(), elapsedNS;
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc);
-         FileChannel in = FileChannel.open(docsPath)) {
-      long docsPathSizeInBytes = in.size();
-      if (docsPathSizeInBytes % (dim * vectorEncoding.byteSize) != 0) {
-        throw new IllegalArgumentException("docsPath \"" + docsPath + "\" does not contain a whole number of vectors?  size=" + docsPathSizeInBytes);
-      }
-      System.out.println((int) (docsPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " doc vectors in docsPath \"" + docsPath + "\"");
-        
-      VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, docsStartIndex);
+         VectorReader<?> vectorReader = VectorReader.create(docsPath, dim, vectorEncoding)) {
+      System.out.println(vectorReader.getVectorCount() + " doc vectors in docsPath \"" + docsPath + "\"");
       log("parentJoin=%s\n", parentJoin);
       if (parentJoin == false) {
         ExecutorService exec = Executors.newFixedThreadPool(numIndexThreads);
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filterScheme);
+          Thread t = new IndexerThread(iw, dim, vectorReader, fieldType, numDocsIndexed, docsStartIndex, numDocs, filterScheme);
           t.setDaemon(true);
           t.start();
           threads.add(t);
@@ -190,9 +182,9 @@ public class KnnIndexer implements FormatterLogger {
             currWikiId = line[0];
             String currParaId = line[1];
             Document doc = new Document();
-            switch (vectorEncoding) {
-              case BYTE -> {
-                byte[] vector = ((VectorReaderByte) vectorReader).nextBytes();
+            switch (vectorReader) {
+              case VectorReader.Byte byteVectors -> {
+                byte[] vector = byteVectors.read(docsStartIndex + childDocs);
                 if (filterScheme == null || filterScheme.keepUnfiltered) {
                   doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
                 }
@@ -200,8 +192,8 @@ public class KnnIndexer implements FormatterLogger {
                   doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
                 }
               }
-              case FLOAT32 -> {
-                float[] vector = vectorReader.next();
+              case VectorReader.Float32 floatVectors -> {
+                float[] vector = floatVectors.read(docsStartIndex + childDocs);
                 if (filterScheme == null || filterScheme.keepUnfiltered) {
                   doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
                 }
@@ -251,22 +243,24 @@ public class KnnIndexer implements FormatterLogger {
       }
 
       // give merges a chance to kick off and finish:
-      log("now IndexWriter.commit()\n");
+      elapsedNS = System.nanoTime() - startNS;
+      log("now IndexWriter.commit() after %d seconds\n", TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
       iw.commit();
 
       elapsedNS = System.nanoTime() - startNS;
-
+      log("now wait for already running merges to finish after %d seconds\n", TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
       waitForMergesWithStatus(ttmp, tcms, this);
+
+      elapsedNS = System.nanoTime() - startNS;
+      log("now IndexWriter.close() after %d seconds\n", TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
     }
+    elapsedNS = System.nanoTime() - startNS;
     log("Indexed %d docs in %d seconds\n", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
     return (int) TimeUnit.NANOSECONDS.toMillis(elapsedNS);
   }
 
   public static void waitForMergesWithStatus(TrackingTieredMergePolicy ttmp, TrackingConcurrentMergeScheduler tcms, FormatterLogger log) throws InterruptedException {
     long startNS = System.nanoTime();
-    
-    // wait for running merges to complete, and print coarse status updates
-    log.log("now wait for already running merges to finish\n");
 
     // silliness to just be able to print progress in waiting (so long...) for merges:
     long nextPrintNS = System.nanoTime();

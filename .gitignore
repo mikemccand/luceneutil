@@ -29,9 +29,11 @@ src/python/localconstants.py
 *.class
 *.pyc
 *.swp
-npm-debug.log 
+npm-debug.log
 target/
 local/
+lib/python*
+lib64
 tmp/
 bin/
 build/
@@ -43,3 +45,6 @@ knnIndices/
 # emacs temporary files
 *~
 #*
+
+# index files
+knn-reuse/

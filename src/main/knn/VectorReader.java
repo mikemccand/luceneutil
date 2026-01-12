@@ -23,49 +23,76 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
-public abstract class VectorReader {
-  final float[] target;
-  final ByteBuffer bytes;
-  final FileChannel input;
+public sealed abstract class VectorReader<T> implements AutoCloseable {
+  private final FileChannel input;
+  protected final int dim;
+  protected final int bytesPerVector;
 
-  // seek to this vector on init/reset:
-  final int vectorStartIndex;
-
-  static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding, int vectorStartIndex) throws IOException {
-    int bufferSize = dim * vectorEncoding.byteSize;
+  static VectorReader create(Path path, int dim, VectorEncoding vectorEncoding) throws IOException {
     return switch (vectorEncoding) {
-      case BYTE -> new VectorReaderByte(input, dim, bufferSize, vectorStartIndex);
-      case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize, vectorStartIndex);
+      case BYTE -> new VectorReader.Byte(path, dim);
+      case FLOAT32 -> new VectorReader.Float32(path, dim);
     };
   }
 
-  VectorReader(FileChannel input, int dim, int bufferSize, int vectorStartIndex) throws IOException {
-    this.bytes = ByteBuffer.wrap(new byte[bufferSize]).order(ByteOrder.LITTLE_ENDIAN);
-    this.input = input;
-    this.vectorStartIndex = vectorStartIndex;
-    target = new float[dim];
-    reset();
+  protected VectorReader(Path path, int dim, int bytesPerDim) throws IOException {
+    this.input = FileChannel.open(path, StandardOpenOption.READ);
+    this.dim = dim;
+    this.bytesPerVector = dim * bytesPerDim;
   }
 
-  void reset() throws IOException {
-    long pos = vectorStartIndex * (long) bytes.capacity();
-    input.position(pos);
-  }
+  public T read(long index) throws IOException {
+    final long size = input.size();
+    final long realIndex = index % getVectorCount();
+    final long pos = realIndex * bytesPerVector;
 
-  protected final void readNext() throws IOException {
-    int bytesRead = this.input.read(bytes);
-    if (bytesRead < bytes.capacity()) {
-      // wrap around back to the start of the file if we hit the end:
-      System.out.println("WARNING: VectorReader hit EOF when reading " + this.input + "; now wrapping around to start of file again");
-      this.input.position(0);
-      bytesRead = this.input.read(bytes);
-      if (bytesRead < bytes.capacity()) {
-        throw new IllegalStateException("vector file " + input + " doesn't even have enough bytes for a single vector?  got bytesRead=" + bytesRead);
-      }
+    final ByteBuffer buf = ByteBuffer.allocate(bytesPerVector);
+    final int bytesRead = input.read(buf, pos);
+    if (bytesRead != bytesPerVector) {
+      throw new IOException("Incompletely read " + bytesRead + "/" + bytesPerVector + " bytes");
     }
-    bytes.position(0);
+
+    buf.flip();
+    return interpret(buf);
   }
 
-  abstract float[] next() throws IOException;
+  public long getVectorCount() throws IOException {
+    return input.size() / bytesPerVector;
+  }
+
+  protected abstract T interpret(ByteBuffer buf);
+
+  public void close() throws IOException {
+    input.close();
+  }
+
+  public static final class Byte extends VectorReader<byte[]> {
+    private Byte(Path path, int dim) throws IOException {
+      super(path, dim, VectorEncoding.BYTE.byteSize);
+    }
+
+
+    @Override
+    protected byte[] interpret(ByteBuffer buf) {
+      final byte[] target = new byte[dim];
+      buf.get(target);
+      return target;
+    }
+  }
+
+  public static final class Float32 extends VectorReader<float[]> {
+    private Float32(Path path, int dim) throws IOException {
+      super(path, dim, VectorEncoding.FLOAT32.byteSize);
+    }
+
+    @Override
+    protected float[] interpret(ByteBuffer buf) {
+      final float[] target = new float[dim];
+      buf.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(target);
+      return target;
+    }
+  }
 }

@@ -213,21 +213,25 @@ def checkIndex(r, indexPath, checkLogFileName):
   if open(checkLogFileName, encoding="utf-8").read().find("No problems were detected with this index") == -1:
     raise RuntimeError("CheckIndex failed")
 
+
 # Pattern matches common Java exception formats
 EXCEPTION_PATTERN = re.compile(
-    r'(?:Exception|Error|Throwable)(?::|$)|'
-    r'^\s+at\s+[\w.$]+\([\w.]+:\d+\)|'
-    r'^\s+\.\.\.\s+\d+\s+more|'
-    r'Caused by:'
+  r"(?:Exception|Error|Throwable)(?::|$)|"
+  r"^\s+at\s+[\w.$]+\([\w.]+:\d+\)|"
+  r"^\s+\.\.\.\s+\d+\s+more|"
+  r"Caused by:"
 )
 
+
 def fail_if_java_exceptions(desc, log_file):
-  with open(log_file, 'r') as f:
+  with open(log_file) as f:
     for line_num, line in enumerate(f, 1):
       if EXCEPTION_PATTERN.search(line):
-        raise RuntimeError(f"{desc}: java exceptions found in log file \"{log_file}\": line {line_num}: {line.rstrip()}")
+        raise RuntimeError(f'{desc}: java exceptions found in log file "{log_file}": line {line_num}: {line.rstrip()}')
+
 
 reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)
+
 
 def runNRTTest(r, indexPath, runLogDir):
   open("body10.tasks", "w").write("Term: body:10\n")
@@ -249,7 +253,7 @@ def runNRTTest(r, indexPath, runLogDir):
   cmd += "> %s 2>&1" % logFile
   runCommand(cmd)
 
-  fail_if_java_exceptions('runNRTTest', logFile)
+  fail_if_java_exceptions("runNRTTest", logFile)
 
   times = []
   for s in reNRTReopenTime.findall(open(logFile, encoding="utf-8").read()):

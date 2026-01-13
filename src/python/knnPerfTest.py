@@ -52,8 +52,8 @@ from common import getLuceneDirFromGradleProperties
 # you may want to modify the following settings:
 
 DO_PROFILING = False
-DO_PS = True
-DO_VMSTAT = True
+DO_PS = False
+DO_VMSTAT = False
 
 # Set this to True to generate the disassembled code to verify the intended SIMD instructions are getting used or not
 PERF_MODE = False
@@ -65,7 +65,7 @@ PERF_PATH = shutil.which("perf")
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
-NOISY = True
+NOISY = False
 
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?
@@ -77,7 +77,7 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (400_000,),
+  "ndoc": (1_000_000,),
   #'ndoc': (50_000,),
   "maxConn": (64,),
   # "maxConn": (64,),
@@ -85,13 +85,12 @@ PARAMS = {
   "beamWidthIndex": (250,),
   # "beamWidthIndex": (250,),
   #'beamWidthIndex': (50,),
-  "fanout": (100,),
   # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (24,),
+  "numMergeWorker": (8,),
   "numMergeThread": (8,),
-  "numSearchThread": (4,),
+  "numSearchThread": (1,),
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
@@ -99,9 +98,10 @@ PARAMS = {
   # 'metric': ('dotproduct',),
   # 'metric': ('mip',),
   #'quantize': (True,),
-  "quantizeBits": (4, 4, 4, 4, 8, 8, 8, 8, 32, 32, 32, 32),
+  "quantizeBits": (1, 2, 3,),
+  "fanout": (0, 100, 150, 200),
   # "quantizeBits": (1,),
-  # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
+  "overSample": (1, 1.5, 2, 3), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
   "topK": (100,),
   # "bp": ("false", "true"),
@@ -111,9 +111,8 @@ PARAMS = {
   # "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
   # "queryStartIndex": (0, 200000, 400000, 600000),
   "forceMerge": (True,),
-  "niter": (10000,),
-  # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
-  # "filterSelectivity": ("0.5", "0.2", "0.1", "0.01",),
+  "niter": (1000,),
+  "seed": (42,),
 }
 
 
@@ -231,19 +230,19 @@ def run_knn_benchmark(checkout, values, log_path):
   # doc_vectors = "%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec" % constants.BASE_DIR
   # query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
 
-  do_check_norms = True
+  do_check_norms = False
 
   # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
   v3 = True
 
   if v3:
     dim = 1024
-    doc_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"
-    query_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec"
+    doc_vectors = f"{constants.BASE_DIR}/data/wiki1024en.train"
+    query_vectors = f"{constants.BASE_DIR}/data/wiki1024en.test"
   else:
     dim = 768
-    doc_vectors = f"/lucenedata/enwiki/cohere-wikipedia-docs-{dim}d.vec"
-    query_vectors = f"/lucenedata/enwiki/cohere-wikipedia-queries-{dim}d.vec"
+    doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
+    query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
 
   # dim = 768
   # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
@@ -336,7 +335,7 @@ def run_knn_benchmark(checkout, values, log_path):
         "-docs",
         doc_vectors,
         # "-reindex",
-        "-search-and-stats",
+        "-search",
         query_vectors,
         "-numIndexThreads",
         "8",

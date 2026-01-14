@@ -35,7 +35,6 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -138,6 +137,8 @@ public class KnnGraphTester implements FormatterLogger {
     INDEX_TIME_FILTER,
     INDEX_TIME_SPARSE
   }
+
+  private static final Set<Integer> ALLOWED_BITS = Set.of(1, 2, 4, 7, 8);
 
   public static final String KNN_FIELD = "knn";
   public static final String KNN_FIELD_FILTERED = "knn-filtered";
@@ -365,8 +366,8 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-quantizeBits requires a following number");
           }
           quantizeBits = Integer.parseInt(args[++iarg]);
-          if (quantizeBits != 1 && quantizeBits != 4 && quantizeBits != 2 && quantizeBits != 3 && quantizeBits != 7 && quantizeBits != 8) {
-            throw new IllegalArgumentException("-quantizeBits must be 1, 4, 7 or 8");
+          if (ALLOWED_BITS.contains(quantizeBits) == false) {
+            throw new IllegalArgumentException("-quantizeBits must be 1, 2, 4, 7 or 8");
           }
           break;
         case "-quantizeCompress":
@@ -787,7 +788,7 @@ public class KnnGraphTester implements FormatterLogger {
         if (quantizeBits == 1) {
           realEncodingByteSize = 1.0 / 8.0;
           overHead = Float.BYTES * 3 + Short.BYTES; // 3 floats & 1 short
-        } else if (quantizeBits == 2 || quantizeBits == 3) {
+        } else if (quantizeBits == 2) {
           realEncodingByteSize = 2.0 / 8.0;
           overHead = Float.BYTES * 3 + Short.BYTES; // 3 floats & 1 short
         } else if (quantizeBits == 4 || quantizeBits == 7 || quantizeBits == 8) {
@@ -1713,10 +1714,6 @@ public class KnnGraphTester implements FormatterLogger {
             case 2 -> switch (indexType) {
               case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
               case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 3 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_BYTE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_BYTE, maxConn, beamWidth, numMergeWorker, exec);
             };
             case 4 -> switch (indexType) {
               case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);

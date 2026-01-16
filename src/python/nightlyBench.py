@@ -311,7 +311,7 @@ def run():
 
   if DEBUG:
     # Must re-direct all logs/results/reports so we don't overwrite the "production" run's logs:
-    constants.LOGS_DIR = "/l/trunk/lucene/benchmark"
+    constants.LOGS_DIR = f"{constants.BASE_DIR}/logs.debug"
     constants.NIGHTLY_LOG_DIR = f"{constants.BASE_DIR}/logs.debug"
     constants.NIGHTLY_REPORTS_DIR = f"{constants.BASE_DIR}/reports.debug"
     MEDIUM_INDEX_NUM_DOCS //= 100

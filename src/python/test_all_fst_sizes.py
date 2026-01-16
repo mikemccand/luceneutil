@@ -1,8 +1,8 @@
 # nocommit -- temporary tool
 
+import glob
 import pickle
 import re
-import glob
 import subprocess
 
 print("Build jars...")

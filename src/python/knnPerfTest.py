@@ -136,6 +136,7 @@ OUTPUT_HEADERS = [
   "filterStrategy",
   "filterSelectivity",
   "overSample",
+  "rerank",
   "vec_disk(MB)",
   "vec_RAM(MB)",
   "bp-reorder",
@@ -539,6 +540,7 @@ def remove_common_args(argmaps):
   # TODO: also remove other "minor" dimensions such as beam_width and maxconn?
   # or place under user control somehow
   common_args["-fanout"] = 1
+  common_args["-overSample"] = 1
   # everything remaining is in common to all rows, now remove them
   unique_args = []
   for args in argmaps:

@@ -16,6 +16,7 @@
 #
 
 import glob
+import hashlib
 import os
 import random
 import subprocess
@@ -24,7 +25,6 @@ import time
 import benchUtil
 import common
 import constants
-import hashlib
 import searchBench
 
 if hasattr(constants, "SEARCH_NUM_THREADS"):
@@ -233,6 +233,10 @@ class Index:
 
     # Generate hash of configuration to avoid index path collisions
     config_parts = []
+    if self.optimize:
+      config_parts.append("opt")
+    if self.useCFS:
+      config_parts.append("cfs")
     if self.facets is not None:
       config_parts.extend([arg[0] for arg in self.facets])
       config_parts.append(self.facetDVFormat)

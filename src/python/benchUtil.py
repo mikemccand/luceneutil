@@ -1117,7 +1117,7 @@ class RunAlgs:
         for module in ["core"]:
           print("compile lucene:core...")
           run([constants.GRADLE_EXE, "lucene:core:jar"], "%s/compile.log" % constants.LOGS_DIR)
-        for module in ("suggest", "highlighter", "misc", "analysis:common", "grouping", "codecs", "facet", "sandbox", "queryparser"):
+        for module in ("suggest", "highlighter", "misc", "analysis:common", "grouping", "codecs", "facet", "sandbox", "queryparser", "spatial3d"):
           # Try to be faster; this may miss changes, e.g. a static final constant changed in core that is used in another module:
           modulePath = "%s/lucene/%s" % (checkoutPath, module.replace(":", "/"))
           classesPath = "%s/build/classes/java" % (modulePath)

@@ -24,6 +24,7 @@ import time
 import benchUtil
 import common
 import constants
+import hashlib
 import searchBench
 
 if hasattr(constants, "SEARCH_NUM_THREADS"):
@@ -229,6 +230,33 @@ class Index:
 
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
+
+    # Generate hash of configuration to avoid index path collisions
+    config_parts = []
+    if self.facets is not None:
+      config_parts.extend([arg[0] for arg in self.facets])
+      config_parts.append(self.facetDVFormat)
+    if self.bodyTermVectors:
+      config_parts.append("tv")
+    if self.bodyStoredFields:
+      config_parts.append("stored")
+    if self.bodyPostingsOffsets:
+      config_parts.append("offsets")
+    config_parts.append(self.postingsFormat)
+    if self.postingsFormat != self.idFieldPostingsFormat:
+      config_parts.append(self.idFieldPostingsFormat)
+    if self.addDVFields:
+      config_parts.append("dvfields")
+    if self.indexSort:
+      config_parts.append(f"sort={self.indexSort}")
+    if self.vectorFile:
+      config_parts.append(f"vectors={self.vectorDimension}")
+      if self.quantizeKNNGraph:
+        config_parts.append("int8-quantized")
+
+    config_str = "|".join([benchUtil.checkoutToName(self.checkout)] + config_parts)
+    config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
+    name.append(config_hash)
 
     name.append("nd%gM" % (self.numDocs / 1000000.0))
     return ".".join(name)

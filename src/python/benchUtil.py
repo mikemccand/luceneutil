@@ -1952,44 +1952,45 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       profilerResults.append((mode, stackSize, output))
   return profilerResults
 
+
 def get_index_config(index):
   """Generate a dict of all config parameters that affect index creation."""
   config = {
-    'dataSource': index.dataSource.name,
-    'numDocs': index.numDocs,
-    'optimize': index.optimize,
-    'useCFS': index.useCFS,
-    'postingsFormat': index.postingsFormat,
-    'idFieldPostingsFormat': index.idFieldPostingsFormat,
-    'bodyTermVectors': index.bodyTermVectors,
-    'bodyStoredFields': index.bodyStoredFields,
-    'bodyPostingsOffsets': index.bodyPostingsOffsets,
-    'addDVFields': index.addDVFields,
-    'indexSort': index.indexSort,
+    "dataSource": index.dataSource.name,
+    "numDocs": index.numDocs,
+    "optimize": index.optimize,
+    "useCFS": index.useCFS,
+    "postingsFormat": index.postingsFormat,
+    "idFieldPostingsFormat": index.idFieldPostingsFormat,
+    "bodyTermVectors": index.bodyTermVectors,
+    "bodyStoredFields": index.bodyStoredFields,
+    "bodyPostingsOffsets": index.bodyPostingsOffsets,
+    "addDVFields": index.addDVFields,
+    "indexSort": index.indexSort,
   }
   if index.facets is not None:
-    config['facets'] = [arg[0] for arg in index.facets]
-    config['facetDVFormat'] = index.facetDVFormat
+    config["facets"] = [arg[0] for arg in index.facets]
+    config["facetDVFormat"] = index.facetDVFormat
   if index.vectorFile:
-    config['vectorFile'] = index.vectorFile
-    config['vectorDimension'] = index.vectorDimension
-    config['quantizeKNNGraph'] = index.quantizeKNNGraph
+    config["vectorFile"] = index.vectorFile
+    config["vectorDimension"] = index.vectorDimension
+    config["quantizeKNNGraph"] = index.quantizeKNNGraph
   return config
 
 
 def write_index_config(index_path, config):
   """Write index config to metadata file."""
-  config_path = os.path.join(index_path, 'index-config.json')
-  with open(config_path, 'w') as f:
+  config_path = os.path.join(index_path, "index-config.json")
+  with open(config_path, "w") as f:
     json.dump(config, f, indent=2, sort_keys=True)
 
 
 def read_index_config(index_path):
   """Read index config from metadata file, returns None if not found."""
-  config_path = os.path.join(index_path, 'index-config.json')
+  config_path = os.path.join(index_path, "index-config.json")
   if not os.path.exists(config_path):
     return None
-  with open(config_path, 'r') as f:
+  with open(config_path, "r") as f:
     return json.load(f)
 
 

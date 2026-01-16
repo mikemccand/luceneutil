@@ -21,6 +21,8 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -44,6 +46,7 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -68,6 +71,22 @@ import perf.IndexThreads.Mode;
 //   - maybe target certain MB/sec update rate...?
 //   - hmm: we really should have a separate line file, shuffled, that holds the IDs for each line; this way we can update doc w/ same original doc and then we can assert hit counts match
 //   - share *Task code from SearchPerfTest
+
+// CONFIGURATION SETTINGS:
+// 
+// Normal Operation Settings:
+//   - RAM Buffer Size: 256MB
+//   - TieredMergePolicy deletesPctAllowed: default (10.0)
+//   - Max merged segment size: 1000000MB (effectively unlimited)
+//   - ConcurrentMergeScheduler: 4 max merges, 1 thread
+//
+// Update Storms Settings (-updateStorms true, see nrtPerf.py for example):
+//   - RAM Buffer Size: 4GB
+//   - TieredMergePolicy deletesPctAllowed: 2.0
+//   - Max merged segment size: use Lucene defaults
+//   - ConcurrentMergeScheduler: use Lucene defaults for max merges & threads
+//   - Vector indexing enabled for testing heavy update workloads:
+//        docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, "/path/to/vectors_file", 768, VectorEncoding.FLOAT32);
 
 public class NRTPerfTest {
 
@@ -243,6 +262,9 @@ public class NRTPerfTest {
       throw new FileNotFoundException("tasks file not found " + tasksFile);
     }
 
+    // By default, disable update storms
+    final boolean enableUpdateStorms = args.length > 15 ? Boolean.parseBoolean(args[15]) : false;
+
     final boolean hasProcMemInfo = Files.exists(Paths.get("/proc/meminfo"));
 
     System.out.println("DIR=" + dirImpl);
@@ -256,6 +278,7 @@ public class NRTPerfTest {
     System.out.println("Reopen/sec=" + reopenPerSec);
     System.out.println("Mode=" + mode);
     System.out.println("tasksFile=" + tasksFile);
+    System.out.println("EnableUpdateStorms=" + enableUpdateStorms);
 
     System.out.println("Record stats every " + statsEverySec + " seconds");
     final int count = (int) ((runTimeSec / statsEverySec) + 2);
@@ -273,7 +296,8 @@ public class NRTPerfTest {
     System.out.println("Max merge MB/sec = " + (mergeMaxWriteMBPerSec <= 0.0 ? "unlimited" : mergeMaxWriteMBPerSec));
     final Random random = new Random(seed);
 
-    final LineFileDocs docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, null, 0, null);
+    final LineFileDocs docs;
+    docs = new LineFileDocs(lineDocFile, true, false, false, false, false, null, Collections.emptyMap(), null, true, null, 0, null);
 
     final Directory dir0;
     if (dirImpl.equals("MMapDirectory")) {
@@ -298,7 +322,8 @@ public class NRTPerfTest {
     StandardAnalyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
     final IndexWriterConfig conf = new IndexWriterConfig(analyzer);
     conf.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
-    conf.setRAMBufferSizeMB(256.0);
+    conf.setRAMBufferSizeMB(256.0); // 256MB RAM buffer for normal operation
+    
     //iwc.setMergeScheduler(ms);
 
     /*
@@ -328,9 +353,12 @@ public class NRTPerfTest {
 
     TieredMergePolicy tmp = new TieredMergePolicy();
     tmp.setNoCFSRatio(0.0);
-    tmp.setMaxMergedSegmentMB(1000000.0);
+    tmp.setMaxMergedSegmentMB(1000000.0); // effectively unlimited
     //tmp.setReclaimDeletesWeight(3.0);
     //tmp.setMaxMergedSegmentMB(7000.0);
+    
+    tmp.setDeletesPctAllowed(2.0);
+    
     conf.setMergePolicy(tmp);
 
     if (!commit.equals("none")) {
@@ -339,10 +367,14 @@ public class NRTPerfTest {
 
     // Make sure merges run @ higher prio than indexing:
     final ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) conf.getMergeScheduler();
+    // Can swap to your own MergeScheduler impl
     cms.setMaxMergesAndThreads(4, 1);
 
     conf.setMergedSegmentWarmer(new MergedReaderWarmer(field));
 
+    // Set infoStream to log to file
+    // PrintStream infoStream = new PrintStream(new FileOutputStream("lucene-infostream.log", true), true, "UTF-8");
+    // conf.setInfoStream(infoStream);
     final IndexWriter w = new IndexWriter(dir, conf);
     // w.setInfoStream(System.out);
 
@@ -360,8 +392,9 @@ public class NRTPerfTest {
         }
       };
     IndexWriter.DocStats stats = w.getDocStats();
+    final AtomicReference<Double> docsPerSecRef = new AtomicReference<>(docsPerSec / numIndexThreads);
     IndexThreads indexThreads = new IndexThreads(random, w, new AtomicBoolean(false), docs, numIndexThreads, -1, false, false, mode,
-                                                 (float) (docsPerSec / numIndexThreads), updatesListener, -1.0, stats.maxDoc);
+                                                 docsPerSecRef, updatesListener, -1.0, stats.maxDoc, enableUpdateStorms);
 
     // NativePosixUtil.mlockTermsDict(startR, "id");
     final SearcherManager manager = new SearcherManager(w, null);
@@ -376,12 +409,46 @@ public class NRTPerfTest {
     final IndexState indexState = new IndexState(null, manager, null, field, spellChecker, "FastVectorHighlighter", null, null);
     TaskParserFactory taskParserFactory =
       new TaskParserFactory(indexState, field, analyzer, field, 10, random, null, null, -1, true, TestContext.parse(""));
-    final TaskSource tasks = new RandomTaskSource(tasksFile, random, taskParserFactory.getTaskParser()) {
+      final double peaceTimeRate = docsPerSec / numIndexThreads;
+      // Conditionally create update storm thread
+      if (enableUpdateStorms) {
+        System.out.println("Starting update storms thread...");
+        // Periodically increase docsPerSec
+        Thread docsPerSecIncreaser = new Thread(() -> {
+          // Loop of update storm followed by peace time
+          while (true) {
+            try {
+              int increaseCount = 0;
+              int maxIncreases = 6;
+              Thread.sleep(10000); // 10 seconds peace time at the beginning
+              while (increaseCount < maxIncreases) {
+                double newRate = docsPerSecRef.updateAndGet(rate -> rate * 2);
+                System.out.println("Increased docsPerSec per thread to " + newRate);
+                Thread.sleep(20000); // every 20 seconds
+                increaseCount++;
+              }
+              System.out.println("Reached max increases (" + maxIncreases + "), now peace time mode");
+              docsPerSecRef.set(peaceTimeRate);
+              System.out.println("Decreased docsPerSec per thread to " + (peaceTimeRate));
+              Thread.sleep(900000); // 15 minutes peace time
+            } catch (InterruptedException e) {
+              // exit thread
+            }
+          }
+        });
+        docsPerSecIncreaser.setDaemon(true);
+        docsPerSecIncreaser.start();
+      } else {
+        System.out.println("Update storms disabled - maintaining constant indexing rate");
+      }
+    // Aggressive delete storm task source
+    final TaskSource baseTasks = new RandomTaskSource(tasksFile, random, taskParserFactory.getTaskParser()) {
         @Override
         public void taskDone(Task task, long queueTimeNS, TotalHits toalHitCount) {
           searchesByTime[currentQT.get()].incrementAndGet();
         }
       };
+    final TaskSource tasks = baseTasks;
     System.out.println("Task repeat count 1");
     System.out.println("Tasks file " + tasksFile);
     System.out.println("Num task per cat 20");

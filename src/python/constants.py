@@ -50,6 +50,12 @@ VECTORS_WORD_VEC_FILE = "%s/data/enwiki-20120502-mpnet.vec" % BASE_DIR
 
 # the pre-computed "line docs file" like version for vectors:
 VECTORS_DOCS_FILE = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
+# For debug/testing, fall back to cohere vectors if mpnet doesn't exist
+import os
+if not os.path.exists(VECTORS_DOCS_FILE):
+    VECTORS_DOCS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+    VECTORS_DIMENSIONS = 1024
+VECTORS_QUERY_FILE = VECTORS_DOCS_FILE  # Use same file for queries in nightly bench
 
 # VECTORS_TYPE = 'FLOAT8'
 VECTORS_TYPE = "FLOAT32"
@@ -178,6 +184,19 @@ PERF_STATS = (
 )
 
 NIGHTLY_REPORTS_DIR = "%s/reports.nightly" % BASE_DIR
+
+# Nightly benchmark document counts
+NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 10000000  # 10M docs
+NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000     # 33M docs
+
+# HNSW vector search configuration
+HNSW_THREADS_PER_MERGE = 1
+HNSW_THREAD_POOL_COUNT = 1
+
+# Nightly benchmark data files
+NIGHTLY_MEDIUM_LINE_FILE = WIKI_MEDIUM_DOCS_LINE_FILE
+NIGHTLY_BIG_LINE_FILE = WIKI_BIG_DOCS_LINE_FILE
+WIKI_MEDIUM_TASKS_FILE = WIKI_MEDIUM_TASKS_ALL_FILE
 
 PROCESSOR_COUNT = 12
 

@@ -52,43 +52,61 @@ BENCH_BASE_DIR = '%(base_dir)s/%(cwd)s'
 
 
 def runSetup(download, insecure_ssl=False):
+  print("=" * 60)
+  print("Lucene Benchmarking Utility - Initial Setup")
+  print("=" * 60)
+
   cwd = os.getcwd()
   parent, base = os.path.split(cwd)
   data_dir = os.path.join(parent, "data")
   idx_dir = os.path.join(parent, "indices")
 
+  print("\n[Step 1/4] Setting up directory structure...")
+  print(f"  Working directory: {cwd}")
+  print(f"  Parent directory: {parent}")
+
   if not os.path.exists(data_dir):
-    print("create data directory at %s" % (data_dir))
+    print(f"  Creating data directory at {data_dir}")
     os.mkdir(data_dir)
   else:
-    print("data directory already exists %s" % (data_dir))
+    print(f"  Data directory already exists: {data_dir}")
 
   if not os.path.exists(idx_dir):
     os.mkdir(idx_dir)
-    print("create indices directory at %s" % (idx_dir))
+    print(f"  Creating indices directory at {idx_dir}")
   else:
-    print("indices directory already exists %s" % (idx_dir))
+    print(f"  Indices directory already exists: {idx_dir}")
 
+  print("\n[Step 2/4] Creating localconstants.py configuration file...")
   pySrcDir = os.path.join(cwd, "src", "python")
   local_const = os.path.join(pySrcDir, "localconstants.py")
   if not os.path.exists(local_const):
+    print(f"  Writing configuration to {local_const}")
     f = open(local_const, "w")
     try:
       f.write(DEFAULT_LOCAL_CONST % ({"base_dir": parent, "cwd": base}))
     finally:
       f.close()
+    print("  Configuration file created successfully")
   else:
-    print("localconstants.py already exists - skipping")
+    print(f"  localconstants.py already exists at {local_const} - skipping")
 
+  print("\n[Step 3/4] Setting up localrun.py from example template...")
   local_run = os.path.join(pySrcDir, "localrun.py")
   example = os.path.join(pySrcDir, "example.py")
   if not os.path.exists(local_run):
+    print(f"  Copying {example} to {local_run}")
     shutil.copyfile(example, local_run)
+    print("  localrun.py created successfully")
   else:
-    print("localrun.py already exists - skipping")
+    print(f"  localrun.py already exists at {local_run} - skipping")
 
   if download:
-    for tup in DATA_FILES:
+    print("\n[Step 4/4] Downloading benchmark data files...")
+    print(f"  Target directory: {data_dir}")
+    print(f"  Number of files to process: {len(DATA_FILES)}")
+
+    for i, tup in enumerate(DATA_FILES, 1):
       if type(tup) is str:
         url_source = tup
         local_filename = os.path.basename(url_source)
@@ -97,20 +115,28 @@ def runSetup(download, insecure_ssl=False):
       else:
         raise RuntimeError(f"DATA_FILES elements should be single string or length 2 tuple; got: {tup}")
       target_file = os.path.join(data_dir, local_filename)
+
+      print(f"\n  [{i}/{len(DATA_FILES)}] Processing: {local_filename}")
       if os.path.exists(target_file):
-        print("file %s already exists - skipping" % target_file)
+        print(f"    File already exists - skipping")
       else:
-        print("download %s to %s - might take a long time!" % (url_source, target_file))
+        print(f"    Source URL: {url_source}")
+        print(f"    Destination: {target_file}")
+        print(f"    Starting download (this might take a while)...")
         Downloader(url_source, target_file, insecure_ssl).download()
         print()
-        print("downloading %s to %s done " % (url_source, target_file))
+        print(f"    Download complete: {local_filename}")
 
       for suffix in (".bz2", ".lzma", ".zip", ".xz"):
         if target_file.endswith(suffix):
-          print("NOTE: make sure you decompress %s" % target_file)
+          print(f"    NOTE: Remember to decompress {target_file}")
           break
+  else:
+    print("\n[Step 4/4] Skipping data file downloads (use -download flag to enable)")
 
-  print("setup successful")
+  print("\n" + "=" * 60)
+  print("Setup completed successfully!")
+  print("=" * 60)
 
 
 class Downloader:
@@ -125,25 +151,30 @@ class Downloader:
     Downloader.index = 0
 
   def download(self):
+    print(f"    Configuring SSL context...")
     # Handle SSL certificate configuration
     if self.__insecure_ssl:
-      print("Warning: Using insecure SSL context (certificate verification disabled)")
+      print("    Warning: Using insecure SSL context (certificate verification disabled)")
       ssl_context = ssl._create_unverified_context()
     else:
       try:
         # Try to use certifi bundle if available
         import certifi
+        print(f"    Using certifi SSL certificates")
         ssl_context = ssl.create_default_context(cafile=certifi.where())
       except ImportError:
         # Fall back to system certificates
+        print(f"    Using system SSL certificates")
         ssl_context = ssl.create_default_context()
-    
+
     # Install SSL context
+    print(f"    Setting up HTTP handler...")
     https_handler = request.HTTPSHandler(context=ssl_context)
     opener = request.build_opener(https_handler)
     opener.addheaders = [("User-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")]
     request.install_opener(opener)
-    
+
+    print(f"    Initiating download...")
     try:
       request.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
     except ssl.SSLError as e:

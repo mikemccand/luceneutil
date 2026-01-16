@@ -86,28 +86,6 @@ Term: nbsp # freq=492778
 Term: part # freq=588644
 Term: st # freq=306811
 
-BrowseDateTaxoFacets: *:* +facets:Date.taxonomy
-
-BrowseMonthTaxoFacets: *:* +facets:Month.taxonomy
-
-BrowseDayOfYearTaxoFacets: *:* +facets:DayOfYear.taxonomy
-
-BrowseDateSSDVFacets: *:* +facets:Date.sortedset
-
-BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
-
-BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
-
-BrowseRandomLabelTaxoFacets: *:* +facets:RandomLabel.taxonomy
-
-BrowseRandomLabelSSDVFacets: *:* +facets:RandomLabel.sortedset
-
-TermDateFacets: 0 +facets:Date.taxonomy # freq=708472
-TermDateFacets: names +facets:Date.taxonomy # freq=402762
-TermDateFacets: nbsp +facets:Date.taxonomy # freq=492778
-TermDateFacets: part +facets:Date.taxonomy # freq=588644
-TermDateFacets: st +facets:Date.taxonomy # freq=306811
-
 TermDateTimeSort: lastmodndvsort//0 # freq=708472
 TermDateTimeSort: lastmodndvsort//names # freq=402762
 TermDateTimeSort: lastmodndvsort//nbsp # freq=492778
@@ -197,30 +175,6 @@ PostFilteredVectorSearch: vector//many geografia +filter=5%
 PostFilteredVectorSearch: vector//many foundation +filter=5%
 PostFilteredVectorSearch: vector//this school +filter=5%
 PostFilteredVectorSearch: vector//such 2007 +filter=5%
-
-OrHighMedDayTaxoFacets: 4 steve +facets:DayOfYear.taxonomy # freq=986452 freq=84364
-OrHighMedDayTaxoFacets: some groups +facets:DayOfYear.taxonomy # freq=839919 freq=146670
-OrHighMedDayTaxoFacets: a named +facets:DayOfYear.taxonomy # freq=6560531 freq=310150
-OrHighMedDayTaxoFacets: not opening +facets:DayOfYear.taxonomy # freq=1713264 freq=84576
-OrHighMedDayTaxoFacets: which pre +facets:DayOfYear.taxonomy # freq=1963428 freq=90549
-
-AndHighMedDayTaxoFacets: +web +available +facets:DayOfYear.taxonomy # freq=1118334 freq=175514
-AndHighMedDayTaxoFacets: +other +christian +facets:DayOfYear.taxonomy # freq=1269961 freq=140312
-AndHighMedDayTaxoFacets: +into +70 +facets:DayOfYear.taxonomy # freq=888684 freq=90305
-AndHighMedDayTaxoFacets: +at +space +facets:DayOfYear.taxonomy # freq=2857534 freq=163436
-AndHighMedDayTaxoFacets: +for +few +facets:DayOfYear.taxonomy # freq=4380011 freq=226422
-
-AndHighHighDayTaxoFacets: +a +work +facets:DayOfYear.taxonomy # freq=6560531 freq=853422
-AndHighHighDayTaxoFacets: +and +2 +facets:DayOfYear.taxonomy # freq=7318061 freq=1549245
-AndHighHighDayTaxoFacets: +in +2011 +facets:DayOfYear.taxonomy # freq=7320987 freq=871410
-AndHighHighDayTaxoFacets: +was +also +facets:DayOfYear.taxonomy # freq=3763623 freq=1959419
-AndHighHighDayTaxoFacets: +to +an +facets:DayOfYear.taxonomy # freq=6155577 freq=2628056
-
-MedTermDayTaxoFacets: result +facets:DayOfYear.taxonomy # freq=276803
-MedTermDayTaxoFacets: college +facets:DayOfYear.taxonomy # freq=278094
-MedTermDayTaxoFacets: site +facets:DayOfYear.taxonomy # freq=277788
-MedTermDayTaxoFacets: man +facets:DayOfYear.taxonomy # freq=278112
-MedTermDayTaxoFacets: football +facets:DayOfYear.taxonomy # freq=277738
 
 # CombinedFieldQuery: does BM25F across the title and body fields, with a boost
 # of 8 on the title field

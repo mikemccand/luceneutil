@@ -1,0 +1,77 @@
+# Moving all nightly facet tasks to separate file to run them using
+# both post collection and during collection facets and compare performance
+BrowseDateTaxoFacets+postCollection: *:* +post_collection_facets:Date.taxonomy
+BrowseDateTaxoFacets+duringCollection: *:* +during_collection_facets:Date.taxonomy
+
+BrowseMonthTaxoFacets+postCollection: *:* +post_collection_facets:Month.taxonomy
+BrowseDayOfYearTaxoFacets+postCollection: *:* +post_collection_facets:DayOfYear.taxonomy
+BrowseRandomLabelTaxoFacets+postCollection: *:* +post_collection_facets:RandomLabel.taxonomy
+BrowseRandomLabelTaxoFacets+duringCollection: *:* +during_collection_facets:RandomLabel.taxonomy
+BrowseMonthTaxoFacets+duringCollection: *:* +during_collection_facets:Month.taxonomy
+BrowseDayOfYearTaxoFacets+duringCollection: *:* +during_collection_facets:DayOfYear.taxonomy
+
+
+BrowseDateSSDVFacets: *:* +facets:Date.sortedset
+BrowseMonthSSDVFacets: *:* +facets:Month.sortedset
+BrowseDayOfYearSSDVFacets: *:* +facets:DayOfYear.sortedset
+BrowseRandomLabelSSDVFacets: *:* +facets:RandomLabel.sortedset
+
+TermDateFacets+postCollection: 0 +post_collection_facets:Date.taxonomy # freq=708472
+TermDateFacets+postCollection: names +post_collection_facets:Date.taxonomy # freq=402762
+TermDateFacets+postCollection: nbsp +post_collection_facets:Date.taxonomy # freq=492778
+TermDateFacets+postCollection: part +post_collection_facets:Date.taxonomy # freq=588644
+TermDateFacets+postCollection: st +post_collection_facets:Date.taxonomy # freq=306811
+
+TermDateFacets+duringCollection: 0 +during_collection_facets:Date.taxonomy # freq=708472
+TermDateFacets+duringCollection: names +during_collection_facets:Date.taxonomy # freq=402762
+TermDateFacets+duringCollection: nbsp +during_collection_facets:Date.taxonomy # freq=492778
+TermDateFacets+duringCollection: part +during_collection_facets:Date.taxonomy # freq=588644
+TermDateFacets+duringCollection: st +during_collection_facets:Date.taxonomy # freq=306811
+
+OrHighMedDayTaxoFacets+postCollection: 4 steve +post_collection_facets:DayOfYear.taxonomy # freq=986452 freq=84364
+OrHighMedDayTaxoFacets+postCollection: some groups +post_collection_facets:DayOfYear.taxonomy # freq=839919 freq=146670
+OrHighMedDayTaxoFacets+postCollection: a named +post_collection_facets:DayOfYear.taxonomy # freq=6560531 freq=310150
+OrHighMedDayTaxoFacets+postCollection: not opening +post_collection_facets:DayOfYear.taxonomy # freq=1713264 freq=84576
+OrHighMedDayTaxoFacets+postCollection: which pre +post_collection_facets:DayOfYear.taxonomy # freq=1963428 freq=90549
+
+OrHighMedDayTaxoFacets+duringCollection: 4 steve +during_collection_facets:DayOfYear.taxonomy # freq=986452 freq=84364
+OrHighMedDayTaxoFacets+duringCollection: some groups +during_collection_facets:DayOfYear.taxonomy # freq=839919 freq=146670
+OrHighMedDayTaxoFacets+duringCollection: a named +during_collection_facets:DayOfYear.taxonomy # freq=6560531 freq=310150
+OrHighMedDayTaxoFacets+duringCollection: not opening +during_collection_facets:DayOfYear.taxonomy # freq=1713264 freq=84576
+OrHighMedDayTaxoFacets+duringCollection: which pre +during_collection_facets:DayOfYear.taxonomy # freq=1963428 freq=90549
+
+AndHighMedDayTaxoFacets+postCollection: +web +available +post_collection_facets:DayOfYear.taxonomy # freq=1118334 freq=175514
+AndHighMedDayTaxoFacets+postCollection: +other +christian +post_collection_facets:DayOfYear.taxonomy # freq=1269961 freq=140312
+AndHighMedDayTaxoFacets+postCollection: +into +70 +post_collection_facets:DayOfYear.taxonomy # freq=888684 freq=90305
+AndHighMedDayTaxoFacets+postCollection: +at +space +post_collection_facets:DayOfYear.taxonomy # freq=2857534 freq=163436
+AndHighMedDayTaxoFacets+postCollection: +for +few +post_collection_facets:DayOfYear.taxonomy # freq=4380011 freq=226422
+
+AndHighMedDayTaxoFacets+duringCollection: +web +available +during_collection_facets:DayOfYear.taxonomy # freq=1118334 freq=175514
+AndHighMedDayTaxoFacets+duringCollection: +other +christian +during_collection_facets:DayOfYear.taxonomy # freq=1269961 freq=140312
+AndHighMedDayTaxoFacets+duringCollection: +into +70 +during_collection_facets:DayOfYear.taxonomy # freq=888684 freq=90305
+AndHighMedDayTaxoFacets+duringCollection: +at +space +during_collection_facets:DayOfYear.taxonomy # freq=2857534 freq=163436
+AndHighMedDayTaxoFacets+duringCollection: +for +few +during_collection_facets:DayOfYear.taxonomy # freq=4380011 freq=226422
+
+AndHighHighDayTaxoFacets+postCollection: +a +work +post_collection_facets:DayOfYear.taxonomy # freq=6560531 freq=853422
+AndHighHighDayTaxoFacets+postCollection: +and +2 +post_collection_facets:DayOfYear.taxonomy # freq=7318061 freq=1549245
+AndHighHighDayTaxoFacets+postCollection: +in +2011 +post_collection_facets:DayOfYear.taxonomy # freq=7320987 freq=871410
+AndHighHighDayTaxoFacets+postCollection: +was +also +post_collection_facets:DayOfYear.taxonomy # freq=3763623 freq=1959419
+AndHighHighDayTaxoFacets+postCollection: +to +an +post_collection_facets:DayOfYear.taxonomy # freq=6155577 freq=2628056
+
+AndHighHighDayTaxoFacets+duringCollection: +a +work +during_collection_facets:DayOfYear.taxonomy # freq=6560531 freq=853422
+AndHighHighDayTaxoFacets+duringCollection: +and +2 +during_collection_facets:DayOfYear.taxonomy # freq=7318061 freq=1549245
+AndHighHighDayTaxoFacets+duringCollection: +in +2011 +during_collection_facets:DayOfYear.taxonomy # freq=7320987 freq=871410
+AndHighHighDayTaxoFacets+duringCollection: +was +also +during_collection_facets:DayOfYear.taxonomy # freq=3763623 freq=1959419
+AndHighHighDayTaxoFacets+duringCollection: +to +an +during_collection_facets:DayOfYear.taxonomy # freq=6155577 freq=2628056
+
+MedTermDayTaxoFacets+postCollection: result +post_collection_facets:DayOfYear.taxonomy # freq=276803
+MedTermDayTaxoFacets+postCollection: college +post_collection_facets:DayOfYear.taxonomy # freq=278094
+MedTermDayTaxoFacets+postCollection: site +post_collection_facets:DayOfYear.taxonomy # freq=277788
+MedTermDayTaxoFacets+postCollection: man +post_collection_facets:DayOfYear.taxonomy # freq=278112
+MedTermDayTaxoFacets+postCollection: football +post_collection_facets:DayOfYear.taxonomy # freq=277738
+
+MedTermDayTaxoFacets+duringCollection: result +during_collection_facets:DayOfYear.taxonomy # freq=276803
+MedTermDayTaxoFacets+duringCollection: college +during_collection_facets:DayOfYear.taxonomy # freq=278094
+MedTermDayTaxoFacets+duringCollection: site +during_collection_facets:DayOfYear.taxonomy # freq=277788
+MedTermDayTaxoFacets+duringCollection: man +during_collection_facets:DayOfYear.taxonomy # freq=278112
+MedTermDayTaxoFacets+duringCollection: football +during_collection_facets:DayOfYear.taxonomy # freq=277738

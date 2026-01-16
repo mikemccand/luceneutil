@@ -201,7 +201,7 @@ in a separate phase, and a new implementation that computes facets during collec
 To compare performance for the two implementations run
 
 ```
-python src/python/localrunFacets.py -source facetsWikimediumAll
+python src/python/runFacets.py -source facetsWikimediumAll
 ```
 
 Note that only comparison of taxonomy based facets is supported at the moment. We need to add SSDV facets support

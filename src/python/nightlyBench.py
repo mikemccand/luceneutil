@@ -24,12 +24,21 @@ import random
 import re
 import shutil
 import smtplib
+import ssl
 import subprocess
 import sys
 import tarfile
 import time
 import traceback
 import urllib.request
+
+# Configure SSL context for HTTPS requests
+try:
+  import certifi
+  ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+  # Fall back to system certificates if certifi is not available
+  pass
 
 # local imports:
 import benchUtil

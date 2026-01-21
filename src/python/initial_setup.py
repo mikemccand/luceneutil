@@ -36,6 +36,9 @@ DATA_FILES = [
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec",
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.csv",
   "https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip",
+  "https://download.geonames.org/export/dump/allCountries.zip",
+  # NAD (National Address Database) for facets benchmark (~7.8 GB)
+  ("https://data.transportation.gov/download/fc2s-wawr/", "NAD_r21_TXT.zip"),
 ]
 
 USAGE = """
@@ -61,7 +64,7 @@ def runSetup(download, insecure_ssl=False):
   data_dir = os.path.join(parent, "data")
   idx_dir = os.path.join(parent, "indices")
 
-  print("\n[Step 1/4] Setting up directory structure...")
+  print("\n[Step 1/5] Setting up directory structure...")
   print(f"  Working directory: {cwd}")
   print(f"  Parent directory: {parent}")
 
@@ -77,7 +80,7 @@ def runSetup(download, insecure_ssl=False):
   else:
     print(f"  Indices directory already exists: {idx_dir}")
 
-  print("\n[Step 2/4] Creating localconstants.py configuration file...")
+  print("\n[Step 2/5] Creating localconstants.py configuration file...")
   pySrcDir = os.path.join(cwd, "src", "python")
   local_const = os.path.join(pySrcDir, "localconstants.py")
   if not os.path.exists(local_const):
@@ -91,7 +94,7 @@ def runSetup(download, insecure_ssl=False):
   else:
     print(f"  localconstants.py already exists at {local_const} - skipping")
 
-  print("\n[Step 3/4] Setting up localrun.py from example template...")
+  print("\n[Step 3/5] Setting up localrun.py from example template...")
   local_run = os.path.join(pySrcDir, "localrun.py")
   example = os.path.join(pySrcDir, "example.py")
   if not os.path.exists(local_run):
@@ -102,7 +105,7 @@ def runSetup(download, insecure_ssl=False):
     print(f"  localrun.py already exists at {local_run} - skipping")
 
   if download:
-    print("\n[Step 4/4] Downloading benchmark data files...")
+    print("\n[Step 4/5] Downloading benchmark data files...")
     print(f"  Target directory: {data_dir}")
     print(f"  Number of files to process: {len(DATA_FILES)}")
 
@@ -131,8 +134,24 @@ def runSetup(download, insecure_ssl=False):
         if target_file.endswith(suffix):
           print(f"    NOTE: Remember to decompress {target_file}")
           break
+
+    # Process NAD data to generate taxonomy file
+    print("\n[Step 5/5] Processing NAD data...")
+    nad_zip = os.path.join(data_dir, "NAD_r21_TXT.zip")
+    nad_taxonomy = os.path.join(data_dir, "NAD_taxonomy.txt.gz")
+    if os.path.exists(nad_taxonomy):
+      print(f"  NAD taxonomy file already exists at {nad_taxonomy} - skipping")
+    elif not os.path.exists(nad_zip):
+      print(f"  NAD zip file not found at {nad_zip} - skipping taxonomy generation")
+    else:
+      print(f"  Generating NAD taxonomy from {nad_zip}")
+      print(f"  This processes ~92M address records and may take several minutes...")
+      from generateNADTaxonomies import generate_nad_taxonomy
+      generate_nad_taxonomy(parent)
+      print(f"  NAD taxonomy generation complete: {nad_taxonomy}")
   else:
-    print("\n[Step 4/4] Skipping data file downloads (use -download flag to enable)")
+    print("\n[Step 4/5] Skipping data file downloads (use -download flag to enable)")
+    print("\n[Step 5/5] Skipping NAD processing (requires -download flag)")
 
   print("\n" + "=" * 60)
   print("Setup completed successfully!")

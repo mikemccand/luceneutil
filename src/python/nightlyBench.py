@@ -2077,6 +2077,13 @@ def getLabel(label):
 
 
 def sendEmail(toEmailAddr, subject, messageText):
+  # Allow disabling email notifications via constants
+  if hasattr(constants, 'NIGHTLY_EMAIL_ENABLED') and not constants.NIGHTLY_EMAIL_ENABLED:
+    return
+  
+  # Use configurable email addresses from constants
+  from_email = getattr(constants, 'NIGHTLY_FROM_EMAIL', 'mail@mikemccandless.com')
+  
   try:
     import localpass
 
@@ -2092,22 +2099,22 @@ def sendEmail(toEmailAddr, subject, messageText):
     smtp.starttls()
     smtp.ehlo(FROM_EMAIL)
     localpass.smtplogin(smtp)
-    msg = "From: %s\r\n" % "mail@mikemccandless.com"
+    msg = "From: %s\r\n" % from_email
     msg += "To: %s\r\n" % toEmailAddr
     msg += "Subject: %s\r\n" % subject
     msg += "\r\n"
-    smtp.sendmail("mail@mikemccandless.com", toEmailAddr.split(","), msg)
+    smtp.sendmail(from_email, toEmailAddr.split(","), msg)
     smtp.quit()
   else:
     from email.mime.text import MIMEText
     from subprocess import PIPE, Popen
 
     msg = MIMEText(messageText)
-    msg["From"] = "mail@mikemccandless.com"
+    msg["From"] = from_email
     msg["To"] = toEmailAddr
     msg["Subject"] = subject
     p = Popen(["/usr/sbin/sendmail", "-t"], stdin=PIPE)
-    p.communicate(msg.as_string())
+    p.communicate(msg.as_string().encode('utf-8'))
 
 
 if __name__ == "__main__":
@@ -2120,7 +2127,7 @@ if __name__ == "__main__":
     if not DEBUG and REAL:
       import socket
 
-      sendEmail("mail@mikemccandless.com", "Nightly Lucene bench FAILED (%s)" % socket.gethostname(), "")
+      sendEmail(getattr(constants, 'NIGHTLY_TO_EMAIL', 'mail@mikemccandless.com'), "Nightly Lucene bench FAILED (%s)" % socket.gethostname(), "")
 
 # scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs
 

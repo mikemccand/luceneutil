@@ -60,7 +60,7 @@ VECTORS_QUERY_FILE = VECTORS_DOCS_FILE  # Use same file for queries in nightly b
 # VECTORS_TYPE = 'FLOAT8'
 VECTORS_TYPE = "FLOAT32"
 
-VECTORS_DIMENSIONS = 768
+VECTORS_DIMENSIONS = 1024  # Changed from 768 to match Cohere v3 vectors
 
 # WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = "%s/tasks/wikimedium.10M.nostopwords.tasks" % BENCH_BASE_DIR
@@ -130,6 +130,7 @@ INDEX_NUM_THREADS = 1
 SEARCH_NUM_CONCURRENT_QUERIES = max(2, int(multiprocessing.cpu_count() / 3))
 
 # geonames: http://download.geonames.org/export/dump/
+GEONAMES_LINE_FILE_DOCS = "%s/data/allCountries.txt" % BASE_DIR
 
 REPRO_COMMAND_START = "python -u %s/repeatLuceneTest.py -once -verbose -nolog" % BENCH_BASE_DIR
 REPRO_COMMAND_END = ""
@@ -184,9 +185,16 @@ PERF_STATS = (
 )
 
 NIGHTLY_REPORTS_DIR = "%s/reports.nightly" % BASE_DIR
+NIGHTLY_LOG_DIR = "%s/logs.nightly" % BASE_DIR
+
+# Email notification settings for nightly benchmark
+# Set NIGHTLY_EMAIL_ENABLED = False in localconstants.py to disable emails
+# NIGHTLY_EMAIL_ENABLED = True
+# NIGHTLY_FROM_EMAIL = 'your-email@example.com'
+# NIGHTLY_TO_EMAIL = 'your-email@example.com'
 
 # Nightly benchmark document counts
-NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 10000000  # 10M docs
+NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 999000  # 999K docs (stay under 1M vector limit to avoid reader thread EOF)
 NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000     # 33M docs
 
 # HNSW vector search configuration

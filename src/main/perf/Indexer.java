@@ -125,7 +125,7 @@ public final class Indexer {
     }
   }
 
-  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS, boolean useBP) {
+  private static MergePolicy getMergePolicy(String mergePolicy, boolean useBP) {
 
     MergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {

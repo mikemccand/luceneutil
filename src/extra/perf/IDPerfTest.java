@@ -348,10 +348,9 @@ public class IDPerfTest {
     iwc.setRAMBufferSizeMB(-1);
     //iwc.setInfoStream(new PrintStreamInfoStream(System.out));
     //iwc.setMergePolicy(new LogDocMergePolicy());
+    iwc.getCodec().compoundFormat().setShouldUseCompoundFile(false);
     ((TieredMergePolicy) iwc.getMergePolicy()).setFloorSegmentMB(.001);
-    ((TieredMergePolicy) iwc.getMergePolicy()).setNoCFSRatio(0.0);
     //((LogDocMergePolicy) iwc.getMergePolicy()).setMinMergeDocs(1000);
-    iwc.getMergePolicy().setNoCFSRatio(0.0);
 
     IndexWriter w = new IndexWriter(dir, iwc);
     Document doc = new Document();

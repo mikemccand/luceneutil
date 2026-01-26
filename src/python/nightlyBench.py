@@ -75,7 +75,9 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 #     - chart over-time mean/stddev reopen time
 #   - maybe multiple queries on one graph...?
 
-DEBUG = "-debug" in sys.argv
+# Will be set by parse_args() at runtime
+DEBUG = False
+DO_RESET_FLAG = False
 
 # Set JAVA_HOME from localconstants.py so Gradle uses the correct Java version (if not already set)
 if constants.JAVA_HOME and 'JAVA_HOME' not in os.environ:
@@ -330,7 +332,7 @@ def run():
     MEDIUM_INDEX_NUM_DOCS //= 100
     BIG_INDEX_NUM_DOCS //= 100
 
-  DO_RESET = "-reset" in sys.argv
+  DO_RESET = DO_RESET_FLAG
   if DO_RESET:
     print("will regold results files (command line specified)")
 
@@ -2136,9 +2138,47 @@ def sendEmail(toEmailAddr, subject, messageText):
     p.communicate(msg.as_string().encode('utf-8'))
 
 
+def parse_args():
+  import argparse
+  parser = argparse.ArgumentParser(
+    description="Nightly Lucene benchmark runner. Runs indexing and search benchmarks, generates performance graphs over time.",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="""
+Examples:
+  %(prog)s                     # Only regenerate graphs from existing data
+  %(prog)s -run                # Run full benchmark and generate graphs
+  %(prog)s -run -debug         # Run quick debug benchmark (smaller indexes)
+  %(prog)s -run -reset         # Run benchmark and reset baseline results
+  %(prog)s -run -debug -reset  # Debug run with baseline reset
+    """
+  )
+  parser.add_argument(
+    "-run",
+    action="store_true",
+    help="Execute the benchmark run. Without this flag, only graphs are regenerated from existing data."
+  )
+  parser.add_argument(
+    "-debug",
+    action="store_true",
+    help="Run in debug mode: uses smaller indexes (1/100th size), fewer JVM iterations (3 instead of 20), shorter NRT run time, and redirects logs to logs.debug/ directory."
+  )
+  parser.add_argument(
+    "-reset",
+    action="store_true",
+    help="Regold/reset the baseline results files instead of comparing against previous runs."
+  )
+  return parser.parse_args()
+
+
 if __name__ == "__main__":
+  args = parse_args()
+
+  # Update global flags based on parsed arguments
+  DEBUG = args.debug
+  DO_RESET_FLAG = args.reset
+
   try:
-    if "-run" in sys.argv:
+    if args.run:
       run()
     makeGraphs()
   except:

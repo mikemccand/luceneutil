@@ -190,7 +190,6 @@ public final class Indexer {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       iwc.setMergePolicy(tmp);
       tmp.setMaxMergedSegmentMB(1000000.0);
-      tmp.setUseCompoundFile(useCFS);
       iwc.getCodec().compoundFormat().setShouldUseCompoundFile(useCFS);
       mp = null;
       //    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {

@@ -77,6 +77,10 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 
 DEBUG = "-debug" in sys.argv
 
+# Set JAVA_HOME from localconstants.py so Gradle uses the correct Java version (if not already set)
+if constants.JAVA_HOME and 'JAVA_HOME' not in os.environ:
+  os.environ['JAVA_HOME'] = constants.JAVA_HOME
+
 JFR_STACK_SIZES = (1, 2, 4, 8, 12)
 
 if DEBUG:
@@ -755,9 +759,15 @@ def run():
       os.mkdir(subDirName)
       print(f"  {subDirName}")
       # TODO: optimize to single shared copy!
-      shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", subDirName)
+      try:
+        shutil.copy("/usr/share/gnuplot/4.6/js/gnuplot_svg.js", subDirName)
+      except FileNotFoundError:
+        print("Warning: gnuplot_svg.js not found, skipping visualization")
       shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{subDirName}/index.html")
-      subprocess.check_call(f"gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstatLogFileName} {prefix}", shell=True)
+      try:
+        subprocess.check_call(f"gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstatLogFileName} {prefix}", shell=True)
+      except (subprocess.CalledProcessError, FileNotFoundError):
+        print("Warning: gnuplot not available, skipping vmstat visualization")
 
   with open("%s/%s.html" % (constants.NIGHTLY_REPORTS_DIR, timeStamp), "w") as f:
     timeStamp2 = "%s %02d/%02d/%04d" % (start.strftime("%a"), start.month, start.day, start.year)
@@ -2089,10 +2099,10 @@ def sendEmail(toEmailAddr, subject, messageText):
   # Allow disabling email notifications via constants
   if hasattr(constants, 'NIGHTLY_EMAIL_ENABLED') and not constants.NIGHTLY_EMAIL_ENABLED:
     return
-  
+
   # Use configurable email addresses from constants
   from_email = getattr(constants, 'NIGHTLY_FROM_EMAIL', 'mail@mikemccandless.com')
-  
+
   try:
     import localpass
 

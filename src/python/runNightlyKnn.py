@@ -38,13 +38,13 @@ import knnPerfTest
 # SEARCH_VECTORS_FILE = "/lucenedata/enwiki/cohere-wikipedia-queries-768d.vec"
 # VECTORS_DIM =  768
 
-# Cohere v3, switched Dec 7 2025:
-INDEX_VECTORS_FILE = "/big/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"
-SEARCH_VECTORS_FILE = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec"
-VECTORS_DIM = 1024
+INDEX_VECTORS_FILE = constants.NIGHTLY_KNN_INDEX_VECTORS_FILE
+SEARCH_VECTORS_FILE = constants.NIGHTLY_KNN_SEARCH_VECTORS_FILE
+VECTORS_DIM = constants.NIGHTLY_KNN_VECTORS_DIM
 
 VECTORS_ENCODING = "float32"
-LUCENE_CHECKOUT = "/l/trunk.nightly"
+# Use BASE_DIR from constants to construct the Lucene checkout path
+LUCENE_CHECKOUT = f"{constants.BASE_DIR}/trunk.nightly"
 INDEX_THREAD_COUNT = 8
 
 INDEX_NUM_VECTORS = 8_000_000
@@ -284,7 +284,7 @@ def write_graph():
     for label, points in series.items():
       print(f"{label} -> {points}")
 
-  with open("/l/lucenenightly/docs/knnResults.html", "w") as f:
+  with open(f"{constants.NIGHTLY_KNN_REPORTS_DIR}/knnResults.html", "w") as f:
     f.write("""
 <html>
 <head>

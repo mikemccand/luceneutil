@@ -122,7 +122,7 @@ public class KnnIndexer implements FormatterLogger {
     
     iwc.setMergePolicy(ttmp);
     ttmp.setFloorSegmentMB(256);
-    ttmp.setNoCFSRatio(0);
+    iwc.getCodec().compoundFormat().setShouldUseCompoundFile(false);
     // tmp.setSegmentsPerTier(5);
     if (useBp) {
       iwc.setMergePolicy(new BPReorderingMergePolicy(iwc.getMergePolicy(), new BpVectorReorderer(KnnGraphTester.KNN_FIELD)));

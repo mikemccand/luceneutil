@@ -77,8 +77,8 @@ DISJUNCTION_INTENSIVE_TASKS_FILE = "%s/tasks/disjunctionIntensive.tasks" % BENCH
 COMBINED_FIELDS_TASKS_FILE = "%s/tasks/combinedfields.tasks" % BENCH_BASE_DIR
 COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = "%s/tasks/combinedfields.unevenlyweighted.tasks" % BENCH_BASE_DIR
 
-# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-with-random-label.txt.lzma
-WIKI_BIG_DOCS_LINE_FILE = "%s/data/enwiki-20120502-lines-with-random-label.txt" % BASE_DIR
+# wget https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"
+WIKI_BIG_DOCS_LINE_FILE = "%s/data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt" % BASE_DIR
 # WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
 
 # 33332620 docs in enwiki-20120502-lines-1k.txt'
@@ -200,6 +200,16 @@ NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000     # 33M docs
 # HNSW vector search configuration
 HNSW_THREADS_PER_MERGE = 1
 HNSW_THREAD_POOL_COUNT = 1
+
+# Nightly KNN benchmark vector files (Cohere v3 Wikipedia embeddings)
+# The "first1M" files are downloaded by initial_setup.py -download
+# For full 8M vector benchmarks, download from: https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings
+# and use load_cohere_v3.py to generate the full .vec files
+# Cohere v3, switched Dec 7 2025:
+NIGHTLY_KNN_INDEX_VECTORS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+NIGHTLY_KNN_SEARCH_VECTORS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec" % BASE_DIR
+NIGHTLY_KNN_VECTORS_DIM = 1024
+NIGHTLY_KNN_REPORTS_DIR = "%s/reports.nightly" % BASE_DIR
 
 # Nightly benchmark data files
 NIGHTLY_MEDIUM_LINE_FILE = WIKI_MEDIUM_DOCS_LINE_FILE

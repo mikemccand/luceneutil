@@ -17,7 +17,7 @@ mkdir -p $LUCENE_BENCH_HOME && cd $LUCENE_BENCH_HOME
 git clone https://github.com/mikemccand/luceneutil.git util
 
 # 2. Create reports directory
-mkdir $LUCENE_BENCH_HOME/reports.debug
+mkdir $LUCENE_BENCH_HOME/reports.debug $LUCENE_BENCH_HOME/reports.nightly $LUCENE_BENCH_HOME/logs.debug $LUCENE_BENCH_HOME/logs.nightly 
 
 # 3. Run the initial setup script
 cd util

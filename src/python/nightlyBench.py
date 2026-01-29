@@ -761,9 +761,19 @@ def run():
       os.mkdir(subDirName)
       print(f"  {subDirName}")
       # TODO: optimize to single shared copy!
-      try:
-        shutil.copy("/usr/share/gnuplot/4.6/js/gnuplot_svg.js", subDirName)
-      except FileNotFoundError:
+      # Try common gnuplot paths - production uses 6.0, some systems have 4.6
+      gnuplot_js_paths = [
+        "/usr/share/gnuplot/6.0/js/gnuplot_svg.js",
+        "/usr/share/gnuplot/4.6/js/gnuplot_svg.js",
+        "/usr/share/gnuplot/gnuplot_svg.js",
+      ]
+      gnuplot_js_found = False
+      for gnuplot_js_path in gnuplot_js_paths:
+        if os.path.exists(gnuplot_js_path):
+          shutil.copy(gnuplot_js_path, subDirName)
+          gnuplot_js_found = True
+          break
+      if not gnuplot_js_found:
         print("Warning: gnuplot_svg.js not found, skipping visualization")
       shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{subDirName}/index.html")
       try:

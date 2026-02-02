@@ -69,10 +69,9 @@ def generate_nad_taxonomy(base_dir=None, input_file="NAD_r21_TXT.zip"):
 
 if __name__ == "__main__":
   import argparse
+
   parser = argparse.ArgumentParser(description="Generate NAD taxonomy file from NAD zip archive")
-  parser.add_argument("input_file", nargs="?", default="NAD_r21_TXT.zip",
-                      help="NAD zip file to process (default: NAD_r21_TXT.zip)")
-  parser.add_argument("--base-dir", default=None,
-                      help="Base directory containing the data folder")
+  parser.add_argument("input_file", nargs="?", default="NAD_r21_TXT.zip", help="NAD zip file to process (default: NAD_r21_TXT.zip)")
+  parser.add_argument("--base-dir", default=None, help="Base directory containing the data folder")
   args = parser.parse_args()
   generate_nad_taxonomy(args.base_dir, args.input_file)

@@ -66,26 +66,25 @@ def find_java_home():
     str or None: Path to JAVA_HOME directory, or None if not found.
   """
   # First check environment variable
-  java_home = os.environ.get('JAVA_HOME')
+  java_home = os.environ.get("JAVA_HOME")
   if java_home and os.path.isdir(java_home):
     return java_home
 
   # Try to find java and derive JAVA_HOME from it
-  java_exe = shutil.which('java')
+  java_exe = shutil.which("java")
   if java_exe:
     # Resolve symlinks to get actual path
     java_exe = os.path.realpath(java_exe)
     # java is typically in $JAVA_HOME/bin/java
     bin_dir = os.path.dirname(java_exe)
-    if os.path.basename(bin_dir) == 'bin':
+    if os.path.basename(bin_dir) == "bin":
       return os.path.dirname(bin_dir)
 
   # Common locations to check
   common_paths = [
-    '/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home',  # macOS Homebrew
-    '/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home',  # macOS
-    '/usr/lib/jvm/java-25-amazon-corretto'
-    '/usr/lib/jvm/java-25-amazon-corretto'
+    "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home",  # macOS Homebrew
+    "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home",  # macOS
+    "/usr/lib/jvm/java-25-amazon-corretto/usr/lib/jvm/java-25-amazon-corretto",
   ]
 
   for path in common_paths:
@@ -103,11 +102,11 @@ def find_java_installation():
   """
   java_home = find_java_home()
   if java_home:
-    java_exe = os.path.join(java_home, 'bin', 'java')
-    javac_exe = os.path.join(java_home, 'bin', 'javac')
+    java_exe = os.path.join(java_home, "bin", "java")
+    javac_exe = os.path.join(java_home, "bin", "javac")
     return java_home, java_exe, javac_exe, True
   else:
-    return '/path/to/java', '/path/to/java/bin/java', '/path/to/java/bin/javac', False
+    return "/path/to/java", "/path/to/java/bin/java", "/path/to/java/bin/javac", False
 
 
 def runSetup(download, insecure_ssl=False):
@@ -217,6 +216,7 @@ def runSetup(download, insecure_ssl=False):
       print(f"  Generating NAD taxonomy from {nad_zip}")
       print(f"  This processes ~92M address records and may take several minutes...")
       from generateNADTaxonomies import generate_nad_taxonomy
+
       generate_nad_taxonomy(parent)
       print(f"  NAD taxonomy generation complete: {nad_taxonomy}")
   else:
@@ -249,6 +249,7 @@ class Downloader:
       try:
         # Try to use certifi bundle if available
         import certifi
+
         print(f"    Using certifi SSL certificates")
         ssl_context = ssl.create_default_context(cafile=certifi.where())
       except ImportError:
@@ -271,7 +272,7 @@ class Downloader:
       print("\nThis error occurs when SSL certificates cannot be verified.")
       print("Solutions:")
       print("1. Set SSL_CERT_FILE environment variable:")
-      print("   export SSL_CERT_FILE=$(python -c \"import certifi; print(certifi.where())\")")
+      print('   export SSL_CERT_FILE=$(python -c "import certifi; print(certifi.where())")')
       print("2. Use --insecure-ssl flag (not recommended for production):")
       print("   python src/python/initial_setup.py -download --insecure-ssl")
       print("3. Update your system's CA certificates")

@@ -903,6 +903,10 @@ def run():
 
   if os.path.exists("out.png"):
     shutil.move("out.png", "%s/%s.png" % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
+    print(f"move out.png (QPSChart) -> {constants.NIGHTLY_REPORTS_DIR}/{timeStamp}.png")
+  else:
+    print("no out.png (QPSChart)!")
+
   searchResults = results
 
   print("  heaps: %s" % str(searchHeaps))

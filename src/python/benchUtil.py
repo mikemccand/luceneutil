@@ -1597,6 +1597,8 @@ class RunAlgs:
         traceback.print_exc()
       else:
         print(f"Chart saved to out.png... (wd: {os.getcwd()})")
+    else:
+      print("QPSChart.supported == False")
 
     w = writer
 

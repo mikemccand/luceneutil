@@ -59,49 +59,14 @@ JAVA_COMMAND = f"{{JAVA_EXE}} -server -Xms2g -Xmx16g --add-modules jdk.incubator
 """
 
 
-def find_java_home():
-  """Find JAVA_HOME from environment or common locations.
+def get_java_from_env():
+  """Get Java paths from environment variables.
 
   Returns:
-    str or None: Path to JAVA_HOME directory, or None if not found.
+    tuple: (java_home, java_exe, javac_exe, found) where found is True if JAVA_HOME is set.
   """
-  # First check environment variable
   java_home = os.environ.get("JAVA_HOME")
   if java_home and os.path.isdir(java_home):
-    return java_home
-
-  # Try to find java and derive JAVA_HOME from it
-  java_exe = shutil.which("java")
-  if java_exe:
-    # Resolve symlinks to get actual path
-    java_exe = os.path.realpath(java_exe)
-    # java is typically in $JAVA_HOME/bin/java
-    bin_dir = os.path.dirname(java_exe)
-    if os.path.basename(bin_dir) == "bin":
-      return os.path.dirname(bin_dir)
-
-  # Common locations to check
-  common_paths = [
-    "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home",  # macOS Homebrew
-    "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home",  # macOS
-    "/usr/lib/jvm/java-25-amazon-corretto/usr/lib/jvm/java-25-amazon-corretto",
-  ]
-
-  for path in common_paths:
-    if os.path.isdir(path):
-      return path
-
-  return None
-
-
-def find_java_installation():
-  """Find Java installation and return paths to java_home, java, and javac executables.
-
-  Returns:
-    tuple: (java_home, java_exe, javac_exe, found) where found is True if Java was detected.
-  """
-  java_home = find_java_home()
-  if java_home:
     java_exe = os.path.join(java_home, "bin", "java")
     javac_exe = os.path.join(java_home, "bin", "javac")
     return java_home, java_exe, javac_exe, True
@@ -141,12 +106,12 @@ def runSetup(download, insecure_ssl=False):
   if not os.path.exists(local_const):
     print(f"  Writing configuration to {local_const}")
 
-    # Find Java installation
-    java_home, java_exe, javac_exe, found = find_java_installation()
+    # Get Java paths from environment
+    java_home, java_exe, javac_exe, found = get_java_from_env()
     if found:
-      print(f"  Found JAVA_HOME: {java_home}")
+      print(f"  Using JAVA_HOME from environment: {java_home}")
     else:
-      print("  WARNING: Could not find Java installation. Please update JAVA_HOME in localconstants.py")
+      print("  WARNING: JAVA_HOME environment variable not set. Please set JAVA_HOME or update localconstants.py")
 
     config_values = {
       "base_dir": parent,

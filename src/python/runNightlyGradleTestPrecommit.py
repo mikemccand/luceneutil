@@ -125,7 +125,11 @@ def writeGraph():
   for logFile in logFiles:
     if logFile.endswith(".txt.tmp"):
       continue
+    if logFile.startswith(".#"):
+      # EMACS!
+      continue
     if logFile.startswith("#"):
+      # ALSO EMACS!
       continue
     if not logFile.endswith(".txt"):
       raise RuntimeError('unexpected file "%s"' % logFile)

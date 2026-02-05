@@ -363,7 +363,9 @@ def run():
   p = subprocess.run(f"{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
   open(f"{runLogDir}/java-final-flags.txt", "w").write(p.stdout)
 
-  print("uname -a: %s" % os.popen("uname -a 2>&1").read().strip())
+  kernel_version = os.popen("uname -a 2>&1").read().strip()
+  print(f"uname -a: {kernel_version}")
+
   print("lsb_release -a:\n%s" % os.popen("lsb_release -a 2>&1").read().strip())
   print("\ninstalled packages (pacman -Q):\n%s" % os.popen("pacman -Q 2>&1").read().strip())
 
@@ -389,7 +391,7 @@ def run():
     lastRevs = findLastSuccessfulGitHashes()
     if lastRevs is not None:
       lastLuceneRev, lastLuceneUtilRev, lastLogFile = lastRevs
-      print(f"last successfull Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}")
+      print(f"last successful Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}")
 
       # parse git log to see if there were any commits requesting regold
       command = ["git", "log", f"{lastLuceneRev}^..{luceneRev}"]
@@ -771,6 +773,7 @@ def run():
         w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
       else:
         w(f"\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>")
+    w(f"\nuname -a: {kernel_version}<br>")
     w("%s<br>" % javaVersion)
     w("%s<br>" % javaFullVersion)
     w("Java command-line: %s<br>" % htmlEscape(constants.JAVA_COMMAND))

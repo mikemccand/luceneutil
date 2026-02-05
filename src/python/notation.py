@@ -858,4 +858,9 @@ KNOWN_CHANGES = [
     "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
     "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
   ),
+  (
+    "2026-02-04",
+    "One off benchmark with downgraded (from 6.18.7-arch1-1 to fallback LTS kernel 6.12.67-1-lts #1 SMP PREEMPT_DYNAMIC) attempting to root-cause https://github.com/apache/lucene/issues/15662",
+    "One off benchmark with downgraded (from 6.18.7-arch1-1 to fallback LTS kernel 6.12.67-1-lts #1 SMP PREEMPT_DYNAMIC) attempting to root-cause https://github.com/apache/lucene/issues/15662",
+  ),
 ]

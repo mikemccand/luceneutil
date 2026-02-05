@@ -68,6 +68,8 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 
 DEBUG = "-debug" in sys.argv
 
+ONLY_TASKS = False
+
 JFR_STACK_SIZES = (1, 2, 4, 8, 12)
 
 if DEBUG:
@@ -583,8 +585,8 @@ def run():
   if REAL:
     r.compile(c)
 
-  # stored fields benchy
-  if not DEBUG and not DO_RESET:
+  if not ONLY_TASKS and not DEBUG and not DO_RESET:
+    # stored fields benchy
     os.chdir(constants.BENCH_BASE_DIR)
     try:
       message("now run stored fields benchmark")

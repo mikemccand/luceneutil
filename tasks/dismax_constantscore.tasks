@@ -1,0 +1,47 @@
+DismaxTerm: 0 +dismaxFields=titleTokenized,body
+DismaxTerm: names +dismaxFields=titleTokenized,body
+DismaxTerm: nbsp +dismaxFields=titleTokenized,body
+DismaxTerm: part +dismaxFields=titleTokenized,body
+DismaxTerm: st +dismaxFields=titleTokenized,body
+
+DismaxOrHighHigh: are last +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: at united +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: but year +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: name its +dismaxFields=titleTokenized,body
+DismaxOrHighHigh: to but +dismaxFields=titleTokenized,body
+
+DismaxOrHighMed: at mostly +dismaxFields=titleTokenized,body
+DismaxOrHighMed: his interview +dismaxFields=titleTokenized,body
+DismaxOrHighMed: http 9 +dismaxFields=titleTokenized,body
+DismaxOrHighMed: they hard +dismaxFields=titleTokenized,body
+DismaxOrHighMed: title bay +dismaxFields=titleTokenized,body
+
+FilteredDismaxTerm: 0 +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: names +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: nbsp +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: part +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxTerm: st +dismaxFields=titleTokenized,body +filter=5%
+
+FilteredDismaxOrHighHigh: are last +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: at united +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: but year +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: name its +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighHigh: to but +dismaxFields=titleTokenized,body +filter=5%
+
+FilteredDismaxOrHighMed: at mostly +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: his interview +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: http 9 +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: they hard +dismaxFields=titleTokenized,body +filter=5%
+FilteredDismaxOrHighMed: title bay +dismaxFields=titleTokenized,body +filter=5%
+
+DisMaxCsTerm1: 0 +csDismax=titleTokenized,body^25;body^10
+DisMaxCsTerm1: names +csDismax=titleTokenized,body^25;body^10
+DisMaxCsTerm1: nbsp +csDismax=titleTokenized,body^25;body^10
+DisMaxCsTerm1: part +csDismax=titleTokenized,body^25;body^10
+DisMaxCsTerm1: st +csDismax=titleTokenized,body^25;body^10
+
+DisMaxCSTerm20: names nbsp part st are last at united but year name its to mostly his http they hard bay title +csDismax=titleTokenized,body^25;body^10
+DisMaxCSTerm20: name its last first new time state city county district national federal government public school university college student education program +csDismax=titleTokenized,body^25;body^10
+DisMaxCSTerm20: article references citation link url web site content author editor revision history version text media commons template category file image +csDismax=titleTokenized,body^25;body^10
+DisMaxCSTerm20: music song band album track single release chart radio video live concert tour singer composer producer label studio guitar drummer +csDismax=titleTokenized,body^25;body^10
+DisMaxCSTerm20: game team player season match score win loss goal points league club coach manager stadium fans crowd field defense tactics +csDismax=titleTokenized,body^25;body^10

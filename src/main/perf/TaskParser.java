@@ -54,7 +54,9 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.CombinedFieldQuery;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.Query;
@@ -218,6 +220,7 @@ class TaskParser implements Closeable {
     List<FacetTask> facets;
     List<FieldAndWeight> combinedFields;
     List<String> dismaxFields;
+    List<DismaxGroup> csDismaxGroups;
     String text;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
@@ -265,6 +268,7 @@ class TaskParser implements Closeable {
       int msm = parseMinShouldMatch();
       combinedFields = parseCombinedFields();
       dismaxFields = parseDismaxFields();
+      csDismaxGroups = parseCsDismaxGroups();
       Query query = buildQuery(taskType, text, msm);
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
@@ -405,6 +409,39 @@ class TaskParser implements Closeable {
         return Arrays.asList(fields);
       }
       return null;
+    }
+
+    record DismaxGroup(List<String> fields, float boost){}
+
+    List<DismaxGroup> parseCsDismaxGroups() {
+      String marker = "+csDismax=";
+      int i = text.indexOf(marker);
+      if (i == -1) {
+        return null;
+      }
+      String groupSpec = text.substring(i + marker.length());
+      text = text.substring(0, i);
+      List<DismaxGroup> groups = new ArrayList<>();
+      for (String group : groupSpec.split(";")) {
+        group = group.trim();
+        if (group.isEmpty()) {
+          continue;
+        }
+        float boost = 1.0f;
+        int caret = group.lastIndexOf('^');
+        String fieldsPart = group;
+        if (caret > 0) {
+          try {
+            boost = Float.parseFloat(group.substring(caret + 1));
+            fieldsPart = group.substring(0, caret);
+          } catch (NumberFormatException ignored) {
+            // keep boost=1 if parsing fails
+          }
+        }
+        List<String> fields = Arrays.asList(fieldsPart.split(","));
+        groups.add(new DismaxGroup(fields, boost));
+      }
+      return groups;
     }
 
     List<FacetTask> parseFacets() {
@@ -567,6 +604,10 @@ class TaskParser implements Closeable {
         return rewriteToCombinedFieldQuery(query);
       }
 
+      if (csDismaxGroups != null) {
+        return buildCsDismaxQuery(query, csDismaxGroups);
+      }
+
       if (dismaxFields != null) {
         List<Query> dismaxClauses = new ArrayList<>();
         for (String field : dismaxFields) {
@@ -602,6 +643,50 @@ class TaskParser implements Closeable {
         }
         return b.build();
       }
+    }
+
+    private Query buildCsDismaxQuery(Query query, List<DismaxGroup> groups) {
+      List<Term> terms = extractTerms(query);
+      List<Query> groupClauses = new ArrayList<>();
+      for (DismaxGroup group : groups) {
+        if (group.fields.isEmpty()) {
+          throw new IllegalStateException("csDismax group has no fields");
+        }
+        String field = group.fields.get(0); // simplify: single field per group
+        BooleanQuery.Builder branch = new BooleanQuery.Builder();
+        branch.setMinimumNumberShouldMatch(1);
+        for (Term term : terms) {
+          branch.add(new TermQuery(new Term(field, term.bytes())), Occur.SHOULD);
+        }
+        Query branchQuery = branch.build();
+        branchQuery = new ConstantScoreQuery(branchQuery);
+        if (group.boost != 1.0f) {
+          branchQuery = new BoostQuery(branchQuery, group.boost);
+        }
+        groupClauses.add(branchQuery);
+      }
+      return new DisjunctionMaxQuery(groupClauses, 0f);
+    }
+
+    private List<Term> extractTerms(Query query) {
+      List<Term> terms = new ArrayList<>();
+      if (query instanceof TermQuery tq) {
+        terms.add(tq.getTerm());
+      } else if (query instanceof BooleanQuery bq) {
+        for (BooleanClause clause : bq.clauses()) {
+          if (clause.occur() != Occur.SHOULD) {
+            throw new IllegalStateException("csDismax only supports SHOULD clauses");
+          }
+          if (clause.query() instanceof TermQuery tq) {
+            terms.add(tq.getTerm());
+          } else {
+            throw new IllegalStateException("csDismax expects TermQuery clauses; got " + clause.query());
+          }
+        }
+      } else {
+        throw new IllegalStateException("csDismax expects TermQuery or BooleanQuery of terms; got " + query);
+      }
+      return terms;
     }
 
     private Query rewriteToCombinedFieldQuery(Query query) {

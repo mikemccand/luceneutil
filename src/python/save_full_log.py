@@ -15,6 +15,12 @@ with open(all_log_path) as f:
       log_dir = line[i + 10 :].strip()
       print(f"now shutil.copy2 {all_log_path} to {log_dir}")
       shutil.copy2(all_log_path, os.path.join(log_dir, "all.log"))
+
+      timestamp = os.path.basename(log_dir)
+      report_dir = f"{constants.NIGHTLY_REPORTS_DIR}/{timestamp}"
+      print(f"now shutil.copy2 {all_log_path} to {report_dir}")
+      shutil.copy2(all_log_path, os.path.join(report_dir, "all.log"))
+
       print(f"now shutil.copy2 {df_log_path} to {log_dir}")
       shutil.copy2(df_log_path, os.path.join(log_dir, "df_monitor.log"))
       break

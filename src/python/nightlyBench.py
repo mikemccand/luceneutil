@@ -68,7 +68,7 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 
 DEBUG = "-debug" in sys.argv
 
-ONLY_TASKS = False
+ONLY_TASKS = True
 
 JFR_STACK_SIZES = (1, 2, 4, 8, 12)
 
@@ -365,6 +365,12 @@ def run():
 
   kernel_version = os.popen("uname -a 2>&1").read().strip()
   print(f"uname -a: {kernel_version}")
+
+  proc_version = open("/proc/version").read()
+  print(f"/proc/version: {proc_version}")
+
+  preempt = subprocess.run(["sudo", "cat", "/sys/kernel/debug/sched/preempt"], capture_output=True, text=True, check=True).stdout
+  print(f"Preempt mode: {preempt}")
 
   print("lsb_release -a:\n%s" % os.popen("lsb_release -a 2>&1").read().strip())
   print("\ninstalled packages (pacman -Q):\n%s" % os.popen("pacman -Q 2>&1").read().strip())
@@ -774,6 +780,9 @@ def run():
       else:
         w(f"\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>")
     w(f"\nuname -a: {kernel_version}<br>")
+    w(f"\n/proc/version: {proc_version}<br>")
+    w(f"Preempt mode: {preempt}")
+    w('\n[<a href="all.log">top-level log from this run</a>]<br>\n')
     w("%s<br>" % javaVersion)
     w("%s<br>" % javaFullVersion)
     w("Java command-line: %s<br>" % htmlEscape(constants.JAVA_COMMAND))

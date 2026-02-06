@@ -201,7 +201,7 @@ public class SearchPerfTest {
         }
         System.out.println("\nEnd threads:");
         for(int i=0;i<this.threadIDs.length;i++) {
-          System.out.println(i + ": " + this.threadIDs[i] + " -> " + this.threadInfos[i].getThreadName() + " CPU=" + prior.cpuTimesNS[i]);
+          System.out.println(i + ": " + this.threadIDs[i] + " -> " + this.threadInfos[i].getThreadName() + " CPU=" + this.cpuTimesNS[i]);
         }
         // throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " endThreadDetails.threadIDs.length);
         System.out.println("\nAverage CPU cores used: -1\n  (thread IDs changed during run; maybe due to attached jstack during run?)");

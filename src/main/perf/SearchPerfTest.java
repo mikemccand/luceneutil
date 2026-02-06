@@ -466,7 +466,7 @@ public class SearchPerfTest {
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
       boolean addDVFields = mode == Mode.BDV_UPDATE || mode == Mode.NDV_UPDATE;
-      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, null, 0, null);
+      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, false, null, 0, null);
       IndexThreads threads = new IndexThreads(new Random(17), writer, new AtomicBoolean(false), lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
       threads.start();
 

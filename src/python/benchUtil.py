@@ -985,6 +985,9 @@ class RunAlgs:
       if index.addDVFields:
         w("-dvfields")
 
+      if index.addDVSkippers:
+        w("-addDVSkippers")
+
       if index.useCMS:
         w("-useCMS")
 
@@ -1117,7 +1120,7 @@ class RunAlgs:
         for module in ["core"]:
           print("compile lucene:core...")
           run([constants.GRADLE_EXE, "lucene:core:jar"], "%s/compile.log" % constants.LOGS_DIR)
-        for module in ("suggest", "highlighter", "misc", "analysis:common", "grouping", "codecs", "facet", "sandbox", "queryparser"):
+        for module in ("suggest", "highlighter", "misc", "analysis:common", "grouping", "codecs", "facet", "sandbox", "queryparser", "spatial3d"):
           # Try to be faster; this may miss changes, e.g. a static final constant changed in core that is used in another module:
           modulePath = "%s/lucene/%s" % (checkoutPath, module.replace(":", "/"))
           classesPath = "%s/build/classes/java" % (modulePath)
@@ -1728,6 +1731,7 @@ def getAntClassPath(checkout):
   cp.append("%s/lucene/build/highlighter/classes/java" % path)
   cp.append("%s/lucene/build/codecs/classes/java" % path)
   cp.append("%s/lucene/build/queries/classes/java" % path)
+  cp.append("%s/lucene/build/spatial3d/classes/java/main" % path)
 
   # so perf.* is found:
   lib = os.path.join(checkoutToUtilPath(checkout), "lib")

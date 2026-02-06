@@ -149,6 +149,7 @@ class Index:
     facetDVFormat=constants.FACET_FIELD_DV_FORMAT_DEFAULT,
     maxConcurrentMerges=None,
     addDVFields=False,
+    addDVSkippers=False,
     name=None,
     indexSort=None,
     vectorFile=None,
@@ -188,6 +189,7 @@ class Index:
     self.javaCommand = javaCommand
     self.maxConcurrentMerges = maxConcurrentMerges
     self.addDVFields = addDVFields
+    self.addDVSkippers = addDVSkippers
 
     self.lineDocSource = dataSource.lineFile
     self.verbose = verbose

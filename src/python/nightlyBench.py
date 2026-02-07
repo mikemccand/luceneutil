@@ -759,7 +759,7 @@ def run():
 
   # TODO: It used to require previous results in non-DEBUG mode, but that doesn't work if you run nightlies first time ever on your machine,
   # so I think it's ok to reuse current results if previous results are missing. Another option is to add --first-time arg support?
-  #if len(resultsPrev) == 0 and DEBUG:
+  # if len(resultsPrev) == 0 and DEBUG:
   if len(resultsSearchPrev) == 0:
     # sidestep exception when we can't find any previous results because DEBUG
     resultsSearchPrev = resultsSearchNow
@@ -985,7 +985,7 @@ def run():
     medQuantizedVectorsIndexTime,
     medQuantizedVectorsBytesIndexed,
     facetResults,
-    facetsHeaps
+    facetsHeaps,
   )
 
   for fname in resultsSearchNow + resultsFacetsNow:
@@ -1208,12 +1208,10 @@ def makeGraphs():
       else:
         openGitHubPRCount, closedGitHubPRCount = None, None
 
-
       if len(tup) > 18:
         facetResults, facetHeaps = tup[18:20]
       else:
         facetResults, facetHeaps = None, None
-
 
       timeStampString = "%04d-%02d-%02d %02d:%02d:%02d" % (timeStamp.year, timeStamp.month, timeStamp.day, timeStamp.hour, timeStamp.minute, int(timeStamp.second))
       date = "%02d/%02d/%04d" % (timeStamp.month, timeStamp.day, timeStamp.year)
@@ -1271,8 +1269,8 @@ def makeGraphs():
             # TODO: why does this happen!?
             cat = str(cat, "utf-8")
           # Show all subcategory graphs together
-          if '+' in cat:
-            cat, subcat = cat.split('+')
+          if "+" in cat:
+            cat, subcat = cat.split("+")
           else:
             subcat = "QPS"
 
@@ -1395,12 +1393,21 @@ def makeGraphs():
   sort(bigIndexChartData)
   sort(gcIndexTimesChartData)
   sort(fixedIndexSizeChartData)
-  searchChartDataFinal = {cat:
-                            [",".join(searchChartHeaders[cat])]
-                            + sorted([ts + "," + ",".join(v.get(subcat_ord, ",")  #  allow missing values, it's a tupele qps,stddev
-                                                          for subcat_ord in range(0, len(searchChartHeaders[cat]) - 1)) for ts,v in data.items()])
-                          for cat, data in searchChartData.items()}
-
+  searchChartDataFinal = {
+    cat: [",".join(searchChartHeaders[cat])]
+    + sorted(
+      [
+        ts
+        + ","
+        + ",".join(
+          v.get(subcat_ord, ",")  #  allow missing values, it's a tupele qps,stddev
+          for subcat_ord in range(0, len(searchChartHeaders[cat]) - 1)
+        )
+        for ts, v in data.items()
+      ]
+    )
+    for cat, data in searchChartData.items()
+  }
 
   # Index time, including GC/JIT times
   writeIndexingHTML(fixedIndexSizeChartData, medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)

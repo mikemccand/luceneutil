@@ -43,3 +43,4 @@ knnIndices/
 # emacs temporary files
 *~
 #*
+.vscode/settings.json

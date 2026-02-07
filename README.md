@@ -10,11 +10,16 @@ etc.. We'll refer to this directory as `$LUCENE_BENCH_HOME` here.
 
 ```
 # 1. checkout luceneutil:
-# Choose a suitable directory, e.g. ~/Projects/lucene/benchmarks.
-mkdir $LUCENE_BENCH_HOME && cd $LUCENE_BENCH_HOME
+# Choose a suitable directory, e.g. ~/projects/lucene/benchmarks.
+
+export LUCENE_BENCH_HOME=~/projects/lucene/benchmarks
+mkdir -p $LUCENE_BENCH_HOME && cd $LUCENE_BENCH_HOME
 git clone https://github.com/mikemccand/luceneutil.git util
 
-# 2. Run the initial setup script
+# 2. Create reports directory
+mkdir $LUCENE_BENCH_HOME/reports.debug $LUCENE_BENCH_HOME/reports.nightly $LUCENE_BENCH_HOME/logs.debug $LUCENE_BENCH_HOME/logs.nightly 
+
+# 3. Run the initial setup script
 cd util
 python src/python/initial_setup.py -download
 

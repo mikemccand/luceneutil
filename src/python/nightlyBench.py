@@ -947,8 +947,6 @@ def run():
   else:
     print("no out.png (QPSChart)!")
 
-  searchResults = results
-
   print("  search heaps: %s" % str(searchHeaps))
   print("  facets heaps: %s" % str(facetsHeaps))
 
@@ -1401,7 +1399,7 @@ def makeGraphs():
         + ","
         + ",".join(
           v.get(subcat_ord, ",")  #  allow missing values, it's a tupele qps,stddev
-          for subcat_ord in range(0, len(searchChartHeaders[cat]) - 1)
+          for subcat_ord in range(len(searchChartHeaders[cat]) - 1)
         )
         for ts, v in data.items()
       ]

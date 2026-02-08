@@ -190,7 +190,8 @@ public final class Indexer {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       iwc.setMergePolicy(tmp);
       tmp.setMaxMergedSegmentMB(1000000.0);
-      iwc.getCodec().compoundFormat().setShouldUseCompoundFile(useCFS);
+      tmp.setUseCompoundFile(useCFS);
+      tmp.setNoCFSRatio(1.0);
       mp = null;
       //    } else if (mergePolicy.equals("BalancedSegmentMergePolicy")) {
       //      mp = new BalancedSegmentMergePolicy();
@@ -200,6 +201,8 @@ public final class Indexer {
 
     if (mp != null) {
       iwc.setMergePolicy(mp);
+      mp.setUseCompoundFile(useCFS);
+      mp.setNoCFSRatio(1.0);
     }
 
     // Keep all commit points:

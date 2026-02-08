@@ -89,8 +89,8 @@ public class TermsQueryPerf {
       iwc.setMaxBufferedDocs(ID_INDEX_COUNT/777);
       iwc.setRAMBufferSizeMB(-1);
 
-      iwc.getCodec().compoundFormat().setShouldUseCompoundFile(false);
       ((TieredMergePolicy) iwc.getMergePolicy()).setFloorSegmentMB(.001);
+      ((TieredMergePolicy) iwc.getMergePolicy()).setNoCFSRatio(0.0);
 
       IndexWriter w = new IndexWriter(dir, iwc);
       // IDIterator ids = zeroPadSequentialIDs(10);

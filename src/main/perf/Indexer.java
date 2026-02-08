@@ -125,18 +125,21 @@ public final class Indexer {
     }
   }
 
-  private static MergePolicy getMergePolicy(String mergePolicy, boolean useBP) {
+  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS, boolean useBP) {
 
     MergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
       mp = new LogDocMergePolicy();
+      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
     } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
       mp = new LogByteSizeMergePolicy();
+      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
     } else if (mergePolicy.equals("NoMergePolicy")) {
       mp = NoMergePolicy.INSTANCE;
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       //tmp.setMaxMergedSegmentMB(1000000.0);
+      tmp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
       mp = tmp;
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
@@ -525,8 +528,7 @@ public final class Indexer {
         iwc.setUseCompoundFile(useCFS);
 
         iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, ioThrottle));
-        iwc.getCodec().compoundFormat().setShouldUseCompoundFile(useCFS);
-        iwc.setMergePolicy(getMergePolicy(mergePolicy, useBP));
+        iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS, useBP));
 
         // Keep all commit points:
         if (doDeletions || doForceMerge) {

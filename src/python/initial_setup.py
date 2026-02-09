@@ -64,14 +64,14 @@ def get_java_from_env():
 
   Returns:
     tuple: (java_home, java_exe, javac_exe, found) where found is True if JAVA_HOME is set.
+
   """
   java_home = os.environ.get("JAVA_HOME")
   if java_home and os.path.isdir(java_home):
     java_exe = os.path.join(java_home, "bin", "java")
     javac_exe = os.path.join(java_home, "bin", "javac")
     return java_home, java_exe, javac_exe, True
-  else:
-    return "/path/to/java", "/path/to/java/bin/java", "/path/to/java/bin/javac", False
+  return "/path/to/java", "/path/to/java/bin/java", "/path/to/java/bin/javac", False
 
 
 def runSetup(download, insecure_ssl=False):
@@ -80,7 +80,7 @@ def runSetup(download, insecure_ssl=False):
   print("=" * 60)
 
   cwd = os.getcwd()
-  parent, base = os.path.split(cwd)
+  parent, _base = os.path.split(cwd)
   data_dir = os.path.join(parent, "data")
   idx_dir = os.path.join(parent, "indices")
 
@@ -155,11 +155,11 @@ def runSetup(download, insecure_ssl=False):
 
       print(f"\n  [{i}/{len(DATA_FILES)}] Processing: {local_filename}")
       if os.path.exists(target_file):
-        print(f"    File already exists - skipping")
+        print("    File already exists - skipping")
       else:
         print(f"    Source URL: {url_source}")
         print(f"    Destination: {target_file}")
-        print(f"    Starting download (this might take a while)...")
+        print("    Starting download (this might take a while)...")
         Downloader(url_source, target_file, insecure_ssl).download()
         print()
         print(f"    Download complete: {local_filename}")
@@ -179,8 +179,8 @@ def runSetup(download, insecure_ssl=False):
       print(f"  NAD zip file not found at {nad_zip} - skipping taxonomy generation")
     else:
       print(f"  Generating NAD taxonomy from {nad_zip}")
-      print(f"  This processes ~92M address records and may take several minutes...")
-      from generateNADTaxonomies import generate_nad_taxonomy
+      print("  This processes ~92M address records and may take several minutes...")
+      from generateNADTaxonomies import generate_nad_taxonomy  # noqa: PLC0415 - conditional import, only needed when NAD data exists
 
       generate_nad_taxonomy(parent)
       print(f"  NAD taxonomy generation complete: {nad_taxonomy}")
@@ -205,31 +205,31 @@ class Downloader:
     Downloader.index = 0
 
   def download(self):
-    print(f"    Configuring SSL context...")
+    print("    Configuring SSL context...")
     # Handle SSL certificate configuration
     if self.__insecure_ssl:
       print("    Warning: Using insecure SSL context (certificate verification disabled)")
-      ssl_context = ssl._create_unverified_context()
+      ssl_context = ssl._create_unverified_context()  # noqa: S323 - intentional: user explicitly opted in via --insecure-ssl
     else:
       try:
         # Try to use certifi bundle if available
-        import certifi
+        import certifi  # noqa: PLC0415 - conditional import for optional dependency
 
-        print(f"    Using certifi SSL certificates")
+        print("    Using certifi SSL certificates")
         ssl_context = ssl.create_default_context(cafile=certifi.where())
       except ImportError:
         # Fall back to system certificates
-        print(f"    Using system SSL certificates")
+        print("    Using system SSL certificates")
         ssl_context = ssl.create_default_context()
 
     # Install SSL context
-    print(f"    Setting up HTTP handler...")
+    print("    Setting up HTTP handler...")
     https_handler = request.HTTPSHandler(context=ssl_context)
     opener = request.build_opener(https_handler)
     opener.addheaders = [("User-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")]
     request.install_opener(opener)
 
-    print(f"    Initiating download...")
+    print("    Initiating download...")
     try:
       request.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
     except ssl.SSLError as e:

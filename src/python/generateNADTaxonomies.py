@@ -19,6 +19,7 @@
 
 import gzip
 import os
+from pathlib import Path
 from zipfile import ZipFile
 
 STATE_INDEX = 1
@@ -34,9 +35,10 @@ def generate_nad_taxonomy(base_dir=None, input_file="NAD_r21_TXT.zip"):
     base_dir: Base directory containing the data folder. If None, defaults to
               BASE_DIR env var or relative path from this script.
     input_file: Name of the NAD zip file to process. Defaults to NAD_r21_TXT.zip.
+
   """
   if base_dir is None:
-    base_dir = os.environ.get("BASE_DIR", os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    base_dir = os.environ.get("BASE_DIR", str(Path(__file__).resolve().parents[3]))
 
   input_zip = os.path.join(base_dir, "data", input_file)
   output_file = os.path.join(base_dir, "data", "NAD_taxonomy.txt.gz")

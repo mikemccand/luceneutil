@@ -180,7 +180,7 @@ def runSetup(download, insecure_ssl=False):
     else:
       print(f"  Generating NAD taxonomy from {nad_zip}")
       print("  This processes ~92M address records and may take several minutes...")
-      from generateNADTaxonomies import generate_nad_taxonomy  # noqa: PLC0415 - conditional import, only needed when NAD data exists
+      from generateNADTaxonomies import generate_nad_taxonomy  # conditional import, only needed when NAD data exists
 
       generate_nad_taxonomy(parent)
       print(f"  NAD taxonomy generation complete: {nad_taxonomy}")
@@ -213,7 +213,7 @@ class Downloader:
     else:
       try:
         # Try to use certifi bundle if available
-        import certifi  # noqa: PLC0415 - conditional import for optional dependency
+        import certifi  # conditional import for optional dependency
 
         print("    Using certifi SSL certificates")
         ssl_context = ssl.create_default_context(cafile=certifi.where())

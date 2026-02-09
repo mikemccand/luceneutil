@@ -52,6 +52,7 @@ VECTORS_WORD_VEC_FILE = "%s/data/enwiki-20120502-mpnet.vec" % BASE_DIR
 VECTORS_DOCS_FILE = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
 # For debug/testing, fall back to cohere vectors if mpnet doesn't exist
 import os
+
 if not os.path.exists(VECTORS_DOCS_FILE):
     VECTORS_DOCS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
     VECTORS_DIMENSIONS = 1024

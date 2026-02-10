@@ -29,7 +29,7 @@ import autologger
 import benchUtil
 import constants
 import ps_head
-from benchUtil import PERF_EXE
+from benchUtil import GNUPLOT_PATH, PERF_EXE
 from common import getLuceneDirFromGradleProperties
 
 # Measure vector search recall and latency while exploring hyperparameters
@@ -52,12 +52,19 @@ from common import getLuceneDirFromGradleProperties
 #
 # you may want to modify the following settings:
 
+# TODO: support async prorfiler (it can write JFRs as well so it'd fit right in with our simple JFR summarizer output)
+# TODO: also support new CPU time profiler (no more sleepy state bias?) in JDK 25 here: https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
 DO_PROFILING = False
 DO_PS = True
 DO_VMSTAT = True
 
-# Set this to True to generate the disassembled code to verify the intended SIMD instructions are getting used or not
-PERF_MODE = False
+# Set this to True to use perf tool to record instructions executed and confirm SIMD
+# instructions were executed
+# TODO: how much overhead / perf impact from this?  can we always run?
+CONFIRM_SIMD_ASM_MODE = False
+
+if CONFIRM_SIMD_ASM_MODE and PERF_EXE is None:
+  raise RuntimeError("CONFIRM_SIMD_ASM_MODE is True but PERF_EXE is not found; install 'perf' tool and rerun?")
 
 # e.g. to compile KnnIndexer:
 #
@@ -94,11 +101,11 @@ PARAMS = {
   #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
-  "metric": ("cosine",),  # default is angular (dot_product)
-  # 'metric': ('dotproduct',),
+  # "metric": ("cosine",),  # default is angular (dot_product)
+  "metric": ("dot_product",),
   # 'metric': ('mip',),
   #'quantize': (True,),
-  "quantizeBits": (4, 4, 4, 4, 8, 8, 8, 8, 32, 32, 32, 32),
+  "quantizeBits": (8,),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -222,6 +229,55 @@ def get_unique_log_name(log_path, sub_tool):
     upto += 1
 
 
+def print_run_summary(values):
+  options = []
+  fixed = []
+  combos = 1
+
+  # print these important params first, in this order:
+  print_order = ["forceMerge", "ndoc", "niter", "topK", "quantizeBits"]
+  key_to_ord = {}
+  other_keys = []
+
+  max_key_len = 0
+
+  for key, value in values.items():
+    max_key_len = max(max_key_len, len(key))
+    try:
+      key_ord = print_order.index(key)
+    except ValueError:
+      other_keys.append(key)
+
+  for key_ord, key in enumerate(print_order):
+    key_to_ord[key] = key_ord
+  other_keys.sort()
+  for key_ord, key in enumerate(other_keys):
+    key_to_ord[key] = len(print_order) + key_ord
+  ord_to_key = [-1] * len(key_to_ord)
+  for key, key_ord in key_to_ord.items():
+    ord_to_key[key_ord] = key
+
+  for key in ord_to_key:
+    value = values[key]
+    if len(value) > 1:
+      # yay, it turns out you can nest {...} in f-strings!
+      options.append(f"  {key:<{max_key_len}s}: {','.join(value)}")
+      combos *= len(value)
+    else:
+      # yay, it turns out you can nest {...} in f-strings!
+      fixed.append(f"  {key:<{max_key_len}s}: {value[0]}")
+
+  if len(options) == 0:
+    assert combos == 1
+    print("NOTE: will run single warmup+test with these params:")
+  else:
+    print(f"NOTE: will run {combos} total warmups+tests with all combinations of:")
+    for s in options:
+      print(s)
+  for s in fixed:
+    print(s)
+
+
 def run_knn_benchmark(checkout, values, log_path):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
@@ -281,14 +337,23 @@ def run_knn_benchmark(checkout, values, log_path):
 
   cmd += ["knn.KnnGraphTester"]
 
+  if NOISY:
+    print_run_summary(values)
+
+  if NOISY:
+    print("smell vectors...")
+
   smell_vectors(dim, doc_vectors, do_check_norms)
   smell_vectors(dim, query_vectors, do_check_norms)
 
   index_run = 1
   all_results = []
   log_dir_name, log_file_name = log_path
-  vmstat_index_out = open(f"{log_dir_name}/{log_file_name}-vmstats.html", "w")
-  vmstat_index_out.write("<h2>vmstat results for each run</h2>\n")
+  if DO_VMSTAT and GNUPLOT_PATH is not None:
+    vmstat_index_html_path = f"{log_dir_name}/{log_file_name}-vmstats.html"
+    print(f"\nNOTE: open {vmstat_index_html_path} in browser to see CPU/IO telemetry of each run")
+    vmstat_index_out = open(vmstat_index_html_path, "w")
+    vmstat_index_out.write("<h2>vmstat results for each run</h2>\n\n")
   while advance(indexes, values):
     if NOISY:
       print("\nNEXT:")
@@ -350,17 +415,11 @@ def run_knn_benchmark(checkout, values, log_path):
       ]
     )
 
-    if PERF_MODE and PERF_EXE:
-      print("Will be recording the executed instructions in perf.data file")
-      perf_cmd = [PERF_EXE, "record", "-e", "instructions:u", "-o", f"perf{index_run}.data", "-g"] + this_cmd
-      job = subprocess.run(perf_cmd, check=False)
-      if NOISY:
-        print(f"  cmd: {perf_cmd}")
-      index_run += 1
-      continue
-    if PERF_MODE:
-      print("'perf' tool not found with perf mode enabled. Please install 'perf' tool locally")
-      sys.exit(1)
+    if CONFIRM_SIMD_ASM_MODE:
+      perf_data_file = f"perf{index_run}.data"
+      print(f"NOTE: adding 'perf record' command, to {perf_data_file}, to sample instructions being executed to later confirm SIMD usage")
+      this_cmd = [PERF_EXE, "record", "-m", "2M", "-v", "--call-graph", "lbr", "-e", "instructions:u", "-o", perf_data_file, "-g"] + this_cmd
+
     if NOISY:
       print(f"  cmd: {this_cmd}")
     else:
@@ -412,10 +471,11 @@ def run_knn_benchmark(checkout, values, log_path):
         if vmstat_process.poll() is None:
           raise RuntimeError("failed to kill vmstat child process?  pid={vmstat_process.pid}")
 
-    if DO_VMSTAT:
+    if DO_VMSTAT and GNUPLOT_PATH is not None:
       vmstat_subdir_name = write_vmstat_pretties(vmstat_log_file_name, this_cmd)
-      str_this_cmd = " ".join([shlex.quote(x) for x in this_cmd])
-      vmstat_index_out.write(f'<a href="{vmstat_subdir_name}/index.html">run {index_run}: {str_this_cmd}</a><br><br>\n')
+      str_this_cmd = shlex.join(this_cmd)
+      # each run creates a new subdir with the N (cpu, io, memory, ...) charts
+      vmstat_index_out.write(f'\n<a href="{vmstat_subdir_name}/index.html"><tt>run {index_run}</tt>: <tt>{str_this_cmd}</tt></a><br><br>\n')
 
     if hit_exception:
       raise RuntimeError("unhandled java exception while running")
@@ -428,12 +488,6 @@ def run_knn_benchmark(checkout, values, log_path):
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
     index_run += 1
-
-  if PERF_MODE:
-    return None
-
-  if DO_VMSTAT:
-    print(f"vmstat: all results at {log_dir_name}/vmstats.html")
 
   if NOISY:
     print("\nResults:")
@@ -450,11 +504,13 @@ def run_knn_benchmark(checkout, values, log_path):
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)
+  if DO_VMSTAT and GNUPLOT_PATH is not None:
+    print(f"\nNOTE: open {vmstat_index_html_path} in browser to see CPU/IO telemetry of each run")
   return all_results, skip_headers
 
 
 def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
-  print(f"write vmstat pretties from log={vmstat_log_file_name}")
+  # print(f"write vmstat pretties from log={vmstat_log_file_name}")
 
   vmstat_log_path = Path(vmstat_log_file_name)
   dir_name = vmstat_log_path.parent
@@ -462,24 +518,24 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
   ext = vmstat_log_path.suffix
 
   vmstat_dir_name = f"{dir_name}/{base_name}-vmstat-charts"
-  print(f"see {vmstat_dir_name}/index.html for vmstat visualization")
+  job_index_html_file = f"{vmstat_dir_name}/index.html"
+
+  # print(f"see {vmstat_dir_name}/index.html for vmstat visualization")
   os.mkdir(vmstat_dir_name)
 
   # our own little pushd/popd!
   cwd = os.getcwd()
   try:
-    # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
-    os.chdir(dir_name)
-    print(f"cd {vmstat_dir_name=}")
-
     # TODO: optimize to single shared copy!
+    # TODO: don't hardwire version / full path to this js file!
     shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", vmstat_dir_name)
     shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{vmstat_dir_name}/index.html")
 
-    with open("index.html", "w") as index_out:
-      index_out.write("<h2>vmstat charts</h2>\n")
-      index_out.write(f"<b>command</b>: {full_cmd}\n")
-      subprocess.check_call(f"gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
+    # because gnuplot needs to be in this directory (?)
+    # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
+    # print(f"cd {vmstat_dir_name=}")
+    os.chdir(dir_name)
+    subprocess.check_call(f"{GNUPLOT_PATH} -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
   finally:
     os.chdir(cwd)
 

@@ -49,18 +49,27 @@ VECTORS_WORD_TOK_FILE = "%s/data/enwiki-20120502-mpnet.tok" % BASE_DIR
 VECTORS_WORD_VEC_FILE = "%s/data/enwiki-20120502-mpnet.vec" % BASE_DIR
 
 # the pre-computed "line docs file" like version for vectors:
-VECTORS_DOCS_FILE = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
-# For debug/testing, fall back to cohere vectors if mpnet doesn't exist
-import os
-if not os.path.exists(VECTORS_DOCS_FILE):
-    VECTORS_DOCS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+# Prefer Cohere v3 vectors (1024d); fall back to mpnet (768d) if unavailable
+_cohere_v3_docs = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+_mpnet_docs = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
+
+if os.path.exists(_cohere_v3_docs):
+    VECTORS_DOCS_FILE = _cohere_v3_docs
     VECTORS_DIMENSIONS = 1024
+elif os.path.exists(_mpnet_docs):
+    print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
+    VECTORS_DOCS_FILE = _mpnet_docs
+    VECTORS_DIMENSIONS = 768
+else:
+    print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
+    print(f"WARNING: mpnet vectors {_mpnet_docs} also does not exist; vector benchmarks may fail")
+    VECTORS_DOCS_FILE = _cohere_v3_docs  # default to cohere path so downstream errors are clear
+    VECTORS_DIMENSIONS = 1024
+
 VECTORS_QUERY_FILE = VECTORS_DOCS_FILE  # Use same file for queries in nightly bench
 
 # VECTORS_TYPE = 'FLOAT8'
 VECTORS_TYPE = "FLOAT32"
-
-VECTORS_DIMENSIONS = 1024  # Changed from 768 to match Cohere v3 vectors
 
 # WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = "%s/tasks/wikimedium.10M.nostopwords.tasks" % BENCH_BASE_DIR
@@ -130,7 +139,7 @@ INDEX_NUM_THREADS = 1
 SEARCH_NUM_CONCURRENT_QUERIES = max(2, int(multiprocessing.cpu_count() / 3))
 
 # geonames: http://download.geonames.org/export/dump/
-GEONAMES_LINE_FILE_DOCS = "%s/data/allCountries.txt" % BASE_DIR
+GEONAMES_LINE_FILE_DOCS = "%s/data/allCountries.txt" % BASE_DIR # runStoredFieldsBenchmark uses this corpus.
 
 REPRO_COMMAND_START = "python -u %s/repeatLuceneTest.py -once -verbose -nolog" % BENCH_BASE_DIR
 REPRO_COMMAND_END = ""
@@ -184,6 +193,10 @@ PERF_STATS = (
   "stalled-cycles-backend",
 )
 
+##################################################################################################
+#  The section below is only required for running nighly benchmakrs (nightlyBench.py).
+##################################################################################################
+
 NIGHTLY_REPORTS_DIR = "%s/reports.nightly" % BASE_DIR
 NIGHTLY_LOG_DIR = "%s/logs.nightly" % BASE_DIR
 
@@ -198,6 +211,7 @@ NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 999000  # 999K docs (stay under 1M vector limit 
 NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000     # 33M docs
 
 # HNSW vector search configuration
+#TODO: rename HNSW_THREADS_* to NIGHTLY_HNSW_THREADS_* for clarity
 HNSW_THREADS_PER_MERGE = 1
 HNSW_THREAD_POOL_COUNT = 1
 

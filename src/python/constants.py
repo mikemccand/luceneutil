@@ -54,17 +54,17 @@ _cohere_v3_docs = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.v
 _mpnet_docs = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
 
 if os.path.exists(_cohere_v3_docs):
-    VECTORS_DOCS_FILE = _cohere_v3_docs
-    VECTORS_DIMENSIONS = 1024
+  VECTORS_DOCS_FILE = _cohere_v3_docs
+  VECTORS_DIMENSIONS = 1024
 elif os.path.exists(_mpnet_docs):
-    print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
-    VECTORS_DOCS_FILE = _mpnet_docs
-    VECTORS_DIMENSIONS = 768
+  print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
+  VECTORS_DOCS_FILE = _mpnet_docs
+  VECTORS_DIMENSIONS = 768
 else:
-    print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
-    print(f"WARNING: mpnet vectors {_mpnet_docs} also does not exist; vector benchmarks may fail")
-    VECTORS_DOCS_FILE = _cohere_v3_docs  # default to cohere path so downstream errors are clear
-    VECTORS_DIMENSIONS = 1024
+  print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
+  print(f"WARNING: mpnet vectors {_mpnet_docs} also does not exist; vector benchmarks may fail")
+  VECTORS_DOCS_FILE = _cohere_v3_docs  # default to cohere path so downstream errors are clear
+  VECTORS_DIMENSIONS = 1024
 
 VECTORS_QUERY_FILE = VECTORS_DOCS_FILE  # Use same file for queries in nightly bench
 
@@ -139,7 +139,7 @@ INDEX_NUM_THREADS = 1
 SEARCH_NUM_CONCURRENT_QUERIES = max(2, int(multiprocessing.cpu_count() / 3))
 
 # geonames: http://download.geonames.org/export/dump/
-GEONAMES_LINE_FILE_DOCS = "%s/data/allCountries.txt" % BASE_DIR # runStoredFieldsBenchmark uses this corpus.
+GEONAMES_LINE_FILE_DOCS = "%s/data/allCountries.txt" % BASE_DIR  # runStoredFieldsBenchmark uses this corpus.
 
 REPRO_COMMAND_START = "python -u %s/repeatLuceneTest.py -once -verbose -nolog" % BENCH_BASE_DIR
 REPRO_COMMAND_END = ""
@@ -208,10 +208,10 @@ NIGHTLY_LOG_DIR = "%s/logs.nightly" % BASE_DIR
 
 # Nightly benchmark document counts
 NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 999000  # 999K docs (stay under 1M vector limit to avoid reader thread EOF)
-NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000     # 33M docs
+NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000  # 33M docs
 
 # HNSW vector search configuration
-#TODO: rename HNSW_THREADS_* to NIGHTLY_HNSW_THREADS_* for clarity
+# TODO: rename HNSW_THREADS_* to NIGHTLY_HNSW_THREADS_* for clarity
 HNSW_THREADS_PER_MERGE = 1
 HNSW_THREAD_POOL_COUNT = 1
 

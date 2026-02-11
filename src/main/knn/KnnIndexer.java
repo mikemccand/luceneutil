@@ -148,21 +148,15 @@ public class KnnIndexer implements FormatterLogger {
     long startNS = System.nanoTime(), elapsedNS;
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc);
-         FileChannel in = FileChannel.open(docsPath)) {
-      long docsPathSizeInBytes = in.size();
-      if (docsPathSizeInBytes % (dim * vectorEncoding.byteSize) != 0) {
-        throw new IllegalArgumentException("docsPath \"" + docsPath + "\" does not contain a whole number of vectors?  size=" + docsPathSizeInBytes);
-      }
-      System.out.println((int) (docsPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " doc vectors in docsPath \"" + docsPath + "\"");
-        
-      VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, docsStartIndex);
+         VectorReader<?> vectorReader = VectorReader.create(docsPath, dim, vectorEncoding)) {
+      System.out.println(vectorReader.getVectorCount() + " doc vectors in docsPath \"" + docsPath + "\"");
       log("parentJoin=%s\n", parentJoin);
       if (parentJoin == false) {
         ExecutorService exec = Executors.newFixedThreadPool(numIndexThreads);
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filterScheme);
+          Thread t = new IndexerThread(iw, dim, vectorReader, fieldType, numDocsIndexed, docsStartIndex, numDocs, filterScheme);
           t.setDaemon(true);
           t.start();
           threads.add(t);
@@ -190,9 +184,9 @@ public class KnnIndexer implements FormatterLogger {
             currWikiId = line[0];
             String currParaId = line[1];
             Document doc = new Document();
-            switch (vectorEncoding) {
-              case BYTE -> {
-                byte[] vector = ((VectorReaderByte) vectorReader).nextBytes();
+            switch (vectorReader) {
+              case VectorReader.Byte byteVectors -> {
+                byte[] vector = byteVectors.read(docsStartIndex + childDocs);
                 if (filterScheme == null || filterScheme.keepUnfiltered) {
                   doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
                 }
@@ -200,8 +194,8 @@ public class KnnIndexer implements FormatterLogger {
                   doc.add(new KnnByteVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
                 }
               }
-              case FLOAT32 -> {
-                float[] vector = vectorReader.next();
+              case VectorReader.Float32 floatVectors -> {
+                float[] vector = floatVectors.read(docsStartIndex + childDocs);
                 if (filterScheme == null || filterScheme.keepUnfiltered) {
                   doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD, vector, fieldType));
                 }

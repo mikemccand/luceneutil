@@ -54,8 +54,8 @@ VECTORS_DOCS_FILE = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
 import os
 
 if not os.path.exists(VECTORS_DOCS_FILE):
-    VECTORS_DOCS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
-    VECTORS_DIMENSIONS = 1024
+  VECTORS_DOCS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+  VECTORS_DIMENSIONS = 1024
 VECTORS_QUERY_FILE = VECTORS_DOCS_FILE  # Use same file for queries in nightly bench
 
 # VECTORS_TYPE = 'FLOAT8'
@@ -196,7 +196,7 @@ NIGHTLY_LOG_DIR = "%s/logs.nightly" % BASE_DIR
 
 # Nightly benchmark document counts
 NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 999000  # 999K docs (stay under 1M vector limit to avoid reader thread EOF)
-NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000     # 33M docs
+NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000  # 33M docs
 
 # HNSW vector search configuration
 HNSW_THREADS_PER_MERGE = 1

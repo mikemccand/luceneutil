@@ -22,14 +22,22 @@ def load_scores(path):
   return np.fromfile(path, dtype="<f4")
 
 
-def make_histogram_png(scores, n, m, num_docs, top_k, output_path, global_min, global_max, num_bins=100):
-  """render a histogram of scores as a PNG."""
+def make_histogram_png(scores, n, m, num_docs, top_k, output_path, global_min, global_max, max_y_pct, num_bins=100):
+  """render a histogram of scores as a PNG, with y-axis as percentage."""
   fig, ax = plt.subplots(figsize=(12, 6))
 
-  ax.hist(scores, bins=num_bins, range=(global_min, global_max), color="#4285f4", edgecolor="white", linewidth=0.3)
+  # compute bin percentages manually so we can control y-axis
+  counts, bin_edges = np.histogram(scores, bins=num_bins, range=(global_min, global_max))
+  pcts = counts / len(scores) * 100.0
+  bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+  bin_width = bin_edges[1] - bin_edges[0]
+
+  ax.bar(bin_centers, pcts, width=bin_width, color="#4285f4", edgecolor="white", linewidth=0.3)
 
   ax.set_xlabel("dot product similarity", fontsize=14)
-  ax.set_ylabel("count", fontsize=14)
+  ax.set_ylabel("% of scores", fontsize=14)
+  ax.set_xlim(global_min, global_max)
+  ax.set_ylim(0, max_y_pct)
   ax.set_title(
     f"exact NN score distribution  —  N={n:,} queries × {num_docs:,} docs, top-{top_k}, repeat {m}",
     fontsize=15,
@@ -85,18 +93,32 @@ def main():
   print(f"found {len(runs)} runs in manifest")
   print(f"numDocs={num_docs} topK={top_k}")
 
-  # first pass: find global min/max across all score files so histograms share the same x-axis
-  print("computing global score range...")
+  # first pass: find global min/max and max bin percentage across all score files
+  # so all histograms share the same x-axis and y-axis range
+  print("computing global score and bin percentage ranges...")
   global_min = float("inf")
   global_max = float("-inf")
+  max_bin_pct = 0.0
   for run in runs:
     scores_path = os.path.join(args.inputDir, run["file"])
     scores = load_scores(scores_path)
     global_min = min(global_min, float(scores.min()))
     global_max = max(global_max, float(scores.max()))
-  print(f"global score range: [{global_min:.6f}, {global_max:.6f}]")
 
-  # second pass: generate PNGs
+  # second mini-pass with the now-known global range to find max bin pct
+  for run in runs:
+    scores_path = os.path.join(args.inputDir, run["file"])
+    scores = load_scores(scores_path)
+    counts, _ = np.histogram(scores, bins=args.bins, range=(global_min, global_max))
+    pcts = counts / len(scores) * 100.0
+    max_bin_pct = max(max_bin_pct, float(pcts.max()))
+
+  # round up to next 0.5% for a clean axis limit
+  max_y_pct = (int(max_bin_pct / 0.5) + 1) * 0.5
+  print(f"global score range: [{global_min:.6f}, {global_max:.6f}]")
+  print(f"max bin percentage: {max_bin_pct:.2f}%, y-axis limit: {max_y_pct:.1f}%")
+
+  # render pass: generate PNGs
   png_paths = []
   for i, run in enumerate(runs):
     scores_path = os.path.join(args.inputDir, run["file"])
@@ -105,7 +127,7 @@ def main():
     png_path = os.path.join(output_dir, png_name)
 
     make_histogram_png(
-      scores, run["n"], run["m"], num_docs, top_k, png_path, global_min, global_max, args.bins,
+      scores, run["n"], run["m"], num_docs, top_k, png_path, global_min, global_max, max_y_pct, args.bins,
     )
     png_paths.append(png_path)
     print(f"  [{i + 1}/{len(runs)}] wrote {png_path}")

@@ -278,6 +278,94 @@ def print_run_summary(values):
     print(s)
 
 
+METRIC_LABELS = {
+  "dot_product": ("dot_product similarity", "higher --->"),
+  "angular": ("dot_product similarity", "higher --->"),
+  "cosine": ("cosine similarity", "higher --->"),
+  "euclidean": ("euclidean distance", "<--- lower"),
+  "mip": ("max inner product", "higher --->"),
+}
+
+
+def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=None):
+  """Read the binary exact NN scores file and generate an HTML histogram using Google Charts."""
+  if not os.path.exists(scores_path):
+    print(f"WARNING: exact NN scores file not found: {scores_path}")
+    return
+
+  file_size = os.path.getsize(scores_path)
+  num_floats = file_size // 4
+  if num_floats == 0:
+    print("WARNING: exact NN scores file is empty")
+    return
+
+  with open(scores_path, "rb") as f:
+    all_scores = struct.unpack(f"<{num_floats}f", f.read())
+
+  metric_name, direction = METRIC_LABELS.get(metric or "", ("similarity score", ""))
+
+  num_bins = 50
+  min_score = min(all_scores)
+  max_score = max(all_scores)
+
+  if min_score == max_score:
+    print(f"WARNING: all exact NN scores are identical ({min_score}); skipping histogram")
+    return
+
+  bin_width = (max_score - min_score) / num_bins
+  bins = [0] * num_bins
+  for score in all_scores:
+    idx = int((score - min_score) / bin_width)
+    if idx >= num_bins:
+      idx = num_bins - 1
+    bins[idx] += 1
+
+  # Build Google Charts data rows
+  data_rows = []
+  for i in range(num_bins):
+    bin_center = min_score + (i + 0.5) * bin_width
+    data_rows.append(f"          [{bin_center:.6f}, {bins[i]}]")
+  data_rows_str = ",\n".join(data_rows)
+
+  html = f"""<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {{packages:["corechart"]}});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {{
+        var data = google.visualization.arrayToDataTable([
+          ['{metric_name} ({direction})', 'Count'],
+{data_rows_str}
+        ]);
+
+        var options = {{
+          title: 'Exact NN {metric_name} Distribution ({num_floats} scores)',
+          legend: {{position: 'none'}},
+          hAxis: {{title: '{metric_name} ({direction})'}},
+          vAxis: {{title: 'Count'}},
+          bar: {{groupWidth: '95%'}}
+        }};
+
+        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+      }}
+    </script>
+  </head>
+  <body>
+    <div id="chart_div" style="width: 1200px; height: 600px;"></div>
+    <p>Min score: {min_score:.6f}, Max score: {max_score:.6f}, Bin width: {bin_width:.6f}</p>
+    <p>Source: {scores_path}</p>
+  </body>
+</html>
+"""
+  output_file = f"{output_dir}/{log_base_name}-knnDistanceHistogram.html"
+  with open(output_file, "w") as f:
+    f.write(html)
+  print(f"Wrote exact NN distance histogram to {output_file}")
+
+
 def run_knn_benchmark(checkout, values, log_path):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
@@ -445,7 +533,11 @@ def run_knn_benchmark(checkout, values, log_path):
     try:
       job = subprocess.Popen(this_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
       re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
+      re_scores_path = re.compile(r"^EXACT_NN_SCORES_PATH: (.+)$")
+      re_nn_metric = re.compile(r"^EXACT_NN_METRIC: (.+)$")
       summary = None
+      exact_nn_scores_path = None
+      exact_nn_metric = None
       hit_exception = False
       while job.poll() is None:
         line = job.stdout.readline()
@@ -457,6 +549,12 @@ def run_knn_benchmark(checkout, values, log_path):
         m = re_summary.match(line)
         if m is not None:
           summary = m.group(1)
+        m = re_scores_path.match(line)
+        if m is not None:
+          exact_nn_scores_path = m.group(1).strip()
+        m = re_nn_metric.match(line)
+        if m is not None:
+          exact_nn_metric = m.group(1).strip()
         if "Exception in" in line:
           hit_exception = True
     finally:
@@ -484,6 +582,10 @@ def run_knn_benchmark(checkout, values, log_path):
       raise RuntimeError(f"command failed with exit {job.returncode}")
     if summary is None:
       raise RuntimeError("could not find summary line in output! ")
+
+    if exact_nn_scores_path is not None:
+      generate_exact_nn_histogram(exact_nn_scores_path, log_dir_name, log_file_name, exact_nn_metric)
+
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))

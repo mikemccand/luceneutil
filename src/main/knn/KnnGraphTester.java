@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -125,6 +126,8 @@ import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
  * .../vectors.bin
  */
 public class KnnGraphTester implements FormatterLogger {
+
+  record ExactNNResult(int[][] ids, float[][] scores) {}
 
   enum IndexType {
     HNSW,
@@ -686,6 +689,7 @@ public class KnnGraphTester implements FormatterLogger {
           } else {
             testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex, metric));
           }
+
           if (operation.equals("-search-and-stats")) {
             // also print stats, after searching
             printFanoutHist(indexPath);
@@ -1091,8 +1095,9 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   @SuppressForbidden(reason = "Prints stuff")
-  private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, int[][] nn)
+  private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, ExactNNResult exactNN)
       throws IOException {
+    int[][] nn = exactNN != null ? exactNN.ids() : null;
     Result[] results = new Result[numQueryVectors];
     int[][] resultIds = new int[numQueryVectors][];
     long elapsedMS, totalCpuTimeMS, totalVisited = 0;
@@ -1344,18 +1349,19 @@ public class KnnGraphTester implements FormatterLogger {
    * The method runs "numQueryVectors" target queries and returns "topK" nearest neighbors
    * for each of them. Nearest Neighbors are computed using exact match.
    */
-  private int[][] getExactNN(Path docPath, Path indexPath,
+  private ExactNNResult getExactNN(Path docPath, Path indexPath,
                              Path queryPath, int queryStartIndex,
                              String metric) throws IOException, InterruptedException {
 
     String exactNNKey = formatExactNNKey(parentJoin,
                                          filterStrategy, filterSelectivity, randomSeed, docPath, queryPath, numDocs, metric,
                                          numQueryVectors, queryStartIndex, topK);
-    
+
     log("exact nn key = %s\n", exactNNKey);
 
     // look in knn-exact-nn sub-directory for cached nn file
     Path nnPath = Paths.get("knn-reuse", "exact-nn", exactNNKey + ".bin");
+    Path scoresPath = Paths.get("knn-reuse", "exact-nn", exactNNKey + ".scores");
 
     // make sure the docs/queries source vectors were not changed since the cached .nn file was created:
     boolean exists = Files.exists(nnPath);
@@ -1367,9 +1373,19 @@ public class KnnGraphTester implements FormatterLogger {
       nnIsNewerThanVectors = false;
     }
 
+    ExactNNResult result;
     if (exists && nnIsNewerThanVectors) {
       log("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"\n");
-      return readExactNN(nnPath);
+      int[][] ids = readExactNN(nnPath);
+      float[][] scores;
+      if (Files.exists(scoresPath)) {
+        log("  read pre-cached exact match scores from cache file \"" + scoresPath + "\"\n");
+        scores = readExactNNScores(scoresPath);
+      } else {
+        log("  no cached scores file found; scores will not be available\n");
+        scores = null;
+      }
+      result = new ExactNNResult(ids, scores);
     } else {
       String reason;
       if (exists) {
@@ -1385,21 +1401,27 @@ public class KnnGraphTester implements FormatterLogger {
       if (Files.exists(subdir) == false) {
         Files.createDirectories(subdir);
       }
-      
+
       // TODO: enable computing NN from high precision vectors when
       // checking low-precision recall
-      int[][] nn;
       if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-        nn = computeExactNNByte(queryPath, queryStartIndex);
+        result = computeExactNNByte(queryPath, queryStartIndex);
       } else {
-        nn = computeExactNN(queryPath, queryStartIndex);
+        result = computeExactNN(queryPath, queryStartIndex);
       }
       log("\n");
-      writeExactNN(nn, nnPath);
+      writeExactNN(result.ids(), nnPath);
+      writeExactNNScores(result.scores(), scoresPath);
       long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS); // ns -> ms
       log("took %.3f sec to compute brute-force exact matches\n", elapsedMS / 1000.);
-      return nn;
     }
+
+    if (result.scores() != null) {
+      System.out.println("EXACT_NN_SCORES_PATH: " + scoresPath.toAbsolutePath());
+      System.out.println("EXACT_NN_METRIC: " + metric);
+    }
+
+    return result;
   }
 
   private boolean isNewer(Path path, Path... others) throws IOException {
@@ -1441,6 +1463,37 @@ public class KnnGraphTester implements FormatterLogger {
         out.write(tmp.array());
       }
     }
+  }
+
+  private void writeExactNNScores(float[][] scores, Path scoresPath) throws IOException {
+    log("writing exact NN scores to cache file \"" + scoresPath + "\"\n");
+    ByteBuffer tmp =
+        ByteBuffer.allocate(scores[0].length * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+    try (OutputStream out = Files.newOutputStream(scoresPath)) {
+      for (int i = 0; i < numQueryVectors; i++) {
+        tmp.asFloatBuffer().put(scores[i]);
+        out.write(tmp.array());
+      }
+    }
+  }
+
+  private float[][] readExactNNScores(Path scoresPath) throws IOException {
+    float[][] scores = new float[numQueryVectors][];
+    try (FileChannel in = FileChannel.open(scoresPath)) {
+      long expectedSize = (long) numQueryVectors * topK * Float.BYTES;
+      if (in.size() != expectedSize) {
+        throw new IllegalStateException("exact-nn scores file \"" + scoresPath + "\" should be size()=" + expectedSize + " but is actually " + in.size());
+      }
+      FloatBuffer floatBuffer =
+        in.map(FileChannel.MapMode.READ_ONLY, 0, expectedSize)
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .asFloatBuffer();
+      for (int i = 0; i < numQueryVectors; i++) {
+        scores[i] = new float[topK];
+        floatBuffer.get(scores[i]);
+      }
+    }
+    return scores;
   }
 
   private static void runTasksWithProgress(List<Callable<Void>> tasks, AtomicInteger completedCount, FormatterLogger log) throws IOException, InterruptedException {
@@ -1490,8 +1543,9 @@ public class KnnGraphTester implements FormatterLogger {
     pool.shutdown();
   }
 
-  private int[][] computeExactNNByte(Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
+  private ExactNNResult computeExactNNByte(Path queryPath, int queryStartIndex) throws IOException, InterruptedException {
     int[][] result = new int[numQueryVectors][];
+    float[][] scores = new float[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors\n");
     AtomicInteger completedCount = new AtomicInteger(0);
     List<Callable<Void>> tasks = new ArrayList<>();
@@ -1506,13 +1560,13 @@ public class KnnGraphTester implements FormatterLogger {
           VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
           for (int i = 0; i < numQueryVectors; i++) {
             byte[] query = queryReader.nextBytes().clone();
-            tasks.add(new ComputeNNByteTask(searcher, i, query, result, completedCount));
+            tasks.add(new ComputeNNByteTask(searcher, i, query, result, scores, completedCount));
           }
         }
         runTasksWithProgress(tasks, completedCount, this);
       }
       log("\n");
-      return result;
+      return new ExactNNResult(result, scores);
     }
   }
 
@@ -1521,15 +1575,17 @@ public class KnnGraphTester implements FormatterLogger {
     private final int queryOrd;
     private final byte[] query;
     private final int[][] result;
+    private final float[][] scores;
     private final IndexSearcher searcher;
     private final AtomicInteger completedCount;
     private final String field;
 
-    ComputeNNByteTask(IndexSearcher searcher, int queryOrd, byte[] query, int[][] result, AtomicInteger completedCount) {
+    ComputeNNByteTask(IndexSearcher searcher, int queryOrd, byte[] query, int[][] result, float[][] scores, AtomicInteger completedCount) {
       this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
+      this.scores = scores;
       this.completedCount = completedCount;
       if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
         field = KNN_FIELD_FILTERED;
@@ -1552,6 +1608,10 @@ public class KnnGraphTester implements FormatterLogger {
         }
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
+        scores[queryOrd] = new float[topDocs.scoreDocs.length];
+        for (int i = 0; i < topDocs.scoreDocs.length; i++) {
+          scores[queryOrd][i] = topDocs.scoreDocs[i].score;
+        }
         completedCount.incrementAndGet();
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -1561,9 +1621,10 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   /** Brute force computation of "true" nearest neighbors. */
-  private int[][] computeExactNN(Path queryPath, int queryStartIndex)
+  private ExactNNResult computeExactNN(Path queryPath, int queryStartIndex)
       throws IOException, InterruptedException {
     int[][] result = new int[numQueryVectors][];
+    float[][] scores = new float[numQueryVectors][];
     log("computing true nearest neighbors of " + numQueryVectors + " target vectors\n");
     log("parentJoin = %s\n", parentJoin);
     AtomicInteger completedCount = new AtomicInteger(0);
@@ -1584,15 +1645,15 @@ public class KnnGraphTester implements FormatterLogger {
           for (int i = 0; i < numQueryVectors; i++) {
             float[] query = queryReader.next().clone();
             if (parentJoin) {
-              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result, completedCount));
+              tasks.add(new ComputeExactSearchNNFloatTask(searcher, i, query, result, scores, completedCount));
             } else {
-              tasks.add(new ComputeNNFloatTask(searcher, i, query, result, completedCount));
+              tasks.add(new ComputeNNFloatTask(searcher, i, query, result, scores, completedCount));
             }
           }
           runTasksWithProgress(tasks, completedCount, this);
         }
         log("\n");
-        return result;
+        return new ExactNNResult(result, scores);
       }
     }
   }
@@ -1606,14 +1667,16 @@ public class KnnGraphTester implements FormatterLogger {
     private final int queryOrd;
     private final float[] query;
     private final int[][] result;
+    private final float[][] scores;
     private final AtomicInteger completedCount;
     private final String field;
 
-    ComputeNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, AtomicInteger completedCount) {
+    ComputeNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, float[][] scores, AtomicInteger completedCount) {
       this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
+      this.scores = scores;
       this.completedCount = completedCount;
       if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
         field = KNN_FIELD_FILTERED;
@@ -1637,6 +1700,10 @@ public class KnnGraphTester implements FormatterLogger {
         }
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
+        scores[queryOrd] = new float[topDocs.scoreDocs.length];
+        for (int i = 0; i < topDocs.scoreDocs.length; i++) {
+          scores[queryOrd][i] = topDocs.scoreDocs[i].score;
+        }
         completedCount.incrementAndGet();
       } catch (IOException e) {
         log("Exception " + e + "\n");
@@ -1657,14 +1724,16 @@ public class KnnGraphTester implements FormatterLogger {
     private final int queryOrd;
     private final float[] query;
     private final int[][] result;
+    private final float[][] scores;
     private final AtomicInteger completedCount;
     private final String field;
 
-    ComputeExactSearchNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, AtomicInteger completedCount) {
+    ComputeExactSearchNNFloatTask(IndexSearcher searcher, int queryOrd, float[] query, int[][] result, float[][] scores, AtomicInteger completedCount) {
       this.searcher = searcher;
       this.queryOrd = queryOrd;
       this.query = query;
       this.result = result;
+      this.scores = scores;
       this.completedCount = completedCount;
       if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
         field = KNN_FIELD_FILTERED;
@@ -1686,6 +1755,10 @@ public class KnnGraphTester implements FormatterLogger {
         var query = new ToParentBlockJoinQuery(childQuery, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
         var topDocs = searcher.search(query, topK);
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
+        scores[queryOrd] = new float[topDocs.scoreDocs.length];
+        for (int i = 0; i < topDocs.scoreDocs.length; i++) {
+          scores[queryOrd][i] = topDocs.scoreDocs[i].score;
+        }
         completedCount.incrementAndGet();
       } catch (IOException e) {
         throw new RuntimeException(e);

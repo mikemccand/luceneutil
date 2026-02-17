@@ -16,20 +16,36 @@ import numpy as np
 
 
 def load_vectors(path, dim, count, start_index=0):
-  """load count float32 vectors of given dim from a .vec file, starting at start_index."""
+  """load count float32 vectors of given dim from a .vec file, starting at start_index.
+  wraps around to the beginning of the file if start_index + count exceeds the file."""
   vec_bytes = dim * 4
   file_size = os.path.getsize(path)
   total_vecs = file_size // vec_bytes
   if file_size % vec_bytes != 0:
     raise RuntimeError(f'"{path}" size {file_size} is not a multiple of vector byte size {vec_bytes}; wrong dim?')
-  if start_index + count > total_vecs:
-    raise RuntimeError(
-      f'need {start_index + count} vectors from "{path}" but file only has {total_vecs}'
-    )
-  offset = start_index * vec_bytes
+
+  # wrap start_index into range
+  start_index = start_index % total_vecs
+
   with open(path, "rb") as f:
-    f.seek(offset)
-    data = f.read(count * vec_bytes)
+    if start_index + count <= total_vecs:
+      # no wrap needed
+      f.seek(start_index * vec_bytes)
+      data = f.read(count * vec_bytes)
+    else:
+      # read tail, then wrap and read from beginning
+      tail_count = total_vecs - start_index
+      f.seek(start_index * vec_bytes)
+      data = f.read(tail_count * vec_bytes)
+      remaining = count - tail_count
+      # may need multiple full wraps if count > total_vecs
+      while remaining > 0:
+        f.seek(0)
+        chunk = min(remaining, total_vecs)
+        data += f.read(chunk * vec_bytes)
+        remaining -= chunk
+      print(f"  WARNING: query vectors wrapped around (start_index={start_index}, count={count}, total={total_vecs})")
+
   return np.frombuffer(data, dtype="<f4").reshape(count, dim)
 
 
@@ -98,13 +114,13 @@ def main():
   top_k = args.topK
   batch_size = args.batchSize
 
-  # validate total query vectors needed
   total_queries_needed = sum(n * m_repeats for n in n_values)
   query_file_size = os.path.getsize(args.queries)
   total_queries_available = query_file_size // (dim * 4)
   if total_queries_needed > total_queries_available:
-    raise RuntimeError(
-      f"need {total_queries_needed} total query vectors but file only has {total_queries_available}"
+    print(
+      f"WARNING: need {total_queries_needed} total query vectors but file only has"
+      f" {total_queries_available}; will wrap around"
     )
 
   print(f"doc vectors: {args.docs}")

@@ -304,7 +304,6 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
 
   metric_name, direction = METRIC_LABELS.get(metric or "", ("similarity score", ""))
 
-  num_bins = 50
   min_score = min(all_scores)
   max_score = max(all_scores)
 
@@ -312,20 +311,16 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
     print(f"WARNING: all exact NN scores are identical ({min_score}); skipping histogram")
     return
 
-  bin_width = (max_score - min_score) / num_bins
-  bins = [0] * num_bins
-  for score in all_scores:
-    idx = int((score - min_score) / bin_width)
-    if idx >= num_bins:
-      idx = num_bins - 1
-    bins[idx] += 1
+  # Sort scores so JS can use binary search for fast range queries
+  sorted_scores = sorted(all_scores)
 
-  # Build Google Charts data rows
-  data_rows = []
-  for i in range(num_bins):
-    bin_center = min_score + (i + 0.5) * bin_width
-    data_rows.append(f"          [{bin_center:.6f}, {bins[i]}]")
-  data_rows_str = ",\n".join(data_rows)
+  # Emit as a compact JSON array (6 decimal places keeps file reasonable)
+  scores_js_lines = []
+  chunk_size = 500
+  for i in range(0, len(sorted_scores), chunk_size):
+    chunk = sorted_scores[i : i + chunk_size]
+    scores_js_lines.append(",".join(f"{s:.6f}" for s in chunk))
+  scores_js = ",\n".join(scores_js_lines)
 
   html = f"""<!DOCTYPE html>
 <html>
@@ -333,30 +328,170 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
     <script type="text/javascript">
       google.load("visualization", "1", {{packages:["corechart"]}});
-      google.setOnLoadCallback(drawChart);
-      function drawChart() {{
-        var data = google.visualization.arrayToDataTable([
-          ['{metric_name} ({direction})', 'Count'],
-{data_rows_str}
-        ]);
+      google.setOnLoadCallback(init);
 
+      // sorted scores for fast range queries via binary search
+      var scores = [
+{scores_js}
+      ];
+      var globalMin = {min_score:.6f};
+      var globalMax = {max_score:.6f};
+      var curMin = globalMin;
+      var curMax = globalMax;
+      var chart, chartDiv;
+      var zoomStack = [];
+
+      function lowerBound(arr, val) {{
+        var lo = 0, hi = arr.length;
+        while (lo < hi) {{
+          var mid = (lo + hi) >> 1;
+          if (arr[mid] < val) lo = mid + 1; else hi = mid;
+        }}
+        return lo;
+      }}
+
+      function buildHistogram(lo, hi, numBins) {{
+        var range = hi - lo;
+        var binWidth = range / numBins;
+        var bins = new Array(numBins).fill(0);
+        var startIdx = lowerBound(scores, lo);
+        var endIdx = lowerBound(scores, hi);
+        var count = 0;
+        for (var i = startIdx; i < scores.length && scores[i] <= hi; i++) {{
+          var idx = Math.floor((scores[i] - lo) / binWidth);
+          if (idx >= numBins) idx = numBins - 1;
+          if (idx < 0) idx = 0;
+          bins[idx]++;
+          count++;
+        }}
+        return {{bins: bins, binWidth: binWidth, count: count}};
+      }}
+
+      function drawChart(lo, hi) {{
+        var numBins = 50;
+        var h = buildHistogram(lo, hi, numBins);
+        var rows = [['{metric_name} ({direction})', 'Count']];
+        for (var i = 0; i < numBins; i++) {{
+          var center = lo + (i + 0.5) * h.binWidth;
+          rows.push([center, h.bins[i]]);
+        }}
+        var data = google.visualization.arrayToDataTable(rows);
+
+        var zoomLabel = (lo === globalMin && hi === globalMax) ? '' : ' [zoomed]';
         var options = {{
-          title: 'Exact NN {metric_name} Distribution ({num_floats} scores)',
+          title: 'Exact NN {metric_name} distribution (' + h.count + ' of {num_floats} scores)' + zoomLabel,
           legend: {{position: 'none'}},
-          hAxis: {{title: '{metric_name} ({direction})'}},
+          hAxis: {{
+            title: '{metric_name} ({direction})',
+            viewWindow: {{min: lo, max: hi}}
+          }},
           vAxis: {{title: 'Count'}},
-          bar: {{groupWidth: '95%'}}
+          bar: {{groupWidth: '95%'}},
+          chartArea: {{left: 80, right: 20, top: 40, bottom: 60}}
         }};
 
-        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
         chart.draw(data, options);
+        document.getElementById('info').innerHTML =
+          'Range: ' + lo.toFixed(6) + ' .. ' + hi.toFixed(6) +
+          ' &nbsp; Bin width: ' + h.binWidth.toFixed(6) +
+          ' &nbsp; Scores in view: ' + h.count;
+      }}
+
+      function init() {{
+        chartDiv = document.getElementById('chart_div');
+        chart = new google.visualization.ColumnChart(chartDiv);
+        drawChart(globalMin, globalMax);
+
+        // drag-to-zoom
+        var dragStart = null;
+        var overlay = document.getElementById('overlay');
+
+        chartDiv.addEventListener('mousedown', function(e) {{
+          var rect = chartDiv.getBoundingClientRect();
+          dragStart = {{x: e.clientX - rect.left, clientX: e.clientX}};
+          overlay.style.left = dragStart.x + 'px';
+          overlay.style.width = '0px';
+          overlay.style.display = 'block';
+        }});
+
+        chartDiv.addEventListener('mousemove', function(e) {{
+          if (!dragStart) return;
+          var rect = chartDiv.getBoundingClientRect();
+          var curX = e.clientX - rect.left;
+          var left = Math.min(dragStart.x, curX);
+          var width = Math.abs(curX - dragStart.x);
+          overlay.style.left = left + 'px';
+          overlay.style.width = width + 'px';
+        }});
+
+        chartDiv.addEventListener('mouseup', function(e) {{
+          if (!dragStart) return;
+          overlay.style.display = 'none';
+          var rect = chartDiv.getBoundingClientRect();
+          var endX = e.clientX - rect.left;
+          var x0 = Math.min(dragStart.x, endX);
+          var x1 = Math.max(dragStart.x, endX);
+          dragStart = null;
+
+          // need at least 5px drag to count as zoom
+          if (x1 - x0 < 5) return;
+
+          var cli = chart.getChartLayoutInterface();
+          var val0 = cli.getHAxisValue(x0);
+          var val1 = cli.getHAxisValue(x1);
+          if (val0 === null || val1 === null) return;
+          var newMin = Math.max(Math.min(val0, val1), globalMin);
+          var newMax = Math.min(Math.max(val0, val1), globalMax);
+          if (newMax - newMin < (globalMax - globalMin) * 0.001) return;
+
+          zoomStack.push({{min: curMin, max: curMax}});
+          curMin = newMin;
+          curMax = newMax;
+          drawChart(curMin, curMax);
+          document.getElementById('resetBtn').style.display = 'inline';
+          document.getElementById('backBtn').style.display = 'inline';
+        }});
+
+        document.getElementById('resetBtn').addEventListener('click', function() {{
+          zoomStack = [];
+          curMin = globalMin;
+          curMax = globalMax;
+          drawChart(curMin, curMax);
+          this.style.display = 'none';
+          document.getElementById('backBtn').style.display = 'none';
+        }});
+
+        document.getElementById('backBtn').addEventListener('click', function() {{
+          if (zoomStack.length === 0) return;
+          var prev = zoomStack.pop();
+          curMin = prev.min;
+          curMax = prev.max;
+          drawChart(curMin, curMax);
+          if (zoomStack.length === 0) {{
+            document.getElementById('resetBtn').style.display = 'none';
+            this.style.display = 'none';
+          }}
+        }});
       }}
     </script>
+    <style>
+      #chart_container {{ position: relative; width: 1200px; height: 600px; }}
+      #chart_div {{ width: 100%; height: 100%; }}
+      #overlay {{ position: absolute; top: 0; height: 100%; background: rgba(66,133,244,0.15);
+                  border-left: 1px solid rgba(66,133,244,0.5); border-right: 1px solid rgba(66,133,244,0.5);
+                  display: none; pointer-events: none; z-index: 10; }}
+      button {{ margin: 4px 4px 4px 0; padding: 4px 12px; }}
+    </style>
   </head>
   <body>
-    <div id="chart_div" style="width: 1200px; height: 600px;"></div>
-    <p>Min score: {min_score:.6f}, Max score: {max_score:.6f}, Bin width: {bin_width:.6f}</p>
-    <p>Source: {scores_path}</p>
+    <div id="chart_container">
+      <div id="chart_div"></div>
+      <div id="overlay"></div>
+    </div>
+    <button id="backBtn" style="display:none">Back</button>
+    <button id="resetBtn" style="display:none">Reset zoom</button>
+    <p id="info"></p>
+    <p style="color:#888">Click and drag on the chart to zoom in. Source: {scores_path}</p>
   </body>
 </html>
 """

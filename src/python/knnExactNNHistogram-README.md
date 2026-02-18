@@ -1,5 +1,7 @@
 # Exact NN Score Distribution Video
 
+Thank you Claude Opus 4.6!
+
 Generate a video showing how brute-force exact nearest neighbor score distributions change as the number of query vectors (N) increases.
 
 Two tools:
@@ -69,3 +71,20 @@ Both axes are fixed across all frames (global score range for x, global max bin 
 The score computation uses NumPy's `@` (matmul) operator which delegates to BLAS (OpenBLAS/MKL) for SIMD-optimized dot products. For each batch of queries, it computes `queries @ docs.T` and extracts topK scores per query via `np.argpartition` (O(n) partial sort).
 
 RAM usage for the score matrix: `batchSize * numDocs * 4` bytes. With defaults (batchSize=200, numDocs=400K) that's ~320 MB.
+
+
+## Example from Cohere v3
+
+See [this histogram example](https://githubsearch.mikemccandless.com/exact_nn_histogram.html) (NOTE: zoomable on horizontal axis), and [this histogram video example](https://githubsearch.mikemccandless.com/exact_nn_histogram_law_of_large_numbers.mp4) showcasing law of large numbers, or not (anti-Poisson rogue element).
+
+To create the video I first ran this (to generate all scores; it took a loooong time on `beast3` and created 6.3 GB of cached `.bin` score files!):
+
+```
+python src/python/knnExactNNHistogram.py -docs /lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec -queries /lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec -dim 1024 -numDocs 400000 -topK 100 -N 10,50,100,500,1000,5000,10000,50000,100000 -M 100 -outputDir video_nn_scores
+```
+
+and this to create the resulting video:
+
+```
+python src/python/knnExactNNVideo.py -inputDir video_nn_scores -fps 10
+```

@@ -110,6 +110,9 @@ import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NamedThreadFactory;
 import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
+import org.apache.lucene.util.hnsw.HnswGraphSearcher;
+import org.apache.lucene.util.hnsw.RandomVectorScorer;
+import org.apache.lucene.search.TopKnnCollector;
 
 import perf.SearchPerfTest.ThreadDetails;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
@@ -199,6 +202,8 @@ public class KnnGraphTester implements FormatterLogger {
   private IndexType indexType;
   // oversampling, e.g. the multiple * k to gather before checking recall
   private float overSample;
+  // whether to collect and write all HNSW traversal scores for histogram generation
+  private boolean hnswScoreHistogram;
 
   private KnnGraphTester() {
     // set defaults
@@ -505,6 +510,9 @@ public class KnnGraphTester implements FormatterLogger {
         case "-seed":
           randomSeed = Long.parseLong(args[++iarg]);
           break;
+        case "-hnswScoreHistogram":
+          hnswScoreHistogram = true;
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -699,6 +707,13 @@ public class KnnGraphTester implements FormatterLogger {
           printFanoutHist(indexPath);
           break;
       }
+    }
+
+    if (hnswScoreHistogram) {
+      if (queryPath == null) {
+        throw new IllegalArgumentException("-hnswScoreHistogram requires -search <queryfile>");
+      }
+      collectHnswTraversalScores(indexPath, queryPath, queryStartIndex, metric);
     }
   }
 
@@ -1236,6 +1251,80 @@ public class KnnGraphTester implements FormatterLogger {
           Boolean.valueOf(useBp).toString(),
           indexType.toString()
         );
+    }
+  }
+
+  /**
+   * Runs HNSW search directly with a spy scorer to collect every score computed during
+   * graph traversal, then writes them to a binary file (little-endian float32).
+   */
+  @SuppressForbidden(reason = "Prints stuff")
+  private void collectHnswTraversalScores(Path indexPath, Path queryPath, int queryStartIndex, String metric)
+      throws IOException {
+    String field = getKnnField(filterStrategy);
+    int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
+    int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
+
+    Path scoresPath = Paths.get("knn-reuse", "hnsw-traversal", "hnsw-traversal-scores.scores");
+    Path scoresDir = scoresPath.getParent();
+    if (Files.exists(scoresDir) == false) {
+      Files.createDirectories(scoresDir);
+    }
+
+    try (FileChannel queryChannel = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet);
+         MMapDirectory dir = new MMapDirectory(indexPath);
+         DirectoryReader reader = DirectoryReader.open(dir)) {
+
+      if (reader.leaves().size() != 1) {
+        throw new IllegalStateException("HNSW score histogram requires a single-segment index; got " + reader.leaves().size() + " segments");
+      }
+
+      LeafReaderContext leafCtx = reader.leaves().get(0);
+      CodecReader codecReader = (CodecReader) leafCtx.reader();
+      KnnVectorsReader vectorsReader = codecReader.getVectorReader().unwrapReaderForField(field);
+      if ((vectorsReader instanceof Lucene99HnswVectorsReader) == false) {
+        throw new IllegalStateException("expected Lucene99HnswVectorsReader but got: " + vectorsReader.getClass().getName());
+      }
+      Lucene99HnswVectorsReader hnswReader = (Lucene99HnswVectorsReader) vectorsReader;
+      HnswGraph graph = hnswReader.getGraph(field);
+
+      VectorReader targetReader = VectorReader.create(queryChannel, dim, vectorEncoding, queryStartIndex);
+
+      int totalScoreCount = 0;
+      try (OutputStream out = Files.newOutputStream(scoresPath)) {
+        for (int i = 0; i < numQueryVectors; i++) {
+          float[] target = targetReader.next();
+
+          RandomVectorScorer realScorer = hnswReader.getRandomVectorScorer(field, target);
+          SpyRandomVectorScorer spy = new SpyRandomVectorScorer(realScorer);
+
+          TopKnnCollector collector = new TopKnnCollector(topK + fanout, Integer.MAX_VALUE);
+          HnswGraphSearcher.search(spy, collector, graph, null);
+
+          float[] scores = spy.getScores();
+          int scoreCount = scores.length;
+          totalScoreCount += scoreCount;
+
+          // write score count for this query (little-endian int32)
+          ByteBuffer countBuf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+          countBuf.putInt(scoreCount);
+          out.write(countBuf.array());
+
+          // write scores (little-endian float32)
+          ByteBuffer scoresBuf = ByteBuffer.allocate(scoreCount * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+          scoresBuf.asFloatBuffer().put(scores);
+          out.write(scoresBuf.array());
+
+          if (quiet == false && (i + 1) % 100 == 0) {
+            log("  %d / %d queries done (%d scores so far)\n", i + 1, numQueryVectors, totalScoreCount);
+          }
+        }
+      }
+
+      log("collected %d total HNSW traversal scores across %d queries\n", totalScoreCount, numQueryVectors);
+      System.out.println("HNSW_TRAVERSAL_SCORES_PATH: " + scoresPath.toAbsolutePath());
+      System.out.println("HNSW_TRAVERSAL_METRIC: " + metric);
+      System.out.println("HNSW_TRAVERSAL_NUM_QUERIES: " + numQueryVectors);
     }
   }
 

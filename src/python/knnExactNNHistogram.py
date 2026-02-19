@@ -8,16 +8,15 @@
 import argparse
 import json
 import os
-import struct
-import sys
 import time
 
 import numpy as np
 
 
 def load_vectors(path, dim, count, start_index=0):
-  """load count float32 vectors of given dim from a .vec file, starting at start_index.
-  wraps around to the beginning of the file if start_index + count exceeds the file."""
+  """Load count float32 vectors of given dim from a .vec file, starting at start_index.
+  wraps around to the beginning of the file if start_index + count exceeds the file.
+  """
   vec_bytes = dim * 4
   file_size = os.path.getsize(path)
   total_vecs = file_size // vec_bytes
@@ -50,7 +49,7 @@ def load_vectors(path, dim, count, start_index=0):
 
 
 def compute_topk_scores(queries, docs, top_k, batch_size=200):
-  """compute dot product of each query against all docs, keep top_k scores per query.
+  """Compute dot product of each query against all docs, keep top_k scores per query.
 
   returns float32 array of shape (num_queries, top_k).
   """
@@ -84,9 +83,7 @@ def compute_topk_scores(queries, docs, top_k, batch_size=200):
 
 
 def main():
-  parser = argparse.ArgumentParser(
-    description="compute brute-force exact NN dot-product scores for varying N, M repeats"
-  )
+  parser = argparse.ArgumentParser(description="compute brute-force exact NN dot-product scores for varying N, M repeats")
   parser.add_argument("-docs", required=True, help="path to doc vectors .vec file")
   parser.add_argument("-queries", required=True, help="path to query vectors .vec file")
   parser.add_argument("-dim", type=int, required=True, help="vector dimensionality")
@@ -118,10 +115,7 @@ def main():
   query_file_size = os.path.getsize(args.queries)
   total_queries_available = query_file_size // (dim * 4)
   if total_queries_needed > total_queries_available:
-    print(
-      f"WARNING: need {total_queries_needed} total query vectors but file only has"
-      f" {total_queries_available}; will wrap around"
-    )
+    print(f"WARNING: need {total_queries_needed} total query vectors but file only has {total_queries_available}; will wrap around")
 
   print(f"doc vectors: {args.docs}")
   print(f"query vectors: {args.queries}")
@@ -172,14 +166,16 @@ def main():
       num_scores = scores.size
       print(f"  wrote {num_scores} scores ({num_scores * 4} bytes) to {out_file}")
 
-      manifest.append({
-        "n": n,
-        "m": m,
-        "queryStartIndex": query_start_index,
-        "numScores": int(num_scores),
-        "elapsedSec": round(elapsed_sec, 3),
-        "file": f"scores_N{n}_M{m}.bin",
-      })
+      manifest.append(
+        {
+          "n": n,
+          "m": m,
+          "queryStartIndex": query_start_index,
+          "numScores": int(num_scores),
+          "elapsedSec": round(elapsed_sec, 3),
+          "file": f"scores_N{n}_M{m}.bin",
+        }
+      )
 
       query_start_index += n
 

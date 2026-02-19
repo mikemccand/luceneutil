@@ -511,7 +511,8 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
   """Read the HNSW traversal scores binary file and generate an HTML histogram.
 
   The binary format is: for each query, a little-endian int32 count followed
-  by that many little-endian float32 scores."""
+  by that many little-endian float32 scores.
+  """
   if not os.path.exists(scores_path):
     print(f"WARNING: HNSW traversal scores file not found: {scores_path}")
     return

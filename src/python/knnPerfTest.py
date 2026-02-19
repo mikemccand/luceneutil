@@ -64,7 +64,7 @@ DO_VMSTAT = True
 CONFIRM_SIMD_ASM_MODE = False
 
 # set this to True to collect all HNSW traversal scores and generate a histogram
-DO_HNSW_SCORE_HISTOGRAM = True
+DO_HNSW_SCORE_HISTOGRAM = False
 
 # sample 1 in every N HNSW traversal scores when building the histogram (to keep HTML size reasonable)
 HNSW_SAMPLE_EVERY_N = 100

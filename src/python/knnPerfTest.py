@@ -64,7 +64,10 @@ DO_VMSTAT = True
 CONFIRM_SIMD_ASM_MODE = False
 
 # set this to True to collect all HNSW traversal scores and generate a histogram
-DO_HNSW_SCORE_HISTOGRAM = False
+DO_HNSW_SCORE_HISTOGRAM = True
+
+# sample 1 in every N HNSW traversal scores when building the histogram (to keep HTML size reasonable)
+HNSW_SAMPLE_EVERY_N = 100
 
 if CONFIRM_SIMD_ASM_MODE and PERF_EXE is None:
   raise RuntimeError("CONFIRM_SIMD_ASM_MODE is True but PERF_EXE is not found; install 'perf' tool and rerun?")
@@ -514,6 +517,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
     return
 
   all_scores = []
+  total_scores = 0
   with open(scores_path, "rb") as f:
     data = f.read()
 
@@ -523,10 +527,12 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
     offset += 4
     scores = struct.unpack_from(f"<{count}f", data, offset)
     offset += count * 4
-    all_scores.extend(scores)
+    total_scores += count
+    all_scores.extend(scores[::HNSW_SAMPLE_EVERY_N])
 
-  num_floats = len(all_scores)
-  if num_floats == 0:
+  num_sampled = len(all_scores)
+  print(f"HNSW traversal: {total_scores} total scores, sampled 1-in-{HNSW_SAMPLE_EVERY_N} -> {num_sampled} scores for histogram")
+  if num_sampled == 0:
     print("WARNING: HNSW traversal scores file is empty")
     return
 
@@ -603,7 +609,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 
         var zoomLabel = (lo === globalMin && hi === globalMax) ? '' : ' [zoomed]';
         var options = {{
-          title: 'HNSW traversal {metric_name} distribution (' + h.count + ' of {num_floats} scores)' + zoomLabel,
+          title: 'HNSW traversal {metric_name} distribution (' + h.count + ' of {num_sampled} sampled from {total_scores} total, 1-in-{HNSW_SAMPLE_EVERY_N})' + zoomLabel,
           legend: {{position: 'none'}},
           hAxis: {{
             title: '{metric_name} ({direction})',

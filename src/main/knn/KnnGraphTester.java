@@ -693,9 +693,9 @@ public class KnnGraphTester implements FormatterLogger {
             filterQuery = createFilterQuery(indexPath, filtered);
           }
           if (outputPath != null) {
-            testSearch(indexPath, queryPath, queryStartIndex, outputPath, null);
+            testSearch(indexPath, queryPath, queryStartIndex, outputPath, null, metric);
           } else {
-            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex, metric));
+            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex, metric), metric);
           }
 
           if (operation.equals("-search-and-stats")) {
@@ -709,11 +709,8 @@ public class KnnGraphTester implements FormatterLogger {
       }
     }
 
-    if (hnswScoreHistogram) {
-      if (queryPath == null) {
-        throw new IllegalArgumentException("-hnswScoreHistogram requires -search <queryfile>");
-      }
-      collectHnswTraversalScores(indexPath, queryPath, queryStartIndex, metric);
+    if (hnswScoreHistogram && operation == null) {
+      throw new IllegalArgumentException("-hnswScoreHistogram requires -search <queryfile>");
     }
   }
 
@@ -1110,7 +1107,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   @SuppressForbidden(reason = "Prints stuff")
-  private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, ExactNNResult exactNN)
+  private void testSearch(Path indexPath, Path queryPath, int queryStartIndex, Path outputPath, ExactNNResult exactNN, String metric)
       throws IOException {
     int[][] nn = exactNN != null ? exactNN.ids() : null;
     Result[] results = new Result[numQueryVectors];
@@ -1143,14 +1140,18 @@ public class KnnGraphTester implements FormatterLogger {
           if (numDocs != indexNumDocs && !parentJoin) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
-          // warm up
-          for (int i = 0; i < numQueryVectors; i++) {
-            if (vectorEncoding.equals(VectorEncoding.BYTE)) {
-              byte[] target = targetReaderByte.nextBytes();
-              doKnnByteVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery);
-            } else {
-              float[] target = targetReader.next();
-              doKnnVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery, parentJoin);
+          // warm up (and optionally collect HNSW traversal scores)
+          if (hnswScoreHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
+            collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), topK, fanout, metric);
+          } else {
+            for (int i = 0; i < numQueryVectors; i++) {
+              if (vectorEncoding.equals(VectorEncoding.BYTE)) {
+                byte[] target = targetReaderByte.nextBytes();
+                doKnnByteVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery);
+              } else {
+                float[] target = targetReader.next();
+                doKnnVectorQuery(searcher, target, topK, fanout, filterStrategy, filterQuery, parentJoin);
+              }
             }
           }
           log("done warmup\n");
@@ -1257,13 +1258,12 @@ public class KnnGraphTester implements FormatterLogger {
   /**
    * Runs HNSW search directly with a spy scorer to collect every score computed during
    * graph traversal, then writes them to a binary file (little-endian float32).
+   * Called during warmup so we don't need an extra pass over query vectors.
    */
   @SuppressForbidden(reason = "Prints stuff")
-  private void collectHnswTraversalScores(Path indexPath, Path queryPath, int queryStartIndex, String metric)
+  private void collectHnswTraversalScores(DirectoryReader reader, VectorReader targetReader,
+                                           String field, int topK, int fanout, String metric)
       throws IOException {
-    String field = getKnnField(filterStrategy);
-    int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
-    int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
 
     Path scoresPath = Paths.get("knn-reuse", "hnsw-traversal", "hnsw-traversal-scores.scores");
     Path scoresDir = scoresPath.getParent();
@@ -1271,61 +1271,54 @@ public class KnnGraphTester implements FormatterLogger {
       Files.createDirectories(scoresDir);
     }
 
-    try (FileChannel queryChannel = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet);
-         MMapDirectory dir = new MMapDirectory(indexPath);
-         DirectoryReader reader = DirectoryReader.open(dir)) {
+    if (reader.leaves().size() != 1) {
+      throw new IllegalStateException("HNSW score histogram requires a single-segment index; got " + reader.leaves().size() + " segments");
+    }
 
-      if (reader.leaves().size() != 1) {
-        throw new IllegalStateException("HNSW score histogram requires a single-segment index; got " + reader.leaves().size() + " segments");
-      }
+    LeafReaderContext leafCtx = reader.leaves().get(0);
+    CodecReader codecReader = (CodecReader) leafCtx.reader();
+    KnnVectorsReader vectorsReader = codecReader.getVectorReader().unwrapReaderForField(field);
+    if ((vectorsReader instanceof Lucene99HnswVectorsReader) == false) {
+      throw new IllegalStateException("expected Lucene99HnswVectorsReader but got: " + vectorsReader.getClass().getName());
+    }
+    Lucene99HnswVectorsReader hnswReader = (Lucene99HnswVectorsReader) vectorsReader;
+    HnswGraph graph = hnswReader.getGraph(field);
 
-      LeafReaderContext leafCtx = reader.leaves().get(0);
-      CodecReader codecReader = (CodecReader) leafCtx.reader();
-      KnnVectorsReader vectorsReader = codecReader.getVectorReader().unwrapReaderForField(field);
-      if ((vectorsReader instanceof Lucene99HnswVectorsReader) == false) {
-        throw new IllegalStateException("expected Lucene99HnswVectorsReader but got: " + vectorsReader.getClass().getName());
-      }
-      Lucene99HnswVectorsReader hnswReader = (Lucene99HnswVectorsReader) vectorsReader;
-      HnswGraph graph = hnswReader.getGraph(field);
+    int totalScoreCount = 0;
+    try (OutputStream out = Files.newOutputStream(scoresPath)) {
+      for (int i = 0; i < numQueryVectors; i++) {
+        float[] target = targetReader.next();
 
-      VectorReader targetReader = VectorReader.create(queryChannel, dim, vectorEncoding, queryStartIndex);
+        RandomVectorScorer realScorer = hnswReader.getRandomVectorScorer(field, target);
+        SpyRandomVectorScorer spy = new SpyRandomVectorScorer(realScorer);
 
-      int totalScoreCount = 0;
-      try (OutputStream out = Files.newOutputStream(scoresPath)) {
-        for (int i = 0; i < numQueryVectors; i++) {
-          float[] target = targetReader.next();
+        TopKnnCollector collector = new TopKnnCollector(topK + fanout, Integer.MAX_VALUE);
+        HnswGraphSearcher.search(spy, collector, graph, null);
 
-          RandomVectorScorer realScorer = hnswReader.getRandomVectorScorer(field, target);
-          SpyRandomVectorScorer spy = new SpyRandomVectorScorer(realScorer);
+        float[] scores = spy.getScores();
+        int scoreCount = scores.length;
+        totalScoreCount += scoreCount;
 
-          TopKnnCollector collector = new TopKnnCollector(topK + fanout, Integer.MAX_VALUE);
-          HnswGraphSearcher.search(spy, collector, graph, null);
+        // write score count for this query (little-endian int32)
+        ByteBuffer countBuf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+        countBuf.putInt(scoreCount);
+        out.write(countBuf.array());
 
-          float[] scores = spy.getScores();
-          int scoreCount = scores.length;
-          totalScoreCount += scoreCount;
+        // write scores (little-endian float32)
+        ByteBuffer scoresBuf = ByteBuffer.allocate(scoreCount * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+        scoresBuf.asFloatBuffer().put(scores);
+        out.write(scoresBuf.array());
 
-          // write score count for this query (little-endian int32)
-          ByteBuffer countBuf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-          countBuf.putInt(scoreCount);
-          out.write(countBuf.array());
-
-          // write scores (little-endian float32)
-          ByteBuffer scoresBuf = ByteBuffer.allocate(scoreCount * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-          scoresBuf.asFloatBuffer().put(scores);
-          out.write(scoresBuf.array());
-
-          if (quiet == false && (i + 1) % 100 == 0) {
-            log("  %d / %d queries done (%d scores so far)\n", i + 1, numQueryVectors, totalScoreCount);
-          }
+        if (quiet == false && (i + 1) % 100 == 0) {
+          log("  %d / %d queries done (%d scores so far)\n", i + 1, numQueryVectors, totalScoreCount);
         }
       }
-
-      log("collected %d total HNSW traversal scores across %d queries\n", totalScoreCount, numQueryVectors);
-      System.out.println("HNSW_TRAVERSAL_SCORES_PATH: " + scoresPath.toAbsolutePath());
-      System.out.println("HNSW_TRAVERSAL_METRIC: " + metric);
-      System.out.println("HNSW_TRAVERSAL_NUM_QUERIES: " + numQueryVectors);
     }
+
+    log("collected %d total HNSW traversal scores across %d queries\n", totalScoreCount, numQueryVectors);
+    System.out.println("HNSW_TRAVERSAL_SCORES_PATH: " + scoresPath.toAbsolutePath());
+    System.out.println("HNSW_TRAVERSAL_METRIC: " + metric);
+    System.out.println("HNSW_TRAVERSAL_NUM_QUERIES: " + numQueryVectors);
   }
 
   private static double nsToSec(long ns) {

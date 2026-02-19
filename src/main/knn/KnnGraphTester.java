@@ -44,6 +44,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.codecs.Codec;
@@ -59,6 +60,7 @@ import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FloatVectorValues;
+import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -204,6 +206,10 @@ public class KnnGraphTester implements FormatterLogger {
   private float overSample;
   // whether to collect and write all HNSW traversal scores for histogram generation
   private boolean hnswScoreHistogram;
+  // whether to compute sampled all query x doc distances for histogram generation
+  private boolean allDistancesHistogram;
+  // sample 1 in every N distances when building the all-distances histogram
+  private int allDistancesSampleEveryN = 1000;
 
   private KnnGraphTester() {
     // set defaults
@@ -513,6 +519,12 @@ public class KnnGraphTester implements FormatterLogger {
         case "-hnswScoreHistogram":
           hnswScoreHistogram = true;
           break;
+        case "-allDistancesHistogram":
+          allDistancesHistogram = true;
+          break;
+        case "-allDistancesSampleEveryN":
+          allDistancesSampleEveryN = Integer.parseInt(args[++iarg]);
+          break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
           // usage();
@@ -695,7 +707,11 @@ public class KnnGraphTester implements FormatterLogger {
           if (outputPath != null) {
             testSearch(indexPath, queryPath, queryStartIndex, outputPath, null, metric);
           } else {
-            testSearch(indexPath, queryPath, queryStartIndex, null, getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex, metric), metric);
+            ExactNNResult exactNN = getExactNN(docVectorsPath, indexPath, queryPath, queryStartIndex, metric);
+            if (allDistancesHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
+              computeAllDistancesSampled(queryPath, queryStartIndex, metric);
+            }
+            testSearch(indexPath, queryPath, queryStartIndex, null, exactNN, metric);
           }
 
           if (operation.equals("-search-and-stats")) {
@@ -711,6 +727,10 @@ public class KnnGraphTester implements FormatterLogger {
 
     if (hnswScoreHistogram && operation == null) {
       throw new IllegalArgumentException("-hnswScoreHistogram requires -search <queryfile>");
+    }
+
+    if (allDistancesHistogram && operation == null) {
+      throw new IllegalArgumentException("-allDistancesHistogram requires -search <queryfile>");
     }
   }
 
@@ -1576,6 +1596,122 @@ public class KnnGraphTester implements FormatterLogger {
       }
     }
     return scores;
+  }
+
+  /** Compute sampled all query x doc distances and write to a binary file for histogram generation. */
+  private void computeAllDistancesSampled(Path queryPath, int queryStartIndex, String metric)
+      throws IOException, InterruptedException {
+    Path subdir = Paths.get("knn-reuse", "all-distances");
+    if (Files.exists(subdir) == false) {
+      Files.createDirectories(subdir);
+    }
+    Path outputPath = subdir.resolve("all-distances-sampled.scores");
+
+    log("computing sampled all-distances histogram (sample 1-in-%d)...\n", allDistancesSampleEveryN);
+    long startNS = System.nanoTime();
+
+    float[][] sampledScores = new float[numQueryVectors][];
+    AtomicInteger completedCount = new AtomicInteger(0);
+
+    String field = getKnnField(filterStrategy);
+
+    try (MMapDirectory dir = new MMapDirectory(indexPath)) {
+      dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
+      try (DirectoryReader reader = DirectoryReader.open(dir)) {
+        List<Callable<Void>> tasks = new ArrayList<>();
+        try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
+          VectorReader queryReader = (VectorReader) VectorReader.create(qIn, dim, VectorEncoding.FLOAT32, queryStartIndex);
+          for (int i = 0; i < numQueryVectors; i++) {
+            float[] query = queryReader.next().clone();
+            tasks.add(new ComputeAllDistancesSampledTask(reader, i, query, field, sampledScores, completedCount));
+          }
+          runTasksWithProgress(tasks, completedCount, this);
+        }
+      }
+    }
+
+    // write all sampled scores as raw little-endian float32
+    int totalSampled = 0;
+    for (int i = 0; i < numQueryVectors; i++) {
+      totalSampled += sampledScores[i].length;
+    }
+
+    ByteBuffer buf = ByteBuffer.allocate(4096).order(ByteOrder.LITTLE_ENDIAN);
+    try (OutputStream out = Files.newOutputStream(outputPath)) {
+      for (int i = 0; i < numQueryVectors; i++) {
+        for (float score : sampledScores[i]) {
+          if (buf.remaining() < Float.BYTES) {
+            out.write(buf.array(), 0, buf.position());
+            buf.clear();
+          }
+          buf.putFloat(score);
+        }
+      }
+      if (buf.position() > 0) {
+        out.write(buf.array(), 0, buf.position());
+      }
+    }
+
+    long elapsedMS = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNS);
+    log("all-distances: sampled %d scores (1-in-%d), wrote to \"%s\", took %.3f sec\n",
+        totalSampled, allDistancesSampleEveryN, outputPath, elapsedMS / 1000.);
+
+    System.out.println("ALL_DISTANCES_SCORES_PATH: " + outputPath.toAbsolutePath());
+    System.out.println("ALL_DISTANCES_METRIC: " + metric);
+    System.out.println("ALL_DISTANCES_SAMPLE_EVERY_N: " + allDistancesSampleEveryN);
+  }
+
+  class ComputeAllDistancesSampledTask implements Callable<Void> {
+
+    private final DirectoryReader reader;
+    private final int queryOrd;
+    private final float[] query;
+    private final String field;
+    private final float[][] sampledScores;
+    private final AtomicInteger completedCount;
+
+    ComputeAllDistancesSampledTask(DirectoryReader reader, int queryOrd, float[] query, String field,
+                                   float[][] sampledScores, AtomicInteger completedCount) {
+      this.reader = reader;
+      this.queryOrd = queryOrd;
+      this.query = query;
+      this.field = field;
+      this.sampledScores = sampledScores;
+      this.completedCount = completedCount;
+    }
+
+    @Override
+    public Void call() throws IOException {
+      // start counter at random offset so different queries sample different docs
+      int counter = ThreadLocalRandom.current().nextInt(allDistancesSampleEveryN);
+      // estimate: numDocs / sampleEveryN samples per query
+      int estimatedSamples = (numDocs / allDistancesSampleEveryN) + 1;
+      float[] sampled = new float[estimatedSamples];
+      int sampledCount = 0;
+
+      for (LeafReaderContext ctx : reader.leaves()) {
+        FloatVectorValues vectors = ctx.reader().getFloatVectorValues(field);
+        if (vectors == null) {
+          continue;
+        }
+        KnnVectorValues.DocIndexIterator iter = vectors.iterator();
+        while (iter.nextDoc() != NO_MORE_DOCS) {
+          float score = similarityFunction.compare(query, vectors.vectorValue(iter.index()));
+          counter++;
+          if (counter >= allDistancesSampleEveryN) {
+            counter = 0;
+            if (sampledCount >= sampled.length) {
+              sampled = Arrays.copyOf(sampled, sampled.length * 2);
+            }
+            sampled[sampledCount++] = score;
+          }
+        }
+      }
+
+      sampledScores[queryOrd] = Arrays.copyOf(sampled, sampledCount);
+      completedCount.incrementAndGet();
+      return null;
+    }
   }
 
   private static void runTasksWithProgress(List<Callable<Void>> tasks, AtomicInteger completedCount, FormatterLogger log) throws IOException, InterruptedException {

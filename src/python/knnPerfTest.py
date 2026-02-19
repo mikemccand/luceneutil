@@ -69,6 +69,13 @@ DO_HNSW_SCORE_HISTOGRAM = False
 # sample 1 in every N HNSW traversal scores when building the histogram (to keep HTML size reasonable)
 HNSW_SAMPLE_EVERY_N = 100
 
+# set this to True to compute sampled all query x doc distances and generate a histogram
+DO_ALL_DISTANCES_HISTOGRAM = False
+
+# sample 1 in every N all-distances scores (sampling done in Java).
+# with 400K docs and 10K queries (4B distances), 1000 -> ~4M samples -> ~40 MB HTML
+ALL_DISTANCES_SAMPLE_EVERY_N = 1000
+
 if CONFIRM_SIMD_ASM_MODE and PERF_EXE is None:
   raise RuntimeError("CONFIRM_SIMD_ASM_MODE is True but PERF_EXE is not found; install 'perf' tool and rerun?")
 
@@ -507,6 +514,221 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
   print(f"Wrote exact NN distance histogram to {output_file}")
 
 
+def generate_all_distances_histogram(scores_path, output_dir, log_base_name, metric=None, sample_every_n=None):
+  """Read the sampled all-distances binary file and generate an HTML histogram.
+
+  The binary format is raw little-endian float32 scores (no per-query structure).
+  """
+  if not os.path.exists(scores_path):
+    print(f"WARNING: all-distances scores file not found: {scores_path}")
+    return
+
+  file_size = os.path.getsize(scores_path)
+  num_floats = file_size // 4
+  if num_floats == 0:
+    print("WARNING: all-distances scores file is empty")
+    return
+
+  with open(scores_path, "rb") as f:
+    all_scores = struct.unpack(f"<{num_floats}f", f.read())
+
+  sample_label = ""
+  if sample_every_n is not None:
+    sample_label = f" (sampled 1-in-{sample_every_n})"
+
+  metric_name, direction = METRIC_LABELS.get(metric or "", ("similarity score", ""))
+
+  min_score = min(all_scores)
+  max_score = max(all_scores)
+
+  if min_score == max_score:
+    print(f"WARNING: all distances scores are identical ({min_score}); skipping histogram")
+    return
+
+  sorted_scores = sorted(all_scores)
+
+  scores_js_lines = []
+  chunk_size = 500
+  for i in range(0, len(sorted_scores), chunk_size):
+    chunk = sorted_scores[i : i + chunk_size]
+    scores_js_lines.append(",".join(f"{s:.6f}" for s in chunk))
+  scores_js = ",\n".join(scores_js_lines)
+
+  html = f"""<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {{packages:["corechart"]}});
+      google.setOnLoadCallback(init);
+
+      var scores = [
+{scores_js}
+      ];
+      var globalMin = {min_score:.6f};
+      var globalMax = {max_score:.6f};
+      var curMin = globalMin;
+      var curMax = globalMax;
+      var chart, chartDiv;
+      var zoomStack = [];
+
+      function lowerBound(arr, val) {{
+        var lo = 0, hi = arr.length;
+        while (lo < hi) {{
+          var mid = (lo + hi) >> 1;
+          if (arr[mid] < val) lo = mid + 1; else hi = mid;
+        }}
+        return lo;
+      }}
+
+      function buildHistogram(lo, hi, numBins) {{
+        var range = hi - lo;
+        var binWidth = range / numBins;
+        var bins = new Array(numBins).fill(0);
+        var startIdx = lowerBound(scores, lo);
+        var count = 0;
+        for (var i = startIdx; i < scores.length && scores[i] <= hi; i++) {{
+          var idx = Math.floor((scores[i] - lo) / binWidth);
+          if (idx >= numBins) idx = numBins - 1;
+          if (idx < 0) idx = 0;
+          bins[idx]++;
+          count++;
+        }}
+        return {{bins: bins, binWidth: binWidth, count: count}};
+      }}
+
+      function drawChart(lo, hi) {{
+        var numBins = 50;
+        var h = buildHistogram(lo, hi, numBins);
+        var rows = [['{metric_name} ({direction})', 'Count']];
+        for (var i = 0; i < numBins; i++) {{
+          var center = lo + (i + 0.5) * h.binWidth;
+          rows.push([center, h.bins[i]]);
+        }}
+        var data = google.visualization.arrayToDataTable(rows);
+
+        var zoomLabel = (lo === globalMin && hi === globalMax) ? '' : ' [zoomed]';
+        var options = {{
+          title: 'All query x doc distances{sample_label} (' + h.count + ' of {num_floats} scores)' + zoomLabel,
+          legend: {{position: 'none'}},
+          hAxis: {{
+            title: '{metric_name} ({direction})',
+            viewWindow: {{min: lo, max: hi}}
+          }},
+          vAxis: {{title: 'Count'}},
+          bar: {{groupWidth: '95%'}},
+          chartArea: {{left: 80, right: 20, top: 40, bottom: 60}}
+        }};
+
+        chart.draw(data, options);
+        document.getElementById('info').innerHTML =
+          'Range: ' + lo.toFixed(6) + ' .. ' + hi.toFixed(6) +
+          ' &nbsp; Bin width: ' + h.binWidth.toFixed(6) +
+          ' &nbsp; Scores in view: ' + h.count;
+      }}
+
+      function init() {{
+        chartDiv = document.getElementById('chart_div');
+        chart = new google.visualization.ColumnChart(chartDiv);
+        drawChart(globalMin, globalMax);
+
+        var dragStart = null;
+        var overlay = document.getElementById('overlay');
+
+        chartDiv.addEventListener('mousedown', function(e) {{
+          var rect = chartDiv.getBoundingClientRect();
+          dragStart = {{x: e.clientX - rect.left, clientX: e.clientX}};
+          overlay.style.left = dragStart.x + 'px';
+          overlay.style.width = '0px';
+          overlay.style.display = 'block';
+        }});
+
+        chartDiv.addEventListener('mousemove', function(e) {{
+          if (!dragStart) return;
+          var rect = chartDiv.getBoundingClientRect();
+          var curX = e.clientX - rect.left;
+          var left = Math.min(dragStart.x, curX);
+          var width = Math.abs(curX - dragStart.x);
+          overlay.style.left = left + 'px';
+          overlay.style.width = width + 'px';
+        }});
+
+        chartDiv.addEventListener('mouseup', function(e) {{
+          if (!dragStart) return;
+          overlay.style.display = 'none';
+          var rect = chartDiv.getBoundingClientRect();
+          var endX = e.clientX - rect.left;
+          var x0 = Math.min(dragStart.x, endX);
+          var x1 = Math.max(dragStart.x, endX);
+          dragStart = null;
+
+          if (x1 - x0 < 5) return;
+
+          var cli = chart.getChartLayoutInterface();
+          var val0 = cli.getHAxisValue(x0);
+          var val1 = cli.getHAxisValue(x1);
+          if (val0 === null || val1 === null) return;
+          var newMin = Math.max(Math.min(val0, val1), globalMin);
+          var newMax = Math.min(Math.max(val0, val1), globalMax);
+          if (newMax - newMin < (globalMax - globalMin) * 0.001) return;
+
+          zoomStack.push({{min: curMin, max: curMax}});
+          curMin = newMin;
+          curMax = newMax;
+          drawChart(curMin, curMax);
+          document.getElementById('resetBtn').style.display = 'inline';
+          document.getElementById('backBtn').style.display = 'inline';
+        }});
+
+        document.getElementById('resetBtn').addEventListener('click', function() {{
+          zoomStack = [];
+          curMin = globalMin;
+          curMax = globalMax;
+          drawChart(curMin, curMax);
+          this.style.display = 'none';
+          document.getElementById('backBtn').style.display = 'none';
+        }});
+
+        document.getElementById('backBtn').addEventListener('click', function() {{
+          if (zoomStack.length === 0) return;
+          var prev = zoomStack.pop();
+          curMin = prev.min;
+          curMax = prev.max;
+          drawChart(curMin, curMax);
+          if (zoomStack.length === 0) {{
+            document.getElementById('resetBtn').style.display = 'none';
+            this.style.display = 'none';
+          }}
+        }});
+      }}
+    </script>
+    <style>
+      #chart_container {{ position: relative; width: 1200px; height: 600px; }}
+      #chart_div {{ width: 100%; height: 100%; }}
+      #overlay {{ position: absolute; top: 0; height: 100%; background: rgba(66,133,244,0.15);
+                  border-left: 1px solid rgba(66,133,244,0.5); border-right: 1px solid rgba(66,133,244,0.5);
+                  display: none; pointer-events: none; z-index: 10; }}
+      button {{ margin: 4px 4px 4px 0; padding: 4px 12px; }}
+    </style>
+  </head>
+  <body>
+    <div id="chart_container">
+      <div id="chart_div"></div>
+      <div id="overlay"></div>
+    </div>
+    <button id="backBtn" style="display:none">Back</button>
+    <button id="resetBtn" style="display:none">Reset zoom</button>
+    <p id="info"></p>
+    <p style="color:#888">Click and drag on the chart to zoom in. Source: {scores_path}</p>
+  </body>
+</html>
+"""
+  output_file = f"{output_dir}/{log_base_name}-allDistancesHistogram.html"
+  with open(output_file, "w") as f:
+    f.write(html)
+  print(f"Wrote all-distances histogram to {output_file}")
+
+
 def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, metric=None):
   """Read the HNSW traversal scores binary file and generate an HTML histogram.
 
@@ -871,6 +1093,9 @@ def run_knn_benchmark(checkout, values, log_path):
     if DO_HNSW_SCORE_HISTOGRAM:
       this_cmd += ["-hnswScoreHistogram"]
 
+    if DO_ALL_DISTANCES_HISTOGRAM:
+      this_cmd += ["-allDistancesHistogram", "-allDistancesSampleEveryN", str(ALL_DISTANCES_SAMPLE_EVERY_N)]
+
     if CONFIRM_SIMD_ASM_MODE:
       perf_data_file = f"perf{index_run}.data"
       print(f"NOTE: adding 'perf record' command, to {perf_data_file}, to sample instructions being executed to later confirm SIMD usage")
@@ -905,11 +1130,17 @@ def run_knn_benchmark(checkout, values, log_path):
       re_nn_metric = re.compile(r"^EXACT_NN_METRIC: (.+)$")
       re_hnsw_scores_path = re.compile(r"^HNSW_TRAVERSAL_SCORES_PATH: (.+)$")
       re_hnsw_metric = re.compile(r"^HNSW_TRAVERSAL_METRIC: (.+)$")
+      re_all_distances_path = re.compile(r"^ALL_DISTANCES_SCORES_PATH: (.+)$")
+      re_all_distances_metric = re.compile(r"^ALL_DISTANCES_METRIC: (.+)$")
+      re_all_distances_sample = re.compile(r"^ALL_DISTANCES_SAMPLE_EVERY_N: (.+)$")
       summary = None
       exact_nn_scores_path = None
       exact_nn_metric = None
       hnsw_traversal_scores_path = None
       hnsw_traversal_metric = None
+      all_distances_scores_path = None
+      all_distances_metric = None
+      all_distances_sample_every_n = None
       hit_exception = False
       while job.poll() is None:
         line = job.stdout.readline()
@@ -933,6 +1164,15 @@ def run_knn_benchmark(checkout, values, log_path):
         m = re_hnsw_metric.match(line)
         if m is not None:
           hnsw_traversal_metric = m.group(1).strip()
+        m = re_all_distances_path.match(line)
+        if m is not None:
+          all_distances_scores_path = m.group(1).strip()
+        m = re_all_distances_metric.match(line)
+        if m is not None:
+          all_distances_metric = m.group(1).strip()
+        m = re_all_distances_sample.match(line)
+        if m is not None:
+          all_distances_sample_every_n = int(m.group(1).strip())
         if "Exception in" in line:
           hit_exception = True
     finally:
@@ -966,6 +1206,9 @@ def run_knn_benchmark(checkout, values, log_path):
 
     if hnsw_traversal_scores_path is not None:
       generate_hnsw_traversal_histogram(hnsw_traversal_scores_path, log_dir_name, log_file_name, hnsw_traversal_metric)
+
+    if all_distances_scores_path is not None:
+      generate_all_distances_histogram(all_distances_scores_path, log_dir_name, log_file_name, all_distances_metric, all_distances_sample_every_n)
 
     all_results.append((summary, args))
     if DO_PROFILING:

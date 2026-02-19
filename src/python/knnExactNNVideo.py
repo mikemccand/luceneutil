@@ -9,21 +9,21 @@ import os
 import subprocess
 import sys
 
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 # non-interactive backend so it works headless
-matplotlib.use("Agg")
+mpl.use("Agg")
 
 
 def load_scores(path):
-  """load little-endian float32 scores from a .bin file."""
+  """Load little-endian float32 scores from a .bin file."""
   return np.fromfile(path, dtype="<f4")
 
 
 def make_histogram_png(scores, n, m, num_docs, top_k, output_path, global_min, global_max, max_y_pct, num_bins=100):
-  """render a histogram of scores as a PNG, with y-axis as percentage."""
+  """Render a histogram of scores as a PNG, with y-axis as percentage."""
   fig, ax = plt.subplots(figsize=(12, 6))
 
   # compute bin percentages manually so we can control y-axis
@@ -39,29 +39,33 @@ def make_histogram_png(scores, n, m, num_docs, top_k, output_path, global_min, g
   ax.set_xlim(global_min, global_max)
   ax.set_ylim(0, max_y_pct)
   ax.set_title(
-    f"exact NN score distribution  —  N={n:,} queries × {num_docs:,} docs, top-{top_k}, repeat {m}",
+    f"exact NN score distribution  —  N={n:,} queries x {num_docs:,} docs, top-{top_k}, repeat {m}",
     fontsize=15,
   )
 
   # stats text
-  stats_text = (
-    f"scores: {len(scores):,}\n"
-    f"min: {scores.min():.4f}\n"
-    f"max: {scores.max():.4f}\n"
-    f"mean: {scores.mean():.4f}\n"
-    f"std: {scores.std():.4f}"
-  )
+  stats_text = f"scores: {len(scores):,}\nmin: {scores.min():.4f}\nmax: {scores.max():.4f}\nmean: {scores.mean():.4f}\nstd: {scores.std():.4f}"
   ax.text(
-    0.98, 0.95, stats_text,
-    transform=ax.transAxes, fontsize=10, verticalalignment="top", horizontalalignment="right",
+    0.98,
+    0.95,
+    stats_text,
+    transform=ax.transAxes,
+    fontsize=10,
+    verticalalignment="top",
+    horizontalalignment="right",
     bbox=dict(boxstyle="round,pad=0.4", facecolor="wheat", alpha=0.8),
     fontfamily="monospace",
   )
 
   # prominent N label
   ax.text(
-    0.02, 0.95, f"N = {n:,}",
-    transform=ax.transAxes, fontsize=28, fontweight="bold", verticalalignment="top",
+    0.02,
+    0.95,
+    f"N = {n:,}",
+    transform=ax.transAxes,
+    fontsize=28,
+    fontweight="bold",
+    verticalalignment="top",
     color="#333333",
   )
 
@@ -127,7 +131,16 @@ def main():
     png_path = os.path.join(output_dir, png_name)
 
     make_histogram_png(
-      scores, run["n"], run["m"], num_docs, top_k, png_path, global_min, global_max, max_y_pct, args.bins,
+      scores,
+      run["n"],
+      run["m"],
+      num_docs,
+      top_k,
+      png_path,
+      global_min,
+      global_max,
+      max_y_pct,
+      args.bins,
     )
     png_paths.append(png_path)
     print(f"  [{i + 1}/{len(runs)}] wrote {png_path}")
@@ -145,15 +158,20 @@ def main():
   ffmpeg_cmd = [
     "ffmpeg",
     "-y",
-    "-framerate", str(args.fps),
-    "-i", frame_pattern,
-    "-c:v", "libx264",
-    "-pix_fmt", "yuv420p",
-    "-crf", "18",
+    "-framerate",
+    str(args.fps),
+    "-i",
+    frame_pattern,
+    "-c:v",
+    "libx264",
+    "-pix_fmt",
+    "yuv420p",
+    "-crf",
+    "18",
     video_path,
   ]
   print(f"\nrunning: {' '.join(ffmpeg_cmd)}")
-  result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+  result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, check=False)
   if result.returncode != 0:
     print(f"ffmpeg stderr:\n{result.stderr}", file=sys.stderr)
     raise RuntimeError(f"ffmpeg failed with exit code {result.returncode}")

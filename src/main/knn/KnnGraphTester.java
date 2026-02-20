@@ -1309,7 +1309,13 @@ public class KnnGraphTester implements FormatterLogger {
       for (int i = 0; i < numQueryVectors; i++) {
         float[] target = targetReader.next();
 
-        RandomVectorScorer realScorer = hnswReader.getRandomVectorScorer(field, target);
+        // woops Claude -- this is for https://github.com/mikemccand/luceneutil/issues/529
+        // but it needs a Lucene change in its current approach
+        
+        //RandomVectorScorer realScorer = hnswReader.getRandomVectorScorer(field, target);
+        // yes NPE if you try to generate this histogram!
+        RandomVectorScorer realScorer = null;
+        
         SpyRandomVectorScorer spy = new SpyRandomVectorScorer(realScorer);
 
         TopKnnCollector collector = new TopKnnCollector(topK + fanout, Integer.MAX_VALUE);

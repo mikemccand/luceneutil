@@ -1625,6 +1625,9 @@ class RunAlgs:
         # When we add a whole new task (e.g. VectorSearch), just skip the comparison for the first nightly run
         # since baseline will not have this task yet:
         continue
+      if currentCat not in cmpLatencyMetrics:
+        # TODO: This could happen during the first run after separating facet tasks from search tasks - do we want to revert this after first run?
+        continue
       currentBaseMetrics = baseLatencyMetrics[currentCat]
       currentCmpMetrics = cmpLatencyMetrics[currentCat]
       pctP50 = 100 * (currentCmpMetrics["p50"] - currentBaseMetrics["p50"]) / currentBaseMetrics["p50"]

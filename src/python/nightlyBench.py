@@ -68,7 +68,14 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 
 DEBUG = "-debug" in sys.argv
 
-ONLY_TASKS = True
+# NOTE: invented for debugging massive horror-regression 1/29/2026!  due to CPU governor changing, combined with too old BIOS
+# that that different governor failed to successfully interact with, causing fallback to absurdly-slow-but-for-sure-save CPU clocks
+# see https://github.com/apache/lucene/issues/15662
+REUSE_NIGHTLY_INDICES = False
+REUSE_NIGHTLY_TIMESTAMP_DIR = "/l/logs.nightly/2026.02.10.07.46.04"
+
+# NOTE: also invented for massive horror-regression 1/29/2026
+ONLY_TASKS = False
 
 JFR_STACK_SIZES = (1, 2, 4, 8, 12)
 
@@ -143,12 +150,37 @@ def runCommand(command):
     message("WOULD RUN: %s" % command)
 
 
+def extract_indexing_stats_from_log(log_file_name):
+  s = open(log_file_name).read()
+  bytesIndexed = int(reBytesIndexed.search(s).group(1))
+  m = reIndexAtClose.search(s)
+  if m is not None:
+    indexAtClose = m.group(1)
+  else:
+    # we have no index when we don't -waitForCommit
+    indexAtClose = None
+  indexTimeSec = int(reIndexingTime.search(s).group(1)) / 1000.0
+  return bytesIndexed, indexAtClose, indexTimeSec
+
+
 def buildIndex(r, runLogDir, desc, index, logFile):
   message("build %s" % desc)
   # t0 = now()
   indexPath = benchUtil.nameToIndexPath(index.getName())
   if os.path.exists(indexPath):
-    shutil.rmtree(indexPath)
+    if not REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: removing old index "{desc}" at {indexPath}')
+      shutil.rmtree(indexPath)
+    else:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; reusing old index "{desc}" at {indexPath}')
+      # TODO: we should also sniff it a bit?  confirm it's viable / matches doc count?
+      oldLogFileName = f"{REUSE_NIGHTLY_TIMESTAMP_DIR}/{logFile}"
+      if not os.path.exists(oldLogFileName):
+        raise RuntimeError(f'tried to reuse index "{desc}" at {indexPath} but log file {oldLogFileName} under {REUSE_NIGHTLY_TIMESTAMP_DIR=} does not exist?')
+      bytesIndexed, indexAtClose, indexTimeSec = extract_indexing_stats_from_log(oldLogFileName)
+      profilerResults = None
+      jfrFile = None
+      return indexPath, indexTimeSec, bytesIndexed, indexAtClose, profilerResults, jfrFile
 
   # clean up after any failed runs first:
   for tool in ("vmstat", "top"):
@@ -177,15 +209,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     print("move top log to %s" % newTopLogFileName)
     shutil.move(f"{constants.LOGS_DIR}/nightly.top.log", newTopLogFileName)
 
-  s = open(newLogFileName).read()
-  bytesIndexed = int(reBytesIndexed.search(s).group(1))
-  m = reIndexAtClose.search(s)
-  if m is not None:
-    indexAtClose = m.group(1)
-  else:
-    # we have no index when we don't -waitForCommit
-    indexAtClose = None
-  indexTimeSec = int(reIndexingTime.search(s).group(1)) / 1000.0
+  bytesIndexed, indexAtClose, indexTimeSec = extract_indexing_stats_from_log(newLogFileName)
 
   message("  took %.1f sec" % indexTimeSec)
 
@@ -338,6 +362,22 @@ def run():
       print("Removing old JFR %s..." % fileName)
       os.remove(fileName)
 
+  # gather other telemetry?
+  # make sure kernel module k10temp comes back on reboot
+  # should we tinker with preempt on boot?
+  # biolatency
+  # htop, btop
+  # turbostat
+  # cpupower (service and command-line tool?) frequency-info
+  #   cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
+  #   cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+  #   grep MHz /proc/cpuinfo
+  # rdmsr
+  # lspci -vvv to
+  # dmesg
+  # turbostat
+  # /etc/default/cpupower
+
   print()
   print()
   print()
@@ -361,16 +401,26 @@ def run():
   print("%s" % javaVersion)
 
   p = subprocess.run(f"{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
-  open(f"{runLogDir}/java-final-flags.txt", "w").write(p.stdout)
+  open(f"{runLogDir}/java-final-flags.txt", "w").write(p.stdout.strip())
+  shutil.copyfile("/proc/cpuinfo", f"{runLogDir}/cpuinfo.txt")
 
   kernel_version = os.popen("uname -a 2>&1").read().strip()
   print(f"uname -a: {kernel_version}")
 
-  proc_version = open("/proc/version").read()
+  proc_version = open("/proc/version").read().strip()
   print(f"/proc/version: {proc_version}")
 
-  preempt = subprocess.run(["sudo", "cat", "/sys/kernel/debug/sched/preempt"], capture_output=True, text=True, check=True).stdout
+  boot_cmdline = open("/proc/cmdline").read().strip()
+  print(f"/proc/cmdline (kernel boot CLI): {boot_cmdline}")
+
+  lsmod = subprocess.run("lsmod", shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
+  print(f"lsmod (kernel modules):\n{lsmod.stdout.strip()}")
+
+  preempt = subprocess.run(["sudo", "cat", "/sys/kernel/debug/sched/preempt"], capture_output=True, text=True, check=True).stdout.strip()
   print(f"Preempt mode: {preempt}")
+
+  dmesg = subprocess.run(["sudo", "dmesg"], capture_output=True, text=True, check=True).stdout.strip()
+  open(f"{runLogDir}/dmesg.txt", "w").write(dmesg)
 
   print("lsb_release -a:\n%s" % os.popen("lsb_release -a 2>&1").read().strip())
   print("\ninstalled packages (pacman -Q):\n%s" % os.popen("pacman -Q 2>&1").read().strip())
@@ -480,6 +530,8 @@ def run():
     vectorFile=constants.VECTORS_DOCS_FILE,
     vectorDimension=constants.VECTORS_DIMENSIONS,
     vectorEncoding=constants.VECTORS_TYPE,
+    hnswThreadsPerMerge=constants.HNSW_THREADS_PER_MERGE,
+    hnswThreadPoolCount=constants.HNSW_THREAD_POOL_COUNT,
   )
 
   fastIndexMediumVectorsQuantized = comp.newIndex(
@@ -501,6 +553,8 @@ def run():
     vectorDimension=constants.VECTORS_DIMENSIONS,
     vectorEncoding=constants.VECTORS_TYPE,
     quantizeKNNGraph=True,
+    hnswThreadsPerMerge=constants.HNSW_THREADS_PER_MERGE,
+    hnswThreadPoolCount=constants.HNSW_THREAD_POOL_COUNT,
   )
 
   nrtIndexMedium = comp.newIndex(
@@ -570,10 +624,11 @@ def run():
   )
 
   # this index is gigantic -- if a turd is leftover from a prior failed run, nuke it now!!
-  index_path = benchUtil.nameToIndexPath(index.getName())
-  if os.path.exists(index_path):
-    print(f"NOTE: now delete old leftover ginormous index {index_path}")
-    shutil.rmtree(index_path)
+  if not REUSE_NIGHTLY_INDICES:
+    index_path = benchUtil.nameToIndexPath(index.getName())
+    if os.path.exists(index_path):
+      print(f"NOTE: now delete old leftover ginormous index {index_path}")
+      shutil.rmtree(index_path)
 
   c = comp.competitor(
     id,
@@ -641,51 +696,67 @@ def run():
     finally:
       os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
 
-  # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, "medium index (fast)", fastIndexMedium, "fastIndexMediumDocs.log")
-  message("medIndexAtClose %s" % atClose)
-  shutil.rmtree(medIndexPath)
+  if not ONLY_TASKS:
+    # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
+    medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, "medium index (fast)", fastIndexMedium, "fastIndexMediumDocs.log")
+    message("medIndexAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "medium index (fast)" at {medIndexPath}')
+    else:
+      shutil.rmtree(medIndexPath)
 
-  # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
-  medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(
-    r, runLogDir, "medium vectors index (fast)", fastIndexMediumVectors, "fastIndexMediumDocsWithVectors.log"
-  )
-  message("medIndexVectorsAtClose %s" % atClose)
-  shutil.rmtree(medVectorsIndexPath)
+    # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
+    medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(
+      r, runLogDir, "medium vectors index (fast)", fastIndexMediumVectors, "fastIndexMediumDocsWithVectors.log"
+    )
+    message("medIndexVectorsAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "medium vectors index (fast)" at {medVectorsIndexPath}')
+    else:
+      shutil.rmtree(medVectorsIndexPath)
 
-  # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
-  # TODO: render profiler data for thias run too
-  medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(
-    r, runLogDir, "medium quantized vectors index (fast)", fastIndexMediumVectorsQuantized, "fastIndexMediumDocsWithVectorsQuantized.log"
-  )
-  message("medIndexVectorsAtClose %s" % atClose)
-  shutil.rmtree(medQuantizedVectorsIndexPath)
+    # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
+    # TODO: render profiler data for thias run too
+    medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(
+      r, runLogDir, "medium quantized vectors index (fast)", fastIndexMediumVectorsQuantized, "fastIndexMediumDocsWithVectorsQuantized.log"
+    )
+    message("medIndexVectorsAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "medium quantized vectors index (fast)" at {medQuantizedVectorsIndexPath}')
+    else:
+      shutil.rmtree(medQuantizedVectorsIndexPath)
 
-  # 3: build index for NRT test
-  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")
-  message("nrtMedIndexAtClose %s" % atClose)
-  nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
-  shutil.rmtree(nrtIndexPath)
+    # 3: build index for NRT test
+    nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")
+    message("nrtMedIndexAtClose %s" % atClose)
+    nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "nrt medium index" at {nrtIndexPath}')
+    else:
+      shutil.rmtree(nrtIndexPath)
 
-  # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  bigIndexPath, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, "big index (fast)", fastIndexBig, "fastIndexBigDocs.log")
-  message("bigIndexAtClose %s" % atClose)
-  shutil.rmtree(bigIndexPath)
+    # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
+    bigIndexPath, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, "big index (fast)", fastIndexBig, "fastIndexBigDocs.log")
+    message("bigIndexAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "big index (fast)" at {bigIndexPath}')
+    else:
+      shutil.rmtree(bigIndexPath)
 
   # 5: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
   # TODO: switch to concurrent yet deterministic indexer: https://markmail.org/thread/cp6jpjuowbhni6xc
-  indexPathNow, ign, ign, atClose, profilerSearchIndex, profilerSearchJFR = buildIndex(r, runLogDir, "search index (fixed segments)", index, "fixedIndex.log")
+  indexPathNow, fixedIndexTime, fixedIndexBytesIndexed, atClose, profilerSearchIndex, profilerSearchJFR = buildIndex(r, runLogDir, "search index (fixed segments)", index, "fixedIndex.log")
   message("fixedIndexAtClose %s" % atClose)
   fixedIndexAtClose = atClose
 
   indexPathPrev = "%s/trunk.nightly.index.prev" % constants.INDEX_DIR_BASE
-
-  if os.path.exists(indexPathPrev) and os.path.exists(benchUtil.nameToIndexPath(index.getName())):
+  indexCurPath = benchUtil.nameToIndexPath(index.getName())
+  if os.path.exists(indexPathPrev) and os.path.exists(indexCurPath):
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
-    segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.getName()))
+    segCountNow = benchUtil.getSegmentCount(indexCurPath)
     if segCountNow != segCountPrev:
-      # raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
-      print("WARNING: different index segment count prev=%s now=%s" % (segCountPrev, segCountNow))
+      raise RuntimeError("different index segment count prev=%s now=%s" % (segCountPrev, segCountNow))
+      # print("WARNING: different index segment count prev=%s now=%s" % (segCountPrev, segCountNow))
 
   # Search
   rand = random.Random(714)
@@ -723,7 +794,7 @@ def run():
     topProcess.stop()
 
   else:
-    resultsNow = ["%s/%s/modules/benchmark/%s.%s.x.%d" % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in range(20)]
+    resultsNow = ["%s/%s/modules/benchmark/%s.%s.x.%d" % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in range(JVM_COUNT)]
   message("done search (%s)" % (now() - t0))
   resultsPrev = []
 
@@ -953,6 +1024,8 @@ def run():
     closedPRCount,
     medQuantizedVectorsIndexTime,
     medQuantizedVectorsBytesIndexed,
+    fixedIndexTime,
+    fixedIndexBytesIndexed,
   )
 
   for fname in resultsNow:
@@ -966,10 +1039,11 @@ def run():
 
     if not DEBUG:
       # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
-      if os.path.exists(indexPathNow):
-        if os.path.exists(indexPathPrev):
-          shutil.rmtree(indexPathPrev)
-        os.rename(indexPathNow, indexPathPrev)
+      if not REUSE_NIGHTLY_INDICES:
+        if os.path.exists(indexPathNow):
+          if os.path.exists(indexPathPrev):
+            shutil.rmtree(indexPathPrev)
+          os.rename(indexPathNow, indexPathPrev)
 
     os.chdir(runLogDir)
     # tar/bz2 log files, but not results files from separate benchmarks (e.g. stored fields):
@@ -1224,6 +1298,11 @@ def makeGraphs():
             # TODO: why does this happen!?
             cat = str(cat, "utf-8")
 
+          if cat == "CombinedHighHigh":
+            cat = "CombinedOrHighHigh"
+          if cat == "CombinedHighMed":
+            cat = "CombinedOrHighMed"
+
           if cat not in searchChartData:
             searchChartData[cat] = ["Date,QPS"]
           if cat == "PKLookup":
@@ -1247,7 +1326,7 @@ def makeGraphs():
             if date in ("06/09/2014", "06/10/2014"):
               # Bug in luceneutil (didn't index numeric field properly)
               continue
-          if cat in ("CombinedTerm", "CombinedHighMed", "CombinedHighHigh") and timeStamp < datetime.datetime(2022, 10, 19):
+          if cat in ("CombinedTerm", "CombinedOrHighMed", "CombinedOrHighHigh") and timeStamp < datetime.datetime(2022, 10, 19):
             # prior to this date these tasks were matching 0 docs, causing an fake 1000X slowdown!
             # see https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8
             continue

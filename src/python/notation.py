@@ -579,7 +579,7 @@ KNOWN_CHANGES = [
     "2024-11-18",
     "Improve how luceneutil parses combined field queries, and create separate tasks for Or/And: https://github.com/mikemccand/luceneutil/pull/318",
     "Improve how luceneutil parses combined field queries, and create separate tasks for Or/And: https://github.com/mikemccand/luceneutil/pull/318",
-  ),    
+  ),
   (
     "2024-11-22",
     "Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003",
@@ -864,10 +864,10 @@ KNOWN_CHANGES = [
     "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
   ),
   (
-     "2026-01-29",
-     "whole system upgrade, including kernel, somehow causing massive slowdown https://github.com/apache/lucene/issues/15662",
-     "whole system upgrade, including kernel, somehow causing massive slowdown https://github.com/apache/lucene/issues/15662",
-   ),
+    "2026-01-29",
+    "whole system upgrade, including kernel, somehow causing massive slowdown https://github.com/apache/lucene/issues/15662",
+    "whole system upgrade, including kernel, somehow causing massive slowdown https://github.com/apache/lucene/issues/15662",
+  ),
   (
     "2026-02-04",
     "One off benchmark with downgraded (from 6.18.7-arch1-1 to fallback LTS kernel 6.12.67-1-lts #1 SMP PREEMPT_DYNAMIC) attempting to root-cause https://github.com/apache/lucene/issues/15662",

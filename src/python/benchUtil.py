@@ -948,7 +948,7 @@ class RunAlgs:
       return fullIndexPath
     if index.doUpdate:
       if not os.path.exists(fullIndexPath):
-        raise RuntimeError("index path does not exists: %s" % fullIndexPath)
+        raise RuntimeError("index path does not exist: %s" % fullIndexPath)
       print("  %s: now update" % fullIndexPath)
     else:
       print("  %s: now create" % fullIndexPath)
@@ -1210,14 +1210,17 @@ class RunAlgs:
       command += [PERF_EXE, "stat", "-dd"]
     command += c.javaCommand.split()
 
-    # 77: always enable Java Flight Recorder profiling
-    command += [
-      f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
-      "-XX:+UnlockDiagnosticVMOptions",
-      "-XX:+DebugNonSafepoints",
-      # uncomment the line below to enable remote debugging
-      # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
-    ]
+    # TODO: re-enable?  we found during horror-massive-benchy-slowdown Feb 2026 that this was adding surprisingly non-trivial cost
+    # see https://github.com/apache/lucene/issues/15662
+    if False:
+      # 77: always enable Java Flight Recorder profiling
+      command += [
+        f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
+        "-XX:+UnlockDiagnosticVMOptions",
+        "-XX:+DebugNonSafepoints",
+        # uncomment the line below to enable remote debugging
+        # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
+      ]
 
     w = lambda *xs: [command.append(str(x)) for x in xs]
     w("-classpath", cp)

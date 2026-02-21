@@ -24,12 +24,22 @@ import random
 import re
 import shutil
 import smtplib
+import ssl
 import subprocess
 import sys
 import tarfile
 import time
 import traceback
 import urllib.request
+
+# Configure SSL context for HTTPS requests
+try:
+  import certifi
+
+  ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+  # Fall back to system certificates if certifi is not available
+  pass
 
 # local imports:
 import benchUtil
@@ -66,7 +76,13 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 #     - chart over-time mean/stddev reopen time
 #   - maybe multiple queries on one graph...?
 
-DEBUG = "-debug" in sys.argv
+# Will be set by parse_args() at runtime
+DEBUG = False
+DO_RESET_FLAG = False
+
+# Set JAVA_HOME from localconstants.py so Gradle uses the correct Java version (if not already set)
+if constants.JAVA_HOME and "JAVA_HOME" not in os.environ:
+  os.environ["JAVA_HOME"] = constants.JAVA_HOME
 
 # NOTE: invented for debugging massive horror-regression 1/29/2026!  due to CPU governor changing, combined with too old BIOS
 # that that different governor failed to successfully interact with, causing fallback to absurdly-slow-but-for-sure-save CPU clocks
@@ -337,13 +353,13 @@ def run():
 
   if DEBUG:
     # Must re-direct all logs/results/reports so we don't overwrite the "production" run's logs:
-    constants.LOGS_DIR = "/l/trunk/lucene/benchmark"
+    constants.LOGS_DIR = f"{constants.BASE_DIR}/logs.debug"
     constants.NIGHTLY_LOG_DIR = f"{constants.BASE_DIR}/logs.debug"
     constants.NIGHTLY_REPORTS_DIR = f"{constants.BASE_DIR}/reports.debug"
     MEDIUM_INDEX_NUM_DOCS //= 100
     BIG_INDEX_NUM_DOCS //= 100
 
-  DO_RESET = "-reset" in sys.argv
+  DO_RESET = DO_RESET_FLAG
   if DO_RESET:
     print("will regold results files (command line specified)")
 
@@ -827,9 +843,25 @@ def run():
       os.mkdir(subDirName)
       print(f"  {subDirName}")
       # TODO: optimize to single shared copy!
-      shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", subDirName)
+      # Try common gnuplot paths - production uses 6.0, some systems have 4.6
+      gnuplot_js_paths = [
+        "/usr/share/gnuplot/6.0/js/gnuplot_svg.js",
+        "/usr/share/gnuplot/4.6/js/gnuplot_svg.js",
+        "/usr/share/gnuplot/gnuplot_svg.js",
+      ]
+      gnuplot_js_found = False
+      for gnuplot_js_path in gnuplot_js_paths:
+        if os.path.exists(gnuplot_js_path):
+          shutil.copy(gnuplot_js_path, subDirName)
+          gnuplot_js_found = True
+          break
+      if not gnuplot_js_found:
+        print("Warning: gnuplot_svg.js not found, skipping visualization")
       shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{subDirName}/index.html")
-      subprocess.check_call(f"gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstatLogFileName} {prefix}", shell=True)
+      try:
+        subprocess.check_call(f"gnuplot -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstatLogFileName} {prefix}", shell=True)
+      except (subprocess.CalledProcessError, FileNotFoundError):
+        print("Warning: gnuplot not available, skipping vmstat visualization")
 
   with open("%s/%s.html" % (constants.NIGHTLY_REPORTS_DIR, timeStamp), "w") as f:
     timeStamp2 = "%s %02d/%02d/%04d" % (start.strftime("%a"), start.month, start.day, start.year)
@@ -2174,6 +2206,13 @@ def getLabel(label):
 
 
 def sendEmail(toEmailAddr, subject, messageText):
+  # Allow disabling email notifications via constants
+  if hasattr(constants, "NIGHTLY_EMAIL_ENABLED") and not constants.NIGHTLY_EMAIL_ENABLED:
+    return
+
+  # Use configurable email addresses from constants
+  from_email = getattr(constants, "NIGHTLY_FROM_EMAIL", "mail@mikemccandless.com")
+
   try:
     import localpass
 
@@ -2189,27 +2228,58 @@ def sendEmail(toEmailAddr, subject, messageText):
     smtp.starttls()
     smtp.ehlo(FROM_EMAIL)
     localpass.smtplogin(smtp)
-    msg = "From: %s\r\n" % "mail@mikemccandless.com"
+    msg = "From: %s\r\n" % from_email
     msg += "To: %s\r\n" % toEmailAddr
     msg += "Subject: %s\r\n" % subject
     msg += "\r\n"
-    smtp.sendmail("mail@mikemccandless.com", toEmailAddr.split(","), msg)
+    smtp.sendmail(from_email, toEmailAddr.split(","), msg)
     smtp.quit()
   else:
     from email.mime.text import MIMEText
     from subprocess import PIPE, Popen
 
     msg = MIMEText(messageText)
-    msg["From"] = "mail@mikemccandless.com"
+    msg["From"] = from_email
     msg["To"] = toEmailAddr
     msg["Subject"] = subject
     p = Popen(["/usr/sbin/sendmail", "-t"], stdin=PIPE)
-    p.communicate(msg.as_string())
+    p.communicate(msg.as_string().encode("utf-8"))
+
+
+def parse_args():
+  import argparse
+
+  parser = argparse.ArgumentParser(
+    description="Nightly Lucene benchmark runner. Runs indexing and search benchmarks, generates performance graphs over time.",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="""
+Examples:
+  %(prog)s                     # Only regenerate graphs from existing data
+  %(prog)s -run                # Run full benchmark and generate graphs
+  %(prog)s -run -debug         # Run quick debug benchmark (smaller indexes)
+  %(prog)s -run -reset         # Run benchmark and reset baseline results
+  %(prog)s -run -debug -reset  # Debug run with baseline reset
+    """,
+  )
+  parser.add_argument("-run", action="store_true", help="Execute the benchmark run. Without this flag, only graphs are regenerated from existing data.")
+  parser.add_argument(
+    "-debug",
+    action="store_true",
+    help="Run in debug mode: uses smaller indexes (1/100th size), fewer JVM iterations (3 instead of 20), shorter NRT run time, and redirects logs to logs.debug/ directory.",
+  )
+  parser.add_argument("-reset", action="store_true", help="Regold/reset the baseline results files instead of comparing against previous runs.")
+  return parser.parse_args()
 
 
 if __name__ == "__main__":
+  args = parse_args()
+
+  # Update global flags based on parsed arguments
+  DEBUG = args.debug
+  DO_RESET_FLAG = args.reset
+
   try:
-    if "-run" in sys.argv:
+    if args.run:
       run()
     makeGraphs()
   except:
@@ -2217,7 +2287,7 @@ if __name__ == "__main__":
     if not DEBUG and REAL:
       import socket
 
-      sendEmail("mail@mikemccandless.com", "Nightly Lucene bench FAILED (%s)" % socket.gethostname(), "")
+      sendEmail(getattr(constants, "NIGHTLY_TO_EMAIL", "mail@mikemccandless.com"), "Nightly Lucene bench FAILED (%s)" % socket.gethostname(), "")
 
 # scp -rp /lucene/reports.nightly mike@10.17.4.9:/usr/local/apache2/htdocs
 

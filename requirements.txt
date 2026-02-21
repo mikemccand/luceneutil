@@ -18,6 +18,9 @@ iso8601==2.1.0
 # used by indexosm
 rtree==1.4.0
 
+# used by nightlyBench for HTTPS requests (blunders.io, github.com)
+certifi==2025.1.31
+
 # linter and formatter
 ruff==0.11.6
 # type checker

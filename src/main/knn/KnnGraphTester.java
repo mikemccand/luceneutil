@@ -86,6 +86,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.FilterDocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
@@ -2115,9 +2116,16 @@ public class KnnGraphTester implements FormatterLogger {
 
   private static class BitSetQuery extends Query {
     private final BitSet[] segmentDocs;
+    private final int[] cardinalities;
+    private final int hash;
 
     BitSetQuery(BitSet[] segmentDocs) {
       this.segmentDocs = segmentDocs;
+      this.cardinalities = new int[segmentDocs.length];
+      for (int i = 0; i < segmentDocs.length; i++) {
+        cardinalities[i] = segmentDocs[i].cardinality();
+      }
+      this.hash = Arrays.hashCode(segmentDocs);
     }
 
     @Override
@@ -2125,8 +2133,12 @@ public class KnnGraphTester implements FormatterLogger {
       return new ConstantScoreWeight(this, boost) {
         public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
           var bitSet = segmentDocs[context.ord];
-          var cardinality = bitSet.cardinality();
-          var scorer = new ConstantScoreScorer(score(), scoreMode, new BitSetIterator(bitSet, cardinality));
+          var cardinality = cardinalities[context.ord];
+          var scorer = new ConstantScoreScorer(
+            score(),
+            scoreMode,
+            // wrap it to simulate a more realistic query that must iterate its docs
+            new FilterDocIdSetIterator(new BitSetIterator(bitSet, cardinality)));
           return new ScorerSupplier() {
             @Override
             public Scorer get(long leadCost) throws IOException {
@@ -2163,7 +2175,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     public int hashCode() {
-      return 31 * classHash() + Arrays.hashCode(segmentDocs);
+      return 31 * classHash() + hash;
     }
   }
 }

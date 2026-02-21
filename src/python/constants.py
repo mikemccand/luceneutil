@@ -49,12 +49,27 @@ VECTORS_WORD_TOK_FILE = "%s/data/enwiki-20120502-mpnet.tok" % BASE_DIR
 VECTORS_WORD_VEC_FILE = "%s/data/enwiki-20120502-mpnet.vec" % BASE_DIR
 
 # the pre-computed "line docs file" like version for vectors:
-VECTORS_DOCS_FILE = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
+# Prefer Cohere v3 vectors (1024d); fall back to mpnet (768d) if unavailable
+_cohere_v3_docs = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+_mpnet_docs = "%s/data/enwiki-20120502-lines-1k-mpnet.vec" % BASE_DIR
+
+if os.path.exists(_cohere_v3_docs):
+  VECTORS_DOCS_FILE = _cohere_v3_docs
+  VECTORS_DIMENSIONS = 1024
+elif os.path.exists(_mpnet_docs):
+  print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
+  VECTORS_DOCS_FILE = _mpnet_docs
+  VECTORS_DIMENSIONS = 768
+else:
+  print(f"WARNING: Cohere v3 vectors {_cohere_v3_docs} does not exist; falling back to mpnet")
+  print(f"WARNING: mpnet vectors {_mpnet_docs} also does not exist; vector benchmarks may fail")
+  VECTORS_DOCS_FILE = _cohere_v3_docs  # default to cohere path so downstream errors are clear
+  VECTORS_DIMENSIONS = 1024
+
+VECTORS_QUERY_FILE = VECTORS_DOCS_FILE  # Use same file for queries in nightly bench
 
 # VECTORS_TYPE = 'FLOAT8'
 VECTORS_TYPE = "FLOAT32"
-
-VECTORS_DIMENSIONS = 768
 
 # WIKI_MEDIUM_TASKS_10MDOCS_FILE = '%s/tasks/wikimedium.10M.tasks' % BENCH_BASE_DIR
 WIKI_MEDIUM_TASKS_10MDOCS_FILE = "%s/tasks/wikimedium.10M.nostopwords.tasks" % BENCH_BASE_DIR
@@ -71,8 +86,8 @@ DISJUNCTION_INTENSIVE_TASKS_FILE = "%s/tasks/disjunctionIntensive.tasks" % BENCH
 COMBINED_FIELDS_TASKS_FILE = "%s/tasks/combinedfields.tasks" % BENCH_BASE_DIR
 COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = "%s/tasks/combinedfields.unevenlyweighted.tasks" % BENCH_BASE_DIR
 
-# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-with-random-label.txt.lzma
-WIKI_BIG_DOCS_LINE_FILE = "%s/data/enwiki-20120502-lines-with-random-label.txt" % BASE_DIR
+# wget https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma"
+WIKI_BIG_DOCS_LINE_FILE = "%s/data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt" % BASE_DIR
 # WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
 
 # 33332620 docs in enwiki-20120502-lines-1k.txt'
@@ -124,6 +139,7 @@ INDEX_NUM_THREADS = 1
 SEARCH_NUM_CONCURRENT_QUERIES = max(2, int(multiprocessing.cpu_count() / 3))
 
 # geonames: http://download.geonames.org/export/dump/
+GEONAMES_LINE_FILE_DOCS = "%s/data/allCountries.txt" % BASE_DIR  # runStoredFieldsBenchmark uses this corpus.
 
 REPRO_COMMAND_START = "python -u %s/repeatLuceneTest.py -once -verbose -nolog" % BENCH_BASE_DIR
 REPRO_COMMAND_END = ""
@@ -177,7 +193,42 @@ PERF_STATS = (
   "stalled-cycles-backend",
 )
 
+##################################################################################################
+#  The section below is only required for running nighly benchmakrs (nightlyBench.py).
+##################################################################################################
+
 NIGHTLY_REPORTS_DIR = "%s/reports.nightly" % BASE_DIR
+NIGHTLY_LOG_DIR = "%s/logs.nightly" % BASE_DIR
+
+# Email notification settings for nightly benchmark
+# Set NIGHTLY_EMAIL_ENABLED = False in localconstants.py to disable emails
+# NIGHTLY_EMAIL_ENABLED = True
+# NIGHTLY_FROM_EMAIL = 'your-email@example.com'
+# NIGHTLY_TO_EMAIL = 'your-email@example.com'
+
+# Nightly benchmark document counts
+NIGHTLY_MEDIUM_INDEX_NUM_DOCS = 999000  # 999K docs (stay under 1M vector limit to avoid reader thread EOF)
+NIGHTLY_BIG_INDEX_NUM_DOCS = 33000000  # 33M docs
+
+# HNSW vector search configuration
+# TODO: rename HNSW_THREADS_* to NIGHTLY_HNSW_THREADS_* for clarity
+HNSW_THREADS_PER_MERGE = 1
+HNSW_THREAD_POOL_COUNT = 1
+
+# Nightly KNN benchmark vector files (Cohere v3 Wikipedia embeddings)
+# The "first1M" files are downloaded by initial_setup.py -download
+# For full 8M vector benchmarks, download from: https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings
+# and use load_cohere_v3.py to generate the full .vec files
+# Cohere v3, switched Dec 7 2025:
+NIGHTLY_KNN_INDEX_VECTORS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec" % BASE_DIR
+NIGHTLY_KNN_SEARCH_VECTORS_FILE = "%s/data/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec" % BASE_DIR
+NIGHTLY_KNN_VECTORS_DIM = 1024
+NIGHTLY_KNN_REPORTS_DIR = "%s/reports.nightly" % BASE_DIR
+
+# Nightly benchmark data files
+NIGHTLY_MEDIUM_LINE_FILE = WIKI_MEDIUM_DOCS_LINE_FILE
+NIGHTLY_BIG_LINE_FILE = WIKI_BIG_DOCS_LINE_FILE
+WIKI_MEDIUM_TASKS_FILE = WIKI_MEDIUM_TASKS_ALL_FILE
 
 PROCESSOR_COUNT = 12
 

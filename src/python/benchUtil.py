@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import datetime
+import json
 import math
 import os
 import pickle
@@ -943,9 +944,20 @@ class RunAlgs:
       profilerStackSize = (profilerStackSize,)
 
     fullIndexPath = nameToIndexPath(index.getName())
+
+    # Get current config for this index
+    current_config = get_index_config(index)
+
     if os.path.exists(fullIndexPath) and not index.doUpdate:
-      print("  %s: already exists" % fullIndexPath)
-      return fullIndexPath
+      # Check if we can reuse the existing index
+      can_reuse, reason = can_reuse_index(fullIndexPath, current_config)
+      if can_reuse:
+        print("  %s: already exists with matching config" % fullIndexPath)
+        return fullIndexPath
+      else:
+        print("  %s: exists but cannot reuse: %s" % (fullIndexPath, reason))
+        print("  removing old index and reindexing...")
+        shutil.rmtree(fullIndexPath)
     if index.doUpdate:
       if not os.path.exists(fullIndexPath):
         raise RuntimeError("index path does not exist: %s" % fullIndexPath)
@@ -1103,6 +1115,9 @@ class RunAlgs:
       if os.path.exists(fullIndexPath):
         shutil.rmtree(fullIndexPath)
       raise
+
+    # After successful indexing, write the config file
+    write_index_config(fullIndexPath, current_config)
 
     profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize)
 
@@ -1955,3 +1970,59 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       print(output)
       profilerResults.append((mode, stackSize, output))
   return profilerResults
+
+
+def get_index_config(index):
+  """Generate a dict of all config parameters that affect index creation."""
+  config = {
+    "dataSource": index.dataSource.name,
+    "numDocs": index.numDocs,
+    "optimize": index.optimize,
+    "useCFS": index.useCFS,
+    "postingsFormat": index.postingsFormat,
+    "idFieldPostingsFormat": index.idFieldPostingsFormat,
+    "bodyTermVectors": index.bodyTermVectors,
+    "bodyStoredFields": index.bodyStoredFields,
+    "bodyPostingsOffsets": index.bodyPostingsOffsets,
+    "addDVFields": index.addDVFields,
+    "indexSort": index.indexSort,
+  }
+  if index.facets is not None:
+    config["facets"] = [arg[0] for arg in index.facets]
+    config["facetDVFormat"] = index.facetDVFormat
+  if index.vectorFile:
+    config["vectorFile"] = index.vectorFile
+    config["vectorDimension"] = index.vectorDimension
+    config["quantizeKNNGraph"] = index.quantizeKNNGraph
+  return config
+
+
+def write_index_config(index_path, config):
+  """Write index config to metadata file."""
+  config_path = os.path.join(index_path, "index-config.json")
+  with open(config_path, "w") as f:
+    json.dump(config, f, indent=2, sort_keys=True)
+
+
+def read_index_config(index_path):
+  """Read index config from metadata file, returns None if not found."""
+  config_path = os.path.join(index_path, "index-config.json")
+  if not os.path.exists(config_path):
+    return None
+  with open(config_path, "r") as f:
+    return json.load(f)
+
+
+def can_reuse_index(index_path, current_config):
+  """Check if existing index can be reused with current config."""
+  if not os.path.exists(index_path):
+    return False, "index does not exist"
+
+  prev_config = read_index_config(index_path)
+  if prev_config is None:
+    return False, "index config file does not exist"
+
+  if prev_config != current_config:
+    return False, f"config changed:\n  old: {prev_config}\n  new: {current_config}"
+
+  return True, None

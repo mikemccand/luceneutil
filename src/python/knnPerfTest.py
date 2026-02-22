@@ -10,6 +10,7 @@
 #   - hmm how come so much faster to compute exact NN at queryStartIndex=0 than 10000, 20000?  60 sec vs ~470 sec!?
 #     - not always the first run!  sometimes 2nd run is super-fast
 
+import asyncio
 import argparse
 import math
 import multiprocessing
@@ -24,6 +25,7 @@ import struct
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import autologger
@@ -181,6 +183,7 @@ def advance(ix, values):
 _SPARK_CHARS = ' ▁▂▃▄▅▆▇█'
 _NUM_SPARK_BINS = 20
 _NUM_DIM_SAMPLE_VECS = 2000
+_NUM_IO_WORKERS = 32
 _THRESH_CONSTANT_STD = 1e-6
 _THRESH_SPARSE_PCT_ZEROS = 0.50
 _THRESH_SKEWED_ABS = 1.0
@@ -213,25 +216,45 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   )
 
 
+async def _read_vectors_async(file_name, sample_indices, vec_size_bytes, samples):
+  """issues all vector reads concurrently via a thread pool, printing progress as reads complete."""
+  loop = asyncio.get_running_loop()
+  total = len(sample_indices)
+  completed = 0
+
+  def _read_one(i, vec_idx):
+    with open(file_name, 'rb') as f:
+      f.seek(vec_idx * vec_size_bytes)
+      return i, np.frombuffer(f.read(vec_size_bytes), dtype='<f4').copy()
+
+  with ThreadPoolExecutor(max_workers=_NUM_IO_WORKERS) as executor:
+    futs = [
+      loop.run_in_executor(executor, _read_one, i, vec_idx)
+      for i, vec_idx in enumerate(sample_indices)
+    ]
+    for coro in asyncio.as_completed(futs):
+      i, data = await coro
+      samples[i] = data
+      completed += 1
+      if completed % max(1, total // 20) == 0 or completed == total:
+        print(f'\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%)', end='', flush=True)
+
+  print()
+
+
 def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   """samples vectors and computes per-dim statistics to detect degenerate dimensions."""
   if num_vectors == 0:
     return
 
   num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
-  # evenly-spaced stride so reads are forward-only (no random seeking in large files)
-  stride = max(1, num_vectors // num_sample)
-  sample_indices = range(0, num_vectors, stride)
-  num_sample = len(sample_indices)
+  sample_indices = random.sample(range(num_vectors), num_sample)
 
-  print(f'smell: sampling {num_sample} of {num_vectors} vectors (stride={stride}) for per-dim distribution...')
+  print(f'smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...')
 
-  # load all sampled vectors into a (num_sample, dim) float32 array in one shot
+  # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
-  with open(file_name, 'rb') as f:
-    for i, vec_idx in enumerate(sample_indices):
-      f.seek(vec_idx * vec_size_bytes)
-      samples[i] = np.frombuffer(f.read(vec_size_bytes), dtype='<f4')
+  asyncio.run(_read_vectors_async(file_name, sample_indices, vec_size_bytes, samples))
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)

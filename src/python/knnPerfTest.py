@@ -216,7 +216,7 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   )
 
 
-async def _read_vectors_async(file_name, sample_indices, vec_size_bytes, samples):
+async def _read_vectors_async(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
   """issues all vector reads concurrently via a thread pool, printing progress as reads complete."""
   loop = asyncio.get_running_loop()
   total = len(sample_indices)
@@ -237,7 +237,8 @@ async def _read_vectors_async(file_name, sample_indices, vec_size_bytes, samples
       samples[i] = data
       completed += 1
       if completed % max(1, total // 20) == 0 or completed == total:
-        print(f'\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%)', end='', flush=True)
+        elapsed_sec = time.monotonic() - t0_sec
+        print(f'\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s', end='', flush=True)
 
   print()
 
@@ -254,7 +255,8 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
 
   # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
-  asyncio.run(_read_vectors_async(file_name, sample_indices, vec_size_bytes, samples))
+  t0_sec = time.monotonic()
+  asyncio.run(_read_vectors_async(file_name, sample_indices, vec_size_bytes, samples, t0_sec))
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)
@@ -316,12 +318,13 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   max_label_len = max((len(','.join(lbs)) for lbs in dim_labels), default=0)
   bad_dims = [d for d in range(dim) if len(dim_labels[d]) > 0]
 
+  elapsed_sec = time.monotonic() - t0_sec
   if bad_dims:
-    print(f'smell: {len(bad_dims)} degenerate dim(s) found:')
+    print(f'smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:')
     for d in bad_dims:
       _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
   else:
-    print('smell: no degenerate dims found')
+    print(f'smell: no degenerate dims found in {elapsed_sec:.1f}s')
 
   print(f'smell: all {dim} dims:')
   for d in range(dim):

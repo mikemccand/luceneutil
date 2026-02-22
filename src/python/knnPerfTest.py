@@ -306,7 +306,7 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_se
   print()
 
 
-def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, do_check_norms):
+def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   """samples vectors and computes per-dim statistics to detect degenerate dimensions."""
   if num_vectors == 0:
     return
@@ -326,19 +326,18 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, do_che
   else:
     raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
 
-  if do_check_norms:
-    # check norms of all sampled vectors using vectorized numpy
-    # axis=1 computes norm for each vector (row)
-    norms = np.linalg.norm(samples, axis=1)
-    # find indices where norm is not close to 1.0
-    is_not_norm = np.isclose(norms, 1.0, rtol=0.0001, atol=0.0001) == False
-    not_norm_indices = np.where(is_not_norm)[0]
+  # check norms of all sampled vectors using vectorized numpy
+  # axis=1 computes norm for each vector (row)
+  norms = np.linalg.norm(samples, axis=1)
+  # find indices where norm is not close to 1.0
+  is_not_norm = np.isclose(norms, 1.0, rtol=0.0001, atol=0.0001) == False
+  not_norm_indices = np.where(is_not_norm)[0]
 
-    if len(not_norm_indices) > 0:
-      for idx in not_norm_indices:
-        vec_idx = sample_indices[idx]
-        print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norms[idx]} (not normalized)')
-      print(f'WARNING: dimension or vector file name might be wrong?  {len(not_norm_indices)} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
+  if len(not_norm_indices) > 0:
+    for idx in not_norm_indices:
+      vec_idx = sample_indices[idx]
+      print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norms[idx]} (not normalized)')
+    print(f'WARNING: dimension or vector file name might be wrong?  {len(not_norm_indices)} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)
@@ -413,7 +412,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, do_che
     _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
 
 
-def smell_vectors(dim, file_name, do_check_norms=True):
+def smell_vectors(dim, file_name):
   """Runs some simple sanity checks on the vector source file, because we don't store any
   self-describing metadata in the .vec source file.
   """
@@ -429,7 +428,7 @@ def smell_vectors(dim, file_name, do_check_norms=True):
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
 
-  _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, do_check_norms)
+  _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
 
 
 def get_unique_log_name(log_path, sub_tool):
@@ -1164,8 +1163,6 @@ def run_knn_benchmark(checkout, values, log_path):
   # doc_vectors = "%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec" % constants.BASE_DIR
   # query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
 
-  do_check_norms = True
-
   # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
   v3 = True
 
@@ -1221,8 +1218,8 @@ def run_knn_benchmark(checkout, values, log_path):
   if NOISY:
     print("smell vectors...")
 
-  smell_vectors(dim, doc_vectors, do_check_norms)
-  smell_vectors(dim, query_vectors, do_check_norms)
+  smell_vectors(dim, doc_vectors)
+  smell_vectors(dim, query_vectors)
 
   index_run = 1
   all_results = []

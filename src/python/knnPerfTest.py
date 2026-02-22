@@ -10,7 +10,6 @@
 #   - hmm how come so much faster to compute exact NN at queryStartIndex=0 than 10000, 20000?  60 sec vs ~470 sec!?
 #     - not always the first run!  sometimes 2nd run is super-fast
 
-import asyncio
 import argparse
 import math
 import multiprocessing
@@ -25,7 +24,6 @@ import struct
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import autologger
@@ -183,7 +181,6 @@ def advance(ix, values):
 _SPARK_CHARS = ' ▁▂▃▄▅▆▇█'
 _NUM_SPARK_BINS = 20
 _NUM_DIM_SAMPLE_VECS = 2000
-_NUM_IO_WORKERS = 32
 _THRESH_CONSTANT_STD = 1e-6
 _THRESH_SPARSE_PCT_ZEROS = 0.50
 _THRESH_SKEWED_ABS = 1.0
@@ -216,29 +213,28 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   )
 
 
-async def _read_vectors_async(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
-  """issues all vector reads concurrently via a thread pool, printing progress as reads complete."""
-  loop = asyncio.get_running_loop()
+def _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
+  """Issues all vector reads concurrently via posix_fadvise (hinting to kernel), then reads sequentially.
+
+  This avoids heavy threads and multiple file opens, while still getting OS-level concurrency
+  from the read-ahead mechanism triggered by POSIX_FADV_WILLNEED.
+  """
   total = len(sample_indices)
   completed = 0
+  with open(file_name, "rb") as f:
+    fd = f.fileno()
 
-  def _read_one(i, vec_idx):
-    with open(file_name, 'rb') as f:
-      f.seek(vec_idx * vec_size_bytes)
-      return i, np.frombuffer(f.read(vec_size_bytes), dtype='<f4').copy()
+    # concurrently send all 2000 requests to the OS as hints
+    for vec_idx in sample_indices:
+      os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
 
-  with ThreadPoolExecutor(max_workers=_NUM_IO_WORKERS) as executor:
-    futs = [
-      loop.run_in_executor(executor, _read_one, i, vec_idx)
-      for i, vec_idx in enumerate(sample_indices)
-    ]
-    for coro in asyncio.as_completed(futs):
-      i, data = await coro
-      samples[i] = data
+    # now read them; they should be pre-fetched by the kernel
+    for i, vec_idx in enumerate(sample_indices):
+      samples[i] = np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
       completed += 1
       if completed % max(1, total // 20) == 0 or completed == total:
         elapsed_sec = time.monotonic() - t0_sec
-        print(f'\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s', end='', flush=True)
+        print(f"\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
 
   print()
 
@@ -256,7 +252,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
   t0_sec = time.monotonic()
-  asyncio.run(_read_vectors_async(file_name, sample_indices, vec_size_bytes, samples, t0_sec))
+  _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec)
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)

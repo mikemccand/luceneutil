@@ -306,7 +306,7 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_se
   print()
 
 
-def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
+def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, do_check_norms):
   """samples vectors and computes per-dim statistics to detect degenerate dimensions."""
   if num_vectors == 0:
     return
@@ -314,7 +314,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
   sample_indices = random.sample(range(num_vectors), num_sample)
 
-  print(f'smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...')
+  print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
 
   # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
@@ -326,17 +326,31 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   else:
     raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
 
+  if do_check_norms:
+    # check norms of all sampled vectors using vectorized numpy
+    # axis=1 computes norm for each vector (row)
+    norms = np.linalg.norm(samples, axis=1)
+    # find indices where norm is not close to 1.0
+    is_not_norm = np.isclose(norms, 1.0, rtol=0.0001, atol=0.0001) == False
+    not_norm_indices = np.where(is_not_norm)[0]
+
+    if len(not_norm_indices) > 0:
+      for idx in not_norm_indices:
+        vec_idx = sample_indices[idx]
+        print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norms[idx]} (not normalized)')
+      print(f'WARNING: dimension or vector file name might be wrong?  {len(not_norm_indices)} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
+
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)
   std = samples.std(axis=0)
   pct_zeros = (samples == 0.0).mean(axis=0)
 
   centered = samples - mean
-  m3 = (centered ** 3).mean(axis=0)
-  m4 = (centered ** 4).mean(axis=0)
-  with np.errstate(invalid='ignore', divide='ignore'):
-    skewness = m3 / std ** 3
-    excess_kurtosis = m4 / std ** 4 - 3.0
+  m3 = (centered**3).mean(axis=0)
+  m4 = (centered**4).mean(axis=0)
+  with np.errstate(invalid="ignore", divide="ignore"):
+    skewness = m3 / std**3
+    excess_kurtosis = m4 / std**4 - 3.0
   # zero out stats that are undefined for constant dims
   non_const = std > _THRESH_CONSTANT_STD
   skewness = np.where(non_const, skewness, 0.0)
@@ -363,38 +377,38 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
     labels = []
 
     if std[d] <= _THRESH_CONSTANT_STD:
-      labels.append('CONSTANT')
+      labels.append("CONSTANT")
 
     if pct_zeros[d] > _THRESH_SPARSE_PCT_ZEROS:
-      labels.append('SPARSE')
+      labels.append("SPARSE")
 
     if non_const[d]:
       if abs(skewness[d]) > _THRESH_SKEWED_ABS:
-        labels.append('SKEWED')
+        labels.append("SKEWED")
       if excess_kurtosis[d] > _THRESH_HEAVY_TAILS_KURTOSIS:
-        labels.append('HEAVY_TAILS')
+        labels.append("HEAVY_TAILS")
       if excess_kurtosis[d] < _THRESH_FLAT_KURTOSIS:
-        labels.append('FLAT')
+        labels.append("FLAT")
 
     if std_of_stds > 0 and abs(std[d] - mean_of_stds) > _THRESH_OUTLIER_SPREAD_SIGMA * std_of_stds:
-      labels.append('OUTLIER_SPREAD')
+      labels.append("OUTLIER_SPREAD")
 
     dim_labels.append(labels)
 
   # format and print output
   dim_idx_width = len(str(dim - 1))
-  max_label_len = max((len(','.join(lbs)) for lbs in dim_labels), default=0)
+  max_label_len = max((len(",".join(lbs)) for lbs in dim_labels), default=0)
   bad_dims = [d for d in range(dim) if len(dim_labels[d]) > 0]
 
   elapsed_sec = time.monotonic() - t0_sec
   if bad_dims:
-    print(f'smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:')
+    print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
     for d in bad_dims:
       _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
   else:
-    print(f'smell: no degenerate dims found in {elapsed_sec:.1f}s')
+    print(f"smell: no degenerate dims found in {elapsed_sec:.1f}s")
 
-  print(f'smell: all {dim} dims:')
+  print(f"smell: all {dim} dims:")
   for d in range(dim):
     _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
 
@@ -415,42 +429,7 @@ def smell_vectors(dim, file_name, do_check_norms=True):
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
 
-  _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
-
-  if do_check_norms:
-    struct_fmt = f"<{dim}f"
-
-    with open(file_name, "rb") as f:
-      # sanity check
-      t0 = time.time()
-      checked_count = 0
-      not_norm_count = 0
-      for i in range(100):
-        vec_idx = random.randint(0, num_vectors - 1)
-        f.seek(vec_idx * vec_size_bytes)
-        b = f.read(vec_size_bytes)
-        one_vec = struct.unpack(struct_fmt, b)
-
-        sumsq = 0
-        for i, v in enumerate(one_vec):
-          # print(f"  {i:4d}: {v:g}")
-          sumsq += v * v
-        norm_euclidean_length = math.sqrt(sumsq)
-
-        if not math.isclose(norm_euclidean_length, 1.0, rel_tol=0.0001, abs_tol=0.0001):
-          # not normalized
-          print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norm_euclidean_length} (not normalized)')
-          not_norm_count += 1
-
-        t1 = time.time()
-        checked_count += 1
-        # print(f"  {t1-t0:.1f}: vec[vec_idx] length is {norm_euclidean_length}")
-        if t1 - t0 > 1.0 and i >= 10:
-          # spend at most 1 second checking, but check at least 10 vectors
-          break
-
-      if not_norm_count:
-        print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {checked_count} randomly checked vectors are not normalized in "{file_name}"')
+  _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, do_check_norms)
 
 
 def get_unique_log_name(log_path, sub_tool):

@@ -225,6 +225,7 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   )
   print(f"{' ' * len(prefix)}[{top_row}]")
   print(f"{prefix}[{bot_row}]")
+  print()
 
 
 def _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec):

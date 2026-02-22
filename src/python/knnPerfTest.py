@@ -12,6 +12,7 @@
 
 import argparse
 import math
+import mmap
 import multiprocessing
 import numpy as np
 import os
@@ -25,6 +26,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+# toggle between 'pread' and 'mmap' for concurrent random vector reads
+IO_METHOD = "pread"
 
 import autologger
 import benchUtil
@@ -228,12 +232,8 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   print()
 
 
-def _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
-  """Issues all vector reads concurrently via posix_fadvise (hinting to kernel), then reads sequentially.
-
-  This avoids heavy threads and multiple file opens, while still getting OS-level concurrency
-  from the read-ahead mechanism triggered by POSIX_FADV_WILLNEED.
-  """
+def _read_vectors_pread(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
+  """Issues all vector reads concurrently via posix_fadvise (hinting to kernel), then reads sequentially using os.pread."""
   total = len(sample_indices)
   completed = 0
   with open(file_name, "rb") as f:
@@ -254,6 +254,42 @@ def _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
   print()
 
 
+def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
+  """Issues all vector reads concurrently via mmap + madvise (hinting to kernel), then reads from memory."""
+  total = len(sample_indices)
+  completed = 0
+  with open(file_name, "rb") as f:
+    # mmap.PAGESIZE is typically 4096 on Linux
+    pagesize = mmap.PAGESIZE
+    dim = samples.shape[1]
+
+    # map the entire file (it could be large, but it's just address space)
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+
+    try:
+      # concurrently send all 2000 requests to the OS as hints
+      # madvise MADV_WILLNEED requires page-aligned offsets!
+      for vec_idx in sample_indices:
+        offset = vec_idx * vec_size_bytes
+        page_offset = (offset // pagesize) * pagesize
+        length = offset + vec_size_bytes - page_offset
+        mm.madvise(mmap.MADV_WILLNEED, page_offset, length)
+
+      # now read them; they should be pre-fetched by the kernel
+      for i, vec_idx in enumerate(sample_indices):
+        offset = vec_idx * vec_size_bytes
+        # direct view into the mmap, copy it into our samples array
+        samples[i] = np.frombuffer(mm, dtype="<f4", count=dim, offset=offset)
+        completed += 1
+        if completed % max(1, total // 20) == 0 or completed == total:
+          elapsed_sec = time.monotonic() - t0_sec
+          print(f"\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+    finally:
+      mm.close()
+
+  print()
+
+
 def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   """samples vectors and computes per-dim statistics to detect degenerate dimensions."""
   if num_vectors == 0:
@@ -267,7 +303,12 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
   t0_sec = time.monotonic()
-  _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec)
+  if IO_METHOD == "pread":
+    _read_vectors_pread(file_name, sample_indices, vec_size_bytes, samples, t0_sec)
+  elif IO_METHOD == "mmap":
+    _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_sec)
+  else:
+    raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)

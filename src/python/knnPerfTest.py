@@ -219,9 +219,12 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
     return
 
   num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
-  sample_indices = sorted(random.sample(range(num_vectors), num_sample))
+  # evenly-spaced stride so reads are forward-only (no random seeking in large files)
+  stride = max(1, num_vectors // num_sample)
+  sample_indices = range(0, num_vectors, stride)
+  num_sample = len(sample_indices)
 
-  print(f'smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...')
+  print(f'smell: sampling {num_sample} of {num_vectors} vectors (stride={stride}) for per-dim distribution...')
 
   # load all sampled vectors into a (num_sample, dim) float32 array in one shot
   samples = np.empty((num_sample, dim), dtype=np.float32)

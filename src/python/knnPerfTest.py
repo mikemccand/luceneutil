@@ -31,6 +31,24 @@ from pathlib import Path
 IO_METHOD = "pread"
 # IO_METHOD = "mmap"
 
+
+def advise_will_need(file_name):
+  """Proactively hint to the OS to load the entire file into RAM, using the configured IO_METHOD."""
+  if not os.path.exists(file_name):
+    return
+
+  with open(file_name, "rb") as f:
+    if IO_METHOD == "pread":
+      # 0, 0 means the whole file
+      os.posix_fadvise(f.fileno(), 0, 0, os.POSIX_FADV_WILLNEED)
+    elif IO_METHOD == "mmap":
+      # map the entire file
+      mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+      try:
+        mm.madvise(mmap.MADV_WILLNEED)
+      finally:
+        mm.close()
+
 # see also https://share.google/aimode/IDYCxtTyGhFUwC1pX for clean-ish
 # ways to use io_uring-like async io from Python
 
@@ -1297,6 +1315,11 @@ def run_knn_benchmark(checkout, values, log_path):
       print(f"  cmd: {this_cmd}")
     else:
       cmd += ["-quiet"]
+
+    # hint that we will read the entire vectors files, to get the OS starting on the I/O now:
+    advise_will_need(query_vectors)
+    if "-reindex" in this_cmd or DO_ALL_DISTANCES_HISTOGRAM:
+      advise_will_need(doc_vectors)
 
     if DO_PS:
       # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...

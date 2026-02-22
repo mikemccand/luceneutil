@@ -29,6 +29,10 @@ from pathlib import Path
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads
 IO_METHOD = "pread"
+# IO_METHOD = "mmap"
+
+# see also https://share.google/aimode/IDYCxtTyGhFUwC1pX for clean-ish
+# ways to use io_uring-like async io from Python
 
 import autologger
 import benchUtil
@@ -239,6 +243,9 @@ def _read_vectors_pread(file_name, sample_indices, vec_size_bytes, samples, t0_s
   with open(file_name, "rb") as f:
     fd = f.fileno()
 
+    # hint random access for the whole file, to suppress wasteful readahead
+    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_RANDOM)
+
     # concurrently send all 2000 requests to the OS as hints
     for vec_idx in sample_indices:
       os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
@@ -250,6 +257,9 @@ def _read_vectors_pread(file_name, sample_indices, vec_size_bytes, samples, t0_s
       if completed % max(1, total // 20) == 0 or completed == total:
         elapsed_sec = time.monotonic() - t0_sec
         print(f"\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+
+    # reset back to NORMAL for subsequent (sequential) indexing test
+    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_NORMAL)
 
   print()
 
@@ -265,6 +275,9 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_se
 
     # map the entire file (it could be large, but it's just address space)
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+
+    # hint random access to the whole mmap, to suppress wasteful readahead
+    mm.madvise(mmap.MADV_RANDOM)
 
     try:
       # concurrently send all 2000 requests to the OS as hints
@@ -284,6 +297,9 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_se
         if completed % max(1, total // 20) == 0 or completed == total:
           elapsed_sec = time.monotonic() - t0_sec
           print(f"\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+
+      # reset back to NORMAL for subsequent (sequential) indexing test
+      mm.madvise(mmap.MADV_NORMAL)
     finally:
       mm.close()
 

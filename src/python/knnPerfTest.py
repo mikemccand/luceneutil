@@ -248,12 +248,12 @@ def _read_vectors_pread(file_name, sample_indices, vec_size_bytes):
     for vec_idx in sample_indices:
       os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
 
-    # now yield them; they should be pre-fetched by the kernel
+    # yield vectors; they should be pre-fetched by the kernel
     for vec_idx in sample_indices:
       yield vec_idx, np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
 
-    # reset back to NORMAL for subsequent (sequential) indexing test
-    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_NORMAL)
+    # hint sequential access for the subsequent (sequential) indexing test
+    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
 
 
 def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
@@ -276,13 +276,13 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
         length = offset + vec_size_bytes - page_offset
         mm.madvise(mmap.MADV_WILLNEED, page_offset, length)
 
-      # now yield them; they should be pre-fetched by the kernel
+      # yield vectors; they should be pre-fetched by the kernel
       for vec_idx in sample_indices:
         offset = vec_idx * vec_size_bytes
         yield vec_idx, np.frombuffer(mm, dtype="<f4", count=dim, offset=offset)
 
-      # reset back to NORMAL for subsequent (sequential) indexing test
-      mm.madvise(mmap.MADV_NORMAL)
+      # hint sequential access for the subsequent (sequential) indexing test
+      mm.madvise(mmap.MADV_SEQUENTIAL)
     finally:
       mm.close()
 

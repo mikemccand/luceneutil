@@ -10,6 +10,7 @@
 #   - hmm how come so much faster to compute exact NN at queryStartIndex=0 than 10000, 20000?  60 sec vs ~470 sec!?
 #     - not always the first run!  sometimes 2nd run is super-fast
 
+import array
 import argparse
 import math
 import multiprocessing
@@ -177,6 +178,164 @@ def advance(ix, values):
   return False
 
 
+_SPARK_CHARS = ' ▁▂▃▄▅▆▇█'
+_NUM_SPARK_BINS = 20
+_NUM_DIM_SAMPLE_VECS = 2000
+_THRESH_CONSTANT_STD = 1e-6
+_THRESH_SPARSE_PCT_ZEROS = 0.50
+_THRESH_SKEWED_ABS = 1.0
+_THRESH_HEAVY_TAILS_KURTOSIS = 3.0
+_THRESH_FLAT_KURTOSIS = -1.0
+_THRESH_OUTLIER_SPREAD_SIGMA = 3.0
+
+
+def _sparkline(counts):
+  """returns a fixed-width sparkline string from histogram bin counts."""
+  max_count = max(counts) if max(counts) > 0 else 1
+  chars = []
+  for c in counts:
+    idx = round(c / max_count * 8)
+    chars.append(_SPARK_CHARS[idx])
+  return ''.join(chars)
+
+
+def _print_dim_line(d, stats, labels, dim_idx_width, max_label_len):
+  """prints one formatted dim line with fixed-width fields for visual alignment."""
+  label_str = ','.join(labels)
+  spark = _sparkline(stats['counts'])
+  print(
+    f"  dim {d:0{dim_idx_width}d}"
+    f" [{label_str:<{max_label_len}}]"
+    f" μ={stats['mean']:+8.3f}"
+    f" σ={stats['std']:8.3f}"
+    f" zeros={stats['pct_zeros']*100:3.0f}%"
+    f" [{spark}]"
+  )
+
+
+def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
+  """samples vectors and computes per-dim statistics to detect degenerate dimensions."""
+  if num_vectors == 0:
+    return
+
+  num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
+  sample_indices = sorted(random.sample(range(num_vectors), num_sample))
+  struct_fmt = f'<{dim}f'
+
+  # dim_values[d] = compact float array for dimension d across sampled vectors
+  dim_values = [array.array('f') for _ in range(dim)]
+
+  print(f'smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...')
+
+  with open(file_name, 'rb') as f:
+    for vec_idx in sample_indices:
+      f.seek(vec_idx * vec_size_bytes)
+      b = f.read(vec_size_bytes)
+      one_vec = struct.unpack(struct_fmt, b)
+      for d in range(dim):
+        dim_values[d].append(one_vec[d])
+
+  # compute per-dim statistics
+  dim_stats = []
+  for d in range(dim):
+    vals = dim_values[d]
+    n = len(vals)
+
+    mean = sum(vals) / n
+    min_val = min(vals)
+    max_val = max(vals)
+
+    # single pass for central moments, zero count, and histogram
+    bin_width = (max_val - min_val) / _NUM_SPARK_BINS if max_val > min_val else 1.0
+    counts = [0] * _NUM_SPARK_BINS
+    zero_count = 0
+    m2 = m3 = m4 = 0.0
+    for x in vals:
+      diff = float(x) - mean
+      diff2 = diff * diff
+      m2 += diff2
+      m3 += diff2 * diff
+      m4 += diff2 * diff2
+      if x == 0.0:
+        zero_count += 1
+      if max_val > min_val:
+        bin_idx = int((x - min_val) / bin_width)
+        if bin_idx >= _NUM_SPARK_BINS:
+          bin_idx = _NUM_SPARK_BINS - 1
+        counts[bin_idx] += 1
+
+    if max_val == min_val:
+      # constant dim: all values fall in the middle bin
+      counts[_NUM_SPARK_BINS // 2] = n
+
+    variance = m2 / n
+    std = math.sqrt(variance)
+    pct_zeros = zero_count / n
+
+    if std > _THRESH_CONSTANT_STD:
+      skewness = (m3 / n) / (std ** 3)
+      excess_kurtosis = (m4 / n) / (std ** 4) - 3.0
+    else:
+      skewness = 0.0
+      excess_kurtosis = 0.0
+
+    dim_stats.append({
+      'mean': mean,
+      'std': std,
+      'skewness': skewness,
+      'excess_kurtosis': excess_kurtosis,
+      'pct_zeros': pct_zeros,
+      'counts': counts,
+    })
+
+  # detect OUTLIER_SPREAD: compare each dim's std to the distribution of all dims' stds
+  all_stds = [s['std'] for s in dim_stats]
+  mean_of_stds = sum(all_stds) / dim
+  variance_of_stds = sum((s - mean_of_stds) ** 2 for s in all_stds) / dim
+  std_of_stds = math.sqrt(variance_of_stds)
+
+  # assign labels per dim
+  dim_labels = []
+  for d in range(dim):
+    s = dim_stats[d]
+    labels = []
+
+    if s['std'] <= _THRESH_CONSTANT_STD:
+      labels.append('CONSTANT')
+
+    if s['pct_zeros'] > _THRESH_SPARSE_PCT_ZEROS:
+      labels.append('SPARSE')
+
+    if s['std'] > _THRESH_CONSTANT_STD:
+      if abs(s['skewness']) > _THRESH_SKEWED_ABS:
+        labels.append('SKEWED')
+      if s['excess_kurtosis'] > _THRESH_HEAVY_TAILS_KURTOSIS:
+        labels.append('HEAVY_TAILS')
+      if s['excess_kurtosis'] < _THRESH_FLAT_KURTOSIS:
+        labels.append('FLAT')
+
+    if std_of_stds > 0 and abs(s['std'] - mean_of_stds) > _THRESH_OUTLIER_SPREAD_SIGMA * std_of_stds:
+      labels.append('OUTLIER_SPREAD')
+
+    dim_labels.append(labels)
+
+  # format and print output
+  dim_idx_width = len(str(dim - 1))
+  max_label_len = max((len(','.join(lbs)) for lbs in dim_labels), default=0)
+  bad_dims = [d for d in range(dim) if len(dim_labels[d]) > 0]
+
+  if bad_dims:
+    print(f'smell: {len(bad_dims)} degenerate dim(s) found:')
+    for d in bad_dims:
+      _print_dim_line(d, dim_stats[d], dim_labels[d], dim_idx_width, max_label_len)
+  else:
+    print('smell: no degenerate dims found')
+
+  print(f'smell: all {dim} dims:')
+  for d in range(dim):
+    _print_dim_line(d, dim_stats[d], dim_labels[d], dim_idx_width, max_label_len)
+
+
 def smell_vectors(dim, file_name, do_check_norms=True):
   """Runs some simple sanity checks on the vector source file, because we don't store any
   self-describing metadata in the .vec source file.
@@ -192,6 +351,8 @@ def smell_vectors(dim, file_name, do_check_norms=True):
     raise RuntimeError(
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
+
+  _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
 
   if do_check_norms:
     struct_fmt = f"<{dim}f"

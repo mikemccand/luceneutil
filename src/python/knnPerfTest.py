@@ -189,28 +189,42 @@ _THRESH_FLAT_KURTOSIS = -1.0
 _THRESH_OUTLIER_SPREAD_SIGMA = 3.0
 
 
-def _sparkline(counts):
-  """returns a fixed-width sparkline string from histogram bin counts."""
+def _sparklines_2row(counts):
+  """returns (top_row_str, bot_row_str) for a two-row histogram using unicode block chars.
+
+  Block chars fill from the bottom of the cell, so with 8 levels per row the two rows
+  connect seamlessly: a partial char in the top row sits at the bottom of its cell,
+  flush against the full block below it.  Total resolution: 16 height levels.
+  """
   max_count = max(counts) if max(counts) > 0 else 1
-  chars = []
+  top_chars = []
+  bot_chars = []
   for c in counts:
-    idx = round(c / max_count * 8)
-    chars.append(_SPARK_CHARS[idx])
-  return ''.join(chars)
+    level = round(c / max_count * 16)
+    if level <= 8:
+      bot_chars.append(_SPARK_CHARS[level])
+      top_chars.append(' ')
+    else:
+      bot_chars.append('█')
+      top_chars.append(_SPARK_CHARS[level - 8])
+  return ''.join(top_chars), ''.join(bot_chars)
 
 
 def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_label_len):
-  """prints one formatted dim line with fixed-width fields for visual alignment."""
+  """prints two lines per dim: top row of sparkline, then full stats line with bottom row."""
   label_str = ','.join(labels)
-  spark = _sparkline(counts)
-  print(
+  top_row, bot_row = _sparklines_2row(counts)
+  # build the stats prefix once so the top row can be aligned to the same column
+  prefix = (
     f"  dim {d:0{dim_idx_width}d}"
     f" [{label_str:<{max_label_len}}]"
     f" μ={mean:+8.3f}"
     f" σ={std:8.3f}"
     f" zeros={pct_zeros*100:3.0f}%"
-    f" [{spark}]"
+    f" "
   )
+  print(f"{' ' * len(prefix)}[{top_row}]")
+  print(f"{prefix}[{bot_row}]")
 
 
 def _read_vectors(file_name, sample_indices, vec_size_bytes, samples, t0_sec):

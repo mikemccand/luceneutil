@@ -236,67 +236,50 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   print()
 
 
-def _read_vectors_pread(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
-  """Issues all vector reads concurrently via posix_fadvise (hinting to kernel), then reads sequentially using os.pread."""
-  total = len(sample_indices)
-  completed = 0
+def _read_vectors_pread(file_name, sample_indices, vec_size_bytes):
+  """Generator that issues concurrent readahead hints and yields vectors via pread."""
   with open(file_name, "rb") as f:
     fd = f.fileno()
 
     # hint random access for the whole file, to suppress wasteful readahead
     os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_RANDOM)
 
-    # concurrently send all 2000 requests to the OS as hints
+    # concurrently send all requests to the OS as hints
     for vec_idx in sample_indices:
       os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
 
-    # now read them; they should be pre-fetched by the kernel
-    for i, vec_idx in enumerate(sample_indices):
-      samples[i] = np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
-      completed += 1
-      if completed % max(1, total // 20) == 0 or completed == total:
-        elapsed_sec = time.monotonic() - t0_sec
-        print(f"\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+    # now yield them; they should be pre-fetched by the kernel
+    for vec_idx in sample_indices:
+      yield vec_idx, np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
 
     # reset back to NORMAL for subsequent (sequential) indexing test
     os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_NORMAL)
 
-  print()
 
-
-def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_sec):
-  """Issues all vector reads concurrently via mmap + madvise (hinting to kernel), then reads from memory."""
-  total = len(sample_indices)
-  completed = 0
+def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
+  """Generator that issues concurrent readahead hints and yields vectors via mmap."""
   with open(file_name, "rb") as f:
     # mmap.PAGESIZE is typically 4096 on Linux
     pagesize = mmap.PAGESIZE
-    dim = samples.shape[1]
 
-    # map the entire file (it could be large, but it's just address space)
+    # map the entire file
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
     # hint random access to the whole mmap, to suppress wasteful readahead
     mm.madvise(mmap.MADV_RANDOM)
 
     try:
-      # concurrently send all 2000 requests to the OS as hints
-      # madvise MADV_WILLNEED requires page-aligned offsets!
+      # concurrently send all requests to the OS as hints
       for vec_idx in sample_indices:
         offset = vec_idx * vec_size_bytes
         page_offset = (offset // pagesize) * pagesize
         length = offset + vec_size_bytes - page_offset
         mm.madvise(mmap.MADV_WILLNEED, page_offset, length)
 
-      # now read them; they should be pre-fetched by the kernel
-      for i, vec_idx in enumerate(sample_indices):
+      # now yield them; they should be pre-fetched by the kernel
+      for vec_idx in sample_indices:
         offset = vec_idx * vec_size_bytes
-        # direct view into the mmap, copy it into our samples array
-        samples[i] = np.frombuffer(mm, dtype="<f4", count=dim, offset=offset)
-        completed += 1
-        if completed % max(1, total // 20) == 0 or completed == total:
-          elapsed_sec = time.monotonic() - t0_sec
-          print(f"\rsmell:   {completed}/{total} ({100 * completed / total:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+        yield vec_idx, np.frombuffer(mm, dtype="<f4", count=dim, offset=offset)
 
       # reset back to NORMAL for subsequent (sequential) indexing test
       mm.madvise(mmap.MADV_NORMAL)
@@ -319,25 +302,34 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
   t0_sec = time.monotonic()
+
   if IO_METHOD == "pread":
-    _read_vectors_pread(file_name, sample_indices, vec_size_bytes, samples, t0_sec)
+    reader = _read_vectors_pread(file_name, sample_indices, vec_size_bytes)
   elif IO_METHOD == "mmap":
-    _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, samples, t0_sec)
+    reader = _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim)
   else:
     raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
 
-  # check norms of all sampled vectors using vectorized numpy
-  # axis=1 computes norm for each vector (row)
-  norms = np.linalg.norm(samples, axis=1)
-  # find indices where norm is not close to 1.0
-  is_not_norm = np.isclose(norms, 1.0, rtol=0.0001, atol=0.0001) == False
-  not_norm_indices = np.where(is_not_norm)[0]
+  not_norm_count = 0
+  for i, (vec_idx, vec) in enumerate(reader):
+    samples[i] = vec
 
-  if len(not_norm_indices) > 0:
-    for idx in not_norm_indices:
-      vec_idx = sample_indices[idx]
-      print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norms[idx]} (not normalized)')
-    print(f'WARNING: dimension or vector file name might be wrong?  {len(not_norm_indices)} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
+    # CPU work: check norm immediately as vector arrives
+    norm = np.linalg.norm(vec)
+    if not np.isclose(norm, 1.0, rtol=0.0001, atol=0.0001):
+      # print warning on new line so it doesn't get overwritten by next progress \r
+      print(f'\nWARNING: vec {vec_idx} in "{file_name}" has norm={norm} (not normalized)')
+      not_norm_count += 1
+
+    completed = i + 1
+    if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
+      elapsed_sec = time.monotonic() - t0_sec
+      print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+
+  print()
+
+  if not_norm_count > 0:
+    print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)

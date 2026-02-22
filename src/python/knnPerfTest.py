@@ -32,18 +32,21 @@ IO_METHOD = "pread"
 # IO_METHOD = "mmap"
 
 
-def advise_will_need(file_name):
-  """Proactively hint to the OS to load the entire file into RAM, using the configured IO_METHOD."""
+def advise_will_need(file_name, length_bytes=0):
+  """Proactively hint to the OS to load the first length_bytes of file into RAM, using the configured IO_METHOD."""
   if not os.path.exists(file_name):
     return
 
+  file_size = os.path.getsize(file_name)
+  if length_bytes <= 0 or length_bytes > file_size:
+    length_bytes = file_size
+
   with open(file_name, "rb") as f:
     if IO_METHOD == "pread":
-      # 0, 0 means the whole file
-      os.posix_fadvise(f.fileno(), 0, 0, os.POSIX_FADV_WILLNEED)
+      os.posix_fadvise(f.fileno(), 0, length_bytes, os.POSIX_FADV_WILLNEED)
     elif IO_METHOD == "mmap":
-      # map the entire file
-      mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+      # map the part of the file we need
+      mm = mmap.mmap(f.fileno(), length_bytes, access=mmap.ACCESS_READ)
       try:
         mm.madvise(mmap.MADV_WILLNEED)
       finally:
@@ -1316,10 +1319,11 @@ def run_knn_benchmark(checkout, values, log_path):
     else:
       cmd += ["-quiet"]
 
-    # hint that we will read the entire vectors files, to get the OS starting on the I/O now:
-    advise_will_need(query_vectors)
+    # hint that we will read the vectors files, to get the OS starting on the I/O now:
+    vec_size_bytes = dim * 4
+    advise_will_need(query_vectors, pv.get("niter", 0) * vec_size_bytes)
     if "-reindex" in this_cmd or DO_ALL_DISTANCES_HISTOGRAM:
-      advise_will_need(doc_vectors)
+      advise_will_need(doc_vectors, pv.get("ndoc", 0) * vec_size_bytes)
 
     if DO_PS:
       # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...

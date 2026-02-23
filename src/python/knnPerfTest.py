@@ -11,10 +11,8 @@
 #     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
-import math
 import mmap
 import multiprocessing
-import numpy as np
 import os
 import random
 import re
@@ -27,7 +25,14 @@ import sys
 import time
 from pathlib import Path
 
-# toggle between 'pread' and 'mmap' for concurrent random vector reads
+try:
+  import numpy as np
+except ImportError:
+  print("WARNING: numpy is not availble; skipping smell_vectors")
+  print("\nNext time use the local venv: source .venv/bin/activate; python -u src/python/knnPerfTest...")
+
+# toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
+# maybe a bit faster?
 IO_METHOD = "pread"
 # IO_METHOD = "mmap"
 
@@ -54,6 +59,7 @@ def advise_will_need(file_name, offset_bytes=0, length_bytes=0):
         mm.madvise(mmap.MADV_WILLNEED)
       finally:
         mm.close()
+
 
 # see also https://share.google/aimode/IDYCxtTyGhFUwC1pX for clean-ish
 # ways to use io_uring-like async io from Python
@@ -210,7 +216,7 @@ def advance(ix, values):
   return False
 
 
-_SPARK_CHARS = ' ▁▂▃▄▅▆▇█'
+_SPARK_CHARS = " ▁▂▃▄▅▆▇█"
 _NUM_SPARK_BINS = 20
 _NUM_DIM_SAMPLE_VECS = 2000
 _THRESH_CONSTANT_STD = 1e-6
@@ -222,7 +228,7 @@ _THRESH_OUTLIER_SPREAD_SIGMA = 3.0
 
 
 def _sparklines_2row(counts):
-  """returns (top_row_str, bot_row_str) for a two-row histogram using unicode block chars.
+  """Returns (top_row_str, bot_row_str) for a two-row histogram using unicode block chars.
 
   Block chars fill from the bottom of the cell, so with 8 levels per row the two rows
   connect seamlessly: a partial char in the top row sits at the bottom of its cell,
@@ -235,26 +241,19 @@ def _sparklines_2row(counts):
     level = round(c / max_count * 16)
     if level <= 8:
       bot_chars.append(_SPARK_CHARS[level])
-      top_chars.append(' ')
+      top_chars.append(" ")
     else:
-      bot_chars.append('█')
+      bot_chars.append("█")
       top_chars.append(_SPARK_CHARS[level - 8])
-  return ''.join(top_chars), ''.join(bot_chars)
+  return "".join(top_chars), "".join(bot_chars)
 
 
 def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_label_len):
-  """prints two lines per dim: top row of sparkline, then full stats line with bottom row."""
-  label_str = ','.join(labels)
+  """Prints two lines per dim: top row of sparkline, then full stats line with bottom row."""
+  label_str = ",".join(labels)
   top_row, bot_row = _sparklines_2row(counts)
   # build the stats prefix once so the top row can be aligned to the same column
-  prefix = (
-    f"  dim {d:0{dim_idx_width}d}"
-    f" [{label_str:<{max_label_len}}]"
-    f" μ={mean:+8.3f}"
-    f" σ={std:8.3f}"
-    f" zeros={pct_zeros*100:3.0f}%"
-    f" "
-  )
+  prefix = f"  dim {d:0{dim_idx_width}d} [{label_str:<{max_label_len}}] μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% " # noqa: RUF001 sigma (std deviation) is intentional
   print(f"{' ' * len(prefix)}[{top_row}]")
   print(f"{prefix}[{bot_row}]")
   print()
@@ -314,7 +313,7 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
 
 
 def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
-  """samples vectors and computes per-dim statistics to detect degenerate dimensions."""
+  """Samples vectors and computes per-dim statistics to detect degenerate dimensions."""
   if num_vectors == 0:
     return
 
@@ -432,6 +431,10 @@ def smell_vectors(dim, file_name):
   """Runs some simple sanity checks on the vector source file, because we don't store any
   self-describing metadata in the .vec source file.
   """
+  if np is None:
+    print("WARNING: skipping smelling vectors because numpy is not available")
+    return
+
   size_bytes = os.path.getsize(file_name)
 
   vec_size_bytes = dim * 4

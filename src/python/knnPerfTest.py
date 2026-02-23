@@ -225,7 +225,7 @@ _THRESH_SPARSE_PCT_ZEROS = 0.50
 _THRESH_SKEWED_ABS = 1.0
 _THRESH_HEAVY_TAILS_KURTOSIS = 3.0
 _THRESH_FLAT_KURTOSIS = -1.0
-_THRESH_OUTLIER_SPREAD_SIGMA = 6.0
+_THRESH_OUTLIER_SPREAD_SIGMA = 4.0
 
 
 def _sparklines_2row(counts):
@@ -321,7 +321,8 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
   sample_indices = random.sample(range(num_vectors), num_sample)
 
-  print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
+  if NOISY:
+    print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
 
   # load all sampled vectors concurrently into a (num_sample, dim) float32 array
   samples = np.empty((num_sample, dim), dtype=np.float32)
@@ -348,9 +349,11 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
     completed = i + 1
     if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
       elapsed_sec = time.monotonic() - t0_sec
-      print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+      if NOISY:
+        print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
 
-  print()
+  if NOISY:
+    print()
 
   if not_norm_count > 0:
     print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
@@ -419,26 +422,23 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   if bad_dims:
     print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
     if any("OUTLIER_SPREAD" in lbs for lbs in dim_labels):
-      print(f"  (OUTLIER_SPREAD: std of all dims: μ={mean_of_stds:.3f}, σ={std_of_stds:.3f}, threshold={_THRESH_OUTLIER_SPREAD_SIGMA}σ)")
+      print(f"  (OUTLIER_SPREAD: std of all dims: μ={mean_of_stds:.3f}, σ={std_of_stds:.3f}, threshold={_THRESH_OUTLIER_SPREAD_SIGMA}σ)")  # noqa: RUF001 sigma (std deviation) is intentional
 
     for d in bad_dims:
       _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
-  else:
-    print(f"smell: no degenerate dims found in {elapsed_sec:.1f}s")
 
-  print(f"smell: all {dim} dims:")
-  for d in range(dim):
-    _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
+    if NOISY:
+      print(f"smell: all {dim} dims:")
+      for d in range(dim):
+        _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
+  elif NOISY:
+    print(f"smell: no degenerate dims found in {elapsed_sec:.1f}s")
 
 
 def smell_vectors(dim, file_name):
   """Runs some simple sanity checks on the vector source file, because we don't store any
   self-describing metadata in the .vec source file.
   """
-  if np is None:
-    # no numpy
-    return
-
   size_bytes = os.path.getsize(file_name)
 
   vec_size_bytes = dim * 4
@@ -450,6 +450,10 @@ def smell_vectors(dim, file_name):
     raise RuntimeError(
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
+
+  if np is None:
+    # no numpy
+    return
 
   _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
 

@@ -2035,7 +2035,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   private static void usage() {
     String error =
-        "Usage: TestKnnGraph [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-niter N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
+        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-niter N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
     System.err.println(error);
     System.exit(1);
   }

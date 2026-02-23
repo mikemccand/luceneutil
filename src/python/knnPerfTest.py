@@ -11,7 +11,7 @@
 #     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
-import math
+import mmap
 import multiprocessing
 import os
 import random
@@ -24,6 +24,46 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+try:
+  import numpy as np
+except ImportError:
+  np = None
+  print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
+  print("Next time use the local venv: source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
+
+# toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
+# maybe a bit faster?
+IO_METHOD = "pread"
+# IO_METHOD = "mmap"
+
+
+def advise_will_need(file_name, offset_bytes=0, length_bytes=0):
+  """Proactively hint to the OS to load a range of file into RAM, using the configured IO_METHOD."""
+  if not os.path.exists(file_name):
+    return
+
+  file_size = os.path.getsize(file_name)
+  if length_bytes <= 0 or offset_bytes + length_bytes > file_size:
+    length_bytes = file_size - offset_bytes
+
+  if length_bytes <= 0:
+    return
+
+  with open(file_name, "rb") as f:
+    if IO_METHOD == "pread":
+      os.posix_fadvise(f.fileno(), offset_bytes, length_bytes, os.POSIX_FADV_WILLNEED)
+    elif IO_METHOD == "mmap":
+      # map the part of the file we need
+      mm = mmap.mmap(f.fileno(), length_bytes, offset=offset_bytes, access=mmap.ACCESS_READ)
+      try:
+        mm.madvise(mmap.MADV_WILLNEED)
+      finally:
+        mm.close()
+
+
+# see also https://share.google/aimode/IDYCxtTyGhFUwC1pX for clean-ish
+# ways to use io_uring-like async io from Python
 
 import autologger
 import benchUtil
@@ -177,7 +217,225 @@ def advance(ix, values):
   return False
 
 
-def smell_vectors(dim, file_name, do_check_norms=True):
+_SPARK_CHARS = " ▁▂▃▄▅▆▇█"
+_NUM_SPARK_BINS = 20
+_NUM_DIM_SAMPLE_VECS = 2000
+_THRESH_CONSTANT_STD = 1e-6
+_THRESH_SPARSE_PCT_ZEROS = 0.50
+_THRESH_SKEWED_ABS = 1.0
+_THRESH_HEAVY_TAILS_KURTOSIS = 3.0
+_THRESH_FLAT_KURTOSIS = -1.0
+_THRESH_OUTLIER_SPREAD_SIGMA = 4.0
+
+
+def _sparklines_2row(counts):
+  """Returns (top_row_str, bot_row_str) for a two-row histogram using unicode block chars.
+
+  Block chars fill from the bottom of the cell, so with 8 levels per row the two rows
+  connect seamlessly: a partial char in the top row sits at the bottom of its cell,
+  flush against the full block below it.  Total resolution: 16 height levels.
+  """
+  max_count = max(counts) if max(counts) > 0 else 1
+  top_chars = []
+  bot_chars = []
+  for c in counts:
+    level = round(c / max_count * 16)
+    if level <= 8:
+      bot_chars.append(_SPARK_CHARS[level])
+      top_chars.append(" ")
+    else:
+      bot_chars.append("█")
+      top_chars.append(_SPARK_CHARS[level - 8])
+  return "".join(top_chars), "".join(bot_chars)
+
+
+def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_label_len):
+  """Prints two lines per dim: top row of sparkline, then full stats line with bottom row."""
+  label_str = ",".join(labels)
+  top_row, bot_row = _sparklines_2row(counts)
+  # build the stats prefix once so the top row can be aligned to the same column
+  prefix = f"  dim {d:0{dim_idx_width}d} [{label_str:<{max_label_len}}] μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% "  # noqa: RUF001 sigma (std deviation) is intentional
+  print(f"{' ' * len(prefix)}[{top_row}]")
+  print(f"{prefix}[{bot_row}]")
+  print()
+
+
+def _read_vectors_pread(file_name, sample_indices, vec_size_bytes):
+  """Generator that issues concurrent readahead hints and yields vectors via pread."""
+  with open(file_name, "rb") as f:
+    fd = f.fileno()
+
+    # hint random access for the whole file, to suppress wasteful readahead
+    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_RANDOM)
+
+    # concurrently send all requests to the OS as hints
+    for vec_idx in sample_indices:
+      os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
+
+    # yield vectors; they should be pre-fetched by the kernel
+    for vec_idx in sample_indices:
+      yield vec_idx, np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
+
+    # hint sequential access for the subsequent (sequential) indexing test
+    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+
+
+def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
+  """Generator that issues concurrent readahead hints and yields vectors via mmap."""
+  with open(file_name, "rb") as f:
+    # mmap.PAGESIZE is typically 4096 on Linux
+    pagesize = mmap.PAGESIZE
+
+    # map the entire file
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+
+    # hint random access to the whole mmap, to suppress wasteful readahead
+    mm.madvise(mmap.MADV_RANDOM)
+
+    try:
+      # concurrently send all requests to the OS as hints
+      for vec_idx in sample_indices:
+        offset = vec_idx * vec_size_bytes
+        page_offset = (offset // pagesize) * pagesize
+        length = offset + vec_size_bytes - page_offset
+        mm.madvise(mmap.MADV_WILLNEED, page_offset, length)
+
+      # yield vectors; they should be pre-fetched by the kernel
+      for vec_idx in sample_indices:
+        offset = vec_idx * vec_size_bytes
+        yield vec_idx, np.frombuffer(mm, dtype="<f4", count=dim, offset=offset)
+
+      # hint sequential access for the subsequent (sequential) indexing test
+      mm.madvise(mmap.MADV_SEQUENTIAL)
+    finally:
+      mm.close()
+
+  print()
+
+
+def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
+  """Samples vectors and computes per-dim statistics to detect degenerate dimensions."""
+  if num_vectors == 0:
+    return
+
+  num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
+  sample_indices = random.sample(range(num_vectors), num_sample)
+
+  if NOISY:
+    print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
+
+  # load all sampled vectors concurrently into a (num_sample, dim) float32 array
+  samples = np.empty((num_sample, dim), dtype=np.float32)
+  t0_sec = time.monotonic()
+
+  if IO_METHOD == "pread":
+    reader = _read_vectors_pread(file_name, sample_indices, vec_size_bytes)
+  elif IO_METHOD == "mmap":
+    reader = _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim)
+  else:
+    raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
+
+  not_norm_count = 0
+  for i, (vec_idx, vec) in enumerate(reader):
+    samples[i] = vec
+
+    # CPU work: check norm immediately as vector arrives
+    norm = np.linalg.norm(vec)
+    if not np.isclose(norm, 1.0, rtol=0.0001, atol=0.0001):
+      # print warning on new line so it doesn't get overwritten by next progress \r
+      print(f'\nWARNING: vec {vec_idx} in "{file_name}" has norm={norm} (not normalized)')
+      not_norm_count += 1
+
+    completed = i + 1
+    if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
+      elapsed_sec = time.monotonic() - t0_sec
+      if NOISY:
+        print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+
+  if NOISY:
+    print()
+
+  if not_norm_count > 0:
+    print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
+
+  # per-dim stats, all vectorized over axis=0, result shape: (dim,)
+  mean = samples.mean(axis=0)
+  std = samples.std(axis=0)
+  pct_zeros = (samples == 0.0).mean(axis=0)
+
+  centered = samples - mean
+  m3 = (centered**3).mean(axis=0)
+  m4 = (centered**4).mean(axis=0)
+  with np.errstate(invalid="ignore", divide="ignore"):
+    skewness = m3 / std**3
+    excess_kurtosis = m4 / std**4 - 3.0
+  # zero out stats that are undefined for constant dims
+  non_const = std > _THRESH_CONSTANT_STD
+  skewness = np.where(non_const, skewness, 0.0)
+  excess_kurtosis = np.where(non_const, excess_kurtosis, 0.0)
+
+  # OUTLIER_SPREAD: flag dims whose std is an outlier across all dims' stds
+  mean_of_stds = std.mean()
+  std_of_stds = std.std()
+
+  # per-dim histogram (loop is over dims not over samples, so it's cheap)
+  dim_counts = []
+  for d in range(dim):
+    col = samples[:, d]
+    if col.min() == col.max():
+      counts = [0] * _NUM_SPARK_BINS
+      counts[_NUM_SPARK_BINS // 2] = num_sample
+    else:
+      counts = np.histogram(col, bins=_NUM_SPARK_BINS)[0].tolist()
+    dim_counts.append(counts)
+
+  # assign labels per dim
+  dim_labels = []
+  for d in range(dim):
+    labels = []
+
+    if std[d] <= _THRESH_CONSTANT_STD:
+      labels.append("CONSTANT")
+
+    if pct_zeros[d] > _THRESH_SPARSE_PCT_ZEROS:
+      labels.append("SPARSE")
+
+    if non_const[d]:
+      if abs(skewness[d]) > _THRESH_SKEWED_ABS:
+        labels.append("SKEWED")
+      if excess_kurtosis[d] > _THRESH_HEAVY_TAILS_KURTOSIS:
+        labels.append("HEAVY_TAILS")
+      if excess_kurtosis[d] < _THRESH_FLAT_KURTOSIS:
+        labels.append("FLAT")
+
+    if std_of_stds > 0 and abs(std[d] - mean_of_stds) > _THRESH_OUTLIER_SPREAD_SIGMA * std_of_stds:
+      labels.append("OUTLIER_SPREAD")
+
+    dim_labels.append(labels)
+
+  # format and print output
+  dim_idx_width = len(str(dim - 1))
+  max_label_len = max((len(",".join(lbs)) for lbs in dim_labels), default=0)
+  bad_dims = [d for d in range(dim) if len(dim_labels[d]) > 0]
+
+  elapsed_sec = time.monotonic() - t0_sec
+  if bad_dims:
+    print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
+    if any("OUTLIER_SPREAD" in lbs for lbs in dim_labels):
+      print(f"  (OUTLIER_SPREAD: std of all dims: μ={mean_of_stds:.3f}, σ={std_of_stds:.3f}, threshold={_THRESH_OUTLIER_SPREAD_SIGMA}σ)")  # noqa: RUF001 sigma (std deviation) is intentional
+
+    for d in bad_dims:
+      _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
+
+    if NOISY:
+      print(f"smell: all {dim} dims:")
+      for d in range(dim):
+        _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
+  elif NOISY:
+    print(f"smell: no degenerate dims found in {elapsed_sec:.1f}s")
+
+
+def smell_vectors(dim, file_name):
   """Runs some simple sanity checks on the vector source file, because we don't store any
   self-describing metadata in the .vec source file.
   """
@@ -193,40 +451,11 @@ def smell_vectors(dim, file_name, do_check_norms=True):
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
 
-  if do_check_norms:
-    struct_fmt = f"<{dim}f"
+  if np is None:
+    # no numpy
+    return
 
-    with open(file_name, "rb") as f:
-      # sanity check
-      t0 = time.time()
-      checked_count = 0
-      not_norm_count = 0
-      for i in range(100):
-        vec_idx = random.randint(0, num_vectors - 1)
-        f.seek(vec_idx * vec_size_bytes)
-        b = f.read(vec_size_bytes)
-        one_vec = struct.unpack(struct_fmt, b)
-
-        sumsq = 0
-        for i, v in enumerate(one_vec):
-          # print(f"  {i:4d}: {v:g}")
-          sumsq += v * v
-        norm_euclidean_length = math.sqrt(sumsq)
-
-        if not math.isclose(norm_euclidean_length, 1.0, rel_tol=0.0001, abs_tol=0.0001):
-          # not normalized
-          print(f'WARNING: vec {vec_idx} in "{file_name}" has norm={norm_euclidean_length} (not normalized)')
-          not_norm_count += 1
-
-        t1 = time.time()
-        checked_count += 1
-        # print(f"  {t1-t0:.1f}: vec[vec_idx] length is {norm_euclidean_length}")
-        if t1 - t0 > 1.0 and i >= 10:
-          # spend at most 1 second checking, but check at least 10 vectors
-          break
-
-      if not_norm_count:
-        print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {checked_count} randomly checked vectors are not normalized in "{file_name}"')
+  _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
 
 
 def get_unique_log_name(log_path, sub_tool):
@@ -961,8 +1190,6 @@ def run_knn_benchmark(checkout, values, log_path):
   # doc_vectors = "%s/lucene_util/tasks/enwiki-20120502-lines-1k-100d.vec" % constants.BASE_DIR
   # query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
 
-  do_check_norms = True
-
   # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
   v3 = True
 
@@ -1018,8 +1245,8 @@ def run_knn_benchmark(checkout, values, log_path):
   if NOISY:
     print("smell vectors...")
 
-  smell_vectors(dim, doc_vectors, do_check_norms)
-  smell_vectors(dim, query_vectors, do_check_norms)
+  smell_vectors(dim, doc_vectors)
+  smell_vectors(dim, query_vectors)
 
   index_run = 1
   all_results = []
@@ -1105,6 +1332,13 @@ def run_knn_benchmark(checkout, values, log_path):
       print(f"  cmd: {this_cmd}")
     else:
       cmd += ["-quiet"]
+
+    # hint that we will read the vectors files, to get the OS starting on the I/O now:
+    vec_size_bytes = dim * 4
+    query_start_byte = pv.get("queryStartIndex", 0) * vec_size_bytes
+    advise_will_need(query_vectors, query_start_byte, pv.get("niter", 0) * vec_size_bytes)
+    if "-reindex" in this_cmd or DO_ALL_DISTANCES_HISTOGRAM:
+      advise_will_need(doc_vectors, 0, pv.get("ndoc", 0) * vec_size_bytes)
 
     if DO_PS:
       # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...

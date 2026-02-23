@@ -28,8 +28,9 @@ from pathlib import Path
 try:
   import numpy as np
 except ImportError:
-  print("WARNING: numpy is not availble; skipping smell_vectors")
-  print("\nNext time use the local venv: source .venv/bin/activate; python -u src/python/knnPerfTest...")
+  np = None
+  print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
+  print("Next time use the local venv: source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
 # maybe a bit faster?
@@ -253,7 +254,7 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_
   label_str = ",".join(labels)
   top_row, bot_row = _sparklines_2row(counts)
   # build the stats prefix once so the top row can be aligned to the same column
-  prefix = f"  dim {d:0{dim_idx_width}d} [{label_str:<{max_label_len}}] μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% " # noqa: RUF001 sigma (std deviation) is intentional
+  prefix = f"  dim {d:0{dim_idx_width}d} [{label_str:<{max_label_len}}] μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% "  # noqa: RUF001 sigma (std deviation) is intentional
   print(f"{' ' * len(prefix)}[{top_row}]")
   print(f"{prefix}[{bot_row}]")
   print()
@@ -432,7 +433,7 @@ def smell_vectors(dim, file_name):
   self-describing metadata in the .vec source file.
   """
   if np is None:
-    print("WARNING: skipping smelling vectors because numpy is not available")
+    # no numpy
     return
 
   size_bytes = os.path.getsize(file_name)

@@ -225,7 +225,7 @@ _THRESH_SPARSE_PCT_ZEROS = 0.50
 _THRESH_SKEWED_ABS = 1.0
 _THRESH_HEAVY_TAILS_KURTOSIS = 3.0
 _THRESH_FLAT_KURTOSIS = -1.0
-_THRESH_OUTLIER_SPREAD_SIGMA = 3.0
+_THRESH_OUTLIER_SPREAD_SIGMA = 6.0
 
 
 def _sparklines_2row(counts):
@@ -418,6 +418,9 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   elapsed_sec = time.monotonic() - t0_sec
   if bad_dims:
     print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
+    if any("OUTLIER_SPREAD" in lbs for lbs in dim_labels):
+      print(f"  (OUTLIER_SPREAD: std of all dims: μ={mean_of_stds:.3f}, σ={std_of_stds:.3f}, threshold={_THRESH_OUTLIER_SPREAD_SIGMA}σ)")
+
     for d in bad_dims:
       _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
   else:

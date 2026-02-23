@@ -1,3 +1,6 @@
+# used by knnPerfTest
+numpy==2.2.3
+
 # used by segments-to-html
 graphviz==0.20.3
 intervaltree==3.1.0

@@ -124,8 +124,7 @@ final class PKLookupTask extends Task {
                 //System.out.println("TEST: lookup " + ids[idx].utf8ToString());
                 if (pkState.termsEnum.seekExact(id)) {
                     //System.out.println("  found!");
-                    pkState.postingsEnum = pkState.termsEnum.postings(pkState.postingsEnum, 0);
-                    PostingsEnum docs = pkState.postingsEnum;
+                    PostingsEnum docs = pkState.termsEnum.postings(pkState.postingsEnum, 0);
                     assert docs != null;
                     for (int d = docs.nextDoc(); d != DocIdSetIterator.NO_MORE_DOCS; d = docs.nextDoc()) {
                         if (pkState.liveDocs == null || pkState.liveDocs.get(d)) {

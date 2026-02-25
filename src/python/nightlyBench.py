@@ -630,6 +630,7 @@ def run():
       ("sortedset:RandomLabel", "RandomLabel"),
     ),
     addDVFields=True,
+    addDVSkippers=True,
     vectorFile=constants.VECTORS_DOCS_FILE,
     vectorDimension=constants.VECTORS_DIMENSIONS,
     vectorEncoding=constants.VECTORS_TYPE,
@@ -1722,6 +1723,12 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, "TermMonthSort", "Month (string, low cardinality)")
   writeOneLine(w, done, "TermDayOfYearSort", "Day of year (int, medium cardinality)")
 
+  w("<br><br><b>Sorting with doc value skippers (on TermQuery):</b>")
+  writeOneLine(w, done, "TermDTSortSkipper", "Date/time (long, high cardinality, skipper)")
+  writeOneLine(w, done, "TermTitleSortSkipper", "Title (string, high cardinality, skipper)")
+  writeOneLine(w, done, "TermMonthSortSkipper", "Month (string, low cardinality, skipper)")
+  writeOneLine(w, done, "TermDayOfYearSortSkipper", "Day of year (int, medium cardinality, skipper)")
+
   w("<br><br><b>Grouping (on TermQuery):</b>")
   writeOneLine(w, done, "TermGroup100", "100 groups")
   writeOneLine(w, done, "TermGroup10K", "10K groups")
@@ -1770,6 +1777,10 @@ taskRename = {
   "Term": "TermQuery",
   "TermDTSort": "TermQuery (date/time sort)",
   "TermTitleSort": "TermQuery (title sort)",
+  "TermDTSortSkipper": "TermQuery (date/time sort, skipper)",
+  "TermTitleSortSkipper": "TermQuery (title sort, skipper)",
+  "TermMonthSortSkipper": "TermQuery (month sort, skipper)",
+  "TermDayOfYearSortSkipper": "TermQuery (day-of-year sort, skipper)",
   "TermBGroup1M": "Term (bgroup)",
   "TermBGroup1M1P": "Term (bgroup, 1pass)",
   "IntNRQ": "NumericRangeQuery (int)",

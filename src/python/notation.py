@@ -883,4 +883,9 @@ KNOWN_CHANGES = [
     "One off nightly benchmark with also downgraded JDK (25.0.2 -> 25.0.1), but all other system packages fully updated, and Lucene frozen on last good 1/22 run; attempting to root-cause https://github.com/apache/lucene/issues/15662",
     "One off nightly benchmark with also downgraded JDK (25.0.2 -> 25.0.1), but all other system packages fully updated, and Lucene frozen on last good 1/22 run; attempting to root-cause https://github.com/apache/lucene/issues/15662",
   ),
+  (
+    "2026-02-24",
+    "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
+    "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
+  ),
 ]

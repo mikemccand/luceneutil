@@ -329,6 +329,23 @@ def validate_nightly_task_count(tasks_file, max_count):
       raise RuntimeError(f"nightly tasks file {tasks_file} must have at most {max_count} tasks in each category, but saw {len(tasks)}:\n  {tasks_str}")
 
 
+def run_print_log(cmd, desc, logDir, logFileName, do_print=True):
+  p = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
+  s = p.stdout.strip()
+  fullLogFileName = f"{logDir}/{logFileName}"
+  with open(fullLogFileName, "w") as f:
+    f.write(s)
+  if do_print:
+    if "\n" in s:
+      # multiple lines, so we force newline before first line
+      insert = "\n"
+    else:
+      # inline single line
+      insert = " "
+    print(f"\n\n{desc} (see also {fullLogFileName}): {cmd=}{insert}{s}")
+  return s
+
+
 def run():
   openPRCount, closedPRCount = countGitHubPullRequests()
 
@@ -395,35 +412,32 @@ def run():
   message("log dir %s" % runLogDir)
 
   os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
-  javaFullVersion = os.popen("%s -fullversion 2>&1" % constants.JAVA_COMMAND).read().strip()
-  print("%s" % javaFullVersion)
-  javaVersion = os.popen("%s -version 2>&1" % constants.JAVA_COMMAND).read().strip()
+
+  javaVersion = run_print_log("%s -version 2>&1" % constants.JAVA_COMMAND, "Java version", runLogDir, "java_version.txt")
   print("%s" % javaVersion)
 
-  p = subprocess.run(f"{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
-  open(f"{runLogDir}/java-final-flags.txt", "w").write(p.stdout.strip())
-  shutil.copyfile("/proc/cpuinfo", f"{runLogDir}/cpuinfo.txt")
+  javaFullVersion = run_print_log("%s -fullversion 2>&1" % constants.JAVA_COMMAND, "Java full version", runLogDir, "java_full_version.txt")
 
-  kernel_version = os.popen("uname -a 2>&1").read().strip()
-  print(f"uname -a: {kernel_version}")
+  run_print_log(f"{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version", "Java version & all flags", runLogDir, "java_final_flags.txt")
 
-  proc_version = open("/proc/version").read().strip()
-  print(f"/proc/version: {proc_version}")
+  kernel_version = run_print_log("uname -a 2>&1", "Linux kernel version", runLogDir, "uname.txt")
 
-  boot_cmdline = open("/proc/cmdline").read().strip()
-  print(f"/proc/cmdline (kernel boot CLI): {boot_cmdline}")
+  # from 01/29/2026 pains (trust but verify!):
+  cpupower = run_print_log("cpupower frequency-info", "CPU governor/scaling/frequency", runLogDir, "cpu_frequency_info.txt")
+  lscpu = run_print_log("lscpu", "CPU specifics", runLogDir, "lscpu.txt")
+  run_print_log("cat /proc/cpuinfo", "More CPU specifics", runLogDir, "proc_cpuinfo.txt", do_print=False)
 
-  lsmod = subprocess.run("lsmod", shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
-  print(f"lsmod (kernel modules):\n{lsmod.stdout.strip()}")
+  proc_version = run_print_log("cat /proc/version", "Full Linux version", runLogDir, "proc_version.txt")
 
-  preempt = subprocess.run(["sudo", "cat", "/sys/kernel/debug/sched/preempt"], capture_output=True, text=True, check=True).stdout.strip()
-  print(f"Preempt mode: {preempt}")
+  proc_cmdline = run_print_log("cat /proc/cmdline", "Kernel boot command-line", runLogDir, "proc_cmdline.txt")
 
-  dmesg = subprocess.run(["sudo", "dmesg"], capture_output=True, text=True, check=True).stdout.strip()
-  open(f"{runLogDir}/dmesg.txt", "w").write(dmesg)
+  lsmod = run_print_log("lsmod", "Loaded kernel modules", runLogDir, "lsmod.txt")
 
-  print("lsb_release -a:\n%s" % os.popen("lsb_release -a 2>&1").read().strip())
-  print("\ninstalled packages (pacman -Q):\n%s" % os.popen("pacman -Q 2>&1").read().strip())
+  preempt = run_print_log("sudo cat /sys/kernel/debug/sched/preempt", "Preempt mode", runLogDir, "preempt.txt")
+
+  dmesg = run_print_log("sudo dmesg", "Kernel console log", runLogDir, "dmesg.txt", do_print=False)
+  run_print_log("lsb_release -a", "Linux standard base version", runLogDir, "lsb.txt")
+  packages = run_print_log("pacman -Q", "All installed packages&versions", runLogDir, "pacman.txt")
 
   if not REAL:
     os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
@@ -853,6 +867,9 @@ def run():
         w(f"\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>")
     w(f"\nuname -a: {kernel_version}<br>")
     w(f"\n/proc/version: {proc_version}<br>")
+    w(f"\n/proc/cmdline: {proc_cmdline}<br>")
+    w(f"\ncpupower frequency-info: {cpupower}")
+    w(f"\nlscpu: {lscpu}")
     w(f"Preempt mode: {preempt}")
     w('\n[<a href="all.log">top-level log from this run</a>]<br>\n')
     w("%s<br>" % javaVersion)

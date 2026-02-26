@@ -107,7 +107,7 @@ def fetch_cohere_vectors():
         break
     print(f"completed writing {num_queries} query embeddings")
 
-  print(f"download completed. verifying artifacts...")
+  print("download completed. verifying artifacts...")
   embs_docs = np.fromfile(doc_file, dtype=np.float32)
   embs_docs = embs_docs.reshape(num_docs, DIMENSIONS)
   print(f"reading docs of shape: {embs_docs.shape}")

@@ -76,9 +76,10 @@ def fetch_cohere_vectors():
   for name in (doc_file, query_file, meta_file):
     print(f"checking if file:{name} exists...")
     if os.path.exists(name):
-      raise RuntimeError(f"please remove {name} first")
+      raise RuntimeError(f"please remove file: " + name + " first")
 
   do_shuffle = not args.no_shuffle
+  print(f"Dataset shuffling: {do_shuffle}")
   ds = datasets.load_dataset(DATASET_PATH, LANG, split="train", streaming=True)
   if do_shuffle:
     ds = ds.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE, seed=SEED)
@@ -144,6 +145,7 @@ def fetch_cohere_vectors():
     assert len(md) == num_docs + 1
     for line in md[:11]:
       print(line.rstrip("\n"))  # print() adds another newline
+  print("\nscript completed. PyArrow streaming connections can take time to close. Use ctrl-C to end.")
 
 
 if __name__ == "__main__":

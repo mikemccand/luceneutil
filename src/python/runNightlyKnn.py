@@ -13,6 +13,9 @@ import benchUtil
 import constants
 import knnPerfTest
 
+# twist and shout!
+knnPerfTest.NOISY = True
+
 # TODO
 #   - graphs
 #     - get gitHashes / clicking working
@@ -668,8 +671,8 @@ def _run(results_dir):
   knnPerfTest.print_mem_info()
 
   # sanity check vectors
-  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE, True)
-  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE, True)
+  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE)
+  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE)
 
   all_results = []
   all_summaries = []

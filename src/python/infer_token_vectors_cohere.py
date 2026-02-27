@@ -76,7 +76,7 @@ def fetch_cohere_vectors():
   for name in (doc_file, query_file, meta_file):
     print(f"checking if file:{name} exists...")
     if os.path.exists(name):
-      raise RuntimeError(f"please remove file: " + name + " first")
+      raise RuntimeError("please remove file: " + name + " first")
 
   do_shuffle = not args.no_shuffle
   print(f"Dataset shuffling: {do_shuffle}")

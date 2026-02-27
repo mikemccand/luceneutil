@@ -185,9 +185,10 @@ By default we use 100/300 dimension vectors, to use higher dimension vectors (mo
 1. run `./gradlew vectors-mpnet` or `./gradlew vectors-minilm` depend on your needs (this step will run `infer_token_vectors.py` for you, and then generate task and document vectors)
 2. run `src/python/localrun.py` (see instructions inside `src/python/vector-test.py`) or `src/python/knnPerfTest.py` (see instructions inside the file) of your choice, 
 
-To test vector search with [Cohere/wikipedia-22-12-en-embeddings](https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings) dataset, you need to do:
-1. run `python src/python/infer_token_vectors_cohere.py -d 10000000 -q 10000` to generate vectors
-in the format that luceneutil vector search can understand. Instead of `10000000` increase the number of documents to `100000000` if you want to run vector search on 10M documents.
+To test vector search with [Cohere/wikipedia-2023-11-embed-multilingual-v3](https://huggingface.co/datasets/Cohere/wikipedia-2023-11-embed-multilingual-v3/viewer/en) dataset, you need to do:
+1. run `python src/python/infer_token_vectors_cohere.py -d 1000000 -q 10000` to generate 1M doc vectors
+in the format that luceneutil vector search can understand. Increase the number of documents (`-d`) to `10000000` if you want to run vector search on 10M documents.
+   * By default, the tool will shuffle the dataset vectors. Use the option `--no-shuffle` to disable shuffling. This is required if you want to generate the metadata file that is needed for parent-join benchmarks.
 2. In `src/python/knnPerfTest.py` uncomment lines that define doc and query vectors for cohere dataset.
 3. run `src/python/knnPerfTest.py` 
 

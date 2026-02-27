@@ -52,7 +52,6 @@ DIMENSIONS = 1024
 LANG = "en"
 
 # Note: Shuffling will break the parent-join benchmarks because the metadata file expects entries to be ordered
-DO_SHUFFLE = True
 SHUFFLE_BUFFER_SIZE = 25000
 SEED = random.randint(1, 512)
 
@@ -64,6 +63,7 @@ def fetch_cohere_vectors():
   parser.add_argument("-n", "--name", default="cohere-wikipedia", help="Dataset name, used as a filename prefix for generated files.")
   parser.add_argument("-d", "--numDocs", default="1_000_000", help="Number of documents")
   parser.add_argument("-q", "--numQueries", default="10_000", help="Number of queries")
+  parser.add_argument("--no-shuffle", action="store_true", help="Disable shuffling of the dataset (required for parent-join benchmarks)")
   args = parser.parse_args()
   print("Fetching Cohere embeddings with the following args: %s" % args)
 
@@ -78,14 +78,19 @@ def fetch_cohere_vectors():
     if os.path.exists(name):
       raise RuntimeError(f"please remove {name} first")
 
+  do_shuffle = not args.no_shuffle
   ds = datasets.load_dataset(DATASET_PATH, LANG, split="train", streaming=True)
-  shuffled_ds = ds.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE, seed=SEED)
-  ds_iter = iter(shuffled_ds)
+  if do_shuffle:
+    ds = ds.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE, seed=SEED)
+  ds_iter = iter(ds)
 
   written = 0
   status_check = min(0.1 * num_docs, 100_000)
-  with open(meta_file, "w") as meta, open(doc_file, "wb") as out_f, open(query_file, "wb") as out_f_queries:
-    meta.write("wiki_id,para_id\n")
+  meta = None
+  with open(doc_file, "wb") as out_f, open(query_file, "wb") as out_f_queries:
+    if not do_shuffle:
+      meta = open(meta_file, "w")
+      meta.write("wiki_id,para_id\n")
     for row in ds_iter:
       # assert dataset sanity with first row
       if written == 0:
@@ -94,10 +99,9 @@ def fetch_cohere_vectors():
         assert emb_dims == DIMENSIONS, f"Dataset embedding dimensions: {emb_dims} do not match configured dimensions: {DIMENSIONS}"
       emb = np.array(row["emb"], dtype=np.float32)
       emb.tofile(out_f)
-      id_vals = row["_id"].split("_")
-      wiki_id = id_vals[1]
-      para_id = id_vals[2]
-      meta.write(f"{wiki_id},{para_id}\n")
+      if not do_shuffle:
+        id_vals = row["_id"].split("_")
+        meta.write(f"{id_vals[1]},{id_vals[2]}\n")
       written += 1
       if written % status_check == 0:
         print(f"written {written} embeddings")
@@ -114,6 +118,9 @@ def fetch_cohere_vectors():
         break
     print(f"completed writing {num_queries} query embeddings")
 
+    if meta:
+      meta.close()
+
   print("download completed. verifying artifacts...")
   embs_docs = np.fromfile(doc_file, dtype=np.float32)
   embs_docs = embs_docs.reshape(num_docs, DIMENSIONS)
@@ -127,13 +134,16 @@ def fetch_cohere_vectors():
   print(f"{embs_queries[0]}")
   assert embs_queries.shape[0] == num_queries and embs_queries.shape[1] == DIMENSIONS
 
-  print("reading metadata file")
-  with open(meta_file) as meta:
-    md = meta.readlines()
-  print(f"metadata file row_count: {len(md)}, includes 1 header line")
-  assert len(md) == num_docs + 1
-  for line in md[:11]:
-    print(line.rstrip("\n"))  # print() adds another newline
+  if do_shuffle:
+    assert not os.path.exists(meta_file), f"metadata file {meta_file} should not exist when shuffle is enabled"
+  else:
+    print("reading metadata file")
+    with open(meta_file) as meta:
+      md = meta.readlines()
+    print(f"metadata file row_count: {len(md)}, includes 1 header line")
+    assert len(md) == num_docs + 1
+    for line in md[:11]:
+      print(line.rstrip("\n"))  # print() adds another newline
 
 
 if __name__ == "__main__":

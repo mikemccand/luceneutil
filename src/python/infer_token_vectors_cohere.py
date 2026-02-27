@@ -17,6 +17,7 @@
 
 import argparse
 import os
+import random
 
 import datasets
 import localconstants
@@ -50,6 +51,11 @@ DATASET_PATH = "Cohere/wikipedia-2023-11-embed-multilingual-v3"
 DIMENSIONS = 1024
 LANG = "en"
 
+# Note: Shuffling will break the parent-join benchmarks because the metadata file expects entries to be ordered
+DO_SHUFFLE = True
+SHUFFLE_BUFFER_SIZE = 25000
+SEED = random.randint(1, 512)
+
 
 def fetch_cohere_vectors():
   parser = argparse.ArgumentParser(
@@ -73,7 +79,8 @@ def fetch_cohere_vectors():
       raise RuntimeError(f"please remove {name} first")
 
   ds = datasets.load_dataset(DATASET_PATH, LANG, split="train", streaming=True)
-  ds_iter = iter(ds)
+  shuffled_ds = ds.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE, seed=SEED)
+  ds_iter = iter(shuffled_ds)
 
   written = 0
   status_check = min(0.1 * num_docs, 100_000)

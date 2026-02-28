@@ -860,8 +860,8 @@ KNOWN_CHANGES = [
   ),
   (
     "2025-12-07",
-    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
-    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled).  since we use DOT_PRODUCT vector similarity, the un-normalized v2 vectors search was completely broken so we should not trust the large throughput drop on v3 upgrade is true: https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled).  since we use DOT_PRODUCT vector similarity, the un-normalized v2 vectors search was completely broken so we should not trust the large throughput drop on v3 upgrade is true: https://github.com/mikemccand/luceneutil/issues/497",
   ),
   (
     "2026-01-29",

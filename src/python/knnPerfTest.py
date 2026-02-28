@@ -225,7 +225,7 @@ _THRESH_SPARSE_PCT_ZEROS = 0.50
 _THRESH_SKEWED_ABS = 1.0
 _THRESH_HEAVY_TAILS_KURTOSIS = 3.0
 _THRESH_FLAT_KURTOSIS = -1.0
-_THRESH_OUTLIER_SPREAD_SIGMA = 4.0
+_THRESH_OUTLIER_SPREAD_SIGMA = 3.0
 
 
 def _sparklines_2row(counts):
@@ -249,14 +249,15 @@ def _sparklines_2row(counts):
   return "".join(top_chars), "".join(bot_chars)
 
 
-def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width, max_label_len):
-  """Prints two lines per dim: top row of sparkline, then full stats line with bottom row."""
-  label_str = ",".join(labels)
+def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width):
+  """Prints sparkline + stats, with any smell labels (with details) on separate lines below."""
   top_row, bot_row = _sparklines_2row(counts)
-  # build the stats prefix once so the top row can be aligned to the same column
-  prefix = f"  dim {d:0{dim_idx_width}d} [{label_str:<{max_label_len}}] μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% "  # noqa: RUF001 sigma (std deviation) is intentional
+  prefix = f"  dim {d:0{dim_idx_width}d} μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% "  # noqa: RUF001 sigma (std deviation) is intentional
   print(f"{' ' * len(prefix)}[{top_row}]")
   print(f"{prefix}[{bot_row}]")
+  indent = f"  {' ' * dim_idx_width}  "
+  for name, detail in labels:
+    print(f"{indent}-> {name}: {detail}")
   print()
 
 
@@ -389,48 +390,48 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
       counts = np.histogram(col, bins=_NUM_SPARK_BINS)[0].tolist()
     dim_counts.append(counts)
 
-  # assign labels per dim
+  # assign labels per dim -- each label is (name, detail_string)
   dim_labels = []
   for d in range(dim):
     labels = []
 
     if std[d] <= _THRESH_CONSTANT_STD:
-      labels.append("CONSTANT")
+      labels.append(("CONSTANT", f"std={std[d]:.6f}, threshold={_THRESH_CONSTANT_STD}"))
 
     if pct_zeros[d] > _THRESH_SPARSE_PCT_ZEROS:
-      labels.append("SPARSE")
+      labels.append(("SPARSE", f"{pct_zeros[d] * 100:.1f}% zeros, threshold={_THRESH_SPARSE_PCT_ZEROS * 100:.0f}%"))
 
     if non_const[d]:
       if abs(skewness[d]) > _THRESH_SKEWED_ABS:
-        labels.append("SKEWED")
+        labels.append(("SKEWED", f"skew={skewness[d]:+.2f}, threshold=|{_THRESH_SKEWED_ABS}|"))
       if excess_kurtosis[d] > _THRESH_HEAVY_TAILS_KURTOSIS:
-        labels.append("HEAVY_TAILS")
+        labels.append(("HEAVY_TAILS", f"kurtosis={excess_kurtosis[d]:+.2f}, threshold>{_THRESH_HEAVY_TAILS_KURTOSIS}"))
       if excess_kurtosis[d] < _THRESH_FLAT_KURTOSIS:
-        labels.append("FLAT")
+        labels.append(("FLAT", f"kurtosis={excess_kurtosis[d]:+.2f}, threshold<{_THRESH_FLAT_KURTOSIS}"))
 
     if std_of_stds > 0 and abs(std[d] - mean_of_stds) > _THRESH_OUTLIER_SPREAD_SIGMA * std_of_stds:
-      labels.append("OUTLIER_SPREAD")
+      z = (std[d] - mean_of_stds) / std_of_stds
+      labels.append(("OUTLIER_SPREAD", f"this_std={std[d]:.4f}, mean_std={mean_of_stds:.4f}, {z:+.1f}sigma vs threshold={_THRESH_OUTLIER_SPREAD_SIGMA}sigma"))
 
     dim_labels.append(labels)
 
   # format and print output
   dim_idx_width = len(str(dim - 1))
-  max_label_len = max((len(",".join(lbs)) for lbs in dim_labels), default=0)
   bad_dims = [d for d in range(dim) if len(dim_labels[d]) > 0]
 
   elapsed_sec = time.monotonic() - t0_sec
   if bad_dims:
     print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
-    if any("OUTLIER_SPREAD" in lbs for lbs in dim_labels):
+    if any(name == "OUTLIER_SPREAD" for lbs in dim_labels for name, _ in lbs):
       print(f"  (OUTLIER_SPREAD: std of all dims: μ={mean_of_stds:.3f}, σ={std_of_stds:.3f}, threshold={_THRESH_OUTLIER_SPREAD_SIGMA}σ)")  # noqa: RUF001 sigma (std deviation) is intentional
 
     for d in bad_dims:
-      _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
+      _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width)
 
     if NOISY:
       print(f"smell: all {dim} dims:")
       for d in range(dim):
-        _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width, max_label_len)
+        _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width)
   elif NOISY:
     print(f"smell: no degenerate dims found in {elapsed_sec:.1f}s")
 
@@ -453,7 +454,12 @@ def smell_vectors(dim, file_name):
 
   if np is None:
     # no numpy
+    print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
+    print("Next time use the local Python venv: make env; source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
     return
+
+  if NOISY:
+    print(f"smell vectors from {file_name}")
 
   _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
 
@@ -1241,9 +1247,6 @@ def run_knn_benchmark(checkout, values, log_path):
 
   if NOISY:
     print_run_summary(values)
-
-  if NOISY:
-    print("smell vectors...")
 
   smell_vectors(dim, doc_vectors)
   smell_vectors(dim, query_vectors)

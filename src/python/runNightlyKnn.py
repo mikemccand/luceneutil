@@ -17,6 +17,7 @@ import knnPerfTest
 knnPerfTest.NOISY = True
 
 PERF_EXE = shutil.which("perf")
+PERF_STATS = constants.PERF_STATS
 
 if PERF_EXE is None:
   print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
@@ -674,7 +675,7 @@ def _run(results_dir):
   ]
 
   if PERF_EXE is not None:
-    cmd = [PERF_EXE, "stat", "-dd"] + cmd
+    cmd = [PERF_EXE, "stat", "-dd", "-e", ",".join(PERF_STATS)] + cmd
 
   # print cpu and memory information at the start
   knnPerfTest.print_cpu_info()

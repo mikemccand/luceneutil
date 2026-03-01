@@ -1213,7 +1213,7 @@ class RunAlgs:
 
     command = []
     if PERF_EXE is not None:
-      command += [PERF_EXE, "stat", "-dd"]
+      command += [PERF_EXE, "stat", "-dd", "-e", ",".join(PERF_STATS)]
     command += c.javaCommand.split()
 
     # TODO: re-enable?  we found during horror-massive-benchy-slowdown Feb 2026 that this was adding surprisingly non-trivial cost

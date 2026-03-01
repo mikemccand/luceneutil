@@ -888,9 +888,14 @@ def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
 
   p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
-    if logFile is not None and os.path.getsize(logFile) < 50 * 1024:
-      print(open(logFile).read())
-    raise RuntimeError("failed: %s [wd %s]; see logFile %s" % (cmd, os.getcwd(), logFile))
+    byte_count = os.path.getsize(logFile)
+    max_bytes_to_eyeballs = 50 * 1024
+    with open(logFile) as f:
+      if byte_count > max_bytes_to_eyeballs:
+        f.seek(byte_count - max_bytes_to_eyeballs)
+      msg = f.read()
+    print(msg)
+    raise RuntimeError("failed: %s [wd %s]; see logFile %s\n\n%s" % (cmd, os.getcwd(), logFile, msg))
   if vmstatLogFile is not None:
     print(f"now kill vmstat: pid={vmstatProcess.pid}")
     # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
@@ -978,6 +983,7 @@ class RunAlgs:
       # 77: always enable Java Flight Recorder profiling
       w(
         f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
+        # f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+DebugNonSafepoints",
       )
@@ -1212,15 +1218,14 @@ class RunAlgs:
 
     # TODO: re-enable?  we found during horror-massive-benchy-slowdown Feb 2026 that this was adding surprisingly non-trivial cost
     # see https://github.com/apache/lucene/issues/15662
-    if False:
-      # 77: always enable Java Flight Recorder profiling
-      command += [
-        f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
-        "-XX:+UnlockDiagnosticVMOptions",
-        "-XX:+DebugNonSafepoints",
-        # uncomment the line below to enable remote debugging
-        # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
-      ]
+    # 77: always enable Java Flight Recorder profiling
+    command += [
+      f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
+      "-XX:+UnlockDiagnosticVMOptions",
+      "-XX:+DebugNonSafepoints",
+      # uncomment the line below to enable remote debugging
+      # '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:7891'
+    ]
 
     w = lambda *xs: [command.append(str(x)) for x in xs]
     w("-classpath", cp)
@@ -1623,7 +1628,8 @@ class RunAlgs:
     baseLatencyMetrics = self.computeTaskLatencies(baseTaskLatencies, catSet)
     cmpLatencyMetrics = self.computeTaskLatencies(cmpTaskLatencies, catSet)
 
-    for currentCat in catSet:
+    latencyLines = []
+    for currentCat in sorted(catSet):
       if currentCat not in baseLatencyMetrics:
         # When we add a whole new task (e.g. VectorSearch), just skip the comparison for the first nightly run
         # since baseline will not have this task yet:
@@ -1635,27 +1641,61 @@ class RunAlgs:
       pctP99 = 100 * (currentCmpMetrics["p99"] - currentBaseMetrics["p99"]) / currentBaseMetrics["p99"]
       pctP999 = 100 * (currentCmpMetrics["p999"] - currentBaseMetrics["p999"]) / currentBaseMetrics["p999"]
       pctP100 = 100 * (currentCmpMetrics["p100"] - currentBaseMetrics["p100"]) / currentBaseMetrics["p100"]
-      print(
-        "||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s"
-        % (
-          currentCat,
-          currentBaseMetrics["p50"],
-          currentCmpMetrics["p50"],
-          pctP50,
-          currentBaseMetrics["p90"],
-          currentCmpMetrics["p90"],
-          pctP90,
-          currentBaseMetrics["p99"],
-          currentCmpMetrics["p99"],
-          pctP99,
-          currentBaseMetrics["p999"],
-          currentCmpMetrics["p999"],
-          pctP999,
-          currentBaseMetrics["p100"],
-          currentCmpMetrics["p100"],
-          pctP100,
+      if jira:
+        latencyLines.append(
+          "||%s||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||"
+          % (
+            currentCat,
+            currentBaseMetrics["p50"],
+            currentCmpMetrics["p50"],
+            pctP50,
+            currentBaseMetrics["p90"],
+            currentCmpMetrics["p90"],
+            pctP90,
+            currentBaseMetrics["p99"],
+            currentCmpMetrics["p99"],
+            pctP99,
+            currentBaseMetrics["p999"],
+            currentCmpMetrics["p999"],
+            pctP999,
+            currentBaseMetrics["p100"],
+            currentCmpMetrics["p100"],
+            pctP100,
+          )
         )
-      )
+      else:
+        latencyLines.append(
+          "%32s%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%"
+          % (
+            currentCat,
+            currentBaseMetrics["p50"],
+            currentCmpMetrics["p50"],
+            pctP50,
+            currentBaseMetrics["p90"],
+            currentCmpMetrics["p90"],
+            pctP90,
+            currentBaseMetrics["p99"],
+            currentCmpMetrics["p99"],
+            pctP99,
+            currentBaseMetrics["p999"],
+            currentCmpMetrics["p999"],
+            pctP999,
+            currentBaseMetrics["p100"],
+            currentCmpMetrics["p100"],
+            pctP100,
+          )
+        )
+
+    if latencyLines:
+      if jira:
+        print("||Task||P50 Base||P50 Cmp||Diff||P90 Base||P90 Cmp||Diff||P99 Base||P99 Cmp||Diff||P999 Base||P999 Cmp||Diff||P100 Base||P100 Cmp||Diff||")
+      else:
+        print(
+          "%32s%10s%10s%9s%10s%10s%9s%10s%10s%9s%10s%10s%9s%10s%10s%9s"
+          % ("Task", "P50 B", "P50 C", "Diff", "P90 B", "P90 C", "Diff", "P99 B", "P99 C", "Diff", "P999 B", "P999 C", "Diff", "P100 B", "P100 C", "Diff")
+        )
+      for line in latencyLines:
+        print(line)
 
     if jira:
       w("||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||p-value||" % (baseDesc, baseDesc, cmpDesc, cmpDesc))

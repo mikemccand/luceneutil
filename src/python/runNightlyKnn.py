@@ -16,6 +16,13 @@ import knnPerfTest
 # twist and shout!
 knnPerfTest.NOISY = True
 
+PERF_EXE = shutil.which("perf")
+
+if PERF_EXE is None:
+  print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
+else:
+  print(f"NOTE: perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
+
 # TODO
 #   - graphs
 #     - get gitHashes / clicking working
@@ -665,6 +672,9 @@ def _run(results_dir):
     "48",
     #'-forceMerge'
   ]
+
+  if PERF_EXE is not None:
+    cmd = [PERF_EXE, "stat", "-dd"] + cmd
 
   # print cpu and memory information at the start
   knnPerfTest.print_cpu_info()

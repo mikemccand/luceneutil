@@ -111,6 +111,7 @@ import org.apache.lucene.search.knn.KnnCollectorManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
@@ -1010,6 +1011,7 @@ public class KnnGraphTester implements FormatterLogger {
     switch (searchType) {
       case KNN -> suffix.add(Integer.toString(topK));
       case RADIUS -> suffix.add(Float.toString(resultSimilarity));
+      default -> throw new IllegalArgumentException("Unsupported search type: " + searchType);
     }
     
     return docPath.getFileName() + "-" + String.join("-", suffix);
@@ -1186,6 +1188,7 @@ public class KnnGraphTester implements FormatterLogger {
       switch (searchType) {
         case KNN -> log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, topK, fanout);
         case RADIUS -> log("searching %d query vectors; traversalSimilarity=%f, resultSimilarity=%f\n", numQueryVectors, traversalSimilarity, resultSimilarity);
+        default -> throw new IllegalArgumentException("Unsupported search type: " + searchType);
       }
 
       long startNS;
@@ -1198,18 +1201,24 @@ public class KnnGraphTester implements FormatterLogger {
           if (numDocs != indexNumDocs && !parentJoin) {
             throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
           }
+
+          // TODO: Replace with more sophisticated result collection in https://github.com/mikemccand/luceneutil/issues/545
+          int[] resultSizes = new int[numQueryVectors];
+
           // warm up (and optionally collect HNSW traversal scores)
           if (hnswScoreHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
             collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), topK, fanout, metric);
           } else {
             for (int i = 0; i < numQueryVectors; i++) {
+              final Result result;
               if (vectorEncoding.equals(VectorEncoding.BYTE)) {
                 byte[] target = targetReaderByte.nextBytes();
-                doByteVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery);
+                result = doByteVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, topK);
               } else {
                 float[] target = targetReader.next();
-                doFloatVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, parentJoin);
+                result = doFloatVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs());
               }
+              resultSizes[i] = Math.max(1, result.topDocs.scoreDocs.length);
             }
           }
           log("done warmup\n");
@@ -1219,10 +1228,10 @@ public class KnnGraphTester implements FormatterLogger {
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              results[i] = doByteVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery);
+              results[i] = doByteVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, resultSizes[i]);
             } else {
               float[] target = targetReader.next();
-              results[i] = doFloatVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, parentJoin);
+              results[i] = doFloatVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, parentJoin, resultSizes[i]);
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
@@ -1407,7 +1416,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static Result doByteVectorQuery(
-    IndexSearcher searcher, byte[] vector, SearchType searchType, int k, int fanout, float traversalSimilarity, float resultSimilarity, FilterStrategy filterStrategy, Query filter)
+    IndexSearcher searcher, byte[] vector, SearchType searchType, int k, int fanout, float traversalSimilarity, float resultSimilarity, FilterStrategy filterStrategy, Query filter, int resultSize)
     throws IOException {
 
     Query queryTimeFilter = null;
@@ -1427,16 +1436,12 @@ public class KnnGraphTester implements FormatterLogger {
               .add(filter, BooleanClause.Occur.FILTER)
               .build();
     }
-    TopDocs docs = switch (searchType) {
-      case KNN -> searcher.search(query, k);
-      // TODO: more performant collector for radius search?
-      case RADIUS -> searcher.search(query, searcher.getIndexReader().numDocs());
-    };
-    return new Result(docs, ((ProfiledVectorQuery) query).totalVectorCount(), 0);
+    TopDocs docs = searcher.search(query, resultSize);
+    return new Result(docs, ((ProfiledVectorQuery) query).totalVisitedVectorCount(), 0);
   }
 
   private static Result doFloatVectorQuery(
-    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float traversalSimilarity, float resultSimilarity, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery)
+    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float traversalSimilarity, float resultSimilarity, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize)
     throws IOException {
 
     Query queryTimeFilter = null;
@@ -1452,17 +1457,12 @@ public class KnnGraphTester implements FormatterLogger {
         case RADIUS -> new FloatVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
       };
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
-      TopDocs topDocs = switch (searchType) {
-        case KNN -> searcher.search(query, k);
-        // TODO: more performant collector for radius search?
-        case RADIUS -> searcher.search(query, searcher.getIndexReader().numDocs());
-      };
+      TopDocs topDocs = searcher.search(query, resultSize);
       return new Result(topDocs, 0, 0);
     }
 
     Query query = switch (searchType) {
       case KNN -> new ProfiledKnnFloatVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
-      // TODO: come up with a profiled version
       case RADIUS -> new ProfiledFloatVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
     };
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
@@ -1471,12 +1471,8 @@ public class KnnGraphTester implements FormatterLogger {
               .add(filter, BooleanClause.Occur.FILTER)
               .build();
     }
-    TopDocs docs = switch (searchType) {
-      case KNN -> searcher.search(query, k);
-      // TODO: more performant collector for radius search?
-      case RADIUS -> searcher.search(query, searcher.getIndexReader().numDocs());
-    };
-    return new Result(docs, ((ProfiledVectorQuery) query).totalVectorCount(), 0);
+    TopDocs docs = searcher.search(query, resultSize);
+    return new Result(docs, ((ProfiledVectorQuery) query).totalVisitedVectorCount(), 0);
   }
 
   record Result(TopDocs topDocs, long visitedCount, int reentryCount) {
@@ -1615,6 +1611,9 @@ public class KnnGraphTester implements FormatterLogger {
         result[i] = new int[intBuffer.get()];
         intBuffer.get(result[i]);
       }
+      if (intBuffer.position() < intBuffer.capacity()) {
+        throw new IllegalStateException("incorrect file format for " + nnPath);
+      }
     }
     return result;
   }
@@ -1622,11 +1621,16 @@ public class KnnGraphTester implements FormatterLogger {
   private void writeExactNN(int[][] nn, Path nnPath) throws IOException {
     log("\nwriting true nearest neighbors to cache file \"" + nnPath + "\"\n");
     try (OutputStream out = Files.newOutputStream(nnPath)) {
+      byte[] buffer = new byte[4096];
+      ByteBuffer tmp = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN);
       for (int i = 0; i < numQueryVectors; i++) {
-        // TODO lots of GC pressure
-        ByteBuffer tmp = ByteBuffer.allocate((nn[i].length + 1) * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+        int size = (nn[i].length + 1) * Integer.BYTES;
+        if (size > buffer.length) {
+          buffer = ArrayUtil.grow(buffer, size);
+          tmp = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN);
+        }
         tmp.asIntBuffer().put(nn[i].length).put(nn[i]);
-        out.write(tmp.array());
+        out.write(buffer, 0, size);
       }
     }
   }
@@ -1634,11 +1638,16 @@ public class KnnGraphTester implements FormatterLogger {
   private void writeExactNNScores(float[][] scores, Path scoresPath) throws IOException {
     log("writing exact NN scores to cache file \"" + scoresPath + "\"\n");
     try (OutputStream out = Files.newOutputStream(scoresPath)) {
+      byte[] buffer = new byte[4096];
+      ByteBuffer tmp = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN);
       for (int i = 0; i < numQueryVectors; i++) {
-        // TODO lots of GC pressure
-        ByteBuffer tmp = ByteBuffer.allocate((scores[i].length + 1) * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+        int size = (scores[i].length + 1) * Float.BYTES;
+        if (size > buffer.length) {
+          buffer = ArrayUtil.grow(buffer, size);
+          tmp = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN);
+        }
         tmp.asFloatBuffer().put(Float.intBitsToFloat(scores[i].length)).put(scores[i]);
-        out.write(tmp.array());
+        out.write(buffer, 0, size);
       }
     }
   }
@@ -1653,6 +1662,9 @@ public class KnnGraphTester implements FormatterLogger {
       for (int i = 0; i < numQueryVectors; i++) {
         scores[i] = new float[Float.floatToIntBits(floatBuffer.get())];
         floatBuffer.get(scores[i]);
+      }
+      if (floatBuffer.position() < floatBuffer.capacity()) {
+        throw new IllegalStateException("incorrect file format for " + scoresPath);
       }
     }
     return scores;
@@ -1889,6 +1901,7 @@ public class KnnGraphTester implements FormatterLogger {
         }
         var topDocs = switch (searchType) {
           case KNN -> searcher.search(query, topK);
+          // TODO: more performant collector for radius search?
           case RADIUS -> searcher.search(query, numDocs);
         };
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
@@ -1987,6 +2000,7 @@ public class KnnGraphTester implements FormatterLogger {
         }
         var topDocs = switch (searchType) {
           case KNN -> searcher.search(query, topK);
+          // TODO: more performant collector for radius search?
           case RADIUS -> searcher.search(query, numDocs);
         };
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
@@ -2049,6 +2063,7 @@ public class KnnGraphTester implements FormatterLogger {
         var query = new ToParentBlockJoinQuery(childQuery, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
         var topDocs = switch (searchType) {
           case KNN -> searcher.search(query, topK);
+          // TODO: more performant collector for radius search?
           case RADIUS -> searcher.search(query, numDocs);
         };
         result[queryOrd] = knn.KnnTesterUtils.getResultIds(topDocs, searcher.storedFields());
@@ -2114,7 +2129,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   interface ProfiledVectorQuery {
-    long totalVectorCount();
+    long totalVisitedVectorCount();
   }
 
   private static class ProfiledKnnByteVectorQuery extends KnnByteVectorQuery implements ProfiledVectorQuery {
@@ -2123,7 +2138,7 @@ public class KnnGraphTester implements FormatterLogger {
     private final int fanout;
     private final String field;
     private final byte[] target;
-    private long totalVectorCount;
+    private long totalVisitedVectorCount;
 
     ProfiledKnnByteVectorQuery(String field, byte[] target, int k, int fanout, Query filter) {
       super(field, target, k + fanout, filter);
@@ -2136,7 +2151,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-      totalVectorCount = 0;
+      totalVisitedVectorCount = 0;
       return super.rewrite(indexSearcher);
     }
 
@@ -2144,12 +2159,12 @@ public class KnnGraphTester implements FormatterLogger {
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
       // merge leaf can happen any number of times during a rewrite
-      totalVectorCount += td.totalHits.value();
+      totalVisitedVectorCount += td.totalHits.value();
       return td;
     }
 
-    public long totalVectorCount() {
-      return totalVectorCount;
+    public long totalVisitedVectorCount() {
+      return totalVisitedVectorCount;
     }
   }
 
@@ -2159,7 +2174,7 @@ public class KnnGraphTester implements FormatterLogger {
     private final int fanout;
     private final String field;
     private final float[] target;
-    private long totalVectorCount;
+    private long totalVisitedVectorCount;
 
     ProfiledKnnFloatVectorQuery(String field, float[] target, int k, int fanout, Query filter) {
       super(field, target, k + fanout, filter);
@@ -2172,7 +2187,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     @Override
     public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-      totalVectorCount = 0;
+      totalVisitedVectorCount = 0;
       return super.rewrite(indexSearcher);
     }
 
@@ -2180,69 +2195,73 @@ public class KnnGraphTester implements FormatterLogger {
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
       TopDocs td = TopDocs.merge(k, perLeafResults);
       // merge leaf can happen any number of times during a rewrite
-      totalVectorCount += td.totalHits.value();
+      totalVisitedVectorCount += td.totalHits.value();
       return td;
     }
 
-    public long totalVectorCount() {
-      return totalVectorCount;
+    public long totalVisitedVectorCount() {
+      return totalVisitedVectorCount;
     }
 
   }
 
   // TODO: also profile exact search
   private static class ProfiledByteVectorSimilarityQuery extends ByteVectorSimilarityQuery implements  ProfiledVectorQuery {
-    private final LongAdder totalVectorCount;
+    private final LongAdder totalVisitedVectorCount;
 
     public ProfiledByteVectorSimilarityQuery(String field, byte[] target, float traversalSimilarity, float resultSimilarity, Query filter) {
       super(field, target, traversalSimilarity, resultSimilarity, filter);
-      this.totalVectorCount = new LongAdder();
+      this.totalVisitedVectorCount = new LongAdder();
     }
 
     @Override
     public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-      totalVectorCount.reset();
+      if (totalVisitedVectorCount.longValue() > 0) {
+        throw new IllegalStateException("approximate search already performed");
+      }
       return super.rewrite(indexSearcher);
     }
 
     @Override
     protected TopDocs approximateSearch(LeafReaderContext context, AcceptDocs acceptDocs, int visitLimit, KnnCollectorManager knnCollectorManager) throws IOException {
       TopDocs result = super.approximateSearch(context, acceptDocs, visitLimit, knnCollectorManager);
-      totalVectorCount.add(result.totalHits.value());
+      totalVisitedVectorCount.add(result.totalHits.value());
       return result;
     }
 
     @Override
-    public long totalVectorCount() {
-      return totalVectorCount.longValue();
+    public long totalVisitedVectorCount() {
+      return totalVisitedVectorCount.longValue();
     }
   }
 
   // TODO: also profile exact search
   private static class ProfiledFloatVectorSimilarityQuery extends FloatVectorSimilarityQuery implements  ProfiledVectorQuery {
-    private final LongAdder totalVectorCount;
+    private final LongAdder totalVisitedVectorCount;
 
     public ProfiledFloatVectorSimilarityQuery(String field, float[] target, float traversalSimilarity, float resultSimilarity, Query filter) {
       super(field, target, traversalSimilarity, resultSimilarity, filter);
-      this.totalVectorCount = new LongAdder();
+      this.totalVisitedVectorCount = new LongAdder();
     }
 
     @Override
     public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-      totalVectorCount.reset();
+      if (totalVisitedVectorCount.longValue() > 0) {
+        throw new IllegalStateException("approximate search already performed");
+      }
       return super.rewrite(indexSearcher);
     }
 
     @Override
     protected TopDocs approximateSearch(LeafReaderContext context, AcceptDocs acceptDocs, int visitLimit, KnnCollectorManager knnCollectorManager) throws IOException {
       TopDocs result = super.approximateSearch(context, acceptDocs, visitLimit, knnCollectorManager);
-      totalVectorCount.add(result.totalHits.value());
+      totalVisitedVectorCount.add(result.totalHits.value());
       return result;
     }
 
     @Override
-    public long totalVectorCount() {
-      return totalVectorCount.longValue();
+    public long totalVisitedVectorCount() {
+      return totalVisitedVectorCount.longValue();
     }
   }
 

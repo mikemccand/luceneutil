@@ -38,6 +38,7 @@ import ps_head
 import QPSChart
 
 PERF_EXE = which("perf")
+PERF_STATS = constants.PERF_STATS
 
 if PERF_EXE is None:
   print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
@@ -81,12 +82,7 @@ MAX_SCORE_DIFF = 0.00001
 
 VERBOSE = False
 
-DO_PERF = constants.DO_PERF
-
-PERF_STATS = constants.PERF_STATS
-
 osName = common.osName
-
 
 # returns an array of all java files in a directory; walks the directory tree
 def addFiles(root):
@@ -982,8 +978,9 @@ class RunAlgs:
 
       # 77: always enable Java Flight Recorder profiling
       w(
-        f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
-        # f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
+        # f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
+        # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
+        f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+DebugNonSafepoints",
       )
@@ -1281,51 +1278,22 @@ class RunAlgs:
     # p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    if DO_PERF:
-      perfCommand = []
-      # why sudo needed!?  also, why not just run perf stat full commandline?
-      # perfCommand.append('sudo')
-      perfCommand.append("perf")
-      perfCommand.append("stat")
-      # perfCommand.append('-v')
-      perfCommand.append("-e")
-      perfCommand.append(",".join(PERF_STATS))
-      perfCommand.append("--pid")
-      perfCommand.append(str(p.pid))
-      # print 'COMMAND: %s' % perfCommand
-      p2 = subprocess.Popen(perfCommand, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-      f = open(logFile + ".stdout", "wb")
-      while True:
-        s = p.stdout.readline()
-        if s == b"":
-          break
-        f.write(s)
-        f.flush()
-      f.close()
-      p.wait()
-      # run(['sudo', 'kill', '-INT', p2.pid])
-      # why?
-      run(["kill", "-INT", p2.pid])
-      # os.kill(p2.pid, signal.SIGINT)
-      stdout, stderr = p2.communicate()
-      print("PERF: %s" % fixupPerfOutput(stderr))
-    else:
-      mode = "wbu" if PYTHON_MAJOR_VER < 3 else "wb"
-      f = open(logFile + ".stdout", mode)
-      while True:
-        s = p.stdout.readline()
-        if s == b"":
-          break
-        f.write(s)
-        f.flush()
-      f.close()
-      if p.wait() != 0:
-        print()
-        print("SearchPerfTest FAILED:")
-        s = open(logFile + ".stdout")
-        for line in s.readlines():
-          print(line.rstrip())
-        raise RuntimeError("SearchPerfTest failed; see log %s.stdout" % logFile)
+    mode = "wbu" if PYTHON_MAJOR_VER < 3 else "wb"
+    f = open(logFile + ".stdout", mode)
+    while True:
+      s = p.stdout.readline()
+      if s == b"":
+        break
+      f.write(s)
+      f.flush()
+    f.close()
+    if p.wait() != 0:
+      print()
+      print("SearchPerfTest FAILED:")
+      s = open(logFile + ".stdout")
+      for line in s.readlines():
+        print(line.rstrip())
+      raise RuntimeError("SearchPerfTest failed; see log %s.stdout" % logFile)
 
     # run(command, logFile + '.stdout', indent='      ')
     print("      %.1f s" % (time.time() - t0))

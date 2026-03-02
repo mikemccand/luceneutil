@@ -84,6 +84,7 @@ VERBOSE = False
 
 osName = common.osName
 
+
 # returns an array of all java files in a directory; walks the directory tree
 def addFiles(root):
   files = []

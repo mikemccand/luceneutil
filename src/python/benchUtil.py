@@ -1218,7 +1218,10 @@ class RunAlgs:
     # see https://github.com/apache/lucene/issues/15662
     # 77: always enable Java Flight Recorder profiling
     command += [
-      f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
+      # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
+      f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc"
+      f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
+      # f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
       "-XX:+UnlockDiagnosticVMOptions",
       "-XX:+DebugNonSafepoints",
       # uncomment the line below to enable remote debugging

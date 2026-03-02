@@ -18,6 +18,7 @@ package perf;
  */
 
 import java.io.IOException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -57,6 +58,38 @@ public class TaskThreads {
     stop.getAndSet(true);
     for (Thread t : threads) {
       t.join();
+    }
+  }
+
+  private static class RunTask implements Callable<Void> {
+    private final TaskSource tasks;
+    private final Task task;
+    private final IndexState indexState;
+    private final TaskParser taskParser;
+    
+    public RunTask(TaskSource tasks, Task task, IndexState indexState, TaskParser taskParser) {
+      this.tasks = tasks;
+      this.task = task;
+      this.indexState = indexState;
+      this.taskParser = taskParser;
+    }
+
+    @Override
+    public Void call() {
+      task.startTimeNanos = System.nanoTime();
+      try {
+        task.go(indexState, taskParser);
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
+      }
+      try {
+        tasks.taskDone(task, task.startTimeNanos-task.recvTimeNS, task.totalHitCount);
+      } catch (Exception e) {
+        System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
+        e.printStackTrace();
+      }
+      task.runTimeNanos = System.nanoTime()-task.startTimeNanos;
+      return null;
     }
   }
 
@@ -115,21 +148,12 @@ public class TaskThreads {
           // Run the task in the IndexSearcher's executor. This is important because IndexSearcher#search also uses the current thread to
           // search, so not running #search from the executor would artificially use one more thread than configured via luceneutil.
           // We're counting time within the task to not include forking time for the top-level search in the reported time.
-          executor.submit(() -> {
-            task.startTimeNanos = System.nanoTime();
-            try {
-              task.go(indexState, taskParser);
-            } catch (IOException ioe) {
-              throw new RuntimeException(ioe);
-            }
-            try {
-              tasks.taskDone(task, task.startTimeNanos-task.recvTimeNS, task.totalHitCount);
-            } catch (Exception e) {
-              System.out.println(Thread.currentThread().getName() + ": ignoring exc:");
-              e.printStackTrace();
-            }
-            task.runTimeNanos = System.nanoTime()-task.startTimeNanos;
-          }).get();
+
+          // don't use anon lambda here so JFR stack traces are split by new lambda name
+          // each time.  or, could we somehow "fix this in post"?  are there dedup
+          // tools/regexps/something?  Java mission control somehow dedups these
+          // annoyingly named anon lambdas...
+          executor.submit(new RunTask(tasks, task, indexState, taskParser)).get();
 
           task.threadID = threadID;
         }

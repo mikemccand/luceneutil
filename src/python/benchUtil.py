@@ -47,6 +47,10 @@ else:
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
+# new experimental profiler as of Java 25.  its sampling is driven by OS measuring N CPU ticks, instead of async
+# which can bias against e.g. native threads
+USE_CPU_TIME_PROFILER = True
+
 VMSTAT_PATH = shutil.which("vmstat")
 if VMSTAT_PATH is None:
   print("WARNING: no vmstat executable; will not collect system-wide CPU/IO telemetry")
@@ -867,6 +871,23 @@ def stats(l):
   return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
 
+# TODO: revisit profiling.jfc: we found during horror-movie-massive-benchy-slowdown Feb 2026
+# that this was adding surprisingly non-trivial cost (~5-7% maybe)
+#
+# see https://github.com/apache/lucene/issues/15662
+
+
+def get_profiler_jvm_args(jfr_file_name, indent=""):
+  if USE_CPU_TIME_PROFILER:
+    print("{indent}NOTE: using experimental CPU time profiler (see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1)")
+    # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
+    args = f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
+  else:
+    print("{indent}NOTE: using async profiler")
+    args = f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
+  return args
+
+
 def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
   print("%srun: %s, cwd=%s vmstatLogFile=%s topLogFile=%s" % (indent, cmd, os.getcwd(), vmstatLogFile, topLogFile))
   if logFile is not None:
@@ -979,9 +1000,7 @@ class RunAlgs:
 
       # 77: always enable Java Flight Recorder profiling
       w(
-        # f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
-        # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
-        f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
+        get_profiler_jvm_args(jfrOutput, "      "),
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+DebugNonSafepoints",
       )
@@ -1214,14 +1233,8 @@ class RunAlgs:
       command += [PERF_EXE, "stat", "-dd", "-e", ",".join(PERF_STATS)]
     command += c.javaCommand.split()
 
-    # TODO: re-enable?  we found during horror-massive-benchy-slowdown Feb 2026 that this was adding surprisingly non-trivial cost
-    # see https://github.com/apache/lucene/issues/15662
-    # 77: always enable Java Flight Recorder profiling
     command += [
-      # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
-      f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc"
-      f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
-      # f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
+      get_profiler_jvm_args(f"{constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr", "      "),
       "-XX:+UnlockDiagnosticVMOptions",
       "-XX:+DebugNonSafepoints",
       # uncomment the line below to enable remote debugging

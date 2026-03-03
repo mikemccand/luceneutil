@@ -17,16 +17,18 @@
 
 import argparse
 import os
+import random
 
 import datasets
 import localconstants
 import numpy as np
 
 """
-Generate document and query vectors for the vector search task from 
-the Cohere/wikipedia-22-12-en-embeddings https://huggingface.co/datasets/Cohere/wikipedia-22-12-en-embeddings dataset. 
+Generate document and query vectors for the vector search task from
+the Cohere/wikipedia-2023-11-embed-multilingual-v3 dataset.
+https://huggingface.co/datasets/Cohere/wikipedia-2023-11-embed-multilingual-v3/viewer/en
 
-Usage: 
+Usage:
 
 python src/python/infer_token_vectors_cohere.py -d <num_docs> -q <num_queries>
 python src/python/infer_token_vectors_cohere.py -n <filename_prefix> -d <num_docs> -q <num_queries>
@@ -46,10 +48,12 @@ DATASET_PATH = "Cohere/wikipedia-2023-11-embed-multilingual-v3"
 # simple has 646,424 vectors
 # _id, url, title, text, emb
 
-DIMENSIONS = 768
+DIMENSIONS = 1024
+LANG = "en"
 
-
-LANG = "en"  # TODO: what is "simple"?  k
+# Note: Shuffling will break the parent-join benchmarks because the metadata file expects entries to be ordered
+SHUFFLE_BUFFER_SIZE = 25000
+SEED = random.randint(1, 512)
 
 
 def fetch_cohere_vectors():
@@ -57,8 +61,9 @@ def fetch_cohere_vectors():
     prog="Fetch Wikipedia Cohere Embeddings", description="Generate document and query vectors for the vector search task from HuggingFace Cohere/wikipedia-22-12-en-embeddings"
   )
   parser.add_argument("-n", "--name", default="cohere-wikipedia", help="Dataset name, used as a filename prefix for generated files.")
-  parser.add_argument("-d", "--numDocs", default="5_000_000", help="Number of documents")
-  parser.add_argument("-q", "--numQueries", default="1_500_000", help="Number of queries")
+  parser.add_argument("-d", "--numDocs", default="1_000_000", help="Number of documents")
+  parser.add_argument("-q", "--numQueries", default="10_000", help="Number of queries")
+  parser.add_argument("--no-shuffle", action="store_true", help="Disable shuffling of the dataset (required for parent-join benchmarks)")
   args = parser.parse_args()
   print("Fetching Cohere embeddings with the following args: %s" % args)
 
@@ -71,75 +76,76 @@ def fetch_cohere_vectors():
   for name in (doc_file, query_file, meta_file):
     print(f"checking if file:{name} exists...")
     if os.path.exists(name):
-      raise RuntimeError(f"please remove {name} first")
+      raise RuntimeError("please remove file: " + name + " first")
 
-  ds = datasets.load_dataset(DATASET_PATH, split="train", streaming=True)
-  print(f"features: {ds.features}")
-  print(f"total number of rows: {len(ds)}")
-  embedding_dims = len(ds[0]["emb"])
-  print(f"embeddings dims: {embedding_dims}")
-  assert embedding_dims == DIMENSIONS, f"Dataset embedding dimensions: {embedding_dims} do not match configured dimensions: {DIMENSIONS}"
+  do_shuffle = not args.no_shuffle
+  print(f"Dataset shuffling: {do_shuffle}")
+  ds = datasets.load_dataset(DATASET_PATH, LANG, split="train", streaming=True)
+  if do_shuffle:
+    ds = ds.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE, seed=SEED)
+  ds_iter = iter(ds)
 
-  with open(meta_file, "w") as meta, open(doc_file, "wb") as out_f, open(query_file, "wb") as out_f_queries:
-    meta.write("wiki_id,para_id\n")
+  written = 0
+  status_check = min(0.1 * num_docs, 100_000)
+  meta = None
+  with open(doc_file, "wb") as out_f, open(query_file, "wb") as out_f_queries:
+    if not do_shuffle:
+      meta = open(meta_file, "w")
+      meta.write("wiki_id,para_id\n")
+    for row in ds_iter:
+      # assert dataset sanity with first row
+      if written == 0:
+        emb_dims = len(row["emb"])
+        print(f"embedding dimensions = {emb_dims}")
+        assert emb_dims == DIMENSIONS, f"Dataset embedding dimensions: {emb_dims} do not match configured dimensions: {DIMENSIONS}"
+      emb = np.array(row["emb"], dtype=np.float32)
+      emb.tofile(out_f)
+      if not do_shuffle:
+        id_vals = row["_id"].split("_")
+        meta.write(f"{id_vals[1]},{id_vals[2]}\n")
+      written += 1
+      if written % status_check == 0:
+        print(f"written {written} embeddings")
+      if written == num_docs:
+        break
+    print(f"completed writing {written} document embeddings")
 
-    # do this in windows, else the RAM usage is crazy (OOME even with 256
-    # GB RAM since I think this step makes 2X copy of the dataset?)
-    doc_upto = 0
-    # window_num_docs = 1000000
-    # make it work w/64 GB RAM:
-    window_num_docs = 250_000
-    # window_num_docs = 100000
+    written = 0
+    for row in ds_iter:
+      q_emb = np.array(row["emb"], dtype=np.float32)
+      q_emb.tofile(out_f_queries)
+      written += 1
+      if written == num_queries:
+        break
+    print(f"completed writing {num_queries} query embeddings")
 
-    # Fetch Document Embeddings
-    while doc_upto < num_docs:
-      next_doc_upto = min(doc_upto + window_num_docs, num_docs)
-      ds_embs = ds[doc_upto:next_doc_upto]["emb"]
-      ds_wiki_id = ds[doc_upto:next_doc_upto]["wiki_id"]
-      ds_para_id = ds[doc_upto:next_doc_upto]["paragraph_id"]
-      batch_size = next_doc_upto - doc_upto
-      print(f"batch size = {batch_size}")
-      # print(f'\nds_embs: {ds_embs}')
-      embs = np.array(ds_embs, dtype=np.float32)
-      print(f"embs: {embs.dtype} {embs.size} {embs.itemsize} {embs.shape}")
-      print(f"wiki_id: {len(ds_wiki_id)}")
-      print(f"para_id: {len(ds_para_id)}")
+    if meta:
+      meta.close()
 
-      print(f"saving docs[{doc_upto}:{next_doc_upto}] of shape: {embs.shape} to file")
-      with open(doc_file, "ab") as out_f:
-        embs.tofile(out_f)
-
-      print("writing associated metadata")
-      with open(meta_file, "a") as meta:
-        for i in range(batch_size):
-          meta.write(f"{ds_wiki_id[i]},{ds_para_id[i]}\n")
-
-      doc_upto = next_doc_upto
-
-    # Fetch Query Embeddings
-    ds_embs_queries = ds[num_docs : num_docs + num_queries]["emb"]
-    embs_queries = np.array(ds_embs_queries, dtype=np.float32)
-    print(f"saving queries of shape: {embs_queries.shape} to file")
-    with open(query_file, "w") as out_f_queries:
-      embs_queries.tofile(out_f_queries)
-
-  ### check saved datasets
+  print("download completed. verifying artifacts...")
   embs_docs = np.fromfile(doc_file, dtype=np.float32)
   embs_docs = embs_docs.reshape(num_docs, DIMENSIONS)
   print(f"reading docs of shape: {embs_docs.shape}")
   print(f"{embs_docs[0]}")
+  assert embs_docs.shape[0] == num_docs and embs_docs.shape[1] == DIMENSIONS
 
   embs_queries = np.fromfile(query_file, dtype=np.float32)
   embs_queries = embs_queries.reshape(num_queries, DIMENSIONS)
   print(f"reading queries shape: {embs_queries.shape}")
   print(f"{embs_queries[0]}")
+  assert embs_queries.shape[0] == num_queries and embs_queries.shape[1] == DIMENSIONS
 
-  print("reading metadata file")
-  with open(meta_file) as meta:
-    md = meta.readlines()
-  print(f"metadata file row_count: {len(md)}, includes 1 header line")
-  for line in md[:11]:
-    print(line.rstrip("\n"))  # print() adds another newline
+  if do_shuffle:
+    assert not os.path.exists(meta_file), f"metadata file {meta_file} should not exist when shuffle is enabled"
+  else:
+    print("reading metadata file")
+    with open(meta_file) as meta:
+      md = meta.readlines()
+    print(f"metadata file row_count: {len(md)}, includes 1 header line")
+    assert len(md) == num_docs + 1
+    for line in md[:11]:
+      print(line.rstrip("\n"))  # print() adds another newline
+  print("\nscript completed. PyArrow streaming connections can take time to close. Use ctrl-C to end.")
 
 
 if __name__ == "__main__":

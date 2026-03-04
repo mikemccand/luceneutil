@@ -603,7 +603,7 @@ def run():
     vectorDimension=constants.VECTORS_DIMENSIONS,
     directory=DIR_IMPL,
     commitPoint="multi",
-    numConcurrentQueries=1,
+    numConcurrentQueries=SEARCH_CONCURRENCY,
     searchConcurrency=SEARCH_CONCURRENCY,
   )
 
@@ -1146,6 +1146,7 @@ def makeGraphs():
   # For Search/Facets tasks headers/number of columns can be dynamic as it depends on number of subcategories.
   # If there are no subcategories, use "QPS" by default
   # The format for task with subcategories is "CATEGORY+SUBCATEGORY: ..."
+  # Use subcategories to show multiple graphs on the same page
   searchChartHeaders = {}
   searchChartData = {}
   storedFieldsResults = {

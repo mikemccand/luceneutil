@@ -1,7 +1,7 @@
 import re
 import sys
 
-reHits = re.compile("T(.) (.*?) sort=(.*?): ([0-9]+) hits in ([.0-9]+) msec")
+reHits = re.compile("T(.) (.*?) sort=(.*?): ([0-9]+) hits in ([.0-9]+) msec")  # noqa: RUF039
 reHeapUsagePart = re.compile(r"^  ([a-z ]+) \[.*?\]: ([0-9.]+) (.B)$")
 
 

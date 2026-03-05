@@ -197,6 +197,6 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c)
 
-    details, cmpDiffs, cmpHeap = r.simpleReport(results[base], results[challenger], "-jira" in sys.argv, "-html" in sys.argv, cmpDesc=challenger.name, baseDesc=base.name)
+    details, cmpDiffs, cmpHeap = r.simpleReport(results[base], results[challenger], "-jira" in sys.argv, "-html" in sys.argv, cmpDesc=challenger.name, baseDesc=base.name)  # noqa: RUF059
     if cmpDiffs is not None:
       raise RuntimeError("results differ: %s" % str(cmpDiffs))

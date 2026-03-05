@@ -44,7 +44,7 @@ def add_paragraph_count_column(input_csv, output_csv):
   start_time_sec = time.time()
   next_progress_time_sec = start_time_sec + 5
 
-  import csv as csv_module
+  import csv as csv_module  # noqa: PLC0415
 
   # else we hit: _csv.Error: field larger than field limit (131072)
   csv_module.field_size_limit(1024 * 1024 * 40)
@@ -222,7 +222,7 @@ def build_index(csv_file, vec_file, dimensions):
       fields = line_str.split(",", 1)
 
       full_id = fields[0]
-      wiki_id, paragraph_id = split_non_prefix_id(full_id, row_count + 1)
+      wiki_id, paragraph_id = split_non_prefix_id(full_id, row_count + 1)  # noqa: RUF059
 
       if wiki_id != current_wiki_id:
         # new wiki_id group - save the previous one
@@ -310,7 +310,7 @@ def shuffle_and_copy(header_bytes_len, csv_file, vec_file, output_csv, output_ve
   vec_write_plan = []  # list of (len, write_pos)
 
   for wiki_id in wiki_ids_in_order:
-    csv_start, csv_end, vec_start, vec_end, para_count = wiki_id_index[wiki_id]
+    csv_start, csv_end, vec_start, vec_end, para_count = wiki_id_index[wiki_id]  # noqa: RUF059
     csv_len = csv_end - csv_start
     vec_len = vec_end - vec_start
 

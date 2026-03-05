@@ -113,10 +113,10 @@ if DEBUG:
   NRT_RUN_TIME //= 90
   JVM_COUNT = 3
 
-reBytesIndexed = re.compile("^Indexer: net bytes indexed (.*)$", re.MULTILINE)
+reBytesIndexed = re.compile("^Indexer: net bytes indexed (.*)$", re.MULTILINE)  # noqa: RUF039
 reIndexingTime = re.compile(r"^Indexer: finished \((.*) msec\)", re.MULTILINE)
 reSVNRev = re.compile(r"revision (.*?)\.")
-reIndexAtClose = re.compile("Indexer: at close: (.*?)$", re.MULTILINE)
+reIndexAtClose = re.compile("Indexer: at close: (.*?)$", re.MULTILINE)  # noqa: RUF039
 reGitHubPROpen = re.compile(r"\s([0-9,]+) Open")
 reGitHubPRClosed = re.compile(r"\s([0-9,]+) Closed")
 
@@ -256,7 +256,7 @@ def fail_if_java_exceptions(desc, log_file):
         raise RuntimeError(f'{desc}: java exceptions found in log file "{log_file}": line {line_num}: {line.rstrip()}')
 
 
-reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)
+reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)  # noqa: RUF039
 
 
 def runNRTTest(r, indexPath, runLogDir):
@@ -296,7 +296,7 @@ def runNRTTest(r, indexPath, runLogDir):
     times = times[:-numDrop]
   message("times: %s" % " ".join(["%.1f" % x for x in times]))
 
-  min, max, mean, stdDev = stats.getStats(times)
+  min, max, mean, stdDev = stats.getStats(times)  # noqa: RUF059
   message("NRT reopen time (msec) mean=%.4f stdDev=%.4f" % (mean, stdDev))
 
   checkIndex(r, indexPath, "%s/checkIndex.nrt.log" % runLogDir)
@@ -309,7 +309,7 @@ def validate_nightly_task_count(tasks_file, max_count):
   of tasks, as we did/saw for count(*) tasks. so we enforce here that there are NO MORE
   than N tasks in each category in the nightly tasks file.
   """
-  re_cat_and_task = re.compile("^([^:]+): (.*?)(?:#.*)?$")
+  re_cat_and_task = re.compile("^([^:]+): (.*?)(?:#.*)?$")  # noqa: RUF039
 
   by_cat = {}
   with open(tasks_file, encoding="utf-8") as f:
@@ -333,7 +333,7 @@ def run_print_log(cmd, desc, logDir, logFileName, do_print=True):
   p = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
   s = p.stdout.strip()
   fullLogFileName = f"{logDir}/{logFileName}"
-  with open(fullLogFileName, "w") as f:
+  with open(fullLogFileName, "w") as f:  # noqa: FURB103
     f.write(s)
   if do_print:
     if "\n" in s:
@@ -731,7 +731,7 @@ def run():
 
     # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
     # TODO: render profiler data for thias run too
-    medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(
+    medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(  # noqa: RUF059
       r, runLogDir, "medium quantized vectors index (fast)", fastIndexMediumVectorsQuantized, "fastIndexMediumDocsWithVectorsQuantized.log"
     )
     message("medIndexVectorsAtClose %s" % atClose)
@@ -741,7 +741,7 @@ def run():
       shutil.rmtree(medQuantizedVectorsIndexPath)
 
     # 3: build index for NRT test
-    nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")
+    nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")  # noqa: RUF059
     message("nrtMedIndexAtClose %s" % atClose)
     nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
     if REUSE_NIGHTLY_INDICES:
@@ -1015,7 +1015,7 @@ def run():
   print("  heaps: %s" % str(searchHeaps))
 
   if cmpDiffs is not None:
-    warnings, errors, overlap = cmpDiffs
+    warnings, errors, overlap = cmpDiffs  # noqa: RUF059
     print("WARNING: search result differences: warnings=%s errors=%s" % (str(warnings), str(errors)))
     if len(errors) > 0 and not DO_RESET:
       raise RuntimeError("search result differences: warnings=%s errors=%s" % (str(warnings), str(errors)))
@@ -1118,16 +1118,16 @@ def findLastSuccessfulGitHashes():
       luceneGitHash = None
       luceneUtilGitHash = None
 
-      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile)) as f:
+      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile)) as f:  # noqa: FURB101
         html = f.read()
 
-        m = re.search("Lucene/Solr trunk rev ([a-z0-9]+)[< ]", html)
+        m = re.search("Lucene/Solr trunk rev ([a-z0-9]+)[< ]", html)  # noqa: RUF039
         if m is not None:
           luceneGitHash = m.group(1)
         else:
           raise RuntimeError(f"failed to determine last successful Lucene git hash from file {logFile}")
 
-        m = re.search("luceneutil rev(?:ision)? ([a-z0-9]+)[< ]", html)
+        m = re.search("luceneutil rev(?:ision)? ([a-z0-9]+)[< ]", html)  # noqa: RUF039
         if m is not None:
           luceneUtilGitHash = m.group(1)
         else:
@@ -1232,7 +1232,7 @@ def makeGraphs():
       tup = pickle.loads(open(resultsFile, "rb").read(), encoding="bytes")
       # print 'RESULTS: %s' % resultsFile
 
-      timeStamp, medNumDocs, medIndexTimeSec, medBytesIndexed, bigNumDocs, bigIndexTimeSec, bigBytesIndexed, nrtResults, searchResults = tup[:9]
+      timeStamp, medNumDocs, medIndexTimeSec, medBytesIndexed, bigNumDocs, bigIndexTimeSec, bigBytesIndexed, nrtResults, searchResults = tup[:9]  # noqa: RUF059
       if len(tup) > 9:
         rev = tup[9]
       else:
@@ -1265,7 +1265,7 @@ def makeGraphs():
 
       timeStampString = "%04d-%02d-%02d %02d:%02d:%02d" % (timeStamp.year, timeStamp.month, timeStamp.day, timeStamp.hour, timeStamp.minute, int(timeStamp.second))
       date = "%02d/%02d/%04d" % (timeStamp.month, timeStamp.day, timeStamp.year)
-      if date in ("09/03/2014",):
+      if date in ("09/03/2014",):  # noqa: FURB171
         # I was testing disabling THP again...
         continue
       if date in ("05/16/2014"):
@@ -1471,8 +1471,8 @@ def makeGraphs():
     # we no longer push reports here -- the nightly shell script does git add/commit/push
 
 
-reTookSec = re.compile("took ([0-9.]+) sec")
-reDateTime = re.compile("log dir /lucene/logs.nightly/(.*?)$")
+reTookSec = re.compile("took ([0-9.]+) sec")  # noqa: RUF039
+reDateTime = re.compile("log dir /lucene/logs.nightly/(.*?)$")  # noqa: RUF039
 
 
 def writeCheckIndexTimeHTML():
@@ -1512,9 +1512,9 @@ def writeCheckIndexTimeHTML():
           ti = t.next()
           if ti is None:
             break
-          l.append((ti.mtime, ti.name))
+          l.append((ti.mtime, ti.name))  # noqa: B909
 
-        l.sort()
+        l.sort()  # noqa: B909
         for i in range(len(l)):
           if l[i][1] == "checkIndex.fixedIndex.log":
             seconds = l[i][0] - l[i - 1][0]
@@ -2112,7 +2112,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   timeStamp = s[: s.find(",")]
   seenTimeStamps.add(timeStamp)
   options = []
-  options.append('title: "%s"' % title)
+  options.append('title: "%s"' % title)  # noqa: FURB113
   options.append('xlabel: "Date"')
   options.append('colors: ["#218559", "#192823", "#B0A691", "#06A2CB", "#EBB035", "#DD1E2F"]')
   options.append('ylabel: "%s"' % yLabel)
@@ -2129,14 +2129,14 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
     options.append('dateWindow: [Date.parse("%s/%s/%s"), Date.parse("%s/%s/%s")]' % (start.year, start.month, start.day, end.year, end.month, end.day))
   if False:
     if errorBars:
-      maxY = max([float(x.split(",")[1]) + float(x.split(",")[2]) for x in data[1:]])
+      maxY = max([float(x.split(",")[1]) + float(x.split(",")[2]) for x in data[1:]])  # noqa: C419
     else:
-      maxY = max([float(x.split(",")[1]) for x in data[1:]])
+      maxY = max([float(x.split(",")[1]) for x in data[1:]])  # noqa: C419
     options.append("valueRange:[0,%.3f]" % (maxY * 1.25))
   # options.append('includeZero: true')
 
   if errorBars:
-    options.append("errorBars: true")
+    options.append("errorBars: true")  # noqa: FURB113
     options.append("sigma: 1")
 
   options.append("showRoller: false")
@@ -2193,7 +2193,7 @@ def getLabel(label):
 
 def sendEmail(toEmailAddr, subject, messageText):
   try:
-    import localpass
+    import localpass  # noqa: PLC0415
 
     useSendMail = False
   except ImportError:
@@ -2214,8 +2214,8 @@ def sendEmail(toEmailAddr, subject, messageText):
     smtp.sendmail("mail@mikemccandless.com", toEmailAddr.split(","), msg)
     smtp.quit()
   else:
-    from email.mime.text import MIMEText
-    from subprocess import PIPE, Popen
+    from email.mime.text import MIMEText  # noqa: PLC0415
+    from subprocess import PIPE, Popen  # noqa: PLC0415
 
     msg = MIMEText(messageText)
     msg["From"] = "mail@mikemccandless.com"

@@ -201,7 +201,7 @@ class Job:
 
   # XXX higher cost compares as lower
   # fewer number of tests compares as lower
-  def __cmp__(self, other):
+  def __cmp__(self, other):  # noqa: PLW3201
     c = cmp(len(self.tests), len(other.tests))
     # c = -cmp(self.cost, other.cost)
     # print 'cmp %d vs %d: ret %s' % (len(self.tests), len(other.tests), c)
@@ -409,7 +409,7 @@ for module in modules:
 if doSolr:
   addJARs("../solr/lib")
   addJARs("../solr/example/lib")
-  CLASSPATH.append("../solr/build/solr-solrj/classes/java")
+  CLASSPATH.append("../solr/build/solr-solrj/classes/java")  # noqa: FURB113
   CLASSPATH.append("../solr/build/solr-core/classes/java")
   CLASSPATH.append("../solr/build/solr-core/classes/test")
   CLASSPATH.append("../solr/build/solr-solrj/classes/test")
@@ -469,7 +469,7 @@ if doSolr:
   for contrib in os.listdir("%s/solr/contrib" % ROOT):
     if False and contrib == "clustering":
       continue
-    if not os.path.isdir("%s/solr/contrib/%s" % (ROOT, contrib)) or contrib in (".svn",):
+    if not os.path.isdir("%s/solr/contrib/%s" % (ROOT, contrib)) or contrib in (".svn",):  # noqa: FURB171
       continue
     # print 'contrib/%s' % contrib
     strip = len(ROOT) + len("/solr/contrib/%s/src/test/" % contrib)
@@ -504,7 +504,7 @@ if doSolr:
         if file.endswith(".java") and (file.startswith("Test") or file.endswith("Test.java")):
           fullFile = "%s/%s" % (dir, file)
           testClass = fullFile[strip:-5].replace("/", ".")
-          if testClass in ("org.apache.solr.handler.clustering.DistributedClusteringComponentTest",):
+          if testClass in ("org.apache.solr.handler.clustering.DistributedClusteringComponentTest",):  # noqa: FURB171
             print("WARNING: skipping test %s" % testClass)
             continue
           # print '  %s' % testClass

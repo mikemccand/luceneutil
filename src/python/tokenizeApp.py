@@ -9,7 +9,7 @@ import localconstants
 
 
 def application(environ, startResponse):
-  _l = []
+  _l = []  # noqa: RUF052
   w = _l.append
 
   args = cgi.parse(environ=environ)
@@ -71,7 +71,7 @@ def application(environ, startResponse):
   html = "".join(_l)
 
   headers = []
-  headers.append(("Content-Type", "text/html"))
+  headers.append(("Content-Type", "text/html"))  # noqa: FURB113
   headers.append(("Content-Length", str(len(html))))
 
   startResponse("200 OK", headers)

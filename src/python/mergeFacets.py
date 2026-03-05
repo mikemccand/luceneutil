@@ -143,7 +143,7 @@ def merge(shards, topN):
     # shards, to see if they might penetrate the requested topN:
     for value, l in merged.items():
       # print '  merged value %s' % value
-      for shard, (exhausted, shardValues, lowestCount) in enumerate(shardHits):
+      for shard, (exhausted, shardValues, lowestCount) in enumerate(shardHits):  # noqa: FURB148
         # print '    shard %d, exhaused %s, values %s' % (shard, exhausted, shardValues)
         if not exhausted and value not in shardValues:
           # if VERBOSE:

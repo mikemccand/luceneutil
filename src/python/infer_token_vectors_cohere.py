@@ -80,7 +80,7 @@ def fetch_cohere_vectors():
   print(f"embeddings dims: {embedding_dims}")
   assert embedding_dims == DIMENSIONS, f"Dataset embedding dimensions: {embedding_dims} do not match configured dimensions: {DIMENSIONS}"
 
-  with open(meta_file, "w") as meta, open(doc_file, "wb") as out_f, open(query_file, "wb") as out_f_queries:
+  with open(meta_file, "w") as meta, open(doc_file, "wb") as out_f, open(query_file, "wb") as out_f_queries:  # noqa: FURB103
     meta.write("wiki_id,para_id\n")
 
     # do this in windows, else the RAM usage is crazy (OOME even with 256
@@ -111,7 +111,7 @@ def fetch_cohere_vectors():
 
       print("writing associated metadata")
       with open(meta_file, "a") as meta:
-        for i in range(batch_size):
+        for i in range(batch_size):  # noqa: FURB122
           meta.write(f"{ds_wiki_id[i]},{ds_para_id[i]}\n")
 
       doc_upto = next_doc_upto

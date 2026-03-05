@@ -14,7 +14,7 @@ def toString(timeStamp):
 
 
 def writeGraphHeader(f, id):
-  global nextGraph
+  global nextGraph  # noqa: FURB154
   global graphCount
 
   graphCount += 1
@@ -292,7 +292,7 @@ with open("/l/reports.nightly/geoshapebench.html", "w") as f:
 
   f.write('<script type="text/javascript">\n')
   f.write("  var gitHashes = {};\n")
-  for key, value in gitHashes.items():
+  for key, value in gitHashes.items():  # noqa: FURB122
     f.write('  gitHashes["%s"] = "%s";\n' % (key, value))
   f.write("</script>\n")
   allTimes = list(allTimes)

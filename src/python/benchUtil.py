@@ -203,7 +203,7 @@ class SearchTask:
   facet_request = None
 
   def verifySame(self, other, verifyScores, verifyCounts):
-    if re.match(".*Knn(Float|Byte)VectorQuery:", self.query) is not None:
+    if re.match(".*Knn(Float|Byte)VectorQuery:", self.query) is not None:  # noqa: RUF039
       # While KNN search is statically randomized (seed 42?), the concurrent HNSW merge alters the order of results
       return
     if not isinstance(other, SearchTask):
@@ -424,20 +424,20 @@ def collapseDups(hits):
   return newHits
 
 
-reSearchTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\\+?) facets=(.*?)$")
-reSearchGroupTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$", re.DOTALL)
-reSearchTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\\+?)$")
-reSearchGroupTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$", re.DOTALL)
-reCountOnlyTask = re.compile("cat=(.*?) q=(.*?) countOnlyCount=(.*?)?$", re.DOTALL)
-reSearchHitScore = re.compile("doc=(.*?) score=(.*?)$")
-reSearchHitField = re.compile("doc=(.*?) .*?=(.*?)$")
-reRespellHit = re.compile("(.*?) freq=(.*?) score=(.*?)$")
+reSearchTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\\+?) facets=(.*?)$")  # noqa: RUF039
+reSearchGroupTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$", re.DOTALL)  # noqa: RUF039
+reSearchTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\\+?)$")  # noqa: RUF039
+reSearchGroupTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$", re.DOTALL)  # noqa: RUF039
+reCountOnlyTask = re.compile("cat=(.*?) q=(.*?) countOnlyCount=(.*?)?$", re.DOTALL)  # noqa: RUF039
+reSearchHitScore = re.compile("doc=(.*?) score=(.*?)$")  # noqa: RUF039
+reSearchHitField = re.compile("doc=(.*?) .*?=(.*?)$")  # noqa: RUF039
+reRespellHit = re.compile("(.*?) freq=(.*?) score=(.*?)$")  # noqa: RUF039
 rePKOrd = re.compile(r"PK(?:TS)?(.*?)\[")
-reOneGroup = re.compile("group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$", re.DOTALL)
-reHeap = re.compile("HEAP: ([0-9]+)$")
+reOneGroup = re.compile("group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$", re.DOTALL)  # noqa: RUF039
+reHeap = re.compile("HEAP: ([0-9]+)$")  # noqa: RUF039
 reLatencyAndStartTime = re.compile(r"^([\d.]+) msec @ ([\d.]+) msec$")
-reTasksWinddown = re.compile("^Start of tasks winddown: ([0-9.]+) msec$")
-reAvgCPUCores = re.compile("^Average CPU cores used: (-?[0-9.]+)$")
+reTasksWinddown = re.compile("^Start of tasks winddown: ([0-9.]+) msec$")  # noqa: RUF039
+reAvgCPUCores = re.compile("^Average CPU cores used: (-?[0-9.]+)$")  # noqa: RUF039
 
 
 def parse_times_line(task, line):
@@ -925,7 +925,7 @@ def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
     topProcess.stop()
 
 
-reCoreJar = re.compile("lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")
+reCoreJar = re.compile("lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")  # noqa: RUF039
 
 
 class RunAlgs:
@@ -960,7 +960,7 @@ class RunAlgs:
     else:
       print("OS:\n%s" % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):  # noqa: PLR6301
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each
     if type(profilerStackSize) is int:
       profilerStackSize = (profilerStackSize,)
@@ -1131,7 +1131,7 @@ class RunAlgs:
 
     return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
-  def addJars(self, cp, path):
+  def addJars(self, cp, path):  # noqa: PLR6301
     if os.path.exists(path):
       for f in os.listdir(path):
         if f.endswith(".jar"):
@@ -1316,20 +1316,20 @@ class RunAlgs:
     print("      %.1f s" % (time.time() - t0))
 
     # nocommit don't wastefully load/process here too!!
-    raw_results, heap_base, tasks_winddown_ms, avg_cpu_cores = parseResults([logFile])
+    raw_results, heap_base, tasks_winddown_ms, avg_cpu_cores = parseResults([logFile])  # noqa: RUF059
     qpss = self.compute_qps(raw_results, tasks_winddown_ms)
     print("      %.1f actual sustained QPS; %.1f CPU cores used" % (qpss[0], avg_cpu_cores))
 
     return logFile
 
-  def getSearchLogFiles(self, id, c):
+  def getSearchLogFiles(self, id, c):  # noqa: PLR6301
     logFiles = []
     for iter in range(c.competition.jvmCount):
       logFile = "%s/%s.%s.%d" % (constants.LOGS_DIR, id, c.name, iter)
       logFiles.append(logFile)
     return logFiles
 
-  def computeTaskLatencies(self, inputList, catSet):
+  def computeTaskLatencies(self, inputList, catSet):  # noqa: PLR6301
     resultLatencyMetrics = {}
     for currentRecord in inputList:
       for currentKey in currentRecord.keys():
@@ -1356,7 +1356,7 @@ class RunAlgs:
 
     return resultLatencyMetrics
 
-  def compute_qps(self, raw_results, tasks_winddown_ms):
+  def compute_qps(self, raw_results, tasks_winddown_ms):  # noqa: PLR6301
     # one per JVM iteration
     qpss = []
     for tasks in raw_results:
@@ -1399,15 +1399,15 @@ class RunAlgs:
 
     def only_qps_report(self, baseLogFiles, cmpLogFiles):
       # nocommit must also validate tasks' results validity
-      baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
-      cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
+      baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)  # noqa: RUF059
+      cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)  # noqa: RUF059
 
       base_qpss = self.compute_qps(baseRawResults, baseTasksWindownMS)
       cmp_qpss = self.compute_qps(cmpRawResults, cmpTasksWindownMS)
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc="Standard", cmpDesc=None, writer=sys.stdout.write):
-    baseRawResults, heapBase, ignore, baseAvgCpuCores = parseResults(baseLogFiles)
-    cmpRawResults, heapCmp, ignore, cmpAvgCpuCores = parseResults(cmpLogFiles)
+    baseRawResults, heapBase, ignore, baseAvgCpuCores = parseResults(baseLogFiles)  # noqa: RUF059
+    cmpRawResults, heapCmp, ignore, cmpAvgCpuCores = parseResults(cmpLogFiles)  # noqa: RUF059
 
     # make sure they got identical results
     cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores, self.verifyCounts)
@@ -1421,7 +1421,7 @@ class RunAlgs:
     cats = set()
     for l in (baseResults, cmpResults):
       if len(l) > 0:
-        for k in l[0].keys():
+        for k in l[0].keys():  # noqa: FURB142
           cats.add(k)
     cats = list(cats)
     cats.sort()
@@ -1437,7 +1437,7 @@ class RunAlgs:
     resultsByCatCmp = {}
 
     for cat in cats:
-      _type = types.TupleType if PYTHON_MAJOR_VER < 3 else tuple
+      _type = types.TupleType if PYTHON_MAJOR_VER < 3 else tuple  # noqa: RUF052
       if isinstance(cat, _type):
         if False and cat[1] is not None:
           desc = "%s (sort %s)" % (cat[0], cat[1])
@@ -1468,7 +1468,7 @@ class RunAlgs:
       cmpQPS = [1000.0 / x for x in cmpMS]
 
       # Aggregate stats over the N JVMs we ran:
-      minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
+      minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)  # noqa: RUF059
       minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
 
       resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
@@ -1756,7 +1756,7 @@ def getAntClassPath(checkout):
   if core_jar_file is None:
     raise RuntimeError("can't find core JAR file in %s" % ("%s/lucene/build/core" % path))
 
-  cp.append(core_jar_file)
+  cp.append(core_jar_file)  # noqa: FURB113
   cp.append("%s/lucene/build/sandbox/classes/java" % path)
   cp.append("%s/lucene/build/misc/classes/java" % path)
   cp.append("%s/lucene/build/facet/classes/java" % path)
@@ -1797,7 +1797,7 @@ def getClassPath(checkout):
   if core_jar_file is None:
     raise RuntimeError("can't find core JAR file in %s" % ("%s/lucene/core/build/libs" % path))
 
-  cp.append(core_jar_file)
+  cp.append(core_jar_file)  # noqa: FURB113
   cp.append("%s/lucene/sandbox/build/classes/java/main" % path)
   cp.append("%s/lucene/misc/build/classes/java/main" % path)
   cp.append("%s/lucene/facet/build/classes/java/main" % path)
@@ -1820,7 +1820,7 @@ def getClassPath(checkout):
     if f.endswith(".jar"):
       cp.append(os.path.join(lib, f))
   # TODO: reconcile this!  one or the other?
-  cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))  # noqa: FURB113
   cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
 
   return tuple(cp)
@@ -1942,7 +1942,7 @@ def getSegmentCount(indexPath):
   return segCount
 
 
-reBrokenLine = re.compile("^\\ +#")
+reBrokenLine = re.compile("^\\ +#")  # noqa: RUF039
 
 
 def fixupPerfOutput(s):

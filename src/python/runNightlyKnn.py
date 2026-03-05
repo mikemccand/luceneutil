@@ -745,7 +745,7 @@ def _run(results_dir):
           graph_level_conn_p_values = {}
           # leaf-number, doc-count, dict mapping layer to node connectedness p values
           if leaf_count != int(m.group(1)):
-            raise RuntimeError("leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}")
+            raise RuntimeError("leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}")  # noqa: RUF027
           all_graph_level_conn_p_values.append((leaf_count, int(m.group(2)), graph_level_conn_p_values))
           layer_count = next_layer_count
 

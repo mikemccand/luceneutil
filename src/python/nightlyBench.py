@@ -855,6 +855,8 @@ def run():
     if DO_RESET:
       w("<b>NOTE</b>: this run regolded the results gold files<br><br>")
 
+    w('\n[<a href="all.log">top-level log from this run</a>]<br>\n')
+
     if lastRevs is not None:
       w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
       if lastLuceneRev != luceneRev:
@@ -871,7 +873,6 @@ def run():
     w(f"\ncpupower frequency-info:\n<br><pre>{htmlEscape(cpupower)}</pre><br>")
     w(f"\nlscpu:\n<br><pre>{htmlEscape(lscpu)}</pre><br>")
     w(f"\nPreempt mode: {preempt}<br>")
-    w('\n[<a href="all.log">top-level log from this run</a>]<br>\n')
     w("%s<br>" % javaVersion)
     w("%s<br>" % javaFullVersion)
     w("Java command-line: %s<br>" % htmlEscape(constants.JAVA_COMMAND))
@@ -883,6 +884,12 @@ def run():
     w('<img src="%s.png"/>\n' % timeStamp)
 
     w("Jump to profiler results:")
+    if benchUtil.USE_CPU_TIME_PROFILER:
+      s = "cputime (samples every N cpu ticks)"
+    else:
+      s = "async (samples every N msec)"
+    w("<br>")
+    w(f'<b>NOTE</b>: JFR profiler is {s}; see <a href="https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/">blog post</a> for cputime profiler (new as of Java 25) specifics')
     w("<br>indexing 1KB\n<ul>")
     for stackSize in JFR_STACK_SIZES:
       w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_{stackSize}_heap">heap</a>')

@@ -28,6 +28,10 @@ reportRedeclaration = "none"
 [tool.ruff]
 line-length = 200
 indent-width = 2
+target-version = "py310"
+exclude = ["src/langdetect",
+	   "src/fst",
+	   "src/freedb"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -180,10 +184,30 @@ ignore = [
   "W291",    # Trailing whitespace
   "W293",    # Blank line contains whitespace
 
+  # more rules from preview mode ("ruff check --preview") -- "ruff check --statistics" and "--add-noqa" super helpful!
+  "PLW1514", # unspecified-encoding
+  "CPY001",  # missing-copyright-notice
+  "E265",    # no-space-after-block-comment
+  "E226",    # missing-whitespace-around-arithmetic-operator
+  "PLR1702", # too-many-nested-blocks
+  "PLC1901", # compare-to-empty-string
+  "PLR0914", # too-many-locals
+ # "RUF039", # unraw-re-pattern
+  "E302",    # blank-lines-top-level
+  "S404",    # suspicious-subprocess-import
+  "S403",    # suspicious-pickle-import
+  "E266",    # multiple leading # for block comments
+
   # These rules are disabled on purpose
   "PT015",   # Assertion always fails, replace with `pytest.fail()` [pytest is not in use]
   "D203",    # incompatible with D211
   "D213",    # incompatible with D212
+  "DOC201",  # docstring-missing-returns
+  "DOC501",  # docstring-missing-exception
+  "PLR6201", # literal-membership -- wish this one wouldn't warn if it's a static/frozen sequence less than X in length...
+  "PLR0917", # too-many-positional-arguments
+  "DOC402",  # docstring-missing-yields
+
 
   # These rules are always disabled: conflict with the formatter
   # don't enable! https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules

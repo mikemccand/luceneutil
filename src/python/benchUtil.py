@@ -879,11 +879,11 @@ def stats(l):
 
 def get_profiler_jvm_args(jfr_file_name, indent=""):
   if USE_CPU_TIME_PROFILER:
-    print("{indent}NOTE: using experimental CPU time profiler (see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1)")
+    print(f"{indent}NOTE: using experimental CPU time profiler (see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1)")
     # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
     args = f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
   else:
-    print("{indent}NOTE: using async profiler")
+    print(f"{indent}NOTE: using async profiler")
     args = f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
   return args
 

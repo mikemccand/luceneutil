@@ -28,9 +28,12 @@ from pathlib import Path
 try:
   import numpy as np
 except ImportError:
-  np = None
-  print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
-  print("Next time use the local venv: source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
+  print("\nERROR: numpy is required but not installed.\n")
+  print("To fix, run from the luceneutil root directory:\n")
+  print("  make env")
+  print("  source .venv/bin/activate")
+  print("  python -u src/python/knnPerfTest.py\n")
+  raise SystemExit(1) from None
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
 # maybe a bit faster?
@@ -451,12 +454,6 @@ def smell_vectors(dim, file_name):
     raise RuntimeError(
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
-
-  if np is None:
-    # no numpy
-    print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
-    print("Next time use the local Python venv: make env; source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
-    return
 
   if NOISY:
     print(f"smell vectors from {file_name}")

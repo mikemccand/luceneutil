@@ -363,6 +363,10 @@ public class LineFileDocs implements Closeable {
     final Field idDV;
     final Field date;
     final Field randomLabel;
+    final Field lastModSkipper;
+    final Field monthSkipper;
+    final Field dayOfYearSkipper;
+    final Field titleSkipper;
 
     //final NumericDocValuesField dateMSec;
     //final LongField rand;
@@ -393,39 +397,46 @@ public class LineFileDocs implements Closeable {
         titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
         doc.add(titleBDV);
 
-        if (addDVSkippers) {
-            lastMod = NumericDocValuesField.indexedField("lastMod", -1);
-        } else {
-            lastMod = new LongField("lastMod", -1, Field.Store.NO);
-        }
+        lastMod = new LongField("lastMod", -1, Field.Store.NO);
         doc.add(lastMod);
 
-        if (addDVSkippers) {
-            month = SortedDocValuesField.indexedField("month", new BytesRef(""));
-        } else {
-            month = new KeywordField("month", "", Store.NO);
-        }
+        month = new KeywordField("month", "", Store.NO);
         doc.add(month);
 
-        if (addDVSkippers) {
-            dayOfYear = NumericDocValuesField.indexedField("dayOfYear", 0);
-        } else {
-            dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
-        }
+        dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
         doc.add(dayOfYear);
 
-        if (addDVSkippers) {
-            idDV = NumericDocValuesField.indexedField("id", 0);
-        } else {
-            idDV = new NumericDocValuesField("id", 0);
-        }
+        idDV = new NumericDocValuesField("id", 0);
         doc.add(idDV);
+
+        if (addDVSkippers) {
+          lastModSkipper = NumericDocValuesField.indexedField("lastMod_skipper", -1);
+          doc.add(lastModSkipper);
+
+          monthSkipper = SortedDocValuesField.indexedField("month_skipper", new BytesRef(""));
+          doc.add(monthSkipper);
+
+          dayOfYearSkipper = NumericDocValuesField.indexedField("dayOfYear_skipper", 0);
+          doc.add(dayOfYearSkipper);
+
+          titleSkipper = SortedDocValuesField.indexedField("title_skipper", new BytesRef(""));
+          doc.add(titleSkipper);
+        } else {
+          lastModSkipper = null;
+          monthSkipper = null;
+          dayOfYearSkipper = null;
+          titleSkipper = null;
+        }
       } else {
         titleBDV = null;
         lastMod = null;
         month = null;
         dayOfYear = null;
         idDV = null;
+        lastModSkipper = null;
+        monthSkipper = null;
+        dayOfYearSkipper = null;
+        titleSkipper = null;
       }
 
       titleTokenized = new TextField("titleTokenized", "", Field.Store.YES);
@@ -722,14 +733,14 @@ public class LineFileDocs implements Closeable {
     if (addDVFields) {
       doc.titleBDV.setBytesValue(new BytesRef(title));
       final String month = months[doc.dateCal.get(Calendar.MONTH)];
-      if (addDVSkippers) {
-          doc.month.setBytesValue(new BytesRef(month));
-          doc.dayOfYear.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
-      } else {
-          doc.month.setStringValue(month);
-          doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
-      }
+      doc.month.setStringValue(month);
+      doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
       doc.idDV.setLongValue(myID);
+      if (addDVSkippers) {
+        doc.monthSkipper.setBytesValue(new BytesRef(month));
+        doc.dayOfYearSkipper.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
+        doc.titleSkipper.setBytesValue(new BytesRef(title));
+      }
     }
     doc.titleTokenized.setStringValue(title);
     doc.id.setStringValue(intToID(myID));
@@ -737,6 +748,9 @@ public class LineFileDocs implements Closeable {
 
     if (addDVFields) {
       doc.lastMod.setLongValue(msecSinceEpoch);
+      if (addDVSkippers) {
+        doc.lastModSkipper.setLongValue(msecSinceEpoch);
+      }
     }
 
     doc.timeSec.setIntValue(timeSec);

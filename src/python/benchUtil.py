@@ -1448,6 +1448,8 @@ class RunAlgs:
 
       if desc == "TermDateTimeSort":
         desc = "TermDTSort"
+      elif desc == "TermDateTimeSortSkipper":
+        desc = "TermDTSortSkipper"
 
       l0 = []
       w = l0.append

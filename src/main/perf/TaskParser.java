@@ -73,6 +73,10 @@ class TaskParser implements Closeable {
   private final Sort monthDVSort; // Month of the "last modified timestamp", SORTED doc values
   private final Sort dayOfYearSort; // Day of the year of the "last modified timestamp", NUMERIC doc values
   private final Sort lastModSort;
+  private final Sort titleSkipperSort;
+  private final Sort monthSkipperSort;
+  private final Sort dayOfYearSkipperSort;
+  private final Sort lastModSkipperSort;
   private final int topN;
   private final Random random;
   private final boolean doStoredLoads;
@@ -136,6 +140,10 @@ class TaskParser implements Closeable {
     monthDVSort = new Sort(KeywordField.newSortField("month", false, SortedSetSelector.Type.MIN));
     dayOfYearSort = new Sort(IntField.newSortField("dayOfYear", false, SortedNumericSelector.Type.MIN));
     lastModSort = new Sort(LongField.newSortField("lastMod", false, SortedNumericSelector.Type.MIN));
+    titleSkipperSort = new Sort(new SortField("title_skipper", SortField.Type.STRING));
+    monthSkipperSort = new Sort(new SortField("month_skipper", SortField.Type.STRING));
+    dayOfYearSkipperSort = new Sort(new SortField("dayOfYear_skipper", SortField.Type.LONG));
+    lastModSkipperSort = new Sort(new SortField("lastMod_skipper", SortField.Type.LONG));
   }
 
   @Override
@@ -639,6 +647,18 @@ class TaskParser implements Closeable {
           break;
         case "lastmodndvsort":
           sort = lastModSort;
+          break;
+        case "titleskippersort":
+          sort = titleSkipperSort;
+          break;
+        case "monthskippersort":
+          sort = monthSkipperSort;
+          break;
+        case "dayofyearskippersort":
+          sort = dayOfYearSkipperSort;
+          break;
+        case "lastmodskippersort":
+          sort = lastModSkipperSort;
           break;
         case "group100":
           group = "group100";

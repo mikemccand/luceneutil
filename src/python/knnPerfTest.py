@@ -1794,6 +1794,130 @@ def print_mem_info():
   print()
 
 
+def build_java_base_cmd(checkout):
+  """Build the base Java command (JVM flags + classpath) for KnnGraphTester."""
+  cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f"{constants.BENCH_BASE_DIR}/build",))
+  cmd = constants.JAVA_EXE.split(" ") + [
+    "-cp",
+    cp,
+    "--add-modules",
+    "jdk.incubator.vector",
+    "--enable-native-access=ALL-UNNAMED",
+    f"-Djava.util.concurrent.ForkJoinPool.common.parallelism={multiprocessing.cpu_count()}",
+    "-XX:+UnlockDiagnosticVMOptions",
+    "-XX:+DebugNonSafepoints",
+  ]
+  cmd += ["knn.KnnGraphTester"]
+  return cmd
+
+
+def build_knn_args_from_params(params):
+  """Convert a flat dict of param_name->value into the arg list for KnnGraphTester."""
+  args = []
+  quantize_bits = None
+  do_quantize_compress = False
+  for p, value in params.items():
+    if p == "quantizeBits":
+      if value != 32:
+        args += ["-quantize", "-quantizeBits", str(value)]
+        quantize_bits = value
+    elif p == "quantizeCompress":
+      do_quantize_compress = value
+    elif isinstance(value, bool):
+      if value:
+        args += ["-" + p]
+    else:
+      args += ["-" + p, str(value)]
+
+  if quantize_bits == 4 and do_quantize_compress:
+    args += ["-quantizeCompress"]
+
+  return args
+
+
+def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, work_dir, extra_java_args=None):
+  """Run a single KNN benchmark iteration in work_dir.  Always reindexes.
+
+  params: flat dict of param_name -> single value (not tuple)
+  Returns (summary_string, full_output_string) or raises on failure.
+  """
+  base_cmd = build_java_base_cmd(checkout)
+  knn_args = build_knn_args_from_params(params)
+
+  full_cmd = (
+    base_cmd
+    + knn_args
+    + [
+      "-dim",
+      str(dim),
+      "-docs",
+      str(doc_vectors),
+      "-reindex",
+      "-search-and-stats",
+      str(query_vectors),
+      "-numIndexThreads",
+      "8",
+    ]
+  )
+
+  if extra_java_args is not None:
+    full_cmd += extra_java_args
+
+  print(f"[variance] running in {work_dir}")
+  print(f"[variance] cmd: {full_cmd}")
+
+  os.makedirs(work_dir, exist_ok=True)
+
+  job = subprocess.Popen(
+    full_cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    encoding="utf-8",
+    cwd=str(work_dir),
+  )
+
+  output_lines = []
+  re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
+  summary = None
+  hit_exception = False
+
+  while job.poll() is None:
+    line = job.stdout.readline()
+    if not line:
+      continue
+    output_lines.append(line)
+    sys.stdout.write(line)
+    sys.stdout.flush()
+    m = re_summary.match(line)
+    if m is not None:
+      summary = m.group(1)
+    if "Exception in" in line:
+      hit_exception = True
+
+  # drain remaining output
+  for line in job.stdout:
+    output_lines.append(line)
+    sys.stdout.write(line)
+    sys.stdout.flush()
+    m = re_summary.match(line)
+    if m is not None:
+      summary = m.group(1)
+    if "Exception in" in line:
+      hit_exception = True
+
+  full_output = "".join(output_lines)
+
+  if hit_exception:
+    raise RuntimeError(f"java exception in {work_dir}:\n{full_output}")
+  job.wait()
+  if job.returncode != 0:
+    raise RuntimeError(f"command failed with exit {job.returncode} in {work_dir}:\n{full_output}")
+  if summary is None:
+    raise RuntimeError(f"could not find SUMMARY line in output from {work_dir}:\n{full_output}")
+
+  return summary, full_output
+
+
 def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
   rec, lat, net, avg = [], [], [], []
   tests = []

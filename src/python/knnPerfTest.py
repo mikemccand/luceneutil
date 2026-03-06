@@ -92,8 +92,7 @@ from common import getLuceneDirFromGradleProperties
 #
 # you may want to modify the following settings:
 
-# TODO: support async prorfiler (it can write JFRs as well so it'd fit right in with our simple JFR summarizer output)
-# TODO: also support new CPU time profiler (no more sleepy state bias?) in JDK 25 here: https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
+# uses CPUTime sampling (newly available/experimental in Java 25, seems to work on the tasks benchmark)
 DO_PROFILING = False
 DO_PS = True
 DO_VMSTAT = True
@@ -1241,7 +1240,7 @@ def run_knn_benchmark(checkout, values, log_path):
   ]
 
   if DO_PROFILING:
-    cmd += [f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
+    cmd += [f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
 
   cmd += ["knn.KnnGraphTester"]
 
@@ -1449,7 +1448,7 @@ def run_knn_benchmark(checkout, values, log_path):
 
     all_results.append((summary, args))
     if DO_PROFILING:
-      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
+      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1, 4, 12))
     index_run += 1
 
   if NOISY:

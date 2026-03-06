@@ -693,6 +693,12 @@ def _run(results_dir):
     for do_force_merge in (False, True):
       this_cmd = cmd[:]
 
+      jfr_file_name = f"{results_dir}/bench-knn-q{quantize_bits}-fm{do_force_merge}.jfr"
+      spot = this_cmd.indexOf("knn.KnnGraphTester")
+      this_cmd.insert(
+        spot, f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=256M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_file_name}"
+      )
+
       if not do_force_merge:
         this_cmd.append("-reindex")
       else:
@@ -837,6 +843,12 @@ def _run(results_dir):
       )
       print(f"result: {result}")
       all_results.append(result)
+
+      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_file_name, LUCENE_CHECKOUT, 50, (1, 4, 12))
+
+      # they are massive and we generate six each night and we already squeezed the orange
+      # to get the juice (the human-readable-ish report created by previous line)
+      os.remove(jfr_file_name)
 
       if do_force_merge:
         # clean as we go -- these indices are biggish (~25-30 GB):

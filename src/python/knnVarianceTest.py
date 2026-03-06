@@ -10,6 +10,7 @@ import argparse
 import json
 import operator
 import os
+import re
 import shutil
 import statistics
 import sys
@@ -22,6 +23,11 @@ import constants
 import knnPerfTest
 import numpy as np
 from common import getLuceneDirFromGradleProperties
+
+# regex patterns for graph stats emitted by KnnGraphTester
+_RE_FANOUT = re.compile(r"Graph level=(\d+) size=(\d+), Fanout min=(\d+), mean=([\d.]+), max=(\d+), meandelta=([\d.]+)")
+_RE_CONNECTEDNESS = re.compile(r"Graph level=(\d+) size=(\d+), connectedness=([\d.]+)")
+_RE_NUM_LAYERS = re.compile(r"Leaf \d+ has (\d+) layers")
 
 
 def extract_vectors(src_path, count, dim, dst_path):
@@ -140,6 +146,43 @@ def parse_summary(summary_str):
   return result
 
 
+def parse_graph_stats(output_text):
+  """Parse HNSW graph stats from KnnGraphTester stdout.
+
+  Returns a dict with:
+    "num_layers": int,
+    "layers": [{"level": int, "nodes": int, "fanout_min": int, "fanout_mean": float,
+                "fanout_max": int, "meandelta": float, "connectedness": float}, ...]
+  """
+  layers = {}
+
+  for m in _RE_FANOUT.finditer(output_text):
+    level = int(m.group(1))
+    if level not in layers:
+      layers[level] = {}
+    layers[level]["level"] = level
+    layers[level]["nodes"] = int(m.group(2))
+    layers[level]["fanout_min"] = int(m.group(3))
+    layers[level]["fanout_mean"] = float(m.group(4))
+    layers[level]["fanout_max"] = int(m.group(5))
+    layers[level]["meandelta"] = float(m.group(6))
+
+  for m in _RE_CONNECTEDNESS.finditer(output_text):
+    level = int(m.group(1))
+    if level not in layers:
+      layers[level] = {}
+    layers[level]["level"] = level
+    layers[level]["connectedness"] = float(m.group(3))
+
+  num_layers_match = _RE_NUM_LAYERS.search(output_text)
+  num_layers = int(num_layers_match.group(1)) if num_layers_match else len(layers)
+
+  # sort by level descending (highest layer first, matching Java output order)
+  sorted_layers = [layers[k] for k in sorted(layers.keys(), reverse=True)]
+
+  return {"num_layers": num_layers, "layers": sorted_layers}
+
+
 def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vectors, work_dir, shuffle, canonical_bin, canonical_scores, base_doc_vectors, ndoc, top_k, niter, base_seed):
   """Worker function for a single iteration. Called from main or pool."""
   run_dir = Path(work_dir) / f"run_{iteration:04d}"
@@ -186,6 +229,11 @@ def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vecto
   result["iteration"] = iteration
   result["seed"] = seed
   result["elapsed_sec"] = round(elapsed_sec, 3)
+
+  # parse graph stats from output
+  graph_stats = parse_graph_stats(full_output)
+  result["graph_stats"] = graph_stats
+
   (run_dir / "results.json").write_text(json.dumps(result, indent=2))
 
   # clean up index to reclaim disk space
@@ -203,37 +251,365 @@ def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vecto
   return result
 
 
+def _collect_numeric_values(all_results, field):
+  """Extract float values for a given field from all results, skipping non-numeric."""
+  values = []
+  for r in all_results:
+    if field in r:
+      try:
+        values.append(float(r[field]))
+      except (ValueError, TypeError):
+        pass
+  return values
+
+
+def _compute_stats(values):
+  """Compute summary statistics for a list of numeric values."""
+  if len(values) < 2:
+    return None
+  values_sorted = sorted(values)
+  mean = statistics.mean(values_sorted)
+  median = statistics.median(values_sorted)
+  stdev = statistics.stdev(values_sorted)
+  p5 = values_sorted[max(0, int(len(values_sorted) * 0.05))]
+  p95 = values_sorted[min(len(values_sorted) - 1, int(len(values_sorted) * 0.95))]
+  cv = (stdev / mean * 100) if mean != 0 else 0
+  return {
+    "mean": mean,
+    "median": median,
+    "stdev": stdev,
+    "cv_pct": cv,
+    "min": values_sorted[0],
+    "max": values_sorted[-1],
+    "p5": p5,
+    "p95": p95,
+    "n": len(values_sorted),
+  }
+
+
+# fields from SUMMARY to show histograms for
+_HISTOGRAM_FIELDS = [
+  "recall",
+  "latency(ms)",
+  "netCPU",
+  "avgCpuCount",
+  "visited",
+  "index(s)",
+  "force_merge(s)",
+  "index_size(MB)",
+]
+
+# per-layer graph fields to show histograms for
+_GRAPH_LAYER_FIELDS = [
+  "nodes",
+  "fanout_min",
+  "fanout_mean",
+  "fanout_max",
+  "meandelta",
+  "connectedness",
+]
+
+
+def _collect_graph_layer_values(all_results, level, field):
+  """Extract values for a specific graph layer field across all runs."""
+  values = []
+  for r in all_results:
+    gs = r.get("graph_stats")
+    if gs is None:
+      continue
+    for layer in gs.get("layers", []):
+      if layer.get("level") == level and field in layer:
+        try:
+          values.append(float(layer[field]))
+        except (ValueError, TypeError):
+          pass
+  return values
+
+
+def _all_graph_levels(all_results):
+  """Return sorted set of all graph levels seen across all runs."""
+  levels = set()
+  for r in all_results:
+    gs = r.get("graph_stats")
+    if gs is None:
+      continue
+    for layer in gs.get("layers", []):
+      if "level" in layer:
+        levels.add(layer["level"])
+  return sorted(levels, reverse=True)
+
+
 def print_variance_summary(all_results):
   """Print statistical summary of all iteration results."""
-  numeric_fields = ["recall", "latency(ms)", "netCPU", "avgCpuCount", "visited", "index(s)", "force_merge(s)", "index_size(MB)"]
-
   print("\n" + "=" * 80)
   print(f"VARIANCE SUMMARY ({len(all_results)} iterations)")
   print("=" * 80)
 
-  for field in numeric_fields:
-    values = []
-    for r in all_results:
-      if field in r:
-        try:
-          values.append(float(r[field]))
-        except (ValueError, TypeError):
-          pass
-
-    if len(values) < 2:
+  for field in _HISTOGRAM_FIELDS:
+    values = _collect_numeric_values(all_results, field)
+    stats = _compute_stats(values)
+    if stats is None:
       continue
-
-    values.sort()
-    mean = statistics.mean(values)
-    median = statistics.median(values)
-    stdev = statistics.stdev(values)
-    p5 = values[max(0, int(len(values) * 0.05))]
-    p95 = values[min(len(values) - 1, int(len(values) * 0.95))]
-    cv = (stdev / mean * 100) if mean != 0 else 0
-
     print(f"\n  {field}:")
-    print(f"    mean={mean:.4f}  median={median:.4f}  stdev={stdev:.4f}  cv={cv:.2f}%")
-    print(f"    min={values[0]:.4f}  max={values[-1]:.4f}  p5={p5:.4f}  p95={p95:.4f}")
+    print(f"    mean={stats['mean']:.4f}  median={stats['median']:.4f}  stdev={stats['stdev']:.4f}  cv={stats['cv_pct']:.2f}%")
+    print(f"    min={stats['min']:.4f}  max={stats['max']:.4f}  p5={stats['p5']:.4f}  p95={stats['p95']:.4f}")
+
+  # graph layer stats
+  levels = _all_graph_levels(all_results)
+  if levels:
+    print("\n  HNSW Graph Layer Stats:")
+    for level in levels:
+      for field in _GRAPH_LAYER_FIELDS:
+        values = _collect_graph_layer_values(all_results, level, field)
+        stats = _compute_stats(values)
+        if stats is None:
+          continue
+        print(f"\n  layer {level} {field}:")
+        print(f"    mean={stats['mean']:.4f}  median={stats['median']:.4f}  stdev={stats['stdev']:.4f}  cv={stats['cv_pct']:.2f}%")
+        print(f"    min={stats['min']:.4f}  max={stats['max']:.4f}  p5={stats['p5']:.4f}  p95={stats['p95']:.4f}")
+
+
+def generate_variance_html(all_results, output_path, config):
+  """Generate an interactive HTML dashboard with histograms for all metrics."""
+  # collect all chart data: list of (title, values_list)
+  charts = []
+
+  for field in _HISTOGRAM_FIELDS:
+    values = _collect_numeric_values(all_results, field)
+    if len(values) >= 2:
+      charts.append((field, values))
+
+  # graph layer charts
+  levels = _all_graph_levels(all_results)
+  for level in levels:
+    for field in _GRAPH_LAYER_FIELDS:
+      values = _collect_graph_layer_values(all_results, level, field)
+      if len(values) >= 2:
+        charts.append((f"layer_{level}_{field}", values))
+
+  # also add num_layers as a chart
+  num_layers_values = []
+  for r in all_results:
+    gs = r.get("graph_stats")
+    if gs is not None and "num_layers" in gs:
+      num_layers_values.append(float(gs["num_layers"]))
+  if len(num_layers_values) >= 2:
+    charts.append(("num_layers", num_layers_values))
+
+  # build the JS data for all charts
+  charts_js_array = []
+  for title, values in charts:
+    stats = _compute_stats(values)
+    values_json = json.dumps(values)
+    stats_json = json.dumps(stats) if stats else "{}"
+    charts_js_array.append(f"    {{title: {json.dumps(title)}, values: {values_json}, stats: {stats_json}}}")
+
+  charts_js = ",\n".join(charts_js_array)
+
+  config_summary = (
+    f"iterations={config.get('iterations', '?')}, ndoc={config.get('ndoc', '?')}, niter={config.get('niter', '?')}, shuffle={config.get('shuffle_docs', False)}, seed={config.get('base_seed', '?')}"
+  )
+
+  html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <title>KNN Variance Test Results</title>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    body {{ font-family: monospace; margin: 20px; background: #fafafa; }}
+    h1 {{ font-size: 18px; }}
+    h2 {{ font-size: 14px; margin-top: 30px; }}
+    .config {{ background: #eee; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 12px; }}
+    .chart-container {{ display: inline-block; margin: 10px; vertical-align: top; }}
+    .stats-box {{ font-size: 11px; background: #fff; border: 1px solid #ddd; padding: 6px 10px;
+                  margin-top: 2px; border-radius: 3px; }}
+    .stats-box span {{ margin-right: 12px; }}
+    .cv-high {{ color: #c00; font-weight: bold; }}
+    .cv-med {{ color: #a60; }}
+    .cv-low {{ color: #080; }}
+    table {{ border-collapse: collapse; font-size: 11px; margin-top: 20px; }}
+    th, td {{ border: 1px solid #ccc; padding: 3px 8px; text-align: right; }}
+    th {{ background: #e8e8e8; }}
+    td.iter {{ text-align: left; font-weight: bold; }}
+  </style>
+</head>
+<body>
+  <h1>HNSW Variance Test Results</h1>
+  <div class="config">{config_summary}</div>
+  <div id="charts"></div>
+  <h2>Per-Run Raw Data</h2>
+  <div id="table"></div>
+
+  <script type="text/javascript">
+    google.charts.load('current', {{packages: ['corechart']}});
+    google.charts.setOnLoadCallback(drawAll);
+
+    var allCharts = [
+{charts_js}
+    ];
+
+    function cvClass(cv) {{
+      if (cv > 5) return 'cv-high';
+      if (cv > 1) return 'cv-med';
+      return 'cv-low';
+    }}
+
+    function fmtNum(v, decimals) {{
+      if (v === null || v === undefined) return '';
+      return Number(v).toFixed(decimals === undefined ? 4 : decimals);
+    }}
+
+    function drawAll() {{
+      var container = document.getElementById('charts');
+      for (var i = 0; i < allCharts.length; i++) {{
+        var c = allCharts[i];
+        var wrapper = document.createElement('div');
+        wrapper.className = 'chart-container';
+
+        var chartDiv = document.createElement('div');
+        chartDiv.style.width = '480px';
+        chartDiv.style.height = '300px';
+        wrapper.appendChild(chartDiv);
+
+        // stats box
+        var s = c.stats;
+        var statsDiv = document.createElement('div');
+        statsDiv.className = 'stats-box';
+        var cvCls = cvClass(s.cv_pct);
+        statsDiv.innerHTML =
+          '<span>n=' + s.n + '</span>' +
+          '<span>mean=' + fmtNum(s.mean) + '</span>' +
+          '<span>median=' + fmtNum(s.median) + '</span>' +
+          '<span>stdev=' + fmtNum(s.stdev) + '</span>' +
+          '<span class="' + cvCls + '">cv=' + fmtNum(s.cv_pct, 2) + '%</span><br>' +
+          '<span>min=' + fmtNum(s.min) + '</span>' +
+          '<span>max=' + fmtNum(s.max) + '</span>' +
+          '<span>p5=' + fmtNum(s.p5) + '</span>' +
+          '<span>p95=' + fmtNum(s.p95) + '</span>';
+        wrapper.appendChild(statsDiv);
+
+        container.appendChild(wrapper);
+
+        drawHistogram(chartDiv, c.title, c.values);
+      }}
+
+      // raw data table
+      drawTable();
+    }}
+
+    function drawHistogram(div, title, values) {{
+      var min = Math.min.apply(null, values);
+      var max = Math.max.apply(null, values);
+      var range = max - min;
+
+      // sturges rule for bin count, clamped
+      var numBins = Math.max(5, Math.min(30, Math.ceil(Math.log2(values.length) + 1)));
+
+      // if all values identical, single bin
+      if (range === 0) {{
+        var data = google.visualization.arrayToDataTable([
+          [title, 'count'],
+          [String(min), values.length]
+        ]);
+        var chart = new google.visualization.ColumnChart(div);
+        chart.draw(data, {{title: title, legend: 'none', hAxis: {{title: title}}, vAxis: {{title: 'count'}}}});
+        return;
+      }}
+
+      var binWidth = range / numBins;
+      var bins = new Array(numBins).fill(0);
+      for (var i = 0; i < values.length; i++) {{
+        var idx = Math.floor((values[i] - min) / binWidth);
+        if (idx >= numBins) idx = numBins - 1;
+        bins[idx]++;
+      }}
+
+      var rows = [];
+      for (var i = 0; i < numBins; i++) {{
+        var lo = min + i * binWidth;
+        var hi = lo + binWidth;
+        var label = lo.toPrecision(4) + '-' + hi.toPrecision(4);
+        rows.push([label, bins[i]]);
+      }}
+
+      var data = new google.visualization.DataTable();
+      data.addColumn('string', title);
+      data.addColumn('number', 'count');
+      data.addRows(rows);
+
+      var chart = new google.visualization.ColumnChart(div);
+      chart.draw(data, {{
+        title: title,
+        legend: 'none',
+        hAxis: {{title: title, slantedText: true, slantedTextAngle: 45}},
+        vAxis: {{title: 'count', minValue: 0}},
+        bar: {{groupWidth: '90%'}},
+        colors: ['#4285f4']
+      }});
+    }}
+
+    function drawTable() {{
+      var tableDiv = document.getElementById('table');
+
+      // collect column headers from first result
+      var fields = {json.dumps(_HISTOGRAM_FIELDS)};
+      var graphFields = {json.dumps(_GRAPH_LAYER_FIELDS)};
+      var levels = {json.dumps(levels)};
+
+      // add graph layer columns
+      var graphCols = [];
+      for (var li = 0; li < levels.length; li++) {{
+        for (var fi = 0; fi < graphFields.length; fi++) {{
+          graphCols.push('L' + levels[li] + '_' + graphFields[fi]);
+        }}
+      }}
+
+      var allCols = ['iter', 'seed'].concat(fields).concat(['num_layers']).concat(graphCols);
+
+      var html = '<table><tr>';
+      for (var i = 0; i < allCols.length; i++) {{
+        html += '<th>' + allCols[i] + '</th>';
+      }}
+      html += '</tr>';
+
+      var results = {json.dumps(all_results)};
+      for (var ri = 0; ri < results.length; ri++) {{
+        var r = results[ri];
+        html += '<tr>';
+        html += '<td class="iter">' + r.iteration + '</td>';
+        html += '<td>' + (r.seed !== null ? r.seed : 'none') + '</td>';
+        for (var fi = 0; fi < fields.length; fi++) {{
+          var v = r[fields[fi]];
+          html += '<td>' + (v !== undefined ? v : '') + '</td>';
+        }}
+        // num_layers
+        var gs = r.graph_stats || {{}};
+        html += '<td>' + (gs.num_layers || '') + '</td>';
+        // per-layer fields
+        var layerMap = {{}};
+        if (gs.layers) {{
+          for (var li = 0; li < gs.layers.length; li++) {{
+            layerMap[gs.layers[li].level] = gs.layers[li];
+          }}
+        }}
+        for (var li = 0; li < levels.length; li++) {{
+          var layer = layerMap[levels[li]] || {{}};
+          for (var fi = 0; fi < graphFields.length; fi++) {{
+            var v = layer[graphFields[fi]];
+            html += '<td>' + (v !== undefined ? fmtNum(v) : '') + '</td>';
+          }}
+        }}
+        html += '</tr>';
+      }}
+      html += '</table>';
+      tableDiv.innerHTML = html;
+    }}
+  </script>
+</body>
+</html>"""
+
+  Path(output_path).write_text(html)
+  print(f"interactive variance dashboard: {output_path}")
 
 
 def main():
@@ -445,14 +821,19 @@ def main():
   results_path.write_text(json.dumps(all_results, indent=2))
   print(f"\nall results saved to {results_path}")
 
-  # print summary
+  # print text summary
   print_variance_summary(all_results)
 
-  # save summary to file too
+  # generate interactive HTML dashboard
+  html_path = Path(args.output_dir) / "variance_dashboard.html"
+  generate_variance_html(all_results, html_path, config)
+
+  # save end time
   config["end_time"] = datetime.now().isoformat()
   config_path.write_text(json.dumps(config, indent=2))
 
   print(f"\ndone. {len(all_results)} iterations completed. output: {args.output_dir}")
+  print(f"open {html_path} in a browser to see interactive histograms")
 
 
 def _run_iteration_worker(checkout, params, dim, doc_vectors, query_vectors, run_dir, iteration, shuffle):
@@ -480,6 +861,9 @@ def _run_iteration_worker(checkout, params, dim, doc_vectors, query_vectors, run
     seed_text = seed_file.read_text().strip()
     result["seed"] = int(seed_text) if seed_text != "none" else None
   result["elapsed_sec"] = round(elapsed_sec, 3)
+
+  # parse graph stats from output
+  result["graph_stats"] = parse_graph_stats(full_output)
 
   (run_path / "results.json").write_text(json.dumps(result, indent=2))
 

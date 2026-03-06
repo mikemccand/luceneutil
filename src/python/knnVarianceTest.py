@@ -211,14 +211,18 @@ def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vecto
     (run_dir / "seed.txt").write_text("none")
 
   t0_sec = time.monotonic()
-  summary_str, full_output = knnPerfTest.run_single_knn_iteration(
-    checkout,
-    params,
-    dim,
-    actual_doc_vectors,
-    query_vectors,
-    str(run_dir),
-  )
+  try:
+    summary_str, full_output = knnPerfTest.run_single_knn_iteration(
+      checkout,
+      params,
+      dim,
+      actual_doc_vectors,
+      query_vectors,
+      str(run_dir),
+    )
+  finally:
+    _cleanup_run_dir(run_dir, shuffle and iteration > 0)
+
   elapsed_sec = time.monotonic() - t0_sec
 
   # save all output
@@ -236,19 +240,23 @@ def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vecto
 
   (run_dir / "results.json").write_text(json.dumps(result, indent=2))
 
-  # clean up index to reclaim disk space
-  index_dir = run_dir / "knn-reuse" / "indices"
-  if index_dir.exists():
-    shutil.rmtree(index_dir)
-    print(f"[variance] deleted index dir {index_dir}")
-
-  # clean up shuffled doc vectors (reproducible from seed + base docs)
-  shuffled_docs = run_dir / "docs.vec"
-  if shuffle and iteration > 0 and shuffled_docs.exists():
-    shuffled_docs.unlink()
-    print(f"[variance] deleted shuffled docs {shuffled_docs}")
-
   return result
+
+
+def _cleanup_run_dir(run_dir, delete_shuffled_docs):
+  """Remove large temp files from a completed run dir."""
+  # delete entire knn-reuse/ tree (indices, seeded exact-nn caches, hnsw traversal scores, etc.)
+  knn_reuse_dir = run_dir / "knn-reuse"
+  if knn_reuse_dir.exists():
+    shutil.rmtree(knn_reuse_dir)
+    print(f"[variance] deleted {knn_reuse_dir}")
+
+  # delete shuffled doc vectors (reproducible from seed + base docs)
+  if delete_shuffled_docs:
+    shuffled_docs = run_dir / "docs.vec"
+    if shuffled_docs.exists():
+      shuffled_docs.unlink()
+      print(f"[variance] deleted shuffled docs {shuffled_docs}")
 
 
 def _collect_numeric_values(all_results, field):
@@ -838,19 +846,23 @@ def main():
 
 def _run_iteration_worker(checkout, params, dim, doc_vectors, query_vectors, run_dir, iteration, shuffle):
   """Worker function for ProcessPoolExecutor -- must be top-level for pickling."""
+  run_path = Path(run_dir)
   t0_sec = time.monotonic()
-  summary_str, full_output = knnPerfTest.run_single_knn_iteration(
-    checkout,
-    params,
-    dim,
-    doc_vectors,
-    query_vectors,
-    run_dir,
-  )
+  try:
+    summary_str, full_output = knnPerfTest.run_single_knn_iteration(
+      checkout,
+      params,
+      dim,
+      doc_vectors,
+      query_vectors,
+      run_dir,
+    )
+  finally:
+    _cleanup_run_dir(run_path, shuffle)
+
   elapsed_sec = time.monotonic() - t0_sec
 
   # save output
-  run_path = Path(run_dir)
   (run_path / "output.log").write_text(full_output)
 
   result = parse_summary(summary_str)
@@ -866,16 +878,6 @@ def _run_iteration_worker(checkout, params, dim, doc_vectors, query_vectors, run
   result["graph_stats"] = parse_graph_stats(full_output)
 
   (run_path / "results.json").write_text(json.dumps(result, indent=2))
-
-  # clean up index
-  index_dir = Path(run_dir) / "knn-reuse" / "indices"
-  if index_dir.exists():
-    shutil.rmtree(index_dir)
-
-  # clean up shuffled doc vectors
-  shuffled_docs = Path(run_dir) / "docs.vec"
-  if shuffle and shuffled_docs.exists():
-    shuffled_docs.unlink()
 
   return result
 

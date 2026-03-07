@@ -18,6 +18,7 @@
 import argparse
 import os
 import shutil
+import ssl
 import sys
 import time
 from urllib import request
@@ -35,6 +36,9 @@ DATA_FILES = [
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec",
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.csv",
   "https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip",
+  "https://download.geonames.org/export/dump/allCountries.zip",
+  # NAD (National Address Database) for facets benchmark (~7.8 GB)
+  ("https://data.transportation.gov/download/fc2s-wawr/", "NAD_r21_TXT.zip"),
 ]
 
 USAGE = """
@@ -46,48 +50,100 @@ Options:
 """
 DEFAULT_LOCAL_CONST = """
 BASE_DIR = '%(base_dir)s'
-BENCH_BASE_DIR = '%(base_dir)s/%(cwd)s'
+BENCH_BASE_DIR = '%(bench_base_dir)s'
+INDEX_DIR_BASE = '%(index_dir_base)s'
+JAVA_HOME = '%(java_home)s'
+JAVA_EXE = '%(java_exe)s'
+JAVAC_EXE = '%(javac_exe)s'
+JAVA_COMMAND = f"{{JAVA_EXE}} -server -Xms2g -Xmx16g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
 """
 
 
-def runSetup(download):
+def get_java_from_env():
+  """Get Java paths from environment variables.
+
+  Returns:
+    tuple: (java_home, java_exe, javac_exe, found) where found is True if JAVA_HOME is set.
+
+  """
+  java_home = os.environ.get("JAVA_HOME")
+  if java_home and os.path.isdir(java_home):
+    java_exe = os.path.join(java_home, "bin", "java")
+    javac_exe = os.path.join(java_home, "bin", "javac")
+    return java_home, java_exe, javac_exe, True
+  return "/path/to/java", "/path/to/java/bin/java", "/path/to/java/bin/javac", False
+
+
+def runSetup(download, insecure_ssl=False):
+  print("=" * 60)
+  print("Lucene Benchmarking Utility - Initial Setup")
+  print("=" * 60)
+
   cwd = os.getcwd()
-  parent, base = os.path.split(cwd)
+  parent, _base = os.path.split(cwd)
   data_dir = os.path.join(parent, "data")
   idx_dir = os.path.join(parent, "indices")
 
+  print("\n[Step 1/5] Setting up directory structure...")
+  print(f"  Working directory: {cwd}")
+  print(f"  Parent directory: {parent}")
+
   if not os.path.exists(data_dir):
-    print("create data directory at %s" % (data_dir))
+    print(f"  Creating data directory at {data_dir}")
     os.mkdir(data_dir)
   else:
-    print("data directory already exists %s" % (data_dir))
+    print(f"  Data directory already exists: {data_dir}")
 
   if not os.path.exists(idx_dir):
     os.mkdir(idx_dir)
-    print("create indices directory at %s" % (idx_dir))
+    print(f"  Creating indices directory at {idx_dir}")
   else:
-    print("indices directory already exists %s" % (idx_dir))
+    print(f"  Indices directory already exists: {idx_dir}")
 
+  print("\n[Step 2/5] Creating localconstants.py configuration file...")
   pySrcDir = os.path.join(cwd, "src", "python")
   local_const = os.path.join(pySrcDir, "localconstants.py")
   if not os.path.exists(local_const):
-    f = open(local_const, "w")
-    try:
-      f.write(DEFAULT_LOCAL_CONST % ({"base_dir": parent, "cwd": base}))
-    finally:
-      f.close()
-  else:
-    print("localconstants.py already exists - skipping")
+    print(f"  Writing configuration to {local_const}")
 
+    # Get Java paths from environment
+    java_home, java_exe, javac_exe, found = get_java_from_env()
+    if found:
+      print(f"  Using JAVA_HOME from environment: {java_home}")
+    else:
+      print("  WARNING: JAVA_HOME environment variable not set. Please set JAVA_HOME or update localconstants.py")
+
+    config_values = {
+      "base_dir": parent,
+      "bench_base_dir": cwd,
+      "index_dir_base": idx_dir,
+      "java_home": java_home,
+      "java_exe": java_exe,
+      "javac_exe": javac_exe,
+    }
+
+    with open(local_const, "w") as f:
+      f.write(DEFAULT_LOCAL_CONST % config_values)
+    print("  Configuration file created successfully")
+  else:
+    print(f"  localconstants.py already exists at {local_const} - skipping")
+
+  print("\n[Step 3/5] Setting up localrun.py from example template...")
   local_run = os.path.join(pySrcDir, "localrun.py")
   example = os.path.join(pySrcDir, "example.py")
   if not os.path.exists(local_run):
+    print(f"  Copying {example} to {local_run}")
     shutil.copyfile(example, local_run)
+    print("  localrun.py created successfully")
   else:
-    print("localrun.py already exists - skipping")
+    print(f"  localrun.py already exists at {local_run} - skipping")
 
   if download:
-    for tup in DATA_FILES:
+    print("\n[Step 4/5] Downloading benchmark data files...")
+    print(f"  Target directory: {data_dir}")
+    print(f"  Number of files to process: {len(DATA_FILES)}")
+
+    for i, tup in enumerate(DATA_FILES, 1):
       if type(tup) is str:
         url_source = tup
         local_filename = os.path.basename(url_source)
@@ -96,37 +152,96 @@ def runSetup(download):
       else:
         raise RuntimeError(f"DATA_FILES elements should be single string or length 2 tuple; got: {tup}")
       target_file = os.path.join(data_dir, local_filename)
+
+      print(f"\n  [{i}/{len(DATA_FILES)}] Processing: {local_filename}")
       if os.path.exists(target_file):
-        print("file %s already exists - skipping" % target_file)
+        print("    File already exists - skipping")
       else:
-        print("download %s to %s - might take a long time!" % (url_source, target_file))
-        Downloader(url_source, target_file).download()
+        print(f"    Source URL: {url_source}")
+        print(f"    Destination: {target_file}")
+        print("    Starting download (this might take a while)...")
+        Downloader(url_source, target_file, insecure_ssl).download()
         print()
-        print("downloading %s to %s done " % (url_source, target_file))
+        print(f"    Download complete: {local_filename}")
 
       for suffix in (".bz2", ".lzma", ".zip", ".xz"):
         if target_file.endswith(suffix):
-          print("NOTE: make sure you decompress %s" % target_file)
+          print(f"    NOTE: Remember to decompress {target_file}")
           break
 
-  print("setup successful")
+    # Process NAD data to generate taxonomy file
+    print("\n[Step 5/5] Processing NAD data...")
+    nad_zip = os.path.join(data_dir, "NAD_r21_TXT.zip")
+    nad_taxonomy = os.path.join(data_dir, "NAD_taxonomy.txt.gz")
+    if os.path.exists(nad_taxonomy):
+      print(f"  NAD taxonomy file already exists at {nad_taxonomy} - skipping")
+    elif not os.path.exists(nad_zip):
+      print(f"  NAD zip file not found at {nad_zip} - skipping taxonomy generation")
+    else:
+      print(f"  Generating NAD taxonomy from {nad_zip}")
+      print("  This processes ~92M address records and may take several minutes...")
+      from generateNADTaxonomies import generate_nad_taxonomy  # conditional import, only needed when NAD data exists
+
+      generate_nad_taxonomy(parent)
+      print(f"  NAD taxonomy generation complete: {nad_taxonomy}")
+  else:
+    print("\n[Step 4/5] Skipping data file downloads (use -download flag to enable)")
+    print("\n[Step 5/5] Skipping NAD processing (requires -download flag)")
+
+  print("\n" + "=" * 60)
+  print("Setup completed successfully!")
+  print("=" * 60)
 
 
 class Downloader:
   HISTORY_SIZE = 100
 
-  def __init__(self, url, target_path):
+  def __init__(self, url, target_path, insecure_ssl=False):
     self.__url = url
     self.__target_path = target_path
+    self.__insecure_ssl = insecure_ssl
     Downloader.times = [time.time()] * Downloader.HISTORY_SIZE
     Downloader.sizes = [0] * Downloader.HISTORY_SIZE
     Downloader.index = 0
 
   def download(self):
-    opener = request.build_opener()
+    print("    Configuring SSL context...")
+    # Handle SSL certificate configuration
+    if self.__insecure_ssl:
+      print("    Warning: Using insecure SSL context (certificate verification disabled)")
+      ssl_context = ssl._create_unverified_context()  # noqa: S323 - intentional: user explicitly opted in via --insecure-ssl
+    else:
+      try:
+        # Try to use certifi bundle if available
+        import certifi  # conditional import for optional dependency
+
+        print("    Using certifi SSL certificates")
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+      except ImportError:
+        # Fall back to system certificates
+        print("    Using system SSL certificates")
+        ssl_context = ssl.create_default_context()
+
+    # Install SSL context
+    print("    Setting up HTTP handler...")
+    https_handler = request.HTTPSHandler(context=ssl_context)
+    opener = request.build_opener(https_handler)
     opener.addheaders = [("User-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")]
     request.install_opener(opener)
-    request.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
+
+    print("    Initiating download...")
+    try:
+      request.urlretrieve(self.__url, self.__target_path, Downloader.reporthook)
+    except ssl.SSLError as e:
+      print(f"\nSSL Certificate Error: {e}")
+      print("\nThis error occurs when SSL certificates cannot be verified.")
+      print("Solutions:")
+      print("1. Set SSL_CERT_FILE environment variable:")
+      print('   export SSL_CERT_FILE=$(python -c "import certifi; print(certifi.where())")')
+      print("2. Use --insecure-ssl flag (not recommended for production):")
+      print("   python src/python/initial_setup.py -download --insecure-ssl")
+      print("3. Update your system's CA certificates")
+      raise
 
   @staticmethod
   def reporthook(count, block_size, total_size):
@@ -157,5 +272,10 @@ if __name__ == "__main__":
     action="store_true",
     help="Download datasets to run benchmarks. A 6 GB compressed Wikipedia line doc file, and a 13 GB vectors file is downloaded from Apache mirrors",
   )
+  parser.add_argument(
+    "--insecure-ssl",
+    action="store_true",
+    help="Skip SSL certificate verification (use only if you encounter SSL certificate errors)",
+  )
   args = parser.parse_args()
-  runSetup(args.download)
+  runSetup(args.download, args.insecure_ssl)

@@ -11,6 +11,7 @@
 #     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
+import itertools
 import mmap
 import multiprocessing
 import os
@@ -34,6 +35,8 @@ except ImportError:
   print("  source .venv/bin/activate")
   print("  python -u src/python/knnPerfTest.py\n")
   raise SystemExit(1) from None
+
+import knnExactNN
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
 # maybe a bit faster?
@@ -1185,6 +1188,37 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
   print(f"Wrote HNSW traversal score histogram to {output_file}")
 
 
+def precompute_exact_nn(values, dim, doc_vectors, query_vectors):
+  """Precompute exact nearest neighbors using numpy for all parameter combinations."""
+  ndocs = values.get("ndoc", (1000,))
+  niters = values.get("niter", (1000,))
+  metrics = values.get("metric", ("dot_product",))
+  top_ks = values.get("topK", (100,))
+  query_start_indices = values.get("queryStartIndex", (0,))
+  encodings = values.get("encoding", ("float32",))
+
+  # wrap scalar values
+  if not isinstance(ndocs, (tuple, list)):
+    ndocs = (ndocs,)
+  if not isinstance(niters, (tuple, list)):
+    niters = (niters,)
+  if not isinstance(metrics, (tuple, list)):
+    metrics = (metrics,)
+  if not isinstance(top_ks, (tuple, list)):
+    top_ks = (top_ks,)
+  if not isinstance(query_start_indices, (tuple, list)):
+    query_start_indices = (query_start_indices,)
+  if not isinstance(encodings, (tuple, list)):
+    encodings = (encodings,)
+
+  combos = list(itertools.product(ndocs, niters, metrics, top_ks, query_start_indices, encodings))
+  print(f"\nprecomputing exact NN for {len(combos)} parameter combination(s) using numpy...")
+  for ndoc, niter, metric, top_k, query_start_index, encoding in combos:
+    knnExactNN.run_one(doc_vectors, query_vectors, dim, ndoc, niter,
+                       metric, top_k, query_start_index, encoding)
+  print()
+
+
 def run_knn_benchmark(checkout, values, log_path):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
@@ -1247,6 +1281,9 @@ def run_knn_benchmark(checkout, values, log_path):
 
   smell_vectors(dim, doc_vectors)
   smell_vectors(dim, query_vectors)
+
+  # precompute exact nearest neighbors using numpy (much faster than Java brute force)
+  precompute_exact_nn(values, dim, doc_vectors, query_vectors)
 
   index_run = 1
   all_results = []

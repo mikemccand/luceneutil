@@ -42,7 +42,7 @@ results = results[10:]
 
 js = []
 t = datetime.datetime(year=2011, month=4, day=25)
-for idx, (qt, reopen, searches, dirty) in enumerate(results):
+for idx, (qt, reopen, searches, dirty) in enumerate(results):  # noqa: FURB148
   if hasDirty:
     extra = ",%.1f" % dirty
   else:

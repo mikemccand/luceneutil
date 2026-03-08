@@ -53,7 +53,6 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
@@ -121,6 +120,7 @@ import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.HnswGraphSearcher;
 import org.apache.lucene.util.hnsw.RandomVectorScorer;
+import org.apache.lucene.util.quantization.QuantizedByteVectorValues.ScalarEncoding;
 import org.apache.lucene.search.TopKnnCollector;
 
 import perf.SearchPerfTest.ThreadDetails;
@@ -2087,38 +2087,45 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
-    return new Lucene104Codec() {
-      @Override
-      public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-        if (quantize) {
-          return switch (quantizeBits) {
-            case 1 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 2 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 4 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 7 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            case 8 -> switch (indexType) {
-              case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
-              case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE, maxConn, beamWidth, numMergeWorker, exec);
-            };
-            default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
+      KnnVectorsFormat knnVectorsFormat;
+      if (quantize) {
+          knnVectorsFormat = switch (quantizeBits) {
+              case 1 -> switch (indexType) {
+                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
+                  case HNSW ->
+                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
+              };
+              case 2 -> switch (indexType) {
+                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
+                  case HNSW ->
+                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
+              };
+              case 4 -> switch (indexType) {
+                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
+                  case HNSW ->
+                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
+              };
+              case 7 -> switch (indexType) {
+                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
+                  case HNSW ->
+                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);
+              };
+              case 8 -> switch (indexType) {
+                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
+                  case HNSW ->
+                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE, maxConn, beamWidth, numMergeWorker, exec);
+              };
+              default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
           };
-        } else {
-          return new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
-        }
+      } else {
+          knnVectorsFormat = new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
       }
-    };
+      return new Lucene104Codec() {
+          @Override
+          public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+              return knnVectorsFormat;
+          }
+      };
   }
 
   private static void usage() {

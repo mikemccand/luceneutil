@@ -35,7 +35,7 @@ def run(command):
     raise RuntimeError("%s failed" % command)
 
 
-reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)
+reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)  # noqa: RUF039
 reByTime = re.compile(r"  (\d+) searches=(\d+) docs=(\d+) reopens=(\d+) totUpdateTime=(\d+)$")
 
 
@@ -119,7 +119,7 @@ def runOne(
     if VERBOSE:
       print("times: %s" % " ".join(["%.1f" % x for x in times]))
 
-    minVal, maxVal, mean, stdDev = stats.getStats(times)
+    minVal, maxVal, mean, stdDev = stats.getStats(times)  # noqa: RUF059
     reopenStats.meanReopenTime = mean
     reopenStats.stddevReopenTime = stdDev
 

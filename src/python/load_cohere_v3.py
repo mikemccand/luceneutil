@@ -180,7 +180,7 @@ def main():
           meta_csv_out.writerow([doc["_id"], doc["title"], doc["text"], doc["url"]])
           total_text_chars += len(doc["text"])
           total_title_chars += len(doc["title"])
-          wiki_id, paragraph_id = split_id(doc["_id"], row_count)
+          wiki_id, paragraph_id = split_id(doc["_id"], row_count)  # noqa: RUF059
 
           if wiki_id != cur_wiki_id:
             if STOP_AT is not None and total_doc_count >= STOP_AT:
@@ -403,7 +403,7 @@ def shuffle_entirely(
 
       # write CSV rows in order
       csv_out.write(",".join(header) + "\n")
-      for line in csv_output_lines:
+      for line in csv_output_lines:  # noqa: FURB122
         csv_out.write(line)
 
     elapsed_sec = time.time() - start_time_sec
@@ -453,7 +453,7 @@ def xor_vector_hash(prior_hash_bytes, vector_bytes):
     return new_hash_bytes
 
   # XOR byte by byte
-  result_bytes = bytes(a ^ b for a, b in zip(prior_hash_bytes, new_hash_bytes))
+  result_bytes = bytes(a ^ b for a, b in zip(prior_hash_bytes, new_hash_bytes))  # noqa: B905
   return result_bytes
 
 
@@ -495,7 +495,7 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
       # extract wiki_id from first column
       wiki_id = csv_row[0]
       if is_full_id:
-        wiki_id, para_id = split_id(wiki_id, line_num=csv_reader.line_num)
+        wiki_id, para_id = split_id(wiki_id, line_num=csv_reader.line_num)  # noqa: RUF059
 
       # read corresponding vector bytes
       vec_bytes = read_exact(vec_f, vector_size_bytes, "vector")

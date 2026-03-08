@@ -250,7 +250,7 @@ def compute_time_metrics(checkpoints, commits, full_flush_events, segments, star
     if full_flush[1] is not None:
       all_times.append((full_flush[1], "fullflushend", full_flush))
 
-  all_times.sort(key=lambda x: x[0])
+  all_times.sort(key=lambda x: x[0])  # noqa: FURB118
 
   flush_mbs = 0
   merge_mbs = 0
@@ -550,7 +550,7 @@ def main():
 
   # get_seg_del_times(segments, start_abs_time, end_abs_time)
 
-  _l = []
+  _l = []  # noqa: RUF052
   w = _l.append
 
   padding_x = 5
@@ -1356,7 +1356,7 @@ def main():
   w("</body>")
   w("</html>")
 
-  with open(html_file_out, "w") as f:
+  with open(html_file_out, "w") as f:  # noqa: FURB103
     f.write("\n".join(_l))
 
 

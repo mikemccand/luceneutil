@@ -49,7 +49,7 @@ import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
+import org.apache.lucene.util.quantization.QuantizedByteVectorValues.ScalarEncoding;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -458,7 +458,24 @@ public final class Indexer {
       if (hnswMergeExec != null) {
         System.out.println("Concurrent HNSW merge enabled: " + hnswThreadsPerMerge + " threads per merge, drawing from shared thread pool with " + hnswThreadPoolCount + " fixed threads");
       }
-    
+
+      KnnVectorsFormat knnVectorsFormat;
+      if (quantizeKNNGraph) {
+          knnVectorsFormat = new Lucene104HnswScalarQuantizedVectorsFormat(
+                  ScalarEncoding.SEVEN_BIT,
+                  Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                  hnswThreadsPerMerge,
+                  hnswMergeExec
+          );
+      } else {
+          knnVectorsFormat = new Lucene99HnswVectorsFormat(
+                  Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                  hnswThreadsPerMerge,
+                  hnswMergeExec
+          );
+        }
       // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
       final Codec codec = new Lucene104Codec() {
           @Override
@@ -482,18 +499,7 @@ public final class Indexer {
 
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            if (quantizeKNNGraph) {
-              return new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT,
-                                                                   Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                                                                   Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                                                   hnswThreadsPerMerge,
-                                                                   hnswMergeExec);
-            } else {
-              return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                hnswThreadsPerMerge,
-                hnswMergeExec);
-            }
+            return knnVectorsFormat;
           }
         };
 

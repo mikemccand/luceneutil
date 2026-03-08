@@ -16,6 +16,14 @@ import knnPerfTest
 # twist and shout!
 knnPerfTest.NOISY = True
 
+PERF_EXE = shutil.which("perf")
+PERF_STATS = constants.PERF_STATS
+
+if PERF_EXE is None:
+  print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
+else:
+  print(f"NOTE: perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
+
 # TODO
 #   - graphs
 #     - get gitHashes / clicking working
@@ -666,6 +674,9 @@ def _run(results_dir):
     #'-forceMerge'
   ]
 
+  if PERF_EXE is not None:
+    cmd = [PERF_EXE, "stat", "-dd", "-e", ",".join(PERF_STATS)] + cmd
+
   # print cpu and memory information at the start
   knnPerfTest.print_cpu_info()
   knnPerfTest.print_mem_info()
@@ -681,6 +692,12 @@ def _run(results_dir):
   for quantize_bits in (4, 7, 32):
     for do_force_merge in (False, True):
       this_cmd = cmd[:]
+
+      jfr_file_name = f"{results_dir}/bench-knn-q{quantize_bits}-fm{do_force_merge}.jfr"
+      spot = this_cmd.indexOf("knn.KnnGraphTester")
+      this_cmd.insert(
+        spot, f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=256M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_file_name}"
+      )
 
       if not do_force_merge:
         this_cmd.append("-reindex")
@@ -734,7 +751,7 @@ def _run(results_dir):
           graph_level_conn_p_values = {}
           # leaf-number, doc-count, dict mapping layer to node connectedness p values
           if leaf_count != int(m.group(1)):
-            raise RuntimeError("leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}")
+            raise RuntimeError("leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}")  # noqa: RUF027
           all_graph_level_conn_p_values.append((leaf_count, int(m.group(2)), graph_level_conn_p_values))
           layer_count = next_layer_count
 
@@ -826,6 +843,12 @@ def _run(results_dir):
       )
       print(f"result: {result}")
       all_results.append(result)
+
+      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_file_name, LUCENE_CHECKOUT, 50, (1, 4, 12))
+
+      # they are massive and we generate six each night and we already squeezed the orange
+      # to get the juice (the human-readable-ish report created by previous line)
+      os.remove(jfr_file_name)
 
       if do_force_merge:
         # clean as we go -- these indices are biggish (~25-30 GB):

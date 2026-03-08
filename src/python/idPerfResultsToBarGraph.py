@@ -40,7 +40,7 @@ with open(sys.argv[1]) as f:
       break
     line = line.strip()
     if line.startswith("best result: "):
-      m = re.search("best result: (.*?): lookup=(.*?)K IDs/sec", line)
+      m = re.search("best result: (.*?): lookup=(.*?)K IDs/sec", line)  # noqa: RUF039
       label = m.group(1)
       if label.find(", base 256") != -1 or label in ("flake", "UUID v4 (random)", "UUID v1 (time, node, counter)", "uuids v4 (random)"):
         label = label.replace(", base 256", " [binary]")

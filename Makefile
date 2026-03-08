@@ -48,12 +48,12 @@ autofix: ruff-fix reformat
 # applies safe autofixes
 ruff-fix: env
 	# fix sources with ruff
-	$(VENV)/bin/ruff check --fix $(SOURCES)
+	$(VENV)/bin/ruff check --preview --fix $(SOURCES)
 
 # lints sources
 ruff: env
 	# validate sources with ruff linter
-	$(VENV)/bin/ruff check $(SOURCES)
+	$(VENV)/bin/ruff check --preview $(SOURCES)
 
 # checks types
 pyright: env

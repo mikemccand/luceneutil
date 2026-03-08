@@ -66,7 +66,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
         # qps is the "target", ie the rate at which we sent the
         # queries to the server; actualQPS is what the server actually
         # achieved overall:
-        pctPoints, actualQPS, endTimeSec = responseTimeGraph.getPctPoints(resultsFile, name, warmupSec)
+        pctPoints, actualQPS, endTimeSec = responseTimeGraph.getPctPoints(resultsFile, name, warmupSec)  # noqa: RUF059
 
         print("%s: qps %s, actualQPS %s" % (name, qps, actualQPS))
 

@@ -92,8 +92,7 @@ from common import getLuceneDirFromGradleProperties
 #
 # you may want to modify the following settings:
 
-# TODO: support async prorfiler (it can write JFRs as well so it'd fit right in with our simple JFR summarizer output)
-# TODO: also support new CPU time profiler (no more sleepy state bias?) in JDK 25 here: https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
+# uses CPUTime sampling (newly available/experimental in Java 25, seems to work on the tasks benchmark)
 DO_PROFILING = False
 DO_PS = True
 DO_VMSTAT = True
@@ -553,7 +552,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
     print("WARNING: exact NN scores file is empty")
     return
 
-  with open(scores_path, "rb") as f:
+  with open(scores_path, "rb") as f:  # noqa: FURB101
     all_scores = struct.unpack(f"<{num_floats}f", f.read())
 
   metric_name, direction = METRIC_LABELS.get(metric or "", ("similarity score", ""))
@@ -750,7 +749,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-knnDistanceHistogram.html"
-  with open(output_file, "w") as f:
+  with open(output_file, "w") as f:  # noqa: FURB103
     f.write(html)
   print(f"Wrote exact NN distance histogram to {output_file}")
 
@@ -770,7 +769,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
     print("WARNING: all-distances scores file is empty")
     return
 
-  with open(scores_path, "rb") as f:
+  with open(scores_path, "rb") as f:  # noqa: FURB101
     all_scores = struct.unpack(f"<{num_floats}f", f.read())
 
   sample_label = ""
@@ -965,7 +964,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-allDistancesHistogram.html"
-  with open(output_file, "w") as f:
+  with open(output_file, "w") as f:  # noqa: FURB103
     f.write(html)
   print(f"Wrote all-distances histogram to {output_file}")
 
@@ -982,7 +981,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 
   all_scores = []
   total_scores = 0
-  with open(scores_path, "rb") as f:
+  with open(scores_path, "rb") as f:  # noqa: FURB101
     data = f.read()
 
   offset = 0
@@ -1189,7 +1188,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-hnswTraversalHistogram.html"
-  with open(output_file, "w") as f:
+  with open(output_file, "w") as f:  # noqa: FURB103
     f.write(html)
   print(f"Wrote HNSW traversal score histogram to {output_file}")
 
@@ -1247,7 +1246,7 @@ def run_knn_benchmark(checkout, values, log_path):
   ]
 
   if DO_PROFILING:
-    cmd += [f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
+    cmd += [f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
 
   cmd += ["knn.KnnGraphTester"]
 
@@ -1455,7 +1454,7 @@ def run_knn_benchmark(checkout, values, log_path):
 
     all_results.append((summary, args))
     if DO_PROFILING:
-      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1,))
+      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1, 4, 12))
     index_run += 1
 
   if NOISY:
@@ -1798,6 +1797,130 @@ def print_mem_info():
 
   print(f"  dirty RAM: {format_memory_kb(mem_dirty) if mem_dirty != 'unknown' else 'unknown'}")
   print()
+
+
+def build_java_base_cmd(checkout):
+  """Build the base Java command (JVM flags + classpath) for KnnGraphTester."""
+  cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f"{constants.BENCH_BASE_DIR}/build",))
+  cmd = constants.JAVA_EXE.split(" ") + [
+    "-cp",
+    cp,
+    "--add-modules",
+    "jdk.incubator.vector",
+    "--enable-native-access=ALL-UNNAMED",
+    f"-Djava.util.concurrent.ForkJoinPool.common.parallelism={multiprocessing.cpu_count()}",
+    "-XX:+UnlockDiagnosticVMOptions",
+    "-XX:+DebugNonSafepoints",
+  ]
+  cmd += ["knn.KnnGraphTester"]
+  return cmd
+
+
+def build_knn_args_from_params(params):
+  """Convert a flat dict of param_name->value into the arg list for KnnGraphTester."""
+  args = []
+  quantize_bits = None
+  do_quantize_compress = False
+  for p, value in params.items():
+    if p == "quantizeBits":
+      if value != 32:
+        args += ["-quantize", "-quantizeBits", str(value)]
+        quantize_bits = value
+    elif p == "quantizeCompress":
+      do_quantize_compress = value
+    elif isinstance(value, bool):
+      if value:
+        args += ["-" + p]
+    else:
+      args += ["-" + p, str(value)]
+
+  if quantize_bits == 4 and do_quantize_compress:
+    args += ["-quantizeCompress"]
+
+  return args
+
+
+def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, work_dir, extra_java_args=None):
+  """Run a single KNN benchmark iteration in work_dir.  Always reindexes.
+
+  params: flat dict of param_name -> single value (not tuple)
+  Returns (summary_string, full_output_string) or raises on failure.
+  """
+  base_cmd = build_java_base_cmd(checkout)
+  knn_args = build_knn_args_from_params(params)
+
+  full_cmd = (
+    base_cmd
+    + knn_args
+    + [
+      "-dim",
+      str(dim),
+      "-docs",
+      str(doc_vectors),
+      "-reindex",
+      "-search-and-stats",
+      str(query_vectors),
+      "-numIndexThreads",
+      "8",
+    ]
+  )
+
+  if extra_java_args is not None:
+    full_cmd += extra_java_args
+
+  print(f"[variance] running in {work_dir}")
+  print(f"[variance] cmd: {full_cmd}")
+
+  os.makedirs(work_dir, exist_ok=True)
+
+  job = subprocess.Popen(
+    full_cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    encoding="utf-8",
+    cwd=str(work_dir),
+  )
+
+  output_lines = []
+  re_summary = re.compile(r"^SUMMARY: (.*?)$", re.MULTILINE)
+  summary = None
+  hit_exception = False
+
+  while job.poll() is None:
+    line = job.stdout.readline()
+    if not line:
+      continue
+    output_lines.append(line)
+    sys.stdout.write(line)
+    sys.stdout.flush()
+    m = re_summary.match(line)
+    if m is not None:
+      summary = m.group(1)
+    if "Exception in" in line:
+      hit_exception = True
+
+  # drain remaining output
+  for line in job.stdout:
+    output_lines.append(line)
+    sys.stdout.write(line)
+    sys.stdout.flush()
+    m = re_summary.match(line)
+    if m is not None:
+      summary = m.group(1)
+    if "Exception in" in line:
+      hit_exception = True
+
+  full_output = "".join(output_lines)
+
+  if hit_exception:
+    raise RuntimeError(f"java exception in {work_dir}:\n{full_output}")
+  job.wait()
+  if job.returncode != 0:
+    raise RuntimeError(f"command failed with exit {job.returncode} in {work_dir}:\n{full_output}")
+  if summary is None:
+    raise RuntimeError(f"could not find SUMMARY line in output from {work_dir}:\n{full_output}")
+
+  return summary, full_output
 
 
 def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):

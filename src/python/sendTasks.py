@@ -136,7 +136,7 @@ class SendTasks:
     while True:
       result = ""
       while len(result) < 30:
-        result = result + self.sock.recv(30 - len(result))
+        result = result + self.sock.recv(30 - len(result))  # noqa: PLR6104
       taskID, totalHitCount, queueTimeMS = result.split(":")
       taskID = int(taskID)
       totalHitCount = int(totalHitCount)
@@ -232,7 +232,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
     s = l
     if len(s) > MAX_BYTES:
       raise RuntimeError("task is > %d bytes: %s" % (MAX_BYTES, l))
-    s = s + ((MAX_BYTES - len(s)) * " ")
+    s = s + ((MAX_BYTES - len(s)) * " ")  # noqa: PLR6104
     taskStrings.append(s)
 
   r = random.Random(0)

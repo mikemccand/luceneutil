@@ -888,4 +888,9 @@ KNOWN_CHANGES = [
     "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
     "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
   ),
+  (
+    "2026-03-03",
+    "Re-enable JFR profiling in nightly tasks benchy, know to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+    "Re-enable JFR profiling in nightly tasks benchy, know to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+  ),
 ]

@@ -120,9 +120,9 @@ import org.apache.lucene.util.SuppressForbidden;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.HnswGraphSearcher;
 import org.apache.lucene.util.hnsw.RandomVectorScorer;
-import org.apache.lucene.util.quantization.QuantizedByteVectorValues.ScalarEncoding;
 import org.apache.lucene.search.TopKnnCollector;
 
+import org.apache.lucene.util.quantization.QuantizedByteVectorValues.ScalarEncoding;
 import perf.SearchPerfTest.ThreadDetails;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 //TODO Lucene may make these unavailable, we should pull in this from hppc directly
@@ -1283,8 +1283,11 @@ public class KnnGraphTester implements FormatterLogger {
       }
     } else {
       log("checking results\n");
-      float recall = checkResults(resultIds, nn);
-      totalVisited /= numQueryVectors;
+
+      RecallResult result = checkResults(resultIds, nn);
+      float recall = result.recall;
+      long totalResultCount = result.totalCandidateCount;
+
       String quantizeDesc;
       if (quantize) {
         quantizeDesc = Integer.toString(quantizeBits) + " bits";
@@ -1294,7 +1297,7 @@ public class KnnGraphTester implements FormatterLogger {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1305,10 +1308,11 @@ public class KnnGraphTester implements FormatterLogger {
           searchType == SearchType.KNN ? String.valueOf(fanout) : "N/A",
           searchType == SearchType.RADIUS ? String.valueOf(traversalSimilarity) : "N/A",
           searchType == SearchType.RADIUS ? String.valueOf(resultSimilarity) : "N/A",
+          totalResultCount / (float) numQueryVectors,
           maxConn,
           beamWidth,
           quantizeDesc,
-          totalVisited,
+          totalVisited / numQueryVectors,
           reindexSec,
           numDocs / reindexSec,
           forceMergeTimeSec,
@@ -1478,16 +1482,18 @@ public class KnnGraphTester implements FormatterLogger {
   record Result(TopDocs topDocs, long visitedCount, int reentryCount) {
   }
 
-  private float checkResults(int[][] results, int[][] nn) {
-    int totalMatches = 0;
-    int totalResults = 0;
+  private record RecallResult(float recall, long totalBaselineCount, long totalCandidateCount) {}
+
+  private RecallResult checkResults(int[][] results, int[][] nn) {
+    long totalMatches = 0, totalBaselineCount = 0, totalCandidateCount = 0;
     for (int i = 0; i < results.length; i++) {
       // System.out.println("compare " + Arrays.toString(nn[i]) + " to ");
       // System.out.println(Arrays.toString(results[i]));
+      totalBaselineCount += nn[i].length;
+      totalCandidateCount += results[i].length;
       totalMatches += compareNN(nn[i], results[i]);
-      totalResults += nn[i].length;
     }
-    return totalMatches / (float) totalResults;
+    return new RecallResult(totalMatches / (float) totalBaselineCount, totalBaselineCount, totalCandidateCount);
   }
 
   private int compareNN(int[] expected, int[] results) {

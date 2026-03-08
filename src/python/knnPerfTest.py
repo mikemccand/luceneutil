@@ -189,6 +189,7 @@ OUTPUT_HEADERS = [
   "fanout",
   "traversalSimilarity",
   "resultSimilarity",
+  "resultCount",
   "maxConn",
   "beamWidth",
   "quantized",

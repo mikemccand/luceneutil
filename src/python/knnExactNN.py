@@ -60,6 +60,39 @@ def load_byte_vectors(path, dim, count, start_index=0):
     return raw.astype(np.float32)
 
 
+def _compute_scores_batch(batch_queries, doc_vectors, metric):
+    """Compute similarity scores for a batch of queries against all docs."""
+    if metric == "dot_product":
+        # lucene: (1 + dot(a, b)) / 2
+        raw = batch_queries @ doc_vectors.T
+        return (1.0 + raw) / 2.0
+    if metric == "cosine":
+        # lucene: (1 + cosine(a, b)) / 2
+        q_norms = np.linalg.norm(batch_queries, axis=1, keepdims=True)
+        d_norms = np.linalg.norm(doc_vectors, axis=1, keepdims=True)
+        # avoid division by zero
+        q_norms = np.maximum(q_norms, 1e-30)
+        d_norms = np.maximum(d_norms, 1e-30)
+        raw = (batch_queries / q_norms) @ (doc_vectors / d_norms).T
+        return (1.0 + raw) / 2.0
+    if metric == "euclidean":
+        # lucene: 1 / (1 + squaredDistance(a, b))
+        # squared distance = ||a||^2 + ||b||^2 - 2*a.b
+        q_sq = np.sum(batch_queries**2, axis=1, keepdims=True)
+        d_sq = np.sum(doc_vectors**2, axis=1, keepdims=True).T
+        sq_dist = q_sq + d_sq - 2.0 * (batch_queries @ doc_vectors.T)
+        # clamp negative values from floating point error
+        sq_dist = np.maximum(sq_dist, 0.0)
+        return 1.0 / (1.0 + sq_dist)
+    if metric == "mip":
+        # lucene maximum_inner_product:
+        #   if dp >= 0: 1 + dp
+        #   else: 1 / (1 - dp)
+        raw = batch_queries @ doc_vectors.T
+        return np.where(raw >= 0, 1.0 + raw, 1.0 / (1.0 - raw))
+    raise ValueError(f"unknown metric: {metric}")
+
+
 def compute_exact_nn(doc_vectors, query_vectors, metric, top_k):
     """Compute exact nearest neighbors using numpy.
 
@@ -74,43 +107,21 @@ def compute_exact_nn(doc_vectors, query_vectors, metric, top_k):
     # each batch computes a (batch_size, num_docs) score matrix
     batch_size = max(1, min(256, num_queries))
 
+    total_matmul_sec = 0.0
+    total_topk_sec = 0.0
+    start_sec = time.monotonic()
+    next_report_sec = start_sec
+
     for batch_start in range(0, num_queries, batch_size):
         batch_end = min(batch_start + batch_size, num_queries)
         batch_queries = query_vectors[batch_start:batch_end]
 
-        if metric == "dot_product":
-            # lucene: (1 + dot(a, b)) / 2
-            raw = batch_queries @ doc_vectors.T
-            scores = (1.0 + raw) / 2.0
-        elif metric == "cosine":
-            # lucene: (1 + cosine(a, b)) / 2
-            q_norms = np.linalg.norm(batch_queries, axis=1, keepdims=True)
-            d_norms = np.linalg.norm(doc_vectors, axis=1, keepdims=True)
-            # avoid division by zero
-            q_norms = np.maximum(q_norms, 1e-30)
-            d_norms = np.maximum(d_norms, 1e-30)
-            raw = (batch_queries / q_norms) @ (doc_vectors / d_norms).T
-            scores = (1.0 + raw) / 2.0
-        elif metric == "euclidean":
-            # lucene: 1 / (1 + squaredDistance(a, b))
-            # squared distance = ||a||^2 + ||b||^2 - 2*a.b
-            q_sq = np.sum(batch_queries**2, axis=1, keepdims=True)
-            d_sq = np.sum(doc_vectors**2, axis=1, keepdims=True).T
-            sq_dist = q_sq + d_sq - 2.0 * (batch_queries @ doc_vectors.T)
-            # clamp negative values from floating point error
-            sq_dist = np.maximum(sq_dist, 0.0)
-            scores = 1.0 / (1.0 + sq_dist)
-        elif metric == "mip":
-            # lucene maximum_inner_product:
-            #   if dp >= 0: 1 + dp
-            #   else: 1 / (1 - dp)
-            raw = batch_queries @ doc_vectors.T
-            scores = np.where(raw >= 0, 1.0 + raw, 1.0 / (1.0 - raw))
-        else:
-            raise ValueError(f"unknown metric: {metric}")
-
+        t0 = time.monotonic()
+        scores = _compute_scores_batch(batch_queries, doc_vectors, metric)
         # cast to float32 to match lucene's float precision
         scores = scores.astype(np.float32)
+        t1 = time.monotonic()
+        total_matmul_sec += t1 - t0
 
         for i in range(batch_end - batch_start):
             query_idx = batch_start + i
@@ -125,10 +136,18 @@ def compute_exact_nn(doc_vectors, query_vectors, metric, top_k):
             result_ids[query_idx] = top_indices[:top_k]
             result_scores[query_idx] = row[top_indices[:top_k]]
 
-        done = batch_end
-        print(f"\r  {done}/{num_queries} queries computed", end="", flush=True)
+        t2 = time.monotonic()
+        total_topk_sec += t2 - t1
 
-    print()
+        # report progress every 5 seconds, matching KnnGraphTester format
+        now_sec = time.monotonic()
+        if now_sec >= next_report_sec or batch_end == num_queries:
+            elapsed_sec = now_sec - start_sec
+            pct = 100.0 * batch_end / num_queries
+            print(f"  {elapsed_sec:6.1f} s: {pct:5.1f} % ({batch_end:5d} / {num_queries}) vectors "
+                  f"[matmul {total_matmul_sec:.1f}s, topK {total_topk_sec:.1f}s]")
+            next_report_sec = now_sec + 5.0
+
     return result_ids, result_scores
 
 

@@ -19,6 +19,7 @@
 import argparse
 import ast
 import itertools
+import multiprocessing
 import os
 import re
 import time
@@ -93,8 +94,43 @@ def _compute_scores_batch(batch_queries, doc_vectors, metric):
     raise ValueError(f"unknown metric: {metric}")
 
 
-def compute_exact_nn(doc_vectors, query_vectors, metric, top_k):
-    """Compute exact nearest neighbors using numpy.
+def _worker_process_chunk(args):
+    """Worker function for multiprocessing: compute exact NN for a chunk of queries.
+
+    args is a tuple to work with Pool.imap_unordered:
+      (chunk_start, chunk_end, doc_vectors_path, doc_dim, num_docs, query_vectors_np, metric, top_k)
+
+    doc vectors are re-mmapped per process so physical pages are shared by the OS.
+    query vectors are passed as numpy arrays via fork.
+    """
+    chunk_start, chunk_end, doc_vectors_path, doc_dim, num_docs, query_chunk, metric, top_k = args
+
+    chunk_size = chunk_end - chunk_start
+
+    # mmap doc vectors in this process (OS shares physical pages across forks)
+    doc_vectors = np.memmap(doc_vectors_path, dtype="<f4", mode="r", shape=(num_docs, doc_dim))
+
+    # compute scores for the whole chunk at once
+    scores = _compute_scores_batch(query_chunk, doc_vectors, metric).astype(np.float32)
+
+    # extract top-k for each query in this chunk
+    ids = np.empty((chunk_size, top_k), dtype=np.int32)
+    result_scores = np.empty((chunk_size, top_k), dtype=np.float32)
+    for i in range(chunk_size):
+        row = scores[i]
+        if top_k < len(row):
+            top_indices = np.argpartition(row, -top_k)[-top_k:]
+        else:
+            top_indices = np.arange(len(row))
+        top_indices = top_indices[np.argsort(row[top_indices])[::-1]]
+        ids[i] = top_indices[:top_k]
+        result_scores[i] = row[top_indices[:top_k]]
+
+    return chunk_start, ids, result_scores
+
+
+def compute_exact_nn(doc_vectors_path, doc_dim, num_docs, query_vectors, metric, top_k, num_workers):
+    """Compute exact nearest neighbors using numpy with multiprocessing.
 
     returns (ids, scores) each of shape (num_queries, top_k).
     scores match lucene's VectorSimilarityFunction encoding.
@@ -103,50 +139,36 @@ def compute_exact_nn(doc_vectors, query_vectors, metric, top_k):
     result_ids = np.empty((num_queries, top_k), dtype=np.int32)
     result_scores = np.empty((num_queries, top_k), dtype=np.float32)
 
-    # process queries in batches to control memory
-    # each batch computes a (batch_size, num_docs) score matrix
-    batch_size = max(1, min(256, num_queries))
+    # split queries into chunks, one per worker
+    # each chunk does one big matmul (chunk_size x dim) @ (dim x num_docs)
+    chunk_size = max(1, (num_queries + num_workers - 1) // num_workers)
 
-    total_matmul_sec = 0.0
-    total_topk_sec = 0.0
+    work_items = []
+    for chunk_start in range(0, num_queries, chunk_size):
+        chunk_end = min(chunk_start + chunk_size, num_queries)
+        query_chunk = np.array(query_vectors[chunk_start:chunk_end])
+        work_items.append((chunk_start, chunk_end, doc_vectors_path, doc_dim, num_docs,
+                           query_chunk, metric, top_k))
+
+    print(f"  using {num_workers} worker processes, {len(work_items)} chunks of ~{chunk_size} queries")
+
     start_sec = time.monotonic()
     next_report_sec = start_sec
+    completed_queries = 0
 
-    for batch_start in range(0, num_queries, batch_size):
-        batch_end = min(batch_start + batch_size, num_queries)
-        batch_queries = query_vectors[batch_start:batch_end]
+    with multiprocessing.Pool(num_workers) as pool:
+        for chunk_start, chunk_ids, chunk_scores in pool.imap_unordered(_worker_process_chunk, work_items):
+            chunk_end = chunk_start + chunk_ids.shape[0]
+            result_ids[chunk_start:chunk_end] = chunk_ids
+            result_scores[chunk_start:chunk_end] = chunk_scores
+            completed_queries += chunk_ids.shape[0]
 
-        t0 = time.monotonic()
-        scores = _compute_scores_batch(batch_queries, doc_vectors, metric)
-        # cast to float32 to match lucene's float precision
-        scores = scores.astype(np.float32)
-        t1 = time.monotonic()
-        total_matmul_sec += t1 - t0
-
-        for i in range(batch_end - batch_start):
-            query_idx = batch_start + i
-            row = scores[i]
-            # argpartition is faster than full sort for top-k
-            if top_k < len(row):
-                top_indices = np.argpartition(row, -top_k)[-top_k:]
-            else:
-                top_indices = np.arange(len(row))
-            # sort the top-k by descending score
-            top_indices = top_indices[np.argsort(row[top_indices])[::-1]]
-            result_ids[query_idx] = top_indices[:top_k]
-            result_scores[query_idx] = row[top_indices[:top_k]]
-
-        t2 = time.monotonic()
-        total_topk_sec += t2 - t1
-
-        # report progress every 5 seconds, matching KnnGraphTester format
-        now_sec = time.monotonic()
-        if now_sec >= next_report_sec or batch_end == num_queries:
-            elapsed_sec = now_sec - start_sec
-            pct = 100.0 * batch_end / num_queries
-            print(f"  {elapsed_sec:6.1f} s: {pct:5.1f} % ({batch_end:5d} / {num_queries}) vectors "
-                  f"[matmul {total_matmul_sec:.1f}s, topK {total_topk_sec:.1f}s]")
-            next_report_sec = now_sec + 5.0
+            now_sec = time.monotonic()
+            if now_sec >= next_report_sec or completed_queries == num_queries:
+                elapsed_sec = now_sec - start_sec
+                pct = 100.0 * completed_queries / num_queries
+                print(f"  {elapsed_sec:6.1f} s: {pct:5.1f} % ({completed_queries:5d} / {num_queries}) vectors")
+                next_report_sec = now_sec + 5.0
 
     return result_ids, result_scores
 
@@ -223,27 +245,23 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
     print(f"  docs={doc_vectors_path} queries={query_vectors_path}")
     print(f"  dim={dim} numDocs={num_docs} numQueries={num_query_vectors} metric={metric} topK={top_k}")
 
-    print(f"  loading {num_docs} doc vectors (encoding={encoding})")
-    start_ns = time.monotonic_ns()
-    if encoding == "float32":
-        doc_vectors = load_float32_vectors(doc_vectors_path, dim, num_docs)
-    else:
-        doc_vectors = load_byte_vectors(doc_vectors_path, dim, num_docs)
-    load_doc_ms = (time.monotonic_ns() - start_ns) / 1e6
-    print(f"    loaded in {load_doc_ms:.1f} ms")
-
-    print(f"  loading {num_query_vectors} query vectors (startIndex={query_start_index})")
+    print(f"  loading {num_query_vectors} query vectors (startIndex={query_start_index}, encoding={encoding})")
     start_ns = time.monotonic_ns()
     if encoding == "float32":
         query_vectors = load_float32_vectors(query_vectors_path, dim, num_query_vectors, query_start_index)
     else:
         query_vectors = load_byte_vectors(query_vectors_path, dim, num_query_vectors, query_start_index)
+    # materialize into a regular array so it can be pickled to worker processes
+    query_vectors = np.array(query_vectors)
     load_query_ms = (time.monotonic_ns() - start_ns) / 1e6
     print(f"    loaded in {load_query_ms:.1f} ms")
 
+    # use half of available cores (matching KnnGraphTester's ForkJoinPool default)
+    num_workers = max(1, multiprocessing.cpu_count() // 2)
+
     print(f"  computing exact top-{top_k} NN (metric={metric})")
     start_ns = time.monotonic_ns()
-    ids, scores = compute_exact_nn(doc_vectors, query_vectors, metric, top_k)
+    ids, scores = compute_exact_nn(doc_vectors_path, dim, num_docs, query_vectors, metric, top_k, num_workers)
     compute_ms = (time.monotonic_ns() - start_ns) / 1e6
     print(f"  computed exact NN in {compute_ms:.1f} ms ({compute_ms / 1000:.3f} sec)")
 

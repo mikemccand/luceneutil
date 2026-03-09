@@ -96,6 +96,7 @@ import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
+import org.apache.lucene.search.RescoreTopNQuery;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
@@ -214,6 +215,8 @@ public class KnnGraphTester implements FormatterLogger {
   private IndexType indexType;
   // oversampling, e.g. the multiple * k to gather before checking recall
   private float overSample;
+  /// Rerank results with full-precision vectors (useful with [`overSample`][#overSample])
+  private boolean rerank;
   // whether to collect and write all HNSW traversal scores for histogram generation
   private boolean hnswScoreHistogram;
   // whether to compute sampled all query x doc distances for histogram generation
@@ -244,6 +247,7 @@ public class KnnGraphTester implements FormatterLogger {
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
+    rerank = false;
   }
 
   public static void main(String... args) throws Exception {
@@ -320,6 +324,9 @@ public class KnnGraphTester implements FormatterLogger {
           if (overSample < 1) {
             throw new IllegalArgumentException("-overSample must be >= 1");
           }
+          break;
+        case "-rerank":
+          rerank = true;
           break;
         case "-fanout":
           if (iarg == args.length - 1) {
@@ -1151,7 +1158,7 @@ public class KnnGraphTester implements FormatterLogger {
     log("queryPath=%s dim=%d vectorEncoding.byteSize=%d\n", queryPath, dim, vectorEncoding.byteSize);
     try (VectorReader targetReader = VectorReader.create(queryPath, dim, vectorEncoding)) {
       log(targetReader.getVectorCount() + " query vectors in queryPath \"" + queryPath + "\"\n");
-      log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, topK, fanout);
+      log("searching %d query vectors; topK=%d, fanout=%d, overSample=%.3f, rerank=%s\n", numQueryVectors, topK, fanout, overSample, rerank);
       long startNS;
       try (MMapDirectory dir = new MMapDirectory(indexPath)) {
         // TODO: hmm dangerous since index isn't necessarily going to fit in RAM?
@@ -1243,7 +1250,7 @@ public class KnnGraphTester implements FormatterLogger {
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%s\t%5.3f\t%5.3f\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1264,6 +1271,7 @@ public class KnnGraphTester implements FormatterLogger {
           filterStrategy == null ? "null" : filterStrategy.toString().toLowerCase().replace('_', '-'),
           filterSelectivity == null ? "N/A" : String.format(Locale.ROOT, "%.2f", filterSelectivity),
           overSample,
+          rerank,
           vectorDiskSizeBytes / 1024. / 1024.,
           vectorRAMSizeBytes / 1024. / 1024.,
           Boolean.valueOf(useBp).toString(),
@@ -1393,6 +1401,9 @@ public class KnnGraphTester implements FormatterLogger {
 
     String knnField = getKnnField(filterStrategy);
 
+    if (rerank) {
+      throw new UnsupportedOperationException("Cannot rerank KnnByteVectorQuery");
+    }
     int k = topK + fanout;
     if (overSample > 1) {
       k *= overSample;
@@ -1434,6 +1445,10 @@ public class KnnGraphTester implements FormatterLogger {
     }
     var profiledQuery = new ProfiledKnnFloatVectorQuery(knnField, vector, k, queryTimeFilter);
     Query query = profiledQuery;
+    if (rerank) {
+      query = RescoreTopNQuery.createFullPrecisionRescorerQuery(query, vector, knnField, topK);
+    }
+
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
       query = new BooleanQuery.Builder()
           .add(query, BooleanClause.Occur.MUST)

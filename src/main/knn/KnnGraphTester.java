@@ -1207,6 +1207,7 @@ public class KnnGraphTester implements FormatterLogger {
 
           // warm up (and optionally collect HNSW traversal scores)
           if (hnswScoreHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
+            // TODO: collect traversal scores for radius search too?
             collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), topK, fanout, metric);
           } else {
             for (int i = 0; i < numQueryVectors; i++) {

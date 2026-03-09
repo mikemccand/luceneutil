@@ -147,10 +147,9 @@ PARAMS = {
   # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (24,),
+  "numMaxMerge": (24,),
   "numMergeThread": (8,),
-  "numSearchThread": (4,),
-  #'numMergeWorker': (1,),
+  "numIntraQueryThreads": (4,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
   # "metric": ("cosine",),  # default is angular (dot_product)
@@ -180,6 +179,7 @@ OUTPUT_HEADERS = [
   "latency(ms)",
   "netCPU",
   "avgCpuCount",
+  "queryConcurrency",
   "nDoc",
   "topK",
   "fanout",
@@ -195,6 +195,7 @@ OUTPUT_HEADERS = [
   "filterStrategy",
   "filterSelectivity",
   "overSample",
+  "rerank",
   "vec_disk(MB)",
   "vec_RAM(MB)",
   "bp-reorder",
@@ -1557,6 +1558,7 @@ def remove_common_args(argmaps):
   # TODO: also remove other "minor" dimensions such as beam_width and maxconn?
   # or place under user control somehow
   common_args["-fanout"] = 1
+  common_args["-overSample"] = 1
   # everything remaining is in common to all rows, now remove them
   unique_args = []
   for args in argmaps:

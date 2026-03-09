@@ -731,15 +731,17 @@ public class LineFileDocs implements Closeable {
     doc.title.setStringValue(title);
     doc.randomLabel.setStringValue(randomLabel);
     if (addDVFields) {
-      doc.titleBDV.setBytesValue(new BytesRef(title));
+      BytesRef tbytes = new BytesRef(title);
+      doc.titleBDV.setBytesValue(tbytes);
       final String month = months[doc.dateCal.get(Calendar.MONTH)];
       doc.month.setStringValue(month);
-      doc.dayOfYear.setIntValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
+      int dayOfYear = doc.dateCal.get(Calendar.DAY_OF_YEAR);
+      doc.dayOfYear.setIntValue(dayOfYear);
       doc.idDV.setLongValue(myID);
       if (addDVSkippers) {
-        doc.monthSkipper.setBytesValue(new BytesRef(month));
-        doc.dayOfYearSkipper.setLongValue(doc.dateCal.get(Calendar.DAY_OF_YEAR));
-        doc.titleSkipper.setBytesValue(new BytesRef(title));
+        doc.monthSkipper.setStringValue(month);
+        doc.dayOfYearSkipper.setLongValue(dayOfYear);
+        doc.titleSkipper.setBytesValue(tbytes);
       }
     }
     doc.titleTokenized.setStringValue(title);

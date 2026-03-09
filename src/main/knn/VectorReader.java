@@ -20,52 +20,75 @@ package knn;
 import org.apache.lucene.index.VectorEncoding;
 
 import java.io.IOException;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.SequenceLayout;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
-public abstract class VectorReader {
-  final float[] target;
-  final ByteBuffer bytes;
-  final FileChannel input;
+public sealed abstract class VectorReader implements AutoCloseable {
+  protected final SequenceLayout vectorLayout;
+  protected final MemorySegment rawData;
+  private final Arena arena;
 
-  // seek to this vector on init/reset:
-  final int vectorStartIndex;
-
-  static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding, int vectorStartIndex) throws IOException {
-    int bufferSize = dim * vectorEncoding.byteSize;
+  static VectorReader create(Path path, int dim, VectorEncoding vectorEncoding) throws IOException {
     return switch (vectorEncoding) {
-      case BYTE -> new VectorReaderByte(input, dim, bufferSize, vectorStartIndex);
-      case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize, vectorStartIndex);
+      case BYTE -> new VectorReader.Byte(path, dim);
+      case FLOAT32 -> new VectorReader.Float32(path, dim);
     };
   }
 
-  VectorReader(FileChannel input, int dim, int bufferSize, int vectorStartIndex) throws IOException {
-    this.bytes = ByteBuffer.wrap(new byte[bufferSize]).order(ByteOrder.LITTLE_ENDIAN);
-    this.input = input;
-    this.vectorStartIndex = vectorStartIndex;
-    target = new float[dim];
-    reset();
-  }
-
-  void reset() throws IOException {
-    long pos = vectorStartIndex * (long) bytes.capacity();
-    input.position(pos);
-  }
-
-  protected final void readNext() throws IOException {
-    int bytesRead = this.input.read(bytes);
-    if (bytesRead < bytes.capacity()) {
-      // wrap around back to the start of the file if we hit the end:
-      System.out.println("WARNING: VectorReader hit EOF when reading " + this.input + "; now wrapping around to start of file again");
-      this.input.position(0);
-      bytesRead = this.input.read(bytes);
-      if (bytesRead < bytes.capacity()) {
-        throw new IllegalStateException("vector file " + input + " doesn't even have enough bytes for a single vector?  got bytesRead=" + bytesRead);
+  protected VectorReader(Path path, int dim, ValueLayout elementLayout) throws IOException {
+    this.vectorLayout = MemoryLayout.sequenceLayout(dim, elementLayout);
+    try (FileChannel file = FileChannel.open(path, StandardOpenOption.READ)) {
+      long size = file.size();
+      if (size % vectorLayout.byteSize() != 0) {
+        throw new IllegalArgumentException("Vector file is " + size + " bytes, but vector size is " + vectorLayout.byteSize());
       }
+      this.arena = Arena.ofShared();
+      this.rawData = file.map(FileChannel.MapMode.READ_ONLY, 0, size, arena);
     }
-    bytes.position(0);
   }
 
-  abstract float[] next() throws IOException;
+  protected MemorySegment getVectorSlice(long index) {
+    long byteOffset = vectorLayout.scale(0L, index);
+    return rawData.asSlice(byteOffset, vectorLayout);
+  }
+
+  public long getVectorCount() throws IOException {
+    return rawData.byteSize() / vectorLayout.byteSize();
+  }
+
+  public void close() throws IOException {
+    arena.close();
+  }
+
+  public static final class Byte extends VectorReader {
+    private static ValueLayout.OfByte VALUE_LAYOUT = ValueLayout.JAVA_BYTE;
+
+    public Byte(Path path, int dim) throws IOException {
+      super(path, dim, VALUE_LAYOUT);
+    }
+
+    public byte[] read(int index) {
+      return getVectorSlice(index).toArray(VALUE_LAYOUT);
+    }
+  }
+
+  public static final class Float32 extends VectorReader {
+    private static ValueLayout.OfFloat VALUE_LAYOUT = ValueLayout.JAVA_FLOAT.withOrder(ByteOrder.LITTLE_ENDIAN);
+
+    public Float32(Path path, int dim) throws IOException {
+      super(path, dim, VALUE_LAYOUT);
+    }
+
+    public float[] read(int index) {
+      return getVectorSlice(index).toArray(VALUE_LAYOUT);
+    }
+  }
 }

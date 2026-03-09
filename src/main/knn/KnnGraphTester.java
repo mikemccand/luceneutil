@@ -188,6 +188,7 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean quantizeCompress;
   private int numMaxMerge;
   private int numMergeThread;
+  private ForkJoinPool graphMergeExecutor;
   private int numSearchThread;
   private VectorSimilarityFunction similarityFunction;
   private VectorEncoding vectorEncoding;
@@ -221,6 +222,7 @@ public class KnnGraphTester implements FormatterLogger {
     topK = 100;
     numMaxMerge = ConcurrentMergeScheduler.AUTO_DETECT_MERGES_AND_THREADS;
     numMergeThread = ConcurrentMergeScheduler.AUTO_DETECT_MERGES_AND_THREADS;
+    graphMergeExecutor = null;
     fanout = topK;
     similarityFunction = VectorSimilarityFunction.DOT_PRODUCT;
     vectorEncoding = VectorEncoding.FLOAT32;
@@ -470,6 +472,19 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-numMergeThread should be >= 1");
           }
           break;
+        case "-numMergeWorker":
+          int numMergeWorker = Integer.parseInt(args[++iarg]);
+          if (numMergeWorker <= 0) {
+            throw new IllegalArgumentException("-numMergeWorker should be >= 1; use 1 for calling thread or omit the flag to use the intra-merge executor");
+          } else if (numMergeWorker > 1) {
+            final AtomicInteger id = new AtomicInteger(0);
+            graphMergeExecutor = new ForkJoinPool(numMergeWorker, pool -> {
+              var thread = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+              thread.setName("graph-merge-" + id.getAndIncrement());
+              return thread;
+            }, null, false);
+          }
+          break;
         case "-numSearchThread":
           // 0: single thread mode (not passing a executorService) 
           // -1: use number of threads equal to the number available processors
@@ -618,9 +633,13 @@ public class KnnGraphTester implements FormatterLogger {
         ConcurrentMergeScheduler cms = (ConcurrentMergeScheduler) iwc.getMergeScheduler();
         cms.setMaxMergesAndThreads(numMaxMerge, numMergeThread);
         cms.setDefaultMaxMergesAndThreads(false);
-        log("Indexing with %d worker(s) and %d thread(s)\n", cms.getMaxMergeCount(), cms.getMaxThreadCount());
-
-        iwc.setCodec(getCodec(maxConn, beamWidth, cms.getMaxThreadCount(), quantize, quantizeBits, indexType));
+        int numMergeWorker = cms.getMaxThreadCount();
+        if (graphMergeExecutor != null) {
+          numMergeWorker = graphMergeExecutor.getParallelism();
+        }
+        log("Indexing with %d max merge(s), %d merge thread(s), and %d merge worker(s) (using intraMergeExecutor=%s)\n",
+            cms.getMaxMergeCount(), cms.getMaxThreadCount(), numMergeWorker, graphMergeExecutor == null);
+        iwc.setCodec(getCodec(maxConn, beamWidth, numMergeWorker, graphMergeExecutor, quantize, quantizeBits, indexType));
       });
       Files.writeString(indexKeyPath, indexKey);
       log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
@@ -684,6 +703,10 @@ public class KnnGraphTester implements FormatterLogger {
       printIndexStatistics(indexPath, KNN_FIELD_FILTERED);
     } else {
       printIndexStatistics(indexPath, KNN_FIELD);
+    }
+    if (graphMergeExecutor != null) {
+      // Close this thread pool to avoid leaking into the search ThreadDetails
+      graphMergeExecutor.close();
     }
     if (operation != null) {
       switch (operation) {
@@ -1016,10 +1039,15 @@ public class KnnGraphTester implements FormatterLogger {
     KnnIndexer.TrackingConcurrentMergeScheduler tcms = new KnnIndexer.TrackingConcurrentMergeScheduler();
     tcms.setMaxMergesAndThreads(numMaxMerge, numMergeThread);
     tcms.setDefaultMaxMergesAndThreads(false);
-    log("Force merge using %d worker(s) and %d thread(s)\n", tcms.getMaxMergeCount(), tcms.getMaxThreadCount());
+    int numMergeWorker = tcms.getMaxThreadCount();
+    if (graphMergeExecutor != null) {
+      numMergeWorker = graphMergeExecutor.getParallelism();
+    }
+    log("Force merging with %d max merge(s), %d merge thread(s), and %d merge worker(s) (using intraMergeExecutor=%s)\n",
+        tcms.getMaxMergeCount(), tcms.getMaxThreadCount(), numMergeWorker, graphMergeExecutor == null);
 
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, tcms.getMaxThreadCount(), quantize, quantizeBits, indexType));
+    iwc.setCodec(getCodec(maxConn, beamWidth, numMergeWorker, graphMergeExecutor, quantize, quantizeBits, indexType));
     iwc.setMergeScheduler(tcms);
     KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
     iwc.setMergePolicy(ttmp);
@@ -1993,17 +2021,17 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
+  static Codec getCodec(int maxConn, int beamWidth, int numMergeWorker, ForkJoinPool mergeExecutor, boolean quantize, int quantizeBits, IndexType indexType) {
     KnnVectorsFormat knnVectorsFormat;
     if (quantize) {
       knnVectorsFormat = switch (indexType) {
         case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits));
-        case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits), maxConn, beamWidth, numMergeWorker, null);
+        case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(getScalarEncodingForBits(quantizeBits), maxConn, beamWidth, numMergeWorker, mergeExecutor);
       };
     } else {
       knnVectorsFormat = switch (indexType) {
         case FLAT -> new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
-        case HNSW -> new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, null);
+        case HNSW -> new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, mergeExecutor);
       };
     }
       return new Lucene104Codec() {

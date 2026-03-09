@@ -147,10 +147,9 @@ PARAMS = {
   # "fanout": (50,),
   #'quantize': None,
   #'quantizeBits': (32, 7, 4),
-  "numMergeWorker": (24,),
+  "numMaxMerge": (24,),
   "numMergeThread": (8,),
   "numIntraQueryThreads": (4,),
-  #'numMergeWorker': (1,),
   #'numMergeThread': (1,),
   "encoding": ("float32",),
   # "metric": ("cosine",),  # default is angular (dot_product)

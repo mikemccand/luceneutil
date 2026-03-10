@@ -81,6 +81,9 @@ DIR_IMPL = "MMapDirectory"
 # Make sure we exercise Lucene's intra-query concurrency code paths:
 SEARCH_CONCURRENCY = 8
 
+# Applies to both inter and intra query concurrency for facet tests
+FACETS_CONCURRENCY = 8
+
 INDEXING_RAM_BUFFER_MB = 2048
 
 # "randomly" pick 5 queries for each category, but see validate_nightly_task_count where we
@@ -603,8 +606,9 @@ def run():
     vectorDimension=constants.VECTORS_DIMENSIONS,
     directory=DIR_IMPL,
     commitPoint="multi",
-    numConcurrentQueries=SEARCH_CONCURRENCY,
-    searchConcurrency=SEARCH_CONCURRENCY,
+    numConcurrentQueries=FACETS_CONCURRENCY,
+    searchConcurrency=FACETS_CONCURRENCY,
+    cpus=FACETS_CONCURRENCY,
   )
 
   # c = benchUtil.Competitor(id, 'trunk.nightly', index, DIR_IMPL, 'StandardAnalyzerNoStopWords', 'multi', constants.WIKI_MEDIUM_TASKS_FILE)

@@ -44,6 +44,8 @@ if PERF_EXE is None:
 else:
   print(f"perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
 
+TASKSET_EXE = which("taskset")
+
 PYTHON_MAJOR_VER = sys.version_info.major
 
 VMSTAT_PATH = shutil.which("vmstat")
@@ -1193,6 +1195,16 @@ class RunAlgs:
       doSort = ""
 
     command = []
+
+    if c.cpus is not None:
+      if TASKSET_EXE is None:
+        raise RuntimeError("Number of CPUs is requested, but taskset command is not found")
+      # Limit to first N CPUs only
+      cpu_list = ",".join(str(i) for i in range(c.searchConcurrency))
+      command.append(f"{TASKSET_EXE}")
+      command.append("-c")
+      command.append(f"{cpu_list}")
+
     if PERF_EXE is not None:
       command += [PERF_EXE, "stat", "-dd"]
     command += c.javaCommand.split()

@@ -300,6 +300,7 @@ class Competitor:
     topN=100,
     testContext="",
     pollute=True,
+    cpus=None,  # int, number of CPUs to use for the test
   ):
     self.name = name
     self.checkout = checkout
@@ -330,6 +331,7 @@ class Competitor:
     self.vectorDimension = vectorDimension
     self.vectorScale = vectorScale
     self.javacCommand = javacCommand
+    self.cpus = cpus
 
     # nocommit
     if False and searchConcurrency != 0 and numConcurrentQueries > 1:

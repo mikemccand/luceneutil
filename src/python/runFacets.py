@@ -24,16 +24,15 @@ import competition
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(prog="Local Benchmark Run", description="Run a local benchmark on provided source dataset.")
   parser.add_argument("-s", "-source", "--source", help="Data source to run the benchmark on.")
-  parser.add_argument("-searchConcurrency", "--searchConcurrency", default="-1", type=int, help="Search concurrency, 0 for disabled, -1 for using all cores")
+  parser.add_argument("-cpuNum", "--cpuNum", default="8", type=int, help="Number of CPUs to use, also used as number of searcher threads and concurrent queries, -1 for using all cores")
   parser.add_argument("-l", "--lucene-dir", default=os.environ.get("BASELINE") or "lucene_baseline", help="Path to lucene repo to be used for comparison")
   args = parser.parse_args()
   print("Running benchmarks with the following args: %s" % args)
 
   sourceData = competition.sourceData(args.source)
-  countsAreCorrect = args.searchConcurrency != 0
   # enable groupByCat and increase taskRepeatCount to limit time when tasks from different categories
   # are running at the same time and compete for searcher thread pool
-  comp = competition.Competition(verifyCounts=not countsAreCorrect, groupByCat=True, taskRepeatCount=200)
+  comp = competition.Competition(verifyCounts=True, groupByCat=True, taskRepeatCount=200)
 
   index = comp.newIndex(
     args.lucene_dir,
@@ -52,9 +51,16 @@ if __name__ == "__main__":
       ("sortedset:RandomLabel", "RandomLabel"),
     ),
   )
-  # create a competitor named baseline with sources in the ../trunk folder
-  comp.competitor("post_collection_facets", args.lucene_dir, index=index, searchConcurrency=args.searchConcurrency, testContext="facetMode:POST_COLLECTION", pk=False)
-  comp.competitor("during_collection_facets", args.lucene_dir, index=index, searchConcurrency=args.searchConcurrency, testContext="facetMode:DURING_COLLECTION", pk=False)
+  # Set searchConcurrency, numConcurrentQueries, and cpus to the same
+  # number to make inter-only (post collection) and inter+intra (during
+  # collection) facets comparison fair, given that tasks are also grouped
+  # by category (Competition.groupByCat).
+  comp.competitor(
+    "post_collection_facets", args.lucene_dir, index=index, searchConcurrency=args.cpuNum, numConcurrentQueries=args.cpuNum, cpus=args.cpuNum, testContext="facetMode:POST_COLLECTION", pk=False
+  )
+  comp.competitor(
+    "during_collection_facets", args.lucene_dir, index=index, searchConcurrency=args.cpuNum, numConcurrentQueries=args.cpuNum, cpus=args.cpuNum, testContext="facetMode:DURING_COLLECTION", pk=False
+  )
 
   # start the benchmark - this can take long depending on your index and machines
   comp.benchmark("facet_implementations")

@@ -7,8 +7,8 @@ import tarfile
 
 lock = multiprocessing.Lock()
 
-RE_FINISHED = re.compile(r'^Indexer: finished \((.*) msec\)')
-RE_BYTES = re.compile(r'^Indexer: net bytes indexed (.*)$')
+RE_FINISHED = re.compile(r"^Indexer: finished \((.*) msec\)")
+RE_BYTES = re.compile(r"^Indexer: net bytes indexed (.*)$")
 
 
 def extract_one_file(tar_file_name):
@@ -34,8 +34,8 @@ def extract_one_file(tar_file_name):
           finally:
             lock.release()
           return
-    except Exception:
-      pass
+    except (pickle.UnpicklingError, KeyError, IndexError, ValueError):
+      print(f"  failed to read pickle {results_pk}, falling back to tar")
 
   # Fallback: parse fixedIndex.log from the tar archive
   try:
@@ -80,7 +80,7 @@ def read_cache_file(cache_file):
       time_sec = float(vals["timeSec"])
       bytes_indexed = int(vals["bytesIndexed"])
       return time_sec, bytes_indexed
-  except Exception:
+  except (FileNotFoundError, KeyError, ValueError, OSError):
     return None
 
 

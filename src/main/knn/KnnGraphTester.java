@@ -1431,18 +1431,21 @@ public class KnnGraphTester implements FormatterLogger {
 
     String knnField = getKnnField(filterStrategy);
 
-    Query query = switch (searchType) {
+    ProfiledVectorQuery vectorQuery = switch (searchType) {
       case KNN -> new ProfiledKnnByteVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
       case RADIUS -> new ProfiledByteVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
     };
+    Query query;
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
       query = new BooleanQuery.Builder()
-              .add(query, BooleanClause.Occur.MUST)
-              .add(filter, BooleanClause.Occur.FILTER)
-              .build();
+        .add((Query) vectorQuery, BooleanClause.Occur.MUST)
+        .add(filter, BooleanClause.Occur.FILTER)
+        .build();
+    } else {
+      query = (Query) vectorQuery;
     }
     TopDocs docs = searcher.search(query, resultSize);
-    return new Result(docs, ((ProfiledVectorQuery) query).totalVisitedVectorCount(), 0);
+    return new Result(docs, vectorQuery.totalVisitedVectorCount(), 0);
   }
 
   private static Result doFloatVectorQuery(
@@ -1466,18 +1469,21 @@ public class KnnGraphTester implements FormatterLogger {
       return new Result(topDocs, 0, 0);
     }
 
-    Query query = switch (searchType) {
+    ProfiledVectorQuery vectorQuery = switch (searchType) {
       case KNN -> new ProfiledKnnFloatVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
       case RADIUS -> new ProfiledFloatVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
     };
+    Query query;
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
       query = new BooleanQuery.Builder()
-              .add(query, BooleanClause.Occur.MUST)
+        .add((Query) vectorQuery, BooleanClause.Occur.MUST)
               .add(filter, BooleanClause.Occur.FILTER)
               .build();
+    } else {
+      query = (Query) vectorQuery;
     }
     TopDocs docs = searcher.search(query, resultSize);
-    return new Result(docs, ((ProfiledVectorQuery) query).totalVisitedVectorCount(), 0);
+    return new Result(docs, vectorQuery.totalVisitedVectorCount(), 0);
   }
 
   record Result(TopDocs topDocs, long visitedCount, int reentryCount) {

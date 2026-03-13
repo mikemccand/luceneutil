@@ -36,6 +36,7 @@ import benchUtil
 import blunders
 import competition
 import constants
+import fillNightlyFixedIndexTime
 import fillNightlyTotalIndexSizes
 import ps_head
 import runFacetsBenchmark
@@ -1078,6 +1079,7 @@ def run():
         os.remove(f)
 
     fillNightlyTotalIndexSizes.extract_one_file(f"{runLogDir}/logs.tar.bz2")
+    fillNightlyFixedIndexTime.extract_one_file(f"{runLogDir}/logs.tar.bz2")
 
   if DEBUG:
     resultsFileName = "results.debug.pk"
@@ -1210,6 +1212,7 @@ def makeGraphs():
   nrtChartData = ["Date,Reopen Time (msec)"]
   gcIndexTimesChartData = ["Date,JIT (sec),Young GC (sec),Old GC (sec)"]
   fixedIndexSizeChartData = ["Date,Size (GB)"]
+  fixedIndexTimeChartData = ["Date,GB/hour"]
   gcSearchTimesChartData = ["Date,JIT (sec),Young GC (sec),Old GC (sec)"]
   searchChartData = {}
   storedFieldsResults = {
@@ -1364,6 +1367,22 @@ def makeGraphs():
             size_in_mb = pickle.load(f)
           fixedIndexSizeChartData.append(f"{timeStampString},{size_in_mb / 1024}")
 
+        # Fixed index build time: try pickle first, then cache file
+        fixed_index_time_sec = None
+        fixed_index_bytes_indexed = None
+        if len(tup) > 19 and tup[18] is not None and tup[19] is not None:
+          fixed_index_time_sec = tup[18]
+          fixed_index_bytes_indexed = tup[19]
+        else:
+          cache_file = f"{constants.NIGHTLY_LOG_DIR}/{subDir}/fixed_index_time.txt"
+          if os.path.exists(cache_file):
+            result = fillNightlyFixedIndexTime.read_cache_file(cache_file)
+            if result is not None:
+              fixed_index_time_sec, fixed_index_bytes_indexed = result
+        if fixed_index_time_sec is not None and fixed_index_bytes_indexed is not None and fixed_index_time_sec > 0:
+          gb_per_hour = (fixed_index_bytes_indexed / (1024 * 1024 * 1024.0)) / (fixed_index_time_sec / 3600.0)
+          fixedIndexTimeChartData.append(f"{timeStampString},{gb_per_hour:.1f}")
+
       label = 0
       for date, desc, fullDesc in KNOWN_CHANGES:
         # e.g. timeStampString: 2021-01-09 13:35:50
@@ -1438,11 +1457,12 @@ def makeGraphs():
   sort(bigIndexChartData)
   sort(gcIndexTimesChartData)
   sort(fixedIndexSizeChartData)
+  sort(fixedIndexTimeChartData)
   for k, v in list(searchChartData.items()):
     sort(v)
 
   # Index time, including GC/JIT times
-  writeIndexingHTML(fixedIndexSizeChartData, medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
+  writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
 
   # CheckIndex time
   writeCheckIndexTimeHTML()
@@ -1922,7 +1942,7 @@ def writeNADFacetBenchmarkHTML(nadFacetBenchmarkData):
     footer(w)
 
 
-def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
+def writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
   f = open("%s/indexing.html" % constants.NIGHTLY_REPORTS_DIR, "w", encoding="utf-8")
   w = f.write
   header(w, "Lucene nightly indexing benchmark")
@@ -1964,7 +1984,13 @@ def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData
   w(getOneGraphHTML("FixedIndexSize", fixedIndexSizeChartData, "GB", "Disk usage of fixed search index", errorBars=False, pctOffset=410))
   w("\n")
 
-  writeKnownChanges(w, pctOffset=490)
+  w("<br>")
+  w("<br>")
+  w("<br>")
+  w(getOneGraphHTML("FixedIndexTime", fixedIndexTimeChartData, "GB/hour", "Fixed (deterministic, 1-thread) search index build throughput", errorBars=False, pctOffset=490))
+  w("\n")
+
+  writeKnownChanges(w, pctOffset=570)
 
   w("<br><br>")
   w("<b>Notes</b>:\n")

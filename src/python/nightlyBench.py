@@ -1633,6 +1633,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#MedQuantizedVectorsIndexTime">GB/hour for medium docs index with int8 quantized vectors</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#BigIndexTime">GB/hour for big docs index</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#GCTimes">Indexing JIT/GC times</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#FixedIndexTime">GB/hour for fixed index</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#FixedIndexSize">Index disk usage</a>')
 
   w("<br><br><b>BooleanQuery:</b>")

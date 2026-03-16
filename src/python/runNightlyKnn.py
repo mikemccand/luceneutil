@@ -804,12 +804,12 @@ def _run(results_dir):
 
       cols = summary.split("\t")
 
-      assert len(cols) >= 21
+      assert len(cols) >= 27
 
-      if cols[17] == "N/A":
+      if cols[21] == "N/A":
         selectivity = None
       else:
-        selectivity = float(cols[17])
+        selectivity = float(cols[21])
 
       result = KNNResultV1(
         lucene_git_rev,
@@ -823,21 +823,21 @@ def _run(results_dir):
         float(cols[2]),  # netCPU
         float(cols[3]),  # avgCpuCount
         int(cols[4]),  # num_docs
-        int(cols[5]),  # top_k
-        int(cols[6]),  # fanout
-        int(cols[7]),  # max_conn
-        int(cols[8]),  # beam_width
-        cols[9],  # quantize_desc
-        int(cols[10]),  # total_visited
-        float(cols[11]),  # index_time_sec
-        float(cols[12]),  # index_docs_per_sec
-        float(cols[13]),  # force_merge_time_sec
-        int(cols[14]),  # index_num_segments
-        float(cols[15]),  # index_size_on_disk_mb
-        selectivity,  # selectivity
-        cols[16],  # filter-strategy
-        float(cols[18]),  # vec_disk_mb
-        float(cols[19]),  # vec_ram_mb
+        int(cols[6]),  # top_k (cols[5] is searchType)
+        int(cols[7]),  # fanout
+        int(cols[11]),  # max_conn
+        int(cols[12]),  # beam_width
+        cols[13],  # quantize_desc
+        int(cols[14]),  # total_visited
+        float(cols[15]),  # index_time_sec
+        float(cols[16]),  # index_docs_per_sec
+        float(cols[17]),  # force_merge_time_sec
+        int(cols[18]),  # index_num_segments
+        float(cols[19]),  # index_size_on_disk_mb
+        selectivity,  # selectivity (cols[21])
+        cols[20],  # filter-strategy
+        float(cols[23]),  # vec_disk_mb
+        float(cols[24]),  # vec_ram_mb
         graph_level_conn_p_values,  # graph_level_conn_p_values
         combined_run_time,  # time to run KnnGraphTester
       )

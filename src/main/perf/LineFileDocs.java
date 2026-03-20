@@ -739,7 +739,7 @@ public class LineFileDocs implements Closeable {
       doc.dayOfYear.setIntValue(dayOfYear);
       doc.idDV.setLongValue(myID);
       if (addDVSkippers) {
-        doc.monthSkipper.setStringValue(month);
+        doc.monthSkipper.setBytesValue(new BytesRef(month));
         doc.dayOfYearSkipper.setLongValue(dayOfYear);
         doc.titleSkipper.setBytesValue(tbytes);
       }

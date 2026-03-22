@@ -523,9 +523,12 @@ def parseResults(resultsFiles):
             task.hitCount = "0"
           else:
             task.hitCount = hitCount
+          # TODO: wouldn't we want to differentiate the different methods (sorted, binary, sortedset, etc.), rather
+          # than putting them all under "Title"?  Hmm we sort of do (Title vs TitleBDV), ish?
           if sort in ('<string: "title">', '<string: "titleDV">', '<sortedset: "title"> selector=MIN'):
             task.sort = "Title"
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">') or sort.startswith('<sortednumeric: "lastMod"> selector=MIN type=LONG'):
+            # TODO: why not "LastModified" instead of its type?
             task.sort = "DateTime"
           elif sort in ('<string: "month">', '<string: "monthSortedDV">', '<sortedset: "month"> selector=MIN'):
             task.sort = "Month"
@@ -533,6 +536,14 @@ def parseResults(resultsFiles):
             task.sort = "DayOfYear"
           elif sort == '<string_val: "titleBDV">':
             task.sort = "TitleBinary"
+          elif sort == '<long: "dayOfYear_skipper">':
+            task, sort = "DayOfYear (skipper)"
+          elif sort == '<long: "lastMod_skipper">':
+            task, sort = "LastModified (skipper)"
+          elif sort == '<string: "title_skipper">':
+            task, sort = "Title (skipper)"
+          elif sort == '<string: "month_skipper">':
+            task, sort = "Month (skipper)"
           elif sort != "null":
             raise RuntimeError("could not parse sort: %s" % sort)
           else:

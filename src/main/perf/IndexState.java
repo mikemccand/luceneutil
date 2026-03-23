@@ -20,6 +20,7 @@ package perf;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -66,8 +67,7 @@ class IndexState {
   public final Map<Object, ThreadLocal<PointsPKLookupState>> pointsPKLookupStates = new HashMap<>();
   public final Map<Object, ThreadLocal<PKLookupWithTermStateState>> pkLookupWithTermStateStates = new HashMap<>();
 
-  // Leaf ordinals sorted by descending maxDoc, so PK lookups check the largest segments first.
-  // Computed once at IndexState construction time to avoid re-sorting on every task run.
+  // Leaf ordinals sorted by descending maxDoc,
   public final int[] leafOrder;
 
   public IndexState(ExecutorService executor, ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName,
@@ -98,7 +98,7 @@ class IndexState {
     try {
       hasDeletions = searcher.getIndexReader().hasDeletions();
 
-      java.util.List<LeafReaderContext> leaves = searcher.getIndexReader().leaves();
+      List<LeafReaderContext> leaves = searcher.getIndexReader().leaves();
       for(LeafReaderContext ctx : leaves) {
         pkLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupState>());
         pointsPKLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PointsPKLookupState>());

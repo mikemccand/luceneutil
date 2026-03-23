@@ -72,8 +72,6 @@ final class PKLookupTask extends Task {
         id = new BytesRef(LineFileDocs.intToID(random.nextInt(maxDoc)));
       } else {
         // Corrupt a real-looking ID by replacing a random digit with an uppercase letter.
-        // Since intToID produces base-36 [0-9a-z], an uppercase char guarantees a non-existent ID
-        // while keeping it naturally distributed among real IDs in sorted order.
         char[] chars = LineFileDocs.intToID(random.nextInt(maxDoc)).toCharArray();
         int pos = random.nextInt(chars.length);
         chars[pos] = (char) ('A' + random.nextInt(26));

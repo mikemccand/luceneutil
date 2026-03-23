@@ -1972,6 +1972,9 @@ def fixupPerfOutput(s):
 def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize):
   profilerResults = []
 
+  print(f"\nProfiler summary for {jfrOutput}")
+  subprocess.run(["jfr", "summary", jfrOutput], check=True)
+
   for mode in "cpu", "heap":
     for stackSize in profilerStackSize:
       profileCommand = javaCommand.split(" ") + [

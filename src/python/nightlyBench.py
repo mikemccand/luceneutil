@@ -857,7 +857,9 @@ def run():
     if DO_RESET:
       w("<b>NOTE</b>: this run regolded the results gold files<br><br>")
 
-    w('\n[<a href="all.log">top-level log from this run</a>]<br>\n')
+    if timeStamp > "2026-01-04":
+      # we only turned this on "recently"
+      w(f'\n[<a href="{timeStamp}/all.log">top-level log from this run</a>]<br>\n')
 
     if lastRevs is not None:
       w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')

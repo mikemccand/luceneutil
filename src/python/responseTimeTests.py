@@ -668,7 +668,7 @@ def emailResult(body, subject):
     if False:
       s = smtplib.SMTP("localhost")
     else:
-      import localpass
+      import localpass  # noqa: PLC0415
 
       s = smtplib.SMTP(localpass.SMTP_SERVER, port=localpass.SMTP_PORT)
       s.ehlo(fromAddress)

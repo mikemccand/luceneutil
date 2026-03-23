@@ -190,13 +190,13 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
     for mode in "cpu", "heap":
       for c in competitors:
         print(f"\n{mode.upper()} merged search profile for {c.name}:")
-        print(c.getAggregateProfilerResult(id, mode)[0][1])
+        print(c.getAggregateProfilerResult(id, mode, stackSize=12)[0][1])
 
   else:
     results = {}
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c)
 
-    details, cmpDiffs, cmpHeap = r.simpleReport(results[base], results[challenger], "-jira" in sys.argv, "-html" in sys.argv, cmpDesc=challenger.name, baseDesc=base.name)
+    details, cmpDiffs, cmpHeap = r.simpleReport(results[base], results[challenger], "-jira" in sys.argv, "-html" in sys.argv, cmpDesc=challenger.name, baseDesc=base.name)  # noqa: RUF059
     if cmpDiffs is not None:
       raise RuntimeError("results differ: %s" % str(cmpDiffs))

@@ -515,7 +515,7 @@ def compact(text):
       if title:
         if title[-1] not in "!?":
           title += "."
-        page.append(title)
+        page.append(title)  # noqa: FURB113
         # MKM
         page.append(PARAGRAPH_SEP)
 
@@ -526,13 +526,13 @@ def compact(text):
       else:
         continue
     # Drop residuals of lists
-    elif line[0] in "{|" or line[-1] in "}" or (line[0] == "(" and line[-1] == ")") or line.strip(".-") == "":
+    elif line[0] in "{|" or line[-1] in "}" or (line[0] == "(" and line[-1] == ")") or line.strip(".-") == "":  # noqa: FURB171
       continue
     elif headers:
       items = list(headers.items())
       items.sort()
       for i, v in items:
-        page.append(v)
+        page.append(v)  # noqa: FURB113
         # MKM
         page.append(PARAGRAPH_SEP)
       headers.clear()

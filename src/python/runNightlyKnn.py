@@ -13,6 +13,17 @@ import benchUtil
 import constants
 import knnPerfTest
 
+# twist and shout!
+knnPerfTest.NOISY = True
+
+PERF_EXE = shutil.which("perf")
+PERF_STATS = constants.PERF_STATS
+
+if PERF_EXE is None:
+  print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
+else:
+  print(f"NOTE: perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
+
 # TODO
 #   - graphs
 #     - get gitHashes / clicking working
@@ -663,13 +674,16 @@ def _run(results_dir):
     #'-forceMerge'
   ]
 
+  if PERF_EXE is not None:
+    cmd = [PERF_EXE, "stat", "-dd", "-e", ",".join(PERF_STATS)] + cmd
+
   # print cpu and memory information at the start
   knnPerfTest.print_cpu_info()
   knnPerfTest.print_mem_info()
 
   # sanity check vectors
-  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE, True)
-  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE, True)
+  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE)
+  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE)
 
   all_results = []
   all_summaries = []
@@ -678,6 +692,12 @@ def _run(results_dir):
   for quantize_bits in (4, 7, 32):
     for do_force_merge in (False, True):
       this_cmd = cmd[:]
+
+      jfr_file_name = f"{results_dir}/bench-knn-q{quantize_bits}-fm{do_force_merge}.jfr"
+      spot = this_cmd.index("knn.KnnGraphTester")
+      this_cmd.insert(
+        spot, f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=256M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_file_name}"
+      )
 
       if not do_force_merge:
         this_cmd.append("-reindex")
@@ -731,7 +751,7 @@ def _run(results_dir):
           graph_level_conn_p_values = {}
           # leaf-number, doc-count, dict mapping layer to node connectedness p values
           if leaf_count != int(m.group(1)):
-            raise RuntimeError("leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}")
+            raise RuntimeError("leaf count disagrees?  {leaf_count=} vs {int(m.group(1))}")  # noqa: RUF027
           all_graph_level_conn_p_values.append((leaf_count, int(m.group(2)), graph_level_conn_p_values))
           layer_count = next_layer_count
 
@@ -784,12 +804,12 @@ def _run(results_dir):
 
       cols = summary.split("\t")
 
-      assert len(cols) >= 21
+      assert len(cols) >= 27
 
-      if cols[17] == "N/A":
+      if cols[21] == "N/A":
         selectivity = None
       else:
-        selectivity = float(cols[17])
+        selectivity = float(cols[21])
 
       result = KNNResultV1(
         lucene_git_rev,
@@ -803,26 +823,32 @@ def _run(results_dir):
         float(cols[2]),  # netCPU
         float(cols[3]),  # avgCpuCount
         int(cols[4]),  # num_docs
-        int(cols[5]),  # top_k
-        int(cols[6]),  # fanout
-        int(cols[7]),  # max_conn
-        int(cols[8]),  # beam_width
-        cols[9],  # quantize_desc
-        int(cols[10]),  # total_visited
-        float(cols[11]),  # index_time_sec
-        float(cols[12]),  # index_docs_per_sec
-        float(cols[13]),  # force_merge_time_sec
-        int(cols[14]),  # index_num_segments
-        float(cols[15]),  # index_size_on_disk_mb
-        selectivity,  # selectivity
-        cols[16],  # filter-strategy
-        float(cols[18]),  # vec_disk_mb
-        float(cols[19]),  # vec_ram_mb
+        int(cols[6]),  # top_k (cols[5] is searchType)
+        int(cols[7]),  # fanout
+        int(cols[11]),  # max_conn
+        int(cols[12]),  # beam_width
+        cols[13],  # quantize_desc
+        int(cols[14]),  # total_visited
+        float(cols[15]),  # index_time_sec
+        float(cols[16]),  # index_docs_per_sec
+        float(cols[17]),  # force_merge_time_sec
+        int(cols[18]),  # index_num_segments
+        float(cols[19]),  # index_size_on_disk_mb
+        selectivity,  # selectivity (cols[21])
+        cols[20],  # filter-strategy
+        float(cols[23]),  # vec_disk_mb
+        float(cols[24]),  # vec_ram_mb
         graph_level_conn_p_values,  # graph_level_conn_p_values
         combined_run_time,  # time to run KnnGraphTester
       )
       print(f"result: {result}")
       all_results.append(result)
+
+      benchUtil.profilerOutput(constants.JAVA_EXE, jfr_file_name, LUCENE_CHECKOUT, 50, (1, 4, 12))
+
+      # they are massive and we generate six each night and we already squeezed the orange
+      # to get the juice (the human-readable-ish report created by previous line)
+      os.remove(jfr_file_name)
 
       if do_force_merge:
         # clean as we go -- these indices are biggish (~25-30 GB):

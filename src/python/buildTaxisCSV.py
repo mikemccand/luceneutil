@@ -64,7 +64,7 @@ def loadDocs():
       cabColor = fileName.split("_")[0]
       with open("%s/%s" % (CSV_DIR, fileName)) as f:
         reader = csv.reader(f)
-        headers = list(reader.__next__())
+        headers = list(reader.__next__())  # noqa: PLC2801
         # print('headers in: %s' % headers);
         datetimes = []
         strings = []
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     if bytes > 256 * 1024:
       print("%d %d" % (bytes, len(buffer)))
       print("\n".join(buffer))
-      del buffer[:]
+      del buffer[:]  # noqa: FURB131
       totBytes += bytes
       bytes = 0
     if count == 25000000:

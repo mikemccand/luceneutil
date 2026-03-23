@@ -24,7 +24,7 @@ def load_vectors(path, dim, count, start_index=0):
     raise RuntimeError(f'"{path}" size {file_size} is not a multiple of vector byte size {vec_bytes}; wrong dim?')
 
   # wrap start_index into range
-  start_index = start_index % total_vecs
+  start_index = start_index % total_vecs  # noqa: PLR6104
 
   with open(path, "rb") as f:
     if start_index + count <= total_vecs:

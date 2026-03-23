@@ -24,7 +24,7 @@ def findCommitsToTest():
   #
   #   wget http://mail-archives.apache.org/mod_mbox/lucene-commits/201611.mbox
 
-  reMaster = re.compile("^  refs/heads/master ([0-9a-f]+) -> ([0-9a-f]+)$", re.MULTILINE)
+  reMaster = re.compile("^  refs/heads/master ([0-9a-f]+) -> ([0-9a-f]+)$", re.MULTILINE)  # noqa: RUF039
 
   print("  parse commit hashes from lucene-commits mbox archives...")
 
@@ -40,7 +40,7 @@ def findCommitsToTest():
         p = [p]
       for x in p:
         matches = reMaster.findall(str(x))
-        for fromHash, toHash in matches:
+        for fromHash, toHash in matches:  # noqa: FURB142
           # print("fromHash %s" % fromHash)
           masterCommits.add(toHash)
 
@@ -101,7 +101,7 @@ def findCommitsToTest():
         break
 
   # This was pushed along with another change but we want to separately test them if possible:
-  masterCommitsAndTimes.append((datetime.datetime(2016, 8, 3, 12, 34, 6), "234ea3ef8954325923f4e85c5c0aa72c3bb15baa", "LUCENE-7403: Use blocks of exactly maxPointsInLeafNodes values in the 1D case."))
+  masterCommitsAndTimes.append((datetime.datetime(2016, 8, 3, 12, 34, 6), "234ea3ef8954325923f4e85c5c0aa72c3bb15baa", "LUCENE-7403: Use blocks of exactly maxPointsInLeafNodes values in the 1D case."))  # noqa: FURB113
 
   # So was this one:
   masterCommitsAndTimes.append((datetime.datetime(2016, 7, 4, 7, 13, 41), "d66e9935c39ed859659de46d3d5cfb66f2279bd4", "LUCENE-7351: Doc id compression for points"))

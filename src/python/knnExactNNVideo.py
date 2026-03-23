@@ -83,7 +83,7 @@ def main():
   parser.add_argument("-noVideo", action="store_true", help="skip video generation, only make PNGs")
   args = parser.parse_args()
 
-  output_dir = args.outputDir if args.outputDir else args.inputDir
+  output_dir = args.outputDir if args.outputDir else args.inputDir  # noqa: FURB110
   os.makedirs(output_dir, exist_ok=True)
 
   manifest_path = os.path.join(args.inputDir, "manifest.json")

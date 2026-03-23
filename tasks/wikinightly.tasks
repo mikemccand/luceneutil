@@ -132,6 +132,30 @@ TermDayOfYearSort: dayofyeardvsort//nbsp # freq=492778
 TermDayOfYearSort: dayofyeardvsort//part # freq=588644
 TermDayOfYearSort: dayofyeardvsort//st # freq=306811
 
+TermDateTimeSortSkipper: lastmodskippersort//0 # freq=708472
+TermDateTimeSortSkipper: lastmodskippersort//names # freq=402762
+TermDateTimeSortSkipper: lastmodskippersort//nbsp # freq=492778
+TermDateTimeSortSkipper: lastmodskippersort//part # freq=588644
+TermDateTimeSortSkipper: lastmodskippersort//st # freq=306811
+
+TermTitleSortSkipper: titleskippersort//0 # freq=708472
+TermTitleSortSkipper: titleskippersort//names # freq=402762
+TermTitleSortSkipper: titleskippersort//nbsp # freq=492778
+TermTitleSortSkipper: titleskippersort//part # freq=588644
+TermTitleSortSkipper: titleskippersort//st # freq=306811
+
+TermMonthSortSkipper: monthskippersort//0 # freq=708472
+TermMonthSortSkipper: monthskippersort//names # freq=402762
+TermMonthSortSkipper: monthskippersort//nbsp # freq=492778
+TermMonthSortSkipper: monthskippersort//part # freq=588644
+TermMonthSortSkipper: monthskippersort//st # freq=306811
+
+TermDayOfYearSortSkipper: dayofyearskippersort//0 # freq=708472
+TermDayOfYearSortSkipper: dayofyearskippersort//names # freq=402762
+TermDayOfYearSortSkipper: dayofyearskippersort//nbsp # freq=492778
+TermDayOfYearSortSkipper: dayofyearskippersort//part # freq=588644
+TermDayOfYearSortSkipper: dayofyearskippersort//st # freq=306811
+
 TermGroup100: group100//0 # freq=708472
 TermGroup100: group100//names # freq=402762
 TermGroup100: group100//nbsp # freq=492778

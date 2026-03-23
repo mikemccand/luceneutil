@@ -192,7 +192,7 @@ Aggregate task times (possibly running in parallel!):
             # ends with empty line
             in_aggregate_task_times = False
           else:
-            m = re.match("([0-9.]+) sec.*", line.strip())
+            m = re.match("([0-9.]+) sec.*", line.strip())  # noqa: RUF039
             if m is None:
               raise RuntimeError(f'failed to parse "{line}" as an aggregate task time entry (file={LOGS_DIR}/{logFile})')
             aggregate_time_sec += float(m.group(1))

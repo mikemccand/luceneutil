@@ -360,7 +360,7 @@ class ByteBufferWriter:
   def writeVInt(self, i):
     while i & ~0x7F != 0:
       self.writeByte((i & 0x7F) | 0x80)
-      i = i >> 7
+      i = i >> 7  # noqa: PLR6104
     self.writeByte(i & 0x7F)
 
   writeVLong = writeVInt
@@ -410,7 +410,7 @@ class WholeIntAbsCodec:
 
   lastReadCount = 0
 
-  def writeDoc(self, b, docID):
+  def writeDoc(self, b, docID):  # noqa: PLR6301
     b.writeInt(docID)
 
   def readDoc(self, b, lastDocID):

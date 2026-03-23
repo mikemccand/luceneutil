@@ -860,8 +860,8 @@ KNOWN_CHANGES = [
   ),
   (
     "2025-12-07",
-    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
-    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled).  since we use DOT_PRODUCT vector similarity, the un-normalized v2 vectors search was completely broken so we should not trust the large throughput drop on v3 upgrade is true: https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled).  since we use DOT_PRODUCT vector similarity, the un-normalized v2 vectors search was completely broken so we should not trust the large throughput drop on v3 upgrade is true: https://github.com/mikemccand/luceneutil/issues/497",
   ),
   (
     "2026-01-29",
@@ -882,5 +882,15 @@ KNOWN_CHANGES = [
     "2026-02-07",
     "One off nightly benchmark with also downgraded JDK (25.0.2 -> 25.0.1), but all other system packages fully updated, and Lucene frozen on last good 1/22 run; attempting to root-cause https://github.com/apache/lucene/issues/15662",
     "One off nightly benchmark with also downgraded JDK (25.0.2 -> 25.0.1), but all other system packages fully updated, and Lucene frozen on last good 1/22 run; attempting to root-cause https://github.com/apache/lucene/issues/15662",
+  ),
+  (
+    "2026-02-24",
+    "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
+    "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
+  ),
+  (
+    "2026-03-03",
+    "Re-enable JFR profiling in nightly tasks benchy, know to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+    "Re-enable JFR profiling in nightly tasks benchy, know to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
   ),
 ]

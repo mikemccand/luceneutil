@@ -14,7 +14,7 @@ def run(cmd):
 
 
 def parseLog(logFileName):
-  global totalHits
+  global totalHits  # noqa: FURB154
   global hash
 
   totalTerms = None

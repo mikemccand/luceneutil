@@ -16,6 +16,7 @@
 #
 
 import glob
+import hashlib
 import os
 import random
 import subprocess
@@ -232,43 +233,36 @@ class Index:
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
 
+    # Generate hash of configuration to avoid index path collisions
+    config_parts = []
     if self.optimize:
-      name.append("opt")
-
+      config_parts.append("opt")
     if self.useCFS:
-      name.append("cfs")
-
-    # TODO: adding facets to filename makes it too long and runs into limits on some machines
-    # Can we remove this from file name and record it in a different logfile.
+      config_parts.append("cfs")
     if self.facets is not None:
-      name.append("facets")
-      for arg in self.facets:
-        name.append(arg[0])
-      name.append(self.facetDVFormat)
-
+      config_parts.extend([arg[0] for arg in self.facets])
+      config_parts.append(self.facetDVFormat)
     if self.bodyTermVectors:
-      name.append("tv")
-
+      config_parts.append("tv")
     if self.bodyStoredFields:
-      name.append("stored")
-
+      config_parts.append("stored")
     if self.bodyPostingsOffsets:
-      name.append("offsets")
-
-    name.append(self.postingsFormat)
+      config_parts.append("offsets")
+    config_parts.append(self.postingsFormat)
     if self.postingsFormat != self.idFieldPostingsFormat:
-      name.append(self.idFieldPostingsFormat)
-
+      config_parts.append(self.idFieldPostingsFormat)
     if self.addDVFields:
-      name.append("dvfields")
-
+      config_parts.append("dvfields")
     if self.indexSort:
-      name.append("sort=%s" % self.indexSort)
-
+      config_parts.append(f"sort={self.indexSort}")
     if self.vectorFile:
-      name.append("vectors=%d" % self.vectorDimension)
+      config_parts.append(f"vectors={self.vectorDimension}")
       if self.quantizeKNNGraph:
-        name.append("int8-quantized")
+        config_parts.append("int8-quantized")
+
+    config_str = "|".join([benchUtil.checkoutToName(self.checkout)] + config_parts)
+    config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
+    name.append(config_hash)
 
     name.append("nd%gM" % (self.numDocs / 1000000.0))
     return ".".join(name)

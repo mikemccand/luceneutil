@@ -971,7 +971,7 @@ class RunAlgs:
     else:
       print("OS:\n%s" % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):  # noqa: PLR6301
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True, desc=None):  # noqa: PLR6301
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each
     if type(profilerStackSize) is int:
       profilerStackSize = (profilerStackSize,)
@@ -1138,7 +1138,7 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
-    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize)
+    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize, desc=desc)
 
     return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
@@ -1969,7 +1969,7 @@ def fixupPerfOutput(s):
   return "\n".join(linesOut)
 
 
-def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize):
+def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize, desc=None):
   profilerResults = []
 
   print(f"\nProfiler summary for {jfrOutput}")
@@ -1992,7 +1992,9 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       except subprocess.CalledProcessError as e:
         print(f"command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}")
         raise
-      output = f"\nProfiler for {mode}:\n{result.stdout.decode('utf-8')}"
+      if desc is None:
+        desc = jfrOutput
+      output = f"\nProfiler for {mode} [{desc}]:\n{result.stdout.decode('utf-8')}"
       print(output)
       profilerResults.append((mode, stackSize, output))
   return profilerResults

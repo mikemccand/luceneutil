@@ -191,7 +191,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
       os.remove(logFileName)
 
   # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
-  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False)
+  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False, desc=desc)
 
   # indexTime = (now()-t0)
 

@@ -537,13 +537,13 @@ def parseResults(resultsFiles):
           elif sort == '<string_val: "titleBDV">':
             task.sort = "TitleBinary"
           elif sort == '<long: "dayOfYear_skipper">':
-            task, sort = "DayOfYear (skipper)"
+            task.sort = "DayOfYear (skipper)"
           elif sort == '<long: "lastMod_skipper">':
-            task, sort = "LastModified (skipper)"
+            task.sort = "LastModified (skipper)"
           elif sort == '<string: "title_skipper">':
-            task, sort = "Title (skipper)"
+            task.sort = "Title (skipper)"
           elif sort == '<string: "month_skipper">':
-            task, sort = "Month (skipper)"
+            task.sort = "Month (skipper)"
           elif sort != "null":
             raise RuntimeError("could not parse sort: %s" % sort)
           else:

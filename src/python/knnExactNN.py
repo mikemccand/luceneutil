@@ -345,13 +345,13 @@ def parse_vector_config_from_source(source_text):
   doc_vectors = doc_match.group(1)
   # resolve f-string {dim} references from the parsed source
   dim_str = str(dim)
-  doc_vectors = doc_vectors.replace("{dim}", dim_str)
+  doc_vectors = doc_vectors.replace("{dim}", dim_str)  # noqa: RUF027
   # extract query_vectors
   query_match = re.search(r'^\s+query_vectors\s*=\s*[f]?["\'](.+?)["\']', block, re.MULTILINE)
   if query_match is None:
     raise ValueError(f"could not find query_vectors assignment in v3={v3} block")
   query_vectors = query_match.group(1)
-  query_vectors = query_vectors.replace("{dim}", dim_str)
+  query_vectors = query_vectors.replace("{dim}", dim_str)  # noqa: RUF027
   return dim, doc_vectors, query_vectors
 
 

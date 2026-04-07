@@ -746,8 +746,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
     print("WARNING: exact NN scores file is empty")
     return
 
-  with open(scores_path, "rb") as f:
-    all_scores = struct.unpack(f"<{num_floats}f", f.read())
+  all_scores = struct.unpack(f"<{num_floats}f", Path(scores_path).read_bytes())
 
   metric_name, direction = METRIC_LABELS.get(metric or "", ("similarity score", ""))
 
@@ -943,8 +942,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-knnDistanceHistogram.html"
-  with open(output_file, "w") as f:
-    f.write(html)
+  Path(output_file).write_text(html)
   print(f"Wrote exact NN distance histogram to {output_file}")
 
 
@@ -963,8 +961,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
     print("WARNING: all-distances scores file is empty")
     return
 
-  with open(scores_path, "rb") as f:
-    all_scores = struct.unpack(f"<{num_floats}f", f.read())
+  all_scores = struct.unpack(f"<{num_floats}f", Path(scores_path).read_bytes())
 
   sample_label = ""
   if sample_every_n is not None:
@@ -1158,8 +1155,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-allDistancesHistogram.html"
-  with open(output_file, "w") as f:
-    f.write(html)
+  Path(output_file).write_text(html)
   print(f"Wrote all-distances histogram to {output_file}")
 
 
@@ -1175,8 +1171,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 
   all_scores = []
   total_scores = 0
-  with open(scores_path, "rb") as f:
-    data = f.read()
+  data = Path(scores_path).read_bytes()
 
   offset = 0
   while offset < len(data):
@@ -1382,8 +1377,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-hnswTraversalHistogram.html"
-  with open(output_file, "w") as f:
-    f.write(html)
+  Path(output_file).write_text(html)
   print(f"Wrote HNSW traversal score histogram to {output_file}")
 
 

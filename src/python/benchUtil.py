@@ -537,13 +537,13 @@ def parseResults(resultsFiles):
           elif sort == '<string_val: "titleBDV">':
             task.sort = "TitleBinary"
           elif sort == '<long: "dayOfYear_skipper">':
-            task, sort = "DayOfYear (skipper)"
+            task.sort = "DayOfYear (skipper)"
           elif sort == '<long: "lastMod_skipper">':
-            task, sort = "LastModified (skipper)"
+            task.sort = "LastModified (skipper)"
           elif sort == '<string: "title_skipper">':
-            task, sort = "Title (skipper)"
+            task.sort = "Title (skipper)"
           elif sort == '<string: "month_skipper">':
-            task, sort = "Month (skipper)"
+            task.sort = "Month (skipper)"
           elif sort != "null":
             raise RuntimeError("could not parse sort: %s" % sort)
           else:
@@ -971,7 +971,7 @@ class RunAlgs:
     else:
       print("OS:\n%s" % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):  # noqa: PLR6301
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True, desc=None):  # noqa: PLR6301
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each
     if type(profilerStackSize) is int:
       profilerStackSize = (profilerStackSize,)
@@ -1138,7 +1138,7 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
       raise
 
-    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize)
+    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize, desc=desc)
 
     return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
@@ -1969,8 +1969,13 @@ def fixupPerfOutput(s):
   return "\n".join(linesOut)
 
 
-def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize):
+def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize, desc=None):
   profilerResults = []
+
+  print(f"\nProfiler summary for {jfrOutput}")
+  subprocess.run(["jfr", "summary", jfrOutput], check=True)
+
+  jfr_size_mb = os.path.getsize(jfrOutput) / 1024.0 / 1024.0
 
   for mode in "cpu", "heap":
     for stackSize in profilerStackSize:
@@ -1989,7 +1994,14 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       except subprocess.CalledProcessError as e:
         print(f"command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}")
         raise
-      output = f"\nProfiler for {mode}:\n{result.stdout.decode('utf-8')}"
+
+      if desc is None:
+        desc = ""
+      else:
+        desc += " "
+      desc += f"{jfrOutput} is {jfr_size_mb:.2f} MB"
+
+      output = f"\nProfiler for {mode} at {stackSize=} [{desc}]:\n{result.stdout.decode('utf-8')}"
       print(output)
       profilerResults.append((mode, stackSize, output))
   return profilerResults

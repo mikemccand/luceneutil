@@ -191,7 +191,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
       os.remove(logFileName)
 
   # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
-  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False)
+  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False, desc=desc)
 
   # indexTime = (now()-t0)
 
@@ -857,7 +857,9 @@ def run():
     if DO_RESET:
       w("<b>NOTE</b>: this run regolded the results gold files<br><br>")
 
-    w('\n[<a href="all.log">top-level log from this run</a>]<br>\n')
+    if timeStamp > "2026-01-04":
+      # we only turned this on "recently"
+      w(f'\n[<a href="{timeStamp}/all.log">top-level log from this run</a>]<br>\n')
 
     if lastRevs is not None:
       w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')

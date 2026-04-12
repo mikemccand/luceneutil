@@ -1247,7 +1247,9 @@ def run_knn_benchmark(checkout, values, log_path):
   ]
 
   if DO_PROFILING:
-    cmd += [f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_output}"]
+    cmd += [
+      f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize={constants.JFR_MAX_SIZE_MB}M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_output}"
+    ]
 
   cmd += ["knn.KnnGraphTester"]
 

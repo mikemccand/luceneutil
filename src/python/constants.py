@@ -184,5 +184,7 @@ PROCESSOR_COUNT = 12
 # set this to see flame charts on blunders.io; see blunders.py
 BLUNDERS_AUTH_UPLOAD_PASSWORD = None
 
+JFR_MAX_SIZE_MB = 250
+
 # import again in case you want to override any of the vars set above
 from localconstants import *  # noqa: F403 TODO: rethink how we do this to be more type-safe

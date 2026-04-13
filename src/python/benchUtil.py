@@ -1985,6 +1985,7 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
         f"-Dtests.profile.mode={mode}",
         f"-Dtests.profile.count={profilerCount}",
         f"-Dtests.profile.stacksize={stackSize}",
+        "-Dtests.profile.linenumbers=true",
         "org.apache.lucene.gradle.plugins.java.ProfileResults",
         jfrOutput,
       ]

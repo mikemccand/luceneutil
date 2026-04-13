@@ -375,6 +375,7 @@ class Competitor:
           f"-Dtests.profile.mode={mode}",
           f"-Dtests.profile.stacksize={size}",
           f"-Dtests.profile.count={count}",
+          "-Dtests.profile.linenumbers=true",
           "org.apache.lucene.gradle.plugins.java.ProfileResults",
         ]
         + glob.glob(f"{constants.LOGS_DIR}/bench-search-{id}-{self.name}-*.jfr")

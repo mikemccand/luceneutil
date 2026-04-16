@@ -253,7 +253,8 @@ EXCEPTION_PATTERN = re.compile(
 def fail_if_java_exceptions(desc, log_file):
   with open(log_file) as f:
     for line_num, line in enumerate(f, 1):
-      if EXCEPTION_PATTERN.search(line):
+      # MergeAbortedException is normal at the end of indexing when we rollback:
+      if EXCEPTION_PATTERN.search(line) and "org.apache.lucene.index.MergePolicy$MergeAbortedException" not in line:
         raise RuntimeError(f'{desc}: java exceptions found in log file "{log_file}": line {line_num}: {line.rstrip()}')
 
 

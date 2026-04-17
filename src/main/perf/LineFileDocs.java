@@ -34,12 +34,12 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DateFormatSymbols;
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -372,16 +372,17 @@ public class LineFileDocs implements Closeable {
     //final LongField rand;
     final Field timeSec;
     // Necessary for "old style" wiki line files:
-    final SimpleDateFormat dateParser = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US);
+    static final DateTimeFormatter dateParser = new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("dd-MMM-yyyy HH:mm:ss")
+        .optionalStart()
+        .appendPattern(".SSS")
+        .optionalEnd()
+        .toFormatter(Locale.US);
     final KnnFloatVectorField floatVectorField;
     final KnnByteVectorField byteVectorField;
 
-    // For just y/m/day:
-    //final SimpleDateFormat dateParser = new SimpleDateFormat("y/M/d", Locale.US);
-
-    //final SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
     final Calendar dateCal = Calendar.getInstance();
-    final ParsePosition datePos = new ParsePosition(0);
 
     DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, boolean addDVSkippers, int vectorDimension, VectorEncoding vectorEncoding) {
       doc = new Document();
@@ -703,18 +704,16 @@ public class LineFileDocs implements Closeable {
 
       final String dateString = line.substring(1+spot, spot2);
       doc.date.setStringValue(dateString);
-      doc.datePos.setIndex(0);
-      final Date date = doc.dateParser.parse(dateString, doc.datePos);
-      if (date == null) {
+      final LocalDateTime ldt = LocalDateTime.parse(dateString, DocState.dateParser);
+      if (ldt == null) {
         System.out.println("FAILED: " + dateString);
       }
-      //doc.dateMSec.setLongValue(date.getTime());
 
-      //doc.rand.setLongValue(rand.nextInt(10000));
-      //System.out.println("DATE: " + date);
-      doc.dateCal.setTime(date);
+      doc.dateCal.set(ldt.getYear(), ldt.getMonthValue() - 1, ldt.getDayOfMonth(),
+                      ldt.getHour(), ldt.getMinute(), ldt.getSecond());
+      doc.dateCal.set(Calendar.MILLISECOND, 0);
       msecSinceEpoch = doc.dateCal.getTimeInMillis();
-      timeSec = doc.dateCal.get(Calendar.HOUR_OF_DAY)*3600 + doc.dateCal.get(Calendar.MINUTE)*60 + doc.dateCal.get(Calendar.SECOND);
+      timeSec = ldt.getHour()*3600 + ldt.getMinute()*60 + ldt.getSecond();
       if (doc.floatVectorField != null) {
         doc.floatVectorField.setVectorValue((float[]) lfd.vector.array());
       } else if (doc.byteVectorField != null) {

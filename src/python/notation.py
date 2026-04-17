@@ -890,8 +890,8 @@ KNOWN_CHANGES = [
   ),
   (
     "2026-03-04",
-    "Re-enable JFR profiling in nightly tasks benchy, know to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
-    "Re-enable JFR profiling in nightly tasks benchy, know to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+    "Re-enable JFR profiling in nightly tasks benchy, known to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+    "Re-enable JFR profiling in nightly tasks benchy, known to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
   ),
   (
     "2026-04-10",

@@ -173,8 +173,8 @@ PARAMS = {
   # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
   # "filterSelectivity": ("0.5", "0.2", "0.1", "0.01",),
   # "searchType": ("radius",),
-  # "traversalSimilarity": ("0.78", "0.8",),
-  # "resultSimilarity": ("0.8",),
+  # "resultSimilarity": ("0.8", "0.9",),
+  # "decay": ("0", "0.5", "0.8",),
 }
 
 
@@ -187,8 +187,8 @@ OUTPUT_HEADERS = [
   "searchType",
   "topK",
   "fanout",
-  "traversalSimilarity",
   "resultSimilarity",
+  "decay",
   "resultCount",
   "maxConn",
   "beamWidth",

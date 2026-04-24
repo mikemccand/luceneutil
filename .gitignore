@@ -42,7 +42,11 @@ knnIndices/
 
 # emacs temporary files
 *~
-#*
+.#*
 
 # index files
 knn-reuse/
+
+# genai session dirs
+.specstory
+.claude

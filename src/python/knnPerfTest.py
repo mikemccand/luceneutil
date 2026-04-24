@@ -11,6 +11,7 @@
 #     - not always the first run!  sometimes 2nd run is super-fast
 
 import argparse
+import itertools
 import mmap
 import multiprocessing
 import os
@@ -28,9 +29,20 @@ from pathlib import Path
 try:
   import numpy as np
 except ImportError:
-  np = None
-  print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
-  print("Next time use the local venv: source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
+  print("\nERROR: numpy is required but not installed.\n")
+  print("To fix, run from the luceneutil root directory:\n")
+  print("  make env")
+  print("  source .venv/bin/activate")
+  print("  python -u src/python/knnPerfTest.py\n")
+  raise SystemExit(1) from None
+
+import autologger
+import benchUtil
+import constants
+import knnExactNN
+import ps_head
+from benchUtil import GNUPLOT_PATH, PERF_EXE
+from common import getLuceneDirFromGradleProperties
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
 # maybe a bit faster?
@@ -65,13 +77,6 @@ def advise_will_need(file_name, offset_bytes=0, length_bytes=0):
 # see also https://share.google/aimode/IDYCxtTyGhFUwC1pX for clean-ish
 # ways to use io_uring-like async io from Python
 
-import autologger
-import benchUtil
-import constants
-import ps_head
-from benchUtil import GNUPLOT_PATH, PERF_EXE
-from common import getLuceneDirFromGradleProperties
-
 # Measure vector search recall and latency while exploring hyperparameters
 
 # SETUP:
@@ -97,10 +102,19 @@ DO_PROFILING = False
 DO_PS = True
 DO_VMSTAT = True
 
+# precompute exact NN using numpy (multi-threaded BLAS matmul).  when False,
+# KnnGraphTester.java computes exact NN itself (slower, single-threaded Java).
+USE_NUMPY_EXACT_NN = True
+
 # Set this to True to use perf tool to record instructions executed and confirm SIMD
 # instructions were executed
 # TODO: how much overhead / perf impact from this?  can we always run?
 CONFIRM_SIMD_ASM_MODE = False
+
+# perf stat SIMD validation: uses hardware counters to confirm SIMD (SSE/AVX2/AVX-512)
+# is actually used during vector operations.  negligible overhead -- always on when perf
+# is available.
+DO_PERF_STAT_SIMD = PERF_EXE is not None
 
 # set this to True to collect all HNSW traversal scores and generate a histogram
 DO_HNSW_SCORE_HISTOGRAM = False
@@ -135,7 +149,7 @@ PARAMS = {
   #'ndoc': (10000, 100000, 200000, 500000),
   #'ndoc': (2_000_000,),
   #'ndoc': (1_000_000,),
-  "ndoc": (400_000,),
+  "ndoc": (500_000,),
   #'ndoc': (50_000,),
   "maxConn": (64,),
   # "maxConn": (64,),
@@ -157,7 +171,7 @@ PARAMS = {
   "metric": ("dot_product",),
   # 'metric': ('mip',),
   #'quantize': (True,),
-  "quantizeBits": (8,),
+  "quantizeBits": (32, 8, 7, 4, 2),
   # "quantizeBits": (1,),
   # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
   #'fanout': (0,),
@@ -458,16 +472,201 @@ def smell_vectors(dim, file_name):
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
 
-  if np is None:
-    # no numpy
-    print("\nWARNING: numpy is not importable; will skip smell_vectors\n")
-    print("Next time use the local Python venv: make env; source .venv/bin/activate; python -u src/python/knnPerfTest...\n")
-    return
-
   if NOISY:
     print(f"smell vectors from {file_name}")
 
   _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
+
+
+# all candidate perf stat counters for SIMD validation -- probed at import time
+# to discover which ones this CPU actually supports.
+#
+# two families:
+#   fp_arith_inst_retired.*  -- counts float SIMD instructions (float32 vectors)
+#   int_vec_retired.*        -- counts integer SIMD instructions (quantized vectors)
+#                               available on Ice Lake+ (different naming on older CPUs)
+_FP_SIMD_CANDIDATE_COUNTERS = (
+  "fp_arith_inst_retired.scalar_single",
+  "fp_arith_inst_retired.128b_packed_single",
+  "fp_arith_inst_retired.256b_packed_single",
+  "fp_arith_inst_retired.512b_packed_single",
+)
+
+_INT_SIMD_CANDIDATE_COUNTERS = (
+  "int_vec_retired.128bit",
+  "int_vec_retired.256bit",
+  "int_vec_retired.512bit",
+)
+
+# label, counter name, weight (proportional to SIMD width so FP and INT are comparable)
+_FP_SIMD_LEVEL_DEFS = (
+  ("FP-scalar", "fp_arith_inst_retired.scalar_single", 1),
+  ("FP-SSE", "fp_arith_inst_retired.128b_packed_single", 4),
+  ("FP-AVX2", "fp_arith_inst_retired.256b_packed_single", 8),
+  ("FP-AVX512", "fp_arith_inst_retired.512b_packed_single", 16),
+)
+
+_INT_SIMD_LEVEL_DEFS = (
+  ("INT-SSE", "int_vec_retired.128bit", 4),
+  ("INT-AVX2", "int_vec_retired.256bit", 8),
+  ("INT-AVX512", "int_vec_retired.512bit", 16),
+)
+
+
+def _probe_perf_counter(counter):
+  """Return True if perf recognizes this counter on the current CPU."""
+  try:
+    result = subprocess.run(
+      [PERF_EXE, "stat", "-e", counter, "--", "true"],
+      capture_output=True,
+      text=True,
+      timeout=5,
+      check=False,
+    )
+    # perf exits 0 and prints the counter (possibly "<not counted>" for short
+    # commands) when the counter is valid.  it exits non-zero or prints
+    # "<not supported>" when the counter doesn't exist on this CPU.
+    return result.returncode == 0 and "<not supported>" not in result.stderr
+  except (subprocess.TimeoutExpired, OSError):
+    return False
+
+
+def _probe_simd_perf_counters():
+  """Probe which SIMD perf counters this CPU supports.
+
+  Probes each counter individually because perf refuses to run at all if any
+  counter name is unrecognized (e.g. 512b on a non-AVX-512 CPU).
+
+  Returns (available_counters, fp_levels, int_levels).
+  """
+  if PERF_EXE is None:
+    return (), (), ()
+
+  available = []
+  for counter in _FP_SIMD_CANDIDATE_COUNTERS + _INT_SIMD_CANDIDATE_COUNTERS:
+    if _probe_perf_counter(counter):
+      available.append(counter)
+
+  available_set = set(available)
+  counters = tuple(available)
+  fp_levels = tuple(t for t in _FP_SIMD_LEVEL_DEFS if t[1] in available_set)
+  int_levels = tuple(t for t in _INT_SIMD_LEVEL_DEFS if t[1] in available_set)
+  return counters, fp_levels, int_levels
+
+
+# probe once at import time
+_AVAILABLE_SIMD_COUNTERS, FP_SIMD_LEVELS, INT_SIMD_LEVELS = _probe_simd_perf_counters()
+if _AVAILABLE_SIMD_COUNTERS:
+  fp_names = [c for c in _AVAILABLE_SIMD_COUNTERS if c.startswith("fp_")]
+  int_names = [c for c in _AVAILABLE_SIMD_COUNTERS if c.startswith("int_")]
+  parts = []
+  if fp_names:
+    parts.append(f"FP: {', '.join(fp_names)}")
+  if int_names:
+    parts.append(f"INT: {', '.join(int_names)}")
+  print(f"NOTE: perf SIMD counters available: {'; '.join(parts)}")
+  if not int_names:
+    print("NOTE: integer SIMD counters (int_vec_retired.*) not available on this CPU; quantized runs will only show FP counters")
+elif DO_PERF_STAT_SIMD:
+  print("WARNING: perf SIMD counters not available on this CPU; disabling SIMD validation")
+  DO_PERF_STAT_SIMD = False
+
+
+def wrap_cmd_with_perf_stat_simd(cmd, output_file):
+  """Prepend perf stat with SIMD counters to a command, writing stats to output_file."""
+  return [
+    PERF_EXE,
+    "stat",
+    "-o",
+    output_file,
+    "-e",
+    ",".join(_AVAILABLE_SIMD_COUNTERS),
+    "--",
+  ] + cmd
+
+
+def parse_perf_stat_file(path):
+  """Parse a perf stat output file and return dict of counter_name -> count (int).
+
+  Returns empty dict if file is missing or unparseable.
+  """
+  result = {}
+  try:
+    text = Path(path).read_text()
+  except OSError:
+    return result
+  for line in text.splitlines():
+    # format: "     12,345,678      cpu_core/fp_arith_inst_retired.256b_packed_single/    (88.34%)"
+    # or:     "     12345678      fp_arith_inst_retired.256b_packed_single"
+    # or:     "     12345678      int_vec_retired.256bit"
+    m = re.match(r"^\s+([\d,]+)\s+(?:\S+/)?((?:fp_arith_inst_retired|int_vec_retired)\.\S+?)(?:/|\s)", line)
+    if m:
+      count = int(m.group(1).replace(",", ""))
+      counter = m.group(2)
+      result[counter] = count
+  return result
+
+
+def _summarize_levels(counters, level_defs):
+  """Compute per-level breakdown for a set of SIMD level defs.
+
+  Returns (parts_list, total_ops, dominant_label) where parts_list has
+  (label, count, ops) tuples for levels with count > 0.
+  """
+  parts = []
+  total_ops = 0
+  dominant_label = None
+  dominant_ops = 0
+  for label, counter, ops_per_insn in level_defs:
+    count = counters.get(counter, 0)
+    ops = count * ops_per_insn
+    total_ops += ops
+    if count > 0:
+      parts.append((label, count, ops))
+    if ops > dominant_ops:
+      dominant_ops = ops
+      dominant_label = label
+  return parts, total_ops, dominant_label
+
+
+def format_simd_report(counters, is_quantized=False):
+  """Format a one-line SIMD usage summary from parsed perf stat counters.
+
+  Combines FP (fp_arith_inst_retired) and integer (int_vec_retired) counters
+  into a single flat percentage breakdown weighted by SIMD width, so all
+  percentages sum to 100%.
+
+  Returns (report_string, dominant_level) where dominant_level is
+  "FP-scalar", "FP-SSE", "FP-AVX2", "FP-AVX512",
+  "INT-SSE", "INT-AVX2", "INT-AVX512", or "none".
+  """
+  if not counters:
+    return "SIMD: no perf data", "none"
+
+  all_levels = list(FP_SIMD_LEVELS) + list(INT_SIMD_LEVELS)
+  all_parts, grand_total, dominant = _summarize_levels(counters, all_levels)
+
+  if grand_total == 0:
+    if is_quantized and not INT_SIMD_LEVELS:
+      return "SIMD: no FP instructions (expected for quantized); integer SIMD counters not available on this CPU", "none"
+    return "SIMD: no instructions detected", "none"
+
+  pct_parts = []
+  for label, _count, ops in all_parts:
+    pct_parts.append(f"{label} {100.0 * ops / grand_total:.1f}%")
+
+  report = f"SIMD: {' | '.join(pct_parts)} (dominant: {dominant})"
+
+  # warn only when the relevant family shows no SIMD
+  if dominant == "FP-scalar" and not is_quantized:
+    report += " WARNING: no SIMD vectorization detected!"
+  elif is_quantized and not any(label.startswith("INT-") for label, _, _ in all_parts):
+    if not INT_SIMD_LEVELS:
+      report += " (int_vec_retired counters not available on this CPU)"
+    else:
+      report += " WARNING: no integer SIMD detected!"
+
+  return report, dominant
 
 
 def get_unique_log_name(log_path, sub_tool):
@@ -515,7 +714,7 @@ def print_run_summary(values):
     value = values[key]
     if len(value) > 1:
       # yay, it turns out you can nest {...} in f-strings!
-      options.append(f"  {key:<{max_key_len}s}: {','.join(value)}")
+      options.append(f"  {key:<{max_key_len}s}: {','.join(str(v) for v in value)}")
       combos *= len(value)
     else:
       # yay, it turns out you can nest {...} in f-strings!
@@ -553,8 +752,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
     print("WARNING: exact NN scores file is empty")
     return
 
-  with open(scores_path, "rb") as f:  # noqa: FURB101
-    all_scores = struct.unpack(f"<{num_floats}f", f.read())
+  all_scores = struct.unpack(f"<{num_floats}f", Path(scores_path).read_bytes())
 
   metric_name, direction = METRIC_LABELS.get(metric or "", ("similarity score", ""))
 
@@ -750,8 +948,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-knnDistanceHistogram.html"
-  with open(output_file, "w") as f:  # noqa: FURB103
-    f.write(html)
+  Path(output_file).write_text(html)
   print(f"Wrote exact NN distance histogram to {output_file}")
 
 
@@ -770,8 +967,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
     print("WARNING: all-distances scores file is empty")
     return
 
-  with open(scores_path, "rb") as f:  # noqa: FURB101
-    all_scores = struct.unpack(f"<{num_floats}f", f.read())
+  all_scores = struct.unpack(f"<{num_floats}f", Path(scores_path).read_bytes())
 
   sample_label = ""
   if sample_every_n is not None:
@@ -965,8 +1161,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-allDistancesHistogram.html"
-  with open(output_file, "w") as f:  # noqa: FURB103
-    f.write(html)
+  Path(output_file).write_text(html)
   print(f"Wrote all-distances histogram to {output_file}")
 
 
@@ -982,8 +1177,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 
   all_scores = []
   total_scores = 0
-  with open(scores_path, "rb") as f:  # noqa: FURB101
-    data = f.read()
+  data = Path(scores_path).read_bytes()
 
   offset = 0
   while offset < len(data):
@@ -1189,9 +1383,39 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 </html>
 """
   output_file = f"{output_dir}/{log_base_name}-hnswTraversalHistogram.html"
-  with open(output_file, "w") as f:  # noqa: FURB103
-    f.write(html)
+  Path(output_file).write_text(html)
   print(f"Wrote HNSW traversal score histogram to {output_file}")
+
+
+def precompute_exact_nn(values, dim, doc_vectors, query_vectors):
+  """Precompute exact nearest neighbors using numpy for all parameter combinations."""
+  ndocs = values.get("ndoc", (1000,))
+  niters = values.get("niter", (1000,))
+  metrics = values.get("metric", ("dot_product",))
+  top_ks = values.get("topK", (100,))
+  query_start_indices = values.get("queryStartIndex", (0,))
+  encodings = values.get("encoding", ("float32",))
+
+  # wrap scalar values
+  if not isinstance(ndocs, (tuple, list)):
+    ndocs = (ndocs,)
+  if not isinstance(niters, (tuple, list)):
+    niters = (niters,)
+  if not isinstance(metrics, (tuple, list)):
+    metrics = (metrics,)
+  if not isinstance(top_ks, (tuple, list)):
+    top_ks = (top_ks,)
+  if not isinstance(query_start_indices, (tuple, list)):
+    query_start_indices = (query_start_indices,)
+  if not isinstance(encodings, (tuple, list)):
+    encodings = (encodings,)
+
+  combos = list(itertools.product(ndocs, niters, metrics, top_ks, query_start_indices, encodings))
+  print(f"\nprecomputing exact NN for {len(combos)} parameter combination(s) using numpy...")
+  knnExactNN.check_blas_config()
+  for ndoc, niter, metric, top_k, query_start_index, encoding in combos:
+    knnExactNN.run_one(doc_vectors, query_vectors, dim, ndoc, niter, metric, top_k, query_start_index, encoding)
+  print()
 
 
 def run_knn_benchmark(checkout, values, log_path):
@@ -1259,8 +1483,13 @@ def run_knn_benchmark(checkout, values, log_path):
   smell_vectors(dim, doc_vectors)
   smell_vectors(dim, query_vectors)
 
+  # precompute exact nearest neighbors using numpy (much faster than Java brute force)
+  if USE_NUMPY_EXACT_NN:
+    precompute_exact_nn(values, dim, doc_vectors, query_vectors)
+
   index_run = 1
   all_results = []
+  all_simd_reports = []
   log_dir_name, log_file_name = log_path
   if DO_VMSTAT and GNUPLOT_PATH is not None:
     vmstat_index_html_path = f"{log_dir_name}/{log_file_name}-vmstats.html"
@@ -1338,6 +1567,11 @@ def run_knn_benchmark(checkout, values, log_path):
       perf_data_file = f"perf{index_run}.data"
       print(f"NOTE: adding 'perf record' command, to {perf_data_file}, to sample instructions being executed to later confirm SIMD usage")
       this_cmd = [PERF_EXE, "record", "-m", "2M", "-v", "--call-graph", "lbr", "-e", "instructions:u", "-o", perf_data_file, "-g"] + this_cmd
+
+    perf_stat_simd_file = None
+    if DO_PERF_STAT_SIMD:
+      perf_stat_simd_file = get_unique_log_name(log_path, "perf-simd").replace(".log", ".txt")
+      this_cmd = wrap_cmd_with_perf_stat_simd(this_cmd, perf_stat_simd_file)
 
     if NOISY:
       print(f"  cmd: {this_cmd}")
@@ -1458,6 +1692,21 @@ def run_knn_benchmark(checkout, values, log_path):
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1, 4, 12))
+
+    if perf_stat_simd_file is not None:
+      counters = parse_perf_stat_file(perf_stat_simd_file)
+      is_quant = quantize_bits is not None and quantize_bits != 32
+      report, dominant = format_simd_report(counters, is_quantized=is_quant)
+      all_simd_reports.append((index_run, report, dominant))
+      print(f"  run {index_run} {report}")
+      if dominant in ("FP-scalar", "none"):
+        print(f"  raw perf stat output ({perf_stat_simd_file}):")
+        try:
+          for line in Path(perf_stat_simd_file).read_text().splitlines():
+            print(f"    {line}")
+        except OSError as e:
+          print(f"    (could not read: {e})")
+
     index_run += 1
 
   if NOISY:
@@ -1475,6 +1724,22 @@ def run_knn_benchmark(checkout, values, log_path):
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)
+
+  # SIMD summary across all runs
+  if all_simd_reports:
+    print("\nSIMD validation summary:")
+    for run_num, report, dominant in all_simd_reports:
+      print(f"  run {run_num}: {report}")
+    # warn if any run had scalar-dominant or no SIMD
+    bad_runs = [(r, d) for r, _, d in all_simd_reports if d in ("FP-scalar", "none")]
+    if bad_runs:
+      print(f"\n  WARNING: {len(bad_runs)} run(s) without SIMD vectorization: runs {', '.join(str(r) for r, _ in bad_runs)}")
+      print("  Check that JVM is using --add-modules jdk.incubator.vector and that the Lucene")
+      print("  codec supports vectorized similarity functions for your metric/encoding.")
+    else:
+      levels = {d for _, _, d in all_simd_reports}
+      print(f"\n  All {len(all_simd_reports)} run(s) used SIMD: {', '.join(sorted(levels))}")
+
   if DO_VMSTAT and GNUPLOT_PATH is not None:
     print(f"\nNOTE: open {vmstat_index_html_path} in browser to see CPU/IO telemetry of each run")
   return all_results, skip_headers
@@ -1802,6 +2067,33 @@ def print_mem_info():
   print()
 
 
+def check_knn_compiled():
+  """Hard exit if KNN Java classes are missing or out of date vs source files."""
+  build_dir = Path(constants.BENCH_BASE_DIR) / "build"
+  src_dir = Path(constants.BENCH_BASE_DIR) / "src" / "main"
+
+  marker = build_dir / "knn" / "KnnGraphTester.class"
+
+  source_files = list((src_dir / "knn").glob("*.java"))
+  source_files.extend([src_dir / "WikiVectors.java", src_dir / "perf" / "VectorDictionary.java"])
+
+  gradle_cmd = "  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileKnn"
+
+  if not marker.exists():
+    print(f"\nERROR: {marker} does not exist. Run:\n\n{gradle_cmd}\n")
+    raise SystemExit(1)
+
+  marker_mtime = marker.stat().st_mtime
+  stale = [src for src in source_files if src.exists() and src.stat().st_mtime > marker_mtime]
+
+  if len(stale) > 0:
+    print("\nERROR: KNN Java classes are out of date. Stale source files:")
+    for src in stale:
+      print(f"  {src}")
+    print(f"\nRun:\n\n{gradle_cmd}\n")
+    raise SystemExit(1)
+
+
 def build_java_base_cmd(checkout):
   """Build the base Java command (JVM flags + classpath) for KnnGraphTester."""
   cp = benchUtil.classPathToString(benchUtil.getClassPath(checkout) + (f"{constants.BENCH_BASE_DIR}/build",))
@@ -1871,6 +2163,11 @@ def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, 
   if extra_java_args is not None:
     full_cmd += extra_java_args
 
+  perf_stat_simd_file = None
+  if DO_PERF_STAT_SIMD:
+    perf_stat_simd_file = str(Path(work_dir) / "perf-simd.txt")
+    full_cmd = wrap_cmd_with_perf_stat_simd(full_cmd, perf_stat_simd_file)
+
   print(f"[variance] running in {work_dir}")
   print(f"[variance] cmd: {full_cmd}")
 
@@ -1922,6 +2219,19 @@ def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, 
     raise RuntimeError(f"command failed with exit {job.returncode} in {work_dir}:\n{full_output}")
   if summary is None:
     raise RuntimeError(f"could not find SUMMARY line in output from {work_dir}:\n{full_output}")
+
+  if perf_stat_simd_file is not None:
+    counters = parse_perf_stat_file(perf_stat_simd_file)
+    is_quant = params.get("quantizeBits", 32) != 32
+    report, dominant = format_simd_report(counters, is_quantized=is_quant)
+    print(f"  {report}")
+    if dominant in ("scalar", "none"):
+      print(f"  raw perf stat output ({perf_stat_simd_file}):")
+      try:
+        for line in Path(perf_stat_simd_file).read_text().splitlines():
+          print(f"    {line}")
+      except OSError as e:
+        print(f"    (could not read: {e})")
 
   return summary, full_output
 
@@ -1981,6 +2291,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run KNN benchmarks")
     parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
     n = parser.parse_args()
+
+    check_knn_compiled()
 
     # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
     LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()

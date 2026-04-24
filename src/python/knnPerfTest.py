@@ -220,6 +220,7 @@ OUTPUT_HEADERS = [
   "vec_RAM(MB)",
   "bp-reorder",
   "indexType",
+  "rerank",
 ]
 # TODO:  "bp",
 
@@ -1503,6 +1504,8 @@ def run_knn_benchmark(checkout, values, log_path):
     args = []
     quantize_bits = None
     do_quantize_compress = False
+    do_rerank = False
+    rerank_quantize_bits = 32
     for i, p in enumerate(values.keys()):
       if values[p]:
         value = values[p][indexes[i]]
@@ -1513,6 +1516,11 @@ def run_knn_benchmark(checkout, values, log_path):
             print("  -quantize")
             args += ["-quantize"]
             quantize_bits = value
+        elif p == "rerank":
+          if value:
+            do_rerank = True
+        elif p == "rerankQuantizeBits":
+          rerank_quantize_bits = value
         elif type(value) is bool:
           if p == "quantizeCompress":
             # carefully only add this flag (below) if we are quantizing to 4 bits:
@@ -1530,6 +1538,13 @@ def run_knn_benchmark(checkout, values, log_path):
     if quantize_bits == 4 and do_quantize_compress:
       args += ["-quantizeCompress"]
       print("  -quantizeCompress")
+
+    if do_rerank:
+      args += ["-rerank"]
+      print("  -rerank")
+      if rerank_quantize_bits != 32:
+        args += ["-rerankQuantizeBits", str(rerank_quantize_bits)]
+        print(f"  -rerankQuantizeBits={rerank_quantize_bits}")
 
     args += [a for (k, v) in pv.items() for a in ("-" + k, str(v)) if a]
 
@@ -2116,6 +2131,8 @@ def build_knn_args_from_params(params):
   args = []
   quantize_bits = None
   do_quantize_compress = False
+  do_rerank = False
+  rerank_quantize_bits = 32
   for p, value in params.items():
     if p == "quantizeBits":
       if value != 32:
@@ -2123,6 +2140,11 @@ def build_knn_args_from_params(params):
         quantize_bits = value
     elif p == "quantizeCompress":
       do_quantize_compress = value
+    elif p == "rerank":
+      if value:
+        do_rerank = True
+    elif p == "rerankQuantizeBits":
+      rerank_quantize_bits = value
     elif isinstance(value, bool):
       if value:
         args += ["-" + p]
@@ -2131,6 +2153,11 @@ def build_knn_args_from_params(params):
 
   if quantize_bits == 4 and do_quantize_compress:
     args += ["-quantizeCompress"]
+
+  if do_rerank:
+    args += ["-rerank"]
+    if rerank_quantize_bits != 32:
+      args += ["-rerankQuantizeBits", str(rerank_quantize_bits)]
 
   return args
 

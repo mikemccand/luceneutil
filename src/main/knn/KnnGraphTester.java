@@ -54,6 +54,8 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.hnsw.FlatVectorScorerUtil;
+import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.ByteVectorValues;
@@ -99,6 +101,7 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.RescoreTopNQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.BitSetProducer;
@@ -162,6 +165,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   public static final String KNN_FIELD = "knn";
   public static final String KNN_FIELD_FILTERED = "knn-filtered";
+  public static final String KNN_FIELD_RERANK = "knn-rerank";
   public static final String ID_FIELD = "id";
   private static final String INDEX_DIR = "knnIndices";
   public static final String DOCTYPE_FIELD = "docType";
@@ -216,6 +220,11 @@ public class KnnGraphTester implements FormatterLogger {
   private IndexType indexType;
   // oversampling, e.g. the multiple * k to gather before checking recall
   private float overSample;
+  // whether to use two-phase reranking: HNSW retrieves overSample*topK candidates, then
+  // a flat full/quantized-precision field rescores and trims to topK
+  private boolean rerank;
+  // precision of the reranking field: 2, 4, 7, 8 (scalar quantized flat) or 32 (float32 flat)
+  private int rerankQuantizeBits;
   // whether to collect and write all HNSW traversal scores for histogram generation
   private boolean hnswScoreHistogram;
   // whether to compute sampled all query x doc distances for histogram generation
@@ -248,6 +257,8 @@ public class KnnGraphTester implements FormatterLogger {
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
+    rerank = false;
+    rerankQuantizeBits = 32;
     searchType = SearchType.KNN;
   }
 
@@ -335,6 +346,18 @@ public class KnnGraphTester implements FormatterLogger {
           overSample = Float.parseFloat(args[++iarg]);
           if (overSample < 1) {
             throw new IllegalArgumentException("-overSample must be >= 1");
+          }
+          break;
+        case "-rerank":
+          rerank = true;
+          break;
+        case "-rerankQuantizeBits":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-rerankQuantizeBits requires a following number");
+          }
+          rerankQuantizeBits = Integer.parseInt(args[++iarg]);
+          if (Set.of(2, 4, 7, 8, 32).contains(rerankQuantizeBits) == false) {
+            throw new IllegalArgumentException("-rerankQuantizeBits must be 2, 4, 7, 8, or 32");
           }
           break;
         case "-fanout":
@@ -581,8 +604,13 @@ public class KnnGraphTester implements FormatterLogger {
       filtered = selectRandomDocs(random, numDocs, filterSelectivity);
     }
 
+    if (rerank && vectorEncoding != VectorEncoding.FLOAT32) {
+      throw new IllegalArgumentException("-rerank requires FLOAT32 vector encoding");
+    }
+
     String indexKey = formatIndexKey(indexType, maxConn, beamWidth, useBp,
                                      quantize, quantizeBits, quantizeCompress,
+                                     rerank, rerankQuantizeBits,
                                      parentJoin, filterStrategy, filterSelectivity, randomSeed,
                                      docVectorsPath, numDocs, metric, forceMerge);
     log("index key = %s\n", indexKey);
@@ -647,7 +675,7 @@ public class KnnGraphTester implements FormatterLogger {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType),
+        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, rerank, rerankQuantizeBits),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -658,7 +686,8 @@ public class KnnGraphTester implements FormatterLogger {
         parentJoin,
         parentJoinMetaFile,
         useBp,
-        indexTimeFilter
+        indexTimeFilter,
+        rerank
       ).createIndex();
       Files.writeString(indexKeyPath, indexKey);
       log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
@@ -920,6 +949,7 @@ public class KnnGraphTester implements FormatterLogger {
   private static String formatIndexKey(IndexType indexType, int maxConn, int beamWidth,
                                        boolean useBp,
                                        boolean quantize, int quantizeBits, boolean quantizeCompress,
+                                       boolean rerank, int rerankQuantizeBits,
                                        boolean parentJoin, FilterStrategy filterStrategy,
                                        Float filterSelectivity, Long randomSeed,
                                        Path docPath, int numDocs, String metric, boolean forceMerge)
@@ -964,6 +994,10 @@ public class KnnGraphTester implements FormatterLogger {
       if (quantizeCompress) {
         suffix.add("compressed");
       }
+    }
+    if (rerank) {
+      suffix.add("rerank");
+      suffix.add(Integer.toString(rerankQuantizeBits));
     }
 
     if (parentJoin) {
@@ -1059,7 +1093,7 @@ public class KnnGraphTester implements FormatterLogger {
   @SuppressForbidden(reason = "Prints stuff")
   private double forceMerge() throws IOException, InterruptedException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, rerank, rerankQuantizeBits));
     KnnIndexer.TrackingConcurrentMergeScheduler tcms = new KnnIndexer.TrackingConcurrentMergeScheduler();
     iwc.setMergeScheduler(tcms);
     KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
@@ -1218,7 +1252,7 @@ public class KnnGraphTester implements FormatterLogger {
                 result = doByteVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, topK);
               } else {
                 float[] target = targetReader.next();
-                result = doFloatVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs());
+                result = doFloatVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, this.topK);
               }
               resultSizes[i] = Math.max(1, result.topDocs.scoreDocs.length);
             }
@@ -1233,7 +1267,7 @@ public class KnnGraphTester implements FormatterLogger {
               results[i] = doByteVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, resultSizes[i]);
             } else {
               float[] target = targetReader.next();
-              results[i] = doFloatVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i]);
+              results[i] = doFloatVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i], rerank, this.topK);
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
@@ -1296,10 +1330,11 @@ public class KnnGraphTester implements FormatterLogger {
       } else {
         quantizeDesc = "no";
       }
+      String rerankDesc = rerank ? Integer.toString(rerankQuantizeBits) + " bits" : "no";
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1326,7 +1361,8 @@ public class KnnGraphTester implements FormatterLogger {
           vectorDiskSizeBytes / 1024. / 1024.,
           vectorRAMSizeBytes / 1024. / 1024.,
           Boolean.valueOf(useBp).toString(),
-          indexType.toString()
+          indexType.toString(),
+          rerankDesc
         );
     }
   }
@@ -1450,7 +1486,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static Result doFloatVectorQuery(
-    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float resultSimilarity, float decay, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize)
+    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float resultSimilarity, float decay, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize, boolean rerank, int finalTopK)
     throws IOException {
 
     Query queryTimeFilter = null;
@@ -1459,7 +1495,7 @@ public class KnnGraphTester implements FormatterLogger {
     }
 
     String knnField = getKnnField(filterStrategy);
-    
+
     if (isParentJoinQuery) {
       var topChildVectors = switch (searchType) {
         case KNN -> new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
@@ -1482,6 +1518,9 @@ public class KnnGraphTester implements FormatterLogger {
               .build();
     } else {
       query = (Query) vectorQuery;
+    }
+    if (rerank && searchType == SearchType.KNN) {
+      query = RescoreTopNQuery.createFullPrecisionRescorerQuery(query, vector, KNN_FIELD_RERANK, finalTopK);
     }
     TopDocs docs = searcher.search(query, resultSize);
     return new Result(docs, vectorQuery.totalVisitedVectorCount(), 0);
@@ -2100,7 +2139,9 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
+  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker,
+                        boolean quantize, int quantizeBits, IndexType indexType,
+                        boolean rerank, int rerankQuantizeBits) {
       KnnVectorsFormat knnVectorsFormat;
       if (quantize) {
           knnVectorsFormat = switch (quantizeBits) {
@@ -2134,9 +2175,25 @@ public class KnnGraphTester implements FormatterLogger {
       } else {
           knnVectorsFormat = new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
       }
+      final KnnVectorsFormat rerankFormat;
+      if (rerank) {
+        rerankFormat = switch (rerankQuantizeBits) {
+          case 32 -> new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
+          case 2 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
+          case 4 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
+          case 7 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
+          case 8 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
+          default -> throw new IllegalArgumentException("unsupported rerankQuantizeBits: " + rerankQuantizeBits);
+        };
+      } else {
+        rerankFormat = null;
+      }
       return new Lucene104Codec() {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+              if (field.equals(KNN_FIELD_RERANK)) {
+                return rerankFormat;
+              }
               return knnVectorsFormat;
           }
       };

@@ -399,6 +399,11 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   mean_of_stds = std.mean()
   std_of_stds = std.std()
 
+  # use global range so histogram widths are directly comparable across dims:
+  # a dim with larger sigma spans more bins visually, matching the printed sigma
+  global_min = float(samples.min())
+  global_max = float(samples.max())
+
   # per-dim histogram (loop is over dims not over samples, so it's cheap)
   dim_counts = []
   for d in range(dim):
@@ -407,7 +412,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
       counts = [0] * _NUM_SPARK_BINS
       counts[_NUM_SPARK_BINS // 2] = num_sample
     else:
-      counts = np.histogram(col, bins=_NUM_SPARK_BINS)[0].tolist()
+      counts = np.histogram(col, bins=_NUM_SPARK_BINS, range=(global_min, global_max))[0].tolist()
     dim_counts.append(counts)
 
   # assign labels per dim -- each label is (name, detail_string)

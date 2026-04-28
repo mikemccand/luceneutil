@@ -54,8 +54,6 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.hnsw.FlatVectorScorerUtil;
-import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.ByteVectorValues;
@@ -2178,7 +2176,10 @@ public class KnnGraphTester implements FormatterLogger {
       final KnnVectorsFormat rerankFormat;
       if (rerank) {
         rerankFormat = switch (rerankQuantizeBits) {
-          case 32 -> new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
+          // Lucene99FlatVectorsFormat is not SPI-registered as a KnnVectorsFormat, so we use
+          // Lucene99HnswVectorsFormat, which stores float32 vectors internally (via Lucene99FlatVectorsFormat)
+          // and is accessible for exact rescoring; the HNSW graph it builds is not used
+          case 32 -> new Lucene99HnswVectorsFormat();
           case 2 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
           case 4 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
           case 7 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);

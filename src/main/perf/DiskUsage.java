@@ -223,6 +223,7 @@ public class DiskUsage {
         switch (IndexFileNames.getExtension(file)) {
           case "dvd":
           case "dvm":
+          case "dvs":  // doc values skip files, added in lucene#15976
             stats.get(dvSuffixes.get(suffix)).dvBytes += bytes;
             break;
           case "tim":

@@ -123,6 +123,19 @@ python src/python/localrun.py -source wikimediumall -iterations 20 -warmups 20
 
 For details on all the available options, use the `-h` or `--help` parameter.
 
+## Useful `localconstants.py` overrides
+
+Any variable in `constants.py` can be overridden in `localconstants.py`. Some common ones:
+
+```python
+# Use multiple indexing threads (default: 1)
+INDEX_NUM_THREADS = 8
+
+# Use the binary line docs format for faster document parsing from input files.
+# Generate it with: python3 -u src/python/buildBinaryLineDocs.py <input.txt> <output.bin>
+WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.bin' % BASE_DIR
+```
+
 # Running the geo benchmark
 
 This one is different and self-contained. Read the command-line examples at the top of src/main/perf/IndexAndSearchOpenStreetMaps.java

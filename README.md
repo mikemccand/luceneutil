@@ -123,7 +123,7 @@ python src/python/localrun.py -source wikimediumall -iterations 20 -warmups 20
 
 For details on all the available options, use the `-h` or `--help` parameter.
 
-## Useful `localconstants.py` overrides
+### Useful `localconstants.py` overrides
 
 Any variable in `constants.py` can be overridden in `localconstants.py`. Some common ones:
 
@@ -131,9 +131,20 @@ Any variable in `constants.py` can be overridden in `localconstants.py`. Some co
 # Use multiple indexing threads (default: 1)
 INDEX_NUM_THREADS = 8
 
-# Use the binary line docs format for faster document parsing from input files.
+# Use the binary line docs format for faster document parsing.
 # Generate it with: python3 -u src/python/buildBinaryLineDocs.py <input.txt> <output.bin>
 WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.bin' % BASE_DIR
+
+# Override the Java version and commandline
+import os
+os.environ["JAVA_HOME"] = "/path/to/jdk"
+# add jfr and other JDK tools to PATH
+os.environ["PATH"] = os.environ["JAVA_HOME"] + "/bin:" + os.environ.get("PATH", "")
+java_home = os.environ["JAVA_HOME"]
+_java_bin = java_home + "/bin/"
+JAVA_EXE = f"{_java_bin}java"
+JAVAC_EXE = f"{_java_bin}javac"
+JAVA_COMMAND = "%s -server -Xms8g -Xmx8g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" % JAVA_EXE
 ```
 
 # Running the geo benchmark

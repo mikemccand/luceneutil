@@ -17,6 +17,7 @@
 
 import multiprocessing
 import os
+from pathlib import Path
 
 from localconstants import BASE_DIR
 
@@ -25,7 +26,14 @@ from localconstants import BASE_DIR
 # BASE_DIR/aaa BASE_DIR/bbb etc.
 
 if "BENCH_BASE_DIR" not in globals():
-  BENCH_BASE_DIR = "%s/util" % BASE_DIR
+  # constants.py lives at <repo_root>/src/python/constants.py, so the repo root
+  # is always two levels up -- use this to auto-detect when localconstants.py
+  # has a stale BENCH_BASE_DIR (e.g. after copying the repo to a new path).
+  _inferred_root = Path(__file__).resolve().parent.parent.parent
+  if (_inferred_root / "build.gradle").exists() and (_inferred_root / "src" / "python" / "knnPerfTest.py").exists():
+    BENCH_BASE_DIR = str(_inferred_root)
+  else:
+    BENCH_BASE_DIR = "%s/util" % BASE_DIR
 
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 # WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR

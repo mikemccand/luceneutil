@@ -1249,7 +1249,11 @@ public class KnnGraphTester implements FormatterLogger {
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
             totalVisited += results[i].visitedCount();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            int[] ids = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            if (ids.length > this.topK) {
+              ids = Arrays.copyOf(ids, this.topK);
+            }
+            resultIds[i] = ids;
           }
           log(
               "completed "

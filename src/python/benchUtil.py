@@ -1976,6 +1976,11 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
   subprocess.run(["jfr", "summary", jfrOutput], check=True)
 
   jfr_size_mb = os.path.getsize(jfrOutput) / 1024.0 / 1024.0
+  if desc is None:
+    desc = ""
+  else:
+    desc += " "
+  desc += f"{jfrOutput} is {jfr_size_mb:.2f} MB"
 
   for mode in "cpu", "heap":
     for stackSize in profilerStackSize:
@@ -1995,12 +2000,6 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       except subprocess.CalledProcessError as e:
         print(f"command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}")
         raise
-
-      if desc is None:
-        desc = ""
-      else:
-        desc += " "
-      desc += f"{jfrOutput} is {jfr_size_mb:.2f} MB"
 
       output = f"\nProfiler for {mode} at {stackSize=} [{desc}]:\n{result.stdout.decode('utf-8')}"
       print(output)

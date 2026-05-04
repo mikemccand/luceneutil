@@ -280,6 +280,7 @@ public class DiskUsage {
             break;
           case "dvd":
           case "dvm":
+          case "dvs":  // doc values skip files, added in lucene#15976
             dvsSize += size;
             break;
           case "tim":

@@ -1216,10 +1216,10 @@ public class KnnGraphTester implements FormatterLogger {
         targetReaderByte = b;
       }
 
-      int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
-      int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
+      int oversampledTopK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
+      int oversampledFanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
       switch (searchType) {
-        case KNN -> log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, topK, fanout);
+        case KNN -> log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, oversampledTopK, oversampledFanout);
         case RADIUS -> log("searching %d query vectors; resultSimilarity=%f decay=%f\n", numQueryVectors, resultSimilarity, decay);
         default -> throw new IllegalArgumentException("Unsupported search type: " + searchType);
       }
@@ -1241,16 +1241,16 @@ public class KnnGraphTester implements FormatterLogger {
           // warm up (and optionally collect HNSW traversal scores)
           if (hnswScoreHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
             // TODO: collect traversal scores for radius search too?
-            collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), topK, fanout, metric);
+            collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), oversampledTopK, oversampledFanout, metric);
           } else {
             for (int i = 0; i < numQueryVectors; i++) {
               final Result result;
               if (vectorEncoding.equals(VectorEncoding.BYTE)) {
                 byte[] target = targetReaderByte.nextBytes();
-                result = doByteVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, topK);
+                result = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, oversampledTopK);
               } else {
                 float[] target = targetReader.next();
-                result = doFloatVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, this.topK);
+                result = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, this.topK);
               }
               resultSizes[i] = Math.max(1, result.topDocs.scoreDocs.length);
             }
@@ -1262,10 +1262,10 @@ public class KnnGraphTester implements FormatterLogger {
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              results[i] = doByteVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, resultSizes[i]);
+              results[i] = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, resultSizes[i]);
             } else {
               float[] target = targetReader.next();
-              results[i] = doFloatVectorQuery(searcher, target, searchType, topK, fanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i], rerank, this.topK);
+              results[i] = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i], rerank, this.topK);
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
@@ -1281,7 +1281,11 @@ public class KnnGraphTester implements FormatterLogger {
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
             totalVisited += results[i].visitedCount();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            int[] ids = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            if (ids.length > this.topK) {
+              ids = Arrays.copyOf(ids, this.topK);
+            }
+            resultIds[i] = ids;
           }
           log(
               "completed "

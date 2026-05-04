@@ -2098,6 +2098,24 @@ def check_knn_compiled():
     print(f"\nRun:\n\n{gradle_cmd}\n")
     raise SystemExit(1)
 
+  lucene_checkout = getLuceneDirFromGradleProperties()
+  lucene_path = benchUtil.checkoutToPath(lucene_checkout)
+  lucene_gradle_cmd = f"  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileJava\n  (in {lucene_path})"
+
+  try:
+    cp_entries = benchUtil.getClassPath(lucene_checkout)
+  except RuntimeError as e:
+    print(f"\nERROR: Lucene checkout at {lucene_path} is missing built artifacts: {e}\n\nRun:\n\n{lucene_gradle_cmd}\n")
+    raise SystemExit(1) from e
+
+  for entry in cp_entries:
+    p = Path(entry)
+    if not str(p).startswith(lucene_path):
+      continue
+    if not p.exists():
+      print(f"\nERROR: Lucene classpath entry missing: {p}\n\nRun:\n\n{lucene_gradle_cmd}\n")
+      raise SystemExit(1)
+
 
 def build_java_base_cmd(checkout):
   """Build the base Java command (JVM flags + classpath) for KnnGraphTester."""

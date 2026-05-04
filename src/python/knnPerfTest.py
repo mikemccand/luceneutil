@@ -1694,6 +1694,9 @@ def run_knn_benchmark(checkout, values, log_path):
     if all_distances_scores_path is not None:
       generate_all_distances_histogram(all_distances_scores_path, log_dir_name, log_file_name, all_distances_metric, all_distances_sample_every_n)
 
+    summary_fields = summary.split("\t")
+    if len(summary_fields) != len(OUTPUT_HEADERS):
+      raise RuntimeError(f"SUMMARY has {len(summary_fields)} fields but expected {len(OUTPUT_HEADERS)}; summary line was: {summary!r}")
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1, 4, 12))
@@ -2097,6 +2100,24 @@ def check_knn_compiled():
       print(f"  {src}")
     print(f"\nRun:\n\n{gradle_cmd}\n")
     raise SystemExit(1)
+
+  lucene_checkout = getLuceneDirFromGradleProperties()
+  lucene_path = benchUtil.checkoutToPath(lucene_checkout)
+  lucene_gradle_cmd = f"  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileJava\n  (in {lucene_path})"
+
+  try:
+    cp_entries = benchUtil.getClassPath(lucene_checkout)
+  except RuntimeError as e:
+    print(f"\nERROR: Lucene checkout at {lucene_path} is missing built artifacts: {e}\n\nRun:\n\n{lucene_gradle_cmd}\n")
+    raise SystemExit(1) from e
+
+  for entry in cp_entries:
+    p = Path(entry)
+    if not str(p).startswith(lucene_path):
+      continue
+    if not p.exists():
+      print(f"\nERROR: Lucene classpath entry missing: {p}\n\nRun:\n\n{lucene_gradle_cmd}\n")
+      raise SystemExit(1)
 
 
 def build_java_base_cmd(checkout):

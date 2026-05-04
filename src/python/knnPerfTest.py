@@ -1696,9 +1696,7 @@ def run_knn_benchmark(checkout, values, log_path):
 
     summary_fields = summary.split("\t")
     if len(summary_fields) != len(OUTPUT_HEADERS):
-      raise RuntimeError(
-        f"SUMMARY has {len(summary_fields)} fields but expected {len(OUTPUT_HEADERS)}; summary line was: {summary!r}"
-      )
+      raise RuntimeError(f"SUMMARY has {len(summary_fields)} fields but expected {len(OUTPUT_HEADERS)}; summary line was: {summary!r}")
     all_results.append((summary, args))
     if DO_PROFILING:
       benchUtil.profilerOutput(constants.JAVA_EXE, jfr_output, benchUtil.checkoutToPath(checkout), 30, (1, 4, 12))
@@ -1727,7 +1725,6 @@ def run_knn_benchmark(checkout, values, log_path):
   # skip columns that have the same value for every row
   if len(all_results) > 1:
     for col in range(len(OUTPUT_HEADERS)):
-      print(f'check col {col} {OUTPUT_HEADERS[col]}')
       unique_values = set([result[0].split("\t")[col] for result in all_results])
       if len(unique_values) == 1:
         skip_headers.add(OUTPUT_HEADERS[col])

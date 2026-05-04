@@ -29,18 +29,14 @@ from localconstants import BASE_DIR
 _inferred_root = Path(__file__).resolve().parent.parent.parent
 
 if not (_inferred_root / "build.gradle").exists() or not (_inferred_root / "src" / "python" / "knnPerfTest.py").exists():
-  raise RuntimeError(
-    f"constants.py does not appear to be inside a luceneutil clone: "
-    f"sentinel files missing at {_inferred_root} (constants.py is at {Path(__file__).resolve()})"
-  )
+  raise RuntimeError(f"constants.py does not appear to be inside a luceneutil clone: sentinel files missing at {_inferred_root} (constants.py is at {Path(__file__).resolve()})")
 
 try:
   from localconstants import BENCH_BASE_DIR as _local_BENCH_BASE_DIR  # noqa: N811
+
   if Path(_local_BENCH_BASE_DIR).resolve() != _inferred_root:
     raise RuntimeError(
-      f"localconstants.py defines BENCH_BASE_DIR={_local_BENCH_BASE_DIR!r} "
-      f"but repo root inferred from constants.py location is {_inferred_root}; "
-      f"remove or correct BENCH_BASE_DIR in localconstants.py"
+      f"localconstants.py defines BENCH_BASE_DIR={_local_BENCH_BASE_DIR!r} but repo root inferred from constants.py location is {_inferred_root}; remove or correct BENCH_BASE_DIR in localconstants.py"
     )
 except ImportError:
   pass  # BENCH_BASE_DIR not set in localconstants.py -- fine, we use inferred root

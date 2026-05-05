@@ -160,7 +160,7 @@ PARAMS = {
   "forceMerge": (True,),
   "niter": (10000,),
   "rerank": (True, False),
-  "rerankQuantizeBits": (32, 8),
+  "rerankQuantizeBits": (32, 8, 4),
 }
 
 
@@ -1511,6 +1511,11 @@ def run_knn_benchmark(checkout, values, log_path):
       else:
         args += ["-" + p]
         print(f"  -{p}")
+
+    if not do_rerank and "rerankQuantizeBits" in values:
+      rerank_qb_vals = values["rerankQuantizeBits"]
+      if type(rerank_qb_vals) in (list, tuple) and rerank_quantize_bits != rerank_qb_vals[0]:
+        continue
 
     if quantize_bits == 4 and do_quantize_compress:
       args += ["-quantizeCompress"]

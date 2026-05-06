@@ -109,16 +109,30 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
       )
 
   # stage 2: hash-based duplicate detection across and within each set
-  print(f"check_vector_overlap: loading {n_query} query vectors and {n_doc} doc vectors (dim={dim}, encoding={encoding}) ...")
-  t0_sec = time.monotonic()
+  bytes_per_vec = dim * (4 if encoding == "float32" else 1)
+  doc_mb = n_doc * bytes_per_vec / 1024 / 1024
+  query_mb = n_query * bytes_per_vec / 1024 / 1024
+  print(f"check_vector_overlap: reading {n_query} query vectors ({query_mb:.0f} MB) into RAM ...")
+  t_start_sec = time.monotonic()
   if encoding == "float32":
-    doc_vecs = load_float32_vectors(doc_file, dim, n_doc, doc_start)
-    query_vecs = load_float32_vectors(query_file, dim, n_query, query_start)
+    # np.array() forces one big sequential read of the mmap into RAM,
+    # avoiding per-vector page faults which saturate high-latency filers
+    query_vecs = np.array(load_float32_vectors(query_file, dim, n_query, query_start))
   elif encoding == "byte":
-    doc_vecs = load_byte_vectors(doc_file, dim, n_doc, doc_start)
-    query_vecs = load_byte_vectors(query_file, dim, n_query, query_start)
+    query_vecs = np.array(load_byte_vectors(query_file, dim, n_query, query_start))
   else:
     raise ValueError(f"unknown encoding: {encoding}")
+  t_query_load_sec = time.monotonic() - t_start_sec
+  print(f"  loaded query in {t_query_load_sec:.1f} sec ({query_mb / t_query_load_sec:.0f} MB/s)")
+
+  print(f"check_vector_overlap: reading {n_doc} doc vectors ({doc_mb:.0f} MB) into RAM ...")
+  t0_sec = time.monotonic()
+  if encoding == "float32":
+    doc_vecs = np.array(load_float32_vectors(doc_file, dim, n_doc, doc_start))
+  else:
+    doc_vecs = np.array(load_byte_vectors(doc_file, dim, n_doc, doc_start))
+  t_doc_load_sec = time.monotonic() - t0_sec
+  print(f"  loaded doc in {t_doc_load_sec:.1f} sec ({doc_mb / t_doc_load_sec:.0f} MB/s)")
 
   arrays = {"doc": doc_vecs, "query": query_vecs}
   # hash_val -> list of (tag, global_idx, local_idx)
@@ -135,20 +149,23 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
           duplicates.append((tag, global_idx, local_idx, ex_tag, ex_global, ex_local))
     hash_dict.setdefault(h, []).append((tag, global_idx, local_idx))
 
+  print("check_vector_overlap: scanning for duplicates ...")
+  t_scan_sec = time.monotonic()
   for i in range(n_query):
     _insert_and_check("query", query_start + i, i)
-
   for i in range(n_doc):
     _insert_and_check("doc", doc_start + i, i)
 
-  elapsed_sec = time.monotonic() - t0_sec
-  print(f"check_vector_overlap: done in {elapsed_sec:.1f} sec")
+  t_scan_elapsed_sec = time.monotonic() - t_scan_sec
+  total_elapsed_sec = time.monotonic() - t_start_sec
+  print(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
 
   if duplicates:
     def _load_meta(vec_file):
       csv_path = str(vec_file).replace(".vec", ".csv")
       if not os.path.exists(csv_path):
         return None
+      csv.field_size_limit(10_000_000)
       with open(csv_path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 

@@ -18,6 +18,7 @@
 
 import argparse
 import ast
+import csv
 import itertools
 import os
 import re
@@ -122,6 +123,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   arrays = {"doc": doc_vecs, "query": query_vecs}
   # hash_val -> list of (tag, global_idx, local_idx)
   hash_dict = {}
+  # each entry: (tag_a, global_a, local_a, tag_b, global_b, local_b)
   duplicates = []
 
   def _insert_and_check(tag, global_idx, local_idx):
@@ -130,7 +132,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     if h in hash_dict:
       for (ex_tag, ex_global, ex_local) in hash_dict[h]:
         if np.array_equal(vec, arrays[ex_tag][ex_local]):
-          duplicates.append(f"  {tag}[{global_idx}] == {ex_tag}[{ex_global}]")
+          duplicates.append((tag, global_idx, local_idx, ex_tag, ex_global, ex_local))
     hash_dict.setdefault(h, []).append((tag, global_idx, local_idx))
 
   for i in range(n_query):
@@ -143,7 +145,33 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   print(f"check_vector_overlap: done in {elapsed_sec:.1f} sec")
 
   if duplicates:
-    raise ValueError(f"found {len(duplicates)} duplicate vector pair(s):\n" + "\n".join(duplicates))
+    def _load_meta(vec_file):
+      csv_path = str(vec_file).replace(".vec", ".csv")
+      if not os.path.exists(csv_path):
+        return None
+      with open(csv_path, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+    doc_meta = _load_meta(doc_file)
+    query_meta = _load_meta(query_file)
+    meta = {"doc": doc_meta, "query": query_meta}
+
+    lines = [f"found {len(duplicates)} duplicate vector pair(s):"]
+    for (tag_a, global_a, local_a, tag_b, global_b, local_b) in duplicates:
+      pair_lines = [
+        f"  {tag_a}[{global_a}] == {tag_b}[{global_b}]",
+        f"    vector: {arrays[tag_a][local_a].tolist()}",
+      ]
+      for (tag, global_idx) in ((tag_a, global_a), (tag_b, global_b)):
+        m = meta[tag]
+        if m is not None and global_idx < len(m):
+          row = m[global_idx]
+          pair_lines.extend([
+            f"    {tag}[{global_idx}] title: {row.get('title', '?')}",
+            f"    {tag}[{global_idx}] text:  {row.get('text', '?')}",
+          ])
+      lines.extend(pair_lines)
+    raise ValueError("\n".join(lines))
 
 
 def _compute_scores_batch(batch_queries, doc_vectors, metric):

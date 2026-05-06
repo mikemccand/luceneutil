@@ -92,6 +92,60 @@ def load_byte_vectors(path, dim, count, start_index=0):
   return raw.astype(np.float32)
 
 
+def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_query, dim, encoding="float32"):
+  """Raises ValueError listing ALL duplicate pairs found: doc-vs-query, doc-vs-doc, query-vs-query"""
+  # stage 1: same-file range overlap (O(1))
+  if os.path.realpath(doc_file) == os.path.realpath(query_file):
+    doc_range_end = doc_start + n_doc
+    query_range_end = query_start + n_query
+    overlap_start = max(doc_start, query_start)
+    overlap_end = min(doc_range_end, query_range_end)
+    if overlap_start < overlap_end:
+      raise ValueError(
+        f"doc and query vectors overlap in same file {doc_file}: "
+        f"doc=[{doc_start}, {doc_range_end}), query=[{query_start}, {query_range_end}), "
+        f"overlap=[{overlap_start}, {overlap_end})"
+      )
+
+  # stage 2: hash-based duplicate detection across and within each set
+  print(f"check_vector_overlap: loading {n_query} query vectors and {n_doc} doc vectors (dim={dim}, encoding={encoding}) ...")
+  t0_sec = time.monotonic()
+  if encoding == "float32":
+    doc_vecs = load_float32_vectors(doc_file, dim, n_doc, doc_start)
+    query_vecs = load_float32_vectors(query_file, dim, n_query, query_start)
+  elif encoding == "byte":
+    doc_vecs = load_byte_vectors(doc_file, dim, n_doc, doc_start)
+    query_vecs = load_byte_vectors(query_file, dim, n_query, query_start)
+  else:
+    raise ValueError(f"unknown encoding: {encoding}")
+
+  arrays = {"doc": doc_vecs, "query": query_vecs}
+  # hash_val -> list of (tag, global_idx, local_idx)
+  hash_dict = {}
+  duplicates = []
+
+  def _insert_and_check(tag, global_idx, local_idx):
+    vec = arrays[tag][local_idx]
+    h = hash(vec.tobytes())
+    if h in hash_dict:
+      for (ex_tag, ex_global, ex_local) in hash_dict[h]:
+        if np.array_equal(vec, arrays[ex_tag][ex_local]):
+          duplicates.append(f"  {tag}[{global_idx}] == {ex_tag}[{ex_global}]")
+    hash_dict.setdefault(h, []).append((tag, global_idx, local_idx))
+
+  for i in range(n_query):
+    _insert_and_check("query", query_start + i, i)
+
+  for i in range(n_doc):
+    _insert_and_check("doc", doc_start + i, i)
+
+  elapsed_sec = time.monotonic() - t0_sec
+  print(f"check_vector_overlap: done in {elapsed_sec:.1f} sec")
+
+  if duplicates:
+    raise ValueError(f"found {len(duplicates)} duplicate vector pair(s):\n" + "\n".join(duplicates))
+
+
 def _compute_scores_batch(batch_queries, doc_vectors, metric):
   """Compute similarity scores for a batch of queries against all docs."""
   if metric == "dot_product":

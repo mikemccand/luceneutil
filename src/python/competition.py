@@ -16,7 +16,9 @@
 #
 
 import glob
+import hashlib
 import os
+import platform
 import random
 import subprocess
 import time
@@ -238,8 +240,6 @@ class Index:
     if self.useCFS:
       name.append("cfs")
 
-    # TODO: adding facets to filename makes it too long and runs into limits on some machines
-    # Can we remove this from file name and record it in a different logfile.
     if self.facets is not None:
       name.append("facets")
       for arg in self.facets:
@@ -271,7 +271,17 @@ class Index:
         name.append("int8-quantized")
 
     name.append("nd%gM" % (self.numDocs / 1000000.0))
-    return ".".join(name)
+    full_name = ".".join(name)
+
+    # On macOS, truncate if the name is too long for the 255-byte filename limit.
+    # Keep a prefix and append a short hash of the full name so it remains unique.
+    if platform.system() == "Darwin":
+      max_len = 200
+      if len(full_name) > max_len:
+        name_hash = hashlib.sha256(full_name.encode()).hexdigest()[:12]
+        full_name = full_name[:max_len] + "." + name_hash
+
+    return full_name
 
 
 class Competitor:

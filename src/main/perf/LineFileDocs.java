@@ -292,11 +292,16 @@ public class LineFileDocs implements Closeable {
     }
   }
 
+  private static final char[] BASE36_DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz".toCharArray();
+
   public static String intToID(int id) {
     // Base 36, prefixed with 0s to be length 6 (= 2.2 B)
-    final String s = String.format("%6s", Integer.toString(id, Character.MAX_RADIX)).replace(' ', '0');
-    //System.out.println("fromint: " + id + " -> " + s);
-    return s;
+    char[] buf = new char[6];
+    for (int i = 5; i >= 0; i--) {
+      buf[i] = BASE36_DIGITS[id % 36];
+      id /= 36;
+    }
+    return new String(buf);
   }
 
   public static int idToInt(BytesRef id) {

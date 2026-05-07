@@ -18,6 +18,7 @@
 
 import argparse
 import ast
+import csv
 import itertools
 import os
 import re
@@ -90,6 +91,110 @@ def load_byte_vectors(path, dim, count, start_index=0):
     raise ValueError(f"requested {count} vectors starting at index {start_index}, but file only has {total_vectors} vectors")
   raw = np.memmap(path, dtype="int8", mode="r", offset=offset, shape=(count, dim))
   return raw.astype(np.float32)
+
+
+def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_query, dim, encoding="float32"):
+  """Raises ValueError listing ALL duplicate pairs found: doc-vs-query, doc-vs-doc, query-vs-query"""
+  # stage 1: same-file range overlap (O(1))
+  if os.path.realpath(doc_file) == os.path.realpath(query_file):
+    doc_range_end = doc_start + n_doc
+    query_range_end = query_start + n_query
+    overlap_start = max(doc_start, query_start)
+    overlap_end = min(doc_range_end, query_range_end)
+    if overlap_start < overlap_end:
+      raise ValueError(f"doc and query vectors overlap in same file {doc_file}: doc=[{doc_start}, {doc_range_end}), query=[{query_start}, {query_range_end}), overlap=[{overlap_start}, {overlap_end})")
+
+  # stage 2: hash-based duplicate detection
+  bytes_per_vec = dim * (4 if encoding == "float32" else 1)
+  doc_bytes = n_doc * bytes_per_vec
+  query_bytes = n_query * bytes_per_vec
+
+  def _fadvise_willneed(path, offset_bytes, length_bytes):
+    # hint to OS to async-prefetch the range into page cache; no process RAM used
+    if not hasattr(os, "posix_fadvise"):
+      return
+    with open(path, "rb") as f:
+      os.posix_fadvise(f.fileno(), offset_bytes, length_bytes, os.POSIX_FADV_WILLNEED)
+
+  print(f"check_vector_overlap: advising OS to prefetch {n_query} query vectors ({query_bytes // 1024 // 1024} MB) ...")
+  t_start_sec = time.monotonic()
+  _fadvise_willneed(query_file, query_start * bytes_per_vec, query_bytes)
+
+  print(f"check_vector_overlap: advising OS to prefetch {n_doc} doc vectors ({doc_bytes // 1024 // 1024} MB) ...")
+  _fadvise_willneed(doc_file, doc_start * bytes_per_vec, doc_bytes)
+
+  if encoding == "float32":
+    query_vecs = load_float32_vectors(query_file, dim, n_query, query_start)
+    doc_vecs = load_float32_vectors(doc_file, dim, n_doc, doc_start)
+  elif encoding == "byte":
+    query_vecs = load_byte_vectors(query_file, dim, n_query, query_start)
+    doc_vecs = load_byte_vectors(doc_file, dim, n_doc, doc_start)
+  else:
+    raise ValueError(f"unknown encoding: {encoding}")
+
+  # build hash index from query vectors
+  # hash_val -> list of (global_idx, local_idx)
+  query_hash = {}
+  for i in range(n_query):
+    h = hash(query_vecs[i].tobytes())
+    query_hash.setdefault(h, []).append((query_start + i, i))
+
+  # scan doc vectors against query hash index only (no intra-set duplicate detection)
+  # each entry: (doc_global, doc_local, query_global, query_local)
+  duplicates = []
+  print("check_vector_overlap: scanning for duplicates ...")
+  t_scan_sec = time.monotonic()
+  for i in range(n_doc):
+    vec = doc_vecs[i]
+    h = hash(vec.tobytes())
+    if h in query_hash:
+      for q_global, q_local in query_hash[h]:
+        if np.array_equal(vec, query_vecs[q_local]):
+          duplicates.append((doc_start + i, i, q_global, q_local))
+
+  t_scan_elapsed_sec = time.monotonic() - t_scan_sec
+  total_elapsed_sec = time.monotonic() - t_start_sec
+  print(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
+
+  if duplicates:
+
+    def _load_meta(vec_file, needed_indices):
+      # stream CSV, collecting only the rows we need; never loads full file into memory
+      csv_path = str(vec_file).replace(".vec", ".csv")
+      if not os.path.exists(csv_path) or not needed_indices:
+        return {}
+      csv.field_size_limit(10_000_000)
+      rows = {}
+      with open(csv_path, newline="", encoding="utf-8") as f:
+        for i, row in enumerate(csv.DictReader(f)):
+          if i in needed_indices:
+            rows[i] = row
+          if len(rows) == len(needed_indices):
+            break
+      return rows
+
+    doc_needed = {doc_global for (doc_global, _, _, _) in duplicates}
+    query_needed = {q_global for (_, _, q_global, _) in duplicates}
+    doc_meta = _load_meta(doc_file, doc_needed)
+    query_meta = _load_meta(query_file, query_needed)
+
+    lines = [f"found {len(duplicates)} duplicate vector pair(s):"]
+    for doc_global, doc_local, q_global, q_local in duplicates:
+      pair_lines = [
+        f"  doc[{doc_global}] == query[{q_global}]",
+        f"    vector: {doc_vecs[doc_local].tolist()}",
+      ]
+      for label, global_idx, meta_dict in (("doc", doc_global, doc_meta), ("query", q_global, query_meta)):
+        row = meta_dict.get(global_idx)
+        if row is not None:
+          pair_lines.extend(
+            [
+              f"    {label}[{global_idx}] title: {row.get('title', '?')}",
+              f"    {label}[{global_idx}] text:  {row.get('text', '?')}",
+            ]
+          )
+      lines.extend(pair_lines)
+    raise ValueError("\n".join(lines))
 
 
 def _compute_scores_batch(batch_queries, doc_vectors, metric):

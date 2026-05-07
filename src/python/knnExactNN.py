@@ -102,11 +102,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     overlap_start = max(doc_start, query_start)
     overlap_end = min(doc_range_end, query_range_end)
     if overlap_start < overlap_end:
-      raise ValueError(
-        f"doc and query vectors overlap in same file {doc_file}: "
-        f"doc=[{doc_start}, {doc_range_end}), query=[{query_start}, {query_range_end}), "
-        f"overlap=[{overlap_start}, {overlap_end})"
-      )
+      raise ValueError(f"doc and query vectors overlap in same file {doc_file}: doc=[{doc_start}, {doc_range_end}), query=[{query_start}, {query_range_end}), overlap=[{overlap_start}, {overlap_end})")
 
   # stage 2: hash-based duplicate detection
   bytes_per_vec = dim * (4 if encoding == "float32" else 1)
@@ -152,7 +148,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     vec = doc_vecs[i]
     h = hash(vec.tobytes())
     if h in query_hash:
-      for (q_global, q_local) in query_hash[h]:
+      for q_global, q_local in query_hash[h]:
         if np.array_equal(vec, query_vecs[q_local]):
           duplicates.append((doc_start + i, i, q_global, q_local))
 
@@ -161,6 +157,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   print(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
 
   if duplicates:
+
     def _load_meta(vec_file, needed_indices):
       # stream CSV, collecting only the rows we need; never loads full file into memory
       csv_path = str(vec_file).replace(".vec", ".csv")
@@ -182,18 +179,20 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     query_meta = _load_meta(query_file, query_needed)
 
     lines = [f"found {len(duplicates)} duplicate vector pair(s):"]
-    for (doc_global, doc_local, q_global, q_local) in duplicates:
+    for doc_global, doc_local, q_global, q_local in duplicates:
       pair_lines = [
         f"  doc[{doc_global}] == query[{q_global}]",
         f"    vector: {doc_vecs[doc_local].tolist()}",
       ]
-      for (label, global_idx, meta_dict) in (("doc", doc_global, doc_meta), ("query", q_global, query_meta)):
+      for label, global_idx, meta_dict in (("doc", doc_global, doc_meta), ("query", q_global, query_meta)):
         row = meta_dict.get(global_idx)
         if row is not None:
-          pair_lines.extend([
-            f"    {label}[{global_idx}] title: {row.get('title', '?')}",
-            f"    {label}[{global_idx}] text:  {row.get('text', '?')}",
-          ])
+          pair_lines.extend(
+            [
+              f"    {label}[{global_idx}] title: {row.get('title', '?')}",
+              f"    {label}[{global_idx}] text:  {row.get('text', '?')}",
+            ]
+          )
       lines.extend(pair_lines)
     raise ValueError("\n".join(lines))
 

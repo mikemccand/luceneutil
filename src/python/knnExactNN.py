@@ -161,17 +161,27 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   print(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
 
   if duplicates:
-    def _load_meta(vec_file):
+    def _load_meta(vec_file, needed_indices):
+      # stream CSV, collecting only the rows we need; never loads full file into memory
       csv_path = str(vec_file).replace(".vec", ".csv")
-      if not os.path.exists(csv_path):
-        return None
+      if not os.path.exists(csv_path) or not needed_indices:
+        return {}
       csv.field_size_limit(10_000_000)
+      rows = {}
       with open(csv_path, newline="", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
+        for i, row in enumerate(csv.DictReader(f)):
+          if i in needed_indices:
+            rows[i] = row
+          if len(rows) == len(needed_indices):
+            break
+      return rows
 
-    doc_meta = _load_meta(doc_file)
-    query_meta = _load_meta(query_file)
-    meta = {"doc": doc_meta, "query": query_meta}
+    doc_needed = {g for (ta, ga, _, tb, gb, _) in duplicates for (t, g) in ((ta, ga), (tb, gb)) if t == "doc"}
+    query_needed = {g for (ta, ga, _, tb, gb, _) in duplicates for (t, g) in ((ta, ga), (tb, gb)) if t == "query"}
+    meta = {
+      "doc": _load_meta(doc_file, doc_needed),
+      "query": _load_meta(query_file, query_needed),
+    }
 
     lines = [f"found {len(duplicates)} duplicate vector pair(s):"]
     for (tag_a, global_a, local_a, tag_b, global_b, local_b) in duplicates:
@@ -180,9 +190,8 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
         f"    vector: {arrays[tag_a][local_a].tolist()}",
       ]
       for (tag, global_idx) in ((tag_a, global_a), (tag_b, global_b)):
-        m = meta[tag]
-        if m is not None and global_idx < len(m):
-          row = m[global_idx]
+        row = meta[tag].get(global_idx)
+        if row is not None:
           pair_lines.extend([
             f"    {tag}[{global_idx}] title: {row.get('title', '?')}",
             f"    {tag}[{global_idx}] text:  {row.get('text', '?')}",

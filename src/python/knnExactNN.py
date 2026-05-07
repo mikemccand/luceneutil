@@ -134,27 +134,25 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   t_doc_load_sec = time.monotonic() - t0_sec
   print(f"  loaded doc in {t_doc_load_sec:.1f} sec ({doc_mb / t_doc_load_sec:.0f} MB/s)")
 
-  arrays = {"doc": doc_vecs, "query": query_vecs}
-  # hash_val -> list of (tag, global_idx, local_idx)
-  hash_dict = {}
-  # each entry: (tag_a, global_a, local_a, tag_b, global_b, local_b)
+  # build hash index from query vectors
+  # hash_val -> list of (global_idx, local_idx)
+  query_hash = {}
+  for i in range(n_query):
+    h = hash(query_vecs[i].tobytes())
+    query_hash.setdefault(h, []).append((query_start + i, i))
+
+  # scan doc vectors against query hash index only (no intra-set duplicate detection)
+  # each entry: (doc_global, doc_local, query_global, query_local)
   duplicates = []
-
-  def _insert_and_check(tag, global_idx, local_idx):
-    vec = arrays[tag][local_idx]
-    h = hash(vec.tobytes())
-    if h in hash_dict:
-      for (ex_tag, ex_global, ex_local) in hash_dict[h]:
-        if np.array_equal(vec, arrays[ex_tag][ex_local]):
-          duplicates.append((tag, global_idx, local_idx, ex_tag, ex_global, ex_local))
-    hash_dict.setdefault(h, []).append((tag, global_idx, local_idx))
-
   print("check_vector_overlap: scanning for duplicates ...")
   t_scan_sec = time.monotonic()
-  for i in range(n_query):
-    _insert_and_check("query", query_start + i, i)
   for i in range(n_doc):
-    _insert_and_check("doc", doc_start + i, i)
+    vec = doc_vecs[i]
+    h = hash(vec.tobytes())
+    if h in query_hash:
+      for (q_global, q_local) in query_hash[h]:
+        if np.array_equal(vec, query_vecs[q_local]):
+          duplicates.append((doc_start + i, i, q_global, q_local))
 
   t_scan_elapsed_sec = time.monotonic() - t_scan_sec
   total_elapsed_sec = time.monotonic() - t_start_sec
@@ -176,25 +174,23 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
             break
       return rows
 
-    doc_needed = {g for (ta, ga, _, tb, gb, _) in duplicates for (t, g) in ((ta, ga), (tb, gb)) if t == "doc"}
-    query_needed = {g for (ta, ga, _, tb, gb, _) in duplicates for (t, g) in ((ta, ga), (tb, gb)) if t == "query"}
-    meta = {
-      "doc": _load_meta(doc_file, doc_needed),
-      "query": _load_meta(query_file, query_needed),
-    }
+    doc_needed = {doc_global for (doc_global, _, _, _) in duplicates}
+    query_needed = {q_global for (_, _, q_global, _) in duplicates}
+    doc_meta = _load_meta(doc_file, doc_needed)
+    query_meta = _load_meta(query_file, query_needed)
 
     lines = [f"found {len(duplicates)} duplicate vector pair(s):"]
-    for (tag_a, global_a, local_a, tag_b, global_b, local_b) in duplicates:
+    for (doc_global, doc_local, q_global, q_local) in duplicates:
       pair_lines = [
-        f"  {tag_a}[{global_a}] == {tag_b}[{global_b}]",
-        f"    vector: {arrays[tag_a][local_a].tolist()}",
+        f"  doc[{doc_global}] == query[{q_global}]",
+        f"    vector: {doc_vecs[doc_local].tolist()}",
       ]
-      for (tag, global_idx) in ((tag_a, global_a), (tag_b, global_b)):
-        row = meta[tag].get(global_idx)
+      for (label, global_idx, meta_dict) in (("doc", doc_global, doc_meta), ("query", q_global, query_meta)):
+        row = meta_dict.get(global_idx)
         if row is not None:
           pair_lines.extend([
-            f"    {tag}[{global_idx}] title: {row.get('title', '?')}",
-            f"    {tag}[{global_idx}] text:  {row.get('text', '?')}",
+            f"    {label}[{global_idx}] title: {row.get('title', '?')}",
+            f"    {label}[{global_idx}] text:  {row.get('text', '?')}",
           ])
       lines.extend(pair_lines)
     raise ValueError("\n".join(lines))

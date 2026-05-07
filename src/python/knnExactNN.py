@@ -108,31 +108,33 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
         f"overlap=[{overlap_start}, {overlap_end})"
       )
 
-  # stage 2: hash-based duplicate detection across and within each set
+  # stage 2: hash-based duplicate detection
   bytes_per_vec = dim * (4 if encoding == "float32" else 1)
-  doc_mb = n_doc * bytes_per_vec / 1024 / 1024
-  query_mb = n_query * bytes_per_vec / 1024 / 1024
-  print(f"check_vector_overlap: reading {n_query} query vectors ({query_mb:.0f} MB) into RAM ...")
+  doc_bytes = n_doc * bytes_per_vec
+  query_bytes = n_query * bytes_per_vec
+
+  def _fadvise_willneed(path, offset_bytes, length_bytes):
+    # hint to OS to async-prefetch the range into page cache; no process RAM used
+    if not hasattr(os, "posix_fadvise"):
+      return
+    with open(path, "rb") as f:
+      os.posix_fadvise(f.fileno(), offset_bytes, length_bytes, os.POSIX_FADV_WILLNEED)
+
+  print(f"check_vector_overlap: advising OS to prefetch {n_query} query vectors ({query_bytes // 1024 // 1024} MB) ...")
   t_start_sec = time.monotonic()
+  _fadvise_willneed(query_file, query_start * bytes_per_vec, query_bytes)
+
+  print(f"check_vector_overlap: advising OS to prefetch {n_doc} doc vectors ({doc_bytes // 1024 // 1024} MB) ...")
+  _fadvise_willneed(doc_file, doc_start * bytes_per_vec, doc_bytes)
+
   if encoding == "float32":
-    # np.array() forces one big sequential read of the mmap into RAM,
-    # avoiding per-vector page faults which saturate high-latency filers
-    query_vecs = np.array(load_float32_vectors(query_file, dim, n_query, query_start))
+    query_vecs = load_float32_vectors(query_file, dim, n_query, query_start)
+    doc_vecs = load_float32_vectors(doc_file, dim, n_doc, doc_start)
   elif encoding == "byte":
-    query_vecs = np.array(load_byte_vectors(query_file, dim, n_query, query_start))
+    query_vecs = load_byte_vectors(query_file, dim, n_query, query_start)
+    doc_vecs = load_byte_vectors(doc_file, dim, n_doc, doc_start)
   else:
     raise ValueError(f"unknown encoding: {encoding}")
-  t_query_load_sec = time.monotonic() - t_start_sec
-  print(f"  loaded query in {t_query_load_sec:.1f} sec ({query_mb / t_query_load_sec:.0f} MB/s)")
-
-  print(f"check_vector_overlap: reading {n_doc} doc vectors ({doc_mb:.0f} MB) into RAM ...")
-  t0_sec = time.monotonic()
-  if encoding == "float32":
-    doc_vecs = np.array(load_float32_vectors(doc_file, dim, n_doc, doc_start))
-  else:
-    doc_vecs = np.array(load_byte_vectors(doc_file, dim, n_doc, doc_start))
-  t_doc_load_sec = time.monotonic() - t0_sec
-  print(f"  loaded doc in {t_doc_load_sec:.1f} sec ({doc_mb / t_doc_load_sec:.0f} MB/s)")
 
   # build hash index from query vectors
   # hash_val -> list of (global_idx, local_idx)

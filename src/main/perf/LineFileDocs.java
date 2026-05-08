@@ -301,6 +301,7 @@ public class LineFileDocs implements Closeable {
       buf[i] = BASE36_DIGITS[id % 36];
       id /= 36;
     }
+    assert id == 0;
     return new String(buf);
   }
 

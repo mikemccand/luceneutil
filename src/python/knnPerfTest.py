@@ -154,7 +154,11 @@ PARAMS = {
   "encoding": ("float32",),
   "metric": ("dot_product",),
   "quantizeBits": (1, 2, 4),
-  "overSample": (1, 2, 5,),
+  "overSample": (
+    1,
+    2,
+    5,
+  ),
   "topK": (100,),
   "quantizeCompress": (True,),
   "forceMerge": (True,),

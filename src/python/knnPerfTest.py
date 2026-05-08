@@ -227,6 +227,21 @@ OUTPUT_HEADERS = [
 ]
 # TODO:  "bp",
 
+# output metrics (right-hand side of table); everything else is a hyperparameter
+_METRIC_HEADERS = {"recall", "latency(ms)", "netCPU", "avgCpuCount"}
+
+_ANSI_GREEN = "\033[32m"
+_ANSI_YELLOW = "\033[33m"
+_ANSI_RED = "\033[31m"
+_ANSI_RESET = "\033[0m"
+
+
+def _try_float(s):
+  try:
+    return float(s)
+  except (ValueError, TypeError):
+    return None
+
 
 def advance(ix, values):
   for i in reversed(range(len(ix))):
@@ -1799,32 +1814,103 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
 
 
 def print_fixed_width(all_results, columns_to_skip):
-  header = "\t".join(OUTPUT_HEADERS)
-
-  # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
-  headers = header.split("\t")
+  headers = OUTPUT_HEADERS
   num_columns = len(headers)
-  # print(f'{num_columns} columns')
-  max_by_col = [0] * num_columns
-
-  rows_to_print = [header] + [result[0] for result in all_results]
-
   skip_column_index = {headers.index(h) for h in columns_to_skip}
 
-  for row in rows_to_print:
-    by_column = row.split("\t")
-    if len(by_column) != num_columns:
-      raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)} in row "{row}"')
-    for i, s in enumerate(by_column):
+  data_rows = [result[0].split("\t") for result in all_results]
+
+  for row in data_rows:
+    if len(row) != num_columns:
+      raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(row)} in row "{chr(9).join(row)}"')
+
+  # active columns (not skipped), split into hyperparams (inputs) and metrics (outputs)
+  active_cols = [i for i in range(num_columns) if i not in skip_column_index]
+  metric_col_indices = {i for i, h in enumerate(headers) if h in _METRIC_HEADERS}
+  hyperparam_cols = [c for c in active_cols if c not in metric_col_indices]
+  metric_cols = [c for c in active_cols if c in metric_col_indices]
+
+  # sort hyperparam columns by transition count: fewest transitions = slowest-changing = leftmost (odometer MSB)
+  def count_transitions(col):
+    if len(data_rows) <= 1:
+      return 0
+    return sum(1 for r in range(1, len(data_rows)) if data_rows[r][col] != data_rows[r - 1][col])
+
+  hyperparam_cols.sort(key=count_transitions)
+
+  # sort rows by hyperparam column values in that odometer order; numeric comparison where possible
+  def row_sort_key(row):
+    key = []
+    for col in hyperparam_cols:
+      f = _try_float(row[col])
+      key.append((0, f) if f is not None else (1, row[col]))
+    return key
+
+  data_rows_sorted = sorted(data_rows, key=row_sort_key)
+
+  # final column order: hyperparams (odometer) then metrics
+  ordered_cols = hyperparam_cols + metric_cols
+
+  # compute max column widths (plain text, no ANSI codes)
+  all_rows = [headers] + data_rows_sorted
+  max_by_col = [0] * num_columns
+  for row in all_rows:
+    for i, s in enumerate(row):
       max_by_col[i] = max(max_by_col[i], len(s))
 
-  row_fmt = "  ".join([f"%{max_by_col[i]}s" for i in range(num_columns) if i not in skip_column_index])
-  # print(f'using row format {row_fmt}')
+  # ANSI color setup (only when writing to a terminal)
+  use_color = sys.stdout.isatty()
 
-  for row in rows_to_print:
-    cols = row.split("\t")
-    cols = tuple(cols[x] for x in range(len(cols)) if x not in skip_column_index)
-    print(row_fmt % cols)
+  recall_col = headers.index("recall") if "recall" in headers else None
+  latency_col = headers.index("latency(ms)") if "latency(ms)" in headers else None
+
+  lat_floats = []
+  if latency_col is not None and latency_col not in skip_column_index:
+    for row in data_rows_sorted:
+      f = _try_float(row[latency_col])
+      if f is not None:
+        lat_floats.append(f)
+  min_lat_ms = min(lat_floats) if lat_floats else None
+  max_lat_ms = max(lat_floats) if lat_floats else None
+
+  def colorize(col_idx, val_str):
+    if not use_color:
+      return val_str
+    code = None
+    if col_idx == recall_col:
+      f = _try_float(val_str)
+      if f is not None:
+        if f >= 0.99:
+          code = _ANSI_GREEN
+        elif f >= 0.9:
+          code = _ANSI_YELLOW
+        else:
+          code = _ANSI_RED
+    elif col_idx == latency_col and min_lat_ms is not None and max_lat_ms != min_lat_ms:
+      f = _try_float(val_str)
+      if f is not None:
+        t = (f - min_lat_ms) / (max_lat_ms - min_lat_ms)
+        if t <= 0.33:
+          code = _ANSI_GREEN
+        elif t <= 0.67:
+          code = _ANSI_YELLOW
+        else:
+          code = _ANSI_RED
+    if code is not None:
+      return f"{code}{val_str}{_ANSI_RESET}"
+    return val_str
+
+  for row_idx, row in enumerate(all_rows):
+    is_header = row_idx == 0
+    parts = []
+    for col in ordered_cols:
+      w = max_by_col[col]
+      val = row[col]
+      # pad first (plain), then wrap value in color so ANSI codes don't affect alignment
+      padding = w - len(val)
+      cell = " " * padding + (val if is_header else colorize(col, val))
+      parts.append(cell)
+    print("  ".join(parts))
 
 
 def arglist_to_argmap(arglist):

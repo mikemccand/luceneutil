@@ -1859,7 +1859,7 @@ def print_fixed_width(all_results, columns_to_skip):
       max_by_col[i] = max(max_by_col[i], len(s))
 
   # ANSI color setup (only when writing to a terminal)
-  use_color = sys.stdout.isatty()
+  use_color = getattr(sys.stdout, "isatty", lambda: False)()
 
   recall_col = headers.index("recall") if "recall" in headers else None
   latency_col = headers.index("latency(ms)") if "latency(ms)" in headers else None

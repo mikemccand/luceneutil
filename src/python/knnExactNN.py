@@ -93,8 +93,7 @@ def load_byte_vectors(path, dim, count, start_index=0):
   return raw.astype(np.float32)
 
 
-def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_query, dim, encoding="float32",
-                         check_doc_doc=False, check_query_query=False):
+def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_query, dim, encoding="float32", check_doc_doc=False, check_query_query=False):
   """Raises ValueError listing ALL duplicate pairs found.
 
   Always checks doc-vs-query (catches accidental test-on-train).
@@ -151,7 +150,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   violations = [
     (key, g["doc"], g["query"])
     for key, g in groups.items()
-    if (g["doc"] and g["query"])                        # always: doc-vs-query
+    if (g["doc"] and g["query"])  # always: doc-vs-query
     or (check_doc_doc and len(g["doc"]) > 1)
     or (check_query_query and len(g["query"]) > 1)
   ]

@@ -1496,8 +1496,9 @@ def run_knn_benchmark(checkout, values, log_path):
   n_query_check = max(values.get("niter", (1000,)))
   query_start_check = min(values.get("queryStartIndex", (0,)))
   encoding_check = values.get("encoding", ("float32",))[0]
-  knnExactNN.check_vector_overlap(doc_vectors, 0, n_doc_check, query_vectors, query_start_check, n_query_check, dim, encoding_check,
-                                   check_doc_doc=CHECK_DOC_DOC_DUPLICATES, check_query_query=CHECK_QUERY_QUERY_DUPLICATES)
+  knnExactNN.check_vector_overlap(
+    doc_vectors, 0, n_doc_check, query_vectors, query_start_check, n_query_check, dim, encoding_check, check_doc_doc=CHECK_DOC_DOC_DUPLICATES, check_query_query=CHECK_QUERY_QUERY_DUPLICATES
+  )
 
   # precompute exact nearest neighbors using numpy (much faster than Java brute force)
   if USE_NUMPY_EXACT_NN:

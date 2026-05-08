@@ -183,7 +183,7 @@ def parse_graph_stats(output_text):
   return {"num_layers": num_layers, "layers": sorted_layers}
 
 
-def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vectors, work_dir, shuffle, canonical_bin, canonical_scores, base_doc_vectors, ndoc, top_k, niter, base_seed):
+def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vectors, work_dir, shuffle, canonical_bin, canonical_scores, base_doc_vectors, ndoc, top_k, nquery, base_seed):
   """Worker function for a single iteration. Called from main or pool."""
   run_dir = Path(work_dir) / f"run_{iteration:04d}"
   os.makedirs(run_dir, exist_ok=True)
@@ -200,13 +200,13 @@ def run_one_iteration(iteration, checkout, params, dim, doc_vectors, query_vecto
     perm = shuffle_vectors_to_file(base_doc_vectors, run_docs, ndoc, dim, seed)
 
     # seed exact-NN cache with remapped doc IDs
-    seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, perm, niter, top_k)
+    seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, perm, nquery, top_k)
     actual_doc_vectors = run_docs
   else:
     # iteration 0, or no shuffle: use the base (unshuffled) doc vectors
     if iteration > 0:
       # no shuffle but still need exact-NN cache to avoid recomputation
-      seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, None, niter, top_k)
+      seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, None, nquery, top_k)
     actual_doc_vectors = base_doc_vectors
     (run_dir / "seed.txt").write_text("none")
 
@@ -415,7 +415,7 @@ def generate_variance_html(all_results, output_path, config):
   charts_js = ",\n".join(charts_js_array)
 
   config_summary = (
-    f"iterations={config.get('iterations', '?')}, ndoc={config.get('ndoc', '?')}, niter={config.get('niter', '?')}, shuffle={config.get('shuffle_docs', False)}, seed={config.get('base_seed', '?')}"
+    f"iterations={config.get('iterations', '?')}, ndoc={config.get('ndoc', '?')}, nquery={config.get('nquery', '?')}, shuffle={config.get('shuffle_docs', False)}, seed={config.get('base_seed', '?')}"
   )
 
   html = f"""<!DOCTYPE html>
@@ -625,7 +625,7 @@ def main():
   parser.add_argument("--iterations", type=int, required=True, help="total number of runs")
   parser.add_argument("--concurrency", type=int, default=1, help="max parallel subprocesses (default: 1)")
   parser.add_argument("--ndoc", type=int, default=400_000, help="number of doc vectors to index (default: 400000)")
-  parser.add_argument("--niter", type=int, default=10_000, help="number of query vectors to search (default: 10000)")
+  parser.add_argument("--nquery", type=int, default=10_000, help="number of query vectors to search (default: 10000)")
   parser.add_argument("--dim", type=int, default=1024, help="vector dimensionality (default: 1024)")
   parser.add_argument("--doc-vectors", type=str, default="/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec", help="path to source doc vectors file")
   parser.add_argument("--query-vectors", type=str, default="/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec", help="path to source query vectors file")
@@ -673,7 +673,7 @@ def main():
     "numMergeThread": args.num_merge_thread,
     "numSearchThread": args.num_search_thread,
     "topK": args.top_k,
-    "niter": args.niter,
+    "nquery": args.nquery,
   }
   if args.force_merge:
     params["forceMerge"] = True
@@ -689,7 +689,7 @@ def main():
     "iterations": args.iterations,
     "concurrency": args.concurrency,
     "ndoc": args.ndoc,
-    "niter": args.niter,
+    "nquery": args.nquery,
     "dim": args.dim,
     "doc_vectors_source": args.doc_vectors,
     "query_vectors_source": args.query_vectors,
@@ -708,7 +708,7 @@ def main():
   query_vectors = Path(args.output_dir) / "queries.vec"
 
   extract_vectors(args.doc_vectors, args.ndoc, args.dim, base_doc_vectors)
-  extract_vectors(args.query_vectors, args.niter, args.dim, query_vectors)
+  extract_vectors(args.query_vectors, args.nquery, args.dim, query_vectors)
 
   # step 2: run canonical iteration 0 (unshuffled) to compute exact-NN
   print("\n" + "=" * 80)
@@ -729,7 +729,7 @@ def main():
     base_doc_vectors=base_doc_vectors,
     ndoc=args.ndoc,
     top_k=args.top_k,
-    niter=args.niter,
+    nquery=args.nquery,
     base_seed=args.base_seed,
   )
 
@@ -765,7 +765,7 @@ def main():
         base_doc_vectors=base_doc_vectors,
         ndoc=args.ndoc,
         top_k=args.top_k,
-        niter=args.niter,
+        nquery=args.nquery,
         base_seed=args.base_seed,
       )
       all_results.append(result)
@@ -785,11 +785,11 @@ def main():
         (run_dir / "seed.txt").write_text(str(seed))
         run_docs = run_dir / "docs.vec"
         perm = shuffle_vectors_to_file(base_doc_vectors, run_docs, args.ndoc, args.dim, seed)
-        seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, perm, args.niter, args.top_k)
+        seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, perm, args.nquery, args.top_k)
         actual_doc_vectors = run_docs
       else:
         (run_dir / "seed.txt").write_text("none")
-        seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, None, args.niter, args.top_k)
+        seed_exact_nn_cache(canonical_bin, canonical_scores, run_dir, None, args.nquery, args.top_k)
         actual_doc_vectors = base_doc_vectors
 
       run_configs.append((i, actual_doc_vectors))

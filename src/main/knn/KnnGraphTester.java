@@ -399,9 +399,9 @@ public class KnnGraphTester implements FormatterLogger {
           numDocs = Integer.parseInt(args[++iarg]);
           log("numDocs = %d\n", numDocs);
           break;
-        case "-niter":
+        case "-nquery":
           if (iarg == args.length - 1) {
-            throw new IllegalArgumentException("-niter requires a following number");
+            throw new IllegalArgumentException("-nquery requires a following number");
           }
           numQueryVectors = Integer.parseInt(args[++iarg]);
           log("numQueryVectors = %d\n", numQueryVectors);
@@ -2206,7 +2206,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   private static void usage() {
     String error =
-        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-niter N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
+        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-nquery N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
     System.err.println(error);
     System.exit(1);
   }

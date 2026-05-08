@@ -476,18 +476,18 @@ def run_from_knn_perf_test(perf_test_path):
 
   # extract the parameters that affect exact NN computation
   # each param is a tuple of values to iterate over
-  ndocs = params.get("ndoc", (1000,))
-  niters = params.get("niter", (1000,))
+  ndoc = params.get("ndoc", (1000,))
+  nquery = params.get("nquery", (1000,))
   metrics = params.get("metric", ("dot_product",))
   top_ks = params.get("topK", (100,))
   query_start_indices = params.get("queryStartIndex", (0,))
   encodings = params.get("encoding", ("float32",))
 
   # if any param is not a tuple/list, wrap it
-  if not isinstance(ndocs, (tuple, list)):
-    ndocs = (ndocs,)
-  if not isinstance(niters, (tuple, list)):
-    niters = (niters,)
+  if not isinstance(ndoc, (tuple, list)):
+    ndoc = (ndoc,)
+  if not isinstance(nquery, (tuple, list)):
+    nquery = (nquery,)
   if not isinstance(metrics, (tuple, list)):
     metrics = (metrics,)
   if not isinstance(top_ks, (tuple, list)):
@@ -497,18 +497,18 @@ def run_from_knn_perf_test(perf_test_path):
   if not isinstance(encodings, (tuple, list)):
     encodings = (encodings,)
 
-  print(f"    ndoc={ndocs}")
-  print(f"    niter={niters}")
+  print(f"    ndoc={ndoc}")
+  print(f"    nquery={nquery}")
   print(f"    metric={metrics}")
   print(f"    topK={top_ks}")
   print(f"    queryStartIndex={query_start_indices}")
   print(f"    encoding={encodings}")
 
-  combos = list(itertools.product(ndocs, niters, metrics, top_ks, query_start_indices, encodings))
+  combos = list(itertools.product(ndoc, nquery, metrics, top_ks, query_start_indices, encodings))
   print(f"\n{len(combos)} parameter combination(s) to precompute:")
 
-  for ndoc, niter, metric, top_k, query_start_index, encoding in combos:
-    run_one(doc_vectors, query_vectors, dim, ndoc, niter, metric, top_k, query_start_index, encoding)
+  for ndoc, nquery, metric, top_k, query_start_index, encoding in combos:
+    run_one(doc_vectors, query_vectors, dim, ndoc, nquery, metric, top_k, query_start_index, encoding)
 
   print("\ndone.")
 

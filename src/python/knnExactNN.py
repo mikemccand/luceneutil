@@ -93,8 +93,13 @@ def load_byte_vectors(path, dim, count, start_index=0):
   return raw.astype(np.float32)
 
 
-def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_query, dim, encoding="float32"):
-  """Raises ValueError listing ALL duplicate pairs found: doc-vs-query, doc-vs-doc, query-vs-query"""
+def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_query, dim, encoding="float32",
+                         check_doc_doc=False, check_query_query=False):
+  """Raises ValueError listing ALL duplicate pairs found.
+
+  Always checks doc-vs-query (catches accidental test-on-train).
+  Optionally checks doc-vs-doc and query-vs-query when the respective flag is True.
+  """
   # stage 1: same-file range overlap (O(1))
   if os.path.realpath(doc_file) == os.path.realpath(query_file):
     doc_range_end = doc_start + n_doc
@@ -132,31 +137,30 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   else:
     raise ValueError(f"unknown encoding: {encoding}")
 
-  # build hash index from query vectors
-  # hash_val -> list of (global_idx, local_idx)
-  query_hash = {}
-  for i in range(n_query):
-    h = hash(query_vecs[i].tobytes())
-    query_hash.setdefault(h, []).append((query_start + i, i))
-
-  # scan doc vectors against query hash index only (no intra-set duplicate detection)
-  # each entry: (doc_global, doc_local, query_global, query_local)
-  duplicates = []
   print("check_vector_overlap: scanning for duplicates ...")
   t_scan_sec = time.monotonic()
-  for i in range(n_doc):
-    vec = doc_vecs[i]
-    h = hash(vec.tobytes())
-    if h in query_hash:
-      for q_global, q_local in query_hash[h]:
-        if np.array_equal(vec, query_vecs[q_local]):
-          duplicates.append((doc_start + i, i, q_global, q_local))
+
+  # Group by exact vector value: vec_bytes -> {"doc": [global_idx, ...], "query": [global_idx, ...]}
+  groups = {}
+  for label, vecs, global_start in (("doc", doc_vecs, doc_start), ("query", query_vecs, query_start)):
+    for i in range(len(vecs)):
+      key = vecs[i].tobytes()
+      groups.setdefault(key, {"doc": [], "query": []})[label].append(global_start + i)
+
+  # A group is a violation if any enabled check fires
+  violations = [
+    (key, g["doc"], g["query"])
+    for key, g in groups.items()
+    if (g["doc"] and g["query"])                        # always: doc-vs-query
+    or (check_doc_doc and len(g["doc"]) > 1)
+    or (check_query_query and len(g["query"]) > 1)
+  ]
 
   t_scan_elapsed_sec = time.monotonic() - t_scan_sec
   total_elapsed_sec = time.monotonic() - t_start_sec
   print(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
 
-  if duplicates:
+  if violations:
 
     def _load_meta(vec_file, needed_indices):
       # stream CSV, collecting only the rows we need; never loads full file into memory
@@ -173,27 +177,38 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
             break
       return rows
 
-    doc_needed = {doc_global for (doc_global, _, _, _) in duplicates}
-    query_needed = {q_global for (_, _, q_global, _) in duplicates}
+    SHOW_PER_LABEL = 3  # max indices to show per label per unique vector
+
+    doc_needed = set()
+    query_needed = set()
+    for _, doc_idxs, qry_idxs in violations:
+      doc_needed.update(doc_idxs[:SHOW_PER_LABEL])
+      query_needed.update(qry_idxs[:SHOW_PER_LABEL])
     doc_meta = _load_meta(doc_file, doc_needed)
     query_meta = _load_meta(query_file, query_needed)
 
-    lines = [f"found {len(duplicates)} duplicate vector pair(s):"]
-    for doc_global, doc_local, q_global, q_local in duplicates:
-      pair_lines = [
-        f"  doc[{doc_global}] == query[{q_global}]",
-        f"    vector: {doc_vecs[doc_local].tolist()}",
-      ]
-      for label, global_idx, meta_dict in (("doc", doc_global, doc_meta), ("query", q_global, query_meta)):
-        row = meta_dict.get(global_idx)
+    def _show_indices(label, idxs, meta):
+      shown = idxs[:SHOW_PER_LABEL]
+      tail = f" (and {len(idxs) - SHOW_PER_LABEL} more)" if len(idxs) > SHOW_PER_LABEL else ""
+      lines = [f"    {label}s: {shown}{tail}"]
+      for g in shown:
+        row = meta.get(g)
         if row is not None:
-          pair_lines.extend(
-            [
-              f"    {label}[{global_idx}] title: {row.get('title', '?')}",
-              f"    {label}[{global_idx}] text:  {row.get('text', '?')}",
-            ]
-          )
-      lines.extend(pair_lines)
+          lines += [f"      {label}[{g}] title: {row.get('title', '?')}", f"      {label}[{g}] text:  {row.get('text', '?')}"]
+      return lines
+
+    # representative vector for each group (all equal, so use first doc or first query)
+    def _rep_vec(key):
+      b = np.frombuffer(key, dtype=np.float32 if encoding == "float32" else np.int8)
+      return b.tolist()
+
+    lines = [f"found {len(violations)} unique duplicate vector(s):"]
+    for key, doc_idxs, qry_idxs in violations:
+      lines.append(f"  vector: {_rep_vec(key)}")
+      if doc_idxs:
+        lines += _show_indices("doc", doc_idxs, doc_meta)
+      if qry_idxs:
+        lines += _show_indices("query", qry_idxs, query_meta)
     raise ValueError("\n".join(lines))
 
 

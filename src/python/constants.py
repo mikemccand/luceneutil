@@ -137,7 +137,7 @@ else:
 def check_java_home():
   """Raise ValueError if the configured java/javac binaries are missing or not executable."""
   for exe in (JAVA_EXE, JAVAC_EXE):
-    if not shutil.which(exe):
+    if not shutil.which(exe.split()[0]):
       hint = (
         f"  JAVA_EXE={JAVA_EXE!r}\n"
         f"  JAVAC_EXE={JAVAC_EXE!r}\n"

@@ -1806,7 +1806,10 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
     # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
     # print(f"cd {vmstat_dir_name=}")
     os.chdir(dir_name)
-    subprocess.check_call(f"{GNUPLOT_PATH} -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
+    try:
+      subprocess.check_call(f"{GNUPLOT_PATH} -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
+    except subprocess.CalledProcessError as e:
+      print(f"WARNING: gnuplot failed to generate vmstat charts (run may have been too short?): {e}")
   finally:
     os.chdir(cwd)
 

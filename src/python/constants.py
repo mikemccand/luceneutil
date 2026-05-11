@@ -17,6 +17,7 @@
 
 import multiprocessing
 import os
+import shlex
 import shutil
 from pathlib import Path
 
@@ -137,7 +138,7 @@ else:
 def check_java_home():
   """Raise ValueError if the configured java/javac binaries are missing or not executable."""
   for exe in (JAVA_EXE, JAVAC_EXE):
-    if not shutil.which(exe.split()[0]):
+    if not shutil.which(shlex.split(exe)[0]):
       hint = (
         f"  JAVA_EXE={JAVA_EXE!r}\n"
         f"  JAVAC_EXE={JAVAC_EXE!r}\n"

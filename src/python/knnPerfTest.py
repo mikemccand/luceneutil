@@ -106,6 +106,10 @@ DO_VMSTAT = True
 # KnnGraphTester.java computes exact NN itself (slower, single-threaded Java).
 USE_NUMPY_EXACT_NN = True
 
+# Enable to also catch duplicates within the doc set or within the query set
+CHECK_DOC_DOC_DUPLICATES = False
+CHECK_QUERY_QUERY_DUPLICATES = False
+
 # Set this to True to use perf tool to record instructions executed and confirm SIMD
 # instructions were executed
 # TODO: how much overhead / perf impact from this?  can we always run?
@@ -199,6 +203,21 @@ OUTPUT_HEADERS = [
   "rerank",
 ]
 # TODO:  "bp",
+
+# output metrics (right-hand side of table); everything else is a hyperparameter
+_METRIC_HEADERS = {"recall", "latency(ms)", "netCPU", "avgCpuCount"}
+
+_ANSI_GREEN = "\033[32m"
+_ANSI_YELLOW = "\033[33m"
+_ANSI_RED = "\033[31m"
+_ANSI_RESET = "\033[0m"
+
+
+def _try_float(s):
+  try:
+    return float(s)
+  except (ValueError, TypeError):
+    return None
 
 
 def advance(ix, values):
@@ -1469,7 +1488,9 @@ def run_knn_benchmark(checkout, values, log_path):
   n_query_check = max(values.get("nquery", (1000,)))
   query_start_check = min(values.get("queryStartIndex", (0,)))
   encoding_check = values.get("encoding", ("float32",))[0]
-  knnExactNN.check_vector_overlap(doc_vectors, 0, n_doc_check, query_vectors, query_start_check, n_query_check, dim, encoding_check)
+  knnExactNN.check_vector_overlap(
+    doc_vectors, 0, n_doc_check, query_vectors, query_start_check, n_query_check, dim, encoding_check, check_doc_doc=CHECK_DOC_DOC_DUPLICATES, check_query_query=CHECK_QUERY_QUERY_DUPLICATES
+  )
 
   # precompute exact nearest neighbors using numpy (much faster than Java brute force)
   if USE_NUMPY_EXACT_NN:
@@ -1781,7 +1802,10 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
     # the gnuplot script (src/vmstat/vmstat.gpi) writes output to ".":
     # print(f"cd {vmstat_dir_name=}")
     os.chdir(dir_name)
-    subprocess.check_call(f"{GNUPLOT_PATH} -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
+    try:
+      subprocess.check_call(f"{GNUPLOT_PATH} -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
+    except subprocess.CalledProcessError as e:
+      print(f"WARNING: gnuplot failed to generate vmstat charts (run may have been too short?): {e}")
   finally:
     os.chdir(cwd)
 
@@ -1789,32 +1813,103 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
 
 
 def print_fixed_width(all_results, columns_to_skip):
-  header = "\t".join(OUTPUT_HEADERS)
-
-  # crazy logic to make everything fixed width so rendering in fixed width font "aligns":
-  headers = header.split("\t")
+  headers = OUTPUT_HEADERS
   num_columns = len(headers)
-  # print(f'{num_columns} columns')
-  max_by_col = [0] * num_columns
-
-  rows_to_print = [header] + [result[0] for result in all_results]
-
   skip_column_index = {headers.index(h) for h in columns_to_skip}
 
-  for row in rows_to_print:
-    by_column = row.split("\t")
-    if len(by_column) != num_columns:
-      raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(by_column)} in row "{row}"')
-    for i, s in enumerate(by_column):
+  data_rows = [result[0].split("\t") for result in all_results]
+
+  for row in data_rows:
+    if len(row) != num_columns:
+      raise RuntimeError(f'wrong number of columns: expected {num_columns} but got {len(row)} in row "{chr(9).join(row)}"')
+
+  # active columns (not skipped), split into hyperparams (inputs) and metrics (outputs)
+  active_cols = [i for i in range(num_columns) if i not in skip_column_index]
+  metric_col_indices = {i for i, h in enumerate(headers) if h in _METRIC_HEADERS}
+  hyperparam_cols = [c for c in active_cols if c not in metric_col_indices]
+  metric_cols = [c for c in active_cols if c in metric_col_indices]
+
+  # sort hyperparam columns by transition count: fewest transitions = slowest-changing = leftmost (odometer MSB)
+  def count_transitions(col):
+    if len(data_rows) <= 1:
+      return 0
+    return sum(1 for r in range(1, len(data_rows)) if data_rows[r][col] != data_rows[r - 1][col])
+
+  hyperparam_cols.sort(key=count_transitions)
+
+  # sort rows by hyperparam column values in that odometer order; numeric comparison where possible
+  def row_sort_key(row):
+    key = []
+    for col in hyperparam_cols:
+      f = _try_float(row[col])
+      key.append((0, f) if f is not None else (1, row[col]))
+    return key
+
+  data_rows_sorted = sorted(data_rows, key=row_sort_key)
+
+  # final column order: hyperparams (odometer) then metrics
+  ordered_cols = hyperparam_cols + metric_cols
+
+  # compute max column widths (plain text, no ANSI codes)
+  all_rows = [headers] + data_rows_sorted
+  max_by_col = [0] * num_columns
+  for row in all_rows:
+    for i, s in enumerate(row):
       max_by_col[i] = max(max_by_col[i], len(s))
 
-  row_fmt = "  ".join([f"%{max_by_col[i]}s" for i in range(num_columns) if i not in skip_column_index])
-  # print(f'using row format {row_fmt}')
+  # ANSI color setup (only when writing to a terminal)
+  use_color = sys.stdout.isatty()
 
-  for row in rows_to_print:
-    cols = row.split("\t")
-    cols = tuple(cols[x] for x in range(len(cols)) if x not in skip_column_index)
-    print(row_fmt % cols)
+  recall_col = headers.index("recall") if "recall" in headers else None
+  latency_col = headers.index("latency(ms)") if "latency(ms)" in headers else None
+
+  lat_floats = []
+  if latency_col is not None and latency_col not in skip_column_index:
+    for row in data_rows_sorted:
+      f = _try_float(row[latency_col])
+      if f is not None:
+        lat_floats.append(f)
+  min_lat_ms = min(lat_floats) if lat_floats else None
+  max_lat_ms = max(lat_floats) if lat_floats else None
+
+  def colorize(col_idx, val_str):
+    if not use_color:
+      return val_str
+    code = None
+    if col_idx == recall_col:
+      f = _try_float(val_str)
+      if f is not None:
+        if f >= 0.99:
+          code = _ANSI_GREEN
+        elif f >= 0.9:
+          code = _ANSI_YELLOW
+        else:
+          code = _ANSI_RED
+    elif col_idx == latency_col and min_lat_ms is not None and max_lat_ms != min_lat_ms:
+      f = _try_float(val_str)
+      if f is not None:
+        t = (f - min_lat_ms) / (max_lat_ms - min_lat_ms)
+        if t <= 0.33:
+          code = _ANSI_GREEN
+        elif t <= 0.67:
+          code = _ANSI_YELLOW
+        else:
+          code = _ANSI_RED
+    if code is not None:
+      return f"{code}{val_str}{_ANSI_RESET}"
+    return val_str
+
+  for row_idx, row in enumerate(all_rows):
+    is_header = row_idx == 0
+    parts = []
+    for col in ordered_cols:
+      w = max_by_col[col]
+      val = row[col]
+      # pad first (plain), then wrap value in color so ANSI codes don't affect alignment
+      padding = w - len(val)
+      cell = " " * padding + (val if is_header else colorize(col, val))
+      parts.append(cell)
+    print("  ".join(parts))
 
 
 def arglist_to_argmap(arglist):
@@ -2087,7 +2182,7 @@ def check_knn_compiled():
   source_files = list((src_dir / "knn").glob("*.java"))
   source_files.extend([src_dir / "WikiVectors.java", src_dir / "perf" / "VectorDictionary.java"])
 
-  gradle_cmd = "  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileKnn"
+  gradle_cmd = "  JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./gradlew compileKnn"
 
   if not marker.exists():
     print(f"\nERROR: {marker} does not exist. Run:\n\n{gradle_cmd}\n")
@@ -2105,7 +2200,7 @@ def check_knn_compiled():
 
   lucene_checkout = getLuceneDirFromGradleProperties()
   lucene_path = benchUtil.checkoutToPath(lucene_checkout)
-  lucene_gradle_cmd = f"  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileJava\n  (in {lucene_path})"
+  lucene_gradle_cmd = f"  JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./gradlew compileJava\n  (in {lucene_path})"
 
   try:
     cp_entries = benchUtil.getClassPath(lucene_checkout)
@@ -2332,6 +2427,7 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
     n = parser.parse_args()
 
+    constants.check_java_home()
     check_knn_compiled()
 
     # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties

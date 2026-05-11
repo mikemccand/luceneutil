@@ -2186,7 +2186,7 @@ def check_knn_compiled():
   source_files = list((src_dir / "knn").glob("*.java"))
   source_files.extend([src_dir / "WikiVectors.java", src_dir / "perf" / "VectorDictionary.java"])
 
-  gradle_cmd = "  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileKnn"
+  gradle_cmd = "  JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./gradlew compileKnn"
 
   if not marker.exists():
     print(f"\nERROR: {marker} does not exist. Run:\n\n{gradle_cmd}\n")
@@ -2204,7 +2204,7 @@ def check_knn_compiled():
 
   lucene_checkout = getLuceneDirFromGradleProperties()
   lucene_path = benchUtil.checkoutToPath(lucene_checkout)
-  lucene_gradle_cmd = f"  JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew compileJava\n  (in {lucene_path})"
+  lucene_gradle_cmd = f"  JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./gradlew compileJava\n  (in {lucene_path})"
 
   try:
     cp_entries = benchUtil.getClassPath(lucene_checkout)

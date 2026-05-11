@@ -39,17 +39,20 @@ class IndexerThread extends Thread {
   private final AtomicInteger numDocsIndexed;
   private final int numDocsToIndex;
   private final FieldType fieldType;
+  private final FieldType rerankFieldType;
   private final VectorEncoding vectorEncoding;
   private final byte[] byteVectorBuffer;
   private final float[] floatVectorBuffer;
   private final KnnIndexer.FilterScheme filterScheme;
 
   public IndexerThread(IndexWriter iw, int dims, VectorReader vectorReader, VectorEncoding vectorEncoding, FieldType fieldType,
-                       AtomicInteger numDocsIndexed, int numDocsToIndex, KnnIndexer.FilterScheme filterScheme) {
+                       AtomicInteger numDocsIndexed, int numDocsToIndex, KnnIndexer.FilterScheme filterScheme,
+                       FieldType rerankFieldType) {
     this.iw = iw;
     this.vectorReader = vectorReader;
     this.vectorEncoding = vectorEncoding;
     this.fieldType = fieldType;
+    this.rerankFieldType = rerankFieldType;
     this.numDocsIndexed = numDocsIndexed;
     this.numDocsToIndex = numDocsToIndex;
     this.filterScheme = filterScheme;
@@ -106,6 +109,9 @@ class IndexerThread extends Thread {
             }
             if (filterScheme != null && filterScheme.filter().get(id)) {
               doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, floatVectorBuffer, fieldType));
+            }
+            if (rerankFieldType != null) {
+              doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_RERANK, floatVectorBuffer, rerankFieldType));
             }
           }
         }

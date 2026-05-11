@@ -148,51 +148,27 @@ NOISY = True
 
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
-  # "ndoc": (10_000_000,),
-  #'ndoc': (10000, 100000, 200000, 500000),
-  #'ndoc': (10000, 100000, 200000, 500000),
-  #'ndoc': (2_000_000,),
-  #'ndoc': (1_000_000,),
   "ndoc": (500_000,),
-  #'ndoc': (50_000,),
   "maxConn": (64,),
-  # "maxConn": (64,),
-  #'maxConn': (32,),
   "beamWidthIndex": (250,),
-  # "beamWidthIndex": (250,),
-  #'beamWidthIndex': (50,),
   "fanout": (100,),
-  # "fanout": (50,),
-  #'quantize': None,
-  #'quantizeBits': (32, 7, 4),
   "numMergeWorker": (24,),
   "numMergeThread": (8,),
   "numSearchThread": (4,),
-  #'numMergeWorker': (1,),
-  #'numMergeThread': (1,),
   "encoding": ("float32",),
-  # "metric": ("cosine",),  # default is angular (dot_product)
   "metric": ("dot_product",),
-  # 'metric': ('mip',),
-  #'quantize': (True,),
-  "quantizeBits": (32, 8, 7, 4, 2),
-  # "quantizeBits": (1,),
-  # "overSample": (5,), # extra ratio of vectors to retrieve, for testing approximate scoring, e.g. quantized indices
-  #'fanout': (0,),
+  "quantizeBits": (1, 2, 4),
+  "overSample": (
+    1,
+    2,
+    5,
+  ),
   "topK": (100,),
-  # "bp": ("false", "true"),
-  #'quantizeCompress': (True, False),
   "quantizeCompress": (True,),
-  # "indexType": ("flat", "hnsw"), # index type,
-  # "queryStartIndex": (0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000),  # seek to this start vector before searching, to sample different vectors
-  # "queryStartIndex": (0, 200000, 400000, 600000),
   "forceMerge": (True,),
   "niter": (10000,),
-  # "filterStrategy": ("query-time-pre-filter", "query-time-post-filter", "index-time-filter"),
-  # "filterSelectivity": ("0.5", "0.2", "0.1", "0.01",),
-  # "searchType": ("radius",),
-  # "resultSimilarity": ("0.8", "0.9",),
-  # "decay": ("0", "0.5", "0.8",),
+  "rerank": (True, False),
+  "rerankQuantizeBits": (32, 8, 4),
 }
 
 
@@ -224,6 +200,7 @@ OUTPUT_HEADERS = [
   "vec_RAM(MB)",
   "bp-reorder",
   "indexType",
+  "rerank",
 ]
 # TODO:  "bp",
 
@@ -1535,6 +1512,8 @@ def run_knn_benchmark(checkout, values, log_path):
     args = []
     quantize_bits = None
     do_quantize_compress = False
+    do_rerank = False
+    rerank_quantize_bits = 32
     for i, p in enumerate(values.keys()):
       if values[p]:
         value = values[p][indexes[i]]
@@ -1545,6 +1524,11 @@ def run_knn_benchmark(checkout, values, log_path):
             print("  -quantize")
             args += ["-quantize"]
             quantize_bits = value
+        elif p == "rerank":
+          if value:
+            do_rerank = True
+        elif p == "rerankQuantizeBits":
+          rerank_quantize_bits = value
         elif type(value) is bool:
           if p == "quantizeCompress":
             # carefully only add this flag (below) if we are quantizing to 4 bits:
@@ -1559,9 +1543,21 @@ def run_knn_benchmark(checkout, values, log_path):
         args += ["-" + p]
         print(f"  -{p}")
 
+    if not do_rerank and "rerankQuantizeBits" in values:
+      rerank_qb_vals = values["rerankQuantizeBits"]
+      if type(rerank_qb_vals) in (list, tuple) and rerank_quantize_bits != rerank_qb_vals[0]:
+        continue
+
     if quantize_bits == 4 and do_quantize_compress:
       args += ["-quantizeCompress"]
       print("  -quantizeCompress")
+
+    if do_rerank:
+      args += ["-rerank"]
+      print("  -rerank")
+      if rerank_quantize_bits != 32:
+        args += ["-rerankQuantizeBits", str(rerank_quantize_bits)]
+        print(f"  -rerankQuantizeBits={rerank_quantize_bits}")
 
     args += [a for (k, v) in pv.items() for a in ("-" + k, str(v)) if a]
 
@@ -2243,6 +2239,8 @@ def build_knn_args_from_params(params):
   args = []
   quantize_bits = None
   do_quantize_compress = False
+  do_rerank = False
+  rerank_quantize_bits = 32
   for p, value in params.items():
     if p == "quantizeBits":
       if value != 32:
@@ -2250,6 +2248,11 @@ def build_knn_args_from_params(params):
         quantize_bits = value
     elif p == "quantizeCompress":
       do_quantize_compress = value
+    elif p == "rerank":
+      if value:
+        do_rerank = True
+    elif p == "rerankQuantizeBits":
+      rerank_quantize_bits = value
     elif isinstance(value, bool):
       if value:
         args += ["-" + p]
@@ -2258,6 +2261,11 @@ def build_knn_args_from_params(params):
 
   if quantize_bits == 4 and do_quantize_compress:
     args += ["-quantizeCompress"]
+
+  if do_rerank:
+    args += ["-rerank"]
+    if rerank_quantize_bits != 32:
+      args += ["-rerankQuantizeBits", str(rerank_quantize_bits)]
 
   return args
 

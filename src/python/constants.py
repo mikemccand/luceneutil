@@ -136,10 +136,15 @@ else:
 
 def check_java_home():
   """Raise ValueError if the configured java/javac binaries are missing or not executable."""
-  for binary in ("java", "javac"):
-    exe = f"{java_bin}{binary}"
+  for exe in (JAVA_EXE, JAVAC_EXE):
     if not shutil.which(exe):
-      hint = "  Set JAVA_HOME to the correct JDK directory, e.g.:\n    export JAVA_HOME=/usr/lib/jvm/java-26-openjdk"
+      hint = (
+        f"  JAVA_EXE={JAVA_EXE!r}\n"
+        f"  JAVAC_EXE={JAVAC_EXE!r}\n"
+        f"  JAVA_HOME env={os.environ.get('JAVA_HOME')!r}\n"
+        "  Check localconstants.py for hardcoded JAVA_EXE/JAVAC_EXE overrides,\n"
+        "  or set JAVA_HOME, e.g.: export JAVA_HOME=/usr/lib/jvm/java-26-openjdk"
+      )
       raise ValueError(f"required Java binary not found: {exe!r}\n{hint}")
 
 

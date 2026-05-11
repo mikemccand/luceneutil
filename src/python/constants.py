@@ -17,6 +17,7 @@
 
 import multiprocessing
 import os
+import shutil
 from pathlib import Path
 
 from localconstants import BASE_DIR
@@ -132,6 +133,15 @@ if "JAVA_COMMAND" not in globals():
   JAVA_COMMAND = "%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" % JAVA_EXE
 else:
   print("use java command %s" % JAVA_COMMAND)  # pyright: ignore[reportUndefinedVariable] # TODO: fix how variables are managed here
+
+def check_java_home():
+  """Raise ValueError if the configured java/javac binaries are missing or not executable."""
+  for binary in ("java", "javac"):
+    exe = f"{java_bin}{binary}"
+    if not shutil.which(exe):
+      hint = "  Set JAVA_HOME to the correct JDK directory, e.g.:\n    export JAVA_HOME=/usr/lib/jvm/java-26-openjdk"
+      raise ValueError(f"required Java binary not found: {exe!r}\n{hint}")
+
 
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1

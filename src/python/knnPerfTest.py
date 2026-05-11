@@ -2419,6 +2419,7 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default=1, help="Number of times to run the benchmark (default: 1)")
     n = parser.parse_args()
 
+    constants.check_java_home()
     check_knn_compiled()
 
     # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties

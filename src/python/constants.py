@@ -135,6 +135,7 @@ if "JAVA_COMMAND" not in globals():
 else:
   print("use java command %s" % JAVA_COMMAND)  # pyright: ignore[reportUndefinedVariable] # TODO: fix how variables are managed here
 
+
 def check_java_home():
   """Raise ValueError if the configured java/javac binaries are missing or not executable."""
   for exe in (JAVA_EXE, JAVAC_EXE):

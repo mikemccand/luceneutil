@@ -30,10 +30,12 @@ Collects only execution and method samples at a low interval
     <setting name="throttle">1 ms</setting>
   </event>
 
+  <!-- CPUTime profiler supposedly already samples native methods too?
   <event name="jdk.NativeMethodSample">
     <setting name="enabled">true</setting>
     <setting name="period">1 ms</setting>
   </event>
+  -->
 
   <event name="jdk.ObjectAllocationInNewTLAB">
     <setting name="enabled">true</setting>

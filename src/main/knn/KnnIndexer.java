@@ -82,11 +82,13 @@ public class KnnIndexer implements FormatterLogger {
   private final FilterScheme filterScheme;
   private final TrackingConcurrentMergeScheduler tcms;
   private final TrackingTieredMergePolicy ttmp;
+  private final boolean rerank;
 
   public KnnIndexer(Path docsPath, Path indexPath, Codec codec, int numIndexThreads,
                     VectorEncoding vectorEncoding, int dim,
                     VectorSimilarityFunction similarityFunction, int numDocs, int docsStartIndex, boolean quiet,
-                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, FilterScheme filterScheme) {
+                    boolean parentJoin, Path parentJoinMetaPath, boolean useBp, FilterScheme filterScheme,
+                    boolean rerank) {
     this.docsPath = docsPath;
     this.indexPath = indexPath;
     this.codec = codec;
@@ -101,6 +103,7 @@ public class KnnIndexer implements FormatterLogger {
     this.parentJoinMetaPath = parentJoinMetaPath;
     this.useBp = useBp;
     this.filterScheme = filterScheme;
+    this.rerank = rerank;
     this.tcms = new TrackingConcurrentMergeScheduler();
     this.ttmp = new TrackingTieredMergePolicy();
   }
@@ -136,6 +139,10 @@ public class KnnIndexer implements FormatterLogger {
           case BYTE -> KnnByteVectorField.createFieldType(dim, similarityFunction);
           case FLOAT32 -> KnnFloatVectorField.createFieldType(dim, similarityFunction);
         };
+    if (rerank && vectorEncoding != VectorEncoding.FLOAT32) {
+      throw new IllegalArgumentException("rerank requires FLOAT32 vector encoding");
+    }
+    FieldType rerankFieldType = rerank ? KnnFloatVectorField.createFieldType(dim, similarityFunction) : null;
     if (quiet == false) {
       // iwc.setInfoStream(new PrintStreamInfoStream(System.out));
       System.out.println("creating index in " + indexPath);
@@ -162,7 +169,7 @@ public class KnnIndexer implements FormatterLogger {
         AtomicInteger numDocsIndexed = new AtomicInteger();
         List<Thread> threads = new ArrayList<>();
         for (int i=0;i<numIndexThreads;i++) {
-          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filterScheme);
+          Thread t = new IndexerThread(iw, dim, vectorReader, vectorEncoding, fieldType, numDocsIndexed, numDocs, filterScheme, rerankFieldType);
           t.setDaemon(true);
           t.start();
           threads.add(t);
@@ -207,6 +214,9 @@ public class KnnIndexer implements FormatterLogger {
                 }
                 if (filterScheme != null && filterScheme.filter.get(docId)) {
                   doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_FILTERED, vector, fieldType));
+                }
+                if (rerankFieldType != null) {
+                  doc.add(new KnnFloatVectorField(KnnGraphTester.KNN_FIELD_RERANK, vector, rerankFieldType));
                 }
               }
             }

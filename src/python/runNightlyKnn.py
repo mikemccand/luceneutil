@@ -696,7 +696,9 @@ def _run(results_dir):
       jfr_file_name = f"{results_dir}/bench-knn-q{quantize_bits}-fm{do_force_merge}.jfr"
       spot = this_cmd.index("knn.KnnGraphTester")
       this_cmd.insert(
-        spot, f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=256M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfr_file_name}"
+        spot,
+        f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize={constants.JFR_MAX_SIZE_MB}M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc"
+        f",filename={jfr_file_name}",
       )
 
       if not do_force_merge:

@@ -892,10 +892,10 @@ def get_profiler_jvm_args(jfr_file_name, indent=""):
   if USE_CPU_TIME_PROFILER:
     print(f"{indent}NOTE: using experimental CPU time profiler (see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1)")
     # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
-    args = f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
+    args = f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize={constants.JFR_MAX_SIZE_MB}M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
   else:
     print(f"{indent}NOTE: using async profiler")
-    args = f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
+    args = f"-XX:StartFlightRecording=dumponexit=true,maxsize={constants.JFR_MAX_SIZE_MB}M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
   return args
 
 
@@ -1976,6 +1976,11 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
   subprocess.run(["jfr", "summary", jfrOutput], check=True)
 
   jfr_size_mb = os.path.getsize(jfrOutput) / 1024.0 / 1024.0
+  if desc is None:
+    desc = ""
+  else:
+    desc += " "
+  desc += f"{jfrOutput} is {jfr_size_mb:.2f} MB"
 
   for mode in "cpu", "heap":
     for stackSize in profilerStackSize:
@@ -1985,6 +1990,7 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
         f"-Dtests.profile.mode={mode}",
         f"-Dtests.profile.count={profilerCount}",
         f"-Dtests.profile.stacksize={stackSize}",
+        "-Dtests.profile.linenumbers=true",
         "org.apache.lucene.gradle.plugins.java.ProfileResults",
         jfrOutput,
       ]
@@ -1994,12 +2000,6 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       except subprocess.CalledProcessError as e:
         print(f"command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}")
         raise
-
-      if desc is None:
-        desc = ""
-      else:
-        desc += " "
-      desc += f"{jfrOutput} is {jfr_size_mb:.2f} MB"
 
       output = f"\nProfiler for {mode} at {stackSize=} [{desc}]:\n{result.stdout.decode('utf-8')}"
       print(output)

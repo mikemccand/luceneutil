@@ -253,7 +253,8 @@ EXCEPTION_PATTERN = re.compile(
 def fail_if_java_exceptions(desc, log_file):
   with open(log_file) as f:
     for line_num, line in enumerate(f, 1):
-      if EXCEPTION_PATTERN.search(line):
+      # MergeAbortedException is normal at the end of indexing when we rollback:
+      if EXCEPTION_PATTERN.search(line) and "org.apache.lucene.index.MergePolicy$MergeAbortedException" not in line:
         raise RuntimeError(f'{desc}: java exceptions found in log file "{log_file}": line {line_num}: {line.rstrip()}')
 
 
@@ -539,7 +540,7 @@ def run():
     waitForMerges=False,
     waitForCommit=False,
     grouping=False,
-    verbose=False,
+    verbose=True,  # TODO: turn off again once we validate if there is HNSW concurrency bug https://github.com/mikemccand/luceneutil/pull/507#discussion_r3045850830
     mergePolicy="TieredMergePolicy",
     useCMS=True,
     vectorFile=constants.VECTORS_DOCS_FILE,
@@ -1617,7 +1618,7 @@ def writeIndexHTML(searchChartData, days):
   header(w, "Lucene nightly benchmarks")
   w("<h1>Lucene nightly benchmarks</h1>")
   w(
-    'Each night, an <a href="https://github.com/mikemccand/luceneutil/blob/main/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
+    'Each night, an <a href="https://github.com/mikemccand/luceneutil/blob/main/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around <s>2.5</s> 28-29 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
   )
   w(
     '<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>'

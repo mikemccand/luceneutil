@@ -99,6 +99,7 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.RescoreTopNQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.join.BitSetProducer;
@@ -162,6 +163,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   public static final String KNN_FIELD = "knn";
   public static final String KNN_FIELD_FILTERED = "knn-filtered";
+  public static final String KNN_FIELD_RERANK = "knn-rerank";
   public static final String ID_FIELD = "id";
   private static final String INDEX_DIR = "knnIndices";
   public static final String DOCTYPE_FIELD = "docType";
@@ -216,6 +218,11 @@ public class KnnGraphTester implements FormatterLogger {
   private IndexType indexType;
   // oversampling, e.g. the multiple * k to gather before checking recall
   private float overSample;
+  // whether to use two-phase reranking: HNSW retrieves overSample*topK candidates, then
+  // a flat full/quantized-precision field rescores and trims to topK
+  private boolean rerank;
+  // precision of the reranking field: 2, 4, 7, 8 (scalar quantized flat) or 32 (float32 flat)
+  private int rerankQuantizeBits;
   // whether to collect and write all HNSW traversal scores for histogram generation
   private boolean hnswScoreHistogram;
   // whether to compute sampled all query x doc distances for histogram generation
@@ -223,7 +230,7 @@ public class KnnGraphTester implements FormatterLogger {
   // sample 1 in every N distances when building the all-distances histogram
   private int allDistancesSampleEveryN = 1000;
   private SearchType searchType;
-  private float traversalSimilarity, resultSimilarity;
+  private float resultSimilarity, decay;
 
   private KnnGraphTester() {
     // set defaults
@@ -231,6 +238,7 @@ public class KnnGraphTester implements FormatterLogger {
     numQueryVectors = 1000;
     dim = 256;
     topK = 100;
+    decay = 0.5f;
     numMergeThread = 1;
     numMergeWorker = 1;
     fanout = topK;
@@ -247,6 +255,8 @@ public class KnnGraphTester implements FormatterLogger {
     queryStartIndex = 0;
     indexType = IndexType.HNSW;
     overSample = 1f;
+    rerank = false;
+    rerankQuantizeBits = 32;
     searchType = SearchType.KNN;
   }
 
@@ -336,6 +346,18 @@ public class KnnGraphTester implements FormatterLogger {
             throw new IllegalArgumentException("-overSample must be >= 1");
           }
           break;
+        case "-rerank":
+          rerank = true;
+          break;
+        case "-rerankQuantizeBits":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-rerankQuantizeBits requires a following number");
+          }
+          rerankQuantizeBits = Integer.parseInt(args[++iarg]);
+          if (Set.of(2, 4, 7, 8, 32).contains(rerankQuantizeBits) == false) {
+            throw new IllegalArgumentException("-rerankQuantizeBits must be 2, 4, 7, 8, or 32");
+          }
+          break;
         case "-fanout":
           if (iarg == args.length - 1) {
             throw new IllegalArgumentException("-fanout requires a following number");
@@ -377,9 +399,9 @@ public class KnnGraphTester implements FormatterLogger {
           numDocs = Integer.parseInt(args[++iarg]);
           log("numDocs = %d\n", numDocs);
           break;
-        case "-niter":
+        case "-nquery":
           if (iarg == args.length - 1) {
-            throw new IllegalArgumentException("-niter requires a following number");
+            throw new IllegalArgumentException("-nquery requires a following number");
           }
           numQueryVectors = Integer.parseInt(args[++iarg]);
           log("numQueryVectors = %d\n", numQueryVectors);
@@ -547,11 +569,11 @@ public class KnnGraphTester implements FormatterLogger {
             default -> throw new IllegalArgumentException("-searchType must be 'knn' or 'radius'");
           };
           break;
-        case "-traversalSimilarity":
-          traversalSimilarity = Float.parseFloat(args[++iarg]);
-          break;
         case "-resultSimilarity":
           resultSimilarity = Float.parseFloat(args[++iarg]);
+          break;
+        case "-decay":
+          decay = Float.parseFloat(args[++iarg]);
           break;
         default:
           throw new IllegalArgumentException("unknown argument " + arg);
@@ -580,8 +602,13 @@ public class KnnGraphTester implements FormatterLogger {
       filtered = selectRandomDocs(random, numDocs, filterSelectivity);
     }
 
+    if (rerank && vectorEncoding != VectorEncoding.FLOAT32) {
+      throw new IllegalArgumentException("-rerank requires FLOAT32 vector encoding");
+    }
+
     String indexKey = formatIndexKey(indexType, maxConn, beamWidth, useBp,
                                      quantize, quantizeBits, quantizeCompress,
+                                     rerank, rerankQuantizeBits,
                                      parentJoin, filterStrategy, filterSelectivity, randomSeed,
                                      docVectorsPath, numDocs, metric, forceMerge);
     log("index key = %s\n", indexKey);
@@ -646,7 +673,7 @@ public class KnnGraphTester implements FormatterLogger {
       reindexTimeMsec = new KnnIndexer(
         docVectorsPath,
         indexPath,
-        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType),
+        getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, rerank, rerankQuantizeBits),
         numIndexThreads,
         vectorEncoding,
         dim,
@@ -657,7 +684,8 @@ public class KnnGraphTester implements FormatterLogger {
         parentJoin,
         parentJoinMetaFile,
         useBp,
-        indexTimeFilter
+        indexTimeFilter,
+        rerank
       ).createIndex();
       Files.writeString(indexKeyPath, indexKey);
       log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
@@ -919,6 +947,7 @@ public class KnnGraphTester implements FormatterLogger {
   private static String formatIndexKey(IndexType indexType, int maxConn, int beamWidth,
                                        boolean useBp,
                                        boolean quantize, int quantizeBits, boolean quantizeCompress,
+                                       boolean rerank, int rerankQuantizeBits,
                                        boolean parentJoin, FilterStrategy filterStrategy,
                                        Float filterSelectivity, Long randomSeed,
                                        Path docPath, int numDocs, String metric, boolean forceMerge)
@@ -963,6 +992,10 @@ public class KnnGraphTester implements FormatterLogger {
       if (quantizeCompress) {
         suffix.add("compressed");
       }
+    }
+    if (rerank) {
+      suffix.add("rerank");
+      suffix.add(Integer.toString(rerankQuantizeBits));
     }
 
     if (parentJoin) {
@@ -1058,7 +1091,7 @@ public class KnnGraphTester implements FormatterLogger {
   @SuppressForbidden(reason = "Prints stuff")
   private double forceMerge() throws IOException, InterruptedException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType));
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, rerank, rerankQuantizeBits));
     KnnIndexer.TrackingConcurrentMergeScheduler tcms = new KnnIndexer.TrackingConcurrentMergeScheduler();
     iwc.setMergeScheduler(tcms);
     KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
@@ -1183,11 +1216,11 @@ public class KnnGraphTester implements FormatterLogger {
         targetReaderByte = b;
       }
 
-      int topK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
-      int fanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
+      int oversampledTopK = (overSample > 1) ? (int) (this.topK * overSample) : this.topK;
+      int oversampledFanout = (overSample > 1) ? (int) (this.fanout * overSample) : this.fanout;
       switch (searchType) {
-        case KNN -> log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, topK, fanout);
-        case RADIUS -> log("searching %d query vectors; traversalSimilarity=%f, resultSimilarity=%f\n", numQueryVectors, traversalSimilarity, resultSimilarity);
+        case KNN -> log("searching %d query vectors; topK=%d, fanout=%d\n", numQueryVectors, oversampledTopK, oversampledFanout);
+        case RADIUS -> log("searching %d query vectors; resultSimilarity=%f decay=%f\n", numQueryVectors, resultSimilarity, decay);
         default -> throw new IllegalArgumentException("Unsupported search type: " + searchType);
       }
 
@@ -1208,16 +1241,16 @@ public class KnnGraphTester implements FormatterLogger {
           // warm up (and optionally collect HNSW traversal scores)
           if (hnswScoreHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
             // TODO: collect traversal scores for radius search too?
-            collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), topK, fanout, metric);
+            collectHnswTraversalScores(reader, targetReader, getKnnField(filterStrategy), oversampledTopK, oversampledFanout, metric);
           } else {
             for (int i = 0; i < numQueryVectors; i++) {
               final Result result;
               if (vectorEncoding.equals(VectorEncoding.BYTE)) {
                 byte[] target = targetReaderByte.nextBytes();
-                result = doByteVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, topK);
+                result = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, oversampledTopK);
               } else {
                 float[] target = targetReader.next();
-                result = doFloatVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs());
+                result = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, this.topK);
               }
               resultSizes[i] = Math.max(1, result.topDocs.scoreDocs.length);
             }
@@ -1229,10 +1262,10 @@ public class KnnGraphTester implements FormatterLogger {
           for (int i = 0; i < numQueryVectors; i++) {
             if (vectorEncoding.equals(VectorEncoding.BYTE)) {
               byte[] target = targetReaderByte.nextBytes();
-              results[i] = doByteVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, resultSizes[i]);
+              results[i] = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, resultSizes[i]);
             } else {
               float[] target = targetReader.next();
-              results[i] = doFloatVectorQuery(searcher, target, searchType, topK, fanout, traversalSimilarity, resultSimilarity, filterStrategy, filterQuery, parentJoin, resultSizes[i]);
+              results[i] = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i], rerank, this.topK);
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
@@ -1248,7 +1281,11 @@ public class KnnGraphTester implements FormatterLogger {
           StoredFields storedFields = reader.storedFields();
           for (int i = 0; i < numQueryVectors; i++) {
             totalVisited += results[i].visitedCount();
-            resultIds[i] = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            int[] ids = KnnTesterUtils.getResultIds(results[i].topDocs(), storedFields);
+            if (ids.length > this.topK) {
+              ids = Arrays.copyOf(ids, this.topK);
+            }
+            resultIds[i] = ids;
           }
           log(
               "completed "
@@ -1295,10 +1332,11 @@ public class KnnGraphTester implements FormatterLogger {
       } else {
         quantizeDesc = "no";
       }
+      String rerankDesc = rerank ? Integer.toString(rerankQuantizeBits) + " bits" : "no";
       double reindexSec = reindexTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1307,8 +1345,8 @@ public class KnnGraphTester implements FormatterLogger {
           searchType,
           searchType == SearchType.KNN ? String.valueOf(topK) : "N/A",
           searchType == SearchType.KNN ? String.valueOf(fanout) : "N/A",
-          searchType == SearchType.RADIUS ? String.valueOf(traversalSimilarity) : "N/A",
           searchType == SearchType.RADIUS ? String.valueOf(resultSimilarity) : "N/A",
+          searchType == SearchType.RADIUS ? String.valueOf(decay) : "N/A",
           totalResultCount / (float) numQueryVectors,
           maxConn,
           beamWidth,
@@ -1325,7 +1363,8 @@ public class KnnGraphTester implements FormatterLogger {
           vectorDiskSizeBytes / 1024. / 1024.,
           vectorRAMSizeBytes / 1024. / 1024.,
           Boolean.valueOf(useBp).toString(),
-          indexType.toString()
+          indexType.toString(),
+          rerankDesc
         );
     }
   }
@@ -1421,7 +1460,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static Result doByteVectorQuery(
-    IndexSearcher searcher, byte[] vector, SearchType searchType, int k, int fanout, float traversalSimilarity, float resultSimilarity, FilterStrategy filterStrategy, Query filter, int resultSize)
+    IndexSearcher searcher, byte[] vector, SearchType searchType, int k, int fanout, float resultSimilarity, float decay, FilterStrategy filterStrategy, Query filter, int resultSize)
     throws IOException {
 
     Query queryTimeFilter = null;
@@ -1433,7 +1472,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     ProfiledVectorQuery vectorQuery = switch (searchType) {
       case KNN -> new ProfiledKnnByteVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
-      case RADIUS -> new ProfiledByteVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
+      case RADIUS -> new ProfiledByteVectorSimilarityQuery(knnField, vector, resultSimilarity, decay, filter);
     };
     Query query;
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
@@ -1449,7 +1488,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static Result doFloatVectorQuery(
-    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float traversalSimilarity, float resultSimilarity, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize)
+    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float resultSimilarity, float decay, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize, boolean rerank, int finalTopK)
     throws IOException {
 
     Query queryTimeFilter = null;
@@ -1458,11 +1497,11 @@ public class KnnGraphTester implements FormatterLogger {
     }
 
     String knnField = getKnnField(filterStrategy);
-    
+
     if (isParentJoinQuery) {
       var topChildVectors = switch (searchType) {
         case KNN -> new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
-        case RADIUS -> new FloatVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
+        case RADIUS -> new FloatVectorSimilarityQuery(knnField, vector, resultSimilarity, decay, filter);
       };
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
       TopDocs topDocs = searcher.search(query, resultSize);
@@ -1471,7 +1510,7 @@ public class KnnGraphTester implements FormatterLogger {
 
     ProfiledVectorQuery vectorQuery = switch (searchType) {
       case KNN -> new ProfiledKnnFloatVectorQuery(knnField, vector, k, fanout, queryTimeFilter);
-      case RADIUS -> new ProfiledFloatVectorSimilarityQuery(knnField, vector, traversalSimilarity, resultSimilarity, filter);
+      case RADIUS -> new ProfiledFloatVectorSimilarityQuery(knnField, vector, resultSimilarity, decay, filter);
     };
     Query query;
     if (filterStrategy == FilterStrategy.QUERY_TIME_POST_FILTER) {
@@ -1481,6 +1520,9 @@ public class KnnGraphTester implements FormatterLogger {
               .build();
     } else {
       query = (Query) vectorQuery;
+    }
+    if (rerank && searchType == SearchType.KNN) {
+      query = RescoreTopNQuery.createFullPrecisionRescorerQuery(query, vector, KNN_FIELD_RERANK, finalTopK);
     }
     TopDocs docs = searcher.search(query, resultSize);
     return new Result(docs, vectorQuery.totalVisitedVectorCount(), 0);
@@ -2099,7 +2141,9 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker, boolean quantize, int quantizeBits, IndexType indexType) {
+  static Codec getCodec(int maxConn, int beamWidth, ExecutorService exec, int numMergeWorker,
+                        boolean quantize, int quantizeBits, IndexType indexType,
+                        boolean rerank, int rerankQuantizeBits) {
       KnnVectorsFormat knnVectorsFormat;
       if (quantize) {
           knnVectorsFormat = switch (quantizeBits) {
@@ -2133,9 +2177,28 @@ public class KnnGraphTester implements FormatterLogger {
       } else {
           knnVectorsFormat = new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
       }
+      final KnnVectorsFormat rerankFormat;
+      if (rerank) {
+        rerankFormat = switch (rerankQuantizeBits) {
+          // Lucene99FlatVectorsFormat is not SPI-registered as a KnnVectorsFormat, so we use
+          // Lucene99HnswVectorsFormat, which stores float32 vectors internally (via Lucene99FlatVectorsFormat)
+          // and is accessible for exact rescoring; the HNSW graph it builds is not used
+          case 32 -> new Lucene99HnswVectorsFormat();
+          case 2 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
+          case 4 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
+          case 7 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
+          case 8 -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
+          default -> throw new IllegalArgumentException("unsupported rerankQuantizeBits: " + rerankQuantizeBits);
+        };
+      } else {
+        rerankFormat = null;
+      }
       return new Lucene104Codec() {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
+              if (field.equals(KNN_FIELD_RERANK)) {
+                return rerankFormat;
+              }
               return knnVectorsFormat;
           }
       };
@@ -2143,7 +2206,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   private static void usage() {
     String error =
-        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-niter N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
+        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-nquery N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
     System.err.println(error);
     System.exit(1);
   }
@@ -2229,8 +2292,8 @@ public class KnnGraphTester implements FormatterLogger {
   private static class ProfiledByteVectorSimilarityQuery extends ByteVectorSimilarityQuery implements  ProfiledVectorQuery {
     private final LongAdder totalVisitedVectorCount;
 
-    public ProfiledByteVectorSimilarityQuery(String field, byte[] target, float traversalSimilarity, float resultSimilarity, Query filter) {
-      super(field, target, traversalSimilarity, resultSimilarity, filter);
+    public ProfiledByteVectorSimilarityQuery(String field, byte[] target, float resultSimilarity, float decay, Query filter) {
+      super(field, target, resultSimilarity, decay, filter);
       this.totalVisitedVectorCount = new LongAdder();
     }
 
@@ -2259,8 +2322,8 @@ public class KnnGraphTester implements FormatterLogger {
   private static class ProfiledFloatVectorSimilarityQuery extends FloatVectorSimilarityQuery implements  ProfiledVectorQuery {
     private final LongAdder totalVisitedVectorCount;
 
-    public ProfiledFloatVectorSimilarityQuery(String field, float[] target, float traversalSimilarity, float resultSimilarity, Query filter) {
-      super(field, target, traversalSimilarity, resultSimilarity, filter);
+    public ProfiledFloatVectorSimilarityQuery(String field, float[] target, float resultSimilarity, float decay, Query filter) {
+      super(field, target, resultSimilarity, decay, filter);
       this.totalVisitedVectorCount = new LongAdder();
     }
 

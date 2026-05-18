@@ -47,6 +47,9 @@ def capture_output(log_dir=constants.TOOL_LOGS_DIR):
       self.stream.flush()
       self.log_file.flush()
 
+    def isatty(self):
+      return self.stream.isatty()
+
   # Save original streams
   old_stdout = sys.stdout
   old_stderr = sys.stderr

@@ -232,6 +232,8 @@ _THRESH_SKEWED_ABS = 1.0
 _THRESH_HEAVY_TAILS_KURTOSIS = 3.0
 _THRESH_FLAT_KURTOSIS = -1.0
 _THRESH_OUTLIER_SPREAD_SIGMA = 3.0
+# isotropy participation ratio below this triggers a WARNING; values closer to 1.0 are isotropic
+_THRESH_ANISOTROPIC = 0.5
 
 
 def _sparklines_2row(counts):
@@ -381,6 +383,35 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   skewness = np.where(non_const, skewness, 0.0)
   excess_kurtosis = np.where(non_const, excess_kurtosis, 0.0)
 
+  # Isotropy = participation ratio of the covariance spectrum, in [0, 1]:
+  #   PR = (tr C)^2 / (dim * ||C||_F^2) = (sum eigvals)^2 / (dim * sum eigvals^2)
+  # Roughly: "what fraction of dims does the data actually use?" 1.0 = energy spread
+  # evenly across all dims (isotropic, no preconditioning needed); 1/dim = data lives
+  # on a single direction (highly anisotropic).
+  #
+  # We compute it two ways:
+  #   - isotropy_full uses the real covariance C = X^T X / N (captures cross-dim
+  #     correlations -- the "true" answer)
+  #   - isotropy_diag pretends C is diagonal, using only per-dim variances (cheap;
+  #     blind to correlations)
+  # Always isotropy_full <= isotropy_diag. A large gap means anisotropy is rotational
+  # (data on a low-dim subspace at an angle to coord axes) rather than axis-aligned.
+  variances = std**2
+  sum_var = variances.sum()
+  sum_var_sq = (variances**2).sum()
+  if sum_var_sq > 0:
+    isotropy_diag = (sum_var**2) / (dim * sum_var_sq)
+  else:
+    isotropy_diag = 0.0
+
+  C = (centered.T @ centered) / num_sample
+  tr_C = np.trace(C)
+  frob_sq = np.sum(C**2)
+  if frob_sq > 0:
+    isotropy_full = (tr_C**2) / (dim * frob_sq)
+  else:
+    isotropy_full = 0.0
+
   # OUTLIER_SPREAD: flag dims whose std is an outlier across all dims' stds
   mean_of_stds = std.mean()
   std_of_stds = std.std()
@@ -426,6 +457,27 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   bad_dims = [d for d in range(dim) if len(dim_labels[d]) > 0]
 
   elapsed_sec = time.monotonic() - t0_sec
+
+  # Estimate effective rank for human-readable context: full*dim ~= number of dims actually used
+  eff_rank_full = isotropy_full * dim
+  eff_rank_diag = isotropy_diag * dim
+  print(
+    f"smell: isotropy={isotropy_full:.3f} full-cov, {isotropy_diag:.3f} diag-only "
+    f"(effective rank ~{eff_rank_full:.1f}/{dim} full, ~{eff_rank_diag:.1f}/{dim} diag)"
+  )
+  print("  isotropy = (tr C)^2 / (D * ||C||_F^2): 1.0 = energy spread evenly across all dims; 1/D = data on one direction")
+  print("  full-cov uses real covariance (sees cross-dim correlations); diag-only uses per-dim variances (blind to correlations)")
+  if isotropy_full < _THRESH_ANISOTROPIC:
+    if isotropy_diag - isotropy_full > 0.2:
+      cause = "ROTATED anisotropy: per-dim variances look balanced but data lives in a lower-dim subspace at an angle to coord axes"
+      fix = "consider PCA or a random rotation before quantization/HNSW"
+    else:
+      cause = "AXIS-ALIGNED anisotropy: a few dims carry most of the variance"
+      fix = "consider per-dim standardization (subtract mean, divide by std)"
+    print(f"  WARNING: anisotropic vectors (isotropy_full={isotropy_full:.3f} < {_THRESH_ANISOTROPIC})")
+    print(f"           {cause}")
+    print(f"           {fix}")
+
   if bad_dims:
     print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
     if any(name == "OUTLIER_SPREAD" for lbs in dim_labels for name, _ in lbs):

@@ -476,10 +476,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   # Estimate effective rank for human-readable context: full*dim ~= number of dims actually used
   eff_rank_full = isotropy_full * dim
   eff_rank_diag = isotropy_diag * dim
-  print(
-    f"smell: isotropy={isotropy_full:.3f} full-cov, {isotropy_diag:.3f} diag-only "
-    f"(effective rank ~{eff_rank_full:.1f}/{dim} full, ~{eff_rank_diag:.1f}/{dim} diag)"
-  )
+  print(f"smell: isotropy={isotropy_full:.3f} full-cov, {isotropy_diag:.3f} diag-only (effective rank ~{eff_rank_full:.1f}/{dim} full, ~{eff_rank_diag:.1f}/{dim} diag)")
   print("  isotropy = (tr C)^2 / (D * ||C||_F^2): 1.0 = energy spread evenly across all dims; 1/D = data on one direction")
   print("  full-cov uses real covariance (sees cross-dim correlations); diag-only uses per-dim variances (blind to correlations)")
   if isotropy_full < _THRESH_ANISOTROPIC:

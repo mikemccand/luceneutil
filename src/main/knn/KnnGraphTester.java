@@ -1250,7 +1250,7 @@ public class KnnGraphTester implements FormatterLogger {
                 result = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, oversampledTopK);
               } else {
                 float[] target = targetReader.next();
-                result = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, this.topK);
+                result = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, rerankQuantizeBits, this.topK);
               }
               resultSizes[i] = Math.max(1, result.topDocs.scoreDocs.length);
             }
@@ -1265,7 +1265,7 @@ public class KnnGraphTester implements FormatterLogger {
               results[i] = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, resultSizes[i]);
             } else {
               float[] target = targetReader.next();
-              results[i] = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i], rerank, this.topK);
+              results[i] = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, resultSizes[i], rerank, rerankQuantizeBits, this.topK);
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
@@ -1488,7 +1488,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   private static Result doFloatVectorQuery(
-    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float resultSimilarity, float decay, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize, boolean rerank, int finalTopK)
+    IndexSearcher searcher, float[] vector, SearchType searchType, int k, int fanout, float resultSimilarity, float decay, FilterStrategy filterStrategy, Query filter, boolean isParentJoinQuery, int resultSize, boolean rerank, int rerankQuantizeBits, int finalTopK)
     throws IOException {
 
     Query queryTimeFilter = null;
@@ -1522,7 +1522,37 @@ public class KnnGraphTester implements FormatterLogger {
       query = (Query) vectorQuery;
     }
     if (rerank && searchType == SearchType.KNN) {
-      query = RescoreTopNQuery.createFullPrecisionRescorerQuery(query, vector, KNN_FIELD_RERANK, finalTopK);
+      // Bug fix: RescoreTopNQuery.createFullPrecisionRescorerQuery builds a
+      // FullPrecisionFloatVectorSimilarityValuesSource which calls FloatVectorValues.rescorer(),
+      // and for ScalarQuantizedVectorValues that delegates to the raw float32 vectors -- so any
+      // 2/4/7/8-bit rerank field was silently being rescored against float32, defeating the
+      // whole point of the quantized rerank field. We work around it by branching: when
+      // rerankQuantizeBits == 32 we keep Lucene's full-precision path; otherwise we use our own
+      // DoubleValuesSource that calls FloatVectorValues.scorer() so the rerank pass actually
+      // reads the quantized vectors of the rerank field.
+      //
+      // TODO: fix this cleanly upstream in Lucene -- e.g. give RescoreTopNQuery a factory that
+      // builds a quantized rescorer (calling .scorer() instead of .rescorer()), or add a flag
+      // on FullPrecisionFloatVectorSimilarityValuesSource to pick the path. The name
+      // "FullPrecision" should mean what it says.
+      //
+      // TODO: separately, the quantized rerank field also double-stores full-precision float32
+      // vectors today (Lucene104ScalarQuantizedVectorsFormat keeps raw vectors alongside the
+      // quantized ones). Combined with the primary KNN field this means we index float32
+      // vectors twice on disk -- substantial cost for big indices. Upstream PR
+      // https://github.com/apache/lucene/pull/15630 ("Added support for writing empty
+      // full-precision vector files", tracking issue
+      // https://github.com/apache/lucene/issues/13158) adds the option to write empty raw-vector
+      // files; once that lands and we adopt it, we can drop the redundant float32 copy from the
+      // rerank field.
+      if (rerankQuantizeBits == 32) {
+        query = RescoreTopNQuery.createFullPrecisionRescorerQuery(query, vector, KNN_FIELD_RERANK, finalTopK);
+      } else {
+        query = new RescoreTopNQuery(
+          query,
+          new QuantizedVectorSimilarityValuesSource(vector, KNN_FIELD_RERANK),
+          finalTopK);
+      }
     }
     TopDocs docs = searcher.search(query, resultSize);
     return new Result(docs, vectorQuery.totalVisitedVectorCount(), 0);

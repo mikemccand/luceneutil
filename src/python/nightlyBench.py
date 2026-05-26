@@ -127,6 +127,29 @@ all_graph_data = {}
 REAL = True
 
 
+def get_cpu_info():
+  """Detect CPU model and core/thread counts from the current machine via lscpu."""
+  try:
+    output = subprocess.check_output(["lscpu"], text=True)
+    model_name = ""
+    sockets = 1
+    cores_per_socket = 1
+    threads_per_core = 1
+    for line in output.splitlines():
+      if line.startswith("Model name:"):
+        model_name = line.split(":", 1)[1].strip()
+      elif line.startswith("Socket(s):"):
+        sockets = int(line.split(":", 1)[1].strip())
+      elif line.startswith("Core(s) per socket:"):
+        cores_per_socket = int(line.split(":", 1)[1].strip())
+      elif line.startswith("Thread(s) per core:"):
+        threads_per_core = int(line.split(":", 1)[1].strip())
+    total_cores = sockets * cores_per_socket * threads_per_core
+    return "%s (total %d cores = %d socket(s) * %d cores/socket * %d threads/core)" % (model_name, total_cores, sockets, cores_per_socket, threads_per_core)
+  except (OSError, ValueError) as e:
+    return "unknown CPU (error: %s)" % e
+
+
 def now():
   return datetime.datetime.now()
 
@@ -1577,7 +1600,7 @@ def writeCheckIndexTimeHTML():
     w("  <li> Java command-line: <tt>%s</tt>\n" % constants.JAVA_COMMAND)
     w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
     w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
-    w("  <li> CPU: 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores = 2 CPU * 6 core * 2 hyperthreads)\n")
+    w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
     w(
       '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
     )
@@ -2020,7 +2043,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medChart
   w("  <li> Java command-line: <tt>%s</tt>\n" % constants.JAVA_COMMAND)
   w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
   w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
-  w("  <li> CPU: 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores = 2 CPU * 6 core * 2 hyperthreads)\n")
+  w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
   w(
     '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
   )

@@ -64,7 +64,7 @@ def loadDocs(jobs, id, csvHeaders):
     cabColor = fileName.split("_")[0]
     with open("%s/%s" % (CSV_DIR, fileName)) as f:
       reader = csv.reader(f)
-      headers = list(reader.__next__())
+      headers = list(reader.__next__())  # noqa: PLC2801
       # print('headers in: %s' % headers);
       datetimes = []
       strings = []
@@ -134,7 +134,7 @@ def writeOneCSV(jobs, id):
         f.write("%d %d\n" % (bytes, len(buffer)))
         f.write("\n".join(buffer))
         f.write("\n")
-        del buffer[:]
+        del buffer[:]  # noqa: FURB131
         totBytes += bytes
         bytes = 0
     if bytes > 0:

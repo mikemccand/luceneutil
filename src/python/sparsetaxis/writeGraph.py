@@ -48,7 +48,7 @@ reMergeTime = re.compile(r": (\d+) (?:ms|msec) to merge ([a-z ]+) \[(\d+) docs\]
 reTotMergeTime = re.compile(r": merge time (\d+) ms for (\d+) docs")
 reFlushTime = re.compile(r": flush time ([.0-9]+) ms")
 reFlushPostings = re.compile(r"flush postings as segment .*? numDocs=(\d+)$")
-reDocsPerMB = re.compile("ramUsed=([.,0-9]+) MB newFlushedSize.*? docs/MB=([.,0-9]+)$")
+reDocsPerMB = re.compile("ramUsed=([.,0-9]+) MB newFlushedSize.*? docs/MB=([.,0-9]+)$")  # noqa: RUF039
 reIndexingRate = re.compile(r"([.0-9]+) sec: (\d+) docs; ([.0-9]+) docs/sec; ([.0-9]+) MB/sec")
 
 
@@ -105,7 +105,7 @@ def msecToQPS(x):
   return 1000.0 / x
 
 
-reHits = re.compile("T(.) (.*?) sort=(.*?): ([0-9]+\\+?)(?: hits)? hits in ([.0-9]+) msec")
+reHits = re.compile("T(.) (.*?) sort=(.*?): ([0-9]+\\+?)(?: hits)? hits in ([.0-9]+) msec")  # noqa: RUF039
 reHeapUsagePart = re.compile(r"^  ([a-z ]+) \[.*?\]: ([0-9.]+) (.B|bytes)$")
 
 
@@ -292,13 +292,13 @@ def main():
         luceneRev,
         nonSparseDiskBytes,
         nonSparseCheckIndexTimeSec,
-        nonSparseDiskUsageTimeSec,
+        nonSparseDiskUsageTimeSec,  # noqa: RUF059
         sparseDiskBytes,
         sparseCheckIndexTimeSec,
-        sparseDiskUsageTimeSec,
+        sparseDiskUsageTimeSec,  # noqa: RUF059
         sparseSortedDiskBytes,
         sparseSortedCheckIndexTimeSec,
-        sparseSortedDiskUsageTimeSec,
+        sparseSortedDiskUsageTimeSec,  # noqa: RUF059
       ) = results
 
       gitHashes.append(luceneRev)
@@ -366,7 +366,7 @@ def main():
       x = [m.groups()]
       # for part in ('stored fields', 'term vectors', 'norms', 'docvalues', 'postings', 'prox', 'points', 'terms'):
       for part in ("docvalues", "points"):
-        x.append(nonSparseDiskUsageStats[0][part])
+        x.append(nonSparseDiskUsageStats[0][part])  # noqa: FURB113
         x.append(sparseDiskUsageStats[0][part])
         x.append(sparseSortedDiskUsageStats[0][part])
       indexSizePartsData.append(tuple(x))

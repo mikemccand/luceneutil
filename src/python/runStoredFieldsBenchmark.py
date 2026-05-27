@@ -56,17 +56,17 @@ def run_benchmark(lucene_dir, geonames_csv_in, index_dir, nightly_log_dir, doc_l
       print(f"stderr: {stderr}\n")
       raise RuntimeError(f"failed errorcode={results.returncode}!")
 
-    m = re.search("Indexing time: (.*?) msec", stdout)
+    m = re.search("Indexing time: (.*?) msec", stdout)  # noqa: RUF039
     if m is None:
       raise RuntimeError(f'could not find "Indexing time" in output; see {nightly_log_dir}/geonames-stored-fields-benchmark.std{{out,err}}.txt')
     indexing_time_msec = float(m.group(1))
 
-    m = re.search("Stored fields size: (.*?) MB", stdout)
+    m = re.search("Stored fields size: (.*?) MB", stdout)  # noqa: RUF039
     if m is None:
       raise RuntimeError(rf'could not find "Stored fields size" in output; see {nightly_log_dir}/geonames-stored-fields-benchmark.std{{out,err}}.txt')
     stored_field_size_mb = float(m.group(1))
 
-    m = re.search("Retrieved time: (.*?) msec", stdout)
+    m = re.search("Retrieved time: (.*?) msec", stdout)  # noqa: RUF039
     if m is None:
       raise RuntimeError(rf'could not find "Retrieved time" in output; see {nightly_log_dir}/geonames-stored-fields-benchmark.std{{out,err}}.txt')
     retrieved_time_msec = float(m.group(1))

@@ -6,7 +6,7 @@ pendingByteCount = 0
 
 
 def writePending(fOut):
-  global pendingDocCount
+  global pendingDocCount  # noqa: FURB154
   global pendingByteCount
   fOut.write(("%d %d\n" % (pendingDocCount, pendingByteCount)).encode("utf-8"))
   fOut.write(b"".join(pending))

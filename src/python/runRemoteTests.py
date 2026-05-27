@@ -408,7 +408,7 @@ def gatherTests(stats, rootDir):
 
     # solr contrib tests
     for contrib in os.listdir("%s/solr/contrib" % rootDir):
-      if not os.path.isdir("%s/solr/contrib/%s" % (rootDir, contrib)) or contrib in (".svn",):
+      if not os.path.isdir("%s/solr/contrib/%s" % (rootDir, contrib)) or contrib in (".svn",):  # noqa: FURB171
         continue
       # print 'contrib/%s' % contrib
       strip = len(rootDir) + len("/solr/contrib/%s/src/test/" % contrib)

@@ -64,7 +64,7 @@ def parseTime(l):
 
 
 def main():
-  global MAX_SEG_COUNT
+  global MAX_SEG_COUNT  # noqa: FURB154
   global MAX_SEG_SIZE_MB
 
   merges, segToFullMB = parse(sys.argv[1])
@@ -125,7 +125,7 @@ def main():
         continue
     elif ev[0] == "merge":
       seen = set()
-      for seg, color in mergeToColor.items():
+      for seg, color in mergeToColor.items():  # noqa: FURB142
         seen.add(color)
       for color in mergeColors:
         if color not in seen:

@@ -221,7 +221,7 @@ class Segment:
 
   def merge_event(self, timestamp, event, infostream_line_number):
     """Like add_event, except the timestamp might be out of order, so we do insertion sort."""
-    insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])
+    insert_at = bisect.bisect_right(self.events, timestamp, key=lambda x: x[0])  # noqa: FURB118
     self.events.insert(insert_at, (timestamp, event, infostream_line_number))
 
   def to_verbose_string(self, global_start_time, global_end_time, with_line_numbers, with_all_deletes=False):
@@ -244,7 +244,7 @@ class Segment:
       md = f"  {self.max_doc:,} max_doc"
     if self.size_mb is not None:
       md += f" ({self.max_doc / self.size_mb:,.1f} docs/MB)"
-    l.append(md)
+    l.append(md)  # noqa: FURB113
     l.append(f"  write-ampl: {self.net_write_amplification:.1f} X (ancestors: {self.max_ancestor_depth})")
     if type(self.source) is str and self.source.startswith("flush"):
       if self.ram_used_mb is None:
@@ -314,7 +314,7 @@ class Segment:
     # this can never be 100% since it must take time to write and merge a segment...
     day_pct = 100.0 * (ltt - btt - dtt) / ltt
 
-    l.append(f"  life-efficiency {day_pct:.1f}%")
+    l.append(f"  life-efficiency {day_pct:.1f}%")  # noqa: FURB113
     l.append(f"  times {bt} / {sec_to_time_delta(ltt - btt - dtt)} / {dt}")
     if self.merged_into is not None:
       l.append(f"  merged into {self.merged_into.name}")

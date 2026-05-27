@@ -91,8 +91,8 @@ def beep():
   print("\a\a\a")
 
 
-reRepro = re.compile("NOTE: reproduce with(.*?)$", re.MULTILINE)
-reDefines = re.compile("-D(.*?)=(.*?)(?: |$)")
+reRepro = re.compile("NOTE: reproduce with(.*?)$", re.MULTILINE)  # noqa: RUF039
+reDefines = re.compile("-D(.*?)=(.*?)(?: |$)")  # noqa: RUF039
 
 
 def printReproLines(logFileName, iters):
@@ -252,7 +252,7 @@ def nextIter(threadID, logFileName, secLastIter):
 
 def eventToLog(eventsFileIn, fileOut):
   """Appends all stdout/stderr from the events file, to human readable form."""
-  r = re.compile('^    "chunk": "(.*?)"$')
+  r = re.compile('^    "chunk": "(.*?)"$')  # noqa: RUF039
   with open(eventsFileIn) as f:
     with open(fileOut, "wb") as fOut:
       while True:
@@ -362,7 +362,7 @@ def _run(threadID):
       command += " %s" % testClass
 
       if doLog:
-        with open(logFileName, "w") as f:
+        with open(logFileName, "w") as f:  # noqa: FURB103
           f.write("RUN: %s\n\n" % command)
         command += " >> %s 2>&1" % logFileName
       else:

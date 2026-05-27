@@ -19,7 +19,7 @@ import datetime
 import re
 import subprocess
 
-r = re.compile('id="(.*?)" lat="(.*?)" lon="(.*?)"')
+r = re.compile('id="(.*?)" lat="(.*?)" lon="(.*?)"')  # noqa: RUF039
 
 with subprocess.Popen("cat planet-latest.osm.20160307.bz2 | bunzip2 -c", stdout=subprocess.PIPE, shell=True) as p, open("latlon.txt", "wb") as fOut:
   # with open('planet-latest.osm', 'rb') as f,

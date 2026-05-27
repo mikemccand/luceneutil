@@ -70,7 +70,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
           # we have a sparseness problem...
           t = responseTimes[-idx - 1]
 
-        points[(name, qps)] = t
+        points[(name, qps)] = t  # noqa: RUF031
         # TODO: this SLA code is not to be found
         # if sla is not None and t <= sla:
         #   passesSLA.add(name)
@@ -89,7 +89,7 @@ def graph(rowPoint, logsDir, warmupSec, names, fileName, maxQPS=None):
     row = ["%d" % qps]
     for name in names:
       try:
-        s = "%.1f" % points[(name, qps)]
+        s = "%.1f" % points[(name, qps)]  # noqa: RUF031
       except KeyError:
         s = ""
       row.append(s)

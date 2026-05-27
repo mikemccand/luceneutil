@@ -112,6 +112,7 @@ def main():
     # takes a long time!  ~3.2 hours
     # NOTE: train is the only split
     docs = datasets.load_dataset(DATASET_NAME, LANG, split="train", streaming=True)
+    docs = docs.with_format("numpy")
     # print(f'columns: {docs.column_names}')
 
     features = docs.features
@@ -171,14 +172,15 @@ def main():
       cur_wiki_id = None
 
       next_print_time_sec = start_time_sec
-      with open(csv_source_file, "w", newlines="") as meta_out, open(vec_source_file, "wb") as vec_out:
+      last_vec_out_pos = 0
+      with open(csv_source_file, "w", newline="") as meta_out, open(vec_source_file, "wb") as vec_out:
         meta_csv_out = csv.writer(meta_out, lineterminator="\n")
         meta_csv_out.writerow(headers)
         for doc in docs:
           meta_csv_out.writerow([doc["_id"], doc["title"], doc["text"], doc["url"]])
           total_text_chars += len(doc["text"])
           total_title_chars += len(doc["title"])
-          wiki_id, paragraph_id = split_id(doc["_id"], row_count)
+          wiki_id, paragraph_id = split_id(doc["_id"], row_count)  # noqa: RUF059
 
           if wiki_id != cur_wiki_id:
             if STOP_AT is not None and total_doc_count >= STOP_AT:
@@ -186,12 +188,23 @@ def main():
             total_doc_count += 1
             cur_wiki_id = wiki_id
 
-          emb = np.array(doc["emb"], dtype=np.float32)
+          emb = doc["emb"]
 
+          if emb.dtype != np.dtype("<f4"):
+            raise RuntimeError(f"planned on little-endian float32 encoding but corpus is {emb.dtype}!")
           if len(emb) != DIMENSIONS:
             raise RuntimeError(f"planned on {DIMENSIONS} dims but corpus is {len(emb)}!")
           # print(f'{type(emb)}')
           emb.tofile(vec_out)
+
+          # NOTE: logic below completely untested!
+
+          # paranoia -- we could also hold our paranoia until after whole file is written and check then hah:
+          vec_out_pos = vec_out.tell()
+          if vec_out_pos - last_vec_out_pos != DIMENSIONS * 4:
+            raise RuntimeError(f"expected {DIMENSIONS * 4} bytes written (4 bytes (float32) per dimension={DIMENSIONS}) but saw {vec_out_pos - last_vec_out_pos}")
+          last_vec_out_pos = vec_out_pos
+
           row_count += 1
           now_sec = time.time()
           if now_sec > next_print_time_sec:
@@ -390,7 +403,7 @@ def shuffle_entirely(
 
       # write CSV rows in order
       csv_out.write(",".join(header) + "\n")
-      for line in csv_output_lines:
+      for line in csv_output_lines:  # noqa: FURB122
         csv_out.write(line)
 
     elapsed_sec = time.time() - start_time_sec
@@ -440,7 +453,7 @@ def xor_vector_hash(prior_hash_bytes, vector_bytes):
     return new_hash_bytes
 
   # XOR byte by byte
-  result_bytes = bytes(a ^ b for a, b in zip(prior_hash_bytes, new_hash_bytes))
+  result_bytes = bytes(a ^ b for a, b in zip(prior_hash_bytes, new_hash_bytes))  # noqa: B905
   return result_bytes
 
 
@@ -482,7 +495,7 @@ def compute_wiki_id_vector_hashes(csv_file, vec_file, is_full_id=False, expected
       # extract wiki_id from first column
       wiki_id = csv_row[0]
       if is_full_id:
-        wiki_id, para_id = split_id(wiki_id, line_num=csv_reader.line_num)
+        wiki_id, para_id = split_id(wiki_id, line_num=csv_reader.line_num)  # noqa: RUF059
 
       # read corresponding vector bytes
       vec_bytes = read_exact(vec_f, vector_size_bytes, "vector")

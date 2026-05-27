@@ -17,6 +17,9 @@
 
 import multiprocessing
 import os
+import shlex
+import shutil
+from pathlib import Path
 
 from localconstants import BASE_DIR
 
@@ -24,8 +27,23 @@ from localconstants import BASE_DIR
 # BASE_DIR; all your checkouts should be under BASE_DIR, ie
 # BASE_DIR/aaa BASE_DIR/bbb etc.
 
-if "BENCH_BASE_DIR" not in globals():
-  BENCH_BASE_DIR = "%s/util" % BASE_DIR
+# constants.py lives at <repo_root>/src/python/constants.py
+_inferred_root = Path(__file__).resolve().parent.parent.parent
+
+if not (_inferred_root / "build.gradle").exists() or not (_inferred_root / "src" / "python" / "knnPerfTest.py").exists():
+  raise RuntimeError(f"constants.py does not appear to be inside a luceneutil clone: sentinel files missing at {_inferred_root} (constants.py is at {Path(__file__).resolve()})")
+
+try:
+  from localconstants import BENCH_BASE_DIR as _local_BENCH_BASE_DIR  # noqa: N811
+
+  if Path(_local_BENCH_BASE_DIR).resolve() != _inferred_root:
+    raise RuntimeError(
+      f"localconstants.py defines BENCH_BASE_DIR={_local_BENCH_BASE_DIR!r} but repo root inferred from constants.py location is {_inferred_root}; remove or correct BENCH_BASE_DIR in localconstants.py"
+    )
+except ImportError:
+  pass  # BENCH_BASE_DIR not set in localconstants.py -- fine, we use inferred root
+
+BENCH_BASE_DIR = str(_inferred_root)
 
 # wget http://home.apache.org/~mikemccand/enwiki-20100302-pages-articles-lines-1k-shuffled.txt.bz2
 # WIKI_MEDIUM_DOCS_LINE_FILE = '%s/data/enwiki-20100302-pages-articles-lines-1k-shuffled.txt' % BASE_DIR
@@ -117,6 +135,21 @@ if "JAVA_COMMAND" not in globals():
 else:
   print("use java command %s" % JAVA_COMMAND)  # pyright: ignore[reportUnboundVariable] # TODO: fix how variables are managed here
 
+
+def check_java_home():
+  """Raise ValueError if the configured java/javac binaries are missing or not executable."""
+  for exe in (JAVA_EXE, JAVAC_EXE):
+    if not shutil.which(shlex.split(exe)[0]):
+      hint = (
+        f"  JAVA_EXE={JAVA_EXE!r}\n"
+        f"  JAVAC_EXE={JAVAC_EXE!r}\n"
+        f"  JAVA_HOME env={os.environ.get('JAVA_HOME')!r}\n"
+        "  Check localconstants.py for hardcoded JAVA_EXE/JAVAC_EXE overrides,\n"
+        "  or set JAVA_HOME, e.g.: export JAVA_HOME=/usr/lib/jvm/java-26-openjdk"
+      )
+      raise ValueError(f"required Java binary not found: {exe!r}\n{hint}")
+
+
 JRE_SUPPORTS_SERVER_MODE = True
 INDEX_NUM_THREADS = 1
 
@@ -183,6 +216,8 @@ PROCESSOR_COUNT = 12
 
 # set this to see flame charts on blunders.io; see blunders.py
 BLUNDERS_AUTH_UPLOAD_PASSWORD = None
+
+JFR_MAX_SIZE_MB = 250
 
 # import again in case you want to override any of the vars set above
 from localconstants import *  # noqa: F403 TODO: rethink how we do this to be more type-safe

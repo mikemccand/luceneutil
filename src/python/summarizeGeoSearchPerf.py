@@ -28,7 +28,7 @@ for precStep in 4, 8, 16:
         fields.add(field)
       if line.startswith("msec="):
         msec = float(line[5:])
-        results[(field, precStep)] = msec, totTerms
+        results[(field, precStep)] = msec, totTerms  # noqa: RUF031
       if line.startswith("tot term rewrites="):
         totTerms = int(line[18:])
 
@@ -39,5 +39,5 @@ print()
 print("     Field  PrecStep   QueryTime   TermCount")
 for field in fields:
   for precStep in 4, 8, 16:
-    msec, totTerms = results[(field, precStep)]
+    msec, totTerms = results[(field, precStep)]  # noqa: RUF031
     print("%10s  %8d  %7.1f ms  %10d" % (field, precStep, msec, totTerms))

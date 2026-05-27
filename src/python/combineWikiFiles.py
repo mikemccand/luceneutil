@@ -31,8 +31,8 @@ if onlyThreeColumns:
 
 fOut.write(line)
 
-reTitle = re.compile('title="(.*?)">$')
-reHTMLEscape = re.compile("&.*?;")
+reTitle = re.compile('title="(.*?)">$')  # noqa: RUF039
+reHTMLEscape = re.compile("&.*?;")  # noqa: RUF039
 
 lineCount = 0
 

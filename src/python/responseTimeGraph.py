@@ -99,7 +99,7 @@ def getPctPoints(fileName, name, warmupSec):
     col = []
     col.append(responseTimes[0])
     didMax = False
-    for _, (pct, minCount) in enumerate(logPoints):
+    for _, (pct, minCount) in enumerate(logPoints):  # noqa: FURB148
       if len(responseTimes) < minCount:
         break
       idx = int(((100.0 - pct) / 100.0) * len(responseTimes))

@@ -20,6 +20,7 @@ package perf;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -66,6 +67,9 @@ class IndexState {
   public final Map<Object, ThreadLocal<PointsPKLookupState>> pointsPKLookupStates = new HashMap<>();
   public final Map<Object, ThreadLocal<PKLookupWithTermStateState>> pkLookupWithTermStateStates = new HashMap<>();
 
+  // Leaf ordinals sorted by descending maxDoc,
+  public final int[] leafOrder;
+
   public IndexState(ExecutorService executor, ReferenceManager<IndexSearcher> mgr, TaxonomyReader taxoReader, String textFieldName,
                     DirectSpellChecker spellChecker, String hiliteImpl, FacetsConfig facetsConfig, Map<String,Integer> facetFields) throws IOException {
     this.executor = executor;
@@ -94,10 +98,22 @@ class IndexState {
     try {
       hasDeletions = searcher.getIndexReader().hasDeletions();
 
-      for(LeafReaderContext ctx : searcher.getIndexReader().leaves()) {
+      List<LeafReaderContext> leaves = searcher.getIndexReader().leaves();
+      for(LeafReaderContext ctx : leaves) {
         pkLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupState>());
         pointsPKLookupStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PointsPKLookupState>());
         pkLookupWithTermStateStates.put(ctx.reader().getCoreCacheHelper().getKey(), new ThreadLocal<PKLookupWithTermStateState>());
+      }
+
+      // Pre-compute leaf ordering by descending maxDoc
+      Integer[] order = new Integer[leaves.size()];
+      for (int i = 0; i < order.length; i++) {
+        order[i] = i;
+      }
+      Arrays.sort(order, (a, b) -> Integer.compare(leaves.get(b).reader().maxDoc(), leaves.get(a).reader().maxDoc()));
+      leafOrder = new int[order.length];
+      for (int i = 0; i < order.length; i++) {
+        leafOrder[i] = order[i];
       }
 
       groupBlocksExist = searcher.count(groupEndQuery) > 0;

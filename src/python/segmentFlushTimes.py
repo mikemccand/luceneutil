@@ -225,7 +225,7 @@ def writeChart(results):
       l.append(s)
     dataLines6.append("        %s,\n" % str(l).replace("'null'", "null"))
 
-  with open("/x/tmp/flushTimes.html", "w") as f:
+  with open("/x/tmp/flushTimes.html", "w") as f:  # noqa: FURB103
     f.write(
       chartHTML
       % (
@@ -245,9 +245,9 @@ if not os.path.exists("results.pk"):
     % (DATA_FILE, THREAD_COUNT)
   )
 
-  reSegSizeMB = re.compile("ramUsed=([0-9,.]+) MB newFlushedSize=([0-9,.]+) MB")
-  reFlushTime = re.compile("flush time ([0-9.]+) msec")
-  reTermCount = re.compile("has ([0-9]+) unique terms ([0-9.]+) msec to sort")
+  reSegSizeMB = re.compile("ramUsed=([0-9,.]+) MB newFlushedSize=([0-9,.]+) MB")  # noqa: RUF039
+  reFlushTime = re.compile("flush time ([0-9.]+) msec")  # noqa: RUF039
+  reTermCount = re.compile("has ([0-9]+) unique terms ([0-9.]+) msec to sort")  # noqa: RUF039
   reIndexedCount = re.compile(r"Indexer: ([0-9]+) docs... \(([0-9]+) msec\)")
 
   results = []

@@ -31,7 +31,7 @@ vector_file = sys.argv[3]
 model_name = sys.argv[4]
 
 dic = dict()
-TOKENIZE_RE = re.compile("[][ \t,\\-()!@#$%^&*'\"{}<>/?\\|+=_:;.]+")
+TOKENIZE_RE = re.compile("[][ \t,\\-()!@#$%^&*'\"{}<>/?\\|+=_:;.]+")  # noqa: RUF039
 with open(input_file) as input:
   for line in input:
     if len(dic) > 400000:

@@ -36,6 +36,7 @@ import benchUtil
 import blunders
 import competition
 import constants
+import fillNightlyFixedIndexTime
 import fillNightlyTotalIndexSizes
 import ps_head
 import runFacetsBenchmark
@@ -67,6 +68,15 @@ This script runs certain benchmarks, once per day, and generates graphs so we ca
 #   - maybe multiple queries on one graph...?
 
 DEBUG = "-debug" in sys.argv
+
+# NOTE: invented for debugging massive horror-regression 1/29/2026!  due to CPU governor changing, combined with too old BIOS
+# that that different governor failed to successfully interact with, causing fallback to absurdly-slow-but-for-sure-save CPU clocks
+# see https://github.com/apache/lucene/issues/15662
+REUSE_NIGHTLY_INDICES = False
+REUSE_NIGHTLY_TIMESTAMP_DIR = "/l/logs.nightly/2026.02.10.07.46.04"
+
+# NOTE: also invented for massive horror-regression 1/29/2026
+ONLY_TASKS = False
 
 JFR_STACK_SIZES = (1, 2, 4, 8, 12)
 
@@ -104,10 +114,10 @@ if DEBUG:
   NRT_RUN_TIME //= 90
   JVM_COUNT = 3
 
-reBytesIndexed = re.compile("^Indexer: net bytes indexed (.*)$", re.MULTILINE)
+reBytesIndexed = re.compile("^Indexer: net bytes indexed (.*)$", re.MULTILINE)  # noqa: RUF039
 reIndexingTime = re.compile(r"^Indexer: finished \((.*) msec\)", re.MULTILINE)
 reSVNRev = re.compile(r"revision (.*?)\.")
-reIndexAtClose = re.compile("Indexer: at close: (.*?)$", re.MULTILINE)
+reIndexAtClose = re.compile("Indexer: at close: (.*?)$", re.MULTILINE)  # noqa: RUF039
 reGitHubPROpen = re.compile(r"\s([0-9,]+) Open")
 reGitHubPRClosed = re.compile(r"\s([0-9,]+) Closed")
 
@@ -115,6 +125,29 @@ reGitHubPRClosed = re.compile(r"\s([0-9,]+) Closed")
 all_graph_data = {}
 
 REAL = True
+
+
+def get_cpu_info():
+  """Detect CPU model and core/thread counts from the current machine via lscpu."""
+  try:
+    output = subprocess.check_output(["lscpu"], text=True)
+    model_name = ""
+    sockets = 1
+    cores_per_socket = 1
+    threads_per_core = 1
+    for line in output.splitlines():
+      if line.startswith("Model name:"):
+        model_name = line.split(":", 1)[1].strip()
+      elif line.startswith("Socket(s):"):
+        sockets = int(line.split(":", 1)[1].strip())
+      elif line.startswith("Core(s) per socket:"):
+        cores_per_socket = int(line.split(":", 1)[1].strip())
+      elif line.startswith("Thread(s) per core:"):
+        threads_per_core = int(line.split(":", 1)[1].strip())
+    total_cores = sockets * cores_per_socket * threads_per_core
+    return "%s (total %d cores = %d socket(s) * %d cores/socket * %d threads/core)" % (model_name, total_cores, sockets, cores_per_socket, threads_per_core)
+  except (OSError, ValueError) as e:
+    return "unknown CPU (error: %s)" % e
 
 
 def now():
@@ -141,12 +174,37 @@ def runCommand(command):
     message("WOULD RUN: %s" % command)
 
 
+def extract_indexing_stats_from_log(log_file_name):
+  s = open(log_file_name).read()
+  bytesIndexed = int(reBytesIndexed.search(s).group(1))
+  m = reIndexAtClose.search(s)
+  if m is not None:
+    indexAtClose = m.group(1)
+  else:
+    # we have no index when we don't -waitForCommit
+    indexAtClose = None
+  indexTimeSec = int(reIndexingTime.search(s).group(1)) / 1000.0
+  return bytesIndexed, indexAtClose, indexTimeSec
+
+
 def buildIndex(r, runLogDir, desc, index, logFile):
   message("build %s" % desc)
   # t0 = now()
   indexPath = benchUtil.nameToIndexPath(index.getName())
   if os.path.exists(indexPath):
-    shutil.rmtree(indexPath)
+    if not REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: removing old index "{desc}" at {indexPath}')
+      shutil.rmtree(indexPath)
+    else:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; reusing old index "{desc}" at {indexPath}')
+      # TODO: we should also sniff it a bit?  confirm it's viable / matches doc count?
+      oldLogFileName = f"{REUSE_NIGHTLY_TIMESTAMP_DIR}/{logFile}"
+      if not os.path.exists(oldLogFileName):
+        raise RuntimeError(f'tried to reuse index "{desc}" at {indexPath} but log file {oldLogFileName} under {REUSE_NIGHTLY_TIMESTAMP_DIR=} does not exist?')
+      bytesIndexed, indexAtClose, indexTimeSec = extract_indexing_stats_from_log(oldLogFileName)
+      profilerResults = None
+      jfrFile = None
+      return indexPath, indexTimeSec, bytesIndexed, indexAtClose, profilerResults, jfrFile
 
   # clean up after any failed runs first:
   for tool in ("vmstat", "top"):
@@ -156,7 +214,7 @@ def buildIndex(r, runLogDir, desc, index, logFile):
       os.remove(logFileName)
 
   # aggregate at multiple stack depths so we can see patterns like "new BytesRef() is costly regardless of context", for example:
-  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False)
+  indexPath, fullLogFile, profilerResults, jfrFile = r.makeIndex("nightly", index, profilerCount=50, profilerStackSize=JFR_STACK_SIZES, useLogSubDir=False, desc=desc)
 
   # indexTime = (now()-t0)
 
@@ -175,17 +233,11 @@ def buildIndex(r, runLogDir, desc, index, logFile):
     print("move top log to %s" % newTopLogFileName)
     shutil.move(f"{constants.LOGS_DIR}/nightly.top.log", newTopLogFileName)
 
-  s = open(newLogFileName).read()
-  bytesIndexed = int(reBytesIndexed.search(s).group(1))
-  m = reIndexAtClose.search(s)
-  if m is not None:
-    indexAtClose = m.group(1)
-  else:
-    # we have no index when we don't -waitForCommit
-    indexAtClose = None
-  indexTimeSec = int(reIndexingTime.search(s).group(1)) / 1000.0
+  bytesIndexed, indexAtClose, indexTimeSec = extract_indexing_stats_from_log(newLogFileName)
 
   message("  took %.1f sec" % indexTimeSec)
+
+  fail_if_java_exceptions(f"buildIndex:{desc}", newLogFileName)
 
   if "(fast)" in desc:
     # don't run checkIndex: we rollback in the end
@@ -207,11 +259,29 @@ def checkIndex(r, indexPath, checkLogFileName):
     checkLogFileName,
   )
   runCommand(cmd)
+  fail_if_java_exceptions("checkIndex:" + indexPath, checkLogFileName)
   if open(checkLogFileName, encoding="utf-8").read().find("No problems were detected with this index") == -1:
     raise RuntimeError("CheckIndex failed")
 
 
-reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)
+# Pattern matches common Java exception formats
+EXCEPTION_PATTERN = re.compile(
+  r"(?:Exception|Error|Throwable)(?::|$)|"
+  r"^\s+at\s+[\w.$]+\([\w.]+:\d+\)|"
+  r"^\s+\.\.\.\s+\d+\s+more|"
+  r"Caused by:"
+)
+
+
+def fail_if_java_exceptions(desc, log_file):
+  with open(log_file) as f:
+    for line_num, line in enumerate(f, 1):
+      # MergeAbortedException is normal at the end of indexing when we rollback:
+      if EXCEPTION_PATTERN.search(line) and "org.apache.lucene.index.MergePolicy$MergeAbortedException" not in line:
+        raise RuntimeError(f'{desc}: java exceptions found in log file "{log_file}": line {line_num}: {line.rstrip()}')
+
+
+reNRTReopenTime = re.compile("^Reopen: +([0-9.]+) msec$", re.MULTILINE)  # noqa: RUF039
 
 
 def runNRTTest(r, indexPath, runLogDir):
@@ -234,6 +304,8 @@ def runNRTTest(r, indexPath, runLogDir):
   cmd += "> %s 2>&1" % logFile
   runCommand(cmd)
 
+  fail_if_java_exceptions("runNRTTest", logFile)
+
   times = []
   for s in reNRTReopenTime.findall(open(logFile, encoding="utf-8").read()):
     times.append(float(s))
@@ -249,7 +321,7 @@ def runNRTTest(r, indexPath, runLogDir):
     times = times[:-numDrop]
   message("times: %s" % " ".join(["%.1f" % x for x in times]))
 
-  min, max, mean, stdDev = stats.getStats(times)
+  min, max, mean, stdDev = stats.getStats(times)  # noqa: RUF059
   message("NRT reopen time (msec) mean=%.4f stdDev=%.4f" % (mean, stdDev))
 
   checkIndex(r, indexPath, "%s/checkIndex.nrt.log" % runLogDir)
@@ -262,7 +334,7 @@ def validate_nightly_task_count(tasks_file, max_count):
   of tasks, as we did/saw for count(*) tasks. so we enforce here that there are NO MORE
   than N tasks in each category in the nightly tasks file.
   """
-  re_cat_and_task = re.compile("^([^:]+): (.*?)(?:#.*)?$")
+  re_cat_and_task = re.compile("^([^:]+): (.*?)(?:#.*)?$")  # noqa: RUF039
 
   by_cat = {}
   with open(tasks_file, encoding="utf-8") as f:
@@ -280,6 +352,23 @@ def validate_nightly_task_count(tasks_file, max_count):
     if len(tasks) > max_count:
       tasks_str = "\n  ".join(tasks)
       raise RuntimeError(f"nightly tasks file {tasks_file} must have at most {max_count} tasks in each category, but saw {len(tasks)}:\n  {tasks_str}")
+
+
+def run_print_log(cmd, desc, logDir, logFileName, do_print=True):
+  p = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
+  s = p.stdout.strip()
+  fullLogFileName = f"{logDir}/{logFileName}"
+  with open(fullLogFileName, "w") as f:  # noqa: FURB103
+    f.write(s)
+  if do_print:
+    if "\n" in s:
+      # multiple lines, so we force newline before first line
+      insert = "\n"
+    else:
+      # inline single line
+      insert = " "
+    print(f"\n\n{desc} (see also {fullLogFileName}): {cmd=}{insert}{s}")
+  return s
 
 
 def run():
@@ -315,6 +404,22 @@ def run():
       print("Removing old JFR %s..." % fileName)
       os.remove(fileName)
 
+  # gather other telemetry?
+  # make sure kernel module k10temp comes back on reboot
+  # should we tinker with preempt on boot?
+  # biolatency
+  # htop, btop
+  # turbostat
+  # cpupower (service and command-line tool?) frequency-info
+  #   cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
+  #   cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+  #   grep MHz /proc/cpuinfo
+  # rdmsr
+  # lspci -vvv to
+  # dmesg
+  # turbostat
+  # /etc/default/cpupower
+
   print()
   print()
   print()
@@ -332,17 +437,32 @@ def run():
   message("log dir %s" % runLogDir)
 
   os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
-  javaFullVersion = os.popen("%s -fullversion 2>&1" % constants.JAVA_COMMAND).read().strip()
-  print("%s" % javaFullVersion)
-  javaVersion = os.popen("%s -version 2>&1" % constants.JAVA_COMMAND).read().strip()
+
+  javaVersion = run_print_log("%s -version 2>&1" % constants.JAVA_COMMAND, "Java version", runLogDir, "java_version.txt")
   print("%s" % javaVersion)
 
-  p = subprocess.run(f"{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
-  open(f"{runLogDir}/java-final-flags.txt", "w").write(p.stdout)
+  javaFullVersion = run_print_log("%s -fullversion 2>&1" % constants.JAVA_COMMAND, "Java full version", runLogDir, "java_full_version.txt")
 
-  print("uname -a: %s" % os.popen("uname -a 2>&1").read().strip())
-  print("lsb_release -a:\n%s" % os.popen("lsb_release -a 2>&1").read().strip())
-  print("\ninstalled packages (pacman -Q):\n%s" % os.popen("pacman -Q 2>&1").read().strip())
+  run_print_log(f"{constants.JAVA_COMMAND} -XX:+PrintFlagsFinal -version", "Java version & all flags", runLogDir, "java_final_flags.txt")
+
+  kernel_version = run_print_log("uname -a 2>&1", "Linux kernel version", runLogDir, "uname.txt")
+
+  # from 01/29/2026 pains (trust but verify!):
+  cpupower = run_print_log("cpupower frequency-info", "CPU governor/scaling/frequency", runLogDir, "cpu_frequency_info.txt")
+  lscpu = run_print_log("lscpu", "CPU specifics", runLogDir, "lscpu.txt")
+  run_print_log("cat /proc/cpuinfo", "More CPU specifics", runLogDir, "proc_cpuinfo.txt", do_print=False)
+
+  proc_version = run_print_log("cat /proc/version", "Full Linux version", runLogDir, "proc_version.txt")
+
+  proc_cmdline = run_print_log("cat /proc/cmdline", "Kernel boot command-line", runLogDir, "proc_cmdline.txt")
+
+  lsmod = run_print_log("lsmod", "Loaded kernel modules", runLogDir, "lsmod.txt")
+
+  preempt = run_print_log("sudo cat /sys/kernel/debug/sched/preempt", "Preempt mode", runLogDir, "preempt.txt")
+
+  dmesg = run_print_log("sudo dmesg", "Kernel console log", runLogDir, "dmesg.txt", do_print=False)
+  run_print_log("lsb_release -a", "Linux standard base version", runLogDir, "lsb.txt")
+  packages = run_print_log("pacman -Q", "All installed packages&versions", runLogDir, "pacman.txt")
 
   if not REAL:
     os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
@@ -366,7 +486,7 @@ def run():
     lastRevs = findLastSuccessfulGitHashes()
     if lastRevs is not None:
       lastLuceneRev, lastLuceneUtilRev, lastLogFile = lastRevs
-      print(f"last successfull Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}")
+      print(f"last successful Lucene rev {lastLuceneRev}, luceneutil rev {lastLuceneUtilRev}")
 
       # parse git log to see if there were any commits requesting regold
       command = ["git", "log", f"{lastLuceneRev}^..{luceneRev}"]
@@ -443,12 +563,14 @@ def run():
     waitForMerges=False,
     waitForCommit=False,
     grouping=False,
-    verbose=False,
+    verbose=True,  # TODO: turn off again once we validate if there is HNSW concurrency bug https://github.com/mikemccand/luceneutil/pull/507#discussion_r3045850830
     mergePolicy="TieredMergePolicy",
     useCMS=True,
     vectorFile=constants.VECTORS_DOCS_FILE,
     vectorDimension=constants.VECTORS_DIMENSIONS,
     vectorEncoding=constants.VECTORS_TYPE,
+    hnswThreadsPerMerge=constants.HNSW_THREADS_PER_MERGE,
+    hnswThreadPoolCount=constants.HNSW_THREAD_POOL_COUNT,
   )
 
   fastIndexMediumVectorsQuantized = comp.newIndex(
@@ -470,6 +592,8 @@ def run():
     vectorDimension=constants.VECTORS_DIMENSIONS,
     vectorEncoding=constants.VECTORS_TYPE,
     quantizeKNNGraph=True,
+    hnswThreadsPerMerge=constants.HNSW_THREADS_PER_MERGE,
+    hnswThreadPoolCount=constants.HNSW_THREAD_POOL_COUNT,
   )
 
   nrtIndexMedium = comp.newIndex(
@@ -531,6 +655,7 @@ def run():
       ("sortedset:RandomLabel", "RandomLabel"),
     ),
     addDVFields=True,
+    addDVSkippers=True,
     vectorFile=constants.VECTORS_DOCS_FILE,
     vectorDimension=constants.VECTORS_DIMENSIONS,
     vectorEncoding=constants.VECTORS_TYPE,
@@ -539,10 +664,11 @@ def run():
   )
 
   # this index is gigantic -- if a turd is leftover from a prior failed run, nuke it now!!
-  index_path = benchUtil.nameToIndexPath(index.getName())
-  if os.path.exists(index_path):
-    print(f"NOTE: now delete old leftover ginormous index {index_path}")
-    shutil.rmtree(index_path)
+  if not REUSE_NIGHTLY_INDICES:
+    index_path = benchUtil.nameToIndexPath(index.getName())
+    if os.path.exists(index_path):
+      print(f"NOTE: now delete old leftover ginormous index {index_path}")
+      shutil.rmtree(index_path)
 
   c = comp.competitor(
     id,
@@ -562,8 +688,8 @@ def run():
   if REAL:
     r.compile(c)
 
-  # stored fields benchy
-  if not DEBUG and not DO_RESET:
+  if not ONLY_TASKS and not DEBUG and not DO_RESET:
+    # stored fields benchy
     os.chdir(constants.BENCH_BASE_DIR)
     try:
       message("now run stored fields benchmark")
@@ -610,50 +736,67 @@ def run():
     finally:
       os.chdir("%s/%s" % (constants.BASE_DIR, NIGHTLY_DIR))
 
-  # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
-  medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, "medium index (fast)", fastIndexMedium, "fastIndexMediumDocs.log")
-  message("medIndexAtClose %s" % atClose)
-  shutil.rmtree(medIndexPath)
+  if not ONLY_TASKS:
+    # 1: test indexing speed: small (~ 1KB) sized docs, flush-by-ram
+    medIndexPath, medIndexTime, medBytesIndexed, atClose, profilerMediumIndex, profilerMediumJFR = buildIndex(r, runLogDir, "medium index (fast)", fastIndexMedium, "fastIndexMediumDocs.log")
+    message("medIndexAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "medium index (fast)" at {medIndexPath}')
+    else:
+      shutil.rmtree(medIndexPath)
 
-  # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
-  medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(
-    r, runLogDir, "medium vectors index (fast)", fastIndexMediumVectors, "fastIndexMediumDocsWithVectors.log"
-  )
-  message("medIndexVectorsAtClose %s" % atClose)
-  shutil.rmtree(medVectorsIndexPath)
+    # 2: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors
+    medVectorsIndexPath, medVectorsIndexTime, medVectorsBytesIndexed, atClose, profilerMediumVectorsIndex, profilerMediumVectorsJFR = buildIndex(
+      r, runLogDir, "medium vectors index (fast)", fastIndexMediumVectors, "fastIndexMediumDocsWithVectors.log"
+    )
+    message("medIndexVectorsAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "medium vectors index (fast)" at {medVectorsIndexPath}')
+    else:
+      shutil.rmtree(medVectorsIndexPath)
 
-  # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
-  # TODO: render profiler data for thias run too
-  medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(
-    r, runLogDir, "medium quantized vectors index (fast)", fastIndexMediumVectorsQuantized, "fastIndexMediumDocsWithVectorsQuantized.log"
-  )
-  message("medIndexVectorsAtClose %s" % atClose)
-  shutil.rmtree(medQuantizedVectorsIndexPath)
+    # 2.5: test indexing speed: small (~ 1KB) sized docs, flush-by-ram, with vectors, quantized
+    # TODO: render profiler data for thias run too
+    medQuantizedVectorsIndexPath, medQuantizedVectorsIndexTime, medQuantizedVectorsBytesIndexed, atClose, profilerMediumQuantizedVectorsIndex, profilerMediumQuantizedVectorsJFR = buildIndex(  # noqa: RUF059
+      r, runLogDir, "medium quantized vectors index (fast)", fastIndexMediumVectorsQuantized, "fastIndexMediumDocsWithVectorsQuantized.log"
+    )
+    message("medIndexVectorsAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "medium quantized vectors index (fast)" at {medQuantizedVectorsIndexPath}')
+    else:
+      shutil.rmtree(medQuantizedVectorsIndexPath)
 
-  # 3: build index for NRT test
-  nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")
-  message("nrtMedIndexAtClose %s" % atClose)
-  nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
+    # 3: build index for NRT test
+    nrtIndexPath, nrtIndexTime, nrtBytesIndexed, atClose, profilerNRTIndex, profilerNRTJFR = buildIndex(r, runLogDir, "nrt medium index", nrtIndexMedium, "nrtIndexMediumDocs.log")  # noqa: RUF059
+    message("nrtMedIndexAtClose %s" % atClose)
+    nrtResults = runNRTTest(r, nrtIndexPath, runLogDir)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "nrt medium index" at {nrtIndexPath}')
+    else:
+      shutil.rmtree(nrtIndexPath)
 
-  # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
-  bigIndexPath, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, "big index (fast)", fastIndexBig, "fastIndexBigDocs.log")
-  message("bigIndexAtClose %s" % atClose)
-  shutil.rmtree(bigIndexPath)
+    # 4: test indexing speed: medium (~ 4KB) sized docs, flush-by-ram
+    bigIndexPath, bigIndexTime, bigBytesIndexed, atClose, profilerBigIndex, profilerBigJFR = buildIndex(r, runLogDir, "big index (fast)", fastIndexBig, "fastIndexBigDocs.log")
+    message("bigIndexAtClose %s" % atClose)
+    if REUSE_NIGHTLY_INDICES:
+      print(f'NOTE: REUSE_NIGHTLY_INDICES=True; keeping "big index (fast)" at {bigIndexPath}')
+    else:
+      shutil.rmtree(bigIndexPath)
 
   # 5: test searching speed; first build index, flushed by doc count (so we get same index structure night to night)
   # TODO: switch to concurrent yet deterministic indexer: https://markmail.org/thread/cp6jpjuowbhni6xc
-  indexPathNow, ign, ign, atClose, profilerSearchIndex, profilerSearchJFR = buildIndex(r, runLogDir, "search index (fixed segments)", index, "fixedIndex.log")
+  indexPathNow, fixedIndexTime, fixedIndexBytesIndexed, atClose, profilerSearchIndex, profilerSearchJFR = buildIndex(r, runLogDir, "search index (fixed segments)", index, "fixedIndex.log")
   message("fixedIndexAtClose %s" % atClose)
   fixedIndexAtClose = atClose
 
   indexPathPrev = "%s/trunk.nightly.index.prev" % constants.INDEX_DIR_BASE
-
-  if os.path.exists(indexPathPrev) and os.path.exists(benchUtil.nameToIndexPath(index.getName())):
+  indexCurPath = benchUtil.nameToIndexPath(index.getName())
+  if os.path.exists(indexPathPrev) and os.path.exists(indexCurPath):
     segCountPrev = benchUtil.getSegmentCount(indexPathPrev)
-    segCountNow = benchUtil.getSegmentCount(benchUtil.nameToIndexPath(index.getName()))
+    segCountNow = benchUtil.getSegmentCount(indexCurPath)
     if segCountNow != segCountPrev:
-      # raise RuntimeError('different index segment count prev=%s now=%s' % (segCountPrev, segCountNow))
-      print("WARNING: different index segment count prev=%s now=%s" % (segCountPrev, segCountNow))
+      raise RuntimeError("different index segment count prev=%s now=%s" % (segCountPrev, segCountNow))
+      # print("WARNING: different index segment count prev=%s now=%s" % (segCountPrev, segCountNow))
 
   # Search
   rand = random.Random(714)
@@ -691,7 +834,7 @@ def run():
     topProcess.stop()
 
   else:
-    resultsNow = ["%s/%s/modules/benchmark/%s.%s.x.%d" % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in range(20)]
+    resultsNow = ["%s/%s/modules/benchmark/%s.%s.x.%d" % (constants.BASE_DIR, NIGHTLY_DIR, id, comp.name, iter) for iter in range(JVM_COUNT)]
   message("done search (%s)" % (now() - t0))
   resultsPrev = []
 
@@ -702,8 +845,9 @@ def run():
     if os.path.exists(prevFName):
       resultsPrev.append(prevFName)
 
-  if len(resultsPrev) == 0 and DEBUG:
+  if len(resultsPrev) == 0:
     # sidestep exception when we can't find any previous results because DEBUG
+    print("WARNING: no prior results; switching comparison to A/A")
     resultsPrev = resultsNow
 
   output = []
@@ -737,6 +881,10 @@ def run():
     if DO_RESET:
       w("<b>NOTE</b>: this run regolded the results gold files<br><br>")
 
+    if timeStamp > "2026-01-04":
+      # we only turned this on "recently"
+      w(f'\n[<a href="{timeStamp}/all.log">top-level log from this run</a>]<br>\n')
+
     if lastRevs is not None:
       w(f'\nLast successful run: <a href="{lastLogFile}">{lastLogFile[:-5]}</a><br>')
       if lastLuceneRev != luceneRev:
@@ -747,6 +895,12 @@ def run():
         w(f'\nluceneutil revision {luceneUtilRev} (<a href="https://github.com/mikemccand/luceneutil/compare/{lastLuceneUtilRev}...{luceneUtilRev}">commits since last successful run</a>)<br>')
       else:
         w(f"\nluceneutil revision {luceneUtilRev} (no changes since last successful run)<br>")
+    w(f"\nuname -a: {kernel_version}<br>")
+    w(f"\n/proc/version: {proc_version}<br>")
+    w(f"\n/proc/cmdline: {proc_cmdline}<br>")
+    w(f"\ncpupower frequency-info:\n<br><pre>{htmlEscape(cpupower)}</pre><br>")
+    w(f"\nlscpu:\n<br><pre>{htmlEscape(lscpu)}</pre><br>")
+    w(f"\nPreempt mode: {preempt}<br>")
     w("%s<br>" % javaVersion)
     w("%s<br>" % javaFullVersion)
     w("Java command-line: %s<br>" % htmlEscape(constants.JAVA_COMMAND))
@@ -758,6 +912,12 @@ def run():
     w('<img src="%s.png"/>\n' % timeStamp)
 
     w("Jump to profiler results:")
+    if benchUtil.USE_CPU_TIME_PROFILER:
+      s = "cputime (samples every N cpu ticks)"
+    else:
+      s = "async (samples every N msec)"
+    w("<br>")
+    w(f'<b>NOTE</b>: JFR profiler is {s}; see <a href="https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/">blog post</a> for cputime profiler (new as of Java 25) specifics')
     w("<br>indexing 1KB\n<ul>")
     for stackSize in JFR_STACK_SIZES:
       w(f'<li>stackSize={stackSize}: <a href="#profiler_1kb_indexing_{stackSize}_cpu">cpu</a>, <a href="#profiler_1kb_indexing_{stackSize}_heap">heap</a>')
@@ -881,12 +1041,16 @@ def run():
 
   if os.path.exists("out.png"):
     shutil.move("out.png", "%s/%s.png" % (constants.NIGHTLY_REPORTS_DIR, timeStamp))
+    print(f"move out.png (QPSChart) -> {constants.NIGHTLY_REPORTS_DIR}/{timeStamp}.png")
+  else:
+    print("no out.png (QPSChart)!")
+
   searchResults = results
 
   print("  heaps: %s" % str(searchHeaps))
 
   if cmpDiffs is not None:
-    warnings, errors, overlap = cmpDiffs
+    warnings, errors, overlap = cmpDiffs  # noqa: RUF059
     print("WARNING: search result differences: warnings=%s errors=%s" % (str(warnings), str(errors)))
     if len(errors) > 0 and not DO_RESET:
       raise RuntimeError("search result differences: warnings=%s errors=%s" % (str(warnings), str(errors)))
@@ -913,6 +1077,8 @@ def run():
     closedPRCount,
     medQuantizedVectorsIndexTime,
     medQuantizedVectorsBytesIndexed,
+    fixedIndexTime,
+    fixedIndexBytesIndexed,
   )
 
   for fname in resultsNow:
@@ -926,10 +1092,11 @@ def run():
 
     if not DEBUG:
       # print 'rename %s to %s' % (indexPathNow, indexPathPrev)
-      if os.path.exists(indexPathNow):
-        if os.path.exists(indexPathPrev):
-          shutil.rmtree(indexPathPrev)
-        os.rename(indexPathNow, indexPathPrev)
+      if not REUSE_NIGHTLY_INDICES:
+        if os.path.exists(indexPathNow):
+          if os.path.exists(indexPathPrev):
+            shutil.rmtree(indexPathPrev)
+          os.rename(indexPathNow, indexPathPrev)
 
     os.chdir(runLogDir)
     # tar/bz2 log files, but not results files from separate benchmarks (e.g. stored fields):
@@ -939,6 +1106,7 @@ def run():
         os.remove(f)
 
     fillNightlyTotalIndexSizes.extract_one_file(f"{runLogDir}/logs.tar.bz2")
+    fillNightlyFixedIndexTime.extract_one_file(f"{runLogDir}/logs.tar.bz2")
 
   if DEBUG:
     resultsFileName = "results.debug.pk"
@@ -986,16 +1154,16 @@ def findLastSuccessfulGitHashes():
       luceneGitHash = None
       luceneUtilGitHash = None
 
-      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile)) as f:
+      with open(os.path.join(constants.NIGHTLY_REPORTS_DIR, logFile)) as f:  # noqa: FURB101
         html = f.read()
 
-        m = re.search("Lucene/Solr trunk rev ([a-z0-9]+)[< ]", html)
+        m = re.search("Lucene/Solr trunk rev ([a-z0-9]+)[< ]", html)  # noqa: RUF039
         if m is not None:
           luceneGitHash = m.group(1)
         else:
           raise RuntimeError(f"failed to determine last successful Lucene git hash from file {logFile}")
 
-        m = re.search("luceneutil rev(?:ision)? ([a-z0-9]+)[< ]", html)
+        m = re.search("luceneutil rev(?:ision)? ([a-z0-9]+)[< ]", html)  # noqa: RUF039
         if m is not None:
           luceneUtilGitHash = m.group(1)
         else:
@@ -1071,6 +1239,7 @@ def makeGraphs():
   nrtChartData = ["Date,Reopen Time (msec)"]
   gcIndexTimesChartData = ["Date,JIT (sec),Young GC (sec),Old GC (sec)"]
   fixedIndexSizeChartData = ["Date,Size (GB)"]
+  fixedIndexTimeChartData = ["Date,GB/hour"]
   gcSearchTimesChartData = ["Date,JIT (sec),Young GC (sec),Old GC (sec)"]
   searchChartData = {}
   storedFieldsResults = {
@@ -1100,7 +1269,7 @@ def makeGraphs():
       tup = pickle.loads(open(resultsFile, "rb").read(), encoding="bytes")
       # print 'RESULTS: %s' % resultsFile
 
-      timeStamp, medNumDocs, medIndexTimeSec, medBytesIndexed, bigNumDocs, bigIndexTimeSec, bigBytesIndexed, nrtResults, searchResults = tup[:9]
+      timeStamp, medNumDocs, medIndexTimeSec, medBytesIndexed, bigNumDocs, bigIndexTimeSec, bigBytesIndexed, nrtResults, searchResults = tup[:9]  # noqa: RUF059
       if len(tup) > 9:
         rev = tup[9]
       else:
@@ -1133,7 +1302,7 @@ def makeGraphs():
 
       timeStampString = "%04d-%02d-%02d %02d:%02d:%02d" % (timeStamp.year, timeStamp.month, timeStamp.day, timeStamp.hour, timeStamp.minute, int(timeStamp.second))
       date = "%02d/%02d/%04d" % (timeStamp.month, timeStamp.day, timeStamp.year)
-      if date in ("09/03/2014",):
+      if date in ("09/03/2014",):  # noqa: FURB171
         # I was testing disabling THP again...
         continue
       if date in ("05/16/2014"):
@@ -1184,6 +1353,11 @@ def makeGraphs():
             # TODO: why does this happen!?
             cat = str(cat, "utf-8")
 
+          if cat == "CombinedHighHigh":
+            cat = "CombinedOrHighHigh"
+          if cat == "CombinedHighMed":
+            cat = "CombinedOrHighMed"
+
           if cat not in searchChartData:
             searchChartData[cat] = ["Date,QPS"]
           if cat == "PKLookup":
@@ -1207,7 +1381,7 @@ def makeGraphs():
             if date in ("06/09/2014", "06/10/2014"):
               # Bug in luceneutil (didn't index numeric field properly)
               continue
-          if cat in ("CombinedTerm", "CombinedHighMed", "CombinedHighHigh") and timeStamp < datetime.datetime(2022, 10, 19):
+          if cat in ("CombinedTerm", "CombinedOrHighMed", "CombinedOrHighHigh") and timeStamp < datetime.datetime(2022, 10, 19):
             # prior to this date these tasks were matching 0 docs, causing an fake 1000X slowdown!
             # see https://github.com/mikemccand/luceneutil/commit/56729cf341a443fb81148dd25d3d49cb88bc72e8
             continue
@@ -1219,6 +1393,22 @@ def makeGraphs():
           with open(fixed_index_size_file_name, "rb") as f:
             size_in_mb = pickle.load(f)
           fixedIndexSizeChartData.append(f"{timeStampString},{size_in_mb / 1024}")
+
+        # Fixed index build time: try pickle first, then cache file
+        fixed_index_time_sec = None
+        fixed_index_bytes_indexed = None
+        if len(tup) > 19 and tup[18] is not None and tup[19] is not None:
+          fixed_index_time_sec = tup[18]
+          fixed_index_bytes_indexed = tup[19]
+        else:
+          cache_file = f"{constants.NIGHTLY_LOG_DIR}/{subDir}/fixed_index_time.txt"
+          if os.path.exists(cache_file):
+            result = fillNightlyFixedIndexTime.read_cache_file(cache_file)
+            if result is not None:
+              fixed_index_time_sec, fixed_index_bytes_indexed = result
+        if fixed_index_time_sec is not None and fixed_index_bytes_indexed is not None and fixed_index_time_sec > 0:
+          gb_per_hour = (fixed_index_bytes_indexed / (1024 * 1024 * 1024.0)) / (fixed_index_time_sec / 3600.0)
+          fixedIndexTimeChartData.append(f"{timeStampString},{gb_per_hour:.1f}")
 
       label = 0
       for date, desc, fullDesc in KNOWN_CHANGES:
@@ -1294,11 +1484,12 @@ def makeGraphs():
   sort(bigIndexChartData)
   sort(gcIndexTimesChartData)
   sort(fixedIndexSizeChartData)
+  sort(fixedIndexTimeChartData)
   for k, v in list(searchChartData.items()):
     sort(v)
 
   # Index time, including GC/JIT times
-  writeIndexingHTML(fixedIndexSizeChartData, medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
+  writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medIndexChartData, medIndexVectorsChartData, medIndexQuantizedVectorsChartData, bigIndexChartData, gcIndexTimesChartData)
 
   # CheckIndex time
   writeCheckIndexTimeHTML()
@@ -1334,8 +1525,8 @@ def makeGraphs():
     # we no longer push reports here -- the nightly shell script does git add/commit/push
 
 
-reTookSec = re.compile("took ([0-9.]+) sec")
-reDateTime = re.compile("log dir /lucene/logs.nightly/(.*?)$")
+reTookSec = re.compile("took ([0-9.]+) sec")  # noqa: RUF039
+reDateTime = re.compile("log dir /lucene/logs.nightly/(.*?)$")  # noqa: RUF039
 
 
 def writeCheckIndexTimeHTML():
@@ -1375,9 +1566,9 @@ def writeCheckIndexTimeHTML():
           ti = t.next()
           if ti is None:
             break
-          l.append((ti.mtime, ti.name))
+          l.append((ti.mtime, ti.name))  # noqa: B909
 
-        l.sort()
+        l.sort()  # noqa: B909
         for i in range(len(l)):
           if l[i][1] == "checkIndex.fixedIndex.log":
             seconds = l[i][0] - l[i - 1][0]
@@ -1409,7 +1600,7 @@ def writeCheckIndexTimeHTML():
     w("  <li> Java command-line: <tt>%s</tt>\n" % constants.JAVA_COMMAND)
     w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
     w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
-    w("  <li> CPU: 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores = 2 CPU * 6 core * 2 hyperthreads)\n")
+    w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
     w(
       '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
     )
@@ -1450,7 +1641,7 @@ def writeIndexHTML(searchChartData, days):
   header(w, "Lucene nightly benchmarks")
   w("<h1>Lucene nightly benchmarks</h1>")
   w(
-    'Each night, an <a href="https://github.com/mikemccand/luceneutil/blob/main/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around 2.5 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
+    'Each night, an <a href="https://github.com/mikemccand/luceneutil/blob/main/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around <s>2.5</s> 28-29 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
   )
   w(
     '<p>The goal is to spot any long-term regressions (or, gains!) in Lucene\'s performance that might otherwise accidentally slip past the committers, hopefully avoiding the fate of the <a href="http://en.wikipedia.org/wiki/Boiling_frog">boiling frog</a>.</p>'
@@ -1469,6 +1660,7 @@ def writeIndexHTML(searchChartData, days):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#MedQuantizedVectorsIndexTime">GB/hour for medium docs index with int8 quantized vectors</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#BigIndexTime">GB/hour for big docs index</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#GCTimes">Indexing JIT/GC times</a>')
+  w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#FixedIndexTime">GB/hour for fixed index</a>')
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="indexing.html#FixedIndexSize">Index disk usage</a>')
 
   w("<br><br><b>BooleanQuery:</b>")
@@ -1585,6 +1777,12 @@ def writeIndexHTML(searchChartData, days):
   writeOneLine(w, done, "TermMonthSort", "Month (string, low cardinality)")
   writeOneLine(w, done, "TermDayOfYearSort", "Day of year (int, medium cardinality)")
 
+  w("<br><br><b>Sorting with doc value skippers (on TermQuery):</b>")
+  writeOneLine(w, done, "TermDTSortSkipper", "Date/time (long, high cardinality, skipper)")
+  writeOneLine(w, done, "TermTitleSortSkipper", "Title (string, high cardinality, skipper)")
+  writeOneLine(w, done, "TermMonthSortSkipper", "Month (string, low cardinality, skipper)")
+  writeOneLine(w, done, "TermDayOfYearSortSkipper", "Day of year (int, medium cardinality, skipper)")
+
   w("<br><br><b>Grouping (on TermQuery):</b>")
   writeOneLine(w, done, "TermGroup100", "100 groups")
   writeOneLine(w, done, "TermGroup10K", "10K groups")
@@ -1633,6 +1831,10 @@ taskRename = {
   "Term": "TermQuery",
   "TermDTSort": "TermQuery (date/time sort)",
   "TermTitleSort": "TermQuery (title sort)",
+  "TermDTSortSkipper": "TermQuery (date/time sort, skipper)",
+  "TermTitleSortSkipper": "TermQuery (title sort, skipper)",
+  "TermMonthSortSkipper": "TermQuery (month sort, skipper)",
+  "TermDayOfYearSortSkipper": "TermQuery (day-of-year sort, skipper)",
   "TermBGroup1M": "Term (bgroup)",
   "TermBGroup1M1P": "Term (bgroup, 1pass)",
   "IntNRQ": "NumericRangeQuery (int)",
@@ -1778,7 +1980,7 @@ def writeNADFacetBenchmarkHTML(nadFacetBenchmarkData):
     footer(w)
 
 
-def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
+def writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medChartData, medVectorsChartData, medQuantizedVectorsChartData, bigChartData, gcTimesChartData):
   f = open("%s/indexing.html" % constants.NIGHTLY_REPORTS_DIR, "w", encoding="utf-8")
   w = f.write
   header(w, "Lucene nightly indexing benchmark")
@@ -1820,7 +2022,13 @@ def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData
   w(getOneGraphHTML("FixedIndexSize", fixedIndexSizeChartData, "GB", "Disk usage of fixed search index", errorBars=False, pctOffset=410))
   w("\n")
 
-  writeKnownChanges(w, pctOffset=490)
+  w("<br>")
+  w("<br>")
+  w("<br>")
+  w(getOneGraphHTML("FixedIndexTime", fixedIndexTimeChartData, "GB/hour", "Fixed (deterministic, 1-thread) search index build throughput", errorBars=False, pctOffset=490))
+  w("\n")
+
+  writeKnownChanges(w, pctOffset=570)
 
   w("<br><br>")
   w("<b>Notes</b>:\n")
@@ -1835,7 +2043,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, medChartData, medVectorsChartData
   w("  <li> Java command-line: <tt>%s</tt>\n" % constants.JAVA_COMMAND)
   w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
   w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
-  w("  <li> CPU: 2 Xeon X5680, overclocked @ 4.0 Ghz (total 24 cores = 2 CPU * 6 core * 2 hyperthreads)\n")
+  w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
   w(
     '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
   )
@@ -1975,7 +2183,7 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
   timeStamp = s[: s.find(",")]
   seenTimeStamps.add(timeStamp)
   options = []
-  options.append('title: "%s"' % title)
+  options.append('title: "%s"' % title)  # noqa: FURB113
   options.append('xlabel: "Date"')
   options.append('colors: ["#218559", "#192823", "#B0A691", "#06A2CB", "#EBB035", "#DD1E2F"]')
   options.append('ylabel: "%s"' % yLabel)
@@ -1992,14 +2200,14 @@ def getOneGraphHTML(id, data, yLabel, title, errorBars=True, pctOffset=5):
     options.append('dateWindow: [Date.parse("%s/%s/%s"), Date.parse("%s/%s/%s")]' % (start.year, start.month, start.day, end.year, end.month, end.day))
   if False:
     if errorBars:
-      maxY = max([float(x.split(",")[1]) + float(x.split(",")[2]) for x in data[1:]])
+      maxY = max([float(x.split(",")[1]) + float(x.split(",")[2]) for x in data[1:]])  # noqa: C419
     else:
-      maxY = max([float(x.split(",")[1]) for x in data[1:]])
+      maxY = max([float(x.split(",")[1]) for x in data[1:]])  # noqa: C419
     options.append("valueRange:[0,%.3f]" % (maxY * 1.25))
   # options.append('includeZero: true')
 
   if errorBars:
-    options.append("errorBars: true")
+    options.append("errorBars: true")  # noqa: FURB113
     options.append("sigma: 1")
 
   options.append("showRoller: false")
@@ -2056,7 +2264,7 @@ def getLabel(label):
 
 def sendEmail(toEmailAddr, subject, messageText):
   try:
-    import localpass
+    import localpass  # noqa: PLC0415
 
     useSendMail = False
   except ImportError:
@@ -2077,8 +2285,8 @@ def sendEmail(toEmailAddr, subject, messageText):
     smtp.sendmail("mail@mikemccandless.com", toEmailAddr.split(","), msg)
     smtp.quit()
   else:
-    from email.mime.text import MIMEText
-    from subprocess import PIPE, Popen
+    from email.mime.text import MIMEText  # noqa: PLC0415
+    from subprocess import PIPE, Popen  # noqa: PLC0415
 
     msg = MIMEText(messageText)
     msg["From"] = "mail@mikemccandless.com"

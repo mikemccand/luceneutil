@@ -83,7 +83,7 @@ def main():
         mask = 1 << bit_offset
 
         # the actual bit flip happens here:
-        value[0] = value[0] ^ mask
+        value[0] = value[0] ^ mask  # noqa: PLR6104
 
         # seek back again
         f.seek(int(bit_to_flip / 8))

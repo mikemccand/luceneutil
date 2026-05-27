@@ -39,15 +39,30 @@ import ps_head
 import QPSChart
 
 PERF_EXE = which("perf")
+PERF_STATS = constants.PERF_STATS
 
 if PERF_EXE is None:
-  print("no perf executable; will not collect aggregate CPU profiling data")
+  print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
 else:
-  print(f"perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
+  print(f"NOTE: perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
+# new experimental profiler as of Java 25.  its sampling is driven by OS measuring N CPU ticks, instead of async
+# which can bias against e.g. native threads
+USE_CPU_TIME_PROFILER = True
+
 VMSTAT_PATH = shutil.which("vmstat")
+if VMSTAT_PATH is None:
+  print("WARNING: no vmstat executable; will not collect system-wide CPU/IO telemetry")
+else:
+  print(f"NOTE: vmstat executable is {VMSTAT_PATH}; will collect system-wide CPU/IO telemetry")
+
+GNUPLOT_PATH = shutil.which("gnuplot")
+if GNUPLOT_PATH is None:
+  print("WARNING: no gnuplot executable; will not generate system-wide CPU/IO graphs from vmstat")
+else:
+  print(f"NOTE: gnuplot executable is {GNUPLOT_PATH}; will generate system-wide CPU/IO graphs from vmstat")
 
 if PYTHON_MAJOR_VER < 3:
   raise RuntimeError("Please run with Python 3.x!  Got: %s" % str(sys.version))
@@ -71,10 +86,6 @@ SELECT = "median"
 MAX_SCORE_DIFF = 0.00001
 
 VERBOSE = False
-
-DO_PERF = constants.DO_PERF
-
-PERF_STATS = constants.PERF_STATS
 
 osName = common.osName
 
@@ -193,7 +204,7 @@ class SearchTask:
   facet_request = None
 
   def verifySame(self, other, verifyScores, verifyCounts):
-    if re.match(".*Knn(Float|Byte)VectorQuery:", self.query) is not None:
+    if re.match(".*Knn(Float|Byte)VectorQuery:", self.query) is not None:  # noqa: RUF039
       # While KNN search is statically randomized (seed 42?), the concurrent HNSW merge alters the order of results
       return
     if not isinstance(other, SearchTask):
@@ -414,20 +425,20 @@ def collapseDups(hits):
   return newHits
 
 
-reSearchTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\\+?) facets=(.*?)$")
-reSearchGroupTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$", re.DOTALL)
-reSearchTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\\+?)$")
-reSearchGroupTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$", re.DOTALL)
-reCountOnlyTask = re.compile("cat=(.*?) q=(.*?) countOnlyCount=(.*?)?$", re.DOTALL)
-reSearchHitScore = re.compile("doc=(.*?) score=(.*?)$")
-reSearchHitField = re.compile("doc=(.*?) .*?=(.*?)$")
-reRespellHit = re.compile("(.*?) freq=(.*?) score=(.*?)$")
+reSearchTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\\+?) facets=(.*?)$")  # noqa: RUF039
+reSearchGroupTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$", re.DOTALL)  # noqa: RUF039
+reSearchTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\\+?)$")  # noqa: RUF039
+reSearchGroupTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$", re.DOTALL)  # noqa: RUF039
+reCountOnlyTask = re.compile("cat=(.*?) q=(.*?) countOnlyCount=(.*?)?$", re.DOTALL)  # noqa: RUF039
+reSearchHitScore = re.compile("doc=(.*?) score=(.*?)$")  # noqa: RUF039
+reSearchHitField = re.compile("doc=(.*?) .*?=(.*?)$")  # noqa: RUF039
+reRespellHit = re.compile("(.*?) freq=(.*?) score=(.*?)$")  # noqa: RUF039
 rePKOrd = re.compile(r"PK(?:TS)?(.*?)\[")
-reOneGroup = re.compile("group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$", re.DOTALL)
-reHeap = re.compile("HEAP: ([0-9]+)$")
+reOneGroup = re.compile("group=(.*?) totalHits=(.*?)(?: hits)? groupRelevance=(.*?)$", re.DOTALL)  # noqa: RUF039
+reHeap = re.compile("HEAP: ([0-9]+)$")  # noqa: RUF039
 reLatencyAndStartTime = re.compile(r"^([\d.]+) msec @ ([\d.]+) msec$")
-reTasksWinddown = re.compile("^Start of tasks winddown: ([0-9.]+) msec$")
-reAvgCPUCores = re.compile("^Average CPU cores used: (-?[0-9.]+)$")
+reTasksWinddown = re.compile("^Start of tasks winddown: ([0-9.]+) msec$")  # noqa: RUF039
+reAvgCPUCores = re.compile("^Average CPU cores used: (-?[0-9.]+)$")  # noqa: RUF039
 
 
 def parse_times_line(task, line):
@@ -513,9 +524,12 @@ def parseResults(resultsFiles):
             task.hitCount = "0"
           else:
             task.hitCount = hitCount
+          # TODO: wouldn't we want to differentiate the different methods (sorted, binary, sortedset, etc.), rather
+          # than putting them all under "Title"?  Hmm we sort of do (Title vs TitleBDV), ish?
           if sort in ('<string: "title">', '<string: "titleDV">', '<sortedset: "title"> selector=MIN'):
             task.sort = "Title"
           elif sort.startswith('<long: "datenum">') or sort.startswith('<long: "lastModNDV">') or sort.startswith('<sortednumeric: "lastMod"> selector=MIN type=LONG'):
+            # TODO: why not "LastModified" instead of its type?
             task.sort = "DateTime"
           elif sort in ('<string: "month">', '<string: "monthSortedDV">', '<sortedset: "month"> selector=MIN'):
             task.sort = "Month"
@@ -523,6 +537,14 @@ def parseResults(resultsFiles):
             task.sort = "DayOfYear"
           elif sort == '<string_val: "titleBDV">':
             task.sort = "TitleBinary"
+          elif sort == '<long: "dayOfYear_skipper">':
+            task.sort = "DayOfYear (skipper)"
+          elif sort == '<long: "lastMod_skipper">':
+            task.sort = "LastModified (skipper)"
+          elif sort == '<string: "title_skipper">':
+            task.sort = "Title (skipper)"
+          elif sort == '<string: "month_skipper">':
+            task.sort = "Month (skipper)"
           elif sort != "null":
             raise RuntimeError("could not parse sort: %s" % sort)
           else:
@@ -861,6 +883,23 @@ def stats(l):
   return min(l), max(l), mu, statistics.stdev(l) if len(l) > 1 else 0
 
 
+# TODO: revisit profiling.jfc: we found during horror-movie-massive-benchy-slowdown Feb 2026
+# that this was adding surprisingly non-trivial cost (~5-7% maybe)
+#
+# see https://github.com/apache/lucene/issues/15662
+
+
+def get_profiler_jvm_args(jfr_file_name, indent=""):
+  if USE_CPU_TIME_PROFILER:
+    print(f"{indent}NOTE: using experimental CPU time profiler (see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1)")
+    # new experimental CPU-time profiler in Java 25 -- should eliminate "sleeping ghosts" that appear busy while in fact sleeping; see https://mostlynerdless.de/blog/2025/06/11/java-25s-new-cpu-time-profiler-1/
+    args = f"-XX:StartFlightRecording=jdk.CPUTimeSample#enabled=true,dumponexit=true,maxsize={constants.JFR_MAX_SIZE_MB}M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
+  else:
+    print(f"{indent}NOTE: using async profiler")
+    args = f"-XX:StartFlightRecording=dumponexit=true,maxsize={constants.JFR_MAX_SIZE_MB}M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc,filename={jfr_file_name}"
+  return args
+
+
 def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
   print("%srun: %s, cwd=%s vmstatLogFile=%s topLogFile=%s" % (indent, cmd, os.getcwd(), vmstatLogFile, topLogFile))
   if logFile is not None:
@@ -879,9 +918,14 @@ def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
 
   p = subprocess.Popen(cmd, stdout=out, stderr=out)
   if p.wait():
-    if logFile is not None and os.path.getsize(logFile) < 50 * 1024:
-      print(open(logFile).read())
-    raise RuntimeError("failed: %s [wd %s]; see logFile %s" % (cmd, os.getcwd(), logFile))
+    byte_count = os.path.getsize(logFile)
+    max_bytes_to_eyeballs = 50 * 1024
+    with open(logFile) as f:
+      if byte_count > max_bytes_to_eyeballs:
+        f.seek(byte_count - max_bytes_to_eyeballs)
+      msg = f.read()
+    print(msg)
+    raise RuntimeError("failed: %s [wd %s]; see logFile %s\n\n%s" % (cmd, os.getcwd(), logFile, msg))
   if vmstatLogFile is not None:
     print(f"now kill vmstat: pid={vmstatProcess.pid}")
     # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
@@ -893,7 +937,7 @@ def run(cmd, logFile=None, indent="    ", vmstatLogFile=None, topLogFile=None):
     topProcess.stop()
 
 
-reCoreJar = re.compile("lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")
+reCoreJar = re.compile("lucene-core-[0-9]+\\.[0-9]+\\.[0-9]+(?:-SNAPSHOT)?\\.jar")  # noqa: RUF039
 
 
 class RunAlgs:
@@ -928,7 +972,7 @@ class RunAlgs:
     else:
       print("OS:\n%s" % sys.platform)
 
-  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True):
+  def makeIndex(self, id, index, printCharts=False, profilerCount=30, profilerStackSize=1, useLogSubDir=True, desc=None):  # noqa: PLR6301
     # we accept a sequence of stack sizes and will re-aggregate JFR results at each
     if type(profilerStackSize) is int:
       profilerStackSize = (profilerStackSize,)
@@ -950,7 +994,7 @@ class RunAlgs:
         shutil.rmtree(fullIndexPath)
     if index.doUpdate:
       if not os.path.exists(fullIndexPath):
-        raise RuntimeError("index path does not exists: %s" % fullIndexPath)
+        raise RuntimeError("index path does not exist: %s" % fullIndexPath)
       print("  %s: now update" % fullIndexPath)
     else:
       print("  %s: now create" % fullIndexPath)
@@ -979,7 +1023,7 @@ class RunAlgs:
 
       # 77: always enable Java Flight Recorder profiling
       w(
-        f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={jfrOutput}",
+        get_profiler_jvm_args(jfrOutput, "      "),
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+DebugNonSafepoints",
       )
@@ -996,6 +1040,9 @@ class RunAlgs:
 
       if index.addDVFields:
         w("-dvfields")
+
+      if index.addDVSkippers:
+        w("-addDVSkippers")
 
       if index.useCMS:
         w("-useCMS")
@@ -1106,11 +1153,11 @@ class RunAlgs:
     # After successful indexing, write the config file
     write_index_config(fullIndexPath, current_config)
 
-    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize)
+    profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize, desc=desc)
 
     return fullIndexPath, fullLogFile, profilerResults, jfrOutput
 
-  def addJars(self, cp, path):
+  def addJars(self, cp, path):  # noqa: PLR6301
     if os.path.exists(path):
       for f in os.listdir(path):
         if f.endswith(".jar"):
@@ -1132,7 +1179,7 @@ class RunAlgs:
         for module in ["core"]:
           print("compile lucene:core...")
           run([constants.GRADLE_EXE, "lucene:core:jar"], "%s/compile.log" % constants.LOGS_DIR)
-        for module in ("suggest", "highlighter", "misc", "analysis:common", "grouping", "codecs", "facet", "sandbox", "queryparser"):
+        for module in ("suggest", "highlighter", "misc", "analysis:common", "grouping", "codecs", "facet", "sandbox", "queryparser", "spatial3d"):
           # Try to be faster; this may miss changes, e.g. a static final constant changed in core that is used in another module:
           modulePath = "%s/lucene/%s" % (checkoutPath, module.replace(":", "/"))
           classesPath = "%s/build/classes/java" % (modulePath)
@@ -1209,12 +1256,11 @@ class RunAlgs:
 
     command = []
     if PERF_EXE is not None:
-      command += [PERF_EXE, "stat", "-dd"]
+      command += [PERF_EXE, "stat", "-dd", "-e", ",".join(PERF_STATS)]
     command += c.javaCommand.split()
 
-    # 77: always enable Java Flight Recorder profiling
     command += [
-      f"-XX:StartFlightRecording=dumponexit=true,maxsize=250M,settings={constants.BENCH_BASE_DIR}/src/python/profiling.jfc" + f",filename={constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr",
+      get_profiler_jvm_args(f"{constants.LOGS_DIR}/bench-search-{id}-{c.name}-{iter}.jfr", "      "),
       "-XX:+UnlockDiagnosticVMOptions",
       "-XX:+DebugNonSafepoints",
       # uncomment the line below to enable remote debugging
@@ -1275,70 +1321,41 @@ class RunAlgs:
     # p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     p = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    if DO_PERF:
-      perfCommand = []
-      # why sudo needed!?  also, why not just run perf stat full commandline?
-      # perfCommand.append('sudo')
-      perfCommand.append("perf")
-      perfCommand.append("stat")
-      # perfCommand.append('-v')
-      perfCommand.append("-e")
-      perfCommand.append(",".join(PERF_STATS))
-      perfCommand.append("--pid")
-      perfCommand.append(str(p.pid))
-      # print 'COMMAND: %s' % perfCommand
-      p2 = subprocess.Popen(perfCommand, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-      f = open(logFile + ".stdout", "wb")
-      while True:
-        s = p.stdout.readline()
-        if s == b"":
-          break
-        f.write(s)
-        f.flush()
-      f.close()
-      p.wait()
-      # run(['sudo', 'kill', '-INT', p2.pid])
-      # why?
-      run(["kill", "-INT", p2.pid])
-      # os.kill(p2.pid, signal.SIGINT)
-      stdout, stderr = p2.communicate()
-      print("PERF: %s" % fixupPerfOutput(stderr))
-    else:
-      mode = "wbu" if PYTHON_MAJOR_VER < 3 else "wb"
-      f = open(logFile + ".stdout", mode)
-      while True:
-        s = p.stdout.readline()
-        if s == b"":
-          break
-        f.write(s)
-        f.flush()
-      f.close()
-      if p.wait() != 0:
-        print()
-        print("SearchPerfTest FAILED:")
-        s = open(logFile + ".stdout")
-        for line in s.readlines():
-          print(line.rstrip())
-        raise RuntimeError("SearchPerfTest failed; see log %s.stdout" % logFile)
+    mode = "wbu" if PYTHON_MAJOR_VER < 3 else "wb"
+    f = open(logFile + ".stdout", mode)
+    while True:
+      s = p.stdout.readline()
+      if s == b"":
+        break
+      f.write(s)
+      f.flush()
+    f.close()
+    if p.wait() != 0:
+      print()
+      print("SearchPerfTest FAILED:")
+      s = open(logFile + ".stdout")
+      for line in s.readlines():
+        print(line.rstrip())
+      raise RuntimeError("SearchPerfTest failed; see log %s.stdout" % logFile)
 
     # run(command, logFile + '.stdout', indent='      ')
     print("      %.1f s" % (time.time() - t0))
 
     # nocommit don't wastefully load/process here too!!
-    raw_results, heap_base, tasks_winddown_ms, avg_cpu_cores = parseResults([logFile])
+    raw_results, heap_base, tasks_winddown_ms, avg_cpu_cores = parseResults([logFile])  # noqa: RUF059
     qpss = self.compute_qps(raw_results, tasks_winddown_ms)
     print("      %.1f actual sustained QPS; %.1f CPU cores used" % (qpss[0], avg_cpu_cores))
 
     return logFile
 
-  def getSearchLogFiles(self, id, c):
+  def getSearchLogFiles(self, id, c):  # noqa: PLR6301
     logFiles = []
     for iter in range(c.competition.jvmCount):
       logFile = "%s/%s.%s.%d" % (constants.LOGS_DIR, id, c.name, iter)
       logFiles.append(logFile)
     return logFiles
 
-  def computeTaskLatencies(self, inputList, catSet):
+  def computeTaskLatencies(self, inputList, catSet):  # noqa: PLR6301
     resultLatencyMetrics = {}
     for currentRecord in inputList:
       for currentKey in currentRecord.keys():
@@ -1365,7 +1382,7 @@ class RunAlgs:
 
     return resultLatencyMetrics
 
-  def compute_qps(self, raw_results, tasks_winddown_ms):
+  def compute_qps(self, raw_results, tasks_winddown_ms):  # noqa: PLR6301
     # one per JVM iteration
     qpss = []
     for tasks in raw_results:
@@ -1408,15 +1425,15 @@ class RunAlgs:
 
     def only_qps_report(self, baseLogFiles, cmpLogFiles):
       # nocommit must also validate tasks' results validity
-      baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)
-      cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)
+      baseRawResults, heapBase, baseTasksWindownMS, baseAvgCpuCores = parseResults(baseLogFiles)  # noqa: RUF059
+      cmpRawResults, heapCmp, cmpTasksWindownMS, cmpAvgCpuCores = parseResults(cmpLogFiles)  # noqa: RUF059
 
       base_qpss = self.compute_qps(baseRawResults, baseTasksWindownMS)
       cmp_qpss = self.compute_qps(cmpRawResults, cmpTasksWindownMS)
 
   def simpleReport(self, baseLogFiles, cmpLogFiles, jira=False, html=False, baseDesc="Standard", cmpDesc=None, writer=sys.stdout.write):
-    baseRawResults, heapBase, ignore, baseAvgCpuCores = parseResults(baseLogFiles)
-    cmpRawResults, heapCmp, ignore, cmpAvgCpuCores = parseResults(cmpLogFiles)
+    baseRawResults, heapBase, ignore, baseAvgCpuCores = parseResults(baseLogFiles)  # noqa: RUF059
+    cmpRawResults, heapCmp, ignore, cmpAvgCpuCores = parseResults(cmpLogFiles)  # noqa: RUF059
 
     # make sure they got identical results
     cmpDiffs = compareHits(baseRawResults, cmpRawResults, self.verifyScores, self.verifyCounts)
@@ -1430,7 +1447,7 @@ class RunAlgs:
     cats = set()
     for l in (baseResults, cmpResults):
       if len(l) > 0:
-        for k in l[0].keys():
+        for k in l[0].keys():  # noqa: FURB142
           cats.add(k)
     cats = list(cats)
     cats.sort()
@@ -1446,7 +1463,7 @@ class RunAlgs:
     resultsByCatCmp = {}
 
     for cat in cats:
-      _type = types.TupleType if PYTHON_MAJOR_VER < 3 else tuple
+      _type = types.TupleType if PYTHON_MAJOR_VER < 3 else tuple  # noqa: RUF052
       if isinstance(cat, _type):
         if False and cat[1] is not None:
           desc = "%s (sort %s)" % (cat[0], cat[1])
@@ -1457,6 +1474,8 @@ class RunAlgs:
 
       if desc == "TermDateTimeSort":
         desc = "TermDTSort"
+      elif desc == "TermDateTimeSortSkipper":
+        desc = "TermDTSortSkipper"
 
       l0 = []
       w = l0.append
@@ -1477,7 +1496,7 @@ class RunAlgs:
       cmpQPS = [1000.0 / x for x in cmpMS]
 
       # Aggregate stats over the N JVMs we ran:
-      minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)
+      minQPSBase, maxQPSBase, avgQPSBase, qpsStdDevBase = stats(baseQPS)  # noqa: RUF059
       minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp = stats(cmpQPS)
 
       resultsByCatCmp[desc] = (minQPSCmp, maxQPSCmp, avgQPSCmp, qpsStdDevCmp)
@@ -1612,6 +1631,8 @@ class RunAlgs:
         traceback.print_exc()
       else:
         print(f"Chart saved to out.png... (wd: {os.getcwd()})")
+    else:
+      print("QPSChart.supported == False")
 
     w = writer
 
@@ -1620,7 +1641,8 @@ class RunAlgs:
     baseLatencyMetrics = self.computeTaskLatencies(baseTaskLatencies, catSet)
     cmpLatencyMetrics = self.computeTaskLatencies(cmpTaskLatencies, catSet)
 
-    for currentCat in catSet:
+    latencyLines = []
+    for currentCat in sorted(catSet):
       if currentCat not in baseLatencyMetrics:
         # When we add a whole new task (e.g. VectorSearch), just skip the comparison for the first nightly run
         # since baseline will not have this task yet:
@@ -1632,27 +1654,61 @@ class RunAlgs:
       pctP99 = 100 * (currentCmpMetrics["p99"] - currentBaseMetrics["p99"]) / currentBaseMetrics["p99"]
       pctP999 = 100 * (currentCmpMetrics["p999"] - currentBaseMetrics["p999"]) / currentBaseMetrics["p999"]
       pctP100 = 100 * (currentCmpMetrics["p100"] - currentBaseMetrics["p100"]) / currentBaseMetrics["p100"]
-      print(
-        "||Task %s||P50 Base %s||P50 Cmp %s||Pct Diff %s||P90 Base %s||P90 Cmp %s||Pct Diff %s||P99 Base %s||P99 Cmp %s||Pct Diff %s||P999 Base %s||P999 Cmp %s||Pct Diff %s||P100 Base %s||P100 Cmp %s||Pct Diff %s"
-        % (
-          currentCat,
-          currentBaseMetrics["p50"],
-          currentCmpMetrics["p50"],
-          pctP50,
-          currentBaseMetrics["p90"],
-          currentCmpMetrics["p90"],
-          pctP90,
-          currentBaseMetrics["p99"],
-          currentCmpMetrics["p99"],
-          pctP99,
-          currentBaseMetrics["p999"],
-          currentCmpMetrics["p999"],
-          pctP999,
-          currentBaseMetrics["p100"],
-          currentCmpMetrics["p100"],
-          pctP100,
+      if jira:
+        latencyLines.append(
+          "||%s||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||%.3f||%.3f||%.1f%%||"
+          % (
+            currentCat,
+            currentBaseMetrics["p50"],
+            currentCmpMetrics["p50"],
+            pctP50,
+            currentBaseMetrics["p90"],
+            currentCmpMetrics["p90"],
+            pctP90,
+            currentBaseMetrics["p99"],
+            currentCmpMetrics["p99"],
+            pctP99,
+            currentBaseMetrics["p999"],
+            currentCmpMetrics["p999"],
+            pctP999,
+            currentBaseMetrics["p100"],
+            currentCmpMetrics["p100"],
+            pctP100,
+          )
         )
-      )
+      else:
+        latencyLines.append(
+          "%32s%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%%10.3f%10.3f%8.1f%%"
+          % (
+            currentCat,
+            currentBaseMetrics["p50"],
+            currentCmpMetrics["p50"],
+            pctP50,
+            currentBaseMetrics["p90"],
+            currentCmpMetrics["p90"],
+            pctP90,
+            currentBaseMetrics["p99"],
+            currentCmpMetrics["p99"],
+            pctP99,
+            currentBaseMetrics["p999"],
+            currentCmpMetrics["p999"],
+            pctP999,
+            currentBaseMetrics["p100"],
+            currentCmpMetrics["p100"],
+            pctP100,
+          )
+        )
+
+    if latencyLines:
+      if jira:
+        print("||Task||P50 Base||P50 Cmp||Diff||P90 Base||P90 Cmp||Diff||P99 Base||P99 Cmp||Diff||P999 Base||P999 Cmp||Diff||P100 Base||P100 Cmp||Diff||")
+      else:
+        print(
+          "%32s%10s%10s%9s%10s%10s%9s%10s%10s%9s%10s%10s%9s%10s%10s%9s"
+          % ("Task", "P50 B", "P50 C", "Diff", "P90 B", "P90 C", "Diff", "P99 B", "P99 C", "Diff", "P999 B", "P999 C", "Diff", "P100 B", "P100 C", "Diff")
+        )
+      for line in latencyLines:
+        print(line)
 
     if jira:
       w("||Task||QPS %s||StdDev %s||QPS %s||StdDev %s||Pct diff||p-value||" % (baseDesc, baseDesc, cmpDesc, cmpDesc))
@@ -1728,7 +1784,7 @@ def getAntClassPath(checkout):
   if core_jar_file is None:
     raise RuntimeError("can't find core JAR file in %s" % ("%s/lucene/build/core" % path))
 
-  cp.append(core_jar_file)
+  cp.append(core_jar_file)  # noqa: FURB113
   cp.append("%s/lucene/build/sandbox/classes/java" % path)
   cp.append("%s/lucene/build/misc/classes/java" % path)
   cp.append("%s/lucene/build/facet/classes/java" % path)
@@ -1741,6 +1797,7 @@ def getAntClassPath(checkout):
   cp.append("%s/lucene/build/highlighter/classes/java" % path)
   cp.append("%s/lucene/build/codecs/classes/java" % path)
   cp.append("%s/lucene/build/queries/classes/java" % path)
+  cp.append("%s/lucene/build/spatial3d/classes/java/main" % path)
 
   # so perf.* is found:
   lib = os.path.join(checkoutToUtilPath(checkout), "lib")
@@ -1768,7 +1825,7 @@ def getClassPath(checkout):
   if core_jar_file is None:
     raise RuntimeError("can't find core JAR file in %s" % ("%s/lucene/core/build/libs" % path))
 
-  cp.append(core_jar_file)
+  cp.append(core_jar_file)  # noqa: FURB113
   cp.append("%s/lucene/sandbox/build/classes/java/main" % path)
   cp.append("%s/lucene/misc/build/classes/java/main" % path)
   cp.append("%s/lucene/facet/build/classes/java/main" % path)
@@ -1791,7 +1848,7 @@ def getClassPath(checkout):
     if f.endswith(".jar"):
       cp.append(os.path.join(lib, f))
   # TODO: reconcile this!  one or the other?
-  cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))
+  cp.append(os.path.join(checkoutToUtilPath(checkout), "src/main/build/classes/java/main"))  # noqa: FURB113
   cp.append(os.path.join(checkoutToUtilPath(checkout), "build"))
 
   return tuple(cp)
@@ -1913,7 +1970,7 @@ def getSegmentCount(indexPath):
   return segCount
 
 
-reBrokenLine = re.compile("^\\ +#")
+reBrokenLine = re.compile("^\\ +#")  # noqa: RUF039
 
 
 def fixupPerfOutput(s):
@@ -1927,8 +1984,18 @@ def fixupPerfOutput(s):
   return "\n".join(linesOut)
 
 
-def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize):
+def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profilerStackSize, desc=None):
   profilerResults = []
+
+  print(f"\nProfiler summary for {jfrOutput}")
+  subprocess.run(["jfr", "summary", jfrOutput], check=True)
+
+  jfr_size_mb = os.path.getsize(jfrOutput) / 1024.0 / 1024.0
+  if desc is None:
+    desc = ""
+  else:
+    desc += " "
+  desc += f"{jfrOutput} is {jfr_size_mb:.2f} MB"
 
   for mode in "cpu", "heap":
     for stackSize in profilerStackSize:
@@ -1938,6 +2005,7 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
         f"-Dtests.profile.mode={mode}",
         f"-Dtests.profile.count={profilerCount}",
         f"-Dtests.profile.stacksize={stackSize}",
+        "-Dtests.profile.linenumbers=true",
         "org.apache.lucene.gradle.plugins.java.ProfileResults",
         jfrOutput,
       ]
@@ -1947,7 +2015,8 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
       except subprocess.CalledProcessError as e:
         print(f"command failed:\n  stderr:\n{e.stderr}\n  stdout:\n{e.stdout}")
         raise
-      output = f"\nProfiler for {mode}:\n{result.stdout.decode('utf-8')}"
+
+      output = f"\nProfiler for {mode} at {stackSize=} [{desc}]:\n{result.stdout.decode('utf-8')}"
       print(output)
       profilerResults.append((mode, stackSize, output))
   return profilerResults

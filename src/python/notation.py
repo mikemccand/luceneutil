@@ -576,6 +576,11 @@ KNOWN_CHANGES = [
     "Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003",
   ),
   (
+    "2024-11-18",
+    "Improve how luceneutil parses combined field queries, and create separate tasks for Or/And: https://github.com/mikemccand/luceneutil/pull/318",
+    "Improve how luceneutil parses combined field queries, and create separate tasks for Or/And: https://github.com/mikemccand/luceneutil/pull/318",
+  ),
+  (
     "2024-11-22",
     "Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003",
     "Make CombinedFieldQuery eligible for WAND/MAXSCORE. https://github.com/apache/lucene/pull/13999 Only consider clauses whose cost is less than the lead cost to compute block boundaries in WANDScorer. https://github.com/apache/lucene/pull/14003",
@@ -855,7 +860,42 @@ KNOWN_CHANGES = [
   ),
   (
     "2025-12-07",
-    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
-    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled): https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled).  since we use DOT_PRODUCT vector similarity, the un-normalized v2 vectors search was completely broken so we should not trust the large throughput drop on v3 upgrade is true: https://github.com/mikemccand/luceneutil/issues/497",
+    "Switch from Cohere v2 (768 dims, un-normalized) vectors to Cohere v3 (1024 dims, normalized to unit sphere, shuffled).  since we use DOT_PRODUCT vector similarity, the un-normalized v2 vectors search was completely broken so we should not trust the large throughput drop on v3 upgrade is true: https://github.com/mikemccand/luceneutil/issues/497",
+  ),
+  (
+    "2026-01-29",
+    "whole system upgrade, including kernel, somehow causing massive slowdown https://github.com/apache/lucene/issues/15662",
+    "whole system upgrade, including kernel, somehow causing massive slowdown https://github.com/apache/lucene/issues/15662",
+  ),
+  (
+    "2026-02-04",
+    "One off benchmark with downgraded (from 6.18.7-arch1-1 to fallback LTS kernel 6.12.67-1-lts #1 SMP PREEMPT_DYNAMIC) attempting to root-cause https://github.com/apache/lucene/issues/15662",
+    "One off benchmark with downgraded (from 6.18.7-arch1-1 to fallback LTS kernel 6.12.67-1-lts #1 SMP PREEMPT_DYNAMIC) attempting to root-cause https://github.com/apache/lucene/issues/15662",
+  ),
+  (
+    "2026-02-06",
+    "One off nightly benchmark with downgraded Lucene to match the last good 01/22 run, but all system packages fully updated; attempting to root-cause https://github.com/apache/lucene/issues/15662",
+    "One off nightly benchmark with downgraded Lucene to match the last good 01/22 run, but all system packages fully updated; attempting to root-cause https://github.com/apache/lucene/issues/15662",
+  ),
+  (
+    "2026-02-07",
+    "One off nightly benchmark with also downgraded JDK (25.0.2 -> 25.0.1), but all other system packages fully updated, and Lucene frozen on last good 1/22 run; attempting to root-cause https://github.com/apache/lucene/issues/15662",
+    "One off nightly benchmark with also downgraded JDK (25.0.2 -> 25.0.1), but all other system packages fully updated, and Lucene frozen on last good 1/22 run; attempting to root-cause https://github.com/apache/lucene/issues/15662",
+  ),
+  (
+    "2026-02-24",
+    "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
+    "Fully fix the Jan 29 sudden massive regression: CPU governor back to 'performance', BIOS upgrade, fix memory clock speed from 2400 MHz -> 3200 MHz, turn all fans on, better cooling of NVMe SSDs",
+  ),
+  (
+    "2026-03-04",
+    "Re-enable JFR profiling in nightly tasks benchy, known to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+    "Re-enable JFR profiling in nightly tasks benchy, known to be ~5-7% QPS hit #3ff2b89c6d0ee36c2f4506b4b4a4f6efce424a8f",
+  ),
+  (
+    "2026-04-10",
+    "#539: optimize PKLookupTask impl",
+    "#539: optimize PKLookupTask impl",
   ),
 ]

@@ -2,7 +2,7 @@ import datetime
 import re
 import sys
 import time
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: S405
 
 # TODO
 #  - put header on
@@ -13,10 +13,10 @@ import xml.etree.ElementTree as ET
 
 reCategory = re.compile(r"\[\[Category:(.*?)\]\]")
 reFile = re.compile(r"\[\[File:(.*?)\]\]")
-reSection = re.compile("^==([^=]*?)==$", re.MULTILINE)
-reSubSection = re.compile("^===([^=]*?)===$", re.MULTILINE)
-reSubSubSection = re.compile("^====([^=]*?)====$", re.MULTILINE)
-reRef = re.compile("<ref>.*?</ref>")
+reSection = re.compile("^==([^=]*?)==$", re.MULTILINE)  # noqa: RUF039
+reSubSection = re.compile("^===([^=]*?)===$", re.MULTILINE)  # noqa: RUF039
+reSubSubSection = re.compile("^====([^=]*?)====$", re.MULTILINE)  # noqa: RUF039
+reRef = re.compile("<ref>.*?</ref>")  # noqa: RUF039
 
 
 def extractAttrs(text, attrs):
@@ -86,7 +86,7 @@ def convert(fIn, fOut):
   context = iter(context)
 
   # get the root element
-  event, root = context.__next__()
+  event, root = context.__next__()  # noqa: PLC2801, RUF059
 
   isRedirect = False
   count = 0

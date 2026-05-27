@@ -39,7 +39,7 @@ def getLabel(label):
 
 print
 print("run sumAnalyzerPerf.py")
-reResult = re.compile("^(.*?) time=(.*?) msec hash=(.*?) tokens=(.*?)$")
+reResult = re.compile("^(.*?) time=(.*?) msec hash=(.*?) tokens=(.*?)$")  # noqa: RUF039
 
 reYMD = re.compile(r"^(\d\d\d\d)-(\d\d)-(\d\d)\.log$")
 allResults = []

@@ -18,6 +18,7 @@
 import glob
 import hashlib
 import os
+import platform
 import random
 import subprocess
 import time
@@ -150,6 +151,7 @@ class Index:
     facetDVFormat=constants.FACET_FIELD_DV_FORMAT_DEFAULT,
     maxConcurrentMerges=None,
     addDVFields=False,
+    addDVSkippers=False,
     name=None,
     indexSort=None,
     vectorFile=None,
@@ -189,6 +191,7 @@ class Index:
     self.javaCommand = javaCommand
     self.maxConcurrentMerges = maxConcurrentMerges
     self.addDVFields = addDVFields
+    self.addDVSkippers = addDVSkippers
 
     self.lineDocSource = dataSource.lineFile
     self.verbose = verbose
@@ -367,6 +370,7 @@ class Competitor:
           f"-Dtests.profile.mode={mode}",
           f"-Dtests.profile.stacksize={size}",
           f"-Dtests.profile.count={count}",
+          "-Dtests.profile.linenumbers=true",
           "org.apache.lucene.gradle.plugins.java.ProfileResults",
         ]
         + glob.glob(f"{constants.LOGS_DIR}/bench-search-{id}-{self.name}-*.jfr")

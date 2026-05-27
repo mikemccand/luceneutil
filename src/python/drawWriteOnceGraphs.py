@@ -18,7 +18,7 @@ def main():
   os.makedirs(OUT_DIR)
 
   for i in range(1, len(arcs) + 1):
-    _l = []
+    _l = []  # noqa: RUF052
     w = _l.append
     w("digraph x {")
     w("  rankdir = LR;")
@@ -42,7 +42,7 @@ def main():
     if os.system("dot -Tpng %s/%d_%s.dot > %s/%d_%s.png" % (OUT_DIR, i, nonce, OUT_DIR, i, nonce)):
       raise RuntimeError("dot failed")
 
-    _l = []
+    _l = []  # noqa: RUF052
     w = _l.append
     if i == 1:
       w('<a href="" onClick="if (event.shiftKey) {} else {window.location=\'%s_%s.html\';} return false;"><img src=%s_%s.png></a>' % (i + 1, nonce, i, nonce))

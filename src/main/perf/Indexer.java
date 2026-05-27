@@ -49,7 +49,7 @@ import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
+import org.apache.lucene.util.quantization.QuantizedByteVectorValues.ScalarEncoding;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
 import org.apache.lucene.facet.taxonomy.directory.DirectoryTaxonomyWriter;
@@ -125,21 +125,18 @@ public final class Indexer {
     }
   }
 
-  private static MergePolicy getMergePolicy(String mergePolicy, boolean useCFS, boolean useBP) {
+  private static MergePolicy getMergePolicy(String mergePolicy, boolean useBP) {
 
     MergePolicy mp;
     if (mergePolicy.equals("LogDocMergePolicy")) {
       mp = new LogDocMergePolicy();
-      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
     } else if (mergePolicy.equals("LogByteSizeMergePolicy")) {
       mp = new LogByteSizeMergePolicy();
-      mp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
     } else if (mergePolicy.equals("NoMergePolicy")) {
       mp = NoMergePolicy.INSTANCE;
     } else if (mergePolicy.equals("TieredMergePolicy")) {
       final TieredMergePolicy tmp = new TieredMergePolicy();
       //tmp.setMaxMergedSegmentMB(1000000.0);
-      tmp.setNoCFSRatio(useCFS ? 1.0 : 0.0);
       mp = tmp;
     } else {
       throw new RuntimeException("unknown MergePolicy " + mergePolicy);
@@ -336,6 +333,7 @@ public final class Indexer {
     final boolean bodyPostingsOffsets = args.getFlag("-bodyPostingsOffsets");
     final int maxConcurrentMerges = args.getInt("-maxConcurrentMerges", -1);
     final boolean addDVFields = args.getFlag("-dvfields");
+    final boolean addDVSkippers = args.getFlag("-addDVSkippers");
     final boolean doRandomCommit = args.getFlag("-randomCommit");
     final boolean useCMS = args.getFlag("-useCMS");
     final Optional<Boolean> ioThrottle = args.getOptionalBoolean("-ioThrottle");
@@ -460,7 +458,24 @@ public final class Indexer {
       if (hnswMergeExec != null) {
         System.out.println("Concurrent HNSW merge enabled: " + hnswThreadsPerMerge + " threads per merge, drawing from shared thread pool with " + hnswThreadPoolCount + " fixed threads");
       }
-    
+
+      KnnVectorsFormat knnVectorsFormat;
+      if (quantizeKNNGraph) {
+          knnVectorsFormat = new Lucene104HnswScalarQuantizedVectorsFormat(
+                  ScalarEncoding.SEVEN_BIT,
+                  Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                  hnswThreadsPerMerge,
+                  hnswMergeExec
+          );
+      } else {
+          knnVectorsFormat = new Lucene99HnswVectorsFormat(
+                  Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
+                  Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
+                  hnswThreadsPerMerge,
+                  hnswMergeExec
+          );
+        }
       // Use Codec at defaults, except possibly for id field, facets, andconcurrency during HNSW merging
       final Codec codec = new Lucene104Codec() {
           @Override
@@ -484,18 +499,7 @@ public final class Indexer {
 
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-            if (quantizeKNNGraph) {
-              return new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT,
-                                                                   Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                                                                   Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                                                                   hnswThreadsPerMerge,
-                                                                   hnswMergeExec);
-            } else {
-              return new Lucene99HnswVectorsFormat(Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN,
-                Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
-                hnswThreadsPerMerge,
-                hnswMergeExec);
-            }
+            return knnVectorsFormat;
           }
         };
 
@@ -527,7 +531,8 @@ public final class Indexer {
         iwc.setUseCompoundFile(useCFS);
 
         iwc.setMergeScheduler(getMergeScheduler(indexingFailed, useCMS, maxConcurrentMerges, ioThrottle));
-        iwc.setMergePolicy(getMergePolicy(mergePolicy, useCFS, useBP));
+        iwc.getCodec().compoundFormat().setShouldUseCompoundFile(useCFS);
+        iwc.setMergePolicy(getMergePolicy(mergePolicy, useBP));
 
         // Keep all commit points:
         if (doDeletions || doForceMerge) {
@@ -566,7 +571,7 @@ public final class Indexer {
       final Random random = new Random(17);
 
       LineFileDocs lineFileDocs = new LineFileDocs(lineFile, repeatDocs, storeBody, tvsBody, bodyPostingsOffsets, false,
-                                                   taxoWriter, facetDimMethods, facetsConfig, addDVFields,
+                                                   taxoWriter, facetDimMethods, facetsConfig, addDVFields, addDVSkippers,
                                                    vectorFile, vectorDimension, vectorEncoding);
 
       float docsPerSecPerThread = -1f;

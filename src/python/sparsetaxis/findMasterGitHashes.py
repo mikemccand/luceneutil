@@ -14,7 +14,7 @@ itself.
 #
 #   wget http://mail-archives.apache.org/mod_mbox/lucene-commits/201611.mbox
 
-reMaster = re.compile("^  refs/heads/master ([0-9a-f]+) -> ([0-9a-f]+)$", re.MULTILINE)
+reMaster = re.compile("^  refs/heads/master ([0-9a-f]+) -> ([0-9a-f]+)$", re.MULTILINE)  # noqa: RUF039
 
 # master commit hashes pushed
 masterCommits = set()
@@ -28,7 +28,7 @@ for month in 6, 7, 8, 9, 10, 11:
       p = [p]
     for x in p:
       matches = reMaster.findall(str(x))
-      for fromHash, toHash in matches:
+      for fromHash, toHash in matches:  # noqa: FURB142
         # print("fromHash %s" % fromHash)
         masterCommits.add(toHash)
 

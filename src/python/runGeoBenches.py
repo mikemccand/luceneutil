@@ -199,7 +199,7 @@ with open(logFileName, "w") as log:
           doPrintLine = True
         if line.startswith("BEST QPS: "):
           doPrintLine = True
-          results[(shape, approach)] = (float(line[10:]), bestMHPS, int(totHits))
+          results[(shape, approach)] = (float(line[10:]), bestMHPS, int(totHits))  # noqa: RUF031
           pickle.dump((rev, stats, results), open(resultsFileName, "wb"))
         if line.startswith("BEST M hits/sec: "):
           doPrintLine = True

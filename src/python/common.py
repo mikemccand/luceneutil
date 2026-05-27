@@ -86,11 +86,11 @@ def getLuceneMatchVersion(ROOT):
 def getLuceneTestClassPath(ROOT):
   CP = []
   if os.path.exists(ROOT + "/lucene/build/core"):
-    CP.append(ROOT + "/lucene/build/test-framework/classes/java")
+    CP.append(ROOT + "/lucene/build/test-framework/classes/java")  # noqa: FURB113
     CP.append(ROOT + "/lucene/build/core/classes/test")
     CP.append(ROOT + "/lucene/build/core/classes/java")
   else:
-    CP.append(ROOT + "/lucene/build/classes/test-framework")
+    CP.append(ROOT + "/lucene/build/classes/test-framework")  # noqa: FURB113
     CP.append(ROOT + "/lucene/build/classes/test")
     CP.append(ROOT + "/lucene/build/classes/java")
 
@@ -108,7 +108,7 @@ def getLuceneTestClassPath(ROOT):
   if os.path.exists(ROOT + "/lucene/build/classes/demo"):
     CP.append(ROOT + "/lucene/build/classes/demo")
 
-  CP.append("/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar")
+  CP.append("/home/mike/src/lucene-c-boost/dist/luceneCBoost-SNAPSHOT.jar")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/test-framework/classes/java")
   CP.append(ROOT + "/lucene/build/test-framework/classes/test")
   CP.append(ROOT + "/lucene/build/queries/classes/java")
@@ -121,18 +121,18 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + "/lucene/build/spatial3d/classes/java")
   CP.append(ROOT + "/lucene/spatial/src/test-files")
   addJARs(CP, ROOT + "/lucene/spatial/lib")
-  CP.append(ROOT + "/lucene/build/server/classes/java")
+  CP.append(ROOT + "/lucene/build/server/classes/java")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/server/classes/test")
   addJARs(CP, ROOT + "/lucene/server/lib")
-  CP.append(ROOT + "/lucene/build/classification/classes/java")
+  CP.append(ROOT + "/lucene/build/classification/classes/java")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/classification/classes/test")
   CP.append(ROOT + "/lucene/build/expressions/classes/java")
   CP.append(ROOT + "/lucene/build/expressions/classes/test")
   addJARs(CP, ROOT + "/lucene/expressions/lib")
-  CP.append(ROOT + "/lucene/build/replicator/classes/java")
+  CP.append(ROOT + "/lucene/build/replicator/classes/java")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/replicator/classes/test")
   addJARs(CP, ROOT + "/lucene/replicator/lib")
-  CP.append(ROOT + "/lucene/build/demo/classes/java")
+  CP.append(ROOT + "/lucene/build/demo/classes/java")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/demo/classes/test")
   CP.append(ROOT + "/lucene/build/codecs/classes/java")
   CP.append(ROOT + "/lucene/build/codecs/classes/test")
@@ -141,7 +141,7 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + "/lucene/build/benchmark/classes/java")
   CP.append(ROOT + "/lucene/build/benchmark/classes/test")
   addJARs(CP, ROOT + "/lucene/benchmark/lib")
-  CP.append(ROOT + "/lucene/build/join/classes/java")
+  CP.append(ROOT + "/lucene/build/join/classes/java")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/join/classes/test")
   CP.append(ROOT + "/lucene/build/memory/classes/java")
   CP.append(ROOT + "/lucene/build/memory/classes/test")
@@ -158,7 +158,7 @@ def getLuceneTestClassPath(ROOT):
   CP.append(ROOT + "/lucene/build/analysis/phonetic/classes/java")
   CP.append(ROOT + "/lucene/build/analysis/phonetic/classes/test")
   addJARs(CP, ROOT + "/lucene/analysis/phonetic/lib")
-  CP.append(ROOT + "/lucene/build/analysis/icu/classes/java")
+  CP.append(ROOT + "/lucene/build/analysis/icu/classes/java")  # noqa: FURB113
   CP.append(ROOT + "/lucene/build/analysis/icu/classes/test")
   CP.append(ROOT + "/lucene/analysis/icu/lib/icu4j-4_8_1_1.jar")
   CP.append(ROOT + "/lucene/build/analysis/kuromoji/classes/java")

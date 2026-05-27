@@ -53,17 +53,17 @@ class LocalTaskSource implements TaskSource {
     Collections.shuffle(loadedTasks, staticRandom);
     final List<Task> prunedTasks = pruneTasks(loadedTasks, numTaskPerCat);
 
-    final IndexSearcher searcher = indexState.mgr.acquire();
-    final int maxDoc;
-    try {
-      maxDoc = searcher.getIndexReader().maxDoc();
-    } finally {
-      indexState.mgr.release(searcher);
-    }
-
     // Add PK tasks
     //System.out.println("WARNING: skip PK tasks");
     if (doPKLookup) {
+      final IndexSearcher searcher = indexState.mgr.acquire();
+      final int maxDoc;
+      try {
+        maxDoc = searcher.getIndexReader().maxDoc();
+      } finally {
+        indexState.mgr.release(searcher);
+      }
+
       final int numPKTasks = (int) Math.min(maxDoc/6000., numTaskPerCat);
       final Set<BytesRef> pkSeenIDs = new HashSet<BytesRef>();
       //final Set<BytesRef> pkWithTermStateSeenIDs = new HashSet<BytesRef>();

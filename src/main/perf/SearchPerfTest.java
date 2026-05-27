@@ -201,7 +201,7 @@ public class SearchPerfTest {
         }
         System.out.println("\nEnd threads:");
         for(int i=0;i<this.threadIDs.length;i++) {
-          System.out.println(i + ": " + this.threadIDs[i] + " -> " + this.threadInfos[i].getThreadName() + " CPU=" + prior.cpuTimesNS[i]);
+          System.out.println(i + ": " + this.threadIDs[i] + " -> " + this.threadInfos[i].getThreadName() + " CPU=" + this.cpuTimesNS[i]);
         }
         // throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " endThreadDetails.threadIDs.length);
         System.out.println("\nAverage CPU cores used: -1\n  (thread IDs changed during run; maybe due to attached jstack during run?)");
@@ -428,7 +428,7 @@ public class SearchPerfTest {
         iwc.setIndexCommit(PerfUtils.findCommitPoint(commit, dir));
       }
 
-      ((TieredMergePolicy) iwc.getMergePolicy()).setNoCFSRatio(useCFS ? 1.0 : 0.0);
+      iwc.getCodec().compoundFormat().setShouldUseCompoundFile(useCFS);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergedSegmentMB(1024);
       //((TieredMergePolicy) iwc.getMergePolicy()).setReclaimDeletesWeight(3.0);
       //((TieredMergePolicy) iwc.getMergePolicy()).setMaxMergeAtOnce(4);
@@ -466,7 +466,7 @@ public class SearchPerfTest {
       // TODO: add -nrtBodyPostingsOffsets instead of
       // hardwired false:
       boolean addDVFields = mode == Mode.BDV_UPDATE || mode == Mode.NDV_UPDATE;
-      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, null, 0, null);
+      LineFileDocs lineFileDocs = new LineFileDocs(lineDocsFile, false, storeBody, tvsBody, false, cloneDocs, null, null, null, addDVFields, false, null, 0, null);
       IndexThreads threads = new IndexThreads(new Random(17), writer, new AtomicBoolean(false), lineFileDocs, indexThreadCount, -1, false, false, mode, docsPerSecPerThread, null, -1.0, -1);
       threads.start();
 
@@ -530,7 +530,7 @@ public class SearchPerfTest {
         //System.out.println("Opening searcher on commit=" + commit + ", sorting leaves by descending maxDoc");
         //_reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR, descendingMaxDoc);
         System.out.println("Opening searcher on commit=" + commit);
-        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir), Version.MIN_SUPPORTED_MAJOR);
+        _reader = DirectoryReader.open(PerfUtils.findCommitPoint(commit, dir));
       } else {
         // open most recent commit
         System.out.println("Opening searcher on latest commit, sorting leaves by descending maxDoc");

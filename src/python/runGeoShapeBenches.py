@@ -135,15 +135,15 @@ def compile(basedir):
 def execute(results, tup, didReindexParam, indexKey, log, basedir, dev):
   extra = " -file " + fileName
   if "-reindex" in sys.argv and indexKey not in didReindexParam:
-    extra = extra + " -reindex"
+    extra = extra + " -reindex"  # noqa: PLR6104
     didReindexParam.add(indexKey)
 
   if "-reindexFast" in sys.argv and indexKey not in didReindexParam:
-    extra = extra + " -reindexFast"
+    extra = extra + " -reindexFast"  # noqa: PLR6104
     didReindexParam.add(indexKey)
 
   if dev:
-    extra = extra + " -dev"
+    extra = extra + " -dev"  # noqa: PLR6104
 
   shapeCmd = shape
 
@@ -181,7 +181,7 @@ def execute(results, tup, didReindexParam, indexKey, log, basedir, dev):
       doPrintLine = True
     if line.startswith("BEST QPS: "):
       doPrintLine = True
-      results[(shape, op)] = (float(line[10:]), bestMHPS, int(totHits))
+      results[(shape, op)] = (float(line[10:]), bestMHPS, int(totHits))  # noqa: RUF031
       pickle.dump((rev, stats, results), open(resultsFileName, "wb"))
     if line.startswith("BEST M hits/sec: "):
       doPrintLine = True

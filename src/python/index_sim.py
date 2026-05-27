@@ -108,7 +108,7 @@ class Segment:
 
 class Index:
   def __init__(self, rand, num_index_threads=6, ram_multiplier=4.0, max_ram_buffer_mb=4096, disk_doc_multiplier=1.0, merge_mb_per_sec=1024 / 60):
-    global seg_ram_multiplier
+    global seg_ram_multiplier  # noqa: FURB154
     global seg_disk_multiplier
 
     seg_ram_multiplier = ram_multiplier
@@ -286,7 +286,7 @@ class Index:
     final_size_bytes -= del_reclaim_bytes
 
     finish_time_sec = timestamp_sec + merge_run_time_sec
-    spot = bisect.bisect_left(self.pending, finish_time_sec, key=lambda x: x[0])
+    spot = bisect.bisect_left(self.pending, finish_time_sec, key=lambda x: x[0])  # noqa: FURB118
 
     self.pending.insert(spot, (finish_time_sec, "finish-merge", merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason))
 
@@ -332,7 +332,7 @@ class Index:
     while len(self.pending) > 0 and self.pending[0][0] < next_timestamp_sec:
       timestamp_sec = self.pending[0][0]
       if self.pending[0][1] == "finish-merge":
-        ts, _, merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason = self.pending[0]
+        ts, _, merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason = self.pending[0]  # noqa: RUF059
         self.finish_merge(merged_seg, to_merge_segments, del_docs_to_reclaim, final_size_bytes, reason)
         del self.pending[0]
 

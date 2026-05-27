@@ -55,7 +55,7 @@ def run_benchmark(lucene_dir, geonames_csv_in, index_dir, nightly_log_dir, doc_l
     print(f"stderr: {stderr}\n")
     raise RuntimeError(f"failed errorcode={results.returncode}!")
 
-  matches = re.findall("^(.*?): (.*?) msec$", stdout, re.MULTILINE)
+  matches = re.findall("^(.*?): (.*?) msec$", stdout, re.MULTILINE)  # noqa: RUF039
   if len(matches) == 0:
     raise RuntimeError(f"could not find any runtimes in output; see {nightly_log_dir}/geonames-stored-fields-benchmark.std{{out,err}}.txt")
 

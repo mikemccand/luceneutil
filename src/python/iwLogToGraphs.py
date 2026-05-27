@@ -503,7 +503,7 @@ def main():
     for i, tup in enumerate(commitTimes):
       if len(tup) == 7:
         # print("tup %s" % str(tup))
-        year, month, day, hr, min, sec, (endYear, endMonth, endDay, endHr, endMin, endSec) = tup
+        year, month, day, hr, min, sec, (endYear, endMonth, endDay, endHr, endMin, endSec) = tup  # noqa: RUF059
         t0 = toDateTime(tup[:6])
         t1 = toDateTime(tup[-1])
         commitSec = (t1 - t0).total_seconds()

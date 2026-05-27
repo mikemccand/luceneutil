@@ -979,8 +979,9 @@ class RunAlgs:
 
     fullIndexPath = nameToIndexPath(index.getName())
 
-    # Get current config for this index
-    current_config = get_index_config(index)
+    # index.getConfig() returns the same dict that
+    # competition.Index.getName() hashes into fullIndexPath.
+    current_config = index.getConfig()
 
     if os.path.exists(fullIndexPath) and not index.doUpdate:
       # Check if we can reuse the existing index
@@ -988,10 +989,9 @@ class RunAlgs:
       if can_reuse:
         print("  %s: already exists with matching config" % fullIndexPath)
         return fullIndexPath
-      else:
-        print("  %s: exists but cannot reuse: %s" % (fullIndexPath, reason))
-        print("  removing old index and reindexing...")
-        shutil.rmtree(fullIndexPath)
+      print("  %s: exists but cannot reuse: %s" % (fullIndexPath, reason))
+      print("  removing old index and reindexing...")
+      shutil.rmtree(fullIndexPath)
     if index.doUpdate:
       if not os.path.exists(fullIndexPath):
         raise RuntimeError("index path does not exist: %s" % fullIndexPath)
@@ -2022,31 +2022,6 @@ def profilerOutput(javaCommand, jfrOutput, checkoutPath, profilerCount, profiler
   return profilerResults
 
 
-def get_index_config(index):
-  """Generate a dict of all config parameters that affect index creation."""
-  config = {
-    "dataSource": index.dataSource.name,
-    "numDocs": index.numDocs,
-    "optimize": index.optimize,
-    "useCFS": index.useCFS,
-    "postingsFormat": index.postingsFormat,
-    "idFieldPostingsFormat": index.idFieldPostingsFormat,
-    "bodyTermVectors": index.bodyTermVectors,
-    "bodyStoredFields": index.bodyStoredFields,
-    "bodyPostingsOffsets": index.bodyPostingsOffsets,
-    "addDVFields": index.addDVFields,
-    "indexSort": index.indexSort,
-  }
-  if index.facets is not None:
-    config["facets"] = [arg[0] for arg in index.facets]
-    config["facetDVFormat"] = index.facetDVFormat
-  if index.vectorFile:
-    config["vectorFile"] = index.vectorFile
-    config["vectorDimension"] = index.vectorDimension
-    config["quantizeKNNGraph"] = index.quantizeKNNGraph
-  return config
-
-
 def write_index_config(index_path, config):
   """Write index config to metadata file."""
   config_path = os.path.join(index_path, "index-config.json")
@@ -2059,7 +2034,7 @@ def read_index_config(index_path):
   config_path = os.path.join(index_path, "index-config.json")
   if not os.path.exists(config_path):
     return None
-  with open(config_path, "r") as f:
+  with open(config_path) as f:
     return json.load(f)
 
 

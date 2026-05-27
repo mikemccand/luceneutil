@@ -1152,6 +1152,8 @@ class RunAlgs:
 
     # After successful indexing, write the config file
     write_index_config(fullIndexPath, current_config)
+    reuse_ok, reason = can_reuse_index(fullIndexPath, current_config)
+    assert reuse_ok, f"index config round-trip failed after write: {reason}"
 
     profilerResults = profilerOutput(index.javaCommand, jfrOutput, checkoutToPath(index.checkout), profilerCount, profilerStackSize, desc=desc)
 

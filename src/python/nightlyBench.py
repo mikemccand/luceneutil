@@ -1507,7 +1507,7 @@ def makeGraphs():
       print("skip %s: %s" % (k, len(v)))
       del searchChartData[k]
 
-  writeIndexHTML(searchChartData, days)
+  writeIndexHTML(searchChartData, days, timeStampString)
 
   writeGitHubPRChartHTML(gitHubPRChartData)
 
@@ -1635,11 +1635,12 @@ def writeOneLine(w, seen, cat, desc):
   w('<br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="%s.html">%s</a>' % (cat, desc))
 
 
-def writeIndexHTML(searchChartData, days):
+def writeIndexHTML(searchChartData, days, timeStampString):
   f = open("%s/index.html" % constants.NIGHTLY_REPORTS_DIR, "w")
   w = f.write
   header(w, "Lucene nightly benchmarks")
   w("<h1>Lucene nightly benchmarks</h1>")
+  w(f"[<i>{timeStampString}</i>]<br><br>")
   w(
     'Each night, an <a href="https://github.com/mikemccand/luceneutil/blob/main/src/python/nightlyBench.py">automated Python tool</a> checks out the Lucene/Solr trunk source code and runs multiple benchmarks: indexing the entire <a href="http://en.wikipedia.org/wiki/Wikipedia:Database_download">Wikipedia English export</a> three times (with different settings / document sizes); running a near-real-time latency test; running a set of "hardish" auto-generated queries and tasks.  The tests take around <s>2.5</s> 28-29 hours to run, and the results are verified against the previous run and then added to the graphs linked below.'
   )

@@ -1301,6 +1301,7 @@ def makeGraphs():
         openGitHubPRCount, closedGitHubPRCount = None, None
 
       timeStampString = "%04d-%02d-%02d %02d:%02d:%02d" % (timeStamp.year, timeStamp.month, timeStamp.day, timeStamp.hour, timeStamp.minute, int(timeStamp.second))
+
       date = "%02d/%02d/%04d" % (timeStamp.month, timeStamp.day, timeStamp.year)
       if date in ("09/03/2014",):  # noqa: FURB171
         # I was testing disabling THP again...
@@ -1347,6 +1348,7 @@ def makeGraphs():
       mean, stdDev = nrtResults
       nrtChartData.append("%s,%.3f,%.2f" % (timeStampString, mean, stdDev))
       if searchResults is not None:
+        latestTimeStampString = timeStampString
         days.append(timeStamp)
         for cat, (minQPS, maxQPS, avgQPS, stdDevQPS) in list(searchResults.items()):
           if isinstance(cat, bytes):
@@ -1507,7 +1509,7 @@ def makeGraphs():
       print("skip %s: %s" % (k, len(v)))
       del searchChartData[k]
 
-  writeIndexHTML(searchChartData, days, timeStampString)
+  writeIndexHTML(searchChartData, days, latestTimeStampString)
 
   writeGitHubPRChartHTML(gitHubPRChartData)
 

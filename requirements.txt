@@ -25,3 +25,5 @@ rtree==1.4.0
 ruff==0.11.6
 # type checker
 basedpyright==1.29.0
+
+nodejs-wheel-binaries==22.13.1  # pin to manylinux_2_17 wheel; update in sync with basedpyright

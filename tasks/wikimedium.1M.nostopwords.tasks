@@ -11556,3 +11556,5 @@ HighTermMonthSort: monthdvsort//english # freq=54912
 HighTermMonthSort: monthdvsort//9 # freq=54906
 HighTermMonthSort: monthdvsort//became # freq=54642
 HighTermMonthSort: monthdvsort//september # freq=54310
+ConstMSM2: ref http from +constantScore +minShouldMatch=2
+BM25MSM2: ref http from +minShouldMatch=2

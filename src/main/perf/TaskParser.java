@@ -378,11 +378,14 @@ class TaskParser implements Closeable {
       return minShouldMatch;
     }
 
-    boolean parseConstantScore() {
+    boolean parseConstantScore() throws ParseException {
       final Matcher m = constantScorePattern.matcher(text);
       if (m.find()) {
         // Splice out the constantScore string:
         text = (text.substring(0, m.start(0)) + " " + text.substring(m.end(0), text.length())).trim();
+        if (m.find()) {
+          throw new ParseException("+constantScore appears more than once in task: " + text);
+        }
         return true;
       }
       return false;
@@ -611,31 +614,22 @@ class TaskParser implements Closeable {
         return new DisjunctionMaxQuery(dismaxClauses, 0f);
       }
 
-      if (constantScore) {
-        if (!(query instanceof BooleanQuery bq)) {
-          throw new RuntimeException("+constantScore can only be used with BooleanQuery: query=" + origText);
+      if (constantScore || minShouldMatch > 0) {
+        if (query instanceof BooleanQuery bq) {
+          Builder b = new BooleanQuery.Builder();
+          b.setMinimumNumberShouldMatch(minShouldMatch);
+          for (BooleanClause clause : bq) {
+            if (constantScore) {
+              b.add(new ConstantScoreQuery(clause.query()), clause.occur());
+            } else {
+              b.add(clause);
+            }
+          }
+          return b.build();
         }
-        Builder b = new BooleanQuery.Builder();
-        b.setMinimumNumberShouldMatch(minShouldMatch);
-        for (BooleanClause clause : bq) {
-          b.add(new ConstantScoreQuery(clause.query()), clause.occur());
-        }
-        return b.build();
+        throw new RuntimeException("minShouldMatch or +constantScore can only be used with BooleanQuery: query=" + origText);
       }
-
-      if (minShouldMatch == 0) {
-        return query;
-      } else {
-        if (!(query instanceof BooleanQuery)) {
-          throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
-        }
-        Builder b = new BooleanQuery.Builder();
-        b.setMinimumNumberShouldMatch(minShouldMatch);
-        for (BooleanClause clause : ((BooleanQuery) query)) {
-          b.add(clause);
-        }
-        return b.build();
-      }
+      return query;
     }
 
     private Query rewriteToCombinedFieldQuery(Query query) {

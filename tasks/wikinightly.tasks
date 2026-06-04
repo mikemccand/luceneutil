@@ -538,3 +538,6 @@ AndMissingHigh: titledvsort//+dndjndwkndddwdddw +phone
 AndMissingHigh: titledvsort//+ioedhwhbxcbd +water
 AndMissingHigh: titledvsort//+oiwqpoeidhuhodsbdad +car
 AndMissingHigh: titledvsort//+dpedjpwechachcnwbec +plastic
+
+ConstMSM2: ref http from +constantScore +minShouldMatch=2
+BM25MSM2: ref http from +minShouldMatch=2

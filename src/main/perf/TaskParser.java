@@ -617,6 +617,7 @@ class TaskParser implements Closeable {
       if (constantScore || minShouldMatch > 0) {
         if (query instanceof BooleanQuery bq) {
           Builder b = new BooleanQuery.Builder();
+          // note that b.setMinimumNumberShouldMatch(0) is harmless and is effectively a no-op
           b.setMinimumNumberShouldMatch(minShouldMatch);
           for (BooleanClause clause : bq) {
             if (constantScore) {

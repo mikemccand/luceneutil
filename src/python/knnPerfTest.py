@@ -110,6 +110,13 @@ USE_NUMPY_EXACT_NN = True
 CHECK_DOC_DOC_DUPLICATES = False
 CHECK_QUERY_QUERY_DUPLICATES = False
 
+# Sample doc and query vectors and statistically compare their distributions to
+# detect dual-encoder model mismatch (e.g. someone re-embedded one side with a
+# different model/checkpoint).  Cheap (~seconds): computes per-dim z-scores plus
+# cross-score spread vs within-side spread.  Raises if mismatch looks severe.
+CHECK_QUERY_DOC_MODEL_CONSISTENCY = True
+QUERY_DOC_MODEL_CONSISTENCY_SAMPLE = 5000
+
 # Set this to True to use perf tool to record instructions executed and confirm SIMD
 # instructions were executed
 # TODO: how much overhead / perf impact from this?  can we always run?
@@ -1540,6 +1547,12 @@ def run_knn_benchmark(checkout, values, log_path):
   knnExactNN.check_vector_overlap(
     doc_vectors, 0, n_doc_check, query_vectors, query_start_check, n_query_check, dim, encoding_check, check_doc_doc=CHECK_DOC_DOC_DUPLICATES, check_query_query=CHECK_QUERY_QUERY_DUPLICATES
   )
+
+  if CHECK_QUERY_DOC_MODEL_CONSISTENCY:
+    metric_check = values.get("metric", ("dot_product",))[0]
+    knnExactNN.check_query_doc_distribution_match(
+      doc_vectors, 0, n_doc_check, query_vectors, query_start_check, n_query_check, dim, encoding_check, metric=metric_check, n_sample=QUERY_DOC_MODEL_CONSISTENCY_SAMPLE
+    )
 
   # precompute exact nearest neighbors using numpy (much faster than Java brute force)
   if USE_NUMPY_EXACT_NN:

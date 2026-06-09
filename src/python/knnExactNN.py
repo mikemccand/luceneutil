@@ -269,8 +269,16 @@ def _flatten_offdiag(matrix):
 
 
 def check_query_doc_distribution_match(
-  doc_file, doc_start, n_doc, query_file, query_start, n_query, dim,
-  encoding="float32", metric="dot_product", n_sample=5000,
+  doc_file,
+  doc_start,
+  n_doc,
+  query_file,
+  query_start,
+  n_query,
+  dim,
+  encoding="float32",
+  metric="dot_product",
+  n_sample=5000,
 ):
   """Detect when doc-side and query-side embeddings look like they came from different
   models / checkpoints / preprocessing pipelines.
@@ -315,8 +323,8 @@ def check_query_doc_distribution_match(
   # for dot_product / mip we honor whatever the caller produced (do NOT secretly normalize:
   # that would silently mask a "one side normalized, other side not" mismatch).
   if metric == "cosine":
-    doc_vecs = doc_vecs / np.maximum(np.linalg.norm(doc_vecs, axis=1, keepdims=True), 1e-30)
-    query_vecs = query_vecs / np.maximum(np.linalg.norm(query_vecs, axis=1, keepdims=True), 1e-30)
+    doc_vecs /= np.maximum(np.linalg.norm(doc_vecs, axis=1, keepdims=True), 1e-30)
+    query_vecs /= np.maximum(np.linalg.norm(query_vecs, axis=1, keepdims=True), 1e-30)
 
   # ---- signal 1: per-dim mean / std drift ----------------------------------------------
   doc_mu = doc_vecs.mean(axis=0)
@@ -391,7 +399,9 @@ def check_query_doc_distribution_match(
       "This is the dominant signature of doc-side and query-side embeddings coming from different models / checkpoints / preprocessing."
     )
   elif frac_diverging_dims >= _MISMATCH_DIM_Z_FRAC_WARN:
-    print(f"  WARNING: per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%). docs and queries may have come from different models.")
+    print(
+      f"  WARNING: per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%). docs and queries may have come from different models."
+    )
 
   if spread_ratio < _MISMATCH_SPREAD_RATIO_FAIL:
     problems.append(
@@ -405,8 +415,7 @@ def check_query_doc_distribution_match(
   if problems:
     msg = (
       "doc and query vectors look incompatible (probable dual-encoder mismatch).  "
-      f"doc_file={doc_file}, query_file={query_file}, dim={dim}, n_doc_sample={n_doc_sample}, n_query_sample={n_query_sample}.\n"
-      + "\n".join(f"  * {p}" for p in problems)
+      f"doc_file={doc_file}, query_file={query_file}, dim={dim}, n_doc_sample={n_doc_sample}, n_query_sample={n_query_sample}.\n" + "\n".join(f"  * {p}" for p in problems)
     )
     raise ValueError(msg)
 
@@ -664,13 +673,13 @@ def parse_vector_config_from_source(source_text):
   doc_vectors = doc_match.group(1)
   # resolve f-string {dim} references from the parsed source
   dim_str = str(dim)
-  doc_vectors = doc_vectors.replace("{dim}", dim_str)
+  doc_vectors = doc_vectors.replace("{dim}", dim_str)  # noqa: RUF027
   # extract query_vectors
   query_match = re.search(r'^\s+query_vectors\s*=\s*[f]?["\'](.+?)["\']', block, re.MULTILINE)
   if query_match is None:
     raise ValueError(f"could not find query_vectors assignment in v3={v3} block")
   query_vectors = query_match.group(1)
-  query_vectors = query_vectors.replace("{dim}", dim_str)
+  query_vectors = query_vectors.replace("{dim}", dim_str)  # noqa: RUF027
   return dim, doc_vectors, query_vectors
 
 

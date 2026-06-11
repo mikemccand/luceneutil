@@ -142,6 +142,41 @@ KNNResultV1 = namedtuple(
   ],
 )
 
+KNNResultV2 = namedtuple(
+  "KNNResultV2",
+  [
+    "lucene_git_rev",
+    "luceneutil_git_rev",
+    "index_vectors_file",
+    "search_vectors_file",
+    "vector_dims",
+    "do_force_merge",
+    "recall",
+    "cpu_time_ms",
+    "net_cpu_ms",
+    "avg_cpu_core_count",
+    "num_docs",
+    "top_k",
+    "fanout",
+    "max_conn",
+    "beam_width",
+    "quantize_desc",
+    "total_visited",
+    "index_time_sec",
+    "index_docs_per_sec",
+    "merge_time_sec",
+    "force_merge_time_sec",
+    "index_num_segments",
+    "index_size_on_disk_mb",
+    "selectivity",
+    "pre_post_filter",
+    "vec_disk_mb",
+    "vec_ram_mb",
+    "graph_level_conn_p_values",
+    "combined_run_time",
+  ],
+)
+
 
 CHANGES = [
   ("2016-07-04 07:13:41", "LUCENE-7351: Doc id compression for dimensional points"),
@@ -223,6 +258,20 @@ def convert_v0_to_v1(v0_result):
   return KNNResultV1(*fields)
 
 
+def convert_v1_to_v2(v1_result):
+  """Convert a KNNResultV1 result to KNNResultV2 format."""
+  # Extract all fields from v1
+  fields = list(v1_result)
+
+  assert len(fields) == 28, f"got {len(fields)}"
+
+  # merge_time_sec added just before force_merge_time_sec
+  force_merge_index = 19  # index of force_merge_time_sec in KNNResultV1
+  fields.insert(force_merge_index, -1.0)  # merge_time_sec placeholder for old results
+
+  return KNNResultV2(*fields)
+
+
 def main():
   if "-write_graph" in sys.argv:
     write_graph()
@@ -253,6 +302,8 @@ def write_graph():
       # Unpickle does something weird... type(run) is runNightlyKnn.KNNResultV0 but KNNResultV0 is __main_)_.KNResultV0
       if str(type(run)).endswith(".KNNResultV0'>"):
         run = convert_v0_to_v1(run)
+      if str(type(run)).endswith(".KNNResultV1'>"):
+        run = convert_v1_to_v2(run)
 
       if lucene_git_rev is None:
         lucene_git_rev = run.lucene_git_rev
@@ -274,6 +325,7 @@ def write_graph():
       add(series, f"{desc} RAM", run.vec_ram_mb)
       add(series, f"{desc} disk", run.vec_disk_mb)
       add(series, f"{desc} index-time-sec", run.index_time_sec)
+      add(series, f"{desc} merge-time-sec", run.merge_time_sec)
       add(series, f"{desc} force-merge-time-sec", run.force_merge_time_sec)
       add(series, f"{desc} index K docs/sec", run.index_docs_per_sec / 1000.0)
       add(series, f"{desc} vec_ram_gb", run.vec_ram_mb / 1024.0)
@@ -445,6 +497,16 @@ This benchmark indexes 8.0M and searches Cohere 768 dimension vectors from https
       (series["no.force_merge force-merge-time-sec"], series["7 bits.force_merge force-merge-time-sec"], series["4 bits.force_merge force-merge-time-sec"]),
       "force_merge_time_sec",
       "Force Merge time (sec)",
+      headers=("Date", "float32", "7 bits", "4 bits"),
+      ylabel="sec",
+    )
+
+    write_one_graph(
+      f,
+      timestamps,
+      (series["no merge-time-sec"], series["7 bits merge-time-sec"], series["4 bits merge-time-sec"]),
+      "merge_time_sec",
+      "Merge time during indexing (sec)",
       headers=("Date", "float32", "7 bits", "4 bits"),
       ylabel="sec",
     )
@@ -806,14 +868,14 @@ def _run(results_dir):
 
       cols = summary.split("\t")
 
-      assert len(cols) >= 27
+      assert len(cols) >= 28
 
-      if cols[21] == "N/A":
+      if cols[22] == "N/A":
         selectivity = None
       else:
-        selectivity = float(cols[21])
+        selectivity = float(cols[22])
 
-      result = KNNResultV1(
+      result = KNNResultV2(
         lucene_git_rev,
         luceneutil_git_rev,
         INDEX_VECTORS_FILE,
@@ -833,13 +895,14 @@ def _run(results_dir):
         int(cols[14]),  # total_visited
         float(cols[15]),  # index_time_sec
         float(cols[16]),  # index_docs_per_sec
-        float(cols[17]),  # force_merge_time_sec
-        int(cols[18]),  # index_num_segments
-        float(cols[19]),  # index_size_on_disk_mb
-        selectivity,  # selectivity (cols[21])
-        cols[20],  # filter-strategy
-        float(cols[23]),  # vec_disk_mb
-        float(cols[24]),  # vec_ram_mb
+        float(cols[17]),  # merge_time_sec
+        float(cols[18]),  # force_merge_time_sec
+        int(cols[19]),  # index_num_segments
+        float(cols[20]),  # index_size_on_disk_mb
+        selectivity,  # selectivity (cols[22])
+        cols[21],  # filter-strategy
+        float(cols[24]),  # vec_disk_mb
+        float(cols[25]),  # vec_ram_mb
         graph_level_conn_p_values,  # graph_level_conn_p_values
         combined_run_time,  # time to run KnnGraphTester
       )

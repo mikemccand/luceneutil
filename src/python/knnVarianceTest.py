@@ -303,6 +303,7 @@ _HISTOGRAM_FIELDS = [
   "avgCpuCount",
   "visited",
   "index(s)",
+  "merge(s)",
   "force_merge(s)",
   "index_size(MB)",
 ]

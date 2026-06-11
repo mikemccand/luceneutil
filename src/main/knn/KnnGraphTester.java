@@ -186,6 +186,7 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean reindex;
   private boolean forceMerge;
   private int reindexTimeMsec;
+  private int mergeTimeMsec;
   private double forceMergeTimeSec;
   private int indexNumSegments;
   private double indexSizeOnDiskMB;
@@ -670,7 +671,7 @@ public class KnnGraphTester implements FormatterLogger {
         indexTimeFilter = null;
       }
 
-      reindexTimeMsec = new KnnIndexer(
+      KnnIndexer.IndexResult indexResult = new KnnIndexer(
         docVectorsPath,
         indexPath,
         getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, rerank, rerankQuantizeBits),
@@ -687,10 +688,14 @@ public class KnnGraphTester implements FormatterLogger {
         indexTimeFilter,
         rerank
       ).createIndex();
+      reindexTimeMsec = indexResult.indexTimeMsec();
+      mergeTimeMsec = indexResult.mergeTimeMsec();
       Files.writeString(indexKeyPath, indexKey);
-      log("reindex takes %.2f sec\n", msToSec(reindexTimeMsec));
+      log("reindex takes %.2f sec (plus %.2f sec waiting for merges)\n", msToSec(reindexTimeMsec), msToSec(mergeTimeMsec));
       // save indexing time so future runs that re-use this index remember:
       Files.writeString(indexTimePath(indexPath), String.valueOf(reindexTimeMsec));
+      // save merge time so future runs that re-use this index remember:
+      Files.writeString(mergeTimePath(indexPath), String.valueOf(mergeTimeMsec));
       segmentCount = -1;
     } else {
       // paranoia: let's sanity check:
@@ -718,8 +723,25 @@ public class KnnGraphTester implements FormatterLogger {
       } else {
         reindexTimeMsec = -1;
       }
+
+      String ms;
+      Path mergePath = mergeTimePath(indexPath);
+      try {
+        ms = Files.readString(mergePath);
+      } catch (NoSuchFileException nsfe) {
+        // ok -- back compat: old index that didn't write merge time
+        log("WARNING: index did not record merge time msec in %s\n", mergePath);
+        ms = null;
+      }
+      if (ms != null) {
+        log("retrieving previously saved merge time in %s\n", mergePath);
+        mergeTimeMsec = Integer.parseInt(ms);
+        log("read previously saved merge time: %d msec\n", mergeTimeMsec);
+      } else {
+        mergeTimeMsec = -1;
+      }
     }
-    
+
     if (forceMerge) {
       if (segmentCount == 1) {
         log("skip force-merge: index already has 1 segment\n");
@@ -798,6 +820,11 @@ public class KnnGraphTester implements FormatterLogger {
   // we save indexing elapsed time sec to this file inside the index
   private static Path indexTimePath(Path indexPath) {
     return indexPath.resolve("index-time-msec.txt");
+  }
+
+  // we save merge elapsed time msec (time spent waiting for merges during indexing) to this file inside the index
+  private static Path mergeTimePath(Path indexPath) {
+    return indexPath.resolve("merge-time-msec.txt");
   }
 
   private void printIndexStatistics(Path indexPath, String field) throws IOException {
@@ -1334,9 +1361,10 @@ public class KnnGraphTester implements FormatterLogger {
       }
       String rerankDesc = rerank ? Integer.toString(rerankQuantizeBits) + " bits" : "no";
       double reindexSec = reindexTimeMsec / 1000.0;
+      double mergeSec = mergeTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1354,6 +1382,7 @@ public class KnnGraphTester implements FormatterLogger {
           totalVisited / numQueryVectors,
           reindexSec,
           numDocs / reindexSec,
+          mergeSec,
           forceMergeTimeSec,
           indexNumSegments,
           indexSizeOnDiskMB,

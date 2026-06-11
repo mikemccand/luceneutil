@@ -269,6 +269,7 @@ OUTPUT_HEADERS = [
   "visited",
   "index(s)",
   "index_docs/s",
+  "merge(s)",
   "force_merge(s)",
   "num_segments",
   "index_size(MB)",

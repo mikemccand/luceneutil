@@ -211,6 +211,215 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     raise ValueError("\n".join(lines))
 
 
+# thresholds for check_query_doc_distribution_match; tuned conservatively, exposed
+# so callers (and operators) can tweak after baselining on known-good vs known-bad pairs.
+
+# fraction of dims that must have |z| above _MISMATCH_DIM_Z_THRESHOLD before we flag
+# per-dim mean drift as a strong mismatch signal.  with two random samples of N=5000
+# from the SAME distribution, |z|>5 is essentially never expected even for dim=1024,
+# so any nontrivial fraction tripping this is highly suspicious.
+_MISMATCH_DIM_Z_THRESHOLD = 5.0
+_MISMATCH_DIM_Z_FRAC_WARN = 0.10  # >=10% of dims diverge -> WARNING
+_MISMATCH_DIM_Z_FRAC_FAIL = 0.30  # >=30% of dims diverge -> raise ValueError
+
+# the "spread ratio" = (top-1% cross score - median cross score) / (top-1% within-doc score - median within-doc score).
+# a working dual encoder gives spread_ratio roughly >= 0.5 (often > 1.0).
+# unrelated embedding spaces collapse cross dot-products around 0 -> spread_ratio near 0.
+_MISMATCH_SPREAD_RATIO_WARN = 0.30
+_MISMATCH_SPREAD_RATIO_FAIL = 0.10
+
+
+def _percentile_top(scores, frac):
+  """Return value at the (1 - frac) quantile, i.e. the threshold above which 'frac' of scores lie."""
+  return float(np.quantile(scores, 1.0 - frac))
+
+
+def _summary_stats(scores):
+  """Compute (mean, std, median, top1pct, spread = top1pct - median) for a 1D array of similarity scores."""
+  scores = np.asarray(scores, dtype=np.float64)
+  median = float(np.median(scores))
+  top1pct = _percentile_top(scores, 0.01)
+  return {
+    "n": int(scores.size),
+    "mean": float(scores.mean()),
+    "std": float(scores.std()),
+    "median": median,
+    "top1pct": top1pct,
+    "spread": top1pct - median,
+    "min": float(scores.min()),
+    "max": float(scores.max()),
+  }
+
+
+def _format_stats(name, s):
+  return (
+    # mu / sigma below are intentional greek letters, not latin u/o
+    f"  {name}: n={s['n']:>9d}  μ={s['mean']:+.4f}  σ={s['std']:.4f}  "  # noqa: RUF001
+    f"median={s['median']:+.4f}  top1%={s['top1pct']:+.4f}  spread={s['spread']:.4f}"
+  )
+
+
+def _flatten_offdiag(matrix):
+  """Return all off-diagonal entries of a square matrix as a 1D array (excluding self-similarity)."""
+  n = matrix.shape[0]
+  if n != matrix.shape[1]:
+    raise ValueError(f"expected square matrix; got shape {matrix.shape}")
+  mask = ~np.eye(n, dtype=bool)
+  return matrix[mask]
+
+
+def check_query_doc_distribution_match(
+  doc_file,
+  doc_start,
+  n_doc,
+  query_file,
+  query_start,
+  n_query,
+  dim,
+  encoding="float32",
+  metric="dot_product",
+  n_sample=5000,
+):
+  """Detect when doc-side and query-side embeddings look like they came from different
+  models / checkpoints / preprocessing pipelines.
+
+  A correctly paired dual encoder produces high similarity for matching query/doc pairs;
+  the cross-score distribution has a long right tail (top-K well above the median).  When
+  the two sides come from different models, the two embedding spaces become roughly
+  uncorrelated, cross dot-products collapse around 0, and the right tail flattens.
+
+  Two signals, both cheap:
+    1) Per-dim mean/std comparison via z-score over per-dim means.  Different encoders
+       almost always have visibly different per-dim bias profiles (layernorm centering,
+       trained biases, etc.).
+    2) Cross score spread: top-1% minus median for query-vs-doc dot products, compared
+       against the same statistic for doc-vs-doc and query-vs-query as baselines.
+
+  Always raises ValueError when both signals fire strongly, prints WARNING when one fires.
+  """
+  if n_sample <= 1:
+    raise ValueError(f"n_sample must be > 1; got {n_sample}")
+
+  n_doc_sample = min(n_sample, n_doc)
+  n_query_sample = min(n_sample, n_query)
+  if n_doc_sample <= 1 or n_query_sample <= 1:
+    raise ValueError(f"need at least 2 doc and query vectors; got n_doc={n_doc}, n_query={n_query}")
+
+  print(f"\ncheck_query_doc_distribution_match: sampling {n_doc_sample} doc vecs and {n_query_sample} query vecs (encoding={encoding}, metric={metric})")
+  t_start_sec = time.monotonic()
+
+  # use the front of each requested range as the sample
+  if encoding == "float32":
+    doc_vecs = np.array(load_float32_vectors(doc_file, dim, n_doc_sample, doc_start), dtype=np.float32, copy=True)
+    query_vecs = np.array(load_float32_vectors(query_file, dim, n_query_sample, query_start), dtype=np.float32, copy=True)
+  elif encoding == "byte":
+    # byte loaders already cast to float32
+    doc_vecs = np.array(load_byte_vectors(doc_file, dim, n_doc_sample, doc_start), dtype=np.float32, copy=True)
+    query_vecs = np.array(load_byte_vectors(query_file, dim, n_query_sample, query_start), dtype=np.float32, copy=True)
+  else:
+    raise ValueError(f"unknown encoding: {encoding}")
+
+  # for cosine, normalize to unit length so that "dot product" == cosine.
+  # for dot_product / mip we honor whatever the caller produced (do NOT secretly normalize:
+  # that would silently mask a "one side normalized, other side not" mismatch).
+  if metric == "cosine":
+    doc_vecs /= np.maximum(np.linalg.norm(doc_vecs, axis=1, keepdims=True), 1e-30)
+    query_vecs /= np.maximum(np.linalg.norm(query_vecs, axis=1, keepdims=True), 1e-30)
+
+  # ---- signal 1: per-dim mean / std drift ----------------------------------------------
+  doc_mu = doc_vecs.mean(axis=0)
+  doc_sigma = doc_vecs.std(axis=0)
+  query_mu = query_vecs.mean(axis=0)
+  query_sigma = query_vecs.std(axis=0)
+
+  # standard error of the difference of two sample means, per dim (Welch).  guard against
+  # constant dims with sigma=0 -> infinite z; treat those as "no signal" for that dim.
+  with np.errstate(divide="ignore", invalid="ignore"):
+    se = np.sqrt(doc_sigma**2 / n_doc_sample + query_sigma**2 / n_query_sample)
+    z = np.where(se > 0, (doc_mu - query_mu) / se, 0.0)
+
+  abs_z = np.abs(z)
+  num_diverging_dims = int(np.sum(abs_z > _MISMATCH_DIM_Z_THRESHOLD))
+  frac_diverging_dims = num_diverging_dims / dim
+  max_abs_z = float(abs_z.max())
+
+  # also report sigma-ratio outliers: a dim with σ_doc ≫ σ_query (or vice versa) is  # noqa: RUF003
+  # another signature of model mismatch (different output scales).
+  with np.errstate(divide="ignore", invalid="ignore"):
+    sigma_ratio = np.where(
+      (doc_sigma > 0) & (query_sigma > 0),
+      np.maximum(doc_sigma, query_sigma) / np.minimum(doc_sigma, query_sigma),
+      1.0,
+    )
+  num_sigma_outlier_dims = int(np.sum(sigma_ratio > 4.0))
+
+  # ---- signal 2: cross-score spread vs within-side spread ------------------------------
+  # raw dot products on whatever the caller has (post-normalize for cosine, raw otherwise)
+  cross_scores = (query_vecs @ doc_vecs.T).ravel()  # shape (n_query_sample * n_doc_sample,)
+  doc_doc_scores = _flatten_offdiag(doc_vecs @ doc_vecs.T)
+  query_query_scores = _flatten_offdiag(query_vecs @ query_vecs.T)
+
+  cross = _summary_stats(cross_scores)
+  doc_doc = _summary_stats(doc_doc_scores)
+  query_query = _summary_stats(query_query_scores)
+
+  # spread ratio: cross right-tail extension vs the larger of the two within-side baselines.
+  # use max because either side, alone, could be unusually compressed (e.g. quantized);
+  # we want to detect the case where cross is unusually compressed RELATIVE TO BOTH sides.
+  baseline_spread = max(doc_doc["spread"], query_query["spread"])
+  if baseline_spread > 0:
+    spread_ratio = cross["spread"] / baseline_spread
+  else:
+    spread_ratio = float("inf")  # within-side has no spread -> can't say anything useful
+
+  # also: doc & query norms (often diverge wildly if one side wasn't re-embedded with the matching model)
+  doc_norms = np.linalg.norm(doc_vecs, axis=1)
+  query_norms = np.linalg.norm(query_vecs, axis=1)
+
+  elapsed_sec = time.monotonic() - t_start_sec
+
+  # ---- report -------------------------------------------------------------------------
+  print(f"check_query_doc_distribution_match: completed in {elapsed_sec:.1f} sec")
+  print(f"  per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%, max |z|={max_abs_z:.1f})")
+  print(f"  per-dim sigma ratio outliers: {num_sigma_outlier_dims}/{dim} dims have max(σ)/min(σ) > 4")  # noqa: RUF001
+  print(f"  doc norms:   mean={doc_norms.mean():.4f}  std={doc_norms.std():.4f}  min={doc_norms.min():.4f}  max={doc_norms.max():.4f}")
+  print(f"  query norms: mean={query_norms.mean():.4f}  std={query_norms.std():.4f}  min={query_norms.min():.4f}  max={query_norms.max():.4f}")
+  print(_format_stats("cross  (query x doc) ", cross))
+  print(_format_stats("within (doc   x doc) ", doc_doc))
+  print(_format_stats("within (query x query)", query_query))
+  print(f"  spread_ratio = cross_spread / max(within_spreads) = {spread_ratio:.3f}")
+
+  # ---- decide -------------------------------------------------------------------------
+  problems = []
+
+  if frac_diverging_dims >= _MISMATCH_DIM_Z_FRAC_FAIL:
+    problems.append(
+      f"per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} "
+      f"({frac_diverging_dims * 100:.1f}% >= {_MISMATCH_DIM_Z_FRAC_FAIL * 100:.0f}% threshold). "
+      "This is the dominant signature of doc-side and query-side embeddings coming from different models / checkpoints / preprocessing."
+    )
+  elif frac_diverging_dims >= _MISMATCH_DIM_Z_FRAC_WARN:
+    print(
+      f"  WARNING: per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%). docs and queries may have come from different models."
+    )
+
+  if spread_ratio < _MISMATCH_SPREAD_RATIO_FAIL:
+    problems.append(
+      f"cross-score spread collapse: spread_ratio={spread_ratio:.3f} < {_MISMATCH_SPREAD_RATIO_FAIL} threshold. "
+      f"top-1% cross score ({cross['top1pct']:+.4f}) is barely above cross median ({cross['median']:+.4f}); "
+      "no relevant query/doc pair stands out from the noise floor.  embedding spaces appear uncorrelated."
+    )
+  elif spread_ratio < _MISMATCH_SPREAD_RATIO_WARN:
+    print(f"  WARNING: cross-score spread is suspiciously small (spread_ratio={spread_ratio:.3f} < {_MISMATCH_SPREAD_RATIO_WARN}); recall may be poor")
+
+  if problems:
+    msg = (
+      "doc and query vectors look incompatible (probable dual-encoder mismatch).  "
+      f"doc_file={doc_file}, query_file={query_file}, dim={dim}, n_doc_sample={n_doc_sample}, n_query_sample={n_query_sample}.\n" + "\n".join(f"  * {p}" for p in problems)
+    )
+    raise ValueError(msg)
+
+
 def _compute_scores_batch(batch_queries, doc_vectors, metric):
   """Compute similarity scores for a batch of queries against all docs."""
   if metric == "dot_product":

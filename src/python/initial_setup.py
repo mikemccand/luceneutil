@@ -30,6 +30,7 @@ BASE_URL2 = "https://home.apache.org/~sokolov"
 DATA_FILES = [
   # remote url, local name
   "https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.txt.lzma",
+  # https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-with-random-label.txt.lzma, <-- wiki big
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec",
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.csv",
   "https://pub-a0911d22bca84510bc906f76af183a65.r2.dev/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec",

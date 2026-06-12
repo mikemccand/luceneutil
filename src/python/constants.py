@@ -89,7 +89,7 @@ DISJUNCTION_INTENSIVE_TASKS_FILE = "%s/tasks/disjunctionIntensive.tasks" % BENCH
 COMBINED_FIELDS_TASKS_FILE = "%s/tasks/combinedfields.tasks" % BENCH_BASE_DIR
 COMBINED_FIELDS_UNEVENLY_WEIGHTED_TASKS_FILE = "%s/tasks/combinedfields.unevenlyweighted.tasks" % BENCH_BASE_DIR
 
-# wget http://home.apache.org/~mikemccand/enwiki-20120502-lines-with-random-label.txt.lzma
+# wget https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/enwiki-20120502-lines-with-random-label.txt.lzma
 WIKI_BIG_DOCS_LINE_FILE = "%s/data/enwiki-20120502-lines-with-random-label.txt" % BASE_DIR
 # WIKI_BIG_DOCS_LINE_FILE = '%s/data/enwiki-20130102-lines.txt' % BASE_DIR
 

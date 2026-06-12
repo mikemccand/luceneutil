@@ -1259,6 +1259,7 @@ def makeGraphs():
   annotations = []
   l = os.listdir(constants.NIGHTLY_LOG_DIR)
   l.sort()
+  latestTimeStampString = None
 
   for subDir in l:
     resultsFile = "%s/%s/results.pk" % (constants.NIGHTLY_LOG_DIR, subDir)
@@ -1423,7 +1424,6 @@ def makeGraphs():
 
       resultsFile = "%s/%s/geonames-stored-fields-benchmark-results.pk" % (constants.NIGHTLY_LOG_DIR, subDir)
       if os.path.exists(resultsFile):
-        print(f"stored: {subDir}, {timeStamp}")
         stored_fields_results = pickle.load(open(resultsFile, "rb"))
         index_size_mb_row = [timeStampString, None, None]
         indexing_time_sec_row = [timeStampString, None, None]

@@ -150,6 +150,30 @@ def get_cpu_info():
     return "unknown CPU (error: %s)" % e
 
 
+def get_disk_info():
+  """Detect storage devices on the machine via lsblk."""
+  try:
+    output = subprocess.check_output(
+      ["lsblk", "-dno", "NAME,SIZE,MODEL"],
+      text=True,
+    ).strip()
+    if not output:
+      return "unknown disk"
+    disks = []
+    for line in output.splitlines():
+      parts = line.split(None, 2)
+      name = parts[0] if len(parts) > 0 else ""
+      size = parts[1] if len(parts) > 1 else ""
+      model = parts[2].strip() if len(parts) > 2 else ""
+      if model:
+        disks.append(f"{size} {model}")
+      else:
+        disks.append(f"{size} {name}")
+    return "; ".join(disks)
+  except (OSError, ValueError, subprocess.CalledProcessError) as e:
+    return "unknown disk (error: %s)" % e
+
+
 def now():
   return datetime.datetime.now()
 
@@ -1603,9 +1627,7 @@ def writeCheckIndexTimeHTML():
     w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
     w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
     w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
-    w(
-      '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
-    )
+    w("  <li> IO: index stored on %s\n" % htmlEscape(get_disk_info()))
     w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/Indexer.java"><tt>Indexer.java</tt></a>')
     w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
     w("</ul>")
@@ -2047,9 +2069,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medChart
   w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
   w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
   w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
-  w(
-    '  <li> IO: index stored on 240 GB <a href="http://www.ocztechnology.com/ocz-vertex-3-sata-iii-2-5-ssd.html">OCZ Vertex 3</a>, starting on 4/25 (previously on traditional spinning-magnets hard drive (Western Digital Caviar Green, 1TB))'
-  )
+  w("  <li> IO: index stored on %s\n" % htmlEscape(get_disk_info()))
   w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/Indexer.java"><tt>Indexer.java</tt></a>')
   w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w("</ul>")

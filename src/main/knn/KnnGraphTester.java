@@ -1237,6 +1237,13 @@ public class KnnGraphTester implements FormatterLogger {
 
           // TODO: Replace with more sophisticated result collection in https://github.com/mikemccand/luceneutil/issues/545
           int[] resultSizes = new int[numQueryVectors];
+          
+          // For KNN, narrow results to topK (oversample/fanout only widen the graph search).
+          // For RADIUS, the result count is unbounded so we need the full index capacity.
+          int maxResultSize = switch (searchType) {
+            case KNN -> this.topK;
+            case RADIUS -> indexNumDocs;
+          };
 
           // warm up (and optionally collect HNSW traversal scores)
           if (hnswScoreHistogram && vectorEncoding.equals(VectorEncoding.FLOAT32)) {
@@ -1247,10 +1254,10 @@ public class KnnGraphTester implements FormatterLogger {
               final Result result;
               if (vectorEncoding.equals(VectorEncoding.BYTE)) {
                 byte[] target = targetReaderByte.nextBytes();
-                result = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, oversampledTopK);
+                result = doByteVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, maxResultSize);
               } else {
                 float[] target = targetReader.next();
-                result = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, searcher.getIndexReader().numDocs(), rerank, rerankQuantizeBits, this.topK);
+                result = doFloatVectorQuery(searcher, target, searchType, oversampledTopK, oversampledFanout, resultSimilarity, decay, filterStrategy, filterQuery, parentJoin, maxResultSize, rerank, rerankQuantizeBits, this.topK);
               }
               resultSizes[i] = Math.max(1, result.topDocs.scoreDocs.length);
             }

@@ -538,3 +538,15 @@ AndMissingHigh: titledvsort//+dndjndwkndddwdddw +phone
 AndMissingHigh: titledvsort//+ioedhwhbxcbd +water
 AndMissingHigh: titledvsort//+oiwqpoeidhuhodsbdad +car
 AndMissingHigh: titledvsort//+dpedjpwechachcnwbec +plastic
+
+ConstMSM2: ref also url +constantScore +minShouldMatch=2
+ConstMSM2: http first were +constantScore +minShouldMatch=2
+ConstMSM2: from his new +constantScore +minShouldMatch=2
+ConstMSM2: name cite he +constantScore +minShouldMatch=2
+ConstMSM2: title date which +constantScore +minShouldMatch=2
+
+BM25MSM2: ref also url +minShouldMatch=2
+BM25MSM2: http first were +minShouldMatch=2
+BM25MSM2: from his new +minShouldMatch=2
+BM25MSM2: name cite he +minShouldMatch=2
+BM25MSM2: title date which +minShouldMatch=2

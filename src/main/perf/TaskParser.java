@@ -51,6 +51,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.CombinedFieldQuery;
@@ -157,6 +158,7 @@ class TaskParser implements Closeable {
   private final static Pattern preFilterPattern = Pattern.compile(" \\+preFilter=([0-9\\.]+)%");
   private final static Pattern countOnlyPattern = Pattern.compile("count\\((.*?)\\)");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
+  private final static Pattern constantScorePattern = Pattern.compile(" \\+constantScore($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
   private final static Pattern combinedFieldsPattern = Pattern.compile(" \\+combinedFields=((\\p{Alnum}+(\\^\\d+.\\d)?,)+\\p{Alnum}+(\\^\\d+.\\d)?)");
@@ -226,6 +228,7 @@ class TaskParser implements Closeable {
     List<FacetTask> facets;
     List<FieldAndWeight> combinedFields;
     List<String> dismaxFields;
+    boolean constantScore;
     String text;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
@@ -271,6 +274,7 @@ class TaskParser implements Closeable {
       String taskType = taskAndType[0];
       text = taskAndType[1];
       int msm = parseMinShouldMatch();
+      constantScore = parseConstantScore();
       combinedFields = parseCombinedFields();
       dismaxFields = parseDismaxFields();
       Query query = buildQuery(taskType, text, msm);
@@ -372,6 +376,19 @@ class TaskParser implements Closeable {
         text = (text.substring(0, m2.start(0)) + text.substring(m2.end(0), text.length())).trim();
       }
       return minShouldMatch;
+    }
+
+    boolean parseConstantScore() throws ParseException {
+      final Matcher m = constantScorePattern.matcher(text);
+      if (m.find()) {
+        // Splice out the constantScore string:
+        text = (text.substring(0, m.start(0)) + " " + text.substring(m.end(0), text.length())).trim();
+        if (m.find()) {
+          throw new ParseException("+constantScore appears more than once in task: " + text);
+        }
+        return true;
+      }
+      return false;
     }
 
     class FieldAndWeight {
@@ -597,19 +614,23 @@ class TaskParser implements Closeable {
         return new DisjunctionMaxQuery(dismaxClauses, 0f);
       }
 
-      if (minShouldMatch == 0) {
-        return query;
-      } else {
-        if (!(query instanceof BooleanQuery)) {
-          throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
+      if (constantScore || minShouldMatch > 0) {
+        if (query instanceof BooleanQuery bq) {
+          Builder b = new BooleanQuery.Builder();
+          // note that b.setMinimumNumberShouldMatch(0) is harmless and is effectively a no-op
+          b.setMinimumNumberShouldMatch(minShouldMatch);
+          for (BooleanClause clause : bq) {
+            if (constantScore) {
+              b.add(new ConstantScoreQuery(clause.query()), clause.occur());
+            } else {
+              b.add(clause);
+            }
+          }
+          return b.build();
         }
-        Builder b = new BooleanQuery.Builder();
-        b.setMinimumNumberShouldMatch(minShouldMatch);
-        for (BooleanClause clause : ((BooleanQuery) query)) {
-          b.add(clause);
-        }
-        return b.build();
+        throw new RuntimeException("minShouldMatch or +constantScore can only be used with BooleanQuery: query=" + origText);
       }
+      return query;
     }
 
     private Query rewriteToCombinedFieldQuery(Query query) {

@@ -108,7 +108,11 @@ public class KnnIndexer implements FormatterLogger {
     this.ttmp = new TrackingTieredMergePolicy();
   }
 
-  public int createIndex() throws IOException, InterruptedException {
+  // result of indexing: time spent indexing (excluding merges) and time spent waiting for merges,
+  // both in milliseconds
+  public record IndexResult(int indexTimeMsec, int mergeTimeMsec) {}
+
+  public IndexResult createIndex() throws IOException, InterruptedException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     iwc.setCodec(codec);
     iwc.setMergeScheduler(tcms);
@@ -152,7 +156,7 @@ public class KnnIndexer implements FormatterLogger {
       indexPath.toFile().mkdirs();
     }
 
-    long startNS = System.nanoTime(), elapsedNS;
+    long startNS = System.nanoTime(), elapsedNS, mergeNS;
     try (FSDirectory dir = FSDirectory.open(indexPath);
          IndexWriter iw = new IndexWriter(dir, iwc);
          FileChannel in = FileChannel.open(docsPath)) {
@@ -266,10 +270,17 @@ public class KnnIndexer implements FormatterLogger {
 
       elapsedNS = System.nanoTime() - startNS;
 
+      // merge time is intentionally excluded from the indexing time reported above, but we still
+      // track it explicitly here so it is not silently dropped (otherwise both index(s) and the
+      // later force_merge(s) become noisy depending on how much merge work happened in this phase)
+      long mergeStartNS = System.nanoTime();
       waitForMergesWithStatus(ttmp, tcms, this);
+      mergeNS = System.nanoTime() - mergeStartNS;
     }
-    log("Indexed %d docs in %d seconds\n", numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsedNS));
-    return (int) TimeUnit.NANOSECONDS.toMillis(elapsedNS);
+    log("Indexed %d docs in %d seconds (plus %d seconds waiting for merges)\n",
+        numDocs, TimeUnit.NANOSECONDS.toSeconds(elapsedNS), TimeUnit.NANOSECONDS.toSeconds(mergeNS));
+    return new IndexResult((int) TimeUnit.NANOSECONDS.toMillis(elapsedNS),
+                           (int) TimeUnit.NANOSECONDS.toMillis(mergeNS));
   }
 
   public static void waitForMergesWithStatus(TrackingTieredMergePolicy ttmp, TrackingConcurrentMergeScheduler tcms, FormatterLogger log) throws InterruptedException {

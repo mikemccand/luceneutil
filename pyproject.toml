@@ -2,6 +2,7 @@
 venvPath = "."
 venv = ".venv"
 include = [ "src/python" ]
+pythonVersion = "3.12"
 # TODO: improve!
 # typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = "error"

@@ -57,6 +57,10 @@ _SPARK_CHARS = " ▁▂▃▄▅▆▇█"
 _NUM_SPARK_BINS = 20
 _NUM_DIM_SAMPLE_VECS = 2000
 _THRESH_CONSTANT_STD = 1e-6
+# fraction of samples equal to a single dominant value above which a dim is "near-constant"
+# (degenerate-but-not-quite-CONSTANT: a few stray values keep std above _THRESH_CONSTANT_STD,
+# but the dim still carries almost no information)
+_THRESH_NEAR_CONSTANT_DOMINANT_FRAC = 0.95
 _THRESH_SPARSE_PCT_ZEROS = 0.50
 _THRESH_SKEWED_ABS = 1.0
 _THRESH_HEAVY_TAILS_KURTOSIS = 3.0
@@ -249,6 +253,17 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   std = samples.std(axis=0)
   pct_zeros = (samples == 0.0).mean(axis=0)
 
+  # per-dim "most-frequent exact value" + its fraction. catches dims that are essentially
+  # a single value (e.g. 0.0) but not flagged as CONSTANT because a few stray samples keep
+  # std just above _THRESH_CONSTANT_STD. uses exact float equality (no quantization).
+  dominant_val = np.zeros(dim, dtype=np.float32)
+  dominant_frac = np.zeros(dim, dtype=np.float64)
+  for d in range(dim):
+    vals, counts = np.unique(samples[:, d], return_counts=True)
+    top = counts.argmax()
+    dominant_val[d] = vals[top]
+    dominant_frac[d] = counts[top] / num_sample
+
   centered = samples - mean
   m3 = (centered**3).mean(axis=0)
   m4 = (centered**4).mean(axis=0)
@@ -316,6 +331,13 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
 
     if std[d] <= _THRESH_CONSTANT_STD:
       labels.append(("CONSTANT", f"std={std[d]:.6f}, threshold={_THRESH_CONSTANT_STD}"))
+    elif dominant_frac[d] >= _THRESH_NEAR_CONSTANT_DOMINANT_FRAC:
+      labels.append(
+        (
+          "NEAR_CONSTANT",
+          f"value={float(dominant_val[d]):+g} occurs in {dominant_frac[d] * 100:.1f}% of samples, threshold={_THRESH_NEAR_CONSTANT_DOMINANT_FRAC * 100:.0f}%",
+        )
+      )
 
     if pct_zeros[d] > _THRESH_SPARSE_PCT_ZEROS:
       labels.append(("SPARSE", f"{pct_zeros[d] * 100:.1f}% zeros, threshold={_THRESH_SPARSE_PCT_ZEROS * 100:.0f}%"))
@@ -356,6 +378,13 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
     print(f"  WARNING: anisotropic vectors (isotropy_full={isotropy_full:.3f} < {_THRESH_ANISOTROPIC})")
     print(f"           {cause}")
     print(f"           {fix}")
+
+  # tally degenerate-or-near-degenerate dims (CONSTANT + NEAR_CONSTANT) -- these are
+  # dims that effectively carry no information and are wasted ambient axes
+  num_constant = int(sum(1 for lbs in dim_labels for name, _ in lbs if name == "CONSTANT"))
+  num_near_constant = int(sum(1 for lbs in dim_labels for name, _ in lbs if name == "NEAR_CONSTANT"))
+  if num_constant > 0 or num_near_constant > 0:
+    print(f"smell: {num_constant + num_near_constant}/{dim} dims are degenerate or near-degenerate (carry ~no information): {num_constant} CONSTANT, {num_near_constant} NEAR_CONSTANT")
 
   if bad_dims:
     print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")

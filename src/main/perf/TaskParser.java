@@ -51,6 +51,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.CombinedFieldQuery;
@@ -157,6 +158,7 @@ class TaskParser implements Closeable {
   private final static Pattern preFilterPattern = Pattern.compile(" \\+preFilter=([0-9\\.]+)%");
   private final static Pattern countOnlyPattern = Pattern.compile("count\\((.*?)\\)");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
+  private final static Pattern constantScorePattern = Pattern.compile(" \\+constantScore($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
   private final static Pattern combinedFieldsPattern = Pattern.compile(" \\+combinedFields=((\\p{Alnum}+(\\^\\d+.\\d)?,)+\\p{Alnum}+(\\^\\d+.\\d)?)");
@@ -226,6 +228,7 @@ class TaskParser implements Closeable {
     List<FacetTask> facets;
     List<FieldAndWeight> combinedFields;
     List<String> dismaxFields;
+    boolean constantScore;
     String text;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
@@ -271,6 +274,7 @@ class TaskParser implements Closeable {
       String taskType = taskAndType[0];
       text = taskAndType[1];
       int msm = parseMinShouldMatch();
+      constantScore = parseConstantScore();
       combinedFields = parseCombinedFields();
       dismaxFields = parseDismaxFields();
       Query query = buildQuery(taskType, text, msm);
@@ -374,6 +378,19 @@ class TaskParser implements Closeable {
       return minShouldMatch;
     }
 
+    boolean parseConstantScore() throws ParseException {
+      final Matcher m = constantScorePattern.matcher(text);
+      if (m.find()) {
+        // Splice out the constantScore string:
+        text = (text.substring(0, m.start(0)) + " " + text.substring(m.end(0), text.length())).trim();
+        if (m.find()) {
+          throw new ParseException("+constantScore appears more than once in task: " + text);
+        }
+        return true;
+      }
+      return false;
+    }
+
     class FieldAndWeight {
       final String field;
       final float weight;
@@ -417,73 +434,86 @@ class TaskParser implements Closeable {
 
     List<FacetTask> parseFacets() {
       List<FacetTask> facets = new ArrayList<>();
-      Map<String, TestContext.FacetMode> prefixTypes = Map.of(" +facets:", TestContext.FacetMode.UNDEFINED,
-              " +post_collection_facets:", TestContext.FacetMode.POST_COLLECTION,
-              " +during_collection_facets:", TestContext.FacetMode.DURING_COLLECTION
-      );
+      // Unified syntax: +facets:TYPE:SPEC[:mode]
+      // TYPE: taxonomy | sortedset | range
+      // SPEC: dim name (taxonomy/sortedset) or "long|field|r1min-r1max,..." / "double|field|..." (range)
+      // mode (optional): during | post  (absent = UNDEFINED, inherits testContext)
+      final String PREFIX = " +facets:";
       while (true) {
-        boolean found = false;
-        for (Map.Entry<String, TestContext.FacetMode> ent : prefixTypes.entrySet()) {
-          String prefix = ent.getKey();
-          TestContext.FacetMode facetMode = ent.getValue();
-          int prefixLength = prefix.length();
-          int i = text.indexOf(prefix);
-          if (i == -1) {
-            continue;
-          }
-          found = true;
-          if (testContext.facetMode != TestContext.FacetMode.UNDEFINED) {
-                  if (facetMode != TestContext.FacetMode.UNDEFINED &&
-                  facetMode != testContext.facetMode) {
-                    throw new IllegalArgumentException("Task and test context define different facet modes. Task: "
-                            + facetMode + ", test context: " + testContext.facetMode);
-                  }
-                  facetMode = testContext.facetMode;
-          }
-          int j = text.indexOf(" ", i + 1);
-          if (j == -1) {
-            j = text.length();
-          }
-          String facetDim = text.substring(i + prefixLength, j);
-          int k = facetDim.indexOf(".");
-          if (k == -1) {
-            throw new IllegalArgumentException("+facet:x should have format Dim.(taxonomy|sortedset); got: " + facetDim);
-          }
-          String s = facetDim.substring(0, k);
-          if (state.facetFields.containsKey(s) == false) {
-            throw new IllegalArgumentException("facetDim " + s + " was not indexed");
-          }
-          facets.add(new FacetTask(facetDim, facetMode));
-          text = text.substring(0, i) + text.substring(j);
-        }
-        if (!found) {
+        int i = text.indexOf(PREFIX);
+        if (i == -1) {
           break;
         }
+        int j = text.indexOf(" ", i + 1);
+        if (j == -1) {
+          j = text.length();
+        }
+        // split on ":" into at most 3 parts: [type, spec, optional_mode]
+        String token = text.substring(i + PREFIX.length(), j);
+        String[] parts = token.split(":", 3);
+        if (parts.length < 2) {
+          throw new IllegalArgumentException("+facets: requires at least TYPE:SPEC, got: " + token);
+        }
+        String type = parts[0];
+        String spec = parts[1];
+        TestContext.FacetMode facetMode;
+        if (parts.length == 3) {
+          facetMode = switch (parts[2]) {
+            case "during" -> TestContext.FacetMode.DURING_COLLECTION;
+            case "post"   -> TestContext.FacetMode.POST_COLLECTION;
+            default -> throw new IllegalArgumentException(
+                "unknown facet mode \"" + parts[2] + "\"; expected \"during\" or \"post\"");
+          };
+        } else {
+          facetMode = TestContext.FacetMode.UNDEFINED;
+        }
+        // testContext override (task-level mode must match testContext when both are explicit)
+        if (testContext.facetMode != TestContext.FacetMode.UNDEFINED) {
+          if (facetMode != TestContext.FacetMode.UNDEFINED && facetMode != testContext.facetMode) {
+            throw new IllegalArgumentException("Task and test context define different facet modes. Task: "
+                + facetMode + ", test context: " + testContext.facetMode);
+          }
+          facetMode = testContext.facetMode;
+        }
+        // validate known type and that dim is indexed (range fields validated at search time)
+        switch (type) {
+          case "taxonomy", "sortedset" -> {
+            if (state.facetFields.containsKey(spec) == false) {
+              throw new IllegalArgumentException("facetDim " + spec + " was not indexed");
+            }
+          }
+          case "range" -> {
+            // spec format: "long|field|ranges" or "double|field|ranges" -- validated at search time
+          }
+          default -> throw new IllegalArgumentException(
+              "unknown facet type \"" + type + "\"; expected taxonomy, sortedset, or range");
+        }
+        facets.add(new FacetTask(type, spec, facetMode));
+        text = text.substring(0, i) + text.substring(j);
       }
       return facets;
     }
 
-    record FacetTask(String dimension, TestContext.FacetMode facetMode){
+    record FacetTask(String type, String spec, TestContext.FacetMode facetMode) {
       @Override
       public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof FacetTask facetTask)) return false;
-        return Objects.equals(facetMode, facetTask.facetMode) && Objects.equals(dimension, facetTask.dimension);
+        if (!(o instanceof FacetTask other)) return false;
+        return Objects.equals(type, other.type)
+            && Objects.equals(spec, other.spec)
+            && Objects.equals(facetMode, other.facetMode);
       }
 
       @Override
       public int hashCode() {
-        return Objects.hash(dimension, facetMode);
+        return Objects.hash(type, spec, facetMode);
       }
 
       @Override
       public String toString() {
-        // facetMode is ignored so that when results are parsed to python's
-        // SearchTask facets_request param was the same for all modes
-        // and results for different modes were compared in benchUtil.compareHits
-        return "FacetTask{" +
-                "dimension='" + dimension + '\'' +
-                '}';
+        // facetMode intentionally omitted so Python result comparison works
+        // across different modes for the same task (see benchUtil.compareHits)
+        return "FacetTask{type='" + type + "', spec='" + spec + "'}";
       }
     }
 
@@ -597,19 +627,23 @@ class TaskParser implements Closeable {
         return new DisjunctionMaxQuery(dismaxClauses, 0f);
       }
 
-      if (minShouldMatch == 0) {
-        return query;
-      } else {
-        if (!(query instanceof BooleanQuery)) {
-          throw new RuntimeException("minShouldMatch can only be used with BooleanQuery: query=" + origText);
+      if (constantScore || minShouldMatch > 0) {
+        if (query instanceof BooleanQuery bq) {
+          Builder b = new BooleanQuery.Builder();
+          // note that b.setMinimumNumberShouldMatch(0) is harmless and is effectively a no-op
+          b.setMinimumNumberShouldMatch(minShouldMatch);
+          for (BooleanClause clause : bq) {
+            if (constantScore) {
+              b.add(new ConstantScoreQuery(clause.query()), clause.occur());
+            } else {
+              b.add(clause);
+            }
+          }
+          return b.build();
         }
-        Builder b = new BooleanQuery.Builder();
-        b.setMinimumNumberShouldMatch(minShouldMatch);
-        for (BooleanClause clause : ((BooleanQuery) query)) {
-          b.add(clause);
-        }
-        return b.build();
+        throw new RuntimeException("minShouldMatch or +constantScore can only be used with BooleanQuery: query=" + origText);
       }
+      return query;
     }
 
     private Query rewriteToCombinedFieldQuery(Query query) {

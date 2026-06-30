@@ -23,8 +23,11 @@ import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
 import org.apache.lucene.facet.FacetsCollectorManager;
+import org.apache.lucene.facet.range.DoubleRange;
+import org.apache.lucene.facet.range.DoubleRangeFacetCounts;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
+import org.apache.lucene.sandbox.facet.utils.RangeFacetBuilderFactory;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
@@ -214,8 +217,11 @@ final class SearchTask extends Task {
           }
         }
       } else if (facetRequests.isEmpty() == false) {
-        if (state.facetsConfig == null) {
-          throw new IllegalStateException("Missing facet config, cannot run facet requests");
+        // only taxonomy/sortedset facets need facetsConfig
+        boolean needsFacetsConfig = facetRequests.stream()
+            .anyMatch(r -> r.type().equals("taxonomy") || r.type().equals("sortedset"));
+        if (needsFacetsConfig && state.facetsConfig == null) {
+          throw new IllegalStateException("Missing facet config, cannot run taxonomy/sortedset facet requests");
         }
         if (doDrillSideways) {
           // nocommit todo
@@ -224,7 +230,6 @@ final class SearchTask extends Task {
         } else {
           facetResults = new ArrayList<FacetResult>();
           // TODO: support sort, filter too!!
-          // TODO: support other facet methods
           List<TaskParser.TaskBuilder.FacetTask> postCollectionFacetTasks = new ArrayList<>();
           List<TaskParser.TaskBuilder.FacetTask> duringCollectionFacetTasks = new ArrayList<>();
           for (TaskParser.TaskBuilder.FacetTask request : facetRequests) {
@@ -245,14 +250,14 @@ final class SearchTask extends Task {
             FacetOrchestrator facetOrchestrator = new FacetOrchestrator();
             List<FacetBuilder> facetBuilders = new ArrayList<>();
             for (TaskParser.TaskBuilder.FacetTask request : duringCollectionFacetTasks) {
-              // TODO: handle other types, not just taxonomy
-              FacetBuilder facetBuilder;
-              if (request.dimension().endsWith(".taxonomy")) {
-                facetBuilder = new TaxonomyFacetBuilder(state.facetsConfig, state.taxoReader, request.dimension()).withSortByCount().withTopN(10);
-              } else {
-                // should have been prevented higher up:
-                throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
-              }
+              FacetBuilder facetBuilder = switch (request.type()) {
+                case "taxonomy" -> new TaxonomyFacetBuilder(
+                    state.facetsConfig, state.taxoReader, request.spec() + ".taxonomy")
+                    .withSortByCount().withTopN(10);
+                case "range" -> buildRangeFacetBuilder(request.spec());
+                default -> throw new AssertionError(
+                    "unsupported facet type for DURING_COLLECTION: " + request.type());
+              };
               facetBuilders.add(facetBuilder);
               facetOrchestrator.addBuilder(facetBuilder);
             }
@@ -275,62 +280,54 @@ final class SearchTask extends Task {
           if (postCollectionFacetTasks.isEmpty() == false) {
             if (q instanceof MatchAllDocsQuery) {
               for (TaskParser.TaskBuilder.FacetTask request : postCollectionFacetTasks) {
-                if (request.dimension().startsWith("range:")) {
-                  throw new AssertionError("fix me!");
-                } else if (request.dimension().endsWith(".taxonomy")) {
-                  // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
-                  Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request.dimension()).indexFieldName, searcher.getIndexReader(), state.taxoReader, state.facetsConfig);
-                  FacetResult res = facets.getTopChildren(10, request.dimension());
-                  facetResults.add(res);
-                } else if (request.dimension().endsWith(".sortedset")) {
-                  // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
-                  SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request.dimension()).indexFieldName);
-                  SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState);
-                  facetResults.add(facets.getTopChildren(10, request.dimension()));
-                } else {
-                  // should have been prevented higher up:
-                  throw new AssertionError("unknown facet method \"" + state.facetFields.get(request.dimension()) + "\"");
+                switch (request.type()) {
+                  case "taxonomy" -> {
+                    // TODO: fixme to handle N facets in one indexed field!
+                    String dim = request.spec() + ".taxonomy";
+                    Facets facets = new FastTaxonomyFacetCounts(
+                        state.facetsConfig.getDimConfig(dim).indexFieldName,
+                        searcher.getIndexReader(), state.taxoReader, state.facetsConfig);
+                    facetResults.add(facets.getTopChildren(10, dim));
+                  }
+                  case "sortedset" -> {
+                    // TODO: fixme to handle N facets in one SSDV field!
+                    String dim = request.spec() + ".sortedset";
+                    SortedSetDocValuesReaderState ssdvState = state.getSortedSetReaderState(
+                        state.facetsConfig.getDimConfig(dim).indexFieldName);
+                    SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvState);
+                    facetResults.add(facets.getTopChildren(10, dim));
+                  }
+                  case "range" -> throw new AssertionError(
+                      "range facets with MatchAllDocsQuery in POST_COLLECTION not yet supported");
+                  default -> throw new AssertionError("unknown facet type: " + request.type());
                 }
               }
               getFacetResultsMsec = (System.nanoTime() - t0) / 1000000.0;
             } else {
-              FacetsCollectorManager.FacetsResult fr = FacetsCollectorManager.search(searcher, q, 10, new FacetsCollectorManager());
+              FacetsCollectorManager.FacetsResult fr = FacetsCollectorManager.search(
+                  searcher, q, 10, new FacetsCollectorManager());
               hits = fr.topDocs();
               FacetsCollector fc = fr.facetsCollector();
-              for (TaskParser.TaskBuilder.FacetTask facetRequest : postCollectionFacetTasks) {
-                String request = facetRequest.dimension();
-                if (request.startsWith("range:")) {
-                  int i = request.indexOf(':', 6);
-                  if (i == -1) {
-                    throw new IllegalArgumentException("range facets request \"" + request + "\" is missing field; should be range:field:0-10,10-20");
+              for (TaskParser.TaskBuilder.FacetTask request : postCollectionFacetTasks) {
+                switch (request.type()) {
+                  case "taxonomy" -> {
+                    // TODO: fixme to handle N facets in one indexed field!
+                    String dim = request.spec() + ".taxonomy";
+                    Facets facets = new FastTaxonomyFacetCounts(
+                        state.facetsConfig.getDimConfig(dim).indexFieldName,
+                        state.taxoReader, state.facetsConfig, fc);
+                    facetResults.add(facets.getTopChildren(10, dim));
                   }
-                  String field = request.substring(6, i);
-                  String[] rangeStrings = request.substring(i + 1, request.length()).split(",");
-                  LongRange[] ranges = new LongRange[rangeStrings.length];
-                  for (int rangeIDX = 0; rangeIDX < ranges.length; rangeIDX++) {
-                    String rangeString = rangeStrings[rangeIDX];
-                    int j = rangeString.indexOf('-');
-                    if (j == -1) {
-                      throw new IllegalArgumentException("range facets request should be X-Y; got: " + rangeString);
-                    }
-                    long start = Long.parseLong(rangeString.substring(0, j));
-                    long end = Long.parseLong(rangeString.substring(j + 1));
-                    ranges[rangeIDX] = new LongRange(rangeString, start, true, end, true);
+                  case "sortedset" -> {
+                    // TODO: fixme to handle N facets in one SSDV field!
+                    String dim = request.spec() + ".sortedset";
+                    SortedSetDocValuesReaderState ssdvState = state.getSortedSetReaderState(
+                        state.facetsConfig.getDimConfig(dim).indexFieldName);
+                    SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvState, fc);
+                    facetResults.add(facets.getTopChildren(10, dim));
                   }
-                  LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
-                  facetResults.add(facets.getTopChildren(ranges.length, field));
-                } else if (request.endsWith(".taxonomy")) {
-                  // TODO: fixme to handle N facets in one indexed field!  Need to make the facet counts once per indexed field...
-                  Facets facets = new FastTaxonomyFacetCounts(state.facetsConfig.getDimConfig(request).indexFieldName, state.taxoReader, state.facetsConfig, fc);
-                  facetResults.add(facets.getTopChildren(10, request));
-                } else if (request.endsWith(".sortedset")) {
-                  // TODO: fixme to handle N facets in one SSDV field!  Need to make the facet counts once per indexed field...
-                  SortedSetDocValuesReaderState ssdvFacetsState = state.getSortedSetReaderState(state.facetsConfig.getDimConfig(request).indexFieldName);
-                  SortedSetDocValuesFacetCounts facets = new SortedSetDocValuesFacetCounts(ssdvFacetsState, fc);
-                  facetResults.add(facets.getTopChildren(10, request));
-                } else {
-                  // should have been prevented higher up:
-                  throw new AssertionError("unknown facet method \"" + state.facetFields.get(request) + "\"");
+                  case "range" -> facetResults.add(buildRangeFacetResult(request.spec(), fc));
+                  default -> throw new AssertionError("unknown facet type: " + request.type());
                 }
               }
             }
@@ -447,6 +444,84 @@ final class SearchTask extends Task {
   }
 
   public int totHiliteHash;
+
+  /** Parse range spec "long|field|r1min-r1max,..." or "double|field|..." and build DURING_COLLECTION FacetBuilder. */
+  private FacetBuilder buildRangeFacetBuilder(String spec) throws IOException {
+    String[] parts = spec.split("\\|", 3);
+    if (parts.length != 3) {
+      throw new IllegalArgumentException("range facet spec must be numericType|field|ranges, got: " + spec);
+    }
+    String numType  = parts[0]; // "long" or "double"
+    String field    = parts[1];
+    String rangeStr = parts[2];
+    if (numType.equals("long")) {
+      LongRange[] ranges = parseLongRanges(rangeStr);
+      return RangeFacetBuilderFactory.forLongRanges(field, ranges);
+    } else if (numType.equals("double")) {
+      DoubleRange[] ranges = parseDoubleRanges(rangeStr);
+      return RangeFacetBuilderFactory.forDoubleRanges(field, ranges);
+    } else {
+      throw new IllegalArgumentException("unknown numeric type \"" + numType + "\"; expected \"long\" or \"double\"");
+    }
+  }
+
+  /** Build POST_COLLECTION FacetResult for a range spec using a pre-collected FacetsCollector. */
+  private FacetResult buildRangeFacetResult(String spec, FacetsCollector fc) throws IOException {
+    String[] parts = spec.split("\\|", 3);
+    if (parts.length != 3) {
+      throw new IllegalArgumentException("range facet spec must be numericType|field|ranges, got: " + spec);
+    }
+    String numType  = parts[0];
+    String field    = parts[1];
+    String rangeStr = parts[2];
+    if (numType.equals("long")) {
+      LongRange[] ranges = parseLongRanges(rangeStr);
+      LongRangeFacetCounts facets = new LongRangeFacetCounts(field, fc, ranges);
+      return facets.getTopChildren(ranges.length, field);
+    } else if (numType.equals("double")) {
+      DoubleRange[] ranges = parseDoubleRanges(rangeStr);
+      DoubleRangeFacetCounts facets = new DoubleRangeFacetCounts(field, fc, ranges);
+      return facets.getTopChildren(ranges.length, field);
+    } else {
+      throw new IllegalArgumentException("unknown numeric type \"" + numType + "\"; expected \"long\" or \"double\"");
+    }
+  }
+
+  /** Parse "r1min-r1max,r2min-r2max,..." into LongRange[]. */
+  private static LongRange[] parseLongRanges(String rangeStr) {
+    String[] tokens = rangeStr.split(",");
+    LongRange[] ranges = new LongRange[tokens.length];
+    for (int idx = 0; idx < tokens.length; idx++) {
+      String tok = tokens[idx];
+      int dash = tok.indexOf('-', tok.charAt(0) == '-' ? 1 : 0); // handle negative start
+      if (dash == -1) {
+        throw new IllegalArgumentException("range must be min-max, got: " + tok);
+      }
+      long min = Long.parseLong(tok.substring(0, dash));
+      long max = Long.parseLong(tok.substring(dash + 1));
+      ranges[idx] = new LongRange(tok, min, true, max, false); // half-open [min, max)
+    }
+    return ranges;
+  }
+
+  /** Parse "r1min-r1max,r2min-r2max,..." into DoubleRange[]. */
+  private static DoubleRange[] parseDoubleRanges(String rangeStr) {
+    String[] tokens = rangeStr.split(",");
+    DoubleRange[] ranges = new DoubleRange[tokens.length];
+    for (int idx = 0; idx < tokens.length; idx++) {
+      String tok = tokens[idx];
+      // find the '-' that separates min from max (skip a leading minus sign if present)
+      int dash = tok.indexOf('-', tok.charAt(0) == '-' ? 1 : 0);
+      if (dash == -1) {
+        throw new IllegalArgumentException("range must be min-max, got: " + tok);
+      }
+      double min = Double.parseDouble(tok.substring(0, dash));
+      double max = Double.parseDouble(tok.substring(dash + 1));
+      ranges[idx] = new DoubleRange(tok, min, true, max, false); // half-open [min, max)
+    }
+    return ranges;
+  }
+
 
   private void hilite(int docID, IndexState indexState, IndexSearcher searcher) throws IOException {
     //System.out.println("  title=" + searcher.doc(docID).get("titleTokenized"));

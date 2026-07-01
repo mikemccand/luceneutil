@@ -132,8 +132,8 @@ if "JAVAC_EXE" not in globals():
   JAVAC_EXE = f"{java_bin}javac"
 if "JAVA_COMMAND" not in globals():
   JAVA_COMMAND = "%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" % JAVA_EXE
-
-print("use java command %s" % JAVA_COMMAND)
+else:
+  print("use java command %s" % JAVA_COMMAND)  # pyright: ignore[reportUndefinedVariable] # TODO: fix how variables are managed here
 
 
 def check_java_home():

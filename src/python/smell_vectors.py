@@ -25,6 +25,7 @@ import random
 import time
 
 import numpy as np
+from hadamard_rotation import HadamardRotation
 
 # --- IO and printing knobs (importable; can be overridden at module load by callers) ---
 
@@ -247,6 +248,8 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
 
   if not_norm_count > 0:
     print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
+
+  samples = _maybe_rotate(samples, dim)
 
   # per-dim stats, all vectorized over axis=0, result shape: (dim,)
   mean = samples.mean(axis=0)
@@ -857,10 +860,26 @@ def _print_final_summary(label, file_name, dist_summary, id_summary):
   print()
 
 
+ROTATE = False
+"""When True, every sampled vector is Hadamard-rotated in memory before stats run.
+Lets us preview the smell of a rotated index without materializing a separate .vec file."""
+
+
+def _maybe_rotate(samples, dim):
+  """If ROTATE is on, return a Hadamard-rotated copy of `samples` (rows are rotated independently)."""
+  if not ROTATE:
+    return samples
+  return HadamardRotation.for_dimension(dim).rotate_batch(samples)
+
+
 def smell_vectors(dim, file_name, label="vectors"):
   """Runs sanity checks on the vector source file: per-dim distribution / isotropy /
   intrinsic dim. The .vec source file has no self-describing metadata, so the caller
   passes in the dim. `label` (e.g. "docs", "queries") is used in printed reports.
+
+  If module-level ROTATE is True, every sampled vector is Hadamard-rotated in memory
+  before stats are computed (no separate rotated .vec file is written). Useful for
+  previewing the post-rotation smell.
   """
   size_bytes = os.path.getsize(file_name)
   vec_size_bytes = dim * 4
@@ -874,13 +893,15 @@ def smell_vectors(dim, file_name, label="vectors"):
     )
 
   if NOISY:
-    print(f"smell vectors from {file_name}")
+    rot_str = " (rotated in memory)" if ROTATE else ""
+    print(f"smell vectors from {file_name}{rot_str}")
 
   dist_summary = _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
 
   id_summary = None
   if DO_INTRINSIC_DIM:
     samples = _load_id_samples(dim, file_name, num_vectors, vec_size_bytes)
+    samples = _maybe_rotate(samples, dim)
     id_summary = _estimate_intrinsic_dim(samples, label, dim)
 
   if dist_summary is not None:
@@ -895,15 +916,33 @@ def _main():
   ap.add_argument("--quiet", action="store_true", help="suppress per-dim full listing and progress")
   ap.add_argument("--label", default="vectors", help="label used in intrinsic-dim report (e.g. docs, queries)")
   ap.add_argument("--no-intrinsic-dim", action="store_true", help="skip intrinsic-dim estimation")
+  ap.add_argument(
+    "--rotate",
+    action="store_true",
+    help="apply Lucene-faithful Hadamard rotation to every sampled vector in memory before analysis (no rotated .vec file is written)",
+  )
   args = ap.parse_args()
 
-  global IO_METHOD, NOISY, DO_INTRINSIC_DIM
+  global IO_METHOD, NOISY, DO_INTRINSIC_DIM, ROTATE
   IO_METHOD = args.io
   NOISY = not args.quiet
   if args.no_intrinsic_dim:
     DO_INTRINSIC_DIM = False
 
+  # First pass: smell vectors as-is.
+  ROTATE = False
   smell_vectors(args.dim, args.vec_path, args.label)
+
+  # When --rotate is given, do a second pass with Hadamard rotation applied in memory
+  # so the user can compare the raw vs rotated SMELL SUMMARY side by side.
+  if args.rotate:
+    print()
+    print("=" * 104)
+    print("Re-running smell with Hadamard rotation applied in memory (Lucene-faithful)...")
+    print("=" * 104)
+    print()
+    ROTATE = True
+    smell_vectors(args.dim, args.vec_path, f"{args.label} (rotated)")
 
 
 if __name__ == "__main__":

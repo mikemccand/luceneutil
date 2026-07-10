@@ -156,8 +156,8 @@ TermDayOfYearSortSkipper: dayofyearskippersort//nbsp # freq=492778
 TermDayOfYearSortSkipper: dayofyearskippersort//part # freq=588644
 TermDayOfYearSortSkipper: dayofyearskippersort//st # freq=306811
 
-# Doc values range queries using skip index (count-only, measuring pure DV filtering speed)
-# lastMod_skipper: epoch millis, high cardinality — narrow 1-month range
+# DV range queries with skip index (count-only)
+# lastMod_skipper: narrow 1-month range
 DVRangeLastModNarrow: count(dvrange//lastMod_skipper 1330588800000 1333263600000)
 DVRangeLastModNarrow: count(dvrange//lastMod_skipper 1293868800000 1296547200000)
 DVRangeLastModNarrow: count(dvrange//lastMod_skipper 1309478400000 1312156800000)
@@ -169,20 +169,20 @@ DVRangeLastModWide: count(dvrange//lastMod_skipper 1104566400000 1262332800000)
 DVRangeLastModWide: count(dvrange//lastMod_skipper 1136102400000 1293868800000)
 DVRangeLastModWide: count(dvrange//lastMod_skipper 1167638400000 1325404800000)
 DVRangeLastModWide: count(dvrange//lastMod_skipper 1199174400000 1356998400000)
-# dayOfYear_skipper: int 1-366, medium cardinality — narrow range (~30 days)
+# dayOfYear_skipper: narrow 30-day range
 DVRangeDayOfYearNarrow: count(dvrange//dayOfYear_skipper 60 90)
 DVRangeDayOfYearNarrow: count(dvrange//dayOfYear_skipper 150 180)
 DVRangeDayOfYearNarrow: count(dvrange//dayOfYear_skipper 200 230)
 DVRangeDayOfYearNarrow: count(dvrange//dayOfYear_skipper 300 330)
 DVRangeDayOfYearNarrow: count(dvrange//dayOfYear_skipper 1 30)
-# dayOfYear_skipper: wide range (~6 months)
+# dayOfYear_skipper: wide 6-month range
 DVRangeDayOfYearWide: count(dvrange//dayOfYear_skipper 1 183)
 DVRangeDayOfYearWide: count(dvrange//dayOfYear_skipper 100 283)
 DVRangeDayOfYearWide: count(dvrange//dayOfYear_skipper 183 366)
 DVRangeDayOfYearWide: count(dvrange//dayOfYear_skipper 50 233)
 DVRangeDayOfYearWide: count(dvrange//dayOfYear_skipper 120 303)
 
-# Doc values range as filter on TermQuery (real-world pattern: term match + date range filter)
+# DV range as filter on TermQuery
 TermWithDVRangeLastMod: 0 +dvRangeFilter=lastMod_skipper,1293868800000,1325404800000 # freq=708472
 TermWithDVRangeLastMod: names +dvRangeFilter=lastMod_skipper,1293868800000,1325404800000 # freq=402762
 TermWithDVRangeLastMod: nbsp +dvRangeFilter=lastMod_skipper,1293868800000,1325404800000 # freq=492778

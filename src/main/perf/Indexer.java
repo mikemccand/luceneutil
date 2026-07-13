@@ -49,6 +49,8 @@ import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.search.SortedNumericSortField;
+import org.apache.lucene.search.SortedSetSortField;
 import org.apache.lucene.util.quantization.QuantizedByteVectorValues.ScalarEncoding;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.taxonomy.TaxonomyWriter;
@@ -276,30 +278,28 @@ public final class Indexer {
         throw new IllegalArgumentException("Illegal arrangement!");
       }
     }
-    
-    String indexSortField = null;
-    SortField.Type indexSortType = null;
+
+    SortField indexSort = null;
 
     if (args.hasArg("-indexSort")) {
-      indexSortField = args.getString("-indexSort");
+      String indexSortField = args.getString("-indexSort");
 
       int i = indexSortField.indexOf(':');
       if (i == -1) {
         throw new IllegalArgumentException("-indexSort should have form field:type; got: " + indexSortField);
       }
-      String typeString = indexSortField.substring(i+1, indexSortField.length());
+      String typeString = indexSortField.substring(i + 1, indexSortField.length());
+      indexSortField = indexSortField.substring(0, i);
       if (typeString.equals("long")) {
-        indexSortType = SortField.Type.LONG;
+        indexSort = new SortedNumericSortField(indexSortField, SortField.Type.LONG);
       } else if (typeString.equals("string")) {
-        indexSortType = SortField.Type.STRING;
+        indexSort = new SortedSetSortField(indexSortField, false);
       } else if (typeString.equals("int")) {
-        indexSortType = SortField.Type.INT;
+        indexSort = new SortedNumericSortField(indexSortField, SortField.Type.INT);
       } else {
         throw new IllegalArgumentException("-indexSort can only handle {long,int,string} sort; got: " + typeString);
       }
-      indexSortField = indexSortField.substring(0, i);
-    } else {
-      indexSortType = null;
+
     }
 
     final double ramBufferSizeMB = args.getDouble("-ramBufferMB");
@@ -505,14 +505,12 @@ public final class Indexer {
 
       final AtomicBoolean indexingFailed = new AtomicBoolean();
 
-      final String finalIndexSortField = indexSortField;
-      final SortField.Type finalIndexSortType = indexSortType;
-
+      final SortField finalIndexSort = indexSort;
       Callable<IndexWriterConfig> getIWC = () -> {
         final IndexWriterConfig iwc = new IndexWriterConfig(a);
 
-        if (finalIndexSortField != null) {
-          iwc.setIndexSort(new Sort(new SortField(finalIndexSortField, finalIndexSortType)));
+        if (finalIndexSort != null) {
+          iwc.setIndexSort(new Sort(finalIndexSort));
         }
 
         if (mode == Mode.UPDATE) {

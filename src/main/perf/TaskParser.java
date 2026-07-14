@@ -38,7 +38,6 @@ import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.facet.DrillDownQuery;
 import org.apache.lucene.index.Term;
@@ -357,14 +356,13 @@ class TaskParser implements Closeable {
     }
 
     Query parseDVRangeFilter() {
-      // Check for doc values range filter (eg: " +dvRangeFilter=lastMod_skipper,1200000000000,1400000000000")
-      final Matcher m = dvRangeFilterPattern.matcher(text);
+      Matcher m = dvRangeFilterPattern.matcher(text);
       if (m.find()) {
-        final String fieldName = m.group(1);
-        final long min = Long.parseLong(m.group(2));
-        final long max = Long.parseLong(m.group(3));
+        String fieldName = m.group(1);
+        long min = Long.parseLong(m.group(2));
+        long max = Long.parseLong(m.group(3));
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
-        return NumericDocValuesField.newSlowRangeQuery(fieldName, min, max);
+        return SortedNumericDocValuesField.newSlowRangeQuery(fieldName, min, max);
       }
       return null;
     }
@@ -606,8 +604,6 @@ class TaskParser implements Closeable {
           return parseNRQ();
         case "dvrange":
           return parseDVRange();
-        case "dvrangeint":
-          return parseDVRangeInt();
         case "intSet":
           return parseIntSet();
         case "datetimesort":
@@ -761,34 +757,17 @@ class TaskParser implements Closeable {
     }
 
     Query parseDVRange() {
-      // field min max (long values, uses NumericDocValuesField skip index)
-      final int spot3 = text.indexOf(' ');
+      int spot3 = text.indexOf(' ');
       if (spot3 == -1) {
         throw new RuntimeException("failed to parse dvrange query=" + text);
       }
-      final int spot4 = text.indexOf(' ', spot3+1);
+      int spot4 = text.indexOf(' ', spot3+1);
       if (spot4 == -1) {
         throw new RuntimeException("failed to parse dvrange query=" + text);
       }
-      final String dvFieldName = text.substring(0, spot3);
-      final long min = Long.parseLong(text.substring(1+spot3, spot4));
-      final long max = Long.parseLong(text.substring(1+spot4));
-      return NumericDocValuesField.newSlowRangeQuery(dvFieldName, min, max);
-    }
-
-    Query parseDVRangeInt() {
-      // field min max (int values, uses SortedNumericDocValuesField)
-      final int spot3 = text.indexOf(' ');
-      if (spot3 == -1) {
-        throw new RuntimeException("failed to parse dvrangeint query=" + text);
-      }
-      final int spot4 = text.indexOf(' ', spot3+1);
-      if (spot4 == -1) {
-        throw new RuntimeException("failed to parse dvrangeint query=" + text);
-      }
-      final String dvFieldName = text.substring(0, spot3);
-      final long min = Long.parseLong(text.substring(1+spot3, spot4));
-      final long max = Long.parseLong(text.substring(1+spot4));
+      String dvFieldName = text.substring(0, spot3);
+      long min = Long.parseLong(text.substring(1+spot3, spot4));
+      long max = Long.parseLong(text.substring(1+spot4));
       return SortedNumericDocValuesField.newSlowRangeQuery(dvFieldName, min, max);
     }
 

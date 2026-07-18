@@ -60,6 +60,7 @@ import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.SortedNumericSelector;
 import org.apache.lucene.search.SortedSetSelector;
@@ -159,6 +160,9 @@ class TaskParser implements Closeable {
   private final static Pattern countOnlyPattern = Pattern.compile("count\\((.*?)\\)");
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
   private final static Pattern constantScorePattern = Pattern.compile(" \\+constantScore($| )");
+  // +searchAfter=<long>: run the sort as a deep-pagination searchAfter with this value as the
+  // `after` sort value (GITHUB#13313). Only meaningful together with a single-field numeric sort.
+  private final static Pattern searchAfterPattern = Pattern.compile(" \\+searchAfter=(-?\\d+)($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
   private final static Pattern combinedFieldsPattern = Pattern.compile(" \\+combinedFields=((\\p{Alnum}+(\\^\\d+.\\d)?,)+\\p{Alnum}+(\\^\\d+.\\d)?)");
@@ -232,6 +236,7 @@ class TaskParser implements Closeable {
     String text;
     boolean doDrillSideways, doHilite, doStoredLoadsTask;
     Sort sort;
+    Long searchAfterValue; // non-null when +searchAfter=<long> was given
     String group;
 
     // this is only set when pulling pre-computed embeddings from file:
@@ -270,6 +275,7 @@ class TaskParser implements Closeable {
       List<String> drillDowns = parseDrillDowns();
       doStoredLoadsTask = TaskParser.this.doStoredLoads;
       parseHilite();
+      searchAfterValue = parseSearchAfter();
       String[] taskAndType = parseTaskType(text);
       String taskType = taskAndType[0];
       text = taskAndType[1];
@@ -280,7 +286,27 @@ class TaskParser implements Closeable {
       Query query = buildQuery(taskType, text, msm);
       Query query2 = applyDrillDowns(query, drillDowns);
       Query query3 = applyFilter(query2, filter);
-      return new SearchTask(category, isCountOnly, query3, sort, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
+      FieldDoc after = buildSearchAfter();
+      return new SearchTask(category, isCountOnly, query3, sort, after, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
+    }
+
+    // Build the `after` FieldDoc for +searchAfter. Only single-field numeric sorts are supported;
+    // the value is boxed as the type the sort's comparator expects (Long/Integer).
+    FieldDoc buildSearchAfter() {
+      if (searchAfterValue == null) {
+        return null;
+      }
+      if (sort == null || sort.getSort().length != 1) {
+        throw new IllegalArgumentException("+searchAfter requires a single-field sort; got: " + sort);
+      }
+      SortField sf = sort.getSort()[0];
+      Object value = switch (sf.getType()) {
+        case LONG -> searchAfterValue;
+        case INT -> Math.toIntExact(searchAfterValue);
+        default -> throw new IllegalArgumentException(
+            "+searchAfter only supports INT/LONG sorts; got: " + sf.getType());
+      };
+      return new FieldDoc(Integer.MAX_VALUE, Float.NaN, new Object[] {value});
     }
 
     String[] parseTaskType(String line) {
@@ -376,6 +402,19 @@ class TaskParser implements Closeable {
         text = (text.substring(0, m2.start(0)) + text.substring(m2.end(0), text.length())).trim();
       }
       return minShouldMatch;
+    }
+
+    Long parseSearchAfter() throws ParseException {
+      final Matcher m = searchAfterPattern.matcher(text);
+      if (m.find()) {
+        long value = Long.parseLong(m.group(1));
+        text = (text.substring(0, m.start(0)) + " " + text.substring(m.end(0), text.length())).trim();
+        if (m.find()) {
+          throw new ParseException("+searchAfter appears more than once in task: " + text);
+        }
+        return value;
+      }
+      return null;
     }
 
     boolean parseConstantScore() throws ParseException {

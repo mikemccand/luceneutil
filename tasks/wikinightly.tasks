@@ -132,6 +132,16 @@ TermDayOfYearSort: dayofyeardvsort//nbsp # freq=492778
 TermDayOfYearSort: dayofyeardvsort//part # freq=588644
 TermDayOfYearSort: dayofyeardvsort//st # freq=306811
 
+# searchAfter (deep pagination) variant of the dayOfYear sort. dayOfYear is 1..366, so
+# +searchAfter=330 asks for the tail of the range: the non-competitive prefix should be
+# skipped via dynamic pruning rather than fully collected. This is the coverage that was
+# missing when apache/lucene#13221 caused the apache/lucene#13856 searchAfter regression.
+TermDayOfYearSortSearchAfter: dayofyeardvsort//0 +searchAfter=330 # freq=708472
+TermDayOfYearSortSearchAfter: dayofyeardvsort//names +searchAfter=330 # freq=402762
+TermDayOfYearSortSearchAfter: dayofyeardvsort//nbsp +searchAfter=330 # freq=492778
+TermDayOfYearSortSearchAfter: dayofyeardvsort//part +searchAfter=330 # freq=588644
+TermDayOfYearSortSearchAfter: dayofyeardvsort//st +searchAfter=330 # freq=306811
+
 TermDateTimeSortSkipper: lastmodskippersort//0 # freq=708472
 TermDateTimeSortSkipper: lastmodskippersort//names # freq=402762
 TermDateTimeSortSkipper: lastmodskippersort//nbsp # freq=492778

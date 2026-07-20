@@ -161,7 +161,8 @@ class TaskParser implements Closeable {
   private final static Pattern minShouldMatchPattern = Pattern.compile(" \\+minShouldMatch=(\\d+)($| )");
   private final static Pattern constantScorePattern = Pattern.compile(" \\+constantScore($| )");
   // +searchAfter=<long>: run the sort as a deep-pagination searchAfter with this value as the
-  // `after` sort value (GITHUB#13313). Only meaningful together with a single-field numeric sort.
+  // `after` sort value (GITHUB#13313). We have only implemented the single-valued numeric case here
+  // (Lucene's searchAfter can handle any sort type).
   private final static Pattern searchAfterPattern = Pattern.compile(" \\+searchAfter=(-?\\d+)($| )");
   // pattern: taskName term1 term2 term3 term4 +combinedFields=field1^1.0,field2,field3^2.0
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose

@@ -591,9 +591,9 @@ final class SearchTask extends Task {
       if (topN != otherSearchTask.topN) {
         return false;
       }
-      if (java.util.Objects.equals(
-              after == null ? null : java.util.Arrays.asList(after.fields),
-              otherSearchTask.after == null ? null : java.util.Arrays.asList(otherSearchTask.after.fields))
+      if (java.util.Objects.deepEquals(
+              after == null ? null : after.fields,
+              otherSearchTask.after == null ? null : otherSearchTask.after.fields)
           == false) {
         return false;
       }

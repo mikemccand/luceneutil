@@ -150,28 +150,51 @@ def get_cpu_info():
     return "unknown CPU (error: %s)" % e
 
 
-def get_disk_info():
-  """Detect storage devices on the machine via lsblk."""
+def get_disk_info(path=None):
+  """Detect the physical disk backing the given path (e.g. constants.INDEX_DIR_BASE) via lsblk."""
   try:
-    output = subprocess.check_output(
-      ["lsblk", "-dno", "NAME,SIZE,MODEL"],
-      text=True,
-    ).strip()
-    if not output:
-      return "unknown disk"
+    if path is None or not os.path.exists(path):
+      return get_all_disks_info()
+
+    source = subprocess.check_output(["df", "--output=source", path], text=True).strip().splitlines()[-1].strip()
+    if not source.startswith("/dev/"):
+      return source
+
+    output = subprocess.check_output(["lsblk", "-lsno", "NAME,TYPE,SIZE,MODEL", source], text=True).strip()
     disks = []
     for line in output.splitlines():
-      parts = line.split(None, 2)
-      name = parts[0] if len(parts) > 0 else ""
-      size = parts[1] if len(parts) > 1 else ""
-      model = parts[2].strip() if len(parts) > 2 else ""
-      if model:
-        disks.append(f"{size} {model}")
-      else:
-        disks.append(f"{size} {name}")
-    return "; ".join(disks)
+      parts = line.split(None, 3)
+      if len(parts) >= 3 and parts[1] == "disk":
+        name = parts[0]
+        size = parts[2]
+        model = parts[3].strip() if len(parts) > 3 else ""
+        disks.append(f"{size} {model}" if model else f"{size} {name}")
+    if disks:
+      return "; ".join(disks)
+    return "unknown disk"
   except (OSError, ValueError, subprocess.CalledProcessError) as e:
     return "unknown disk (error: %s)" % e
+
+
+def get_all_disks_info():
+  """List all storage devices on the machine via lsblk."""
+  output = subprocess.check_output(
+    ["lsblk", "-dno", "NAME,SIZE,MODEL"],
+    text=True,
+  ).strip()
+  if not output:
+    return "unknown disk"
+  disks = []
+  for line in output.splitlines():
+    parts = line.split(None, 2)
+    name = parts[0] if len(parts) > 0 else ""
+    size = parts[1] if len(parts) > 1 else ""
+    model = parts[2].strip() if len(parts) > 2 else ""
+    if model:
+      disks.append(f"{size} {model}")
+    else:
+      disks.append(f"{size} {name}")
+  return "; ".join(disks)
 
 
 def now():
@@ -1627,7 +1650,7 @@ def writeCheckIndexTimeHTML():
     w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
     w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
     w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
-    w("  <li> IO: index stored on %s\n" % htmlEscape(get_disk_info()))
+    w("  <li> IO: index stored on %s\n" % htmlEscape(get_disk_info(constants.INDEX_DIR_BASE)))
     w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/Indexer.java"><tt>Indexer.java</tt></a>')
     w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
     w("</ul>")
@@ -2069,7 +2092,7 @@ def writeIndexingHTML(fixedIndexSizeChartData, fixedIndexTimeChartData, medChart
   w("  <li> Java version: <tt>%s</tt>\n" % htmlEscape(os.popen("java -version 2>&1").read().strip()))
   w("  <li> OS: <tt>%s</tt>\n" % htmlEscape(os.popen("uname -a 2>&1").read().strip()))
   w("  <li> CPU: <tt>%s</tt>\n" % htmlEscape(get_cpu_info()))
-  w("  <li> IO: index stored on %s\n" % htmlEscape(get_disk_info()))
+  w("  <li> IO: index stored on %s\n" % htmlEscape(get_disk_info(constants.INDEX_DIR_BASE)))
   w('  <li> Source code: <a href="https://github.com/mikemccand/luceneutil/blob/main/src/main/perf/Indexer.java"><tt>Indexer.java</tt></a>')
   w('  <li> All graphs are interactive <a href="http://dygraphs.com">Dygraphs</a>')
   w("</ul>")

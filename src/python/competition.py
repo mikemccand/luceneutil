@@ -18,7 +18,6 @@
 import glob
 import hashlib
 import os
-import platform
 import random
 import subprocess
 import time
@@ -273,13 +272,15 @@ class Index:
     name.append("nd%gM" % (self.numDocs / 1000000.0))
     full_name = ".".join(name)
 
-    # On macOS, truncate if the name is too long for the 255-byte filename limit.
-    # Keep a prefix and append a short hash of the full name so it remains unique.
-    if platform.system() == "Darwin":
-      max_len = 200
-      if len(full_name) > max_len:
-        name_hash = hashlib.sha256(full_name.encode()).hexdigest()[:12]
-        full_name = full_name[:max_len] + "." + name_hash
+    # Truncate if the name is too long for the 255-byte filename limit.
+    # The JFR filename typically adds ~34 chars ("bench-index-baseline_vs_patch-" + ".jfr"),
+    # so the index name (including hash suffix) must stay under 255 - 34 = 221 chars.
+    max_name_len = 221
+    hash_len = 5
+    max_prefix = max_name_len - hash_len
+    if len(full_name) > max_name_len:
+      name_hash = hashlib.sha256(full_name.encode()).hexdigest()[:hash_len]
+      full_name = full_name[:max_prefix] + name_hash
 
     return full_name
 

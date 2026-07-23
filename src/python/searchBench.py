@@ -29,7 +29,7 @@ PYTHON_MAJOR_VER = sys.version_info.major
 osName = common.osName
 
 
-def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None, requireOverlap=1.0):
+def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index=False, verifyScores=True, verifyCounts=True, taskPatterns=None, randomSeed=None, requireOverlap=1.0, skipReport=False):
   competitors = [challenger, base]
 
   if randomSeed is None:
@@ -192,7 +192,7 @@ def run(id, base, challenger, coldRun=False, doCharts=False, search=False, index
         print(f"\n{mode.upper()} merged search profile for {c.name}:")
         print(c.getAggregateProfilerResult(id, mode, stackSize=12)[0][1])
 
-  else:
+  elif not skipReport:
     results = {}
     for c in competitors:
       results[c] = r.getSearchLogFiles(id, c)

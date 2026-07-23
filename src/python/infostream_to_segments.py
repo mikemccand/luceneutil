@@ -24,6 +24,11 @@ import pickle
 import re
 import sys
 
+# Fallback when parsing a log that doesn't contain the verbose segment details
+# (e.g. truncated log missing the init/flush/merge birth line).  We assume
+# "merge" since long-lived indices are dominated by merged segments.
+DEFAULT_SEGMENT_SOURCE = ("merge", [])
+
 
 # thank you Claude:
 def parse_timestamp(timestamp_str: str) -> datetime.datetime | None:
@@ -125,7 +130,13 @@ IFD 0 [2025-01-31T12:35:58.905104934Z; Lucene Merge Thread #0]: now delete 0 fil
 
 # e.g. typically many on one line like this: _f(11.0.0):C49781:[diagnostics={os.arch=amd64, os.version=6.12.4-arch1-1, lucene.version=11.0.0, source=flush, timestamp=1738326951546, java.runtime.version=23, java.vendor=Arch Linux, os=Linux}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}] :id=o6ynrzazp1d8kt6wycnpppvw
 #   or (with static index sort): IFD 211 [2025-02-06T18:26:20.518261400Z; GCR-Writer-1-thread-6]: now checkpoint "_a(9.11.2):C14171/34:[indexSort=<int: "marketplaceid"> missingValue=-1,<long: "asin_ve_sort_value">! missingValue=0,<string: "ve-family-id"> missingValue=SortField.STRING_FIRST,<string: "docid"> missingValue=SortField.STRING_FIRST]:[diagnostics={timestamp=1738866380509, java.runtime.version=23.0.2+7, java.vendor=Amazon.com Inc., os=Linux, os.arch=aarch64, os.version=4.14.355-275.582.amzn2.aarch64, lucene.version=9.11.2, source=flush}]:[attributes={Lucene90StoredFieldsFormat.mode=BEST_SPEED}]:delGen=1 :id=dz4cethjje165l9ysayg0m9f1" [1 segments ; isCommit = false]
-re_segment_desc = re.compile(r"_(.*?)\(.*?\):([cC])(\d+)(/\d+)?:\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+?")
+# Since https://github.com/apache/lucene/pull/15885, IndexWriter emits verbose
+# segment details (diagnostics, attributes, id) only once — at init, flush, or
+# merge time.  Subsequent references use a compact form, e.g.
+# `_4(10.4.0):C8782/109`, because the verbose version was already logged once
+# for this segment.  The trailer below is wrapped in an optional non-capturing
+# group so both forms match; group numbering (1-8) is preserved.
+re_segment_desc = re.compile(r"_(.*?)\(.*?\):([cC])(\d+)(/\d+)?(?::\[(indexSort=.*?)?(diagnostics=\{.*?\})\]:\[attributes=(\{.*?\})\](:delGen=\d+)? :id=[0-9a-z]+)?")
 
 
 def sec_to_time_delta(td_sec):
@@ -410,6 +421,8 @@ def parse_seg_details(s):
       source = ("merge", [])
     elif "source=flush" in diagnostics:
       source = "flush"
+    elif diagnostics == "":
+      source = DEFAULT_SEGMENT_SOURCE
     else:
       raise RuntimeError(f"seg {segment_name}: a new source in {diagnostics}?")
 

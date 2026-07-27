@@ -69,7 +69,7 @@ class LocalTaskSource implements TaskSource {
       //final Set<BytesRef> pkWithTermStateSeenIDs = new HashSet<BytesRef>();
       //final Set<Integer> pkSeenIntIDs = new HashSet<Integer>();
       for(int idx=0;idx<numPKTasks;idx++) {
-        prunedTasks.add(new PKLookupTask(maxDoc, staticRandom, 4000, pkSeenIDs, idx));
+        prunedTasks.add(new BatchPKLookup(maxDoc, staticRandom, 4000, pkSeenIDs, idx));
         //prunedTasks.add(new PKLookupWithTermStateTask(maxDoc, staticRandom, 4000, pkWithTermStateSeenIDs, idx));
         //prunedTasks.add(new PointsPKLookupTask(maxDoc, staticRandom, 4000, pkSeenIntIDs, idx));
       }

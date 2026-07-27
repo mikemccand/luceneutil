@@ -31,7 +31,7 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.util.BytesRef;
 
-final class PKLookupTask extends Task {
+final class BatchPKLookup extends Task {
   private final BytesRef[] ids;
   private final int[] answers;
   private final int ord;
@@ -43,7 +43,7 @@ final class PKLookupTask extends Task {
     return "PKLookup";
   }
 
-  private PKLookupTask(PKLookupTask other) {
+  private BatchPKLookup(BatchPKLookup other) {
     ids = other.ids;
     ord = other.ord;
     answers = new int[ids.length];
@@ -51,7 +51,7 @@ final class PKLookupTask extends Task {
     Arrays.fill(answers, -1);
   }
 
-  public PKLookupTask(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
+  public BatchPKLookup(int maxDoc, Random random, int count, Set<BytesRef> seen, int ord) {
     this.ord = ord;
     ids = new BytesRef[count];
     answers = new int[count];
@@ -92,7 +92,7 @@ final class PKLookupTask extends Task {
 
   @Override
   public Task clone() {
-    return new PKLookupTask(this);
+    return new BatchPKLookup(this);
   }
 
   @Override

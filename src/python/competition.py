@@ -17,8 +17,8 @@
 
 import glob
 import hashlib
+import json
 import os
-import platform
 import random
 import subprocess
 import time
@@ -225,6 +225,36 @@ class Index:
     self.hnswThreadPoolCount = hnswThreadPoolCount
     self.quantizeKNNGraph = quantizeKNNGraph
 
+  def getConfig(self):
+    """Return all parameters that affect the on-disk index bytes.
+
+    Note: 'checkout' is excluded — it identifies which Lucene
+    build produced the index, not the index contents themselves. getName()
+    mixes checkout into the hash separately so baseline vs candidate get
+    distinct directories.
+    """
+    config = {
+      "dataSource": self.dataSource.name,
+      "numDocs": self.numDocs,
+      "optimize": self.optimize,
+      "useCFS": self.useCFS,
+      "postingsFormat": self.postingsFormat,
+      "idFieldPostingsFormat": self.idFieldPostingsFormat,
+      "bodyTermVectors": self.bodyTermVectors,
+      "bodyStoredFields": self.bodyStoredFields,
+      "bodyPostingsOffsets": self.bodyPostingsOffsets,
+      "addDVFields": self.addDVFields,
+      "indexSort": self.indexSort,
+    }
+    if self.facets is not None:
+      config["facets"] = [arg[0] for arg in self.facets]
+      config["facetDVFormat"] = self.facetDVFormat
+    if self.vectorFile:
+      config["vectorFile"] = self.vectorFile
+      config["vectorDimension"] = self.vectorDimension
+      config["quantizeKNNGraph"] = self.quantizeKNNGraph
+    return config
+
   def getName(self):
     if self.assignedName is not None:
       return self.assignedName
@@ -234,54 +264,12 @@ class Index:
     if self.extraNamePart is not None:
       name.append(self.extraNamePart)
 
-    if self.optimize:
-      name.append("opt")
-
-    if self.useCFS:
-      name.append("cfs")
-
-    if self.facets is not None:
-      name.append("facets")
-      for arg in self.facets:
-        name.append(arg[0])
-      name.append(self.facetDVFormat)
-
-    if self.bodyTermVectors:
-      name.append("tv")
-
-    if self.bodyStoredFields:
-      name.append("stored")
-
-    if self.bodyPostingsOffsets:
-      name.append("offsets")
-
-    name.append(self.postingsFormat)
-    if self.postingsFormat != self.idFieldPostingsFormat:
-      name.append(self.idFieldPostingsFormat)
-
-    if self.addDVFields:
-      name.append("dvfields")
-
-    if self.indexSort:
-      name.append("sort=%s" % self.indexSort)
-
-    if self.vectorFile:
-      name.append("vectors=%d" % self.vectorDimension)
-      if self.quantizeKNNGraph:
-        name.append("int8-quantized")
-
-    name.append("nd%gM" % (self.numDocs / 1000000.0))
-    full_name = ".".join(name)
-
-    # On macOS, truncate if the name is too long for the 255-byte filename limit.
-    # Keep a prefix and append a short hash of the full name so it remains unique.
-    if platform.system() == "Darwin":
-      max_len = 200
-      if len(full_name) > max_len:
-        name_hash = hashlib.sha256(full_name.encode()).hexdigest()[:12]
-        full_name = full_name[:max_len] + "." + name_hash
-
-    return full_name
+    # Generate hash of configuration to avoid index path collisions
+    config_json = json.dumps(self.getConfig(), sort_keys=True)
+    hash_input = f"{benchUtil.checkoutToName(self.checkout)}|{config_json}"
+    config_hash = hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest()[:8]
+    name.extend([config_hash, "nd%gM" % (self.numDocs / 1000000.0)])
+    return ".".join(name)
 
 
 class Competitor:

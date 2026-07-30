@@ -185,36 +185,9 @@ class IndexThreads {
     @Override
     public void run() {
       try {
-        final LineFileDocs.DocState docState = docs.newDocState();
-        final Field idField = docState.id;
+        final boolean addGroupFields = group100 != null;
+        final BenchDoc docState = docs.newDocState(addGroupFields);
         final long tStart = System.currentTimeMillis();
-        final Field group100Field;
-        final Field group100KField;
-        final Field group10KField;
-        final Field group1MField;
-        final Field groupBlockField;
-        final Field groupEndField;
-        if (group100 != null) {
-          group100Field = new SortedDocValuesField("group100", new BytesRef());
-          docState.doc.add(group100Field);
-          group10KField = new SortedDocValuesField("group10K", new BytesRef());
-          docState.doc.add(group10KField);
-          group100KField = new SortedDocValuesField("group100K", new BytesRef());
-          docState.doc.add(group100KField);
-          group1MField = new SortedDocValuesField("group1M", new BytesRef());
-          docState.doc.add(group1MField);
-          groupBlockField = new SortedDocValuesField("groupblock", new BytesRef());
-          docState.doc.add(groupBlockField);
-          // Binary marker field:
-          groupEndField = new StringField("groupend", "x", Field.Store.NO);
-        } else {
-          group100Field = null;
-          group100KField = null;
-          group10KField = null;
-          group1MField = null;
-          groupBlockField = null;
-          groupEndField = null;
-        }
 
         try {
           startLatch.await();
@@ -223,7 +196,7 @@ class IndexThreads {
           return;
         }
 
-        if (group100 != null) {
+        if (addGroupFields) {
 
           if (numTotalDocs == -1) {
             throw new IllegalStateException("must specify numTotalDocs when indexing doc blocks for grouping");
@@ -270,7 +243,7 @@ class IndexThreads {
             } else {
               numDocs = ((int) ((1+groupCounter)*docsPerGroupBlock)) - ((int) (groupCounter*docsPerGroupBlock));
             }
-            groupBlockField.setBytesValue(groupBlocks[groupCounter]);
+            docState.setGroupBlockField(groupBlocks[groupCounter]);
 
             w.addDocuments(new Iterable<Document>() {
                 @Override
@@ -288,6 +261,10 @@ class IndexThreads {
                     @Override
                     public Document next() {
                       upto++;
+                      if (upto == numDocs) {
+                        // Sneaky: we remove it down below, so that in the not-cloned case we don't accumulate this field:
+                        docState.includeGroupEndField();
+                      }
                       Document doc;
 
                       try {
@@ -299,22 +276,17 @@ class IndexThreads {
                         throw new IllegalStateException("Expected more docs");
                       }
 
-                      if (upto == numDocs) {
-                        // Sneaky: we remove it down below, so that in the not-cloned case we don't accumulate this field:
-                        doc.add(groupEndField);
-                      }
-
-                      final int id = LineFileDocs.idToInt(idField.stringValue());
+                      final int id = LineFileDocs.idToInt(docState.getIdString());
                       if (id >= numTotalDocs) {
                         throw new IllegalStateException();
                       }
                       if (((1+id) % 10000) == 0) {
                         System.out.println("Indexer: " + (1+id) + " docs... (" + (System.currentTimeMillis() - tStart) + " msec)");
                       }
-                      group100Field.setBytesValue(group100[id%100]);
-                      group10KField.setBytesValue(group10K[id%10000]);
-                      group100KField.setBytesValue(group100K[id%100000]);
-                      group1MField.setBytesValue(group1M[id%1000000]);
+                      docState.setGroup100Field(group100[id%100]);
+                      docState.setGroup10KField(group10K[id%10000]);
+                      docState.setGroup100KField(group100K[id%100000]);
+                      docState.setGroup1MField(group1M[id%1000000]);
                       count.incrementAndGet();
                       return doc;
                     }
@@ -327,7 +299,7 @@ class IndexThreads {
                 }
               });
 
-            docState.doc.removeField("groupend");
+            docState.removeGroupEndField();
           }
         } else if (docsPerSec > 0 && mode != null) {
           System.out.println("Indexing single docs (add/updateDocument)");
@@ -338,7 +310,7 @@ class IndexThreads {
             if (doc == null) {
               break;
             }
-            final int id = LineFileDocs.idToInt(idField.stringValue());
+            final int id = LineFileDocs.idToInt(docState.getIdString());
             if (numTotalDocs != -1 && id >= numTotalDocs) {
               break;
             }

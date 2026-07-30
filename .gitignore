@@ -29,6 +29,8 @@ src/python/localconstants.py
 *.class
 *.pyc
 *.swp
+*.bin
+knnPerfChart.html
 npm-debug.log
 target/
 local/
@@ -50,3 +52,6 @@ knn-reuse/
 # genai session dirs
 .specstory
 .claude
+
+# generated task vectors
+tasks/*.vec

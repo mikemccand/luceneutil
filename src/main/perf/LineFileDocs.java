@@ -355,158 +355,8 @@ public class LineFileDocs implements Closeable {
 
   private final static char SEP = '\t';
 
-  public static final class DocState {
-    final Document doc;
-    final Field titleTokenized;
-    final Field title;
-    final Field month;
-    final Field dayOfYear;
-    final BinaryDocValuesField titleBDV;
-    final Field lastMod;
-    final Field body;
-    final Field id;
-    final Field idPoint;
-    final Field idDV;
-    final Field date;
-    final Field randomLabel;
-    final Field lastModSkipper;
-    final Field monthSkipper;
-    final Field dayOfYearSkipper;
-    final Field titleSkipper;
-
-    //final NumericDocValuesField dateMSec;
-    //final LongField rand;
-    final Field timeSec;
-    // Necessary for "old style" wiki line files:
-    static final DateTimeFormatter dateParser = new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("dd-MMM-yyyy HH:mm:ss")
-        .optionalStart()
-        .appendPattern(".SSS")
-        .optionalEnd()
-        .toFormatter(Locale.US);
-    final KnnFloatVectorField floatVectorField;
-    final KnnByteVectorField byteVectorField;
-
-    final Calendar dateCal = Calendar.getInstance();
-
-    DocState(boolean storeBody, boolean tvsBody, boolean bodyPostingsOffsets, boolean addDVFields, boolean addDVSkippers, int vectorDimension, VectorEncoding vectorEncoding) {
-      doc = new Document();
-
-      if (addDVFields == false) {
-        title = new StringField("title", "", Field.Store.NO);
-      } else {
-        title = new KeywordField("title", "", Field.Store.NO);
-      }
-      doc.add(title);
-
-      if (addDVFields) {
-        titleBDV = new BinaryDocValuesField("titleBDV", new BytesRef());
-        doc.add(titleBDV);
-
-        lastMod = new LongField("lastMod", -1, Field.Store.NO);
-        doc.add(lastMod);
-
-        month = new KeywordField("month", "", Store.NO);
-        doc.add(month);
-
-        dayOfYear = new IntField("dayOfYear", 0, Field.Store.NO);
-        doc.add(dayOfYear);
-
-        idDV = new NumericDocValuesField("id", 0);
-        doc.add(idDV);
-
-        if (addDVSkippers) {
-          lastModSkipper = NumericDocValuesField.indexedField("lastMod_skipper", -1);
-          doc.add(lastModSkipper);
-
-          monthSkipper = SortedDocValuesField.indexedField("month_skipper", new BytesRef(""));
-          doc.add(monthSkipper);
-
-          dayOfYearSkipper = NumericDocValuesField.indexedField("dayOfYear_skipper", 0);
-          doc.add(dayOfYearSkipper);
-
-          titleSkipper = SortedDocValuesField.indexedField("title_skipper", new BytesRef(""));
-          doc.add(titleSkipper);
-        } else {
-          lastModSkipper = null;
-          monthSkipper = null;
-          dayOfYearSkipper = null;
-          titleSkipper = null;
-        }
-      } else {
-        titleBDV = null;
-        lastMod = null;
-        month = null;
-        dayOfYear = null;
-        idDV = null;
-        lastModSkipper = null;
-        monthSkipper = null;
-        dayOfYearSkipper = null;
-        titleSkipper = null;
-      }
-
-      titleTokenized = new TextField("titleTokenized", "", Field.Store.YES);
-      doc.add(titleTokenized);
-
-      FieldType bodyFieldType = new FieldType(TextField.TYPE_NOT_STORED);
-      if (storeBody) {
-        bodyFieldType.setStored(true);
-      }
-
-      if (tvsBody) {
-        bodyFieldType.setStoreTermVectors(true);
-        bodyFieldType.setStoreTermVectorOffsets(true);
-        bodyFieldType.setStoreTermVectorPositions(true);
-      }
-
-      if (bodyPostingsOffsets) {
-        bodyFieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
-      }
-
-      body = new Field("body", "", bodyFieldType);
-      doc.add(body);
-
-      randomLabel = new StringField("randomLabel", "", Field.Store.NO);
-      doc.add(body);
-
-      id = new StringField("id", "", Field.Store.YES);
-      doc.add(id);
-
-      idPoint = new IntPoint("id", 0);
-      doc.add(idPoint);
-
-      date = new StringField("date", "", Field.Store.YES);
-      doc.add(date);
-
-      //dateMSec = new NumericDocValuesField("datenum", 0L);
-      //doc.add(dateMSec);
-
-      //rand = new LongField("rand", 0L, Field.Store.NO);
-      //doc.add(rand);
-
-      timeSec = new IntPoint("timesecnum", 0);
-      doc.add(timeSec);
-
-      if (vectorDimension > 0) {
-        if (vectorEncoding == VectorEncoding.FLOAT32) {
-          floatVectorField = new KnnFloatVectorField(VECTOR_FIELD_NAME, new float[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
-          doc.add(floatVectorField);
-          byteVectorField = null;
-        } else {
-          byteVectorField = new KnnByteVectorField(VECTOR_FIELD_NAME, new byte[vectorDimension], VectorSimilarityFunction.DOT_PRODUCT);
-          doc.add(byteVectorField);
-          floatVectorField = null;
-        }
-      } else {
-        floatVectorField = null;
-        byteVectorField = null;
-      }
-    }
-  }
-
-  public DocState newDocState() {
-    return new DocState(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, addDVSkippers, vectorDimension, vectorEncoding);
+  public BenchDoc newDocState(boolean addGroupFields) {
+    return new BenchDoc(storeBody, tvsBody, bodyPostingsOffsets, addDVFields, addDVSkippers, vectorDimension, vectorEncoding, addGroupFields);
   }
 
   // TODO: is there a pre-existing way to do this!!!
@@ -584,12 +434,12 @@ public class LineFileDocs implements Closeable {
     return true;
   }
 
-  public Document nextDoc(DocState doc) throws IOException {
+  public Document nextDoc(BenchDoc doc) throws IOException {
     return nextDoc(doc, false);
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public Document nextDoc(DocState doc, boolean expected) throws IOException {
+  public Document nextDoc(BenchDoc doc, boolean expected) throws IOException {
 
     long msecSinceEpoch;
     int timeSec;
@@ -656,16 +506,16 @@ public class LineFileDocs implements Closeable {
 
       buffer.position(buffer.position() + titleLenBytes + bodyLenBytes + randomLabelLenBytes);
 
-      doc.dateCal.setTimeInMillis(msecSinceEpoch);
+      doc.getDateCal().setTimeInMillis(msecSinceEpoch);
 
       spot4 = 0;
       line = null;
 
       if (lfd.vector != null) {
-        if (doc.floatVectorField != null) {
-          lfd.getVector(doc.floatVectorField.vectorValue());
+        if (doc.hasFloatVectorField()) {
+          lfd.getVector(doc.getFloatVectorValue());
         } else {
-          lfd.getVector(doc.byteVectorField.vectorValue());
+          lfd.getVector(doc.getByteVectorValue());
         }
       }
 
@@ -709,21 +559,21 @@ public class LineFileDocs implements Closeable {
       title = line.substring(0, spot);
 
       final String dateString = line.substring(1+spot, spot2);
-      doc.date.setStringValue(dateString);
-      final LocalDateTime ldt = LocalDateTime.parse(dateString, DocState.dateParser);
+      doc.setDate(dateString);
+      final LocalDateTime ldt = LocalDateTime.parse(dateString, BenchDoc.dateParser);
       if (ldt == null) {
         System.out.println("FAILED: " + dateString);
       }
 
-      doc.dateCal.set(ldt.getYear(), ldt.getMonthValue() - 1, ldt.getDayOfMonth(),
+      doc.getDateCal().set(ldt.getYear(), ldt.getMonthValue() - 1, ldt.getDayOfMonth(),
                       ldt.getHour(), ldt.getMinute(), ldt.getSecond());
-      doc.dateCal.set(Calendar.MILLISECOND, 0);
-      msecSinceEpoch = doc.dateCal.getTimeInMillis();
+      doc.getDateCal().set(Calendar.MILLISECOND, 0);
+      msecSinceEpoch = doc.getDateCal().getTimeInMillis();
       timeSec = ldt.getHour()*3600 + ldt.getMinute()*60 + ldt.getSecond();
-      if (doc.floatVectorField != null) {
-        doc.floatVectorField.setVectorValue((float[]) lfd.vector.array());
-      } else if (doc.byteVectorField != null) {
-        doc.byteVectorField.setVectorValue((byte[]) lfd.vector.array());
+      if (doc.hasFloatVectorField()) {
+        doc.setFloatVectorValue((float[]) lfd.vector.array());
+      } else if (doc.hasByteVectorField()) {
+        doc.setByteVectorValue((byte[]) lfd.vector.array());
       }
     }
 
@@ -732,72 +582,72 @@ public class LineFileDocs implements Closeable {
     }
 
     bytesIndexed.addAndGet(body.length() + title.length() + randomLabel.length());
-    doc.body.setStringValue(body);
-    doc.title.setStringValue(title);
-    doc.randomLabel.setStringValue(randomLabel);
+    doc.setBody(body);
+    doc.setTitle(title);
+    doc.setRandomLabel(randomLabel);
     if (addDVFields) {
       BytesRef tbytes = new BytesRef(title);
-      doc.titleBDV.setBytesValue(tbytes);
-      final String month = months[doc.dateCal.get(Calendar.MONTH)];
-      doc.month.setStringValue(month);
-      int dayOfYear = doc.dateCal.get(Calendar.DAY_OF_YEAR);
-      doc.dayOfYear.setIntValue(dayOfYear);
-      doc.idDV.setLongValue(myID);
+      doc.setTitleBDV(tbytes);
+      final String month = months[doc.getDateCal().get(Calendar.MONTH)];
+      doc.setMonth(month);
+      int dayOfYear = doc.getDateCal().get(Calendar.DAY_OF_YEAR);
+      doc.setDayOfYear(dayOfYear);
+      doc.setIdDV(myID);
       if (addDVSkippers) {
-        doc.monthSkipper.setBytesValue(new BytesRef(month));
-        doc.dayOfYearSkipper.setLongValue(dayOfYear);
-        doc.titleSkipper.setBytesValue(tbytes);
+        doc.setMonthSkipper(new BytesRef(month));
+        doc.setDayOfYearSkipper(dayOfYear);
+        doc.setTitleSkipper(tbytes);
       }
     }
-    doc.titleTokenized.setStringValue(title);
-    doc.id.setStringValue(intToID(myID));
-    doc.idPoint.setIntValue(myID);
+    doc.setTitleTokenized(title);
+    doc.setIdString(intToID(myID));
+    doc.setIdPoint(myID);
 
     if (addDVFields) {
-      doc.lastMod.setLongValue(msecSinceEpoch);
+      doc.setLastMod(msecSinceEpoch);
       if (addDVSkippers) {
-        doc.lastModSkipper.setLongValue(msecSinceEpoch);
+        doc.setLastModSkipper(msecSinceEpoch);
       }
     }
 
-    doc.timeSec.setIntValue(timeSec);
+    doc.setTimeSec(timeSec);
 
     if (facetFields.isEmpty() == false) {
-      Document doc2 = cloneDoc(doc.doc);
+      Document doc2 = cloneDoc(doc.getLuceneDoc());
 
       if (facetFields.containsKey("Date")) {
         int flag = facetFields.get("Date");
         if ((flag & 1) != 0) {
           doc2.add(new FacetField("Date.taxonomy",
-                                  ""+doc.dateCal.get(Calendar.YEAR),
-                                  ""+doc.dateCal.get(Calendar.MONTH),
-                                  ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
+                                  ""+doc.getDateCal().get(Calendar.YEAR),
+                                  ""+doc.getDateCal().get(Calendar.MONTH),
+                                  ""+doc.getDateCal().get(Calendar.DAY_OF_MONTH)));
         }
         if ((flag & 2) != 0) {
           doc2.add(new SortedSetDocValuesFacetField("Date.sortedset",
-                                                    ""+doc.dateCal.get(Calendar.YEAR),
-                                                    ""+doc.dateCal.get(Calendar.MONTH),
-                                                    ""+doc.dateCal.get(Calendar.DAY_OF_MONTH)));
+                                                    ""+doc.getDateCal().get(Calendar.YEAR),
+                                                    ""+doc.getDateCal().get(Calendar.MONTH),
+                                                    ""+doc.getDateCal().get(Calendar.DAY_OF_MONTH)));
         }
       }
 
       if (facetFields.containsKey("Month")) {
         int flag = facetFields.get("Month");
         if ((flag & 1) != 0) {
-          doc2.add(new FacetField("Month.taxonomy", months[doc.dateCal.get(Calendar.MONTH)]));
+          doc2.add(new FacetField("Month.taxonomy", months[doc.getDateCal().get(Calendar.MONTH)]));
         }
         if ((flag & 2) != 0) {
-          doc2.add(new SortedSetDocValuesFacetField("Month.sortedset", months[doc.dateCal.get(Calendar.MONTH)]));
+          doc2.add(new SortedSetDocValuesFacetField("Month.sortedset", months[doc.getDateCal().get(Calendar.MONTH)]));
         }
       }
 
       if (facetFields.containsKey("DayOfYear")) {
         int flag = facetFields.get("DayOfYear");
         if ((flag & 1) != 0) {
-          doc2.add(new FacetField("DayOfYear.taxonomy", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
+          doc2.add(new FacetField("DayOfYear.taxonomy", Integer.toString(doc.getDateCal().get(Calendar.DAY_OF_YEAR))));
         }
         if ((flag & 2) != 0) {
-          doc2.add(new SortedSetDocValuesFacetField("DayOfYear.sortedset", Integer.toString(doc.dateCal.get(Calendar.DAY_OF_YEAR))));
+          doc2.add(new SortedSetDocValuesFacetField("DayOfYear.sortedset", Integer.toString(doc.getDateCal().get(Calendar.DAY_OF_YEAR))));
         }
       }
 
@@ -850,18 +700,18 @@ public class LineFileDocs implements Closeable {
 
         /*
         String dvFieldName = "$facets_sorted_doc_values";
-        doc.doc.removeFields(dvFieldName);
+        doc.getLuceneDoc().removeFields(dvFieldName);
         for(CategoryPath path : paths) {
           //System.out.println("ADD: " + path.toString());
-          doc.doc.add(new SortedSetDocValuesField(dvFieldName, new BytesRef(path.toString(FacetIndexingParams.DEFAULT_FACET_DELIM_CHAR))));
+          doc.getLuceneDoc().add(new SortedSetDocValuesField(dvFieldName, new BytesRef(path.toString(FacetIndexingParams.DEFAULT_FACET_DELIM_CHAR))));
         }
         */
       }
       return facetsConfig.build(taxoWriter, doc2);
     } else if (doClone) {
-      return cloneDoc(doc.doc);
+      return cloneDoc(doc.getLuceneDoc());
     } else {
-      return doc.doc;
+      return doc.getLuceneDoc();
     }
   }
 

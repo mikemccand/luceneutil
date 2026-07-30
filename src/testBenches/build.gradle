@@ -1,0 +1,16 @@
+plugins {
+    id 'idea'
+}
+
+idea {
+    module {
+        sourceDirs += file('.')
+    }
+}
+
+tasks.register("test", Exec) {
+    description = "Runs the basic benchmark to verify indexing/search still work after a change."
+    dependsOn ":pipInstall"
+    workingDir = projectDir
+    commandLine rootProject.file(".venv/bin/python"), "basicBenchmark.py"
+}

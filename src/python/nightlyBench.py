@@ -1831,6 +1831,16 @@ def writeIndexHTML(searchChartData, days, timeStampString):
   writeOneLine(w, done, "TermMonthSortSkipper", "Month (string, low cardinality, skipper)")
   writeOneLine(w, done, "TermDayOfYearSortSkipper", "Day of year (int, medium cardinality, skipper)")
 
+  w("<br><br><b>Doc values range filtering with skip index (count-only):</b>")
+  writeOneLine(w, done, "DVRangeLastModNarrow", "lastMod range narrow (~1 month, high cardinality)")
+  writeOneLine(w, done, "DVRangeLastModWide", "lastMod range wide (~4 years, high cardinality)")
+  writeOneLine(w, done, "DVRangeDayOfYearNarrow", "dayOfYear range narrow (~30 days, medium cardinality)")
+  writeOneLine(w, done, "DVRangeDayOfYearWide", "dayOfYear range wide (~6 months, medium cardinality)")
+
+  w("<br><br><b>Doc values range filter on TermQuery (skip index):</b>")
+  writeOneLine(w, done, "TermWithDVRangeLastMod", "TermQuery + lastMod DV range filter (~1 year)")
+  writeOneLine(w, done, "TermWithDVRangeDayOfYear", "TermQuery + dayOfYear DV range filter (~4 months)")
+
   w("<br><br><b>Grouping (on TermQuery):</b>")
   writeOneLine(w, done, "TermGroup100", "100 groups")
   writeOneLine(w, done, "TermGroup10K", "10K groups")

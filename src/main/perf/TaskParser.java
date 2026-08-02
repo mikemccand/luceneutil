@@ -311,7 +311,10 @@ class TaskParser implements Closeable {
         default -> throw new IllegalArgumentException(
             "+searchAfter only supports INT/LONG sorts; got: " + type);
       };
-      return new FieldDoc(Integer.MAX_VALUE, Float.NaN, new Object[] {value});
+      // after.doc must be a real docid: IndexSearcher rejects after.doc >= reader.maxDoc(). Under a
+      // sort it only breaks ties among documents whose sort value equals the `after` value, so 0
+      // means "every tied document is still competitive" -- the deepest page for a given value.
+      return new FieldDoc(0, Float.NaN, new Object[] {value});
     }
 
     String[] parseTaskType(String line) {

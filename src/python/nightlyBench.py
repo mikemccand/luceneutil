@@ -1804,6 +1804,8 @@ def writeIndexHTML(searchChartData, days, timeStampString):
 
   w("<br><br><b>Sorting with searchAfter / deep pagination (on TermQuery):</b>")
   writeOneLine(w, done, "TermDayOfYearSortSearchAfter", "Day of year (int, medium cardinality, searchAfter)")
+  writeOneLine(w, done, "TermDateTimeSortSearchAfter", "Date/time (long, high cardinality, skewed, searchAfter)")
+  writeOneLine(w, done, "TermDateTimeSortSkipperSearchAfter", "Date/time (long, high cardinality, skewed, skipper, searchAfter)")
 
   w("<br><br><b>Sorting with doc value skippers (on TermQuery):</b>")
   writeOneLine(w, done, "TermDTSortSkipper", "Date/time (long, high cardinality, skipper)")

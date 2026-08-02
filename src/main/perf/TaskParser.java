@@ -63,6 +63,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.SortedNumericSelector;
+import org.apache.lucene.search.SortedNumericSortField;
 import org.apache.lucene.search.SortedSetSelector;
 import org.apache.lucene.search.TermQuery;
 
@@ -301,11 +302,14 @@ class TaskParser implements Closeable {
         throw new IllegalArgumentException("+searchAfter requires a single-field sort; got: " + sort);
       }
       SortField sf = sort.getSort()[0];
-      Object value = switch (sf.getType()) {
+      // A SortedNumericSortField reports Type.CUSTOM; its element type is on getNumericType().
+      SortField.Type type =
+          sf instanceof SortedNumericSortField snsf ? snsf.getNumericType() : sf.getType();
+      Object value = switch (type) {
         case LONG -> searchAfterValue;
         case INT -> Math.toIntExact(searchAfterValue);
         default -> throw new IllegalArgumentException(
-            "+searchAfter only supports INT/LONG sorts; got: " + sf.getType());
+            "+searchAfter only supports INT/LONG sorts; got: " + type);
       };
       return new FieldDoc(Integer.MAX_VALUE, Float.NaN, new Object[] {value});
     }

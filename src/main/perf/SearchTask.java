@@ -79,6 +79,8 @@ final class SearchTask extends Task {
   private final String category;
   private final Query q;
   private final Sort s;
+  // Non-null enables searchAfter (deep pagination) benchmarking; only valid when s != null.
+  private final FieldDoc after;
   private final String group;
   private final int topN;
   private final boolean singlePassGroup;
@@ -100,11 +102,14 @@ final class SearchTask extends Task {
   private List<TaskParser.TaskBuilder.FacetTask> facetRequests;
   private String vectorField;
 
-  public SearchTask(String category, boolean isCountOnly, Query q, Sort s, String group, int topN,
+  public SearchTask(String category, boolean isCountOnly, Query q, Sort s, FieldDoc after, String group, int topN,
                     boolean doHilite, boolean doStoredLoads, List<TaskParser.TaskBuilder.FacetTask> facetRequests,
                     String vectorField, boolean doDrillSideways) {
     this.category = category;
     this.isCountOnly = isCountOnly;
+    if (after != null && s == null) {
+      throw new IllegalArgumentException("searchAfter requires a sort");
+    }
     if (isCountOnly) {
       // some attempt at catching mistakes!
       if (s != null) {
@@ -125,6 +130,7 @@ final class SearchTask extends Task {
     }
     this.q = q;
     this.s = s;
+    this.after = after;
     if (group != null && group.startsWith("groupblock")) {
       this.group = "groupblock";
       this.singlePassGroup = group.equals("groupblock1pass");
@@ -145,9 +151,9 @@ final class SearchTask extends Task {
   @Override
   public Task clone() {
     if (singlePassGroup) {
-      return new SearchTask(category, isCountOnly, q, s, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
+      return new SearchTask(category, isCountOnly, q, s, after, "groupblock1pass", topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
     } else {
-      return new SearchTask(category, isCountOnly, q, s, group, topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
+      return new SearchTask(category, isCountOnly, q, s, after, group, topN, doHilite, doStoredLoads, facetRequests, vectorField, doDrillSideways);
     }
   }
 
@@ -346,7 +352,13 @@ final class SearchTask extends Task {
         }
       } else {
         // yes sort
-        hits = searcher.search(q, topN, s);
+        if (after != null) {
+          // searchAfter (deep pagination): exercises the dynamic-pruning skip path with a known top
+          // value but no bottom until the queue fills. See GITHUB#13313 / the #13856 regression.
+          hits = searcher.searchAfter(after, q, topN, s);
+        } else {
+          hits = searcher.search(q, topN, s);
+        }
         if (doHilite) {
           hilite(hits, state, searcher, q);
         }
@@ -579,6 +591,12 @@ final class SearchTask extends Task {
       if (topN != otherSearchTask.topN) {
         return false;
       }
+      if (java.util.Objects.deepEquals(
+              after == null ? null : after.fields,
+              otherSearchTask.after == null ? null : otherSearchTask.after.fields)
+          == false) {
+        return false;
+      }
 
       if (group != null && !group.equals(otherSearchTask.group)) {
         return false;
@@ -605,6 +623,9 @@ final class SearchTask extends Task {
     int hashCode = q.hashCode();
     if (s != null) {
       hashCode ^= s.hashCode();
+    }
+    if (after != null) {
+      hashCode ^= java.util.Arrays.hashCode(after.fields);
     }
     if (group != null) {
       hashCode ^= group.hashCode();

@@ -559,6 +559,12 @@ class Competition:
       print("Removing old JFR %s..." % fileName)
       os.remove(fileName)
 
+    # If any competitor's index uses waitForCommit=False, the indexer calls rollback() instead of
+    # commit(), so no segments file is written and that index cannot be searched.  Since the search
+    # benchmark needs both indices to compare, skip search but still run indexing.
+    noCommitIndices = [idx.getName() for idx in self.indices if not idx.waitForCommit]
+    canSearch = self.benchSearch and len(noCommitIndices) == 0
+
     base.tasksFile = base.index.dataSource.tasksFile
     challenger.tasksFile = challenger.index.dataSource.tasksFile
 
@@ -568,14 +574,25 @@ class Competition:
       challenger,
       coldRun=self.cold,
       doCharts=self.printCharts,
-      search=self.benchSearch,
+      search=canSearch,
       index=self.benchIndex,
       verifyScores=self.verifyScores,
       verifyCounts=self.verifyCounts,
       taskPatterns=(self.onlyTaskPatterns, self.notTaskPatterns),
       requireOverlap=self.requireOverlap,
       randomSeed=self.randomSeed,
+      skipReport=not canSearch,
     )
+
+    if not canSearch:
+      print()
+      print("WARNING: search benchmark was skipped because the following indices use waitForCommit=False")
+      print("         (no segments file is written — the indexer calls rollback instead of commit):")
+      for name in noCommitIndices:
+        print(f"           - {name}")
+      print("         Set waitForCommit=True to enable search benchmarking.")
+      print()
+
     return self
 
   def clearCompetitors(self):

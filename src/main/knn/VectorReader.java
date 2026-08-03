@@ -36,6 +36,7 @@ public abstract class VectorReader {
     int bufferSize = dim * vectorEncoding.byteSize;
     return switch (vectorEncoding) {
       case BYTE -> new VectorReaderByte(input, dim, bufferSize, vectorStartIndex);
+      case FLOAT16 -> new VectorReaderFloat16(input, dim, bufferSize, vectorStartIndex);
       case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize, vectorStartIndex);
     };
   }

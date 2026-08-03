@@ -38,6 +38,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnFloatVectorField;
+import org.apache.lucene.document.KnnFloat16VectorField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
@@ -112,6 +113,13 @@ public class KnnIndexer implements FormatterLogger {
   // both in milliseconds
   public record IndexResult(int indexTimeMsec, int mergeTimeMsec) {}
 
+  private static FieldType createKnnFloat16FieldType(int dim, VectorSimilarityFunction similarityFunction) {
+    FieldType type = new FieldType();
+    type.setVectorAttributes(dim, VectorEncoding.FLOAT16, similarityFunction);
+    type.freeze();
+    return type;
+  }
+
   public IndexResult createIndex() throws IOException, InterruptedException {
     IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     iwc.setCodec(codec);
@@ -142,6 +150,7 @@ public class KnnIndexer implements FormatterLogger {
         switch (vectorEncoding) {
           case BYTE -> KnnByteVectorField.createFieldType(dim, similarityFunction);
           case FLOAT32 -> KnnFloatVectorField.createFieldType(dim, similarityFunction);
+          case FLOAT16 -> createKnnFloat16FieldType(dim, similarityFunction);
         };
     if (rerank && vectorEncoding != VectorEncoding.FLOAT32) {
       throw new IllegalArgumentException("rerank requires FLOAT32 vector encoding");

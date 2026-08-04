@@ -744,8 +744,8 @@ def _run(results_dir):
   knnPerfTest.print_mem_info()
 
   # sanity check vectors
-  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE)
-  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE)
+  knnPerfTest.smell_vectors(VECTORS_DIM, INDEX_VECTORS_FILE, 'doc-vectors')
+  knnPerfTest.smell_vectors(VECTORS_DIM, SEARCH_VECTORS_FILE, 'query-vectors')
 
   all_results = []
   all_summaries = []

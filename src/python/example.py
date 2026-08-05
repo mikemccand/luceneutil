@@ -69,6 +69,8 @@ if __name__ == "__main__":
       args.candidate,
       sourceData,
       addDVFields=True,
+      useCMS=True,
+      mergePolicy="TieredMergePolicy",
       extraNamePart="candidate",
       facets=(
         ("taxonomy:Date", "Date"),

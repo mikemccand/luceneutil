@@ -131,6 +131,9 @@ DO_HNSW_SCORE_HISTOGRAM = False
 # sample 1 in every N HNSW traversal scores when building the histogram (to keep HTML size reasonable)
 HNSW_SAMPLE_EVERY_N = 100
 
+# set this to True to count the strongly connected components of each graph level
+DO_STRONGLY_CONNECTED_COMPONENTS = False
+
 # set this to True to compute sampled all query x doc distances and generate a histogram
 DO_ALL_DISTANCES_HISTOGRAM = False
 
@@ -1367,6 +1370,9 @@ def run_knn_benchmark(checkout, values, log_path):
 
     if DO_HNSW_SCORE_HISTOGRAM:
       this_cmd += ["-hnswScoreHistogram"]
+
+    if DO_STRONGLY_CONNECTED_COMPONENTS:
+      this_cmd += ["-stronglyConnectedComponents"]
 
     if DO_ALL_DISTANCES_HISTOGRAM:
       this_cmd += ["-allDistancesHistogram", "-allDistancesSampleEveryN", str(ALL_DISTANCES_SAMPLE_EVERY_N)]

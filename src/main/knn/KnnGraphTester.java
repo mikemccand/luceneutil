@@ -74,6 +74,7 @@ import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.internal.hppc.IntArrayList;
 import org.apache.lucene.internal.hppc.IntIntHashMap;
 import org.apache.lucene.queries.function.FunctionQuery;
 import org.apache.lucene.queries.function.FunctionRangeQuery;
@@ -228,6 +229,8 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean hnswScoreHistogram;
   // whether to compute sampled all query x doc distances for histogram generation
   private boolean allDistancesHistogram;
+  // whether to count the strongly connected components of each graph level
+  private boolean stronglyConnectedComponents;
   // sample 1 in every N distances when building the all-distances histogram
   private int allDistancesSampleEveryN = 1000;
   private SearchType searchType;
@@ -557,6 +560,9 @@ public class KnnGraphTester implements FormatterLogger {
         case "-hnswScoreHistogram":
           hnswScoreHistogram = true;
           break;
+        case "-stronglyConnectedComponents":
+          stronglyConnectedComponents = true;
+          break;
         case "-allDistancesHistogram":
           allDistancesHistogram = true;
           break;
@@ -809,6 +815,13 @@ public class KnnGraphTester implements FormatterLogger {
 
     if (allDistancesHistogram && operation == null) {
       throw new IllegalArgumentException("-allDistancesHistogram requires -search <queryfile>");
+    }
+
+    if (stronglyConnectedComponents
+        && "-stats".equals(operation) == false
+        && "-search-and-stats".equals(operation) == false) {
+      throw new IllegalArgumentException(
+          "-stronglyConnectedComponents requires -stats or -search-and-stats");
     }
   }
 
@@ -1111,6 +1124,9 @@ public class KnnGraphTester implements FormatterLogger {
         log("Leaf %d has %d documents\n", context.ord, leafReader.maxDoc());
         printGraphFanout(knnValues, leafReader.maxDoc());
         printGraphConnectedNess(knnValues);
+        if (stronglyConnectedComponents) {
+          printGraphStronglyConnectedNess(knnValues);
+        }
       }
     }
   }
@@ -1135,6 +1151,7 @@ public class KnnGraphTester implements FormatterLogger {
     return elapsedSec;
   }
 
+  /** Connected if reachable from the entry point, a node that cannot get back still counts. */
   @SuppressForbidden(reason = "Prints stuff")
   private void printGraphConnectedNess(HnswGraph knnValues) throws IOException {
     int numLevels = knnValues.numLevels();
@@ -1161,6 +1178,105 @@ public class KnnGraphTester implements FormatterLogger {
       log("Graph level=%d size=%d, connectedness=%.2f\n",
         level, numNodesOnLayer, connectedNodes.size() / (float) numNodesOnLayer);
     }
+  }
+
+  /** Strongly connected if every node can reach every other node, in both directions. */
+  @SuppressForbidden(reason = "Prints stuff")
+  private void printGraphStronglyConnectedNess(HnswGraph knnValues) throws IOException {
+    int numLevels = knnValues.numLevels();
+    for (int level = numLevels - 1; level >= 0; level--) {
+      int numNodesOnLayer = knnValues.getNodesOnLevel(level).size();
+      int numComponents = numStronglyConnectedComponents(readNeighbors(knnValues, level));
+      log("Graph level=%d size=%d, stronglyConnectedComponents=%d\n",
+        level, numNodesOnLayer, numComponents);
+    }
+  }
+
+  /**
+   * Returns how many strongly connected components the level has, using Tarjan's SCC algorithm:
+   * https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm.
+   */
+  private static int numStronglyConnectedComponents(int[][] neighbors) {
+    final int numNodes = neighbors.length;
+    final int[] index = new int[numNodes];
+    Arrays.fill(index, -1); // -1 means not yet visited.
+    final int[] lowlink = new int[numNodes];
+    // How many of a node's neighbors we have already traversed.
+    final int[] neighborIndex = new int[numNodes];
+    final FixedBitSet onStack = new FixedBitSet(numNodes);
+    // Visited nodes not yet assigned to a component.
+    final IntArrayList stack = new IntArrayList();
+    // Replaces the recursion, the nodes on the current search path.
+    final IntArrayList callStack = new IntArrayList();
+    int nextIndex = 0;
+    int numComponents = 0;
+
+    for (int startNode = 0; startNode < numNodes; startNode++) {
+      if (neighbors[startNode] == null || index[startNode] != -1) {
+        continue;
+      }
+      callStack.add(startNode);
+      stack.add(startNode);
+      onStack.set(startNode);
+      index[startNode] = lowlink[startNode] = nextIndex++;
+
+      while (callStack.isEmpty() == false) {
+        int v = callStack.get(callStack.size() - 1);
+        int i = neighborIndex[v];
+
+        // Consider successors of v.
+        if (i < neighbors[v].length) {
+          neighborIndex[v] = i + 1;
+          int w = neighbors[v][i];
+          if (neighbors[w] == null) {
+            continue;
+          }
+          if (index[w] == -1) {
+            // Successor w has not yet been visited, visit next.
+            index[w] = lowlink[w] = nextIndex++;
+            callStack.add(w);
+            stack.add(w);
+            onStack.set(w);
+          } else if (onStack.get(w)) {
+            // Successor w is in stack S and hence in the current SCC.
+            lowlink[v] = Math.min(lowlink[v], index[w]);
+          }
+        } else {
+          callStack.removeLast();
+          // If v is a root node, pop the stack and generate an SCC.
+          if (lowlink[v] == index[v]) {
+            int popped;
+            do {
+              popped = stack.removeLast();
+              onStack.clear(popped);
+            } while (popped != v);
+            numComponents++;
+          }
+          if (callStack.isEmpty() == false) {
+            int parent = callStack.get(callStack.size() - 1);
+            lowlink[parent] = Math.min(lowlink[parent], lowlink[v]);
+          }
+        }
+      }
+    }
+    return numComponents;
+  }
+
+  private static int[][] readNeighbors(HnswGraph knnValues, int level) throws IOException {
+    final int[][] neighbors = new int[knnValues.size()][];
+    final HnswGraph.NodesIterator nodesIterator = knnValues.getNodesOnLevel(level);
+    final IntArrayList scratch = new IntArrayList();
+    while (nodesIterator.hasNext()) {
+      int node = nodesIterator.nextInt();
+      scratch.clear();
+      knnValues.seek(level, node);
+      int friendOrd;
+      while ((friendOrd = knnValues.nextNeighbor()) != NO_MORE_DOCS) {
+        scratch.add(friendOrd);
+      }
+      neighbors[node] = scratch.toArray();
+    }
+    return neighbors;
   }
 
   @SuppressForbidden(reason = "Prints stuff")
@@ -2272,7 +2388,7 @@ public class KnnGraphTester implements FormatterLogger {
 
   private static void usage() {
     String error =
-        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-nquery N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter]";
+        "Usage: KnnGraphTester [-reindex] [-search {queryfile}|-stats|-check] [-docs {datafile}] [-nquery N] [-fanout N] [-maxConn N] [-beamWidth N] [-filterSelectivity N] [-prefilter] [-stronglyConnectedComponents]";
     System.err.println(error);
     System.exit(1);
   }

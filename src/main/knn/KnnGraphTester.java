@@ -162,6 +162,8 @@ public class KnnGraphTester implements FormatterLogger {
 
   private static final Set<Integer> ALLOWED_BITS = Set.of(1, 2, 4, 7, 8);
 
+  private static final int MAX_SCC_SIZES_PRINTED_PER_LEVEL = 5;
+
   public static final String KNN_FIELD = "knn";
   public static final String KNN_FIELD_FILTERED = "knn-filtered";
   public static final String KNN_FIELD_RERANK = "knn-rerank";
@@ -1186,17 +1188,33 @@ public class KnnGraphTester implements FormatterLogger {
     int numLevels = knnValues.numLevels();
     for (int level = numLevels - 1; level >= 0; level--) {
       int numNodesOnLayer = knnValues.getNodesOnLevel(level).size();
-      int numComponents = numStronglyConnectedComponents(readNeighbors(knnValues, level));
-      log("Graph level=%d size=%d, stronglyConnectedComponents=%d\n",
-        level, numNodesOnLayer, numComponents);
+      int[] largestSizes = new int[MAX_SCC_SIZES_PRINTED_PER_LEVEL];
+      int numComponents = numStronglyConnectedComponents(readNeighbors(knnValues, level), largestSizes);
+      int numPrinted = Math.min(numComponents, largestSizes.length);
+      log("Graph level=%d size=%d, stronglyConnectedComponents=%d, largestSizes=%s\n",
+        level, numNodesOnLayer, numComponents,
+        Arrays.toString(Arrays.copyOf(largestSizes, numPrinted)));
     }
+  }
+
+  /** Keeps largestSizes sorted descending, dropping the smallest when full. */
+  private static void recordLargest(int[] largestSizes, int size) {
+    if (size <= largestSizes[largestSizes.length - 1]) {
+      return;
+    }
+    int i = largestSizes.length - 1;
+    while (i > 0 && largestSizes[i - 1] < size) {
+      largestSizes[i] = largestSizes[i - 1];
+      i--;
+    }
+    largestSizes[i] = size;
   }
 
   /**
    * Returns how many strongly connected components the level has, using Tarjan's SCC algorithm:
    * https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm.
    */
-  private static int numStronglyConnectedComponents(int[][] neighbors) {
+  private static int numStronglyConnectedComponents(int[][] neighbors, int[] largestSizes) {
     final int numNodes = neighbors.length;
     final int[] index = new int[numNodes];
     Arrays.fill(index, -1); // -1 means not yet visited.
@@ -1245,12 +1263,15 @@ public class KnnGraphTester implements FormatterLogger {
           callStack.removeLast();
           // If v is a root node, pop the stack and generate an SCC.
           if (lowlink[v] == index[v]) {
+            int size = 0;
             int popped;
             do {
               popped = stack.removeLast();
               onStack.clear(popped);
+              size++;
             } while (popped != v);
             numComponents++;
+            recordLargest(largestSizes, size);
           }
           if (callStack.isEmpty() == false) {
             int parent = callStack.get(callStack.size() - 1);

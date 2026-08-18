@@ -1195,7 +1195,21 @@ def precompute_exact_nn(values, dim, doc_vectors, query_vectors):
   print()
 
 
-def run_knn_benchmark(checkout, values, log_path):
+def get_skip_headers_from_columns(selected_columns):
+  """Return the set of OUTPUT_HEADERS to hide, given a comma-separated list of columns to keep.
+
+  If selected_columns is empty/None, returns an empty set (skip nothing). Any name in
+  selected_columns that is not a known header is ignored (it simply keeps nothing extra).
+  """
+  if not selected_columns:
+    return set()
+
+  selected_set = {col.strip() for col in selected_columns.split(",")}
+  all_headers = set(OUTPUT_HEADERS)
+  return all_headers - selected_set
+
+
+def run_knn_benchmark(checkout, values, log_path, selected_columns=None):
   indexes = [0] * len(values.keys())
   indexes[-1] = -1
   args = []
@@ -1529,15 +1543,19 @@ def run_knn_benchmark(checkout, values, log_path):
   if NOISY:
     print("\nResults:")
 
-  skip_headers = set()
+  if selected_columns:
+    # user explicitly chose which columns to display, so honor exactly that set
+    skip_headers = get_skip_headers_from_columns(selected_columns)
+  else:
+    skip_headers = set()
 
-  # skip columns that have the same value for every row
-  if len(all_results) > 1:
-    for col in range(len(OUTPUT_HEADERS)):
-      unique_values = set([result[0].split("\t")[col] for result in all_results])
-      if len(unique_values) == 1:
-        skip_headers.add(OUTPUT_HEADERS[col])
-        print(f"NOTE: {OUTPUT_HEADERS[col]} = {unique_values.pop()} for all runs; skipping column")
+    # skip columns that have the same value for every row
+    if len(all_results) > 1:
+      for col in range(len(OUTPUT_HEADERS)):
+        unique_values = set([result[0].split("\t")[col] for result in all_results])
+        if len(unique_values) == 1:
+          skip_headers.add(OUTPUT_HEADERS[col])
+          print(f"NOTE: {OUTPUT_HEADERS[col]} = {unique_values.pop()} for all runs; skipping column")
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)
@@ -2157,11 +2175,11 @@ def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, 
   return summary, full_output
 
 
-def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
+def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path, selected_columns=None):
   rec, lat, net, avg = [], [], [], []
   tests = []
   for i in range(n):
-    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, log_path)
+    results, skip_headers = run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, log_path, selected_columns)
     tests.append(results)
     first_4_numbers = results[0][0].split("\t")[:4]
     first_4_numbers = [float(num) for num in first_4_numbers]
@@ -2216,6 +2234,11 @@ if __name__ == "__main__":
       action="store_true",
       help="Skip the per-dim distribution smell-test of doc/query .vec files (enabled by default).",
     )
+    available_columns = ", ".join(OUTPUT_HEADERS)
+    parser.add_argument(
+      "--columns",
+      help=f"Comma-separated list of columns to display. Available columns: {available_columns}. When omitted, all columns are shown and columns that are constant across runs are auto-hidden (default: all).",
+    )
     n = parser.parse_args()
     if n.no_smell_vectors:
       # mutate the module-level flag so run_knn_benchmark sees it
@@ -2227,6 +2250,6 @@ if __name__ == "__main__":
     # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
     LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
     if n.runs == 1:
-      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, (log_dir_name, log_base_name))
+      run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, (log_dir_name, log_base_name), n.columns)
     else:
-      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs, (log_dir_name, log_base_name))
+      run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs, (log_dir_name, log_base_name), n.columns)

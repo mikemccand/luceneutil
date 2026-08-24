@@ -39,7 +39,6 @@ import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.sandbox.facet.utils.FacetBuilder;
 import org.apache.lucene.sandbox.facet.utils.FacetOrchestrator;
 import org.apache.lucene.sandbox.facet.utils.TaxonomyFacetBuilder;
-import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -51,14 +50,14 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TopScoreDocCollectorManager;
 import org.apache.lucene.search.TotalHits;
-import org.apache.lucene.search.grouping.AllGroupsCollector;
-import org.apache.lucene.search.grouping.BlockGroupingCollector;
-import org.apache.lucene.search.grouping.FirstPassGroupingCollector;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.grouping.BlockGroupingCollectorManager;
+import org.apache.lucene.search.grouping.FirstPassGroupingCollectorManager;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
 import org.apache.lucene.search.grouping.TermGroupSelector;
 import org.apache.lucene.search.grouping.TopGroups;
-import org.apache.lucene.search.grouping.TopGroupsCollector;
+import org.apache.lucene.search.grouping.TopGroupsCollectorManager;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
@@ -182,41 +181,29 @@ final class SearchTask extends Task {
 
       if (group != null) {
         if (singlePassGroup) {
-          final BlockGroupingCollector c = new BlockGroupingCollector(Sort.RELEVANCE, 10, true, searcher.createWeight(searcher.rewrite(state.groupEndQuery), ScoreMode.COMPLETE_NO_SCORES, 1));
-          searcher.search(q, c);
-          groupsResultBlock = c.getTopGroups(Sort.RELEVANCE, 0, 0, 10);
+          final Weight lastDocPerGroupWeight = searcher.createWeight(
+              searcher.rewrite(state.groupEndQuery), ScoreMode.COMPLETE_NO_SCORES, 1);
+          final BlockGroupingCollectorManager<BytesRef> manager = new BlockGroupingCollectorManager<>(
+              Sort.RELEVANCE, 0, 10, true, lastDocPerGroupWeight,
+              Sort.RELEVANCE, 0, 10);
+          groupsResultBlock = searcher.search(q, manager);
 
           if (doHilite) {
             hilite(groupsResultBlock, state, searcher);
           }
 
         } else {
-          //System.out.println("GB: " + group);
-          final FirstPassGroupingCollector<BytesRef> c1 = new FirstPassGroupingCollector(new TermGroupSelector(group), Sort.RELEVANCE, 10);
+          final FirstPassGroupingCollectorManager<BytesRef> firstPassManager =
+              new FirstPassGroupingCollectorManager<>(
+                  () -> new TermGroupSelector(group), Sort.RELEVANCE, 0, 10);
 
-          final Collector c;
-          final AllGroupsCollector<BytesRef> allGroupsCollector;
-          // Turn off AllGroupsCollector for now -- it's very slow:
-          if (false && doCountGroups) {
-            allGroupsCollector = new AllGroupsCollector(new TermGroupSelector(group));
-            //c = MultiCollector.wrap(allGroupsCollector, c1);
-            c = c1;
-          } else {
-            allGroupsCollector = null;
-            c = c1;
-          }
-          
-          searcher.search(q, c);
-
-          final Collection<SearchGroup<BytesRef>> topGroups = c1.getTopGroups(0);
-          if (topGroups != null) {
-            final TopGroupsCollector<BytesRef> c2 = new TopGroupsCollector<>(new TermGroupSelector(group), topGroups, Sort.RELEVANCE, Sort.RELEVANCE, 10, true);
-            searcher.search(q, c2);
-            groupsResultTerms = c2.getTopGroups(0);
-            if (allGroupsCollector != null) {
-              groupsResultTerms = new TopGroups<BytesRef>(groupsResultTerms,
-                                                          allGroupsCollector.getGroupCount());
-            }
+          final Collection<SearchGroup<BytesRef>> topGroups = searcher.search(q, firstPassManager);
+          if (topGroups != null && !topGroups.isEmpty()) {
+            final TopGroupsCollectorManager<BytesRef> secondPassManager =
+                new TopGroupsCollectorManager<>(
+                    () -> new TermGroupSelector(group), topGroups,
+                    Sort.RELEVANCE, Sort.RELEVANCE, 0, 10, true);
+            groupsResultTerms = searcher.search(q, secondPassManager);
             if (doHilite) {
               hilite(groupsResultTerms, state, searcher);
             }

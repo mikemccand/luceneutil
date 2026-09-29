@@ -27,6 +27,17 @@ import time
 import numpy as np
 from hadamard_rotation import HadamardRotation
 
+# posix_fadvise and its constants are linux-only; None on macOS so _fadvise skips them
+_FADV_RANDOM = getattr(os, 'POSIX_FADV_RANDOM', None)
+_FADV_WILLNEED = getattr(os, 'POSIX_FADV_WILLNEED', None)
+_FADV_SEQUENTIAL = getattr(os, 'POSIX_FADV_SEQUENTIAL', None)
+
+
+def _fadvise(fd, offset, length, advice):
+  # posix_fadvise is linux-only; skip silently on macOS (hints only, not required for correctness)
+  if hasattr(os, 'posix_fadvise') and advice is not None:
+    os.posix_fadvise(fd, offset, length, advice)
+
 # --- IO and printing knobs (importable; can be overridden at module load by callers) ---
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors --
@@ -162,18 +173,18 @@ def _read_vectors_pread(file_name, sample_indices, vec_size_bytes):
     fd = f.fileno()
 
     # hint random access for the whole file, to suppress wasteful readahead
-    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_RANDOM)
+    _fadvise(fd, 0, 0, _FADV_RANDOM)
 
     # concurrently send all requests to the OS as hints
     for vec_idx in sample_indices:
-      os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
+      _fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, _FADV_WILLNEED)
 
     # yield vectors; they should be pre-fetched by the kernel
     for vec_idx in sample_indices:
       yield vec_idx, np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
 
     # hint sequential access for the subsequent (sequential) indexing test
-    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+    _fadvise(fd, 0, 0, _FADV_SEQUENTIAL)
 
 
 def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):

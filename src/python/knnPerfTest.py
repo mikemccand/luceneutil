@@ -42,6 +42,15 @@ import ps_head
 from benchUtil import GNUPLOT_PATH, PERF_EXE
 from common import getLuceneDirFromGradleProperties
 
+# posix_fadvise and its constants are linux-only; None on macOS so _fadvise skips them
+_FADV_WILLNEED = getattr(os, 'POSIX_FADV_WILLNEED', None)
+
+
+def _fadvise(fd, offset, length, advice):
+  # posix_fadvise is linux-only; skip silently on macOS (hints only, not required for correctness)
+  if hasattr(os, 'posix_fadvise') and advice is not None:
+    os.posix_fadvise(fd, offset, length, advice)
+
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
 # maybe a bit faster?
 IO_METHOD = "pread"
@@ -62,7 +71,7 @@ def advise_will_need(file_name, offset_bytes=0, length_bytes=0):
 
   with open(file_name, "rb") as f:
     if IO_METHOD == "pread":
-      os.posix_fadvise(f.fileno(), offset_bytes, length_bytes, os.POSIX_FADV_WILLNEED)
+      _fadvise(f.fileno(), offset_bytes, length_bytes, _FADV_WILLNEED)
     elif IO_METHOD == "mmap":
       # map the part of the file we need
       mm = mmap.mmap(f.fileno(), length_bytes, offset=offset_bytes, access=mmap.ACCESS_READ)
@@ -98,7 +107,8 @@ def advise_will_need(file_name, offset_bytes=0, length_bytes=0):
 # uses CPUTime sampling (newly available/experimental in Java 25, seems to work on the tasks benchmark)
 DO_PROFILING = False
 DO_PS = True
-DO_VMSTAT = True
+# TODO: add macOS telemetry using vm_stat as an equivalent to vmstat
+DO_VMSTAT = benchUtil.VMSTAT_PATH is not None
 
 # precompute exact NN using numpy (multi-threaded BLAS matmul).  when False,
 # KnnGraphTester.java computes exact NN itself (slower, single-threaded Java).

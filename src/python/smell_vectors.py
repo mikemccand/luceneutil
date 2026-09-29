@@ -28,15 +28,16 @@ import numpy as np
 from hadamard_rotation import HadamardRotation
 
 # posix_fadvise is linux-only; skip silently on other platforms
-_FADV_RANDOM = getattr(os, 'POSIX_FADV_RANDOM', None)
-_FADV_WILLNEED = getattr(os, 'POSIX_FADV_WILLNEED', None)
-_FADV_SEQUENTIAL = getattr(os, 'POSIX_FADV_SEQUENTIAL', None)
+_FADV_RANDOM = getattr(os, "POSIX_FADV_RANDOM", None)
+_FADV_WILLNEED = getattr(os, "POSIX_FADV_WILLNEED", None)
+_FADV_SEQUENTIAL = getattr(os, "POSIX_FADV_SEQUENTIAL", None)
 
 
 def _fadvise(fd, offset, length, advice):
   # no-op on platforms without posix_fadvise (hints only, not required for correctness)
-  if hasattr(os, 'posix_fadvise') and advice is not None:
+  if hasattr(os, "posix_fadvise") and advice is not None:
     os.posix_fadvise(fd, offset, length, advice)
+
 
 # --- IO and printing knobs (importable; can be overridden at module load by callers) ---
 

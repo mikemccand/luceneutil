@@ -43,13 +43,14 @@ from benchUtil import GNUPLOT_PATH, PERF_EXE
 from common import getLuceneDirFromGradleProperties
 
 # posix_fadvise is linux-only; skip silently on other platforms
-_FADV_WILLNEED = getattr(os, 'POSIX_FADV_WILLNEED', None)
+_FADV_WILLNEED = getattr(os, "POSIX_FADV_WILLNEED", None)
 
 
 def _fadvise(fd, offset, length, advice):
   # no-op on platforms without posix_fadvise (hints only, not required for correctness)
-  if hasattr(os, 'posix_fadvise') and advice is not None:
+  if hasattr(os, "posix_fadvise") and advice is not None:
     os.posix_fadvise(fd, offset, length, advice)
+
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors -- pread is
 # maybe a bit faster?

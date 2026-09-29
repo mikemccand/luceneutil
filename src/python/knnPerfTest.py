@@ -42,12 +42,12 @@ import ps_head
 from benchUtil import GNUPLOT_PATH, PERF_EXE
 from common import getLuceneDirFromGradleProperties
 
-# posix_fadvise and its constants are linux-only; None on macOS so _fadvise skips them
+# posix_fadvise is linux-only; skip silently on other platforms
 _FADV_WILLNEED = getattr(os, 'POSIX_FADV_WILLNEED', None)
 
 
 def _fadvise(fd, offset, length, advice):
-  # posix_fadvise is linux-only; skip silently on macOS (hints only, not required for correctness)
+  # no-op on platforms without posix_fadvise (hints only, not required for correctness)
   if hasattr(os, 'posix_fadvise') and advice is not None:
     os.posix_fadvise(fd, offset, length, advice)
 

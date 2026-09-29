@@ -27,14 +27,14 @@ import time
 import numpy as np
 from hadamard_rotation import HadamardRotation
 
-# posix_fadvise and its constants are linux-only; None on macOS so _fadvise skips them
+# posix_fadvise is linux-only; skip silently on other platforms
 _FADV_RANDOM = getattr(os, 'POSIX_FADV_RANDOM', None)
 _FADV_WILLNEED = getattr(os, 'POSIX_FADV_WILLNEED', None)
 _FADV_SEQUENTIAL = getattr(os, 'POSIX_FADV_SEQUENTIAL', None)
 
 
 def _fadvise(fd, offset, length, advice):
-  # posix_fadvise is linux-only; skip silently on macOS (hints only, not required for correctness)
+  # no-op on platforms without posix_fadvise (hints only, not required for correctness)
   if hasattr(os, 'posix_fadvise') and advice is not None:
     os.posix_fadvise(fd, offset, length, advice)
 

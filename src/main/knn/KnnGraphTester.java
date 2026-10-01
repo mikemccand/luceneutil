@@ -1652,7 +1652,7 @@ public class KnnGraphTester implements FormatterLogger {
     if (isParentJoinQuery) {
       var topChildVectors = switch (searchType) {
         case KNN -> new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
-        case RADIUS -> new FloatVectorSimilarityQuery(knnField, vector, resultSimilarity, decay, filter);
+        case RADIUS -> new FloatVectorSimilarityQuery.Adaptive(knnField, vector, resultSimilarity, decay, filter);
       };
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
       TopDocs topDocs = searcher.search(query, resultSize);
@@ -2446,7 +2446,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   // TODO: also profile exact search
-  private static class ProfiledByteVectorSimilarityQuery extends ByteVectorSimilarityQuery implements  ProfiledVectorQuery {
+  private static class ProfiledByteVectorSimilarityQuery extends ByteVectorSimilarityQuery.Adaptive implements  ProfiledVectorQuery {
     private final LongAdder totalVisitedVectorCount;
 
     public ProfiledByteVectorSimilarityQuery(String field, byte[] target, float resultSimilarity, float decay, Query filter) {
@@ -2476,7 +2476,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   // TODO: also profile exact search
-  private static class ProfiledFloatVectorSimilarityQuery extends FloatVectorSimilarityQuery implements  ProfiledVectorQuery {
+  private static class ProfiledFloatVectorSimilarityQuery extends FloatVectorSimilarityQuery.Adaptive implements  ProfiledVectorQuery {
     private final LongAdder totalVisitedVectorCount;
 
     public ProfiledFloatVectorSimilarityQuery(String field, float[] target, float resultSimilarity, float decay, Query filter) {

@@ -168,7 +168,7 @@ def newAttrs(*names):
 
 if __name__ == "__main__":
   f = open(sys.argv[1], "rb")
-  fOut = open(sys.argv[2], "wb")
+  fOut = open(sys.argv[2], "w", encoding="utf-8")
   convert(f, fOut)
   f.close()
   fOut.close()

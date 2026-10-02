@@ -14,6 +14,9 @@ AndHighMed: +only +particularly # freq=895806 freq=100045
 AndHighMed: +united +1983 # freq=1185528 freq=150075
 AndHighMed: +who +ed # freq=1201585 freq=127497
 
+MustNotIODVRange: rivers +iodvRangeNot=lastMod,1199174400000,1325404800000
+MustNotIODVRange: sequence +iodvRangeNot=lastMod,1104566400000,1325404800000
+
 Fuzzy1: changer~1
 Fuzzy1: danes~1
 Fuzzy1: maher~1

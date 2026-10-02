@@ -17481,3 +17481,5 @@ BM25MSM2: http first were +minShouldMatch=2
 BM25MSM2: from his new +minShouldMatch=2
 BM25MSM2: name cite he +minShouldMatch=2
 BM25MSM2: title date which +minShouldMatch=2
+MustNotIODVRange: rivers +iodvRangeNot=lastMod,1199174400000,1325404800000 # reqFreq=37916 prohibitedFreq=1636018
+MustNotIODVRange: sequence +iodvRangeNot=lastMod,1104566400000,1325404800000 # reqFreq=37911 prohibitedFreq=2000144

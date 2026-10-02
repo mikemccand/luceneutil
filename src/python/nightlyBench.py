@@ -1718,7 +1718,7 @@ def writeIndexHTML(searchChartData, days, timeStampString):
   writeOneLine(w, done, "OrHighMed", "high-freq medium-freq")
   writeOneLine(w, done, "AndHighOrMedMed", "+high-freq +(medium-freq medium-freq)")
   writeOneLine(w, done, "AndMedOrHighHigh", "+medium-freq +(high-freq high-freq)")
-  writeOneLine(w, done, "MostNotIODVRange", "Sparse required term with a dense prohibited IndexOrDocValues range")
+  writeOneLine(w, done, "MustNotIODVRange", "Sparse required term with a dense prohibited IndexOrDocValues range")
   writeOneLine(w, done, "Or2Terms2StopWords", "Disjunction of 2 regular terms and 2 stop words")
   writeOneLine(w, done, "And2Terms2StopWords", "Conjunction of 2 regular terms and 2 stop words")
   writeOneLine(w, done, "OrStopWords", "Disjunction of 2 or more stop words")

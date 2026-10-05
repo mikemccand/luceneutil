@@ -226,7 +226,7 @@ class SearchTask:
           self.fail("wrong countOnlyCount: %s vs %s" % (self.countOnlyCount, other.countOnlyCount))
 
       if len(self.hits) != len(other.hits):
-        self.fail("wrong top hit count: %s vs %s" % (len(self.hits), len(other.hits)))
+        self.fail("wrong returned number of hits: %s vs %s" % (len(self.hits), len(other.hits)))
 
       if verifyScores:
         # Collapse equals... this is sorta messy, but necessary because we

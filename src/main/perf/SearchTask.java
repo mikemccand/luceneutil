@@ -695,6 +695,16 @@ final class SearchTask extends Task {
     } else {
       b.append(" s=");
       b.append(s);
+      if (after != null) {
+        // NOTE: benchUtil.py parses this, and must distinguish searchAfter tasks from otherwise identical non-searchAfter tasks
+        b.append(" after=");
+        for (int i = 0; i < after.fields.length; i++) {
+          if (i > 0) {
+            b.append(',');
+          }
+          b.append(after.fields[i]);
+        }
+      }
       b.append(" group=");
       if (group == null) {
         b.append("null");

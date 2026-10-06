@@ -72,6 +72,19 @@
 
     var dontProxyHeaderRegex = /^(?:Host|Proxy-Connection|Connection|Keep-Alive|Transfer-Encoding|TE|Trailer|Proxy-Authorization|Proxy-Authenticate|Upgrade)$/i;
 
+    // Reject proxy requests targeting loopback, link-local/cloud-metadata, and
+    // private network addresses to prevent SSRF against internal services.
+    function isForbiddenHost(hostname) {
+        if (!hostname) {
+            return true;
+        }
+        hostname = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '169.254.169.254') {
+            return true;
+        }
+        return /^(?:127\.|10\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(hostname);
+    }
+
     function filterHeaders(req, headers) {
         var result = {};
         // filter out headers that are listed in the regex above
@@ -120,6 +133,10 @@
 
         if (!remoteUrl.protocol) {
             remoteUrl.protocol = 'http:';
+        }
+
+        if ((remoteUrl.protocol !== 'http:' && remoteUrl.protocol !== 'https:') || isForbiddenHost(remoteUrl.hostname)) {
+            return res.status(400).send('Disallowed url.');
         }
 
         var proxy;

@@ -224,6 +224,7 @@ public class DiskUsage {
           case "dvd":
           case "dvm":
           case "dvs":  // doc values skip files, added in lucene#15976
+          case "dvp":  // doc values disi file?
             stats.get(dvSuffixes.get(suffix)).dvBytes += bytes;
             break;
           case "tim":
@@ -281,6 +282,7 @@ public class DiskUsage {
           case "dvd":
           case "dvm":
           case "dvs":  // doc values skip files, added in lucene#15976
+          case "dvp":  // doc values disi file?
             dvsSize += size;
             break;
           case "tim":

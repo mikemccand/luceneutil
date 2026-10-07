@@ -201,6 +201,8 @@ class SearchTask:
   countOnlyCount = None
   isCountOnly = False
   facet_request = None
+  # non-None (the after value(s), as a string) for +searchAfter (deep pagination) tasks
+  searchAfter = None
 
   def verifySame(self, other, verifyScores, verifyCounts):
     if re.match(".*Knn(Float|Byte)VectorQuery:", self.query) is not None:  # noqa: RUF039
@@ -212,6 +214,8 @@ class SearchTask:
       self.fail("wrong query: %s vs %s" % (self.query, other.query))
     if self.sort != other.sort:
       self.fail("wrong sort: %s vs %s" % (self.sort, other.sort))
+    if self.searchAfter != other.searchAfter:
+      self.fail("wrong searchAfter: %s vs %s" % (self.searchAfter, other.searchAfter))
     if self.groupField is None:
       if False:
         # TODO: fix SearchPerfTest -- cannot use term count across threads since mutiple threads store in the query
@@ -226,7 +230,7 @@ class SearchTask:
           self.fail("wrong countOnlyCount: %s vs %s" % (self.countOnlyCount, other.countOnlyCount))
 
       if len(self.hits) != len(other.hits):
-        self.fail("wrong top hit count: %s vs %s" % (len(self.hits), len(other.hits)))
+        self.fail("wrong returned number of hits: %s vs %s" % (len(self.hits), len(other.hits)))
 
       if verifyScores:
         # Collapse equals... this is sorta messy, but necessary because we
@@ -292,7 +296,7 @@ class SearchTask:
         self.fail("facets differ: %s vs %s" % (self.facets, other.facets))
 
   def fail(self, message):
-    s = "query=%s filter=%s sort=%s groupField=%s hitCount=%s" % (self.query, self.filter, self.sort, self.groupField, self.hitCount)
+    s = "query=%s filter=%s sort=%s searchAfter=%s groupField=%s hitCount=%s" % (self.query, self.filter, self.sort, self.searchAfter, self.groupField, self.hitCount)
     raise RuntimeError("%s: %s" % (s, message))
 
   def __repr__(self):
@@ -305,6 +309,8 @@ class SearchTask:
     else:
       if self.sort is not None:
         s += " [sort=%s]" % self.sort
+      if self.searchAfter is not None:
+        s += " [searchAfter=%s]" % self.searchAfter
       if self.groupField is not None:
         s += " [groupField=%s]" % self.groupField
       if self.facet_request is not None:
@@ -317,6 +323,7 @@ class SearchTask:
     return (
       self.query == other.query
       and self.sort == other.sort
+      and self.searchAfter == other.searchAfter
       and self.groupField == other.groupField
       and self.filter == other.filter
       and self.facet_request == other.facet_request
@@ -324,7 +331,7 @@ class SearchTask:
     )
 
   def __hash__(self):
-    return hash(self.query) + hash(self.sort) + hash(self.groupField) + hash(self.filter) + hash(type(self.facet_request)) + hash(self.isCountOnly)
+    return hash(self.query) + hash(self.sort) + hash(self.searchAfter) + hash(self.groupField) + hash(self.filter) + hash(type(self.facet_request)) + hash(self.isCountOnly)
 
 
 class RespellTask:
@@ -424,7 +431,7 @@ def collapseDups(hits):
   return newHits
 
 
-reSearchTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=null hits=(null|[0-9]+\\+?) facets=(.*?)$")  # noqa: RUF039
+reSearchTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?)(?: after=(\\S+))? group=null hits=(null|[0-9]+\\+?) facets=(.*?)$")  # noqa: RUF039
 reSearchGroupTaskOld = re.compile("cat=(.*?) q=(.*?) s=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))? facets=(.*?)$", re.DOTALL)  # noqa: RUF039
 reSearchTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=null hits=(null|[0-9]+\\+?)$")  # noqa: RUF039
 reSearchGroupTask = re.compile("cat=(.*?) q=(.*?) s=(.*?) f=(.*?) group=(.*?) groups=(.*?) hits=([0-9]+\\+?) groupTotHits=([0-9]+)(?: totGroupCount=(.*?))?$", re.DOTALL)  # noqa: RUF039
@@ -497,7 +504,7 @@ def parseResults(resultsFiles):
         else:
           m = reSearchTaskOld.match(decode(line[6:]))
           if m is not None:
-            cat, task.query, sort, hitCount, task.facet_request = m.groups()
+            cat, task.query, sort, task.searchAfter, hitCount, task.facet_request = m.groups()
             filter = None
           else:
             m = reCountOnlyTask.search(decode(line))

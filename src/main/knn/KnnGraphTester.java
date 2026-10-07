@@ -1054,9 +1054,9 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   // static so we are forced to pass in all things that are volatile wrt indexing (if they change, it requires reindexing)
-  private static String formatExactNNKey(boolean parentJoin, FilterStrategy filterStrategy, Float filterSelectivity,
-                                         Long randomSeed, Path docPath, Path queryVectorsPath, int numDocs, String metric,
-                                         int numQueryVectors, int queryStartIndex, SearchType searchType, int topK, float resultSimilarity) {
+  private static String formatExactNNKey(boolean parentJoin, Float filterSelectivity, Long randomSeed, Path docPath,
+                                         Path queryVectorsPath, int numDocs, String metric, int numQueryVectors,
+                                         int queryStartIndex, SearchType searchType, int topK, float resultSimilarity) {
     List<String> suffix = new ArrayList<>();
     suffix.add(metric);
 
@@ -1076,8 +1076,7 @@ public class KnnGraphTester implements FormatterLogger {
       suffix.add("parentJoin");
     }
 
-    if (filterStrategy == FilterStrategy.INDEX_TIME_FILTER) {
-      suffix.add(filterStrategy.toString());
+    if (filterSelectivity != null) {
       suffix.add(filterSelectivity.toString());
       suffix.add(String.valueOf(randomSeed));
     }
@@ -1676,7 +1675,7 @@ public class KnnGraphTester implements FormatterLogger {
     if (isParentJoinQuery) {
       var topChildVectors = switch (searchType) {
         case KNN -> new DiversifyingChildrenFloatKnnVectorQuery(knnField, vector, null, k + fanout, parentsFilter);
-        case RADIUS -> new FloatVectorSimilarityQuery(knnField, vector, resultSimilarity, decay, filter);
+        case RADIUS -> new FloatVectorSimilarityQuery.Adaptive(knnField, vector, resultSimilarity, decay, filter);
       };
       var query = new ToParentBlockJoinQuery(topChildVectors, parentsFilter, org.apache.lucene.search.join.ScoreMode.Max);
       TopDocs topDocs = searcher.search(query, resultSize);
@@ -1779,8 +1778,7 @@ public class KnnGraphTester implements FormatterLogger {
                              Path queryPath, int queryStartIndex,
                              String metric) throws IOException, InterruptedException {
 
-    String exactNNKey = formatExactNNKey(parentJoin,
-                                         filterStrategy, filterSelectivity, randomSeed, docPath, queryPath, numDocs, metric,
+    String exactNNKey = formatExactNNKey(parentJoin, filterSelectivity, randomSeed, docPath, queryPath, numDocs, metric,
                                          numQueryVectors, queryStartIndex, searchType, topK, resultSimilarity);
 
     log("exact nn key = %s\n", exactNNKey);
@@ -2351,33 +2349,10 @@ public class KnnGraphTester implements FormatterLogger {
                         boolean rerank, int rerankQuantizeBits) {
       KnnVectorsFormat knnVectorsFormat;
       if (quantize) {
-          knnVectorsFormat = switch (quantizeBits) {
-              case 1 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 2 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.DIBIT_QUERY_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 4 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.PACKED_NIBBLE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 7 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.SEVEN_BIT, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              case 8 -> switch (indexType) {
-                  case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE);
-                  case HNSW ->
-                          new Lucene104HnswScalarQuantizedVectorsFormat(ScalarEncoding.UNSIGNED_BYTE, maxConn, beamWidth, numMergeWorker, exec);
-              };
-              default -> throw new IllegalArgumentException("Unsupported quantizeBits: " + quantizeBits);
+          ScalarEncoding scalarEncoding = ScalarEncoding.fromNumBits(quantizeBits);
+          knnVectorsFormat = switch (indexType) {
+            case FLAT -> new Lucene104ScalarQuantizedVectorsFormat(scalarEncoding);
+            case HNSW -> new Lucene104HnswScalarQuantizedVectorsFormat(scalarEncoding, maxConn, beamWidth, numMergeWorker, exec);
           };
       } else {
           knnVectorsFormat = new Lucene99HnswVectorsFormat(maxConn, beamWidth, numMergeWorker, exec);
@@ -2494,7 +2469,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   // TODO: also profile exact search
-  private static class ProfiledByteVectorSimilarityQuery extends ByteVectorSimilarityQuery implements  ProfiledVectorQuery {
+  private static class ProfiledByteVectorSimilarityQuery extends ByteVectorSimilarityQuery.Adaptive implements  ProfiledVectorQuery {
     private final LongAdder totalVisitedVectorCount;
 
     public ProfiledByteVectorSimilarityQuery(String field, byte[] target, float resultSimilarity, float decay, Query filter) {
@@ -2524,7 +2499,7 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   // TODO: also profile exact search
-  private static class ProfiledFloatVectorSimilarityQuery extends FloatVectorSimilarityQuery implements  ProfiledVectorQuery {
+  private static class ProfiledFloatVectorSimilarityQuery extends FloatVectorSimilarityQuery.Adaptive implements  ProfiledVectorQuery {
     private final LongAdder totalVisitedVectorCount;
 
     public ProfiledFloatVectorSimilarityQuery(String field, float[] target, float resultSimilarity, float decay, Query filter) {

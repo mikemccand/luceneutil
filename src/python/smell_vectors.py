@@ -27,6 +27,18 @@ import time
 import numpy as np
 from hadamard_rotation import HadamardRotation
 
+# posix_fadvise is linux-only; skip silently on other platforms
+_FADV_RANDOM = getattr(os, "POSIX_FADV_RANDOM", None)
+_FADV_WILLNEED = getattr(os, "POSIX_FADV_WILLNEED", None)
+_FADV_SEQUENTIAL = getattr(os, "POSIX_FADV_SEQUENTIAL", None)
+
+
+def _fadvise(fd, offset, length, advice):
+  # no-op on platforms without posix_fadvise (hints only, not required for correctness)
+  if hasattr(os, "posix_fadvise") and advice is not None:
+    os.posix_fadvise(fd, offset, length, advice)
+
+
 # --- IO and printing knobs (importable; can be overridden at module load by callers) ---
 
 # toggle between 'pread' and 'mmap' for concurrent random vector reads when smelling vectors --
@@ -69,6 +81,11 @@ _THRESH_FLAT_KURTOSIS = -1.0
 _THRESH_OUTLIER_SPREAD_SIGMA = 3.0
 # isotropy participation ratio below this triggers a WARNING; values closer to 1.0 are isotropic
 _THRESH_ANISOTROPIC = 0.5
+# dimensions with this many or fewer unique float values are flagged LOW_CARDINALITY --
+# suggests a discrete/categorical feature embedded in a float vector. with the 2000-sample
+# default, coupon-collector math guarantees reliable detection up to ~260 true unique values,
+# so 100 is well within the reliable range.
+_THRESH_LOW_CARDINALITY_MAX_UNIQUE = 100
 
 # --- Intrinsic-dim config ---
 
@@ -157,18 +174,18 @@ def _read_vectors_pread(file_name, sample_indices, vec_size_bytes):
     fd = f.fileno()
 
     # hint random access for the whole file, to suppress wasteful readahead
-    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_RANDOM)
+    _fadvise(fd, 0, 0, _FADV_RANDOM)
 
     # concurrently send all requests to the OS as hints
     for vec_idx in sample_indices:
-      os.posix_fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, os.POSIX_FADV_WILLNEED)
+      _fadvise(fd, vec_idx * vec_size_bytes, vec_size_bytes, _FADV_WILLNEED)
 
     # yield vectors; they should be pre-fetched by the kernel
     for vec_idx in sample_indices:
       yield vec_idx, np.frombuffer(os.pread(fd, vec_size_bytes, vec_idx * vec_size_bytes), dtype="<f4")
 
     # hint sequential access for the subsequent (sequential) indexing test
-    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+    _fadvise(fd, 0, 0, _FADV_SEQUENTIAL)
 
 
 def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
@@ -261,11 +278,13 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   # std just above _THRESH_CONSTANT_STD. uses exact float equality (no quantization).
   dominant_val = np.zeros(dim, dtype=np.float32)
   dominant_frac = np.zeros(dim, dtype=np.float64)
+  num_unique = np.zeros(dim, dtype=np.int64)
   for d in range(dim):
     vals, counts = np.unique(samples[:, d], return_counts=True)
     top = counts.argmax()
     dominant_val[d] = vals[top]
     dominant_frac[d] = counts[top] / num_sample
+    num_unique[d] = len(vals)
 
   centered = samples - mean
   m3 = (centered**3).mean(axis=0)
@@ -341,6 +360,9 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
           f"value={float(dominant_val[d]):+g} occurs in {dominant_frac[d] * 100:.1f}% of samples, threshold={_THRESH_NEAR_CONSTANT_DOMINANT_FRAC * 100:.0f}%",
         )
       )
+
+    if std[d] > _THRESH_CONSTANT_STD and num_unique[d] <= _THRESH_LOW_CARDINALITY_MAX_UNIQUE:
+      labels.append(("LOW_CARDINALITY", f"{num_unique[d]} unique values in {num_sample} samples, threshold<={_THRESH_LOW_CARDINALITY_MAX_UNIQUE}"))
 
     if pct_zeros[d] > _THRESH_SPARSE_PCT_ZEROS:
       labels.append(("SPARSE", f"{pct_zeros[d] * 100:.1f}% zeros, threshold={_THRESH_SPARSE_PCT_ZEROS * 100:.0f}%"))
@@ -801,7 +823,7 @@ def _print_final_summary(label, file_name, dist_summary, id_summary):
     parts = [f"{n}×{name}" for name, n in sorted(dist_summary["label_counts"].items(), key=lambda x: -x[1])]  # noqa: RUF001 multiplication sign is intentional
     rows.append(("degenerate dims", f"{bad} / {dim}", ", ".join(parts)))
   else:
-    rows.append(("degenerate dims", f"0 / {dim}", "no constant/sparse/skewed/heavy-tailed dims"))
+    rows.append(("degenerate dims", f"0 / {dim}", "no constant/sparse/skewed/heavy-tailed/low-cardinality dims"))
 
   if dist_summary["not_norm_count"]:
     rows.append(("non-unit-norm vectors", f"{dist_summary['not_norm_count']} / {dist_summary['num_sample']}", "wrong dim or wrong file?"))

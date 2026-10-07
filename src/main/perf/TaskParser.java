@@ -170,6 +170,7 @@ class TaskParser implements Closeable {
   // this pattern doesn't handle all variations of floating numbers, such as .9 , but should be good enough for perf test query parsing purpose
   private final static Pattern combinedFieldsPattern = Pattern.compile(" \\+combinedFields=((\\p{Alnum}+(\\^\\d+.\\d)?,)+\\p{Alnum}+(\\^\\d+.\\d)?)");
   private final static Pattern dvRangeFilterPattern = Pattern.compile(" \\+dvRangeFilter=([\\w]+),(-?[0-9]+),(-?[0-9]+)");
+  private final static Pattern iodvRangeNotPattern = Pattern.compile(" \\+iodvRangeNot=([\\w]+),(-?[0-9]+),(-?[0-9]+)");
 
   /**
    * First pass, parsing from String to some task, may/may not be an UnparsedTask
@@ -275,6 +276,7 @@ class TaskParser implements Closeable {
       text = input;
       Query filter = parseFilter();
       Query dvRangeFilter = parseDVRangeFilter();
+      Query iodvRangeNot = parseIODVRangeNot();
       if (filter != null && dvRangeFilter != null) {
         filter = new BooleanQuery.Builder()
           .add(filter, Occur.FILTER)
@@ -297,7 +299,8 @@ class TaskParser implements Closeable {
       combinedFields = parseCombinedFields();
       dismaxFields = parseDismaxFields();
       Query query = buildQuery(taskType, text, msm);
-      Query query2 = applyDrillDowns(query, drillDowns);
+      Query query2 = applyMustNot(query, iodvRangeNot);
+      query2 = applyDrillDowns(query2, drillDowns);
       Query query3 = applyFilter(query2, filter);
       FieldDoc after = buildSearchAfter();
       return new SearchTask(category, isCountOnly, query3, sort, after, group, topN, doHilite, doStoredLoadsTask, facets, null, doDrillSideways);
@@ -351,6 +354,16 @@ class TaskParser implements Closeable {
       }
     }
 
+    Query applyMustNot(Query query, Query prohibited) {
+      if (prohibited == null) {
+        return query;
+      }
+      return new BooleanQuery.Builder()
+          .add(query, Occur.MUST)
+          .add(prohibited, Occur.MUST_NOT)
+          .build();
+    }
+
     Query applyDrillDowns(Query query, List<String> drillDowns) {
       if (drillDowns.isEmpty()) {
         return query;
@@ -397,6 +410,18 @@ class TaskParser implements Closeable {
         long max = Long.parseLong(m.group(3));
         text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
         return SortedNumericDocValuesField.newSlowRangeQuery(fieldName, min, max);
+      }
+      return null;
+    }
+
+    Query parseIODVRangeNot() {
+      Matcher m = iodvRangeNotPattern.matcher(text);
+      if (m.find()) {
+        String fieldName = m.group(1);
+        long min = Long.parseLong(m.group(2));
+        long max = Long.parseLong(m.group(3));
+        text = (text.substring(0, m.start(0)) + text.substring(m.end(0), text.length())).trim();
+        return LongField.newRangeQuery(fieldName, min, max);
       }
       return null;
     }

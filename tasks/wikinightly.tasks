@@ -14,6 +14,9 @@ AndHighMed: +only +particularly # freq=895806 freq=100045
 AndHighMed: +united +1983 # freq=1185528 freq=150075
 AndHighMed: +who +ed # freq=1201585 freq=127497
 
+MustNotIODVRange: rivers +iodvRangeNot=lastMod,1199174400000,1325404800000
+MustNotIODVRange: sequence +iodvRangeNot=lastMod,1104566400000,1325404800000
+
 Fuzzy1: changer~1
 Fuzzy1: danes~1
 Fuzzy1: maher~1
@@ -116,16 +119,18 @@ TermDateTimeSort: lastmodndvsort//st # freq=306811
 
 # searchAfter (deep pagination) variant of the lastMod sort. Unlike dayOfYear's uniform 1..366,
 # lastMod is the article revision timestamp and is heavily skewed towards the end of the corpus:
-# enumerated over all 33,332,620 docs of enwiki-20120502, the range is 2002-11-05..2012-05-03 with
-# p50=2012-02-11 and p90=1335623810000 (2012-04-28). 16 equal-width buckets put 68% of the docs in
+# enumerated over the first 27,625,038 docs (what nightly indexes) of
+# enwiki-20110115-lines-1k-fixed-with-random-labels.bin, the range is 2002-11-05..2011-01-16 with
+# p50=2010-11-11 and p90=1294857666000 (2011-01-12). 16 equal-width buckets put 70% of the docs in
 # the last one, so a round date much before 2010 would skip almost nothing. p90 is used here as the
 # analogue of dayOfYear's 330/366, keeping a real competitive tail.
-# REGENERATE these values when the corpus is upgraded -- they are specific to enwiki-20120502.
-TermDateTimeSortSearchAfter: lastmodndvsort//0 +searchAfter=1335623810000 # freq=708472
-TermDateTimeSortSearchAfter: lastmodndvsort//names +searchAfter=1335623810000 # freq=402762
-TermDateTimeSortSearchAfter: lastmodndvsort//nbsp +searchAfter=1335623810000 # freq=492778
-TermDateTimeSortSearchAfter: lastmodndvsort//part +searchAfter=1335623810000 # freq=588644
-TermDateTimeSortSearchAfter: lastmodndvsort//st +searchAfter=1335623810000 # freq=306811
+# REGENERATE these values when the corpus is upgraded -- they are specific to enwiki-20110115.  A
+# value past the corpus's max lastMod makes every searchAfter page empty (0 hits returned).
+TermDateTimeSortSearchAfter: lastmodndvsort//0 +searchAfter=1294857666000 # freq=708472
+TermDateTimeSortSearchAfter: lastmodndvsort//names +searchAfter=1294857666000 # freq=402762
+TermDateTimeSortSearchAfter: lastmodndvsort//nbsp +searchAfter=1294857666000 # freq=492778
+TermDateTimeSortSearchAfter: lastmodndvsort//part +searchAfter=1294857666000 # freq=588644
+TermDateTimeSortSearchAfter: lastmodndvsort//st +searchAfter=1294857666000 # freq=306811
 
 TermTitleSort: titledvsort//0 # freq=708472
 TermTitleSort: titledvsort//names # freq=402762
@@ -163,11 +168,11 @@ TermDateTimeSortSkipper: lastmodskippersort//st # freq=306811
 
 # Same searchAfter variant against the skip-index encoding, so a pruning change that helps one
 # encoding and not the other is visible. Same p90 value and the same regeneration note.
-TermDateTimeSortSkipperSearchAfter: lastmodskippersort//0 +searchAfter=1335623810000 # freq=708472
-TermDateTimeSortSkipperSearchAfter: lastmodskippersort//names +searchAfter=1335623810000 # freq=402762
-TermDateTimeSortSkipperSearchAfter: lastmodskippersort//nbsp +searchAfter=1335623810000 # freq=492778
-TermDateTimeSortSkipperSearchAfter: lastmodskippersort//part +searchAfter=1335623810000 # freq=588644
-TermDateTimeSortSkipperSearchAfter: lastmodskippersort//st +searchAfter=1335623810000 # freq=306811
+TermDateTimeSortSkipperSearchAfter: lastmodskippersort//0 +searchAfter=1294857666000 # freq=708472
+TermDateTimeSortSkipperSearchAfter: lastmodskippersort//names +searchAfter=1294857666000 # freq=402762
+TermDateTimeSortSkipperSearchAfter: lastmodskippersort//nbsp +searchAfter=1294857666000 # freq=492778
+TermDateTimeSortSkipperSearchAfter: lastmodskippersort//part +searchAfter=1294857666000 # freq=588644
+TermDateTimeSortSkipperSearchAfter: lastmodskippersort//st +searchAfter=1294857666000 # freq=306811
 
 TermTitleSortSkipper: titleskippersort//0 # freq=708472
 TermTitleSortSkipper: titleskippersort//names # freq=402762

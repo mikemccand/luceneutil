@@ -1188,7 +1188,8 @@ public class KnnGraphTester implements FormatterLogger {
     int numLevels = knnValues.numLevels();
     for (int level = numLevels - 1; level >= 0; level--) {
       int numNodesOnLayer = knnValues.getNodesOnLevel(level).size();
-      int[] largestSizes = new int[MAX_SCC_SIZES_PRINTED_PER_LEVEL];
+      // long: int only suffices while Lucene allows one vector per document, capping graph size at maxDoc.
+      long[] largestSizes = new long[MAX_SCC_SIZES_PRINTED_PER_LEVEL];
       int numComponents = numStronglyConnectedComponents(readNeighbors(knnValues, level), largestSizes);
       int numPrinted = Math.min(numComponents, largestSizes.length);
       log("Graph level=%d size=%d, stronglyConnectedComponents=%d, largestSizes=%s\n",
@@ -1198,7 +1199,8 @@ public class KnnGraphTester implements FormatterLogger {
   }
 
   /** Keeps largestSizes sorted descending, dropping the smallest when full. */
-  private static void recordLargest(int[] largestSizes, int size) {
+  private static void recordLargest(long[] largestSizes, long size) {
+    assert size > 0;
     if (size <= largestSizes[largestSizes.length - 1]) {
       return;
     }
@@ -1214,7 +1216,7 @@ public class KnnGraphTester implements FormatterLogger {
    * Returns how many strongly connected components the level has, using Tarjan's SCC algorithm:
    * https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm.
    */
-  private static int numStronglyConnectedComponents(int[][] neighbors, int[] largestSizes) {
+  private static int numStronglyConnectedComponents(int[][] neighbors, long[] largestSizes) {
     final int numNodes = neighbors.length;
     final int[] index = new int[numNodes];
     Arrays.fill(index, -1); // -1 means not yet visited.
@@ -1263,7 +1265,7 @@ public class KnnGraphTester implements FormatterLogger {
           callStack.removeLast();
           // If v is a root node, pop the stack and generate an SCC.
           if (lowlink[v] == index[v]) {
-            int size = 0;
+            long size = 0;
             int popped;
             do {
               popped = stack.removeLast();

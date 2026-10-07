@@ -343,7 +343,12 @@ KNOWN_CHANGES = [
   ("2021-09-25 00:03:25", "LUCENE-10109: Increase default beam width from 16 to 100", "LUCENE-10109: Increase default beam width from 16 to 100"),
   ("2021-10-05 12:21:08", "Upgrade Linux kernel from 5.13.12 to 5.14.8", "Upgrade Linux kernel from 5.13.12 to 5.14.8"),
   ("2021-10-19 08:14:33", "Upgrade to JDK17+35, and pass -release to ecj linting", "Upgrade to JDK17+35, and pass -release to ecj linting"),
-  ("2021-11-29 ", "Stop passing -release to ecj since it makes it quite a bit slower", "Stop passing -release to ecj since it makes it quite a bit slower"),
+  (
+    "2021-11-21",
+    "https://github.com/mikemccand/luceneutil/issues/616: we accidentally started double-indexing the body field when https://github.com/mikemccand/luceneutil/pull/144 was merged",
+    "https://github.com/mikemccand/luceneutil/issues/616: we accidentally started double-indexing the body field when https://github.com/mikemccand/luceneutil/pull/144 was merged",
+  ),
+  ("2021-11-29", "Stop passing -release to ecj since it makes it quite a bit slower", "Stop passing -release to ecj since it makes it quite a bit slower"),
   (
     "2021-11-24 18:04:23",
     "LUCENE-10062: switch to storing taxonomy Facet ordinals from custom encoding in BINARY DV field, to SSDV field",

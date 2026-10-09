@@ -1,4 +1,11 @@
 plugins {
-  id "com.pswidersk.python-plugin" version "2.2.0"
+  id 'idea'
 }
 
+// Declare this as a source root so IntelliJ re-applies it on every Gradle sync;
+// marking it by hand does not survive re-sync with external module storage.
+idea {
+  module {
+    sourceDirs += file('.')
+  }
+}

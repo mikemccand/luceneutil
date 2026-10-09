@@ -5,7 +5,7 @@ plugins {
 sourceSets {
   main.java {
     srcDir '.'
-    include 'perf', 'knn'
+    include 'perf/**', 'knn/**'
   }
 }
 

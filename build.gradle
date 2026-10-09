@@ -35,6 +35,31 @@ if (hasDefaults == false) {
     }
 }
 
+// Python virtual environment. Its location is dictated by pyproject.toml, which sets
+// venvPath="." and venv=".venv" relative to itself, so it must live at the repo root.
+def venvDir = rootProject.file(".venv")
+def venvPython = new File(venvDir, "bin/python")
+def requirementsFile = rootProject.file("requirements.txt")
+// Kept inside .venv so that deleting the venv also discards the stamp, forcing a reinstall.
+def requirementsStamp = new File(venvDir, ".requirements.stamp")
+
+tasks.register("createVenv", Exec) {
+    description = "Creates the .venv virtual environment at the repo root if it is absent."
+    onlyIf { !venvPython.exists() }
+    commandLine "python3", "-m", "venv", venvDir
+}
+
+tasks.register("pipInstall", Exec) {
+    description = "Installs requirements.txt into .venv."
+    dependsOn "createVenv"
+    inputs.file(requirementsFile)
+    outputs.file(requirementsStamp)
+    commandLine venvPython, "-m", "pip", "install", "-r", requirementsFile
+    doLast {
+        requirementsStamp.text = requirementsFile.text
+    }
+}
+
 allprojects {
     tasks.withType(Exec) {
         doFirst {

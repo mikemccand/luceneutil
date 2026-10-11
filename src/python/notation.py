@@ -903,4 +903,9 @@ KNOWN_CHANGES = [
     "#539: optimize PKLookupTask impl",
     "#539: optimize PKLookupTask impl",
   ),
+  (
+    "2026-10-09",
+    "https://github.com/mikemccand/luceneutil/issues/616: stop double-indexing the body field (fixed by https://github.com/mikemccand/luceneutil/pull/622), changing scores, index size and indexing/search performance",
+    "https://github.com/mikemccand/luceneutil/issues/616: stop double-indexing the body field (fixed by https://github.com/mikemccand/luceneutil/pull/622), changing scores, index size and indexing/search performance",
+  ),
 ]

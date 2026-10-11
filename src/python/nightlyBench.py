@@ -897,6 +897,13 @@ def run():
     print("WARNING: no prior results; switching comparison to A/A")
     resultsPrev = resultsNow
 
+  # save all results files to benchy log dir (timestamped global benchy logs if nightly benchy) so
+  # they are visible even if there were hit differences that fail the benchy
+  for fname in resultsNow:
+    shutil.copy(fname, runLogDir)
+    if os.path.exists(fname + ".stdout"):
+      shutil.copy(fname + ".stdout", runLogDir)
+
   output = []
   results, cmpDiffs, searchHeaps = r.simpleReport(resultsPrev, resultsNow, False, True, "prev", "now", writer=output.append)
 
@@ -1127,11 +1134,6 @@ def run():
     fixedIndexTime,
     fixedIndexBytesIndexed,
   )
-
-  for fname in resultsNow:
-    shutil.copy(fname, runLogDir)
-    if os.path.exists(fname + ".stdout"):
-      shutil.copy(fname + ".stdout", runLogDir)
 
   if REAL:
     for fname in resultsNow:

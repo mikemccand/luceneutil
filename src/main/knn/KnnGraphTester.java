@@ -1649,7 +1649,7 @@ public class KnnGraphTester implements FormatterLogger {
       double mergeSec = mergeTimeMsec / 1000.0;
       System.out.printf(
           Locale.ROOT,
-          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\t%s\n",
+          "SUMMARY: %5.3f\t%5.3f\t%5.3f\t%5.3f\t%d\t%s\t%s\t%s\t%s\t%s\t%.3f\t%d\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%s\t%s\t%5.3f\t%5.3f\t%5.3f\t%s\t%s\t%s\t%s\t%s\n",
           recall,
           elapsedMS / (float) numQueryVectors,
           totalCpuTimeMS / (float) numQueryVectors,
@@ -1678,7 +1678,9 @@ public class KnnGraphTester implements FormatterLogger {
           vectorRAMSizeBytes / 1024. / 1024.,
           Boolean.valueOf(useBp).toString(),
           indexType.toString(),
-          rerankDesc
+          rerankDesc,
+          String.valueOf(deleteRate),
+          deleteRate == 0 ? "N/A" : deletePattern.toString().toLowerCase(Locale.ROOT)
         );
     }
   }

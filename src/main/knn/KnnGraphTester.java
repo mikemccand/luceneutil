@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
+import java.util.SplittableRandom;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,6 +67,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SegmentReader;
@@ -160,6 +162,11 @@ public class KnnGraphTester implements FormatterLogger {
     INDEX_TIME_SPARSE
   }
 
+  enum DeletePattern {
+    RANDOM,
+    CLUSTER
+  }
+
   private static final Set<Integer> ALLOWED_BITS = Set.of(1, 2, 4, 7, 8);
 
   public static final String KNN_FIELD = "knn";
@@ -186,6 +193,10 @@ public class KnnGraphTester implements FormatterLogger {
   private boolean quiet;
   private boolean reindex;
   private boolean forceMerge;
+  // fraction of docs to delete after indexing (before any force merge), chosen by doc id
+  private float deleteRate;
+  // how -deleteRate picks the docs to delete
+  private DeletePattern deletePattern = DeletePattern.RANDOM;
   private int reindexTimeMsec;
   private int mergeTimeMsec;
   private double forceMergeTimeSec;
@@ -483,6 +494,28 @@ public class KnnGraphTester implements FormatterLogger {
         case "-forceMerge":
           forceMerge = true;
           break;
+        case "-deleteRate":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-deleteRate requires a following number");
+          }
+          deleteRate = Float.parseFloat(args[++iarg]);
+          if (deleteRate < 0 || deleteRate >= 1) {
+            throw new IllegalArgumentException("-deleteRate must be >= 0 and < 1; got: " + deleteRate);
+          }
+          log("deleteRate = %g\n", deleteRate);
+          break;
+        case "-deletePattern":
+          if (iarg == args.length - 1) {
+            throw new IllegalArgumentException("-deletePattern requires a following string, one of (case-insensitive) {'random', 'cluster'}");
+          }
+          String deletePatternVal = args[++iarg].toLowerCase(Locale.ROOT).trim();
+          deletePattern = switch (deletePatternVal) {
+            case "random" -> DeletePattern.RANDOM;
+            case "cluster" -> DeletePattern.CLUSTER;
+            default -> throw new IllegalArgumentException("-deletePattern must be one of (case-insensitive) {'random', 'cluster'}, found: " + deletePatternVal);
+          };
+          log("deletePattern = %s\n", deletePattern);
+          break;
         case "-randomCommits":
           randomCommits = true;
           break;
@@ -599,6 +632,12 @@ public class KnnGraphTester implements FormatterLogger {
       throw new IllegalArgumentException("Provided index: [" + indexPath + "] does not have parent-child " +
           "document relationships. Rerun with -reindex or without -parentJoin argument");
     }
+    if (deleteRate > 0 && parentJoin) {
+      throw new IllegalArgumentException("-deleteRate is not supported with -parentJoin");
+    }
+    if (deletePattern == DeletePattern.CLUSTER && filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
+      throw new IllegalArgumentException("-deletePattern cluster is not supported with -filterStrategy index-time-sparse");
+    }
     if (randomSeed == null) {
       randomSeed = System.nanoTime();
     }
@@ -617,7 +656,7 @@ public class KnnGraphTester implements FormatterLogger {
                                      quantize, quantizeBits, quantizeCompress,
                                      rerank, rerankQuantizeBits,
                                      parentJoin, filterStrategy, filterSelectivity, randomSeed,
-                                     docVectorsPath, numDocs, metric, forceMerge);
+                                     docVectorsPath, numDocs, metric, forceMerge, deleteRate, deletePattern);
     log("index key = %s\n", indexKey);
     
     if (indexPath == null) {
@@ -696,6 +735,10 @@ public class KnnGraphTester implements FormatterLogger {
       ).createIndex();
       reindexTimeMsec = indexResult.indexTimeMsec();
       mergeTimeMsec = indexResult.mergeTimeMsec();
+      if (deleteRate > 0) {
+        int deletedDocCount = deleteDocs(docVectorsPath);
+        Files.writeString(deletedDocCountPath(indexPath), String.valueOf(deletedDocCount));
+      }
       Files.writeString(indexKeyPath, indexKey);
       log("reindex takes %.2f sec (plus %.2f sec waiting for merges)\n", msToSec(reindexTimeMsec), msToSec(mergeTimeMsec));
       // save indexing time so future runs that re-use this index remember:
@@ -707,8 +750,9 @@ public class KnnGraphTester implements FormatterLogger {
       // paranoia: let's sanity check:
       try (Directory dir = FSDirectory.open(indexPath);
            IndexReader reader = DirectoryReader.open(dir)) {
-        if (reader.numDocs() != numDocs) {
-          throw new IllegalStateException("previously created index \"" + indexPath + "\" has wrong numDocs=" + reader.numDocs() + "; expected " + numDocs);
+        int expectedNumDocs = numDocs - readDeletedDocCount(indexPath);
+        if (reader.numDocs() != expectedNumDocs) {
+          throw new IllegalStateException("previously created index \"" + indexPath + "\" has wrong numDocs=" + reader.numDocs() + "; expected " + expectedNumDocs);
         }
         segmentCount = reader.leaves().size();
       }
@@ -838,6 +882,24 @@ public class KnnGraphTester implements FormatterLogger {
   // we save merge elapsed time msec (time spent waiting for merges during indexing) to this file inside the index
   private static Path mergeTimePath(Path indexPath) {
     return indexPath.resolve("merge-time-msec.txt");
+  }
+
+  // we save the number of docs deleted by -deleteRate to this file inside the index
+  private static Path deletedDocCountPath(Path indexPath) {
+    return indexPath.resolve("deleted-doc-count.txt");
+  }
+
+  private static int readDeletedDocCount(Path indexPath) throws IOException {
+    Path path = deletedDocCountPath(indexPath);
+    return Files.exists(path) ? Integer.parseInt(Files.readString(path).trim()) : 0;
+  }
+
+  // the index holds numDocs docs minus any deleted by -deleteRate
+  private void checkIndexNumDocs(IndexReader reader) throws IOException {
+    int expectedNumDocs = numDocs - readDeletedDocCount(indexPath);
+    if (reader.numDocs() != expectedNumDocs && parentJoin == false) {
+      throw new IllegalStateException("index size mismatch, expected " + expectedNumDocs + " live docs but index has " + reader.numDocs());
+    }
   }
 
   private void printIndexStatistics(Path indexPath, String field) throws IOException {
@@ -990,7 +1052,8 @@ public class KnnGraphTester implements FormatterLogger {
                                        boolean rerank, int rerankQuantizeBits,
                                        boolean parentJoin, FilterStrategy filterStrategy,
                                        Float filterSelectivity, Long randomSeed,
-                                       Path docPath, int numDocs, String metric, boolean forceMerge)
+                                       Path docPath, int numDocs, String metric, boolean forceMerge,
+                                       float deleteRate, DeletePattern deletePattern)
     throws IOException {
 
     List<String> suffix = new ArrayList<>();
@@ -1005,6 +1068,15 @@ public class KnnGraphTester implements FormatterLogger {
     suffix.add(Long.toString(Files.getLastModifiedTime(docPath).toMillis()));
 
     suffix.add(Integer.toString(numDocs));
+
+    // the random seed picks which docs are deleted, so reindex if either changes:
+    if (deleteRate > 0) {
+      suffix.add("del" + deleteRate);
+      if (deletePattern == DeletePattern.CLUSTER) {
+        suffix.add("cluster");
+      }
+      suffix.add(String.valueOf(randomSeed));
+    }
 
     // with index-time filters we compute and store filter-dependent HNSW graph, so we must reindex if that filter changes.  if
     // it is a query-time filter we don't reindex:
@@ -1054,12 +1126,22 @@ public class KnnGraphTester implements FormatterLogger {
   // static so we are forced to pass in all things that are volatile wrt indexing (if they change, it requires reindexing)
   private static String formatExactNNKey(boolean parentJoin, Float filterSelectivity, Long randomSeed, Path docPath,
                                          Path queryVectorsPath, int numDocs, String metric, int numQueryVectors,
-                                         int queryStartIndex, SearchType searchType, int topK, float resultSimilarity) {
+                                         int queryStartIndex, SearchType searchType, int topK, float resultSimilarity,
+                                         float deleteRate, DeletePattern deletePattern) {
     List<String> suffix = new ArrayList<>();
     suffix.add(metric);
 
     suffix.add("i" + docPath.getFileName());
     suffix.add(Integer.toString(numDocs));
+
+    // exact NN is computed on the index, so it excludes deleted docs:
+    if (deleteRate > 0) {
+      suffix.add("del" + deleteRate);
+      if (deletePattern == DeletePattern.CLUSTER) {
+        suffix.add("cluster");
+      }
+      suffix.add(String.valueOf(randomSeed));
+    }
 
     suffix.add("q" + queryVectorsPath.getFileName());
     suffix.add(Integer.toString(numQueryVectors));
@@ -1139,6 +1221,10 @@ public class KnnGraphTester implements FormatterLogger {
     KnnIndexer.TrackingTieredMergePolicy ttmp = new KnnIndexer.TrackingTieredMergePolicy();
     iwc.setMergePolicy(ttmp);
     log("Force merge index in " + indexPath + "\n");
+    try (Directory dir = FSDirectory.open(indexPath);
+         DirectoryReader reader = DirectoryReader.open(dir)) {
+      log("force merge input: %d segments, %d deleted docs\n", reader.leaves().size(), reader.numDeletedDocs());
+    }
     long startNS = System.nanoTime();
     try (IndexWriter iw = new IndexWriter(FSDirectory.open(indexPath), iwc)) {
       iw.forceMerge(1, false);
@@ -1148,6 +1234,85 @@ public class KnnGraphTester implements FormatterLogger {
     double elapsedSec = nsToSec(endNS - startNS);
     log("Force merge done in %.2f sec\n", elapsedSec);
     return elapsedSec;
+  }
+
+  /**
+   * Deletes a deleteRate fraction of the docs, picked by their id field so the same docs are deleted
+   * however the index is segmented. With -deletePattern random the docs are picked at random; with
+   * cluster they are the docs most similar to one random anchor doc. Merges are disabled so the
+   * deletes stay in the original segments. Returns the number of deleted docs.
+   */
+  private int deleteDocs(Path docVectorsPath) throws IOException {
+    Random deleteRandom = new Random(new SplittableRandom(randomSeed).nextLong());
+    IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+    iwc.setCodec(getCodec(maxConn, beamWidth, exec, numMergeWorker, quantize, quantizeBits, indexType, rerank, rerankQuantizeBits));
+    iwc.setMergePolicy(NoMergePolicy.INSTANCE);
+    long startNS = System.nanoTime();
+    int deletedCount = 0;
+    try (Directory dir = FSDirectory.open(indexPath);
+         IndexWriter iw = new IndexWriter(dir, iwc);
+         DirectoryReader reader = DirectoryReader.open(iw)) {
+      Bits toDelete = switch (deletePattern) {
+        case RANDOM -> selectRandomDocs(deleteRandom, numDocs, deleteRate);
+        case CLUSTER -> selectClusteredDocs(reader, deleteRandom, docVectorsPath);
+      };
+      for (LeafReaderContext leafContext : reader.leaves()) {
+        StoredFields storedFields = leafContext.reader().storedFields();
+        for (int d = 0; d < leafContext.reader().maxDoc(); d++) {
+          int id = Integer.parseInt(storedFields.document(d, Set.of(ID_FIELD)).get(ID_FIELD));
+          if (toDelete.get(id)) {
+            if (iw.tryDeleteDocument(reader, leafContext.docBase + d) == -1) {
+              throw new IllegalStateException("could not delete doc with id=" + id);
+            }
+            deletedCount++;
+          }
+        }
+      }
+      iw.commit();
+    }
+    log("deleted %d of %d docs (%.2f%%) in %.2f sec across %d segments\n",
+        deletedCount, numDocs, 100.0 * deletedCount / numDocs, nsToSec(System.nanoTime() - startNS), countSegments());
+    return deletedCount;
+  }
+
+  /**
+   * Returns the ids of the deleteRate fraction of docs whose vectors are most similar to a random
+   * anchor doc, so the deleted docs cover one region of the vector space.
+   */
+  private Bits selectClusteredDocs(IndexReader reader, Random random, Path docVectorsPath) throws IOException {
+    int anchorId = random.nextInt(numDocs);
+    int deleteCount = Math.max(1, Math.round(numDocs * deleteRate));
+    Query query;
+    try (FileChannel in = getVectorFileChannel(docVectorsPath, dim, vectorEncoding, false)) {
+      // the indexer gives id i to the i-th vector in the file, wrapping around at the end:
+      long fileVectorCount = in.size() / ((long) dim * vectorEncoding.byteSize);
+      VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, (int) (anchorId % fileVectorCount));
+      if (vectorEncoding == VectorEncoding.BYTE) {
+        byte[] anchor = ((VectorReaderByte) vectorReader).nextBytes().clone();
+        query = new FunctionQuery(new ByteVectorSimilarityFunction(similarityFunction,
+            new ConstKnnByteVectorValueSource(anchor), new ByteKnnVectorFieldSource(KNN_FIELD)));
+      } else {
+        float[] anchor = vectorReader.next().clone();
+        query = new FunctionQuery(new FloatVectorSimilarityFunction(similarityFunction,
+            new ConstKnnFloatValueSource(anchor), new FloatKnnVectorFieldSource(KNN_FIELD)));
+      }
+    }
+    IndexSearcher searcher = new IndexSearcher(reader);
+    TopDocs topDocs = searcher.search(query, deleteCount);
+    FixedBitSet toDelete = new FixedBitSet(numDocs);
+    for (int id : KnnTesterUtils.getResultIds(topDocs, searcher.storedFields())) {
+      toDelete.set(id);
+    }
+    log("cluster deletes: anchor id=%d, lowest deleted similarity=%g\n",
+        anchorId, topDocs.scoreDocs[topDocs.scoreDocs.length - 1].score);
+    return toDelete;
+  }
+
+  private int countSegments() throws IOException {
+    try (Directory dir = FSDirectory.open(indexPath);
+         DirectoryReader reader = DirectoryReader.open(dir)) {
+      return reader.leaves().size();
+    }
   }
 
   /** Connected if reachable from the entry point, a node that cannot get back still counts. */
@@ -1373,9 +1538,7 @@ public class KnnGraphTester implements FormatterLogger {
         try (DirectoryReader reader = DirectoryReader.open(dir)) {
           IndexSearcher searcher = new IndexSearcher(reader, executorService);
           int indexNumDocs = reader.maxDoc();
-          if (numDocs != indexNumDocs && !parentJoin) {
-            throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + indexNumDocs);
-          }
+          checkIndexNumDocs(reader);
 
           // TODO: Replace with more sophisticated result collection in https://github.com/mikemccand/luceneutil/issues/545
           int[] resultSizes = new int[numQueryVectors];
@@ -1756,7 +1919,7 @@ public class KnnGraphTester implements FormatterLogger {
                              String metric) throws IOException, InterruptedException {
 
     String exactNNKey = formatExactNNKey(parentJoin, filterSelectivity, randomSeed, docPath, queryPath, numDocs, metric,
-                                         numQueryVectors, queryStartIndex, searchType, topK, resultSimilarity);
+                                         numQueryVectors, queryStartIndex, searchType, topK, resultSimilarity, deleteRate, deletePattern);
 
     log("exact nn key = %s\n", exactNNKey);
 
@@ -2077,9 +2240,7 @@ public class KnnGraphTester implements FormatterLogger {
     try (MMapDirectory dir = new MMapDirectory(indexPath)) {
       dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
-        if (reader.maxDoc() != numDocs && !parentJoin) {
-          throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
-        }
+        checkIndexNumDocs(reader);
         IndexSearcher searcher = new IndexSearcher(reader);
         try (FileChannel qIn = getVectorFileChannel(queryPath, dim, vectorEncoding, !quiet)) {
           VectorReaderByte queryReader = (VectorReaderByte) VectorReader.create(qIn, dim, VectorEncoding.BYTE, queryStartIndex);
@@ -2164,9 +2325,7 @@ public class KnnGraphTester implements FormatterLogger {
       dir.setPreload((x, ctx) -> x.endsWith(".vec") || x.endsWith(".veq"));
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
         log("now compute brute-force KNN hits for " + numQueryVectors + " query vectors from \"" + queryPath + "\" starting at query index " + queryStartIndex + "\n");
-        if (reader.maxDoc() != numDocs && parentJoin == false) {
-          throw new IllegalStateException("index size mismatch, expected " + numDocs + " but index has " + reader.maxDoc());
-        }
+        checkIndexNumDocs(reader);
         IndexSearcher searcher = new IndexSearcher(reader);
         if (parentJoin) {
           CheckJoinIndex.check(reader, parentsFilter);

@@ -28,4 +28,4 @@ jobs:
         run: make lint
 
       - name: Test Python utilities
-        run: python3 -m unittest discover -s tests -q
+        run: make test

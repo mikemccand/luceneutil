@@ -29,14 +29,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Requires NodeJS
- *
- *  See installation instructions here: https://nodejs.org/en/download/package-manager/
- *
- *  Once installed:
- *    1. navigate to the src/javascript/{2d | 3d} directory and type 'npm install'
- *    2. npm start
- *    3. be sure to set host and port from the calculator menu (option 0) default is localhost:8080
+ * POSTs GeoJSON features to a map viewer listening at host:port (default localhost:8080, set from
+ * the calculator menu, option 0). The bundled Node viewers that used to live under src/javascript
+ * were removed; supply your own receiver for the "send_feed_item" endpoint.
  */
 public class GeoMapPoster {
   enum GeometryType {

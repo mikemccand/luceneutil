@@ -908,6 +908,9 @@ KNOWN_CHANGES = [
     "https://github.com/mikemccand/luceneutil/issues/616: stop double-indexing the body field (fixed by https://github.com/mikemccand/luceneutil/pull/622), changing scores, index size and indexing/search performance",
     "https://github.com/mikemccand/luceneutil/issues/616: stop double-indexing the body field (fixed by https://github.com/mikemccand/luceneutil/pull/622), changing scores, index size and indexing/search performance",
   ),
+  ( "2026-10-10",
+    "https://github.com/mikemccand/luceneutil/issues/616: fixed this benchmark bug that started double-indexing the body field when https://github.com/mikemccand/luceneutil/pull/144 was merged.  https://github.com/mikemccand/luceneutil/issues/622 has the fix (indexes body just once)",
+    "https://github.com/mikemccand/luceneutil/issues/616: fixed this benchmark bug that started double-indexing the body field when https://github.com/mikemccand/luceneutil/pull/144 was merged.  https://github.com/mikemccand/luceneutil/issues/622 has the fix (indexes body just once)"),
   (
     "2026-10-16",
     "https://github.com/mikemccand/luceneutil/issues/616: randomLabel is no longer indexed as a regular field (only as a RandomLabel facet)",

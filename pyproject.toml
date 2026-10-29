@@ -1,3 +1,6 @@
+[tool.bandit]
+skips = ["B404", "B603"]
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"

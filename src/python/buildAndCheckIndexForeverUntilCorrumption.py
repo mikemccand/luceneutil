@@ -1,6 +1,8 @@
 import datetime
 import os
+import shlex
 import shutil
+import subprocess  # nosec
 
 import benchUtil
 import competition
@@ -61,7 +63,7 @@ while True:
     cmd += " -tvs"
 
   print("  run: %s" % cmd)
-  if os.system(cmd):
+  if subprocess.call(shlex.split(cmd)):
     raise RuntimeError("failed to build index")
 
   print("%s: check index" % datetime.datetime.now())
@@ -69,5 +71,5 @@ while True:
     "ROOT", "%s/%s" % (constants.BASE_DIR, LUCENE_TRUNK_ROOT)
   ) % (JAVA_CMD, INDEX_PATH)
   print("  run: %s" % cmd)
-  if os.system(cmd):
+  if subprocess.call(shlex.split(cmd)):
     raise RuntimeError("CheckIndex failed")

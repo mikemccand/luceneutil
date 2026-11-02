@@ -22,7 +22,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12.6'
+          python-version: '3.15.2'
 
       - name: Lint python
         run: make lint

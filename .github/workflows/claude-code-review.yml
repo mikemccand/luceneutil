@@ -8,14 +8,18 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
 
-concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+# no token rights for any job in this file, including jobs added later.
+permissions: {}
 
 jobs:
   prepare:
     if: github.event.pull_request.draft == false
+    # job-level so a run skipped by the `if` above never cancels a running one.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions: {}
     steps:
       - name: Save PR number
@@ -24,8 +28,9 @@ jobs:
         run: echo "$PR_NUMBER" > pr-number.txt
 
       - name: Upload PR number
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pr-number
           path: pr-number.txt
           retention-days: 1
+          if-no-files-found: error

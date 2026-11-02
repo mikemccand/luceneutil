@@ -132,7 +132,17 @@ jobs:
           allowed_bots: "dependabot[bot]"
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}'
+          # the plugin stops if Claude already commented on the PR, so a later
+          # push would get no review. the text after the command reaches the
+          # model as its arguments: review every push, but do not repeat
+          # issues or the "No issues found" summary from an earlier review.
+          prompt: |
+            /code-review:code-review --comment ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}
+
+            This run was triggered by a new push to the PR (head ${{ github.event.workflow_run.head_sha }}).
+            In step 1, an earlier Claude comment on this PR is not a reason to stop; keep the closed, draft and trivial-change checks.
+            Before posting, read the earlier Claude comments on this PR and do not post an issue that one of them already raises.
+            If an earlier Claude review exists and you find no new issues, post nothing, including the "No issues found" summary.
           # the buffered-comment post step reads the PR number from the
           # pull_request event, which is empty here, so post comments directly.
           classify_inline_comments: "false"

@@ -1,0 +1,120 @@
+name: Claude Code Review (run)
+
+# stage 2 (privileged). triggered when "Claude Code Review" completes.
+# workflow_run runs in this repository's context, so it has the secrets that
+# a fork PR's pull_request run does not.
+#
+# under workflow_run the action has no PR context, so it does not start its
+# inline comment MCP server. we register that server ourselves with the
+# validated PR number so the review can still post inline comments.
+#
+# the stage 1 workflow file comes from the PR, so its artifact is untrusted:
+# the PR number must be numeric and that PR's head must be the commit stage 1
+# ran on. only the default branch is checked out; PR code is never executed.
+# see https://github.com/anthropics/claude-code-action/blob/main/docs/security.md
+on:
+  workflow_run:
+    workflows: ["Claude Code Review"]
+    types: [completed]
+
+concurrency:
+  group: claude-review-run-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+      issues: read
+
+    steps:
+      - name: Read and validate PR number
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          names="$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[].name')"
+          if ! grep -qx pr-number <<< "$names"; then
+            echo "::notice::No pr-number artifact in run $RUN_ID; skipping"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh run download "$RUN_ID" -R "$REPO" -n pr-number -D "$RUNNER_TEMP/pr-number"
+          num="$(cat "$RUNNER_TEMP/pr-number/pr-number.txt")"
+          if ! [[ "$num" =~ ^[0-9]+$ ]]; then
+            echo "PR number is not numeric: $num" >&2
+            exit 1
+          fi
+          pr_sha="$(gh api "repos/$REPO/pulls/$num" --jq .head.sha)"
+          if [ "$pr_sha" != "$HEAD_SHA" ]; then
+            echo "::notice::PR #$num head is $pr_sha, not $HEAD_SHA; skipping"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "number=$num" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      # default branch only. do not check out the PR head here.
+      - name: Checkout repository
+        if: steps.pr.outputs.found == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # the server script ships inside the action. fail loudly if a future
+      # action release moves it, rather than silently losing inline comments.
+      - name: Write inline comment MCP config
+        if: steps.pr.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          dir="$(dirname "$RUNNER_WORKSPACE")/_actions/anthropics/claude-code-action/v1"
+          server="$dir/src/mcp/github-inline-comment-server.ts"
+          if [ ! -f "$server" ]; then
+            echo "::error::inline comment server not found at $server"
+            exit 1
+          fi
+          umask 077
+          jq -n --arg d "$dir" --arg s "$server" --arg t "$GH_TOKEN" \
+                --arg o "$OWNER" --arg r "$REPO" --arg n "$PR_NUMBER" '
+            {mcpServers: {github_inline_comment: {
+              command: "bun",
+              args: ["--no-env-file", "--config=\($d)/bunfig.toml", "run", $s],
+              env: {GITHUB_TOKEN: $t, REPO_OWNER: $o, REPO_NAME: $r,
+                    PR_NUMBER: $n, CLASSIFY_INLINE_COMMENTS: "false"}}}}' \
+            > "$RUNNER_TEMP/inline-mcp.json"
+
+      - name: Run Claude Code Review
+        if: steps.pr.outputs.found == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # needed to post on fork PRs and for allowed_non_write_users.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # most PRs come from forks whose authors lack write access.
+          allowed_non_write_users: "*"
+          allowed_bots: "dependabot[bot]"
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}'
+          # the buffered-comment post step reads the PR number from the
+          # pull_request event, which is empty here, so post comments directly.
+          classify_inline_comments: "false"
+          # the action drops a file --mcp-config when it adds inline JSON
+          # configs of its own (mergeMcpConfigs in base-action). it adds none
+          # here; adding mcp__github_comment__* or mcp__github__* tools would.
+          claude_args: '--mcp-config ${{ runner.temp }}/inline-mcp.json --allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options

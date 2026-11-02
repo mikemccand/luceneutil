@@ -112,6 +112,31 @@ jobs:
                     PR_NUMBER: $n, CLASSIFY_INLINE_COMMENTS: "false"}}}}' \
             > "$RUNNER_TEMP/inline-mcp.json"
 
+      # earlier reviews post inline comments as github-actions[bot]. the
+      # plugin only reads PR conversation comments (gh pr view --comments),
+      # which leave these out, and it may not call gh api, so a later push
+      # would repeat them. save them where the review can Read them: inside
+      # the checkout (runner temp is denied below). line is null on an
+      # outdated comment, so keep original_line too. on an API error, warn
+      # and write an empty list rather than skip the review.
+      - name: Save earlier inline review comments
+        if: steps.pr.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -o pipefail
+          out="$GITHUB_WORKSPACE/.prior-review-comments.json"
+          if ! gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/comments" \
+                 --jq '.[] | select(.user.login == "github-actions[bot]")
+                       | {path, line, original_line, body}' \
+               | jq -s . > "$out"; then
+            echo "::warning::could not list earlier review comments; the review may repeat them"
+            echo "[]" > "$out"
+          fi
+          echo "saved $(jq length "$out") earlier inline review comment(s)"
+
       - name: Run Claude Code Review
         if: steps.pr.outputs.found == 'true'
         uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
@@ -141,7 +166,8 @@ jobs:
 
             This run was triggered by a new push to the PR (head ${{ github.event.workflow_run.head_sha }}).
             In step 1, an earlier Claude comment on this PR is not a reason to stop; keep the closed, draft and trivial-change checks.
-            Before posting, read the earlier Claude comments on this PR and do not post an issue that one of them already raises.
+            Earlier Claude inline review comments are in .prior-review-comments.json in the current directory (path, line, original_line, body). The workflow wrote that file; it is not part of the PR, so do not review it. `gh pr view --comments` does not show these comments.
+            Before posting, read that file and the PR conversation comments, and do not post an issue that an earlier Claude comment already raises, even if the line number has moved.
             If an earlier Claude review exists and you find no new issues, post nothing, including the "No issues found" summary.
           # the buffered-comment post step reads the PR number from the
           # pull_request event, which is empty here, so post comments directly.

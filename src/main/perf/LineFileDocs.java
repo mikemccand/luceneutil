@@ -96,6 +96,10 @@ public class LineFileDocs implements Closeable {
   private final TaxonomyWriter taxoWriter;
   // maps field name to 1 (taxonomy) | 2 (sorted set)
   private final Map<String,Integer> facetFields;
+  // The random label is only indexed as the RandomLabel facet dimension(s); when
+  // those facets are not enabled we skip decoding it and do not count it in bytesIndexed.
+  // See https://github.com/mikemccand/luceneutil/issues/616
+  private final boolean indexRandomLabel;
   private final FacetsConfig facetsConfig;
   private String[] extraFacetFields;
   private final boolean addDVFields;
@@ -125,6 +129,7 @@ public class LineFileDocs implements Closeable {
     this.doRepeat = doRepeat;
     this.taxoWriter = taxoWriter;
     this.facetFields = facetFields;
+    this.indexRandomLabel = facetFields != null && facetFields.containsKey("RandomLabel");
     this.facetsConfig = facetsConfig;
     this.addDVFields = addDVFields;
     this.addDVSkippers = addDVSkippers;
@@ -492,17 +497,18 @@ public class LineFileDocs implements Closeable {
       char[] titleChars = new char[titleLenBytes];
       int titleLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position(), titleLenBytes, titleChars);
       title = new String(titleChars, 0, titleLenChars);
-//      System.out.println("title: " + title);
 
       char[] bodyChars = new char[bodyLenBytes];
       int bodyLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes, bodyLenBytes, bodyChars);
       body = new String(bodyChars, 0, bodyLenChars);
-//      System.out.println("body: " + body);
 
-      char[] randomLabelChars = new char[randomLabelLenBytes];
-      int randomLabelLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes+bodyLenBytes, randomLabelLenBytes, randomLabelChars);
-      randomLabel = new String(randomLabelChars, 0, randomLabelLenChars);
-//      System.out.println("randomLabel: " + randomLabel);
+      if (indexRandomLabel) {
+        char[] randomLabelChars = new char[randomLabelLenBytes];
+        int randomLabelLenChars = UnicodeUtil.UTF8toUTF16(bytes, buffer.position()+titleLenBytes+bodyLenBytes, randomLabelLenBytes, randomLabelChars);
+        randomLabel = new String(randomLabelChars, 0, randomLabelLenChars);
+      } else {
+        randomLabel = null;
+      }
 
       buffer.position(buffer.position() + titleLenBytes + bodyLenBytes + randomLabelLenBytes);
 
@@ -554,7 +560,7 @@ public class LineFileDocs implements Closeable {
 
       body = line.substring(1+spot2, spot3);
 
-      randomLabel = line.substring(1+spot3, spot4).strip();
+      randomLabel = indexRandomLabel ? line.substring(1+spot3, spot4).strip() : null;
 
       title = line.substring(0, spot);
 
@@ -581,10 +587,9 @@ public class LineFileDocs implements Closeable {
       throw new RuntimeException("ID not set correctly");
     }
 
-    bytesIndexed.addAndGet(body.length() + title.length() + randomLabel.length());
+    bytesIndexed.addAndGet(body.length() + title.length() + (indexRandomLabel ? randomLabel.length() : 0));
     doc.setBody(body);
     doc.setTitle(title);
-    doc.setRandomLabel(randomLabel);
     if (addDVFields) {
       BytesRef tbytes = new BytesRef(title);
       doc.setTitleBDV(tbytes);

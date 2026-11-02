@@ -34,7 +34,6 @@ public class BenchDoc {
     private final Field idPoint;
     private final Field idDV;
     private final Field date;
-    private final Field randomLabel;
     private final Field lastModSkipper;
     private final Field monthSkipper;
     private final Field dayOfYearSkipper;
@@ -141,9 +140,6 @@ public class BenchDoc {
 
         body = new Field("body", "", bodyFieldType);
         luceneDoc.add(body);
-
-        randomLabel = new StringField("randomLabel", "", Field.Store.NO);
-        luceneDoc.add(randomLabel);
 
         id = new StringField("id", "", Field.Store.YES);
         luceneDoc.add(id);
@@ -260,10 +256,6 @@ public class BenchDoc {
 
     public void setDate(String value) {
         date.setStringValue(value);
-    }
-
-    public void setRandomLabel(String value) {
-        randomLabel.setStringValue(value);
     }
 
     public void setTitleBDV(BytesRef value) {

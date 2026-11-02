@@ -17,7 +17,7 @@ PIP_INSTALL_ARGS=--disable-pip-version-check --no-input --upgrade
 VENV=${PWD}/.venv
 
 # don't behave strangely if these files exist
-.PHONY: lint format reformat tidy autofix ruff ruff-fix pyright env clean
+.PHONY: lint format reformat tidy autofix ruff ruff-fix pyright test env clean
 
 # list of directories we check
 SOURCES=src/python
@@ -59,6 +59,11 @@ ruff: env
 pyright: env
 	# type-check sources with basedpyright
 	$(VENV)/bin/basedpyright $(SOURCES)
+
+# runs unit tests
+test: env
+	# run tests with the venv python
+	$(VENV)/bin/python -m unittest discover -s tests -q
 
 # rebuild venv if dependencies change
 env: $(VENV)/bin/activate

@@ -143,7 +143,7 @@ DO_HNSW_SCORE_HISTOGRAM = False
 HNSW_SAMPLE_EVERY_N = 100
 
 # set this to True to count the strongly connected components of each graph level
-DO_STRONGLY_CONNECTED_COMPONENTS = False
+DO_STRONGLY_CONNECTED_COMPONENTS = True
 
 # set this to True to compute sampled all query x doc distances and generate a histogram
 DO_ALL_DISTANCES_HISTOGRAM = False

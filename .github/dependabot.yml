@@ -19,23 +19,3 @@ updates:
       prefix: build(deps)
     labels:
       - dependencies
-
-  - package-ecosystem: npm
-    directory: /src/javascript/2d
-    schedule:
-      interval: weekly
-      day: tuesday
-    commit-message:
-      prefix: build(deps)
-    labels:
-      - dependencies
-
-  - package-ecosystem: npm
-    directory: /src/javascript/3d
-    schedule:
-      interval: weekly
-      day: tuesday
-    commit-message:
-      prefix: build(deps)
-    labels:
-      - dependencies

@@ -6,7 +6,7 @@ detection, isotropy / effective-rank, and intrinsic-dimensionality estimation
 Quick CLI usage (from luceneutil/util):
 
     python3 src/python/smell_vectors.py <vec_path> <dim> \
-        [--label LABEL] [--io pread|mmap] [--quiet] [--no-intrinsic-dim]
+        [--label LABEL] [--io pread|mmap] [--quiet] [--no-intrinsic-dim] [--full]
 
 Only <vec_path> and <dim> are required.
 
@@ -19,6 +19,7 @@ This is the source of truth for the vector-smelling logic. `knnPerfTest.py` impo
 """
 
 import argparse
+import functools
 import mmap
 import os
 import random
@@ -95,6 +96,9 @@ _THRESH_LOW_CARDINALITY_MAX_UNIQUE = 100
 # matmul under ~5s on a typical multicore box. At higher ID the estimator needs more
 # points; bump this if reported R^2 is consistently low.
 _NUM_INTRINSIC_DIM_SAMPLE_VECS = 10_000
+
+# vectors per chunk when streaming the whole file (--full)
+_FULL_CHUNK_VECS = 4096
 
 # k values for MLE Levina-Bickel. Small k -> more local (closer to true manifold dimension
 # under curvature) but noisier. Large k -> smoother but more biased high under non-uniform
@@ -221,74 +225,199 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
   print()
 
 
-def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
-  """Samples vectors and computes per-dim statistics to detect degenerate dimensions."""
+def _read_all_vectors(file_name, dim, num_vectors, progress_prefix):
+  """Generator yielding (vec_indices, (n, dim) float32 chunk) over every vector in the file, in order."""
+  vectors = np.memmap(file_name, dtype="<f4", mode="r", shape=(num_vectors, dim))
+  start_sec = time.monotonic()
+  next_report_sec = start_sec + 5.0
+  for start in range(0, num_vectors, _FULL_CHUNK_VECS):
+    end = min(start + _FULL_CHUNK_VECS, num_vectors)
+    yield np.arange(start, end), vectors[start:end]
+    now_sec = time.monotonic()
+    if NOISY and (now_sec >= next_report_sec or end == num_vectors):
+      print(f"{progress_prefix}   {end}/{num_vectors} ({100 * end / num_vectors:3.0f}%) {now_sec - start_sec:.1f}s")
+      next_report_sec = now_sec + 5.0
+
+
+def _dim_stats(read_chunks, dim, file_name):
+  """Per-dim statistics over every vector yielded by read_chunks(), an iterable of
+  (vec_indices, (n, dim) float32 chunk).  Two passes and O(dim^2) memory regardless of how
+  many vectors, so the sampled check (one in-memory chunk) and --full (the whole file, one
+  chunk at a time) share this one implementation.
+
+  Returns a dict; m3/m4 are the 3rd/4th central moments.  num_unique is exact up to
+  _THRESH_LOW_CARDINALITY_MAX_UNIQUE (then just "more"), and dominant_val/dominant_frac are
+  exact whenever one value holds more than half of a dim -- all that LOW_CARDINALITY and
+  NEAR_CONSTANT need.
+  """
+  n = 0
+  mean = np.zeros(dim)
+  m2 = np.zeros(dim)
+  m3 = np.zeros(dim)
+  m4 = np.zeros(dim)
+  cov = np.zeros((dim, dim))
+  num_zeros = np.zeros(dim, dtype=np.int64)
+  dim_min = np.full(dim, np.inf, dtype=np.float32)
+  dim_max = np.full(dim, -np.inf, dtype=np.float32)
+  dominant_val = np.zeros(dim, dtype=np.float32)
+  dominant_weight = np.zeros(dim, dtype=np.int64)
+  uniques = [set() for _ in range(dim)]
+  not_norm_count = 0
+  not_norm_first = None
+  not_norm_min = np.inf
+  not_norm_max = -np.inf
+  not_norm_sum = 0.0
+
+  for vec_indices, raw in read_chunks():
+    # check norm before any rotation
+    norms = np.linalg.norm(raw, axis=1)
+    for i in np.flatnonzero(~np.isclose(norms, 1.0, rtol=0.0001, atol=0.0001)):
+      not_norm_count += 1
+      # print the 1st, 2nd, 4th, 8th, ... so output stays O(log n) even when every vector is off
+      if not_norm_count & (not_norm_count - 1) == 0:
+        print(f'WARNING: vec {vec_indices[i]} in "{file_name}" has norm={norms[i]} (not normalized; #{not_norm_count})')
+      if not_norm_first is None:
+        not_norm_first = int(vec_indices[i])
+      not_norm_min = min(not_norm_min, float(norms[i]))
+      not_norm_max = max(not_norm_max, float(norms[i]))
+      not_norm_sum += float(norms[i])
+
+    x = _maybe_rotate(raw, dim)
+    nb = x.shape[0]
+
+    # central moments of this chunk in float64, merged into the running ones with the pairwise
+    # update from Pebay 2008, which stays accurate where raw power sums cancel.
+    # m4 and m3 use the old m3 and m2, so update in this order
+    mean_b = x.mean(axis=0, dtype=np.float64)
+    centered = x - mean_b
+    sq = centered * centered
+    m2_b = sq.sum(axis=0)
+    m3_b = (sq * centered).sum(axis=0)
+    m4_b = (sq * sq).sum(axis=0)
+    na = n
+    n += nb
+    delta = mean_b - mean
+    m4 += m4_b + delta**4 * na * nb * (na * na - na * nb + nb * nb) / n**3 + 6.0 * delta**2 * (na * na * m2_b + nb * nb * m2) / n**2 + 4.0 * delta * (na * m3_b - nb * m3) / n
+    m3 += m3_b + delta**3 * na * nb * (na - nb) / n**2 + 3.0 * delta * (na * m2_b - nb * m2) / n
+    m2 += m2_b + delta**2 * na * nb / n
+    cov += centered.T @ centered + np.outer(delta, delta) * (na * nb / n)
+    mean += delta * nb / n
+
+    num_zeros += (x == 0.0).sum(axis=0)
+    np.minimum(dim_min, x.min(axis=0), out=dim_min)
+    np.maximum(dim_max, x.max(axis=0), out=dim_max)
+
+    # majority vote per dim (Misra-Gries with one counter, which merges across chunks): a value
+    # held by more than half of the chunk must be its median
+    median = np.partition(x, nb // 2, axis=0)[nb // 2]
+    weight = np.maximum(2 * (x == median).sum(axis=0) - nb, 0)
+    same = dominant_val == median
+    keep = same | (dominant_weight >= weight)
+    dominant_weight = np.where(same, dominant_weight + weight, np.abs(dominant_weight - weight))
+    dominant_val = np.where(keep, dominant_val, median)
+
+    # stop tracking a dim's unique values once there are too many to be LOW_CARDINALITY
+    for d in range(dim):
+      if uniques[d] is not None:
+        uniques[d].update(np.unique(x[:, d]).tolist())
+        if len(uniques[d]) > _THRESH_LOW_CARDINALITY_MAX_UNIQUE:
+          uniques[d] = None
+
+  # use global range so histogram widths are directly comparable across dims:
+  # a dim with larger sigma spans more bins visually, matching the printed sigma
+  global_min = float(dim_min.min())
+  global_max = float(dim_max.max())
+
+  # second pass: exact count of each dim's majority candidate, and per-dim histograms
+  dominant_count = np.zeros(dim, dtype=np.int64)
+  dim_counts = np.zeros((dim, _NUM_SPARK_BINS), dtype=np.int64)
+  for _vec_indices, raw in read_chunks():
+    x = _maybe_rotate(raw, dim)
+    dominant_count += (x == dominant_val).sum(axis=0)
+    for d in range(dim):
+      dim_counts[d] += np.histogram(x[:, d], bins=_NUM_SPARK_BINS, range=(global_min, global_max))[0]
+  constant = dim_min == dim_max
+  dim_counts[constant] = 0
+  dim_counts[constant, _NUM_SPARK_BINS // 2] = n
+
+  num_unique = np.array([_THRESH_LOW_CARDINALITY_MAX_UNIQUE + 1 if u is None else len(u) for u in uniques])
+  std = np.sqrt(m2 / n)
+  return {
+    "mean": mean,
+    "std": std,
+    "m3": m3 / n,
+    "m4": m4 / n,
+    "cov": cov / n,
+    "pct_zeros": num_zeros / n,
+    "dominant_val": dominant_val,
+    "dominant_frac": dominant_count / n,
+    "num_unique": num_unique,
+    "dim_counts": dim_counts.tolist(),
+    "not_norm_count": not_norm_count,
+    "not_norm_first": not_norm_first,
+    "not_norm_min": not_norm_min,
+    "not_norm_max": not_norm_max,
+    "not_norm_mean": not_norm_sum / not_norm_count if not_norm_count else None,
+  }
+
+
+def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=False):
+  """Samples (or with full=True, streams all) vectors and computes per-dim statistics to detect degenerate dimensions."""
   if num_vectors == 0:
     return None
 
-  num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
-  sample_indices = random.sample(range(num_vectors), num_sample)
-
-  if NOISY:
-    print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
-
-  # load all sampled vectors concurrently into a (num_sample, dim) float32 array
-  samples = np.empty((num_sample, dim), dtype=np.float32)
   t0_sec = time.monotonic()
 
-  if IO_METHOD == "pread":
-    reader = _read_vectors_pread(file_name, sample_indices, vec_size_bytes)
-  elif IO_METHOD == "mmap":
-    reader = _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim)
+  if full:
+    num_sample = num_vectors
+    checked_desc = "vectors"
+    checked_unit = "vectors"
+    if NOISY:
+      print(f"smell: streaming all {num_vectors} vectors for per-dim distribution...")
+    read_chunks = lambda: _read_all_vectors(file_name, dim, num_vectors, "smell:")
   else:
-    raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
+    num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
+    checked_desc = "randomly checked vectors"
+    checked_unit = "samples"
+    sample_indices = random.sample(range(num_vectors), num_sample)
 
-  not_norm_count = 0
-  for i, (vec_idx, vec) in enumerate(reader):
-    samples[i] = vec
+    if NOISY:
+      print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
 
-    # CPU work: check norm immediately as vector arrives
-    norm = np.linalg.norm(vec)
-    if not np.isclose(norm, 1.0, rtol=0.0001, atol=0.0001):
-      # print warning on new line so it doesn't get overwritten by next progress \r
-      print(f'\nWARNING: vec {vec_idx} in "{file_name}" has norm={norm} (not normalized)')
-      not_norm_count += 1
+    # load all sampled vectors concurrently into a (num_sample, dim) float32 array
+    samples = np.empty((num_sample, dim), dtype=np.float32)
 
-    completed = i + 1
-    if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
-      elapsed_sec = time.monotonic() - t0_sec
-      if NOISY:
-        print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+    if IO_METHOD == "pread":
+      reader = _read_vectors_pread(file_name, sample_indices, vec_size_bytes)
+    elif IO_METHOD == "mmap":
+      reader = _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim)
+    else:
+      raise ValueError(f'unknown IO_METHOD "{IO_METHOD}"')
 
-  if NOISY:
-    print()
+    for i, (_vec_idx, vec) in enumerate(reader):
+      samples[i] = vec
+
+      completed = i + 1
+      if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
+        elapsed_sec = time.monotonic() - t0_sec
+        if NOISY:
+          print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
+
+    if NOISY:
+      print()
+
+    read_chunks = lambda: [(sample_indices, samples)]
+
+  stats = _dim_stats(read_chunks, dim, file_name)
+  mean, std, m3, m4, C, pct_zeros = stats["mean"], stats["std"], stats["m3"], stats["m4"], stats["cov"], stats["pct_zeros"]
+  dominant_val, dominant_frac, num_unique, dim_counts, not_norm_count = stats["dominant_val"], stats["dominant_frac"], stats["num_unique"], stats["dim_counts"], stats["not_norm_count"]
 
   if not_norm_count > 0:
-    print(f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} randomly checked vectors are not normalized in "{file_name}"')
+    norm_range = f"norms min={stats['not_norm_min']:.4g} mean={stats['not_norm_mean']:.4g} max={stats['not_norm_max']:.4g}"
+    print(
+      f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} {checked_desc} are not normalized in "{file_name}" (first: vec {stats["not_norm_first"]}; {norm_range})'
+    )
 
-  samples = _maybe_rotate(samples, dim)
-
-  # per-dim stats, all vectorized over axis=0, result shape: (dim,)
-  mean = samples.mean(axis=0)
-  std = samples.std(axis=0)
-  pct_zeros = (samples == 0.0).mean(axis=0)
-
-  # per-dim "most-frequent exact value" + its fraction. catches dims that are essentially
-  # a single value (e.g. 0.0) but not flagged as CONSTANT because a few stray samples keep
-  # std just above _THRESH_CONSTANT_STD. uses exact float equality (no quantization).
-  dominant_val = np.zeros(dim, dtype=np.float32)
-  dominant_frac = np.zeros(dim, dtype=np.float64)
-  num_unique = np.zeros(dim, dtype=np.int64)
-  for d in range(dim):
-    vals, counts = np.unique(samples[:, d], return_counts=True)
-    top = counts.argmax()
-    dominant_val[d] = vals[top]
-    dominant_frac[d] = counts[top] / num_sample
-    num_unique[d] = len(vals)
-
-  centered = samples - mean
-  m3 = (centered**3).mean(axis=0)
-  m4 = (centered**4).mean(axis=0)
   with np.errstate(invalid="ignore", divide="ignore"):
     skewness = m3 / std**3
     excess_kurtosis = m4 / std**4 - 3.0
@@ -318,7 +447,6 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   else:
     isotropy_diag = 0.0
 
-  C = (centered.T @ centered) / num_sample
   tr_C = np.trace(C)
   frob_sq = np.sum(C**2)
   if frob_sq > 0:
@@ -329,22 +457,6 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
   # OUTLIER_SPREAD: flag dims whose std is an outlier across all dims' stds
   mean_of_stds = std.mean()
   std_of_stds = std.std()
-
-  # use global range so histogram widths are directly comparable across dims:
-  # a dim with larger sigma spans more bins visually, matching the printed sigma
-  global_min = float(samples.min())
-  global_max = float(samples.max())
-
-  # per-dim histogram (loop is over dims not over samples, so it's cheap)
-  dim_counts = []
-  for d in range(dim):
-    col = samples[:, d]
-    if col.min() == col.max():
-      counts = [0] * _NUM_SPARK_BINS
-      counts[_NUM_SPARK_BINS // 2] = num_sample
-    else:
-      counts = np.histogram(col, bins=_NUM_SPARK_BINS, range=(global_min, global_max))[0].tolist()
-    dim_counts.append(counts)
 
   # assign labels per dim -- each label is (name, detail_string)
   dim_labels = []
@@ -357,12 +469,12 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes):
       labels.append(
         (
           "NEAR_CONSTANT",
-          f"value={float(dominant_val[d]):+g} occurs in {dominant_frac[d] * 100:.1f}% of samples, threshold={_THRESH_NEAR_CONSTANT_DOMINANT_FRAC * 100:.0f}%",
+          f"value={float(dominant_val[d]):+g} occurs in {dominant_frac[d] * 100:.1f}% of {checked_unit}, threshold={_THRESH_NEAR_CONSTANT_DOMINANT_FRAC * 100:.0f}%",
         )
       )
 
     if std[d] > _THRESH_CONSTANT_STD and num_unique[d] <= _THRESH_LOW_CARDINALITY_MAX_UNIQUE:
-      labels.append(("LOW_CARDINALITY", f"{num_unique[d]} unique values in {num_sample} samples, threshold<={_THRESH_LOW_CARDINALITY_MAX_UNIQUE}"))
+      labels.append(("LOW_CARDINALITY", f"{num_unique[d]} unique values in {num_sample} {checked_unit}, threshold<={_THRESH_LOW_CARDINALITY_MAX_UNIQUE}"))
 
     if pct_zeros[d] > _THRESH_SPARSE_PCT_ZEROS:
       labels.append(("SPARSE", f"{pct_zeros[d] * 100:.1f}% zeros, threshold={_THRESH_SPARSE_PCT_ZEROS * 100:.0f}%"))
@@ -480,7 +592,7 @@ def _load_id_samples(dim, file_name, num_vectors, vec_size_bytes):
   if NOISY:
     print()
 
-  return samples
+  return np.array(sample_indices), samples
 
 
 def _twonn_estimate(D2):
@@ -513,9 +625,8 @@ def _twonn_estimate(D2):
   """
   N = D2.shape[0]
 
-  # 2nd and 3rd smallest of each row of D2 (the 1st-smallest is the diagonal,
-  # which we set to inf upstream).  partition is O(N) per row so this is
-  # O(N^2) total, dwarfed by the matmul that produced D2.
+  # 1st and 2nd smallest of each row of D2 (self is already excluded by
+  # _nearest_sq_distances).
   partitioned = np.partition(D2, 1, axis=1)
   r1_sq = partitioned[:, 0]
   r2_sq = partitioned[:, 1]
@@ -592,7 +703,7 @@ def _mle_estimate(D2, k):
   if k + 1 > N:
     raise RuntimeError(f"MLE: k={k} requires N>{k}; have N={N}")
 
-  # per-row top-k smallest distances (excluding self, which is inf)
+  # per-row top-k smallest distances (self is already excluded)
   partitioned = np.partition(D2, k - 1, axis=1)[:, :k]
   partitioned = np.sort(partitioned, axis=1)
   partitioned = np.maximum(partitioned, 0.0)
@@ -646,7 +757,29 @@ def _pca_id(samples, thresholds=(0.90, 0.95, 0.99)):
   return result
 
 
-def _estimate_intrinsic_dim(samples, label, dim):
+def _nearest_sq_distances(queries, query_indices, read_chunks, k):
+  """Squared euclidean distance from each query to its k nearest vectors among all vectors
+  yielded by read_chunks() (an iterable of (vec_indices, (n, dim) float32 chunk)), skipping the
+  query itself.  Returns a (num_queries, k) array, keeping only k columns per query in memory
+  instead of the full queries x vectors distance matrix.
+  """
+  # ||a - b||^2 = ||a||^2 + ||b||^2 - 2 <a, b>.  for unit-normalized vectors euclidean ranking
+  # is monotone-equivalent to angular ranking and to dot-product ranking, so a single distance
+  # covers all metrics in use here (the per-dim check, which runs first, flags non-unit norms).
+  query_sq_norms = (queries * queries).sum(axis=1)
+  nearest = np.full((len(queries), k), np.inf, dtype=np.float32)
+  for vec_indices, vectors in read_chunks():
+    D2 = query_sq_norms[:, None] + (vectors * vectors).sum(axis=1)[None, :] - 2.0 * (queries @ vectors.T)
+    # numerical guard for tiny negatives from float roundoff
+    np.maximum(D2, 0.0, out=D2)
+    # exclude self-distance (a query that is also in this chunk)
+    is_self = query_indices[:, None] == vec_indices[None, :]
+    D2[is_self] = np.inf
+    nearest = np.partition(np.concatenate([nearest, D2], axis=1), k - 1, axis=1)[:, :k]
+  return nearest
+
+
+def _estimate_intrinsic_dim(samples, sample_indices, read_chunks, num_reference, label, dim):
   """Compute and report intrinsic-dimensionality estimates for `samples`.
 
   Runs three estimators (TwoNN, MLE-Levina-Bickel at multiple k, PCA-cumvar)
@@ -658,33 +791,26 @@ def _estimate_intrinsic_dim(samples, label, dim):
   each estimator.
 
   Args:
-    samples: (N, D) float32 array of sample vectors
-    label:   "docs" or "queries", used in printed report
-    dim:     ambient dimension (== samples.shape[1])
+    samples:        (N, D) float32 array of sample vectors (the queries)
+    sample_indices: (N,) index of each sample in the file
+    read_chunks:    yields the reference vectors each sample's nearest neighbors are found among
+    num_reference:  how many vectors read_chunks yields
+    label:          "docs" or "queries", used in printed report
+    dim:            ambient dimension (== samples.shape[1])
 
   """
   N = samples.shape[0]
   assert samples.shape[1] == dim, f"shape mismatch: samples.shape[1]={samples.shape[1]} vs dim={dim}"
 
-  print(f"\nsmell ID: estimating intrinsic dim of {label} vectors (N={N}, ambient dim={dim})...")
+  reference_str = f" vs all {num_reference} vectors" if num_reference > N else ""
+  print(f"\nsmell ID: estimating intrinsic dim of {label} vectors (N={N}{reference_str}, ambient dim={dim})...")
   t0_sec = time.monotonic()
 
-  # all-pairs squared euclidean distance via BLAS.  for unit-normalized
-  # vectors euclidean ranking is monotone-equivalent to angular ranking and
-  # to dot-product ranking, so a single distance covers all metrics in
-  # use here (smell_vectors already enforced near-unit norm upstream).
-  #
-  # ||a - b||^2 = ||a||^2 + ||b||^2 - 2 <a, b>
-  sq_norms = (samples * samples).sum(axis=1)
-  D2 = sq_norms[:, None] + sq_norms[None, :] - 2.0 * (samples @ samples.T)
-  # numerical guard for tiny negatives from float roundoff
-  np.maximum(D2, 0.0, out=D2)
-  # exclude self-distance from NN search by setting diagonal to +inf
-  np.fill_diagonal(D2, np.inf)
+  D2 = _nearest_sq_distances(samples, sample_indices, read_chunks, max(_MLE_K_VALUES))
 
   matmul_sec = time.monotonic() - t0_sec
   if NOISY:
-    print(f"smell ID:   distance matrix ({N}x{N}) in {matmul_sec:.1f}s")
+    print(f"smell ID:   distance matrix ({N}x{num_reference}) in {matmul_sec:.1f}s")
 
   # --- TwoNN ---
   twonn = _twonn_estimate(D2)
@@ -887,17 +1013,30 @@ ROTATE = False
 Lets us preview the smell of a rotated index without materializing a separate .vec file."""
 
 
+@functools.cache
+def _rotation_matrix(dim):
+  """(dim, dim) matrix M with x @ M == HadamardRotation.for_dimension(dim) applied to row x: one
+  BLAS matmul per chunk instead of rotate_batch's per-vector python loop, so --full can rotate every vector.
+  """
+  return HadamardRotation.for_dimension(dim).rotate_batch(np.eye(dim, dtype=np.float32))
+
+
 def _maybe_rotate(samples, dim):
   """If ROTATE is on, return a Hadamard-rotated copy of `samples` (rows are rotated independently)."""
   if not ROTATE:
     return samples
-  return HadamardRotation.for_dimension(dim).rotate_batch(samples)
+  return samples @ _rotation_matrix(dim)
 
 
-def smell_vectors(dim, file_name, label="vectors"):
+def smell_vectors(dim, file_name, label="vectors", full=False):
   """Runs sanity checks on the vector source file: per-dim distribution / isotropy /
   intrinsic dim. The .vec source file has no self-describing metadata, so the caller
   passes in the dim. `label` (e.g. "docs", "queries") is used in printed reports.
+
+  By default the per-dim checks use a random sample of vectors, and intrinsic dim finds each
+  sampled vector's nearest neighbors among the other samples.  With full=True the per-dim checks
+  stream every vector in the file, and the sampled vectors' nearest neighbors are found among all
+  vectors.
 
   If module-level ROTATE is True, every sampled vector is Hadamard-rotated in memory
   before stats are computed (no separate rotated .vec file is written). Useful for
@@ -918,13 +1057,17 @@ def smell_vectors(dim, file_name, label="vectors"):
     rot_str = " (rotated in memory)" if ROTATE else ""
     print(f"smell vectors from {file_name}{rot_str}")
 
-  dist_summary = _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes)
+  dist_summary = _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full)
 
   id_summary = None
   if DO_INTRINSIC_DIM:
-    samples = _load_id_samples(dim, file_name, num_vectors, vec_size_bytes)
+    sample_indices, samples = _load_id_samples(dim, file_name, num_vectors, vec_size_bytes)
     samples = _maybe_rotate(samples, dim)
-    id_summary = _estimate_intrinsic_dim(samples, label, dim)
+    if full:
+      read_chunks = lambda: ((vec_indices, _maybe_rotate(vectors, dim)) for vec_indices, vectors in _read_all_vectors(file_name, dim, num_vectors, "smell ID:"))
+      id_summary = _estimate_intrinsic_dim(samples, sample_indices, read_chunks, num_vectors, label, dim)
+    else:
+      id_summary = _estimate_intrinsic_dim(samples, sample_indices, lambda: [(sample_indices, samples)], len(samples), label, dim)
 
   if dist_summary is not None:
     _print_final_summary(label, file_name, dist_summary, id_summary)
@@ -938,6 +1081,11 @@ def _main():
   ap.add_argument("--quiet", action="store_true", help="suppress per-dim full listing and progress")
   ap.add_argument("--label", default="vectors", help="label used in intrinsic-dim report (e.g. docs, queries)")
   ap.add_argument("--no-intrinsic-dim", action="store_true", help="skip intrinsic-dim estimation")
+  ap.add_argument(
+    "--full",
+    action="store_true",
+    help="check every vector instead of a sample (intrinsic dim still uses sampled queries, matched against all vectors)",
+  )
   ap.add_argument(
     "--rotate",
     action="store_true",
@@ -953,7 +1101,7 @@ def _main():
 
   # First pass: smell vectors as-is.
   ROTATE = False
-  smell_vectors(args.dim, args.vec_path, args.label)
+  smell_vectors(args.dim, args.vec_path, args.label, args.full)
 
   # When --rotate is given, do a second pass with Hadamard rotation applied in memory
   # so the user can compare the raw vs rotated SMELL SUMMARY side by side.
@@ -964,7 +1112,7 @@ def _main():
     print("=" * 104)
     print()
     ROTATE = True
-    smell_vectors(args.dim, args.vec_path, f"{args.label} (rotated)")
+    smell_vectors(args.dim, args.vec_path, f"{args.label} (rotated)", args.full)
 
 
 if __name__ == "__main__":

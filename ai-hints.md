@@ -30,6 +30,7 @@ Luceneutil is a comprehensive benchmarking suite for Apache Lucene. It includes 
 3. **Vector Data Processing**
    - **`shuffle_wiki_ids.py`**: Shuffles Cohere v3 Wikipedia embeddings while preserving wiki document boundaries
    - **`load_cohere_v3.py`**: Downloads and processes Cohere Wikipedia v3 vectors, partitions into queries/docs
+   - **`load_dbpedia_openai3.py`**: Downloads Qdrant's 1M DBpedia OpenAI embeddings (3072d and 1536d), shuffles and partitions into queries/docs
    - **`shuffle_vec_file.py`**: Shuffles binary vector files using write-side random access for performance
    - All vector operations use sequential reads with random writes to optimize disk I/O
 
@@ -104,6 +105,14 @@ python src/python/load_cohere_v3.py
 # 2. Add paragraph_count column to track paragraphs per wiki document
 # 3. Shuffle at wiki_id level to remove bias
 # 4. Partition into queries (first 250K wiki_ids) and docs (remainder)
+```
+
+### Working with DBpedia OpenAI Vector Data
+
+```bash
+# Download Qdrant's DBpedia OpenAI embeddings and partition into queries/docs
+python src/python/load_dbpedia_openai3.py --out-dir /path/to/dbpedia
+# See src/python/dbpedia-openai3-README.txt for the output files and flags
 ```
 
 ### Debugging Vector Processing

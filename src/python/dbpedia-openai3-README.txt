@@ -32,6 +32,10 @@ Peak disk use is about 70 GB: the parquet shards, an unshuffled copy of the
 vectors in OUT_DIR/raw (removed at the end unless --keep-raw), and the
 outputs.
 
+Each output is written to a .part file and renamed when complete. A run
+first removes the outputs of any earlier run in OUT_DIR, so if it is killed
+the remaining files all come from the same shuffle; rerun to finish.
+
 
 Output files
 ------------
@@ -41,6 +45,9 @@ queries files.
 
   dbpedia.docs.csv, dbpedia.queries.csv
       id,title,text
+      Standard CSV: about 2,000 text values contain newlines and are quoted,
+      so dbpedia.docs.csv has more lines than rows. Read it with a CSV parser
+      (Python's csv module), not line by line.
 
   dbpedia-openai3-large-3072d.{docs,queries}.vec
       text-embedding-3-large vectors as little-endian float32. The parquet

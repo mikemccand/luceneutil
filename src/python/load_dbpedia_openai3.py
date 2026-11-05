@@ -7,6 +7,7 @@ See dbpedia-openai3-README.txt.
 
 import argparse
 import csv
+import http.client
 import os
 import shutil
 import time
@@ -14,6 +15,7 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 DATASET_NAME = "Qdrant/dbpedia-entities-openai3-text-embedding-3-large-3072-1M"
@@ -58,7 +60,7 @@ def download_shards(parquet_dir, shard_count):
           if expected_bytes is not None and os.path.getsize(tmp_path) != int(expected_bytes):
             raise OSError(f"got {os.path.getsize(tmp_path)} bytes, expected {expected_bytes}")
           break
-        except OSError as e:
+        except (OSError, http.client.HTTPException) as e:
           if attempt == DOWNLOAD_ATTEMPTS:
             raise
           print(f"  download of {os.path.basename(path)} failed ({e}), retrying")
@@ -70,7 +72,12 @@ def download_shards(parquet_dir, shard_count):
 
 def column_to_matrix(table, column, dim):
   """Returns a parquet list column as a (rows, dim) float32 matrix, failing if float32 loses precision."""
-  values = table.column(column).combine_chunks().flatten().to_numpy()
+  lists = table.column(column).combine_chunks()
+  # check every row, not just the total, so one short row next to one long row can't shift the vectors after it
+  lengths = pc.min_max(pc.list_value_length(lists)).as_py()
+  if lists.null_count > 0 or lengths["min"] != dim or lengths["max"] != dim:
+    raise RuntimeError(f"{column}: expected every row to have {dim} values, got {lists.null_count} null rows and lengths {lengths['min']}..{lengths['max']}")
+  values = lists.flatten().to_numpy()
   if values.size != table.num_rows * dim:
     raise RuntimeError(f"{column}: expected {table.num_rows * dim} values, got {values.size}")
   matrix = values.reshape(table.num_rows, dim)
@@ -114,7 +121,8 @@ def load_shards(shard_paths, raw_dir):
 
 def write_vectors(raw, order, out_path, truncate_dim=None):
   """Writes rows of raw in the given order, optionally truncated to the first truncate_dim dims and re-normalized."""
-  with open(out_path, "wb") as out:
+  tmp_path = out_path + ".part"
+  with open(tmp_path, "wb") as out:
     for start in range(0, len(order), CHUNK_ROWS):
       chunk = order[start : start + CHUNK_ROWS]
       # read the memmap in increasing offset order, then put the rows back in shuffled order
@@ -129,19 +137,30 @@ def write_vectors(raw, order, out_path, truncate_dim=None):
       vectors.tofile(out)
   dim = truncate_dim or raw.shape[1]
   expected_bytes = len(order) * dim * 4
-  if os.path.getsize(out_path) != expected_bytes:
-    raise RuntimeError(f"{out_path}: expected {expected_bytes} bytes, got {os.path.getsize(out_path)}")
+  if os.path.getsize(tmp_path) != expected_bytes:
+    raise RuntimeError(f"{tmp_path}: expected {expected_bytes} bytes, got {os.path.getsize(tmp_path)}")
+  Path(tmp_path).replace(out_path)
   print(f"  wrote {out_path}: {len(order)} x {dim}d")
 
 
 def write_csv(rows, order, out_path):
   """Writes the (id, title, text) rows in the given order, with a header line."""
-  with open(out_path, "w", encoding="utf-8", newline="") as out:
+  tmp_path = out_path + ".part"
+  with open(tmp_path, "w", encoding="utf-8", newline="") as out:
     writer = csv.writer(out, lineterminator="\n")
     writer.writerow(["id", "title", "text"])
     for i in order:
       writer.writerow(rows[i])
+  Path(tmp_path).replace(out_path)
   print(f"  wrote {out_path}: {len(order)} rows")
+
+
+def remove_previous_outputs(out_dir):
+  """Removes all outputs (and .part files) of an earlier run, including truncated variants this run won't write."""
+  for pattern in ("dbpedia.*.csv", "dbpedia.*.csv.part", "dbpedia-*.vec", "dbpedia-*.vec.part"):
+    for path in sorted(Path(out_dir).glob(pattern)):
+      print(f"  removing previous output {path}")
+      path.unlink()
 
 
 def main():
@@ -179,6 +198,10 @@ def main():
   # one shuffle shared by all embeddings, so row i of every output file is the same entity
   order = np.random.default_rng(seed).permutation(row_count)
   splits = {"queries": order[: args.num_queries], "docs": order[args.num_queries :]}
+
+  # files are written to .part and renamed when complete; removing the old outputs first means a killed run
+  # leaves missing files, never a mix of files from two runs with different shuffles
+  remove_previous_outputs(args.out_dir)
 
   print("writing shuffled outputs")
   for split, split_order in splits.items():

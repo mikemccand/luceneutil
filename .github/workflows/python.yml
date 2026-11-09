@@ -24,6 +24,10 @@ jobs:
         with:
           python-version: '3.15.2'
 
+      - name: Diagnose numpy matmul (temporary)
+        continue-on-error: true
+        run: make env && .venv/bin/python .github/diag/numpy_matmul_check.py
+
       - name: Lint python
         run: make lint
 

@@ -1,0 +1,54 @@
+# TEMPORARY (do not merge): is CI's wrong float64 math a GCC 15 miscompile of numpy?
+name: Diagnose numpy compiler
+
+on:
+  push:
+    branches:
+      - 'diag-numpy-blas'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc-15 (default)
+            cc: gcc
+            cxx: g++
+            pkgs: ''
+          - name: gcc-15 -fno-tree-vectorize
+            cc: gcc
+            cxx: g++
+            pkgs: ''
+            flags: '-fno-tree-vectorize'
+          - name: gcc-14
+            cc: gcc-14
+            cxx: g++-14
+            pkgs: 'gcc-14 g++-14'
+          - name: clang
+            cc: clang
+            cxx: clang++
+            pkgs: 'clang'
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.15.2'
+      - name: Install compiler
+        if: matrix.pkgs != ''
+        run: sudo apt-get update -q && sudo apt-get install -y -q ${{ matrix.pkgs }}
+      - name: Build numpy 2.2.3 from source
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+          CFLAGS: ${{ matrix.flags }}
+          CXXFLAGS: ${{ matrix.flags }}
+        run: |
+          $CC --version | head -1
+          python -m venv .venv
+          .venv/bin/pip install -q --no-cache-dir --no-binary numpy numpy==2.2.3
+          .venv/bin/pip install -q -r requirements.txt
+      - name: Diagnose
+        run: .venv/bin/python .github/diag/numpy_matmul_check.py

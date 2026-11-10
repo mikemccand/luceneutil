@@ -160,7 +160,12 @@ class TestSmellVectors(unittest.TestCase):
     D2[np.arange(len(queries)), queries] = np.inf
     want = np.sort(np.partition(D2, 19, axis=1)[:, :20], axis=1)
     got = np.sort(smell_vectors._nearest_sq_distances(vectors[queries], queries, chunked(vectors, 300), 20), axis=1)
-    np.testing.assert_array_equal(got, want)
+    # not exact equality: BLAS sgemm results can differ by a few ulp depending on the matrix width
+    # (2000 columns here vs 300-column chunks) and on which CPU kernel OpenBLAS picks (e.g. its AVX2
+    # Haswell/Zen kernels differ, its AVX-512 kernels don't).  absolute tolerance, not relative,
+    # since ||a||^2 + ||b||^2 - 2<a, b> carries error on the scale of the norms (~1 here) even for
+    # near-zero distances.
+    np.testing.assert_allclose(got, want, rtol=0, atol=1e-5)
 
   def test_rotation_matrix_matches_rotate_batch(self):  # noqa: PLR6301 asserts via np.testing
     x = np.fromfile(TASKS / "vector-task-100d.vec", dtype="<f4").reshape(-1, 100)[:200]

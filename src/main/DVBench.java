@@ -146,7 +146,7 @@ public class DVBench {
   
   static long search(String description, IndexSearcher searcher, String field, int iters, boolean quiet) throws Exception {
     int count = 0;
-    Query query = new MatchAllDocsQuery();
+    Query query = MatchAllDocsQuery.INSTANCE;
     Sort sort = new Sort(new SortField(field, SortField.Type.LONG));
     long startTime = System.currentTimeMillis();
     for (int i = 0; i < iters; i++) {

@@ -646,7 +646,7 @@ public class IndexAndSearchOpenStreetMaps {
 
       /*
       BooleanQuery.Builder b = new BooleanQuery.Builder();
-      b.add(new MatchAllDocsQuery(), BooleanClause.Occur.MUST);
+      b.add(MatchAllDocsQuery.INSTANCE, BooleanClause.Occur.MUST);
       for(Query q : queries) {
         b.add(q, BooleanClause.Occur.MUST_NOT);
       }

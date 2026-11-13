@@ -98,7 +98,7 @@ public class BenchmarkFacets {
             // Warmup
             for (int i = 0; i < 5; i++) {
                 FacetsCollectorManager fcm = new FacetsCollectorManager();
-                FacetsCollector c = s.search(new MatchAllDocsQuery(), fcm);
+                FacetsCollector c = s.search(MatchAllDocsQuery.INSTANCE, fcm);
                 Facets taxoFacets = new FastTaxonomyFacetCounts(TAXO_FIELD_NAME, taxoReader, config, c);
                 Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
                 taxoFacets.getAllDims(5);
@@ -129,7 +129,7 @@ public class BenchmarkFacets {
 
             for (int i = 1; i < numIters + 1; i++) {
                 FacetsCollectorManager fcm = new FacetsCollectorManager();
-                FacetsCollector c = s.search(new MatchAllDocsQuery(), fcm);
+                FacetsCollector c = s.search(MatchAllDocsQuery.INSTANCE, fcm);
 
                 long createFastTaxoCountsStartNS = System.nanoTime();
                 Facets taxoFacets = new FastTaxonomyFacetCounts(TAXO_FIELD_NAME, taxoReader, config, c);

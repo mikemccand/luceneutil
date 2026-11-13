@@ -17,16 +17,22 @@ on:
     workflows: ["Claude Code Review"]
     types: [completed]
 
-concurrency:
-  group: claude-review-run-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
+# no token rights unless a job asks for them.
+permissions: {}
 
 jobs:
   claude-review:
     if: >
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
+    # job-level so a run skipped by the `if` above (a cancelled or failed
+    # stage 1) never cancels a review already running for the same branch.
+    concurrency:
+      group: claude-review-run-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
+    # the tested reviews took about 1 minute; this caps quota spent on a stuck run.
+    timeout-minutes: 15
     permissions:
       actions: read
       contents: read
@@ -66,12 +72,16 @@ jobs:
       # default branch only. do not check out the PR head here.
       - name: Checkout repository
         if: steps.pr.outputs.found == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 1
+          persist-credentials: false
 
-      # the server script ships inside the action. fail loudly if a future
-      # action release moves it, rather than silently losing inline comments.
+      # the server script ships inside the action, which the runner unpacks
+      # under _actions/anthropics/claude-code-action/<ref>. the ref is the
+      # pinned SHA below, so match exactly one directory instead of naming it.
+      # fail loudly if the layout changes, rather than silently losing inline
+      # comments.
       - name: Write inline comment MCP config
         if: steps.pr.outputs.found == 'true'
         env:
@@ -80,7 +90,13 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
-          dir="$(dirname "$RUNNER_WORKSPACE")/_actions/anthropics/claude-code-action/v1"
+          shopt -s nullglob
+          dirs=("$(dirname "$RUNNER_WORKSPACE")"/_actions/anthropics/claude-code-action/*/)
+          if [ "${#dirs[@]}" -ne 1 ]; then
+            echo "::error::expected one claude-code-action directory, found ${#dirs[@]}"
+            exit 1
+          fi
+          dir="${dirs[0]%/}"
           server="$dir/src/mcp/github-inline-comment-server.ts"
           if [ ! -f "$server" ]; then
             echo "::error::inline comment server not found at $server"
@@ -96,9 +112,42 @@ jobs:
                     PR_NUMBER: $n, CLASSIFY_INLINE_COMMENTS: "false"}}}}' \
             > "$RUNNER_TEMP/inline-mcp.json"
 
+      # earlier reviews post inline comments as github-actions[bot]. the
+      # plugin only reads PR conversation comments (gh pr view --comments),
+      # which leave these out, and it may not call gh api, so a later push
+      # would repeat them. save them where the review can Read them: inside
+      # the checkout (runner temp is denied below). line is null on an
+      # outdated comment, so keep original_line too. on an API error, warn
+      # and write an empty list rather than skip the review.
+      - name: Save earlier inline review comments
+        if: steps.pr.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -o pipefail
+          out="$GITHUB_WORKSPACE/.prior-review-comments.json"
+          if ! gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/comments" \
+                 --jq '.[] | select(.user.login == "github-actions[bot]")
+                       | {path, line, original_line, body}' \
+               | jq -s . > "$out"; then
+            echo "::warning::could not list earlier review comments; the review may repeat them"
+            echo "[]" > "$out"
+          fi
+          echo "saved $(jq length "$out") earlier inline review comment(s)"
+
       - name: Run Claude Code Review
         if: steps.pr.outputs.found == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+        env:
+          # allowed_non_write_users already turns this on; set it explicitly so
+          # a change to that default cannot silently turn it off.
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+          # the plugin's sub-agents must finish inside this one headless turn.
+          # a backgrounded one reports after the session has ended, and the
+          # review posts nothing (same setting as pytorch's hardened review).
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # needed to post on fork PRs and for allowed_non_write_users.
@@ -108,13 +157,27 @@ jobs:
           allowed_bots: "dependabot[bot]"
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}'
+          # the plugin stops if Claude already commented on the PR, so a later
+          # push would get no review. the text after the command reaches the
+          # model as its arguments: review every push, but do not repeat
+          # issues or the "No issues found" summary from an earlier review.
+          prompt: |
+            /code-review:code-review --comment ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}
+
+            This run was triggered by a new push to the PR (head ${{ github.event.workflow_run.head_sha }}).
+            In step 1, an earlier Claude comment on this PR is not a reason to stop; keep the closed, draft and trivial-change checks.
+            Earlier Claude inline review comments are in .prior-review-comments.json in the current directory (path, line, original_line, body). The workflow wrote that file; it is not part of the PR, so do not review it. `gh pr view --comments` does not show these comments.
+            Before posting, read that file and the PR conversation comments, and do not post an issue that an earlier Claude comment already raises, even if the line number has moved.
+            If an earlier Claude review exists and you find no new issues, post nothing, including the "No issues found" summary.
           # the buffered-comment post step reads the PR number from the
           # pull_request event, which is empty here, so post comments directly.
           classify_inline_comments: "false"
           # the action drops a file --mcp-config when it adds inline JSON
           # configs of its own (mergeMcpConfigs in base-action). it adds none
           # here; adding mcp__github_comment__* or mcp__github__* tools would.
-          claude_args: '--mcp-config ${{ runner.temp }}/inline-mcp.json --allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # the Read denials keep the review from reading process environments
+          # (/proc) and runner temp files such as the MCP config above.
+          # ScheduleWakeup is denied because nothing wakes a finished CI run.
+          claude_args: '--mcp-config ${{ runner.temp }}/inline-mcp.json --allowedTools "mcp__github_inline_comment__create_inline_comment" --disallowedTools "Read(//proc/**),Read(/${{ runner.temp }}/**),ScheduleWakeup"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options

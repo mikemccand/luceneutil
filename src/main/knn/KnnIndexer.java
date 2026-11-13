@@ -173,8 +173,15 @@ public class KnnIndexer implements FormatterLogger {
       if (docsPathSizeInBytes % (dim * vectorEncoding.byteSize) != 0) {
         throw new IllegalArgumentException("docsPath \"" + docsPath + "\" does not contain a whole number of vectors?  size=" + docsPathSizeInBytes);
       }
-      System.out.println((int) (docsPathSizeInBytes / (dim * vectorEncoding.byteSize)) + " doc vectors in docsPath \"" + docsPath + "\"");
-        
+      long numVectorsInFile = docsPathSizeInBytes / ((long) dim * vectorEncoding.byteSize);
+      System.out.println(numVectorsInFile + " doc vectors in docsPath \"" + docsPath + "\"");
+      // VectorReader wraps around at EOF, which would silently index duplicate vectors and make benchmark results misleading:
+      if ((long) docsStartIndex + numDocs > numVectorsInFile) {
+        throw new IllegalArgumentException("-ndoc=" + numDocs + " with docsStartIndex=" + docsStartIndex + " requires "
+            + ((long) docsStartIndex + numDocs) + " vectors, but docsPath \"" + docsPath + "\" only contains " + numVectorsInFile
+            + " vectors; refusing to wrap around and index duplicate vectors");
+      }
+
       VectorReader vectorReader = VectorReader.create(in, dim, vectorEncoding, docsStartIndex);
       log("parentJoin=%s\n", parentJoin);
       if (parentJoin == false) {

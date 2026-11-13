@@ -17,7 +17,36 @@ PIP_INSTALL_ARGS=--disable-pip-version-check --no-input --upgrade
 VENV=${PWD}/.venv
 
 # don't behave strangely if these files exist
-.PHONY: lint format reformat tidy autofix ruff ruff-fix pyright test env clean
+.PHONY: lint format reformat tidy autofix ruff ruff-fix pyright test env clean native native-run native-clean
+
+# native vectorized dot product example, see native/README.md
+CC ?= gcc
+UNAME_S := $(shell uname -s)
+ifeq ($(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S)),)
+  ifeq ($(UNAME_S),Darwin)
+    NATIVE_LIB_EXT=dylib
+  else
+    NATIVE_LIB_EXT=so
+  endif
+else
+  NATIVE_LIB_EXT=dll
+endif
+NATIVE_LIB=build/native/libdot_product.$(NATIVE_LIB_EXT)
+NATIVE_CFLAGS=-O3 -march=native -ffast-math -fPIC -shared
+
+# builds the native dot product library, tuned for the cpu running make (no cross compilation)
+native: $(NATIVE_LIB)
+$(NATIVE_LIB): native/dot_product.c
+	mkdir -p build/native
+	$(CC) $(NATIVE_CFLAGS) -o $(NATIVE_LIB) native/dot_product.c
+	@echo "built $(NATIVE_LIB) with $(CC) $(NATIVE_CFLAGS)"
+
+# builds then calls the native library from java (needs java 22+); look for the "RUNNING" message
+native-run: native
+	java --enable-native-access=ALL-UNNAMED native/NativeDotProduct.java $(NATIVE_LIB)
+
+native-clean:
+	rm -rf build/native
 
 # list of directories we check
 SOURCES=src/python

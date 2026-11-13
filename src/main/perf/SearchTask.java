@@ -31,6 +31,7 @@ import org.apache.lucene.sandbox.facet.utils.RangeFacetBuilderFactory;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesReaderState;
 import org.apache.lucene.facet.taxonomy.FastTaxonomyFacetCounts;
+import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.ReaderUtil;
@@ -535,9 +536,13 @@ final class SearchTask extends Task {
     } else {
       Document doc = searcher.storedFields().document(docID);
       String text = doc.get(indexState.textFieldName);
-      // NOTE: passing null for analyzer: TermVectors must
+      // NOTE: no analyzer fallback: TermVectors (with offsets) must
       // be indexed!
-      TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), docID, indexState.textFieldName, null);
+      Fields tvFields = searcher.getIndexReader().termVectors().get(docID);
+      TokenStream tokenStream = TokenSources.getTermVectorTokenStreamOrNull(indexState.textFieldName, tvFields, -1);
+      if (tokenStream == null) {
+        throw new IllegalStateException("field \"" + indexState.textFieldName + "\" must index term vectors with offsets to use Highlighter (docID=" + docID + ")");
+      }
       TextFragment[] frags;
       try {
         frags = highlighter.getBestTextFragments(tokenStream, text, false, 2);

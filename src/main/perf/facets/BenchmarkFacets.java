@@ -30,6 +30,7 @@ import java.util.List;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
+import org.apache.lucene.facet.FacetsCollectorManager;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.sortedset.DefaultSortedSetDocValuesReaderState;
@@ -96,8 +97,8 @@ public class BenchmarkFacets {
 
             // Warmup
             for (int i = 0; i < 5; i++) {
-                FacetsCollector c = new FacetsCollector();
-                s.search(new MatchAllDocsQuery(), c);
+                FacetsCollectorManager fcm = new FacetsCollectorManager();
+                FacetsCollector c = s.search(new MatchAllDocsQuery(), fcm);
                 Facets taxoFacets = new FastTaxonomyFacetCounts(TAXO_FIELD_NAME, taxoReader, config, c);
                 Facets ssdvFacets = new SortedSetDocValuesFacetCounts(state, c);
                 taxoFacets.getAllDims(5);
@@ -127,8 +128,8 @@ public class BenchmarkFacets {
             double totalSSDVGetAllChildrenTimeMS = 0;
 
             for (int i = 1; i < numIters + 1; i++) {
-                FacetsCollector c = new FacetsCollector();
-                s.search(new MatchAllDocsQuery(), c);
+                FacetsCollectorManager fcm = new FacetsCollectorManager();
+                FacetsCollector c = s.search(new MatchAllDocsQuery(), fcm);
 
                 long createFastTaxoCountsStartNS = System.nanoTime();
                 Facets taxoFacets = new FastTaxonomyFacetCounts(TAXO_FIELD_NAME, taxoReader, config, c);

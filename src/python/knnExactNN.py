@@ -20,6 +20,7 @@ import argparse
 import ast
 import csv
 import itertools
+import logging
 import os
 import re
 import time
@@ -27,6 +28,7 @@ from pathlib import Path
 
 import numpy as np
 
+logger = logging.getLogger(__name__)
 
 def check_blas_config():
   """Print numpy BLAS configuration and warn if BLAS is missing or misconfigured."""
@@ -38,29 +40,29 @@ def check_blas_config():
   blas_version = blas.get("version", "unknown")
   openblas_cfg = blas.get("openblas configuration", None)
 
-  print(f"numpy {np.__version__}, BLAS: {blas_name} {blas_version}")
+  logger.debug(f"numpy {np.__version__}, BLAS: {blas_name} {blas_version}")
 
   if openblas_cfg is not None:
-    print(f"  OpenBLAS config: {openblas_cfg}")
+    logger.debug(f"  OpenBLAS config: {openblas_cfg}")
 
   found_simd = simd.get("found", [])
   not_found_simd = simd.get("not found", [])
   if found_simd:
-    print(f"  SIMD: {', '.join(found_simd)}")
+    logger.debug(f"  SIMD: {', '.join(found_simd)}")
   if not_found_simd:
-    print(f"  SIMD not available: {', '.join(not_found_simd)}")
+    logger.debug(f"  SIMD not available: {', '.join(not_found_simd)}")
 
   cpu_count = os.cpu_count() or 1
   openblas_threads = os.environ.get("OPENBLAS_NUM_THREADS")
   omp_threads = os.environ.get("OMP_NUM_THREADS")
   if openblas_threads is not None:
-    print(f"  OPENBLAS_NUM_THREADS={openblas_threads}")
+    logger.debug(f"  OPENBLAS_NUM_THREADS={openblas_threads}")
   if omp_threads is not None:
-    print(f"  OMP_NUM_THREADS={omp_threads}")
-  print(f"  cpu_count={cpu_count}")
+    logger.debug(f"  OMP_NUM_THREADS={omp_threads}")
+  logger.debug(f"  cpu_count={cpu_count}")
 
   if blas_name in ("auto", "unknown", "none"):
-    print(f"  WARNING: no optimized BLAS detected (blas={blas_name}). matmul will be ~100x slower than with OpenBLAS/MKL. reinstall numpy with: pip install --force-reinstall numpy")
+    logger.warn(f"no optimized BLAS detected (blas={blas_name}). matmul will be ~100x slower than with OpenBLAS/MKL. reinstall numpy with: pip install --force-reinstall numpy")
     return False
 
   return True
@@ -120,11 +122,11 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     with open(path, "rb") as f:
       os.posix_fadvise(f.fileno(), offset_bytes, length_bytes, os.POSIX_FADV_WILLNEED)
 
-  print(f"check_vector_overlap: advising OS to prefetch {n_query} query vectors ({query_bytes // 1024 // 1024} MB) ...")
+  logger.debug(f"check_vector_overlap: advising OS to prefetch {n_query} query vectors ({query_bytes // 1024 // 1024} MB) ...")
   t_start_sec = time.monotonic()
   _fadvise_willneed(query_file, query_start * bytes_per_vec, query_bytes)
 
-  print(f"check_vector_overlap: advising OS to prefetch {n_doc} doc vectors ({doc_bytes // 1024 // 1024} MB) ...")
+  logger.debug(f"check_vector_overlap: advising OS to prefetch {n_doc} doc vectors ({doc_bytes // 1024 // 1024} MB) ...")
   _fadvise_willneed(doc_file, doc_start * bytes_per_vec, doc_bytes)
 
   if encoding == "float32":
@@ -136,7 +138,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
   else:
     raise ValueError(f"unknown encoding: {encoding}")
 
-  print("check_vector_overlap: scanning for duplicates ...")
+  logger.debug("check_vector_overlap: scanning for duplicates ...")
   t_scan_sec = time.monotonic()
 
   # Group by exact vector value: vec_bytes -> {"doc": [global_idx, ...], "query": [global_idx, ...]}
@@ -157,7 +159,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
 
   t_scan_elapsed_sec = time.monotonic() - t_scan_sec
   total_elapsed_sec = time.monotonic() - t_start_sec
-  print(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
+  logger.info(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
 
   if violations:
 
@@ -592,7 +594,7 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
     and os.path.getsize(scores_path) == expected_size
     and is_newer(nn_path, doc_vectors_path, query_vectors_path)
   ):
-    print(f"  SKIP (cached): {key}")
+    logger.info(f"  SKIP (cached): {key}")
     return
 
   print(f"\n--- computing: {key} ---")

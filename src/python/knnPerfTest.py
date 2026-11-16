@@ -23,26 +23,19 @@ import statistics
 import struct
 import subprocess
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 log_timestamp = datetime.now().strftime("%Y%m%d-%H%M%f")
-log_dir_name="../tool-logs"
+log_dir_name = "../tool-logs"
 log_base_name = f"knnPerfTest.py_{log_timestamp}"
-log_path=f"{log_dir_name}/{log_base_name}.log"
+log_path = f"{log_dir_name}/{log_base_name}.log"
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.WARNING)
-logging.basicConfig(
-  level = logging.DEBUG,
-  format = "%(levelname)s: %(message)s",
-  handlers = [
-    logging.FileHandler(log_path),
-    console_handler
-  ]
-)
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s", handlers=[logging.FileHandler(log_path), console_handler])
 logger.handlers
 
 try:
@@ -56,7 +49,7 @@ except ImportError:
   """)
   raise SystemExit(1) from None
 
-#import autologger
+# import autologger
 import benchUtil
 import constants
 import knnExactNN
@@ -199,12 +192,19 @@ PARAMS = {
   "encoding": ("float32",),
   "metric": ("dot_product",),
   "quantizeBits": (1, 2, 4),
-  "overSample": (1, 2, 5,),
+  "overSample": (
+    1,
+    2,
+    5,
+  ),
   "topK": (100,),
   "quantizeCompress": (True,),
   "forceMerge": (True,),
   "nquery": (1000,),
-  "rerank": (True, False,),
+  "rerank": (
+    True,
+    False,
+  ),
   "rerankQuantizeBits": (32, 8, 4),
 }
 
@@ -1875,15 +1875,15 @@ def print_cpu_info():
 
   # print cpu information
   msg = f"""CPU Information:
-    model: {cpu_info.get('model_name', 'unknown')}
+    model: {cpu_info.get("model_name", "unknown")}
     logical cores: {processor_count}
-    physical cores per socket: {cpu_info.get('cpu_cores', 'unknown')}
-    microcode: {cpu_info.get('microcode', 'unknown')}
+    physical cores per socket: {cpu_info.get("cpu_cores", "unknown")}
+    microcode: {cpu_info.get("microcode", "unknown")}
   """
 
   flags = cpu_info.get("flags", "")
   if flags:
-    msg +=f"  flags: {flags}\n"
+    msg += f"  flags: {flags}\n"
   else:
     msg += "  flags: unknown"
 
@@ -1900,6 +1900,7 @@ def print_cpu_info():
     msg += "  bugs: none"
 
   logger.info(msg)
+
 
 def format_memory_kb(value_str):
   """Convert memory value from kB to appropriate units (kB, MB, GB, TB)"""
@@ -1981,6 +1982,7 @@ def print_mem_info():
 
   msg += f"  dirty RAM: {format_memory_kb(mem_dirty) if mem_dirty != 'unknown' else 'unknown'}"
   logger.info(msg)
+
 
 def check_knn_compiled():
   """Hard exit if KNN Java classes are missing or out of date vs source files."""
@@ -2224,7 +2226,6 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
 
 
 if __name__ == "__main__":
-
   # print cpu and memory information at the start
   print_cpu_info()
   print_mem_info()

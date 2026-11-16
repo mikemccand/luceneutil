@@ -38,7 +38,6 @@ log_path = f"{TOOL_LOGS_DIR}/{log_base_name}.log"
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.WARNING)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s", handlers=[logging.FileHandler(log_path), console_handler])
-logger.handlers
 
 try:
   import numpy as np  # noqa: F401  imported here so the helpful error fires at startup if env is broken
@@ -51,7 +50,6 @@ except ImportError:
   """)
   raise SystemExit(1) from None
 
-# import autologger
 import benchUtil
 import constants
 import knnExactNN
@@ -202,7 +200,7 @@ PARAMS = {
   "topK": (100,),
   "quantizeCompress": (True,),
   "forceMerge": (True,),
-  "nquery": (1000,),
+  "nquery": (10000,),
   "rerank": (
     True,
     False,
@@ -376,7 +374,7 @@ if _AVAILABLE_SIMD_COUNTERS:
   if not int_names:
     logger.info("integer SIMD counters (int_vec_retired.*) not available on this CPU; quantized runs will only show FP counters")
 elif DO_PERF_STAT_SIMD:
-  logger.warninging("perf SIMD counters not available on this CPU; disabling SIMD validation")
+  logger.warning("perf SIMD counters not available on this CPU; disabling SIMD validation")
   DO_PERF_STAT_SIMD = False
 
 
@@ -537,7 +535,7 @@ def print_run_summary(values):
     assert combos == 1
     logger.info("will run single warmup+test with these params:\n%s", msg)
   else:
-    logger.info("will run {combos} total warmups+tests with all combinations of:\n%s", msg)
+    logger.info("will run {%s} total warmups+tests with all combinations of:\n%s", combos, msg)
 
 
 METRIC_LABELS = {
@@ -1235,7 +1233,7 @@ def run_knn_benchmark(checkout, values, log_path):
   # query_vectors = "%s/lucene_util/tasks/vector-task-100d.vec" % constants.BASE_DIR
 
   # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
-  v3 = False
+  v3 = True
 
   if v3:
     dim = 1024
@@ -1348,13 +1346,13 @@ def run_knn_benchmark(checkout, values, log_path):
             do_quantize_compress = True
           elif value:
             args += ["-" + p]
-            msg += f"  -{p}"
+            msg += f"  -{p}\n"
         else:
-          msg += f"  -{p}={value}"
+          msg += f"  -{p}={value}\n"
           pv[p] = value
       else:
         args += ["-" + p]
-        msg += f"  -{p}"
+        msg += f"  -{p}\n"
 
     if not do_rerank and "rerankQuantizeBits" in values:
       rerank_qb_vals = values["rerankQuantizeBits"]
@@ -1367,10 +1365,10 @@ def run_knn_benchmark(checkout, values, log_path):
 
     if do_rerank:
       args += ["-rerank"]
-      msg += "  -rerank"
+      msg += "  -rerank\n"
       if rerank_quantize_bits != 32:
         args += ["-rerankQuantizeBits", str(rerank_quantize_bits)]
-        msg += f"  -rerankQuantizeBits={rerank_quantize_bits}"
+        msg += f"  -rerankQuantizeBits={rerank_quantize_bits}\n"
 
     logger.debug(msg)
 
@@ -1887,19 +1885,19 @@ def print_cpu_info():
   if flags:
     msg += f"  flags: {flags}\n"
   else:
-    msg += "  flags: unknown"
+    msg += "  flags: unknown\n"
 
   vmx_flags = cpu_info.get("vmx_flags", "")
   if vmx_flags:
-    msg += f"  vmx flags: {vmx_flags}"
+    msg += f"  vmx flags: {vmx_flags}\n"
   else:
-    msg += "  vmx flags: none"
+    msg += "  vmx flags: none\n"
 
   bugs = cpu_info.get("bugs", "")
   if bugs:
-    msg += f"  bugs: {bugs}"
+    msg += f"  bugs: {bugs}\n"
   else:
-    msg += "  bugs: none"
+    msg += "  bugs: none\n"
 
   logger.info(msg)
 

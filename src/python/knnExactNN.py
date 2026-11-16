@@ -160,7 +160,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
 
   t_scan_elapsed_sec = time.monotonic() - t_scan_sec
   total_elapsed_sec = time.monotonic() - t_start_sec
-  logger.info("check_vector_overlap: scan done in %s:.1f sec, total %s:.1f sec", t_scan_elapsed_sec, total_elapsed_sec)
+  logger.info("check_vector_overlap: scan done in %.1f sec, total %.1f sec", t_scan_elapsed_sec, total_elapsed_sec)
 
   if violations:
 

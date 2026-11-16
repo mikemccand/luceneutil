@@ -26,13 +26,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from constants import TOOL_LOGS_DIR
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 log_timestamp = datetime.now().strftime("%Y%m%d-%H%M%f")
-log_dir_name = "../tool-logs"
 log_base_name = f"knnPerfTest.py_{log_timestamp}"
-log_path = f"{log_dir_name}/{log_base_name}.log"
+os.makedirs(TOOL_LOGS_DIR, exist_ok=True)
+log_path = f"{TOOL_LOGS_DIR}/{log_base_name}.log"
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.WARNING)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s", handlers=[logging.FileHandler(log_path), console_handler])
@@ -2252,6 +2254,6 @@ if __name__ == "__main__":
   # Where the version of Lucene is that will be tested. Now this will be sourced from gradle.properties
   LUCENE_CHECKOUT = getLuceneDirFromGradleProperties()
   if n.runs == 1:
-    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, (log_dir_name, log_base_name))
+    run_knn_benchmark(LUCENE_CHECKOUT, PARAMS, (TOOL_LOGS_DIR, log_base_name))
   else:
-    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs, (log_dir_name, log_base_name))
+    run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n.runs, (TOOL_LOGS_DIR, log_base_name))

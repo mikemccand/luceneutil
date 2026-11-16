@@ -49,9 +49,9 @@ def check_blas_config():
   found_simd = simd.get("found", [])
   not_found_simd = simd.get("not found", [])
   if found_simd:
-    logger.debug("  SIMD: %s", ', '.join(found_simd))
+    logger.debug("  SIMD: %s", ", ".join(found_simd))
   if not_found_simd:
-    logger.debug("  SIMD not available: %s", ', '.join(not_found_simd))
+    logger.debug("  SIMD not available: %s", ", ".join(not_found_simd))
 
   cpu_count = os.cpu_count() or 1
   openblas_threads = os.environ.get("OPENBLAS_NUM_THREADS")

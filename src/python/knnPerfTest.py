@@ -370,7 +370,7 @@ if _AVAILABLE_SIMD_COUNTERS:
     parts.append(f"FP: {', '.join(fp_names)}")
   if int_names:
     parts.append(f"INT: {', '.join(int_names)}")
-  logger.info("perf SIMD counters available: %s", '; '.join(parts))
+  logger.info("perf SIMD counters available: %s", "; ".join(parts))
   if not int_names:
     logger.info("integer SIMD counters (int_vec_retired.*) not available on this CPU; quantized runs will only show FP counters")
 elif DO_PERF_STAT_SIMD:
@@ -1575,12 +1575,12 @@ def run_knn_benchmark(checkout, values, log_path):
     # warn if any run had scalar-dominant or no SIMD
     bad_runs = [(r, d) for r, _, d in all_simd_reports if d in ("FP-scalar", "none")]
     if bad_runs:
-      logger.warning("%s run(s) without SIMD vectorization: runs %s", len(bad_runs), ', '.join(str(r) for r, _ in bad_runs))
+      logger.warning("%s run(s) without SIMD vectorization: runs %s", len(bad_runs), ", ".join(str(r) for r, _ in bad_runs))
       logger.info("  Check that JVM is using --add-modules jdk.incubator.vector and that the Lucene")
       logger.info("  codec supports vectorized similarity functions for your metric/encoding.")
     else:
       levels = {d for _, _, d in all_simd_reports}
-      logger.info("  All %s run(s) used SIMD: %s", len(all_simd_reports), ', '.join(sorted(levels)))
+      logger.info("  All %s run(s) used SIMD: %s", len(all_simd_reports), ", ".join(sorted(levels)))
 
   if DO_VMSTAT and GNUPLOT_PATH is not None:
     logger.info("open %s in browser to see CPU/IO telemetry of each run", vmstat_index_html_path)

@@ -41,29 +41,29 @@ def check_blas_config():
   blas_version = blas.get("version", "unknown")
   openblas_cfg = blas.get("openblas configuration", None)
 
-  logger.debug("numpy %s, BLAS: %s %s", np.__version__, blas_name, blas_version)
+  logger.debug(f"numpy {np.__version__}, BLAS: {blas_name} {blas_version}")
 
   if openblas_cfg is not None:
-    logger.debug("  OpenBLAS config: %s", openblas_cfg)
+    logger.debug(f"  OpenBLAS config: {openblas_cfg}")
 
   found_simd = simd.get("found", [])
   not_found_simd = simd.get("not found", [])
   if found_simd:
-    logger.debug("  SIMD: %s", ', '.join(found_simd))
+    logger.debug(f"  SIMD: {', '.join(found_simd)}")
   if not_found_simd:
-    logger.debug("  SIMD not available: %s", ', '.join(not_found_simd))
+    logger.debug(f"  SIMD not available: {', '.join(not_found_simd)}")
 
   cpu_count = os.cpu_count() or 1
   openblas_threads = os.environ.get("OPENBLAS_NUM_THREADS")
   omp_threads = os.environ.get("OMP_NUM_THREADS")
   if openblas_threads is not None:
-    logger.debug("  OPENBLAS_NUM_THREADS=%s", openblas_threads)
+    logger.debug(f"  OPENBLAS_NUM_THREADS={openblas_threads}")
   if omp_threads is not None:
-    logger.debug("  OMP_NUM_THREADS=%s", omp_threads)
-  logger.debug("  cpu_count=%s", cpu_count)
+    logger.debug(f"  OMP_NUM_THREADS={omp_threads}")
+  logger.debug(f"  cpu_count={cpu_count}")
 
   if blas_name in ("auto", "unknown", "none"):
-    logger.warning("no optimized BLAS detected (blas=%s). matmul will be ~100x slower than with OpenBLAS/MKL. reinstall numpy with: pip install --force-reinstall numpy", blas_name)
+    logger.warn(f"no optimized BLAS detected (blas={blas_name}). matmul will be ~100x slower than with OpenBLAS/MKL. reinstall numpy with: pip install --force-reinstall numpy")
     return False
 
   return True
@@ -123,11 +123,11 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
     with open(path, "rb") as f:
       os.posix_fadvise(f.fileno(), offset_bytes, length_bytes, os.POSIX_FADV_WILLNEED)
 
-  logger.debug("check_vector_overlap: advising OS to prefetch %s query vectors (%s MB) ...", n_query, query_bytes // 1024 // 1024)
+  logger.debug(f"check_vector_overlap: advising OS to prefetch {n_query} query vectors ({query_bytes // 1024 // 1024} MB) ...")
   t_start_sec = time.monotonic()
   _fadvise_willneed(query_file, query_start * bytes_per_vec, query_bytes)
 
-  logger.debug("check_vector_overlap: advising OS to prefetch %s doc vectors (%s MB) ...", n_doc, doc_bytes // 1024 // 1024)
+  logger.debug(f"check_vector_overlap: advising OS to prefetch {n_doc} doc vectors ({doc_bytes // 1024 // 1024} MB) ...")
   _fadvise_willneed(doc_file, doc_start * bytes_per_vec, doc_bytes)
 
   if encoding == "float32":
@@ -160,7 +160,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
 
   t_scan_elapsed_sec = time.monotonic() - t_scan_sec
   total_elapsed_sec = time.monotonic() - t_start_sec
-  logger.info("check_vector_overlap: scan done in %s:.1f sec, total %s:.1f sec", t_scan_elapsed_sec, total_elapsed_sec)
+  logger.info(f"check_vector_overlap: scan done in {t_scan_elapsed_sec:.1f} sec, total {total_elapsed_sec:.1f} sec")
 
   if violations:
 
@@ -595,7 +595,7 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
     and os.path.getsize(scores_path) == expected_size
     and is_newer(nn_path, doc_vectors_path, query_vectors_path)
   ):
-    logger.info("  SKIP (cached): %s", key)
+    logger.info(f"  SKIP (cached): {key}")
     return
 
   print(f"\n--- computing: {key} ---")

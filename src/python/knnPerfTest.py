@@ -41,7 +41,7 @@ logger.handlers
 try:
   import numpy as np  # noqa: F401  imported here so the helpful error fires at startup if env is broken
 except ImportError:
-  logger.error("""numpy is required but not installed.
+  logger.exception("""numpy is required but not installed.
   To fix, run from the luceneutil root directory:
     make env
     source .venv/bin/activate
@@ -370,11 +370,11 @@ if _AVAILABLE_SIMD_COUNTERS:
     parts.append(f"FP: {', '.join(fp_names)}")
   if int_names:
     parts.append(f"INT: {', '.join(int_names)}")
-  logger.info(f"perf SIMD counters available: {'; '.join(parts)}")
+  logger.info("perf SIMD counters available: %s", '; '.join(parts))
   if not int_names:
     logger.info("integer SIMD counters (int_vec_retired.*) not available on this CPU; quantized runs will only show FP counters")
 elif DO_PERF_STAT_SIMD:
-  logger.warning("perf SIMD counters not available on this CPU; disabling SIMD validation")
+  logger.warninging("perf SIMD counters not available on this CPU; disabling SIMD validation")
   DO_PERF_STAT_SIMD = False
 
 
@@ -533,9 +533,9 @@ def print_run_summary(values):
     msg += s + "\n"
   if len(options) == 0:
     assert combos == 1
-    logger.info(f"will run single warmup+test with these params:\n{msg}")
+    logger.info("will run single warmup+test with these params:\n%s", msg)
   else:
-    logger.info(f"will run {combos} total warmups+tests with all combinations of:\n{msg}")
+    logger.info("will run {combos} total warmups+tests with all combinations of:\n%s", msg)
 
 
 METRIC_LABELS = {
@@ -550,7 +550,7 @@ METRIC_LABELS = {
 def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=None):
   """Read the binary exact NN scores file and generate an HTML histogram using Google Charts."""
   if not os.path.exists(scores_path):
-    logger.warning(f"exact NN scores file not found: {scores_path}")
+    logger.warning("exact NN scores file not found: %s", scores_path)
     return
 
   file_size = os.path.getsize(scores_path)
@@ -567,7 +567,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
   max_score = max(all_scores)
 
   if min_score == max_score:
-    logger.warning(f"all exact NN scores are identical ({min_score}); skipping histogram")
+    logger.warning("all exact NN scores are identical (%s); skipping histogram", min_score)
     return
 
   # Sort scores so JS can use binary search for fast range queries
@@ -756,7 +756,7 @@ def generate_exact_nn_histogram(scores_path, output_dir, log_base_name, metric=N
 """
   output_file = f"{output_dir}/{log_base_name}-knnDistanceHistogram.html"
   Path(output_file).write_text(html)
-  logger.info(f"Wrote exact NN distance histogram to {output_file}")
+  logger.info("Wrote exact NN distance histogram to %s", output_file)
 
 
 def generate_all_distances_histogram(scores_path, output_dir, log_base_name, metric=None, sample_every_n=None):
@@ -765,7 +765,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
   The binary format is raw little-endian float32 scores (no per-query structure).
   """
   if not os.path.exists(scores_path):
-    logger.warning(f"all-distances scores file not found: {scores_path}")
+    logger.warning("all-distances scores file not found: %s", scores_path)
     return
 
   file_size = os.path.getsize(scores_path)
@@ -786,7 +786,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
   max_score = max(all_scores)
 
   if min_score == max_score:
-    logger.warning(f"all distances scores are identical ({min_score}); skipping histogram")
+    logger.warning("all distances scores are identical (%s); skipping histogram", min_score)
     return
 
   sorted_scores = sorted(all_scores)
@@ -969,7 +969,7 @@ def generate_all_distances_histogram(scores_path, output_dir, log_base_name, met
 """
   output_file = f"{output_dir}/{log_base_name}-allDistancesHistogram.html"
   Path(output_file).write_text(html)
-  logger.info(f"Wrote all-distances histogram to {output_file}")
+  logger.info("Wrote all-distances histogram to %s", output_file)
 
 
 def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, metric=None):
@@ -979,7 +979,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
   by that many little-endian float32 scores.
   """
   if not os.path.exists(scores_path):
-    logger.warning(f"HNSW traversal scores file not found: {scores_path}")
+    logger.warning("HNSW traversal scores file not found: %s", scores_path)
     return
 
   all_scores = []
@@ -996,7 +996,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
     all_scores.extend(scores[::HNSW_SAMPLE_EVERY_N])
 
   num_sampled = len(all_scores)
-  logger.info(f"HNSW traversal: {total_scores} total scores, sampled 1-in-{HNSW_SAMPLE_EVERY_N} -> {num_sampled} scores for histogram")
+  logger.info("HNSW traversal: %s total scores, sampled 1-in-%s -> %s scores for histogram", total_scores, HNSW_SAMPLE_EVERY_N, num_sampled)
   if num_sampled == 0:
     logger.warning("HNSW traversal scores file is empty")
     return
@@ -1007,7 +1007,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
   max_score = max(all_scores)
 
   if min_score == max_score:
-    logger.warning(f"all HNSW traversal scores are identical ({min_score}); skipping histogram")
+    logger.warning("all HNSW traversal scores are identical (%s); skipping histogram", min_score)
     return
 
   sorted_scores = sorted(all_scores)
@@ -1191,7 +1191,7 @@ def generate_hnsw_traversal_histogram(scores_path, output_dir, log_base_name, me
 """
   output_file = f"{output_dir}/{log_base_name}-hnswTraversalHistogram.html"
   Path(output_file).write_text(html)
-  logger.info(f"Wrote HNSW traversal score histogram to {output_file}")
+  logger.info("Wrote HNSW traversal score histogram to %s", output_file)
 
 
 def precompute_exact_nn(values, dim, doc_vectors, query_vectors):
@@ -1218,7 +1218,7 @@ def precompute_exact_nn(values, dim, doc_vectors, query_vectors):
     encodings = (encodings,)
 
   combos = list(itertools.product(ndoc, nquery, metrics, top_ks, query_start_indices, encodings))
-  logger.info(f"precomputing exact NN for {len(combos)} parameter combination(s) using numpy...")
+  logger.info("precomputing exact NN for %s parameter combination(s) using numpy...", len(combos))
   knnExactNN.check_blas_config()
   for ndoc, nquery, metric, top_k, query_start_index, encoding in combos:
     knnExactNN.run_one(doc_vectors, query_vectors, dim, ndoc, nquery, metric, top_k, query_start_index, encoding)
@@ -1314,7 +1314,7 @@ def run_knn_benchmark(checkout, values, log_path):
   log_dir_name, log_file_name = log_path
   if DO_VMSTAT and GNUPLOT_PATH is not None:
     vmstat_index_html_path = f"{log_dir_name}/{log_file_name}-vmstats.html"
-    logger.info(f"open {vmstat_index_html_path} in browser to see CPU/IO telemetry of each run")
+    logger.info("open %s in browser to see CPU/IO telemetry of each run", vmstat_index_html_path)
     vmstat_index_out = open(vmstat_index_html_path, "w")
     vmstat_index_out.write("<h2>vmstat results for each run</h2>\n\n")
   while advance(indexes, values):
@@ -1409,7 +1409,7 @@ def run_knn_benchmark(checkout, values, log_path):
 
     if CONFIRM_SIMD_ASM_MODE:
       perf_data_file = f"perf{index_run}.data"
-      logger.info(f"adding 'perf record' command, to {perf_data_file}, to sample instructions being executed to later confirm SIMD usage")
+      logger.info("adding 'perf record' command, to %s, to sample instructions being executed to later confirm SIMD usage", perf_data_file)
       this_cmd = [PERF_EXE, "record", "-m", "2M", "-v", "--call-graph", "lbr", "-e", "instructions:u", "-o", perf_data_file, "-g"] + this_cmd
 
     perf_stat_simd_file = None
@@ -1418,7 +1418,7 @@ def run_knn_benchmark(checkout, values, log_path):
       this_cmd = wrap_cmd_with_perf_stat_simd(this_cmd, perf_stat_simd_file)
 
     if NOISY:
-      logger.debug(f"  cmd: {this_cmd}")
+      logger.debug("  cmd: %s", this_cmd)
     else:
       cmd += ["-quiet"]
 
@@ -1433,7 +1433,7 @@ def run_knn_benchmark(checkout, values, log_path):
       # TODO: get k=v into log file name instead of confusing/error-prone 0, 1, 2, ...
       ps_log_file_name = get_unique_log_name(log_path, "ps")
       ps_process = ps_head.PSTopN(1, ps_log_file_name)
-      logger.debug(f"saving top (ps) processes: {ps_process.cmd}")
+      logger.debug("saving top (ps) processes: %s", ps_process.cmd)
     else:
       logger.warning("top (ps) processes is disabled!")
       ps_process = None
@@ -1441,7 +1441,7 @@ def run_knn_benchmark(checkout, values, log_path):
     if DO_VMSTAT:
       vmstat_log_file_name = get_unique_log_name(log_path, "vmstat")
       vmstat_cmd = f"{benchUtil.VMSTAT_PATH} --active --wide --timestamp --unit M 1 > {vmstat_log_file_name} 2>/dev/null &"
-      logger.debug(f'saving vmstat: "{vmstat_cmd}"')
+      logger.debug('saving vmstat: "%s"', vmstat_cmd)
       vmstat_process = subprocess.Popen(vmstat_cmd, shell=True, preexec_fn=os.setsid)
     else:
       logger.warning("vmstat is disabled!")
@@ -1502,7 +1502,7 @@ def run_knn_benchmark(checkout, values, log_path):
         ps_process.stop()
 
       if DO_VMSTAT:
-        logger.debug(f"now stop vmstat (pid={vmstat_process.pid})...")
+        logger.debug("now stop vmstat (pid=%s)...", vmstat_process.pid)
         # TODO: messy!  can we get process group working so we can kill bash and its child reliably?
         subprocess.check_call(["pkill", "-u", benchUtil.get_username(), "vmstat"])
         if vmstat_process.poll() is None:
@@ -1543,14 +1543,14 @@ def run_knn_benchmark(checkout, values, log_path):
       is_quant = quantize_bits is not None and quantize_bits != 32
       report, dominant = format_simd_report(counters, is_quantized=is_quant)
       all_simd_reports.append((index_run, report, dominant))
-      logger.info(f"  run {index_run} {report}")
+      logger.info("  run %s %s", index_run, report)
       if dominant in ("FP-scalar", "none"):
-        logger.info(f"  raw perf stat output ({perf_stat_simd_file}):")
+        logger.info("  raw perf stat output (%s):", perf_stat_simd_file)
         try:
           for line in Path(perf_stat_simd_file).read_text().splitlines():
-            logger.info(f"    {line}")
+            logger.info("    %s", line)
         except OSError as e:
-          logger.error(f"    (could not read: {e})")
+          logger.exception("    (could not read)")
 
     index_run += 1
 
@@ -1562,7 +1562,7 @@ def run_knn_benchmark(checkout, values, log_path):
       unique_values = set([result[0].split("\t")[col] for result in all_results])
       if len(unique_values) == 1:
         skip_headers.add(OUTPUT_HEADERS[col])
-        logger.info(f"{OUTPUT_HEADERS[col]} = {unique_values.pop()} for all runs; skipping column")
+        logger.info("%s = %s for all runs; skipping column", OUTPUT_HEADERS[col], unique_values.pop())
 
   print_fixed_width(all_results, skip_headers)
   print_chart(all_results)
@@ -1571,19 +1571,19 @@ def run_knn_benchmark(checkout, values, log_path):
   if all_simd_reports:
     logger.info("SIMD validation summary:")
     for run_num, report, dominant in all_simd_reports:
-      logger.info(f"  run {run_num}: {report}")
+      logger.info("  run %s: %s", run_num, report)
     # warn if any run had scalar-dominant or no SIMD
     bad_runs = [(r, d) for r, _, d in all_simd_reports if d in ("FP-scalar", "none")]
     if bad_runs:
-      logger.warning(f"{len(bad_runs)} run(s) without SIMD vectorization: runs {', '.join(str(r) for r, _ in bad_runs)}")
+      logger.warning("%s run(s) without SIMD vectorization: runs %s", len(bad_runs), ', '.join(str(r) for r, _ in bad_runs))
       logger.info("  Check that JVM is using --add-modules jdk.incubator.vector and that the Lucene")
       logger.info("  codec supports vectorized similarity functions for your metric/encoding.")
     else:
       levels = {d for _, _, d in all_simd_reports}
-      logger.info(f"  All {len(all_simd_reports)} run(s) used SIMD: {', '.join(sorted(levels))}")
+      logger.info("  All %s run(s) used SIMD: %s", len(all_simd_reports), ', '.join(sorted(levels)))
 
   if DO_VMSTAT and GNUPLOT_PATH is not None:
-    logger.info(f"open {vmstat_index_html_path} in browser to see CPU/IO telemetry of each run")
+    logger.info("open %s in browser to see CPU/IO telemetry of each run", vmstat_index_html_path)
   return all_results, skip_headers
 
 
@@ -1616,7 +1616,7 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
     try:
       subprocess.check_call(f"{GNUPLOT_PATH} -c {constants.BENCH_BASE_DIR}/src/vmstat/vmstat.gpi {vmstat_log_file_name} {base_name}-vmstat-charts", shell=True)
     except subprocess.CalledProcessError as e:
-      logger.warning(f"gnuplot failed to generate vmstat charts (run may have been too short?): {e}")
+      logger.exception("gnuplot failed to generate vmstat charts (run may have been too short?)")
   finally:
     os.chdir(cwd)
 
@@ -1837,7 +1837,7 @@ def print_cpu_info():
   cpuinfo_path = "/proc/cpuinfo"
 
   if not os.path.exists(cpuinfo_path):
-    logger.warn("CPU info: /proc/cpuinfo not found (not running on Linux)")
+    logger.warning("CPU info: /proc/cpuinfo not found (not running on Linux)")
     return
 
   # parse /proc/cpuinfo - it repeats info for each logical core
@@ -1929,7 +1929,7 @@ def print_mem_info():
   meminfo_path = "/proc/meminfo"
 
   if not os.path.exists(meminfo_path):
-    logger.warn("Memory info: /proc/meminfo not found (not running on Linux)")
+    logger.warning("Memory info: /proc/meminfo not found (not running on Linux)")
     return
 
   mem_info = {}
@@ -1997,7 +1997,7 @@ def check_knn_compiled():
   gradle_cmd = "  JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./gradlew compileKnn"
 
   if not marker.exists():
-    logger.error(f"{marker} does not exist. Run:\n\n{gradle_cmd}")
+    logger.error("%s does not exist. Run:\n\n%s", marker, gradle_cmd)
     raise SystemExit(1)
 
   marker_mtime = marker.stat().st_mtime
@@ -2018,7 +2018,7 @@ def check_knn_compiled():
   try:
     cp_entries = benchUtil.getClassPath(lucene_checkout)
   except RuntimeError as e:
-    logger.error(f"Lucene checkout at {lucene_path} is missing built artifacts: {e}\n\nRun:\n\n{lucene_gradle_cmd}")
+    logger.exception("Lucene checkout at %s is missing built artifacts\n\nRun:\n\n%s", lucene_path, lucene_gradle_cmd)
     raise SystemExit(1) from e
 
   for entry in cp_entries:
@@ -2026,7 +2026,7 @@ def check_knn_compiled():
     if not str(p).startswith(lucene_path):
       continue
     if not p.exists():
-      logger.error(f"Lucene classpath entry missing: {p}\n\nRun:\n\n{lucene_gradle_cmd}")
+      logger.error("Lucene classpath entry missing: %s\n\nRun:\n\n%s", p, lucene_gradle_cmd)
       raise SystemExit(1)
 
 
@@ -2116,8 +2116,8 @@ def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, 
     perf_stat_simd_file = str(Path(work_dir) / "perf-simd.txt")
     full_cmd = wrap_cmd_with_perf_stat_simd(full_cmd, perf_stat_simd_file)
 
-  logger.info(f"[variance] running in {work_dir}")
-  logger.info(f"[variance] cmd: {full_cmd}")
+  logger.info("[variance] running in %s", work_dir)
+  logger.info("[variance] cmd: %s", full_cmd)
 
   os.makedirs(work_dir, exist_ok=True)
 
@@ -2172,14 +2172,14 @@ def run_single_knn_iteration(checkout, params, dim, doc_vectors, query_vectors, 
     counters = parse_perf_stat_file(perf_stat_simd_file)
     is_quant = params.get("quantizeBits", 32) != 32
     report, dominant = format_simd_report(counters, is_quantized=is_quant)
-    logger.info(f"  {report}")
+    logger.info("  %s", report)
     if dominant in ("scalar", "none"):
-      logger.info(f"  raw perf stat output ({perf_stat_simd_file}):")
+      logger.info("  raw perf stat output (%s):", perf_stat_simd_file)
       try:
         for line in Path(perf_stat_simd_file).read_text().splitlines():
-          logger.info(f"    {line}")
+          logger.info("    %s", line)
       except OSError as e:
-        logger.info(f"    (could not read: {e})")
+        logger.info("    (could not read: %s)", e)
 
   return summary, full_output
 
@@ -2216,7 +2216,7 @@ def run_n_knn_benchmarks(LUCENE_CHECKOUT, PARAMS, n, log_path):
   # re-print all tables in a row
   logger.info("Final Results:")
   for i in range(n):
-    logger.info(f"Test {i + 1}:")
+    logger.info("Test %s:", i + 1)
     print_fixed_width(tests[i], skip_headers)
 
   # print median results in table

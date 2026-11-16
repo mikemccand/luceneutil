@@ -133,7 +133,7 @@ if "JAVAC_EXE" not in globals():
 if "JAVA_COMMAND" not in globals():
   JAVA_COMMAND = "%s -server -Xms2g -Xmx2g --add-modules jdk.incubator.vector -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" % JAVA_EXE
 
-print("use java command %s" % JAVA_COMMAND)
+#print("use java command %s" % JAVA_COMMAND)
 
 
 def check_java_home():

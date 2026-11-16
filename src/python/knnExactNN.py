@@ -30,7 +30,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-
 def check_blas_config():
   """Print numpy BLAS configuration and warn if BLAS is missing or misconfigured."""
   cfg = np.show_config(mode="dicts")

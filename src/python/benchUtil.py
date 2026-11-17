@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import datetime
+import logging
 import math
 import os
 import pickle
@@ -40,10 +41,12 @@ import QPSChart
 PERF_EXE = which("perf")
 PERF_STATS = constants.PERF_STATS
 
+logger = logging.getLogger(__name__)
+
 if PERF_EXE is None:
-  print("WARNING: no perf executable; will not collect aggregate CPU profiling data")
+  logger.warning("no perf executable; will not collect aggregate CPU profiling data")
 else:
-  print(f"NOTE: perf executable is {PERF_EXE}; will collect aggregate CPU profiling data")
+  logger.info("perf executable is %s; will collect aggregate CPU profiling data", PERF_EXE)
 
 PYTHON_MAJOR_VER = sys.version_info.major
 
@@ -53,15 +56,15 @@ USE_CPU_TIME_PROFILER = True
 
 VMSTAT_PATH = shutil.which("vmstat")
 if VMSTAT_PATH is None:
-  print("WARNING: no vmstat executable; will not collect system-wide CPU/IO telemetry")
+  logger.warning("no vmstat executable; will not collect system-wide CPU/IO telemetry")
 else:
-  print(f"NOTE: vmstat executable is {VMSTAT_PATH}; will collect system-wide CPU/IO telemetry")
+  logger.info("vmstat executable is %s; will collect system-wide CPU/IO telemetry", VMSTAT_PATH)
 
 GNUPLOT_PATH = shutil.which("gnuplot")
 if GNUPLOT_PATH is None:
-  print("WARNING: no gnuplot executable; will not generate system-wide CPU/IO graphs from vmstat")
+  logger.warning("no gnuplot executable; will not generate system-wide CPU/IO graphs from vmstat")
 else:
-  print(f"NOTE: gnuplot executable is {GNUPLOT_PATH}; will generate system-wide CPU/IO graphs from vmstat")
+  logger.info("gnuplot executable is %s; will generate system-wide CPU/IO graphs from vmstat", GNUPLOT_PATH)
 
 if PYTHON_MAJOR_VER < 3:
   raise RuntimeError("Please run with Python 3.x!  Got: %s" % str(sys.version))
@@ -220,7 +223,7 @@ class SearchTask:
       if False:
         # TODO: fix SearchPerfTest -- cannot use term count across threads since mutiple threads store in the query
         if self.expandedTermCount != other.expandedTermCount:
-          print("WARNING: expandedTermCounts differ for %s: %s vs %s" % (self, self.expandedTermCount, other.expandedTermCount))
+          logger.warning("expandedTermCounts differ for %s: %s vs %s", self, self.expandedTermCount, other.expandedTermCount)
           # self.fail('wrong expandedTermCount: %s vs %s' % (self.expandedTermCount, other.expandedTermCount))
 
       if verifyCounts:
@@ -248,7 +251,7 @@ class SearchTask:
                 if abs(float(hitsSelf[i][1]) - float(hitsOther[i][1])) > MAX_SCORE_DIFF:
                   self.fail("hit %s has wrong field/score value %s vs %s" % (i, hitsSelf[i][1], hitsOther[i][1]))
                 else:
-                  print("WARNING: query=%s filter=%s sort=%s: slight score diff %s vs %s" % (self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1]))
+                  logger.warning("query=%s filter=%s sort=%s: slight score diff %s vs %s", self.query, self.filter, self.sort, hitsSelf[i][1], hitsOther[i][1])
               else:
                 self.fail("hit %s has wrong field/score value %s vs %s" % (i, hitsSelf[i], hitsOther[i]))
             if hitsSelf[i][0] != hitsOther[i][0] and i < len(hitsSelf) - 1:
@@ -1736,7 +1739,7 @@ class RunAlgs:
       w("</table>")
 
     for w in warnings:
-      print("WARNING: %s" % w)
+      logger.warning(w)
 
     return resultsByCatCmp, cmpDiffs, stats(heapCmp)
 

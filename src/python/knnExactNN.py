@@ -522,39 +522,45 @@ def compute_exact_nn(doc_vectors_path, doc_dim, num_docs, query_vectors, metric,
   return result_ids, result_scores
 
 
-# see KnnGraphTester.formatExactNNKey (KnnGraphTester.java:954)
-def format_exact_nn_key(doc_path, query_path, num_docs, num_query_vectors, metric, query_start_index):
-  """Replicate KnnGraphTester.formatExactNNKey naming convention."""
+# see KnnGraphTester.formatExactNNKey; we only compute plain knn search (no parentJoin, filter or radius)
+def _exact_nn_key_prefix_suffix(doc_path, query_path, num_docs, metric, top_k):
+  """Return the parts of the exact NN key before and after the query range."""
   doc_name = Path(doc_path).name
   query_name = Path(query_path).name
+  prefix = f"{doc_name}-{metric}-i{doc_name}-{num_docs}-q{query_name}-"
+  suffix = f"-{metric}-knn-{top_k}"
+  return prefix, suffix
 
-  parts = [
-    metric,
-    f"i{doc_name}",
-    str(num_docs),
-    f"q{query_name}",
-    str(num_query_vectors),
-  ]
+
+def _exact_nn_query_range(num_query_vectors, query_start_index):
   if query_start_index != 0:
-    parts.append(f"qs{query_start_index}")
-  parts.append(metric)
-
-  return f"{doc_name}-" + "-".join(parts)
+    return f"{num_query_vectors}-qs{query_start_index}"
+  return str(num_query_vectors)
 
 
-def _atomic_write(data, path, dtype):
-  """Write array to path atomically via temp file + rename."""
-  num_queries, top_k = data.shape
+def format_exact_nn_key(doc_path, query_path, num_docs, num_query_vectors, metric, query_start_index, top_k):
+  """Replicate KnnGraphTester.formatExactNNKey naming convention."""
+  prefix, suffix = _exact_nn_key_prefix_suffix(doc_path, query_path, num_docs, metric, top_k)
+  return prefix + _exact_nn_query_range(num_query_vectors, query_start_index) + suffix
+
+
+def _atomic_write(rows, path, dtype):
+  """Write one row per query atomically via temp file + rename.
+
+  each row is its int32 length followed by its values, matching KnnGraphTester.writeExactNN/writeExactNNScores.
+  """
   tmp_path = Path(f"{path}.tmp")
   try:
     with open(tmp_path, "wb") as f:
-      f.writelines(data[i].astype(dtype).tobytes() for i in range(num_queries))
+      for row in rows:
+        f.write(np.array([len(row)], dtype="<i4").tobytes())
+        f.write(np.asarray(row, dtype=dtype).tobytes())
     tmp_path.replace(path)
   except BaseException:
     # clean up partial temp file on interrupt or error
     tmp_path.unlink(missing_ok=True)
     raise
-  print(f"  wrote {num_queries * top_k} entries to {path}")
+  print(f"  wrote {sum(len(row) for row in rows)} entries to {path}")
 
 
 def write_ids(ids, path):
@@ -567,6 +573,22 @@ def write_scores(scores, path):
   _atomic_write(scores, path, "<f4")
 
 
+def read_exact_nn(path, dtype):
+  """Read an exact NN .bin (dtype "<i4") or .scores (dtype "<f4") file into a list of per-query arrays."""
+  raw = np.fromfile(path, dtype="<i4")
+  rows = []
+  pos = 0
+  while pos < raw.size:
+    # the length is an int32 in both files (KnnGraphTester stores it as float bits in .scores)
+    length = int(raw[pos])
+    end = pos + 1 + length
+    if length < 0 or end > raw.size:
+      raise ValueError(f"incorrect file format for {path}")
+    rows.append(raw[pos + 1 : end].view(dtype))
+    pos = end
+  return rows
+
+
 def is_newer(path, *others):
   """Return True if path exists and is newer than all others."""
   if not os.path.exists(path):
@@ -575,17 +597,59 @@ def is_newer(path, *others):
   return all(os.path.getmtime(other) < path_mtime for other in others)
 
 
+def find_covering_exact_nn(out_dir, prefix, suffix, num_query_vectors, query_start_index, *sources):
+  """Find the smallest cached exact NN result, with the same key except for the query range, whose queries cover ours.
+
+  queries are independent of each other, so the exact NN of a sub-range of cached queries is just those rows.
+  returns (bin_path, scores_path, cached_query_start_index) or None.
+  """
+  pattern = re.compile(re.escape(prefix) + r"(\d+)(?:-qs(\d+))?" + re.escape(suffix) + r"\.bin")
+  best = None
+  for bin_path in Path(out_dir).glob("*.bin"):
+    m = pattern.fullmatch(bin_path.name)
+    if m is None:
+      continue
+    cached_count = int(m.group(1))
+    cached_start = int(m.group(2) or 0)
+    if (cached_count, cached_start) == (num_query_vectors, query_start_index):
+      continue
+    if cached_start > query_start_index or query_start_index + num_query_vectors > cached_start + cached_count:
+      continue
+    scores_path = bin_path.with_suffix(".scores")
+    if not scores_path.exists() or not is_newer(bin_path, *sources):
+      continue
+    if best is None or cached_count < best[0]:
+      best = (cached_count, bin_path, scores_path, cached_start)
+  if best is None:
+    return None
+  return best[1:]
+
+
+def derive_exact_nn(covering, num_query_vectors, query_start_index, nn_path, scores_path):
+  """Write the exact NN of our queries by slicing them out of a covering cached result."""
+  cached_bin_path, cached_scores_path, cached_start = covering
+  print(f"  deriving exact NN for {num_query_vectors} queries from cached {cached_bin_path}")
+  offset = query_start_index - cached_start
+  ids = read_exact_nn(cached_bin_path, "<i4")
+  scores = read_exact_nn(cached_scores_path, "<f4")
+  if len(ids) != len(scores) or len(ids) < offset + num_query_vectors:
+    raise ValueError(f"cached exact NN {cached_bin_path} has {len(ids)} ids and {len(scores)} scores rows; need {offset + num_query_vectors}")
+  # write scores first: KnnGraphTester only checks the .bin file, so it must be the last to appear
+  write_scores(scores[offset : offset + num_query_vectors], scores_path)
+  write_ids(ids[offset : offset + num_query_vectors], nn_path)
+
+
 def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vectors, metric, top_k, query_start_index, encoding):
   """Compute exact NN for one parameter combination and write cache files."""
-  key = format_exact_nn_key(doc_vectors_path, query_vectors_path, num_docs, num_query_vectors, metric, query_start_index)
+  key = format_exact_nn_key(doc_vectors_path, query_vectors_path, num_docs, num_query_vectors, metric, query_start_index, top_k)
   out_dir = Path("knn-reuse") / "exact-nn"
   out_dir.mkdir(parents=True, exist_ok=True)
 
   nn_path = out_dir / f"{key}.bin"
   scores_path = out_dir / f"{key}.scores"
 
-  # check expected file size: numQueryVectors * topK * 4 bytes
-  expected_size = num_query_vectors * top_k * 4
+  # check expected file size: numQueryVectors * (topK + 1 length prefix) * 4 bytes
+  expected_size = num_query_vectors * (top_k + 1) * 4
 
   # skip if cache is already valid (exists, right size, newer than source vectors)
   if (
@@ -596,6 +660,14 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
     and is_newer(nn_path, doc_vectors_path, query_vectors_path)
   ):
     logger.info("  SKIP (cached): %s", key)
+    return
+
+  # reuse a cached result for more queries (e.g. nquery 1000 -> 100) instead of recomputing
+  prefix, suffix = _exact_nn_key_prefix_suffix(doc_vectors_path, query_vectors_path, num_docs, metric, top_k)
+  covering = find_covering_exact_nn(out_dir, prefix, suffix, num_query_vectors, query_start_index, doc_vectors_path, query_vectors_path)
+  if covering is not None:
+    print(f"\n--- deriving: {key} ---")
+    derive_exact_nn(covering, num_query_vectors, query_start_index, nn_path, scores_path)
     return
 
   print(f"\n--- computing: {key} ---")
@@ -619,8 +691,9 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
   print(f"  computed exact NN in {compute_ms:.1f} ms ({compute_ms / 1000:.3f} sec)")
 
   print(f"  exact nn key = {key}")
-  write_ids(ids, nn_path)
+  # write scores first: KnnGraphTester only checks the .bin file, so it must be the last to appear
   write_scores(scores, scores_path)
+  write_ids(ids, nn_path)
   print(f"  EXACT_NN_SCORES_PATH: {scores_path.resolve()}")
   print(f"  EXACT_NN_METRIC: {metric}")
 

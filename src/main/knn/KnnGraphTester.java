@@ -24,6 +24,7 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -47,6 +48,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -1057,6 +1060,18 @@ public class KnnGraphTester implements FormatterLogger {
   private static String formatExactNNKey(boolean parentJoin, Float filterSelectivity, Long randomSeed, Path docPath,
                                          Path queryVectorsPath, int numDocs, String metric, int numQueryVectors,
                                          int queryStartIndex, SearchType searchType, int topK, float resultSimilarity) {
+    String queryRange = Integer.toString(numQueryVectors);
+    if (queryStartIndex != 0) {
+      queryRange += "-qs" + queryStartIndex;
+    }
+    return formatExactNNKey(parentJoin, filterSelectivity, randomSeed, docPath, queryVectorsPath, numDocs, metric,
+                            queryRange, searchType, topK, resultSimilarity);
+  }
+
+  // queryRange is the number of query vectors, followed by "-qs<queryStartIndex>" when that is not 0
+  private static String formatExactNNKey(boolean parentJoin, Float filterSelectivity, Long randomSeed, Path docPath,
+                                         Path queryVectorsPath, int numDocs, String metric, String queryRange,
+                                         SearchType searchType, int topK, float resultSimilarity) {
     List<String> suffix = new ArrayList<>();
     suffix.add(metric);
 
@@ -1064,11 +1079,7 @@ public class KnnGraphTester implements FormatterLogger {
     suffix.add(Integer.toString(numDocs));
 
     suffix.add("q" + queryVectorsPath.getFileName());
-    suffix.add(Integer.toString(numQueryVectors));
-
-    if (queryStartIndex != 0) {
-      suffix.add("qs" + queryStartIndex);
-    }
+    suffix.add(queryRange);
 
     suffix.add(metric);
 
@@ -1798,18 +1809,26 @@ public class KnnGraphTester implements FormatterLogger {
     }
 
     ExactNNResult result;
+    ExactNNResult covering;
     if (exists && nnIsNewerThanVectors) {
       log("  read pre-cached exact match vectors from cache file \"" + nnPath + "\"\n");
-      int[][] ids = readExactNN(nnPath);
+      int[][] ids = readExactNN(nnPath, numQueryVectors);
       float[][] scores;
       if (Files.exists(scoresPath)) {
         log("  read pre-cached exact match scores from cache file \"" + scoresPath + "\"\n");
-        scores = readExactNNScores(scoresPath);
+        scores = readExactNNScores(scoresPath, numQueryVectors);
       } else {
         log("  no cached scores file found; scores will not be available\n");
         scores = null;
       }
       result = new ExactNNResult(ids, scores);
+    } else if ((covering = readCoveringExactNN(docPath, queryPath, queryStartIndex, metric)) != null) {
+      result = covering;
+      // write scores first: only the .bin file is checked, so it must be the last to appear
+      if (result.scores() != null) {
+        writeExactNNScores(result.scores(), scoresPath);
+      }
+      writeExactNN(result.ids(), nnPath);
     } else {
       String reason;
       if (exists) {
@@ -1858,14 +1877,77 @@ public class KnnGraphTester implements FormatterLogger {
     return true;
   }
 
-  private int[][] readExactNN(Path nnPath) throws IOException {
-    int[][] result = new int[numQueryVectors][];
+  /**
+   * Looks in knn-reuse/exact-nn for a cached exact NN result whose key differs from ours only in the query range, and
+   * whose queries cover ours (e.g. 1000 queries cached, 100 wanted).  Each query's exact NN is independent of the
+   * others, so our result is just those rows.  Returns null if there is no such (up to date) cached result.
+   */
+  private ExactNNResult readCoveringExactNN(Path docPath, Path queryPath, int queryStartIndex, String metric)
+      throws IOException {
+    String placeholder = "\u0000";
+    String template = formatExactNNKey(parentJoin, filterSelectivity, randomSeed, docPath, queryPath, numDocs, metric,
+                                       placeholder, searchType, topK, resultSimilarity);
+    int at = template.indexOf(placeholder);
+    Pattern pattern = Pattern.compile(Pattern.quote(template.substring(0, at)) + "(\\d+)(?:-qs(\\d+))?"
+                                      + Pattern.quote(template.substring(at + placeholder.length())) + "\\.bin");
+    Path subdir = Paths.get("knn-reuse", "exact-nn");
+    if (Files.exists(subdir) == false) {
+      return null;
+    }
+
+    // pick the smallest covering result, so we read the least
+    Path bestPath = null;
+    int bestCount = 0;
+    int bestStart = 0;
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(subdir, "*.bin")) {
+      for (Path path : stream) {
+        Matcher m = pattern.matcher(path.getFileName().toString());
+        if (m.matches() == false) {
+          continue;
+        }
+        int cachedCount = Integer.parseInt(m.group(1));
+        int cachedStart = m.group(2) == null ? 0 : Integer.parseInt(m.group(2));
+        if (cachedCount == numQueryVectors && cachedStart == queryStartIndex) {
+          continue;
+        }
+        if (cachedStart > queryStartIndex || (long) queryStartIndex + numQueryVectors > (long) cachedStart + cachedCount) {
+          continue;
+        }
+        if (isNewer(path, docPath, queryPath) == false) {
+          continue;
+        }
+        if (bestPath == null || cachedCount < bestCount) {
+          bestPath = path;
+          bestCount = cachedCount;
+          bestStart = cachedStart;
+        }
+      }
+    }
+    if (bestPath == null) {
+      return null;
+    }
+
+    log("  derive exact match vectors for %d queries from cache file \"%s\"\n", numQueryVectors, bestPath);
+    int offset = queryStartIndex - bestStart;
+    int[][] ids = Arrays.copyOfRange(readExactNN(bestPath, bestCount), offset, offset + numQueryVectors);
+    float[][] scores = null;
+    Path bestScoresPath = bestPath.resolveSibling(bestPath.getFileName().toString().replaceFirst("\\.bin$", ".scores"));
+    if (Files.exists(bestScoresPath)) {
+      scores = Arrays.copyOfRange(readExactNNScores(bestScoresPath, bestCount), offset, offset + numQueryVectors);
+    } else {
+      log("  no cached scores file found; scores will not be available\n");
+    }
+    return new ExactNNResult(ids, scores);
+  }
+
+  private int[][] readExactNN(Path nnPath, int count) throws IOException {
+    int[][] result = new int[count][];
     try (FileChannel in = FileChannel.open(nnPath)) {
       IntBuffer intBuffer =
         in.map(FileChannel.MapMode.READ_ONLY, 0, in.size())
               .order(ByteOrder.LITTLE_ENDIAN)
               .asIntBuffer();
-      for (int i = 0; i < numQueryVectors; i++) {
+      for (int i = 0; i < count; i++) {
         result[i] = new int[intBuffer.get()];
         intBuffer.get(result[i]);
       }
@@ -1910,14 +1992,14 @@ public class KnnGraphTester implements FormatterLogger {
     }
   }
 
-  private float[][] readExactNNScores(Path scoresPath) throws IOException {
-    float[][] scores = new float[numQueryVectors][];
+  private float[][] readExactNNScores(Path scoresPath, int count) throws IOException {
+    float[][] scores = new float[count][];
     try (FileChannel in = FileChannel.open(scoresPath)) {
       FloatBuffer floatBuffer =
         in.map(FileChannel.MapMode.READ_ONLY, 0, in.size())
               .order(ByteOrder.LITTLE_ENDIAN)
               .asFloatBuffer();
-      for (int i = 0; i < numQueryVectors; i++) {
+      for (int i = 0; i < count; i++) {
         scores[i] = new float[Float.floatToIntBits(floatBuffer.get())];
         floatBuffer.get(scores[i]);
       }

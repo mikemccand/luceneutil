@@ -36,6 +36,7 @@ _FADV_SEQUENTIAL = getattr(os, "POSIX_FADV_SEQUENTIAL", None)
 
 logger = logging.getLogger("smell_vectors")
 
+
 def _fadvise(fd, offset, length, advice):
   # no-op on platforms without posix_fadvise (hints only, not required for correctness)
   if hasattr(os, "posix_fadvise") and advice is not None:

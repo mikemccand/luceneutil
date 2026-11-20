@@ -778,7 +778,7 @@ public class KnnGraphTester implements FormatterLogger {
     }
     {
       PrintStream out = new PrintStream(Files.newOutputStream(indexPath.resolve("hnsw-stats.tsv")));
-      HnswStats.printIndexStats(out, indexPath.toString(), HnswStats.PrintFormat.Tsv);
+      HnswStat.printIndexStats(out, indexPath.toString(), HnswStat.PrintFormat.Tsv);
     }
     if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
       printIndexStatistics(indexPath, KNN_FIELD_FILTERED);

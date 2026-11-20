@@ -34,8 +34,7 @@ _FADV_RANDOM = getattr(os, "POSIX_FADV_RANDOM", None)
 _FADV_WILLNEED = getattr(os, "POSIX_FADV_WILLNEED", None)
 _FADV_SEQUENTIAL = getattr(os, "POSIX_FADV_SEQUENTIAL", None)
 
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger("smell_vectors")
 
 def _fadvise(fd, offset, length, advice):
   # no-op on platforms without posix_fadvise (hints only, not required for correctness)

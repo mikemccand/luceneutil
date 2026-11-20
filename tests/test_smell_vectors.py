@@ -1,5 +1,6 @@
 import contextlib
 import io
+import logging
 import random
 import sys
 import unittest
@@ -128,14 +129,13 @@ class TestSmellVectors(unittest.TestCase):
     try:
       read_chunks = lambda: smell_vectors._read_all_vectors(TASKS / "vector-task-minilm.vec", 384, len(vectors), "smell:")
       self.assert_same_as_in_memory(vectors, read_chunks)
-      out = io.StringIO()
-      with contextlib.redirect_stdout(out):
+      with self.assertLogs("smell_vectors", level="WARNING") as log:
         stats = smell_vectors._dim_stats(read_chunks, 384, "test")
     finally:
       smell_vectors._FULL_CHUNK_VECS = old_chunk_vecs
     self.assertEqual(stats["not_norm_count"], num_not_norm)
     # only the 1st, 2nd, 4th, 8th, ... bad vectors are printed
-    printed = [int(line.rsplit("#", 1)[1].rstrip(")")) for line in out.getvalue().splitlines() if "(not normalized" in line]
+    printed = [int(line.rsplit("#", 1)[1].rstrip(")")) for line in log.output if "(not normalized" in line]
     self.assertEqual(printed, [1 << i for i in range(num_not_norm.bit_length())])
     self.assertAlmostEqual(stats["not_norm_min"], bad_norms.min(), places=5)
     self.assertAlmostEqual(stats["not_norm_max"], bad_norms.max(), places=5)

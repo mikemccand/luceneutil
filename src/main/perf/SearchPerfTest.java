@@ -176,23 +176,27 @@ public class SearchPerfTest {
 
     /** Returns sum nanoseconds across all threads from the provided prior sample to this sample, or null
      *  if the threads changed during the run. */
-    public ElapsedMSAndCoreCount subtract(ThreadDetails prior) {
+    public ElapsedMSAndCoreCount subtract(ThreadDetails prior, boolean print) {
       double elapsedMS = nsToMS(this.ns - prior.ns);
       if (Arrays.equals(prior.threadIDs, this.threadIDs)) {
         long sumCPUTimeNS = 0;
         for(int i=0;i<prior.threadIDs.length;i++) {
           sumCPUTimeNS += this.cpuTimesNS[i] - prior.cpuTimesNS[i];
-          System.out.println("thread " + prior.threadIDs[i]
-                             + " name=" + prior.threadInfos[i].getThreadName()
-                             + " cpu@start=" + prior.cpuTimesNS[i]
-                             + " cpu@end=" + this.cpuTimesNS[i]
-                             + " deltaMS=" + nsToMS(this.cpuTimesNS[i] - prior.cpuTimesNS[i]));
+          if (print) {
+            System.out.println("thread " + prior.threadIDs[i]
+                               + " name=" + prior.threadInfos[i].getThreadName()
+                               + " cpu@start=" + prior.cpuTimesNS[i]
+                               + " cpu@end=" + this.cpuTimesNS[i]
+                               + " deltaMS=" + nsToMS(this.cpuTimesNS[i] - prior.cpuTimesNS[i]));
+          }
         }
         double avgCPUCount = nsToMS(sumCPUTimeNS) / elapsedMS;
                                                
-        System.out.println("\nAverage CPU cores used: " + avgCPUCount); 
+        if (print) {
+          System.out.println("\nAverage CPU cores used: " + avgCPUCount);
+        }
         return new ElapsedMSAndCoreCount(elapsedMS, avgCPUCount);
-      } else {
+      } else if (print) {
         System.out.println("NOTE: start/end threads changed; cannot compute average CPU");
         System.out.println("\nStart threads:");
         for(int i=0;i<prior.threadIDs.length;i++) {
@@ -205,8 +209,8 @@ public class SearchPerfTest {
         }
         // throw new IllegalStateException("thread IDs changed: " + startThreadDetails.threadIDs.length + " vs " endThreadDetails.threadIDs.length);
         System.out.println("\nAverage CPU cores used: -1\n  (thread IDs changed during run; maybe due to attached jstack during run?)");
-        return null;
       }
+      return null;
     }
   }
 
@@ -723,7 +727,7 @@ public class SearchPerfTest {
 
     // only report CPU stats if post-warmup runtime is at least as long as warmup:
     if ((finishNanos - postWarmupNanos) > msToNS(WARMUP_MSEC)) {
-      ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
+      ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails, true);
       if (elapsed != null) {
         avgCPUCount = elapsed.avgCPUCount;
       }

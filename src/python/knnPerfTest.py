@@ -36,8 +36,19 @@ log_base_name = f"knnPerfTest.py_{log_timestamp}"
 os.makedirs(TOOL_LOGS_DIR, exist_ok=True)
 log_path = f"{TOOL_LOGS_DIR}/{log_base_name}.log"
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.WARNING)
+console_handler.setLevel(logging.INFO)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s", handlers=[logging.FileHandler(log_path), console_handler])
+
+
+class ConsoleLogFormatter(logging.Formatter):
+  def format(self, record):  # noqa: PLR6301
+    if record.levelno <= logging.INFO:
+      return record.message
+    return f"\x1b[31m{record.levelname}: {record.message}\x1b[0m"
+
+
+console_handler.setFormatter(ConsoleLogFormatter())
+
 
 try:
   import numpy as np  # noqa: F401  imported here so the helpful error fires at startup if env is broken
@@ -175,8 +186,6 @@ if CONFIRM_SIMD_ASM_MODE and PERF_EXE is None:
 #   javac -d build -cp /l/trunk/lucene/core/build/libs/lucene-core-10.0.0-SNAPSHOT.jar:/l/trunk/lucene/join/build/libs/lucene-join-10.0.0-SNAPSHOT.jar src/main/knn/*.java src/main/WikiVectors.java src/main/perf/VectorDictionary.java
 #
 
-NOISY = True
-
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?
 
@@ -191,7 +200,11 @@ PARAMS = {
   "numSearchThread": (4,),
   "encoding": ("float32",),
   "metric": ("dot_product",),
-  "quantizeBits": (1, 2, 4),
+  "quantizeBits": (
+    1,
+    2,
+    4,
+  ),
   "overSample": (
     1,
     2,
@@ -278,9 +291,8 @@ SMELL_VECTORS_ENABLED = True
 
 
 def smell_vectors(dim, file_name, label):
-  """Sync IO_METHOD/NOISY into smell_vectors module then run the smell."""
+  """Sync IO_METHOD into smell_vectors module then run the smell."""
   _smell.IO_METHOD = IO_METHOD
-  _smell.NOISY = NOISY
   _smell.smell_vectors(dim, file_name, label)
 
 
@@ -535,7 +547,7 @@ def print_run_summary(values):
     assert combos == 1
     logger.info("will run single warmup+test with these params:\n%s", msg)
   else:
-    logger.info("will run {%s} total warmups+tests with all combinations of:\n%s", combos, msg)
+    logger.info("will run %s total warmups+tests with all combinations of:\n%s", combos, msg)
 
 
 METRIC_LABELS = {
@@ -1235,16 +1247,24 @@ def run_knn_benchmark(checkout, values, log_path):
   # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
   v3 = True
 
+  beastly = os.path.exists("/l/logs.nightly")
+
+  data_path = f"{constants.BASE_DIR}/data"
   if v3:
     dim = 1024
-    doc_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"
-    query_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec"
+    if beastly:
+      doc_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"
+      query_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.queries.vec"
+    else:
+      doc_vectors = f"{data_path}/cohere-v3-wikipedia-en-scattered-1024d.docs.first1M.vec"
+      query_vectors = f"{data_path}/cohere-v3-wikipedia-en-scattered-1024d.queries.first200K.vec"
   else:
     dim = 768
-    doc_vectors = f"%s/data/cohere-wikipedia-docs-{dim}d.vec" % constants.BASE_DIR
-    query_vectors = f"%s/data/cohere-wikipedia-queries-{dim}d.vec" % constants.BASE_DIR
+    doc_vectors = f"{data_path}/cohere-wikipedia-docs-{dim}d.vec"
+    query_vectors = f"{data_path}/cohere-wikipedia-queries-{dim}d.vec"
 
-  # dim = 768
+  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
+
   # doc_vectors = '/lucenedata/enwiki/enwiki-20120502-lines-1k-mpnet.vec'
   # query_vectors = '/lucenedata/enwiki/enwiki-20120502.mpnet.vec'
   # dim = 384
@@ -1253,14 +1273,6 @@ def run_knn_benchmark(checkout, values, log_path):
   # dim = 300
   # doc_vectors = '%s/data/enwiki-20120502-lines-1k-300d.vec' % constants.BASE_DIR
   # query_vectors = '%s/luceneutil/tasks/vector-task-300d.vec' % constants.BASE_DIR
-
-  # Cohere dataset
-  # dim = 768
-  # doc_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-docs-{dim}d.vec"
-  # query_vectors = f"{constants.BASE_DIR}/data/cohere-wikipedia-queries-{dim}d.vec"
-  # doc_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-docs-{dim}d.vec"
-  # query_vectors = f"/lucenedata/enwiki/{'cohere-wikipedia'}-queries-{dim}d.vec"
-  # parentJoin_meta_file = f"{constants.BASE_DIR}/data/{'cohere-wikipedia'}-metadata.csv"
 
   jfr_output = f"{constants.LOGS_DIR}/knn-perf-test.jfr"
 
@@ -1283,8 +1295,7 @@ def run_knn_benchmark(checkout, values, log_path):
 
   cmd += ["knn.KnnGraphTester"]
 
-  if NOISY:
-    print_run_summary(values)
+  print_run_summary(values)
 
   if SMELL_VECTORS_ENABLED:
     smell_vectors(dim, doc_vectors, "docs")
@@ -1394,7 +1405,6 @@ def run_knn_benchmark(checkout, values, log_path):
         # '-numMergeThread', '8', '-numMergeWorker', '8',
         #'-forceMerge',
         #'-stats',
-        #'-quiet'
       ]
     )
 
@@ -1417,10 +1427,10 @@ def run_knn_benchmark(checkout, values, log_path):
       perf_stat_simd_file = get_unique_log_name(log_path, "perf-simd").replace(".log", ".txt")
       this_cmd = wrap_cmd_with_perf_stat_simd(this_cmd, perf_stat_simd_file)
 
-    if NOISY:
-      logger.debug("  cmd: %s", this_cmd)
-    else:
-      cmd += ["-quiet"]
+    if logger.level > logging.DEBUG:
+      this_cmd += ["-quiet"]
+
+    logger.debug("  cmd: %s", this_cmd)
 
     # hint that we will read the vectors files, to get the OS starting on the I/O now:
     vec_size_bytes = dim * 4
@@ -1495,6 +1505,7 @@ def run_knn_benchmark(checkout, values, log_path):
         if m is not None:
           all_distances_sample_every_n = int(m.group(1).strip())
         if "Exception in" in line:
+          logger.error(line)
           hit_exception = True
     finally:
       if DO_PS:
@@ -1605,8 +1616,8 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
   cwd = os.getcwd()
   try:
     # TODO: optimize to single shared copy!
-    # TODO: don't hardwire version / full path to this js file!
-    shutil.copy("/usr/share/gnuplot/6.0/js/gnuplot_svg.js", vmstat_dir_name)
+    gnuplot_version = subprocess.check_output(["/bin/ls", "/usr/share/gnuplot"], text=True).strip()
+    shutil.copy(f"/usr/share/gnuplot/{gnuplot_version}/js/gnuplot_svg.js", vmstat_dir_name)
     shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{vmstat_dir_name}/index.html")
 
     # because gnuplot needs to be in this directory (?)
@@ -1899,7 +1910,7 @@ def print_cpu_info():
   else:
     msg += "  bugs: none\n"
 
-  logger.info(msg)
+  logger.debug(msg)
 
 
 def format_memory_kb(value_str):
@@ -1981,7 +1992,7 @@ def print_mem_info():
     msg += "  used RAM: unknown\n"
 
   msg += f"  dirty RAM: {format_memory_kb(mem_dirty) if mem_dirty != 'unknown' else 'unknown'}"
-  logger.info(msg)
+  logger.debug(msg)
 
 
 def check_knn_compiled():
@@ -2237,13 +2248,21 @@ if __name__ == "__main__":
     action="store_true",
     help="Skip the per-dim distribution smell-test of doc/query .vec files (enabled by default).",
   )
-  parser.add_argument("--verbose", action="store_true", help="print info-level log messages")
+  parser.add_argument("--verbose", action="store_true", help="log at debug level")
+  parser.add_argument("--quiet", action="store_true", help="log at warn level")
   n = parser.parse_args()
   if n.no_smell_vectors:
     # mutate the module-level flag so run_knn_benchmark sees it
     globals()["SMELL_VECTORS_ENABLED"] = False
     globals()["CHECK_QUERY_DOC_MODEL_CONSISTENCY"] = False
   if n.verbose:
+    if n.quiet:
+      print("--verbose and --quiet are incompatible")
+      raise SystemExit(1)
+    console_handler.setLevel(logging.DEBUG)
+  elif n.quiet:
+    console_handler.setLevel(logging.WARNING)
+  else:
     console_handler.setLevel(logging.INFO)
 
   constants.check_java_home()

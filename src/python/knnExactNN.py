@@ -160,7 +160,7 @@ def check_vector_overlap(doc_file, doc_start, n_doc, query_file, query_start, n_
 
   t_scan_elapsed_sec = time.monotonic() - t_scan_sec
   total_elapsed_sec = time.monotonic() - t_start_sec
-  logger.info("check_vector_overlap: scan done in %.1f sec, total %.1f sec", t_scan_elapsed_sec, total_elapsed_sec)
+  logger.debug("check_vector_overlap: scan done in %.1f sec, total %.1f sec", t_scan_elapsed_sec, total_elapsed_sec)
 
   if violations:
 
@@ -308,7 +308,7 @@ def check_query_doc_distribution_match(
   if n_doc_sample <= 1 or n_query_sample <= 1:
     raise ValueError(f"need at least 2 doc and query vectors; got n_doc={n_doc}, n_query={n_query}")
 
-  print(f"\ncheck_query_doc_distribution_match: sampling {n_doc_sample} doc vecs and {n_query_sample} query vecs (encoding={encoding}, metric={metric})")
+  logger.debug("\ncheck_query_doc_distribution_match: sampling %s doc vecs and %s query vecs (encoding=%s, metric=%s)", n_doc_sample, n_query_sample, encoding, metric)
   t_start_sec = time.monotonic()
 
   # use the front of each requested range as the sample
@@ -382,15 +382,16 @@ def check_query_doc_distribution_match(
   elapsed_sec = time.monotonic() - t_start_sec
 
   # ---- report -------------------------------------------------------------------------
-  print(f"check_query_doc_distribution_match: completed in {elapsed_sec:.1f} sec")
-  print(f"  per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%, max |z|={max_abs_z:.1f})")
-  print(f"  per-dim sigma ratio outliers: {num_sigma_outlier_dims}/{dim} dims have max(σ)/min(σ) > 4")  # noqa: RUF001
-  print(f"  doc norms:   mean={doc_norms.mean():.4f}  std={doc_norms.std():.4f}  min={doc_norms.min():.4f}  max={doc_norms.max():.4f}")
-  print(f"  query norms: mean={query_norms.mean():.4f}  std={query_norms.std():.4f}  min={query_norms.min():.4f}  max={query_norms.max():.4f}")
-  print(_format_stats("cross  (query x doc) ", cross))
-  print(_format_stats("within (doc   x doc) ", doc_doc))
-  print(_format_stats("within (query x query)", query_query))
-  print(f"  spread_ratio = cross_spread / max(within_spreads) = {spread_ratio:.3f}")
+  report = f"check_query_doc_distribution_match: completed in {elapsed_sec:.1f} sec"
+  report += f"\n  per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%, max |z|={max_abs_z:.1f})"
+  report += f"\n  per-dim sigma ratio outliers: {num_sigma_outlier_dims}/{dim} dims have max(σ)/min(σ) > 4"  # noqa: RUF001
+  report += f"\n  doc norms:   mean={doc_norms.mean():.4f}  std={doc_norms.std():.4f}  min={doc_norms.min():.4f}  max={doc_norms.max():.4f}"
+  report += f"\n  query norms: mean={query_norms.mean():.4f}  std={query_norms.std():.4f}  min={query_norms.min():.4f}  max={query_norms.max():.4f}"
+  report += _format_stats("cross  (query x doc) ", cross)
+  report += _format_stats("within (doc   x doc) ", doc_doc)
+  report += _format_stats("within (query x query)", query_query)
+  report += f"\n  spread_ratio = cross_spread / max(within_spreads) = {spread_ratio:.3f}"
+  logger.debug(report)
 
   # ---- decide -------------------------------------------------------------------------
   problems = []
@@ -402,8 +403,8 @@ def check_query_doc_distribution_match(
       "This is the dominant signature of doc-side and query-side embeddings coming from different models / checkpoints / preprocessing."
     )
   elif frac_diverging_dims >= _MISMATCH_DIM_Z_FRAC_WARN:
-    print(
-      f"  WARNING: per-dim mean drift: {num_diverging_dims}/{dim} dims have |z|>{_MISMATCH_DIM_Z_THRESHOLD} ({frac_diverging_dims * 100:.1f}%). docs and queries may have come from different models."
+    logger.warning(
+      "per-dim mean drift: %s/%s dims have |z|>%s (%.1f%%). docs and queries may have come from different models.", num_diverging_dims, dim, _MISMATCH_DIM_Z_THRESHOLD, frac_diverging_dims * 100
     )
 
   if spread_ratio < _MISMATCH_SPREAD_RATIO_FAIL:
@@ -413,7 +414,7 @@ def check_query_doc_distribution_match(
       "no relevant query/doc pair stands out from the noise floor.  embedding spaces appear uncorrelated."
     )
   elif spread_ratio < _MISMATCH_SPREAD_RATIO_WARN:
-    print(f"  WARNING: cross-score spread is suspiciously small (spread_ratio={spread_ratio:.3f} < {_MISMATCH_SPREAD_RATIO_WARN}); recall may be poor")
+    logger.warning("cross-score spread is suspiciously small (spread_ratio=%.3f < %s); recall may be poor", spread_ratio, _MISMATCH_SPREAD_RATIO_WARN)
 
   if problems:
     msg = (
@@ -495,7 +496,7 @@ def compute_exact_nn(doc_vectors_path, doc_dim, num_docs, query_vectors, metric,
   # mmap doc vectors (BLAS threads share the mapping within this process)
   doc_vectors = np.memmap(doc_vectors_path, dtype="<f4", mode="r", shape=(num_docs, doc_dim))
 
-  print(f"  {num_chunks} chunks of {chunk_size} queries, multi-threaded BLAS")
+  logger.debug("  %s chunks of %s queries, multi-threaded BLAS", num_chunks, chunk_size)
 
   start_sec = time.monotonic()
   next_report_sec = start_sec
@@ -516,7 +517,7 @@ def compute_exact_nn(doc_vectors_path, doc_dim, num_docs, query_vectors, metric,
     if now_sec >= next_report_sec or completed_queries == num_queries:
       elapsed_sec = now_sec - start_sec
       pct = 100.0 * completed_queries / num_queries
-      print(f"  {elapsed_sec:6.1f} s: {pct:5.1f} % ({completed_queries:5d} / {num_queries}) vectors")
+      logger.debug("  %6.1fs s: %5.1f %% (%5d / %s) vectors", elapsed_sec, pct, completed_queries, num_queries)
       next_report_sec = now_sec + 5.0
 
   return result_ids, result_scores
@@ -554,7 +555,7 @@ def _atomic_write(data, path, dtype):
     # clean up partial temp file on interrupt or error
     tmp_path.unlink(missing_ok=True)
     raise
-  print(f"  wrote {num_queries * top_k} entries to {path}")
+  logger.debug("  wrote %s entries to %s", num_queries * top_k, path)
 
 
 def write_ids(ids, path):
@@ -598,11 +599,11 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
     logger.info("  SKIP (cached): %s", key)
     return
 
-  print(f"\n--- computing: {key} ---")
-  print(f"  docs={doc_vectors_path} queries={query_vectors_path}")
-  print(f"  dim={dim} numDocs={num_docs} numQueries={num_query_vectors} metric={metric} topK={top_k}")
+  logger.debug("\n--- computing: %s ---", key)
+  logger.debug("  docs=%s queries=%s", doc_vectors_path, query_vectors_path)
+  logger.debug("  dim=%s numDocs=%s numQueries=%s metric=%s topK=%s", dim, num_docs, num_query_vectors, metric, top_k)
 
-  print(f"  loading {num_query_vectors} query vectors (startIndex={query_start_index}, encoding={encoding})")
+  logger.debug("  loading %s query vectors (startIndex=%s, encoding=%s)", num_query_vectors, query_start_index, encoding)
   start_ns = time.monotonic_ns()
   if encoding == "float32":
     query_vectors = load_float32_vectors(query_vectors_path, dim, num_query_vectors, query_start_index)
@@ -610,19 +611,19 @@ def run_one(doc_vectors_path, query_vectors_path, dim, num_docs, num_query_vecto
     query_vectors = load_byte_vectors(query_vectors_path, dim, num_query_vectors, query_start_index)
   query_vectors = np.array(query_vectors)
   load_query_ms = (time.monotonic_ns() - start_ns) / 1e6
-  print(f"    loaded in {load_query_ms:.1f} ms")
+  logger.debug("    loaded in %.1f ms", load_query_ms)
 
-  print(f"  computing exact top-{top_k} NN (metric={metric})")
+  logger.debug("  computing exact top-%s NN (metric=%s)", top_k, metric)
   start_ns = time.monotonic_ns()
   ids, scores = compute_exact_nn(doc_vectors_path, dim, num_docs, query_vectors, metric, top_k)
   compute_ms = (time.monotonic_ns() - start_ns) / 1e6
-  print(f"  computed exact NN in {compute_ms:.1f} ms ({compute_ms / 1000:.3f} sec)")
+  logger.debug("  computed exact NN in %.1f ms (%.3f sec)", compute_ms, compute_ms / 1000)
 
-  print(f"  exact nn key = {key}")
+  logger.debug("  exact nn key = %s", key)
   write_ids(ids, nn_path)
   write_scores(scores, scores_path)
-  print(f"  EXACT_NN_SCORES_PATH: {scores_path.resolve()}")
-  print(f"  EXACT_NN_METRIC: {metric}")
+  logger.debug("  EXACT_NN_SCORES_PATH: %s", scores_path.resolve())
+  logger.debug("  EXACT_NN_METRIC: %s", metric)
 
 
 def parse_params_from_source(source_text):
@@ -694,11 +695,11 @@ def run_from_knn_perf_test(perf_test_path):
   params = parse_params_from_source(source_text)
   dim, doc_vectors, query_vectors = parse_vector_config_from_source(source_text)
 
-  print(f"parsed from {perf_test_path}:")
-  print(f"  dim={dim}")
-  print(f"  doc_vectors={doc_vectors}")
-  print(f"  query_vectors={query_vectors}")
-  print("  PARAMS (exact-nn relevant):")
+  msg = f"parsed from {perf_test_path}:"
+  msg += f"\n  dim={dim}"
+  msg += f"\n  doc_vectors={doc_vectors}"
+  msg += f"\n  query_vectors={query_vectors}"
+  msg += "\n  PARAMS (exact-nn relevant):"
 
   # extract the parameters that affect exact NN computation
   # each param is a tuple of values to iterate over
@@ -723,20 +724,22 @@ def run_from_knn_perf_test(perf_test_path):
   if not isinstance(encodings, (tuple, list)):
     encodings = (encodings,)
 
-  print(f"    ndoc={ndoc}")
-  print(f"    nquery={nquery}")
-  print(f"    metric={metrics}")
-  print(f"    topK={top_ks}")
-  print(f"    queryStartIndex={query_start_indices}")
-  print(f"    encoding={encodings}")
+  msg += f"\n    ndoc={ndoc}"
+  msg += f"\n    nquery={nquery}"
+  msg += f"\n    metric={metrics}"
+  msg += f"\n    topK={top_ks}"
+  msg += f"\n    queryStartIndex={query_start_indices}"
+  msg += f"\n    encoding={encodings}"
+
+  logger.debug(msg)
 
   combos = list(itertools.product(ndoc, nquery, metrics, top_ks, query_start_indices, encodings))
-  print(f"\n{len(combos)} parameter combination(s) to precompute:")
+  logger.debug("%s parameter combination(s) to precompute:", len(combos))
 
   for ndoc, nquery, metric, top_k, query_start_index, encoding in combos:
     run_one(doc_vectors, query_vectors, dim, ndoc, nquery, metric, top_k, query_start_index, encoding)
 
-  print("\ndone.")
+  logger.debug("done.")
 
 
 def run_diag():
@@ -744,10 +747,10 @@ def run_diag():
   rng = np.random.default_rng()
   cpu_count = os.cpu_count() or 1
 
-  print(f"numpy {np.__version__}")
-  print(f"OPENBLAS_NUM_THREADS={os.environ.get('OPENBLAS_NUM_THREADS', 'NOT SET')}")
-  print(f"MKL_NUM_THREADS={os.environ.get('MKL_NUM_THREADS', 'NOT SET')}")
-  print(f"cpu_count={cpu_count}")
+  logger.debug("numpy %s", np.__version__)
+  logger.debug("OPENBLAS_NUM_THREADS=%s", os.environ.get("OPENBLAS_NUM_THREADS", "NOT SET"))
+  logger.debug("MKL_NUM_THREADS=%s", os.environ.get("MKL_NUM_THREADS", "NOT SET"))
+  logger.debug("cpu_count=%s", cpu_count)
 
   # benchmark at increasing doc counts to show scaling
   n_q, dim = 256, 1024
@@ -757,7 +760,7 @@ def run_diag():
   d_warmup = rng.standard_normal((1000, dim)).astype(np.float32)
   _ = q @ d_warmup.T
 
-  print(f"\nmatmul benchmark: ({n_q}, {dim}) @ ({dim}, N_docs).T")
+  logger.debug("\nmatmul benchmark: (%s, %s) @ (%s, N_docs).T", n_q, dim, dim)
   peak_gflops = 0.0
   for n_d in (50_000, 100_000, 200_000, 500_000):
     d = rng.standard_normal((n_d, dim)).astype(np.float32)
@@ -771,15 +774,18 @@ def run_diag():
     peak_gflops = max(peak_gflops, gflops)
     total_chunks = 10_000 // n_q
     est_total = best * total_chunks
-    print(f"  {n_d:>7,} docs: {best:.3f}s/chunk, {gflops:,.0f} GFLOP/s, est {est_total:.1f}s for 10K queries")
+    # defeat ruffmania
+    msg = f"  {n_d:>7,} docs: {best:.3f}s/chunk, {gflops:,.0f} GFLOP/s, est {est_total:.1f}s for 10K queries"
+    logger.debug(msg)
     del d  # free before next allocation
 
   # rough single-thread peak for reference (AVX2 FMA: 2*8 FLOPs/cycle * freq)
   st_peak_estimate = 48  # GFLOP/s, conservative for modern x86
   effective_threads = peak_gflops / st_peak_estimate
-  print(f"\n  peak: {peak_gflops:,.0f} GFLOP/s (~{effective_threads:.0f} effective threads, {cpu_count} cores available)")
+  msg = f"\n  peak: {peak_gflops:,.0f} GFLOP/s (~{effective_threads:.0f} effective threads, {cpu_count} cores available)"
+  logger.debug(msg)
   if effective_threads < 2:
-    print("  WARNING: BLAS appears single-threaded! Check numpy/BLAS configuration.")
+    logger.warning("BLAS appears single-threaded! Check numpy/BLAS configuration.")
 
 
 def main():

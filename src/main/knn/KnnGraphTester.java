@@ -19,6 +19,7 @@ package knn;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -775,6 +776,10 @@ public class KnnGraphTester implements FormatterLogger {
         Files.writeString(forceMergeTimePath(indexPath), String.valueOf(forceMergeTimeSec));
       }
     }
+    {
+      PrintStream out = new PrintStream(Files.newOutputStream(indexPath.resolve("hnsw-stats.tsv")));
+      HnswStats.printIndexStats(out, indexPath.toString(), HnswStats.PrintFormat.Tsv);
+    }
     if (filterStrategy == FilterStrategy.INDEX_TIME_SPARSE) {
       printIndexStatistics(indexPath, KNN_FIELD_FILTERED);
     } else {
@@ -1441,7 +1446,7 @@ public class KnnGraphTester implements FormatterLogger {
             }
           }
           ThreadDetails endThreadDetails = new ThreadDetails();
-          perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails);
+          perf.SearchPerfTest.ElapsedMSAndCoreCount elapsed = endThreadDetails.subtract(startThreadDetails, !quiet);
           elapsedMS = TimeUnit.NANOSECONDS.toMillis(endThreadDetails.ns - startThreadDetails.ns);
           if (elapsed != null) {
             totalCpuTimeMS = (long) (elapsed.avgCPUCount() * elapsedMS);
@@ -1610,9 +1615,9 @@ public class KnnGraphTester implements FormatterLogger {
     }
 
     log("collected %d total HNSW traversal scores across %d queries\n", totalScoreCount, numQueryVectors);
-    System.out.println("HNSW_TRAVERSAL_SCORES_PATH: " + scoresPath.toAbsolutePath());
-    System.out.println("HNSW_TRAVERSAL_METRIC: " + metric);
-    System.out.println("HNSW_TRAVERSAL_NUM_QUERIES: " + numQueryVectors);
+    log("HNSW_TRAVERSAL_SCORES_PATH: " + scoresPath.toAbsolutePath());
+    log("HNSW_TRAVERSAL_METRIC: " + metric);
+    log("HNSW_TRAVERSAL_NUM_QUERIES: " + numQueryVectors);
   }
 
   private static double nsToSec(long ns) {
@@ -1740,8 +1745,8 @@ public class KnnGraphTester implements FormatterLogger {
   private RecallResult checkResults(int[][] results, int[][] nn) {
     long totalMatches = 0, totalBaselineCount = 0, totalCandidateCount = 0;
     for (int i = 0; i < results.length; i++) {
-      // System.out.println("compare " + Arrays.toString(nn[i]) + " to ");
-      // System.out.println(Arrays.toString(results[i]));
+      // log("compare " + Arrays.toString(nn[i]) + " to ");
+      // log(Arrays.toString(results[i]));
       totalBaselineCount += nn[i].length;
       totalCandidateCount += results[i].length;
       totalMatches += compareNN(nn[i], results[i]);
@@ -1841,8 +1846,8 @@ public class KnnGraphTester implements FormatterLogger {
     }
 
     if (result.scores() != null) {
-      System.out.println("EXACT_NN_SCORES_PATH: " + scoresPath.toAbsolutePath());
-      System.out.println("EXACT_NN_METRIC: " + metric);
+      log("EXACT_NN_SCORES_PATH: " + scoresPath.toAbsolutePath());
+      log("EXACT_NN_METRIC: " + metric);
     }
 
     return result;
@@ -1986,9 +1991,9 @@ public class KnnGraphTester implements FormatterLogger {
     log("all-distances: sampled %d scores (1-in-%d), wrote to \"%s\", took %.3f sec\n",
         totalSampled, allDistancesSampleEveryN, outputPath, elapsedMS / 1000.);
 
-    System.out.println("ALL_DISTANCES_SCORES_PATH: " + outputPath.toAbsolutePath());
-    System.out.println("ALL_DISTANCES_METRIC: " + metric);
-    System.out.println("ALL_DISTANCES_SAMPLE_EVERY_N: " + allDistancesSampleEveryN);
+    log("ALL_DISTANCES_SCORES_PATH: " + outputPath.toAbsolutePath());
+    log("ALL_DISTANCES_METRIC: " + metric);
+    log("ALL_DISTANCES_SAMPLE_EVERY_N: " + allDistancesSampleEveryN);
   }
 
   class ComputeAllDistancesSampledTask implements Callable<Void> {

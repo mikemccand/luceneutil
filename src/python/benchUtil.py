@@ -58,13 +58,13 @@ VMSTAT_PATH = shutil.which("vmstat")
 if VMSTAT_PATH is None:
   logger.warning("no vmstat executable; will not collect system-wide CPU/IO telemetry")
 else:
-  logger.info("vmstat executable is %s; will collect system-wide CPU/IO telemetry", VMSTAT_PATH)
+  logger.debug("vmstat executable is %s; will collect system-wide CPU/IO telemetry", VMSTAT_PATH)
 
 GNUPLOT_PATH = shutil.which("gnuplot")
 if GNUPLOT_PATH is None:
   logger.warning("no gnuplot executable; will not generate system-wide CPU/IO graphs from vmstat")
 else:
-  logger.info("gnuplot executable is %s; will generate system-wide CPU/IO graphs from vmstat", GNUPLOT_PATH)
+  logger.debug("gnuplot executable is %s; will generate system-wide CPU/IO graphs from vmstat", GNUPLOT_PATH)
 
 if PYTHON_MAJOR_VER < 3:
   raise RuntimeError("Please run with Python 3.x!  Got: %s" % str(sys.version))

@@ -20,6 +20,7 @@ This is the source of truth for the vector-smelling logic. `knnPerfTest.py` impo
 
 import argparse
 import functools
+import logging
 import mmap
 import os
 import random
@@ -32,6 +33,8 @@ from hadamard_rotation import HadamardRotation
 _FADV_RANDOM = getattr(os, "POSIX_FADV_RANDOM", None)
 _FADV_WILLNEED = getattr(os, "POSIX_FADV_WILLNEED", None)
 _FADV_SEQUENTIAL = getattr(os, "POSIX_FADV_SEQUENTIAL", None)
+
+logger = logging.getLogger(__name__)
 
 
 def _fadvise(fd, offset, length, advice):
@@ -164,12 +167,12 @@ def _print_dim_line(d, mean, std, pct_zeros, counts, labels, dim_idx_width):
   """Prints sparkline + stats, with any smell labels (with details) on separate lines below."""
   top_row, bot_row = _sparklines_2row(counts)
   prefix = f"  dim {d:0{dim_idx_width}d} μ={mean:+8.3f} σ={std:8.3f} zeros={pct_zeros * 100:3.0f}% "  # noqa: RUF001 sigma (std deviation) is intentional
-  print(f"{' ' * len(prefix)}[{top_row}]")
-  print(f"{prefix}[{bot_row}]")
+  logger.debug("%s[%s]", " " * len(prefix), top_row)
+  logger.debug("%s[%s]", prefix, bot_row)
   indent = f"  {' ' * dim_idx_width}  "
   for name, detail in labels:
-    print(f"{indent}-> {name}: {detail}")
-  print()
+    logger.debug("%s-> %s: %s", indent, name, detail)
+  logger.debug("")
 
 
 def _read_vectors_pread(file_name, sample_indices, vec_size_bytes):
@@ -222,7 +225,7 @@ def _read_vectors_mmap(file_name, sample_indices, vec_size_bytes, dim):
     finally:
       mm.close()
 
-  print()
+  logger.debug("")
 
 
 def _read_all_vectors(file_name, dim, num_vectors, progress_prefix):
@@ -235,7 +238,7 @@ def _read_all_vectors(file_name, dim, num_vectors, progress_prefix):
     yield np.arange(start, end), vectors[start:end]
     now_sec = time.monotonic()
     if NOISY and (now_sec >= next_report_sec or end == num_vectors):
-      print(f"{progress_prefix}   {end}/{num_vectors} ({100 * end / num_vectors:3.0f}%) {now_sec - start_sec:.1f}s")
+      logger.debug("%s   %s/%s (%3.0f%%) %.1fs", progress_prefix, end, num_vectors, 100 * end / num_vectors, now_sec - start_sec)
       next_report_sec = now_sec + 5.0
 
 
@@ -275,7 +278,7 @@ def _dim_stats(read_chunks, dim, file_name):
       not_norm_count += 1
       # print the 1st, 2nd, 4th, 8th, ... so output stays O(log n) even when every vector is off
       if not_norm_count & (not_norm_count - 1) == 0:
-        print(f'WARNING: vec {vec_indices[i]} in "{file_name}" has norm={norms[i]} (not normalized; #{not_norm_count})')
+        logger.warning('vec %s in "%s" has norm=%s (not normalized; #%s)', vec_indices[i], file_name, norms[i], not_norm_count)
       if not_norm_first is None:
         not_norm_first = int(vec_indices[i])
       not_norm_min = min(not_norm_min, float(norms[i]))
@@ -372,8 +375,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=F
     num_sample = num_vectors
     checked_desc = "vectors"
     checked_unit = "vectors"
-    if NOISY:
-      print(f"smell: streaming all {num_vectors} vectors for per-dim distribution...")
+    logger.debug("smell: streaming all %s vectors for per-dim distribution...", num_vectors)
     read_chunks = lambda: _read_all_vectors(file_name, dim, num_vectors, "smell:")
   else:
     num_sample = min(_NUM_DIM_SAMPLE_VECS, num_vectors)
@@ -381,8 +383,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=F
     checked_unit = "samples"
     sample_indices = random.sample(range(num_vectors), num_sample)
 
-    if NOISY:
-      print(f"smell: sampling {num_sample} of {num_vectors} vectors for per-dim distribution...")
+    logger.debug("smell: sampling %s of %s vectors for per-dim distribution...", num_sample, num_vectors)
 
     # load all sampled vectors concurrently into a (num_sample, dim) float32 array
     samples = np.empty((num_sample, dim), dtype=np.float32)
@@ -400,11 +401,7 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=F
       completed = i + 1
       if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
         elapsed_sec = time.monotonic() - t0_sec
-        if NOISY:
-          print(f"\rsmell:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
-
-    if NOISY:
-      print()
+        logger.debug("smell:   %s/%s (%3.0f%%) %.1fs", completed, num_sample, 100 * completed / num_sample, elapsed_sec)
 
     read_chunks = lambda: [(sample_indices, samples)]
 
@@ -414,8 +411,14 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=F
 
   if not_norm_count > 0:
     norm_range = f"norms min={stats['not_norm_min']:.4g} mean={stats['not_norm_mean']:.4g} max={stats['not_norm_max']:.4g}"
-    print(
-      f'WARNING: dimension or vector file name might be wrong?  {not_norm_count} of {num_sample} {checked_desc} are not normalized in "{file_name}" (first: vec {stats["not_norm_first"]}; {norm_range})'
+    logger.warning(
+      'WARNING: dimension or vector file name might be wrong?  %s of %s %s are not normalized in "%s" (first: vec %s; %s)',
+      not_norm_count,
+      num_sample,
+      checked_desc,
+      file_name,
+      stats["not_norm_first"],
+      norm_range,
     )
 
   with np.errstate(invalid="ignore", divide="ignore"):
@@ -502,9 +505,9 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=F
   # Estimate effective rank for human-readable context: full*dim ~= number of dims actually used
   eff_rank_full = isotropy_full * dim
   eff_rank_diag = isotropy_diag * dim
-  print(f"smell: isotropy={isotropy_full:.3f} full-cov, {isotropy_diag:.3f} diag-only (effective rank ~{eff_rank_full:.1f}/{dim} full, ~{eff_rank_diag:.1f}/{dim} diag)")
-  print("  isotropy = (tr C)^2 / (D * ||C||_F^2): 1.0 = energy spread evenly across all dims; 1/D = data on one direction")
-  print("  full-cov uses real covariance (sees cross-dim correlations); diag-only uses per-dim variances (blind to correlations)")
+  logger.debug("smell: isotropy=%.3f full-cov, %.3f diag-only (effective rank ~%s/%s full, ~%.1f/%s diag)", isotropy_full, isotropy_diag, eff_rank_full, dim, eff_rank_diag, dim)
+  logger.debug("  isotropy = (tr C)^2 / (D * ||C||_F^2): 1.0 = energy spread evenly across all dims; 1/D = data on one direction")
+  logger.debug("  full-cov uses real covariance (sees cross-dim correlations); diag-only uses per-dim variances (blind to correlations)")
   if isotropy_full < _THRESH_ANISOTROPIC:
     if isotropy_diag - isotropy_full > 0.2:
       cause = "ROTATED anisotropy: per-dim variances look balanced but data lives in a lower-dim subspace at an angle to coord axes"
@@ -512,31 +515,35 @@ def _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full=F
     else:
       cause = "AXIS-ALIGNED anisotropy: a few dims carry most of the variance"
       fix = "consider per-dim standardization (subtract mean, divide by std)"
-    print(f"  WARNING: anisotropic vectors (isotropy_full={isotropy_full:.3f} < {_THRESH_ANISOTROPIC})")
-    print(f"           {cause}")
-    print(f"           {fix}")
+    logger.warning("anisotropic vectors (isotropy_full=%.3f < %s)", isotropy_full, _THRESH_ANISOTROPIC)
+    logger.warning("           %s", cause)
+    logger.warning("           %s", fix)
 
   # tally degenerate-or-near-degenerate dims (CONSTANT + NEAR_CONSTANT) -- these are
   # dims that effectively carry no information and are wasted ambient axes
   num_constant = int(sum(1 for lbs in dim_labels for name, _ in lbs if name == "CONSTANT"))
   num_near_constant = int(sum(1 for lbs in dim_labels for name, _ in lbs if name == "NEAR_CONSTANT"))
   if num_constant > 0 or num_near_constant > 0:
-    print(f"smell: {num_constant + num_near_constant}/{dim} dims are degenerate or near-degenerate (carry ~no information): {num_constant} CONSTANT, {num_near_constant} NEAR_CONSTANT")
+    logger.warning("smell: %s/%s dims are degenerate or near-degenerate (carry ~no information): %s CONSTANT, %s NEAR_CONSTANT", num_constant + num_near_constant, dim, num_constant, num_near_constant)
 
   if bad_dims:
-    print(f"smell: {len(bad_dims)} degenerate dim(s) found in {elapsed_sec:.1f}s:")
+    logger.warning("smell: %s degenerate dim(s) found in %.1fs:", len(bad_dims), elapsed_sec)
     if any(name == "OUTLIER_SPREAD" for lbs in dim_labels for name, _ in lbs):
-      print(f"  (OUTLIER_SPREAD: std of all dims: μ={mean_of_stds:.3f}, σ={std_of_stds:.3f}, threshold={_THRESH_OUTLIER_SPREAD_SIGMA}σ)")  # noqa: RUF001 sigma (std deviation) is intentional
+      logger.warning(
+        "  (OUTLIER_SPREAD: std of all dims: μ=%.3f, σ=%.3f, threshold=%sσ)",  # noqa: RUF001 sigma (std deviation) is intentional
+        mean_of_stds,
+        std_of_stds,
+        _THRESH_OUTLIER_SPREAD_SIGMA,
+      )
 
     for d in bad_dims:
       _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width)
 
-    if NOISY:
-      print(f"smell: all {dim} dims:")
-      for d in range(dim):
-        _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width)
-  elif NOISY:
-    print(f"smell: no degenerate dims found in {elapsed_sec:.1f}s")
+    logger.debug("smell: all %s dims:", dim)
+    for d in range(dim):
+      _print_dim_line(d, float(mean[d]), float(std[d]), float(pct_zeros[d]), dim_counts[d], dim_labels[d], dim_idx_width)
+  else:
+    logger.debug("smell: no degenerate dims found in %.1fs", elapsed_sec)
 
   # collect per-label counts for the final summary
   label_counts = {}
@@ -568,8 +575,7 @@ def _load_id_samples(dim, file_name, num_vectors, vec_size_bytes):
   num_sample = min(_NUM_INTRINSIC_DIM_SAMPLE_VECS, num_vectors)
   sample_indices = random.sample(range(num_vectors), num_sample)
 
-  if NOISY:
-    print(f"smell ID: sampling {num_sample} of {num_vectors} vectors for intrinsic-dim estimation...")
+  logger.debug("smell ID: sampling %s of %s vectors for intrinsic-dim estimation...", num_sample, num_vectors)
 
   samples = np.empty((num_sample, dim), dtype=np.float32)
   t0_sec = time.monotonic()
@@ -586,11 +592,7 @@ def _load_id_samples(dim, file_name, num_vectors, vec_size_bytes):
     completed = i + 1
     if completed % max(1, num_sample // 20) == 0 or completed == num_sample:
       elapsed_sec = time.monotonic() - t0_sec
-      if NOISY:
-        print(f"\rsmell ID:   {completed}/{num_sample} ({100 * completed / num_sample:3.0f}%) {elapsed_sec:.1f}s", end="", flush=True)
-
-  if NOISY:
-    print()
+      logger.debug("smell ID:   %s/%s (%3.0f%%) %.1fs", completed, num_sample, 100 * completed / num_sample, elapsed_sec)
 
   return np.array(sample_indices), samples
 
@@ -803,14 +805,13 @@ def _estimate_intrinsic_dim(samples, sample_indices, read_chunks, num_reference,
   assert samples.shape[1] == dim, f"shape mismatch: samples.shape[1]={samples.shape[1]} vs dim={dim}"
 
   reference_str = f" vs all {num_reference} vectors" if num_reference > N else ""
-  print(f"\nsmell ID: estimating intrinsic dim of {label} vectors (N={N}{reference_str}, ambient dim={dim})...")
+  logger.debug("smell ID: estimating intrinsic dim of %s vectors (N=%s%s, ambient dim=%s)...", label, N, reference_str, dim)
   t0_sec = time.monotonic()
 
   D2 = _nearest_sq_distances(samples, sample_indices, read_chunks, max(_MLE_K_VALUES))
 
   matmul_sec = time.monotonic() - t0_sec
-  if NOISY:
-    print(f"smell ID:   distance matrix ({N}x{num_reference}) in {matmul_sec:.1f}s")
+  logger.debug("smell ID:   distance matrix (%sx%s) in %.1fs", N, num_reference, matmul_sec)
 
   # --- TwoNN ---
   twonn = _twonn_estimate(D2)
@@ -829,14 +830,15 @@ def _estimate_intrinsic_dim(samples, sample_indices, read_chunks, num_reference,
   total_sec = time.monotonic() - t0_sec
 
   # --- report ---
-  print(f"smell ID: results for {label} (computed in {total_sec:.1f}s):")
-  print(f"  TwoNN:    d={twonn['d']:6.2f}  (R^2={twonn['r2']:.3f} over {twonn['n_kept']} points; {twonn['n_dup']} duplicates dropped)")
+  msg = f"smell ID: results for {label} (computed in {total_sec:.1f}s):"
+  msg += f"\n  TwoNN:    d={twonn['d']:6.2f}  (R^2={twonn['r2']:.3f} over {twonn['n_kept']} points; {twonn['n_dup']} duplicates dropped)"
   for k in _MLE_K_VALUES:
-    print(f"  MLE k={k:<3d} d_mean={mle[k]['mean']:6.2f}  d_median={mle[k]['median']:6.2f}  (over {mle[k]['n']} points)")
+    msg += f"\n  MLE k={k:<3d} d_mean={mle[k]['mean']:6.2f}  d_median={mle[k]['median']:6.2f}  (over {mle[k]['n']} points)"
   pca_strs = []
   for thresh, k_needed in pca.items():
     pca_strs.append(f"d_{int(thresh * 100)}={k_needed}")
-  print(f"  PCA:      {'  '.join(pca_strs)}   (linear ID; ambient={dim})")
+  msg += f"\n  PCA:      {'  '.join(pca_strs)}   (linear ID; ambient={dim})"
+  logger.debug(msg)
 
   # --- interpretation block ---
   pca95 = pca.get(0.95)
@@ -846,14 +848,15 @@ def _estimate_intrinsic_dim(samples, sample_indices, read_chunks, num_reference,
   mle_min = min(m["mean"] for m in mle.values())
   disagreement = max(mle_max / twonn_d, twonn_d / max(mle_min, 1e-9)) if twonn_d > 0 else float("inf")
 
-  print("  -- interpretation --")
-  print("  TwoNN d is the manifold (nonlinear) intrinsic dim; PCA-95% is the linear-subspace dim.")
-  print(f"  PCA-95% / TwoNN = {curvature_ratio:.1f}x measures how curved the manifold is inside")
-  print("  that linear subspace.  high ratio -> learned rotations (PCA, OPQ) help quantization;")
-  print("  random rotations (RaBitQ) less so.  low ratio (~1) -> data is near-flat; random rotation suffices.")
-  print(f"  TwoNN d~={twonn_d:.1f} predicts HNSW recall scaling roughly like dim-{int(round(twonn_d))} data:")
-  print("  lower ID -> can afford smaller beamWidth, more aggressive quantization, fewer fanout;")
-  print("  higher ID -> need richer beam search and conservative quantization.")
+  msg = "  -- interpretation --"
+  msg += "\n  TwoNN d is the manifold (nonlinear) intrinsic dim; PCA-95% is the linear-subspace dim."
+  msg += f"\n  PCA-95% / TwoNN = {curvature_ratio:.1f}x measures how curved the manifold is inside"
+  msg += "\n  that linear subspace.  high ratio -> learned rotations (PCA, OPQ) help quantization;"
+  msg += "\n  random rotations (RaBitQ) less so.  low ratio (~1) -> data is near-flat; random rotation suffices."
+  msg += f"\n  TwoNN d~={twonn_d:.1f} predicts HNSW recall scaling roughly like dim-{int(round(twonn_d))} data:"
+  msg += "\n  lower ID -> can afford smaller beamWidth, more aggressive quantization, fewer fanout;"
+  msg += "\n  higher ID -> need richer beam search and conservative quantization."
+  logger.debug(msg)
 
   # --- WARNINGs ---
   warnings = []
@@ -900,11 +903,11 @@ def _estimate_intrinsic_dim(samples, sample_indices, read_chunks, num_reference,
     )
 
   if warnings:
-    print(f"\nWARNING: {len(warnings)} issue(s) flagged for {label} vectors:")
+    logger.warning("%s issue(s) flagged for %s vectors:", len(warnings), label)
     for w in warnings:
-      print(f"  WARNING: {w}")
-  elif NOISY:
-    print(f"smell ID: no issues flagged for {label} vectors")
+      logger.warning(w)
+  else:
+    logger.debug("smell ID: no issues flagged for %s vectors", label)
 
   return {
     "twonn_d": float(twonn["d"]),
@@ -979,15 +982,16 @@ def _print_final_summary(label, file_name, dist_summary, id_summary):
   m_w = max(len(r[0]) for r in rows)
   v_w = max(len(r[1]) for r in rows)
   bar = "─" * (m_w + v_w + 60)
-  print()
-  print(bar)
-  print(f"SMELL SUMMARY for {label} vectors  ({file_name})")
-  print(bar)
-  print(f"{'METRIC'.ljust(m_w)}   {'VALUE'.ljust(v_w)}   INTERPRETATION")
-  print(f"{'─' * m_w}   {'─' * v_w}   {'─' * 50}")
+  msg = "\n"
+  msg += bar
+  msg += f"\nSMELL SUMMARY for {label} vectors  ({file_name})\n"
+  msg += bar
+  msg += f"\n{'METRIC'.ljust(m_w)}   {'VALUE'.ljust(v_w)}   INTERPRETATION"
+  msg += f"\n{'─' * m_w}   {'─' * v_w}   {'─' * 50}\n"
   for name, val, interp in rows:
-    print(f"{name.ljust(m_w)}   {val.ljust(v_w)}   {interp}")
-  print(bar)
+    msg += f"{name.ljust(m_w)}   {val.ljust(v_w)}   {interp}\n"
+  msg += bar
+  logger.debug(msg)
 
   # verdict
   problems = []
@@ -1001,11 +1005,12 @@ def _print_final_summary(label, file_name, dist_summary, id_summary):
     problems.append(f"{len(id_summary['warnings'])} ID-estimator concern(s) (see WARNING lines above)")
 
   if problems:
-    print(f"VERDICT: {len(problems)} concern(s): {'; '.join(problems)}")
+    logger.warning("VERDICT: %s concern(s): %s", len(problems), "; ".join(problems))
   else:
-    print("VERDICT: clean — vectors look well-conditioned for KNN benchmarking")
-  print(bar)
-  print()
+    logger.info("VERDICT: clean — vectors look well-conditioned for KNN benchmarking")
+
+    # print(bar)
+    # print()
 
 
 ROTATE = False
@@ -1053,9 +1058,8 @@ def smell_vectors(dim, file_name, label="vectors", full=False):
       f'vector file "{file_name}" cannot be dimension {dim}: its size is not a multiple of each vector\'s size in bytes ({vec_size_bytes}); wrong vector source file or dimensionality?'
     )
 
-  if NOISY:
-    rot_str = " (rotated in memory)" if ROTATE else ""
-    print(f"smell vectors from {file_name}{rot_str}")
+  rot_str = " (rotated in memory)" if ROTATE else ""
+  logger.debug("smell vectors from %s%s", file_name, rot_str)
 
   dist_summary = _check_dim_distributions(dim, file_name, num_vectors, vec_size_bytes, full)
 
@@ -1106,11 +1110,11 @@ def _main():
   # When --rotate is given, do a second pass with Hadamard rotation applied in memory
   # so the user can compare the raw vs rotated SMELL SUMMARY side by side.
   if args.rotate:
-    print()
-    print("=" * 104)
-    print("Re-running smell with Hadamard rotation applied in memory (Lucene-faithful)...")
-    print("=" * 104)
-    print()
+    # print()
+    # print("=" * 104)
+    logger.debug("Re-running smell with Hadamard rotation applied in memory (Lucene-faithful)...")
+    # print("=" * 104)
+    # print()
     ROTATE = True
     smell_vectors(args.dim, args.vec_path, f"{args.label} (rotated)", args.full)
 

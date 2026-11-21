@@ -252,6 +252,8 @@ OUTPUT_HEADERS = [
   "bp-reorder",
   "indexType",
   "rerank",
+  "deleteRate",
+  "deletePattern",
 ]
 # TODO:  "bp",
 

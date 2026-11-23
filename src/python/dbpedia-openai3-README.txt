@@ -15,6 +15,22 @@ title and text, plus two embeddings of the same text:
 All vectors are unit-length, so use -metric dot_product.
 
 
+Pre-built files
+---------------
+
+You do not need to run the script yourself: the outputs of a seeded run
+(950,000 docs, 50,000 queries) are hosted at
+
+  https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/dbpedia-openai3/
+
+with a README.md and SHA256SUMS beside them. To download them into ../data:
+
+  python src/python/initial_setup.py --dbpedia trunc1024d    (or 3072d, trunc1536d, ada002, all)
+
+See dbpedia-openai3-artifacts-README.md for the exact command, sizes and
+checksums.
+
+
 Running
 -------
 
@@ -24,7 +40,7 @@ Running
 The script downloads the 63 parquet shards (24.8 GB) into OUT_DIR/parquet,
 skipping shards already there. It then shuffles all rows once with a seed
 (printed as SEED, or set with --seed) and holds out the first --num-queries
-rows (default 10000) as queries. Docs and queries do not overlap.
+rows (default 50000) as queries. Docs and queries do not overlap.
 
 Use --max-shards 2 for a quick test run.
 

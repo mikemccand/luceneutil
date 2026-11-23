@@ -166,7 +166,7 @@ def remove_previous_outputs(out_dir):
 def main():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   parser.add_argument("--out-dir", required=True, help="where to put the downloaded shards and the output files")
-  parser.add_argument("--num-queries", type=int, default=10_000, help="rows held out as query vectors (default 10000)")
+  parser.add_argument("--num-queries", type=int, default=50_000, help="rows held out as query vectors (default 50000)")
   parser.add_argument("--seed", type=int, default=None, help="shuffle seed (default: time based, printed)")
   parser.add_argument("--truncate-dims", default="1024,1536", help="comma separated dims for truncated openai3-large variants, or empty for none")
   parser.add_argument("--max-shards", type=int, default=SHARD_COUNT, help="only use the first N shards, for testing")

@@ -113,6 +113,10 @@ python src/python/load_cohere_v3.py
 # Download Qdrant's DBpedia OpenAI embeddings and partition into queries/docs
 python src/python/load_dbpedia_openai3.py --out-dir /path/to/dbpedia
 # See src/python/dbpedia-openai3-README.txt for the output files and flags
+
+# Or download the pre-built files (950K docs, 50K queries) into ../data
+python src/python/initial_setup.py --dbpedia trunc1024d
+# then set dbpedia_variant in run_knn_benchmark() in src/python/knnPerfTest.py
 ```
 
 ### Debugging Vector Processing

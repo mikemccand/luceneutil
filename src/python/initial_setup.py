@@ -38,11 +38,42 @@ DATA_FILES = [
   "https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip",
 ]
 
+# DBpedia OpenAI embeddings: 950K docs + 50K queries, see dbpedia-openai3-README.txt and
+# dbpedia-openai3-artifacts-README.md.  Not part of -download (too big); use --dbpedia VARIANT
+DBPEDIA_BASE_URL = "https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/dbpedia-openai3"
+
+# variant -> file name prefix; each variant has a .docs.vec and .queries.vec.  only trunc1024d
+# works with Lucene's default max of 1024 dims
+DBPEDIA_VARIANTS = {
+  "3072d": "dbpedia-openai3-large-3072d",
+  "trunc1536d": "dbpedia-openai3-large-trunc1536d",
+  "trunc1024d": "dbpedia-openai3-large-trunc1024d",
+  "ada002": "dbpedia-ada002-1536d",
+}
+
+
+def dbpedia_files(variants):
+  """Returns the DBpedia URLs to download for the given variant names (or "all"), plus the shared CSVs and docs."""
+  if "all" in variants:
+    variants = list(DBPEDIA_VARIANTS)
+  files = []
+  for variant in variants:
+    prefix = DBPEDIA_VARIANTS[variant]
+    files += [f"{DBPEDIA_BASE_URL}/{prefix}.docs.vec", f"{DBPEDIA_BASE_URL}/{prefix}.queries.vec"]
+  for name in ("dbpedia.docs.csv", "dbpedia.queries.csv", "README.md", "SHA256SUMS"):
+    url = f"{DBPEDIA_BASE_URL}/{name}"
+    # README.md and SHA256SUMS are generic names, so prefix them locally
+    files.append(url if name.startswith("dbpedia.") else (url, f"dbpedia-openai3-{name}"))
+  return files
+
+
 USAGE = """
-Usage: python initial_setup.py [-download]
+Usage: python initial_setup.py [-download] [--dbpedia VARIANT[,VARIANT...]]
 
 Options:
   -download downloads a 5GB linedoc file and untold GB of vector files
+  --dbpedia downloads DBpedia OpenAI vectors (950K docs, 50K queries); VARIANT is one of
+            3072d, trunc1536d, trunc1024d, ada002, all
 
 """
 DEFAULT_LOCAL_CONST = """
@@ -51,7 +82,7 @@ BENCH_BASE_DIR = '%(base_dir)s/%(cwd)s'
 """
 
 
-def runSetup(download):
+def runSetup(download, dbpedia_variants=()):
   cwd = os.getcwd()
   parent, base = os.path.split(cwd)
   data_dir = os.path.join(parent, "data")
@@ -87,8 +118,14 @@ def runSetup(download):
   else:
     print("localrun.py already exists - skipping")
 
+  to_download = []
   if download:
-    for tup in DATA_FILES:
+    to_download += DATA_FILES
+  if dbpedia_variants:
+    to_download += dbpedia_files(dbpedia_variants)
+
+  if to_download:
+    for tup in to_download:
       if type(tup) is str:
         url_source = tup
         local_filename = os.path.basename(url_source)
@@ -158,5 +195,15 @@ if __name__ == "__main__":
     action="store_true",
     help="Download datasets to run benchmarks. A 6 GB compressed Wikipedia line doc file, and a 13 GB vectors file is downloaded from Apache mirrors",
   )
+  parser.add_argument(
+    "--dbpedia",
+    default="",
+    help=f"Comma separated DBpedia OpenAI vector variants to download ({', '.join(DBPEDIA_VARIANTS)}, or all), "
+    "plus the docs/queries CSVs. 950K docs + 50K queries; trunc1024d docs are 3.9 GB, 3072d docs are 11.7 GB. See dbpedia-openai3-README.txt",
+  )
   args = parser.parse_args()
-  runSetup(args.download)
+  dbpedia_variants = [v.strip() for v in args.dbpedia.split(",") if v.strip()]
+  for v in dbpedia_variants:
+    if v != "all" and v not in DBPEDIA_VARIANTS:
+      parser.error(f"unknown --dbpedia variant {v!r}; choose from {', '.join(DBPEDIA_VARIANTS)}, all")
+  runSetup(args.download, dbpedia_variants)

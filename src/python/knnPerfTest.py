@@ -1247,10 +1247,32 @@ def run_knn_benchmark(checkout, values, log_path):
   # Cohere Wikipedia en vectors - see cohere-v3-README.txt -- download your copy with "initial_setup.py -download"
   v3 = True
 
+  # DBpedia OpenAI vectors (950K docs, 50K queries) - see dbpedia-openai3-README.txt.  Set to one of
+  # the variants below to use them instead of Cohere; download your copy with e.g.:
+  #
+  #   python src/python/initial_setup.py --dbpedia trunc1024d
+  #
+  # all variants are unit-length so use "metric": ("dot_product",), and keep ndoc <= 950_000 and
+  # nquery <= 50_000.  only trunc1024d works with Lucene's default 1024 max dims; the others need a
+  # vectors format that overrides getMaxDimensions().
+  dbpedia_variant = None
+  # dbpedia_variant = "openai3-large-trunc1024d"  # text-embedding-3-large, first 1024 dims, re-normalized
+  # dbpedia_variant = "openai3-large-trunc1536d"  # text-embedding-3-large, first 1536 dims, re-normalized
+  # dbpedia_variant = "openai3-large-3072d"       # text-embedding-3-large, full 3072 dims
+  # dbpedia_variant = "ada002-1536d"              # text-embedding-ada-002
+
   beastly = os.path.exists("/l/logs.nightly")
 
   data_path = f"{constants.BASE_DIR}/data"
-  if v3:
+  if dbpedia_variant is not None:
+    dim = int(re.search(r"(\d+)d$", dbpedia_variant).group(1))
+    # use the original copy on hosts that have it, else your download in ../data
+    dbpedia_path = "/lucenedata/qdrant/dbpedia-openai3"
+    if not os.path.exists(f"{dbpedia_path}/dbpedia-{dbpedia_variant}.docs.vec"):
+      dbpedia_path = data_path
+    doc_vectors = f"{dbpedia_path}/dbpedia-{dbpedia_variant}.docs.vec"
+    query_vectors = f"{dbpedia_path}/dbpedia-{dbpedia_variant}.queries.vec"
+  elif v3:
     dim = 1024
     if beastly:
       doc_vectors = "/lucenedata/enwiki/cohere-v3/cohere-v3-wikipedia-en-scattered-1024d.docs.vec"

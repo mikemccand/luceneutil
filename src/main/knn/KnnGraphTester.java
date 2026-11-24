@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
+import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
 import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
@@ -69,6 +70,8 @@ import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
+import org.apache.lucene.index.SegmentReadState;
+import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.StandardDirectoryReader;
 import org.apache.lucene.index.StoredFields;
@@ -2378,15 +2381,55 @@ public class KnnGraphTester implements FormatterLogger {
       } else {
         rerankFormat = null;
       }
+      final KnnVectorsFormat mainFormat = new HighDimsKnnVectorsFormat(knnVectorsFormat);
+      final KnnVectorsFormat highDimsRerankFormat = rerankFormat == null ? null : new HighDimsKnnVectorsFormat(rerankFormat);
       return new Lucene104Codec() {
           @Override
           public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
               if (field.equals(KNN_FIELD_RERANK)) {
-                return rerankFormat;
+                return highDimsRerankFormat;
               }
-              return knnVectorsFormat;
+              return mainFormat;
           }
       };
+  }
+
+  // max vector dims we allow at indexing time, above Lucene's default KnnVectorsFormat.DEFAULT_MAX_DIMENSIONS (1024),
+  // so we can test e.g. 1536d / 3072d OpenAI embeddings
+  static final int MAX_DIMENSIONS = 4096;
+
+  /**
+   * Delegates everything to the wrapped format but raises {@link #getMaxDimensions}, which Lucene only checks
+   * at indexing time.  Uses the delegate's SPI name, so the per-field format records that name and segments
+   * are read back with the normal (unwrapped) SPI-registered format.
+   */
+  static final class HighDimsKnnVectorsFormat extends KnnVectorsFormat {
+    private final KnnVectorsFormat delegate;
+
+    HighDimsKnnVectorsFormat(KnnVectorsFormat delegate) {
+      super(delegate.getName());
+      this.delegate = delegate;
+    }
+
+    @Override
+    public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
+      return delegate.fieldsWriter(state);
+    }
+
+    @Override
+    public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
+      return delegate.fieldsReader(state);
+    }
+
+    @Override
+    public int getMaxDimensions(String fieldName) {
+      return Math.max(MAX_DIMENSIONS, delegate.getMaxDimensions(fieldName));
+    }
+
+    @Override
+    public String toString() {
+      return delegate.toString();
+    }
   }
 
   private static void usage() {

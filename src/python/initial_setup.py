@@ -42,8 +42,8 @@ DATA_FILES = [
 # dbpedia-openai3-artifacts-README.md.  Not part of -download (too big); use --dbpedia VARIANT
 DBPEDIA_BASE_URL = "https://pub-6de3254d7180436684278e0ec33ada22.r2.dev/dbpedia-openai3"
 
-# variant -> file name prefix; each variant has a .docs.vec and .queries.vec.  only trunc1024d
-# works with Lucene's default max of 1024 dims
+# variant -> file name prefix; each variant has a .docs.vec and .queries.vec.
+# (KnnGraphTester raises Lucene's default 1024 max dims, so all of them work with knnPerfTest.py)
 DBPEDIA_VARIANTS = {
   "3072d": "dbpedia-openai3-large-3072d",
   "trunc1536d": "dbpedia-openai3-large-trunc1536d",

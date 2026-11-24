@@ -83,7 +83,8 @@ queries files.
 
 Lucene's vector formats accept at most 1024 dims by default, so the 3072d and
 1536d files need a vectors format that overrides getMaxDimensions(). The
-trunc1024d files work as-is.
+trunc1024d files work as-is. KnnGraphTester (and so knnPerfTest.py) wraps its
+formats to allow up to 4096 dims, so all variants work there.
 
 
 License

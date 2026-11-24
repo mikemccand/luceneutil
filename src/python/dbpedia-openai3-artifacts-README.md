@@ -83,7 +83,8 @@ DBpedia entity, and the same holds for the `*.queries.*` files.
 
 Lucene's default vector formats accept at most 1024 dims. The 3072d and
 1536d files need a format that overrides `getMaxDimensions()`. The trunc1024d
-files work as-is.
+files work as-is. KnnGraphTester (and so `knnPerfTest.py`) wraps its formats to
+allow up to 4096 dims, so all variants work there.
 
 ### Relation to the earlier 10,000-query run
 

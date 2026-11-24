@@ -189,6 +189,11 @@ if CONFIRM_SIMD_ASM_MODE and PERF_EXE is None:
 # TODO
 #  - can we expose greediness (global vs local queue exploration in KNN search) here?
 
+# set to a DBpedia OpenAI variant (e.g. "openai3-large-trunc1024d") to test those vectors instead of Cohere;
+# see run_knn_benchmark, or pass --dbpedia-variant
+DBPEDIA_VARIANTS = ("openai3-large-trunc1024d", "openai3-large-trunc1536d", "openai3-large-3072d", "ada002-1536d")
+DBPEDIA_VARIANT = None
+
 # test parameters. This script will run KnnGraphTester on every combination of these parameters
 PARAMS = {
   "ndoc": (500_000,),
@@ -1253,9 +1258,9 @@ def run_knn_benchmark(checkout, values, log_path):
   #   python src/python/initial_setup.py --dbpedia trunc1024d
   #
   # all variants are unit-length so use "metric": ("dot_product",), and keep ndoc <= 950_000 and
-  # nquery <= 50_000.  only trunc1024d works with Lucene's default 1024 max dims; the others need a
-  # vectors format that overrides getMaxDimensions().
-  dbpedia_variant = None
+  # nquery <= 50_000.  Lucene's default max is 1024 dims; KnnGraphTester raises it (HighDimsKnnVectorsFormat)
+  # so the 1536d and 3072d variants work too.  You can also pick a variant with --dbpedia-variant.
+  dbpedia_variant = DBPEDIA_VARIANT
   # dbpedia_variant = "openai3-large-trunc1024d"  # text-embedding-3-large, first 1024 dims, re-normalized
   # dbpedia_variant = "openai3-large-trunc1536d"  # text-embedding-3-large, first 1536 dims, re-normalized
   # dbpedia_variant = "openai3-large-3072d"       # text-embedding-3-large, full 3072 dims
@@ -1638,8 +1643,11 @@ def write_vmstat_pretties(vmstat_log_file_name, full_cmd):
   cwd = os.getcwd()
   try:
     # TODO: optimize to single shared copy!
-    gnuplot_version = subprocess.check_output(["/bin/ls", "/usr/share/gnuplot"], text=True).strip()
-    shutil.copy(f"/usr/share/gnuplot/{gnuplot_version}/js/gnuplot_svg.js", vmstat_dir_name)
+    # /usr/share/gnuplot holds a per-version dir (e.g. 6.0) but may hold other files too (e.g. gnuplot.gih)
+    gnuplot_svg_js = sorted(Path("/usr/share/gnuplot").glob("*/js/gnuplot_svg.js"))
+    if not gnuplot_svg_js:
+      raise RuntimeError("could not find /usr/share/gnuplot/<version>/js/gnuplot_svg.js")
+    shutil.copy(gnuplot_svg_js[-1], vmstat_dir_name)
     shutil.copy(f"{constants.BENCH_BASE_DIR}/src/vmstat/index.html.template", f"{vmstat_dir_name}/index.html")
 
     # because gnuplot needs to be in this directory (?)
@@ -2272,7 +2280,10 @@ if __name__ == "__main__":
   )
   parser.add_argument("--verbose", action="store_true", help="log at debug level")
   parser.add_argument("--quiet", action="store_true", help="log at warn level")
+  parser.add_argument("--dbpedia-variant", choices=DBPEDIA_VARIANTS, help="test these DBpedia OpenAI vectors instead of Cohere (see dbpedia-openai3-README.txt)")
   n = parser.parse_args()
+  if n.dbpedia_variant is not None:
+    globals()["DBPEDIA_VARIANT"] = n.dbpedia_variant
   if n.no_smell_vectors:
     # mutate the module-level flag so run_knn_benchmark sees it
     globals()["SMELL_VECTORS_ENABLED"] = False
